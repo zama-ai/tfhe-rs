@@ -30,6 +30,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::{Seed, XofSeed};
 use tfhe_fft::c64;
 
+use crate::integer::compression_keys::CompressionKey;
 use crate::integer::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
 };
@@ -37,6 +38,175 @@ use crate::shortint::noise_squashing::{
     CompressedShortint128BootstrappingKey, Shortint128BootstrappingKey,
 };
 use rayon::prelude::*;
+
+impl CompressedCompactPublicKey {
+    fn decompress_with_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> CompactPublicKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let shortint_cpk = &self.key.key.key;
+        let compressed_pk = &shortint_cpk.key;
+        let mut pk = LweCompactPublicKey::new(
+            0u64,
+            compressed_pk.lwe_dimension(),
+            compressed_pk.ciphertext_modulus(),
+        );
+
+        decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator(
+            &mut pk,
+            compressed_pk,
+            generator,
+        );
+
+        let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
+        let integer_pk = integer::CompactPublicKey::from_raw_parts(shortint_pk);
+        CompactPublicKey::from_raw_parts(integer_pk, Tag::default())
+    }
+}
+
+impl integer::compression_keys::CompressedCompressionKey {
+    fn decompress_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> CompressionKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let packing_key_switching_key = self
+            .key
+            .packing_key_switching_key
+            .decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(generator);
+
+        CompressionKey {
+            key: shortint::list_compression::CompressionKey {
+                packing_key_switching_key,
+                lwe_per_glwe: self.key.lwe_per_glwe,
+                storage_log_modulus: self.key.storage_log_modulus,
+            },
+        }
+    }
+}
+
+impl integer::compression_keys::CompressedDecompressionKey {
+    fn decompress_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> integer::compression_keys::DecompressionKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let compressed_blind_rot_key = &self.key.blind_rotate_key;
+
+        let core_fourier_bsk = par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
+            compressed_blind_rot_key,
+            generator,
+        );
+
+        integer::compression_keys::DecompressionKey {
+            key: shortint::list_compression::DecompressionKey {
+                blind_rotate_key: core_fourier_bsk,
+                lwe_per_glwe: self.key.lwe_per_glwe,
+            },
+        }
+    }
+}
+
+impl CompressedNoiseSquashingKey {
+    fn decompress_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> integer::noise_squashing::NoiseSquashingKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let CompressedShortint128BootstrappingKey::Classic {
+            bsk: compressed_bsk,
+            modulus_switch_noise_reduction_key,
+        } = self.key.bootstrapping_key()
+        else {
+            panic!("Noise squashing key is not a classic key")
+        };
+
+        let mut core_bsk = LweBootstrapKeyOwned::new(
+            0u128,
+            compressed_bsk.glwe_size(),
+            compressed_bsk.polynomial_size(),
+            compressed_bsk.decomposition_base_log(),
+            compressed_bsk.decomposition_level_count(),
+            compressed_bsk.input_lwe_dimension(),
+            compressed_bsk.ciphertext_modulus(),
+        );
+
+        decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator(
+            &mut core_bsk,
+            &compressed_bsk,
+            generator,
+        );
+
+        let mut core_fourier_bsk = Fourier128LweBootstrapKeyOwned::new(
+            core_bsk.input_lwe_dimension(),
+            core_bsk.glwe_size(),
+            core_bsk.polynomial_size(),
+            core_bsk.decomposition_base_log(),
+            core_bsk.decomposition_level_count(),
+        );
+
+        par_convert_standard_lwe_bootstrap_key_to_fourier_128(&core_bsk, &mut core_fourier_bsk);
+
+        let ms_nrk =
+            decompress_compressed_mod_switch_config(&modulus_switch_noise_reduction_key, generator);
+
+        let decompressed = Shortint128BootstrappingKey::Classic {
+            bsk: core_fourier_bsk,
+            modulus_switch_noise_reduction_key: ms_nrk,
+        };
+
+        integer::noise_squashing::NoiseSquashingKey::from_raw_parts(
+            shortint::noise_squashing::NoiseSquashingKey::from_raw_parts(
+                decompressed,
+                self.key.message_modulus(),
+                self.key.carry_modulus(),
+                self.key.output_ciphertext_modulus(),
+            ),
+        )
+    }
+}
+
+impl CompressedKeySwitchingKeyMaterial {
+    fn decompress_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> KeySwitchingKeyMaterial
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let compressed_cpk_ksk = &self.material.key_switching_key;
+
+        let mut key_switching_key = LweKeyswitchKey::new(
+            0u64,
+            compressed_cpk_ksk.decomposition_base_log(),
+            compressed_cpk_ksk.decomposition_level_count(),
+            compressed_cpk_ksk.input_key_lwe_dimension(),
+            compressed_cpk_ksk.output_key_lwe_dimension(),
+            compressed_cpk_ksk.ciphertext_modulus(),
+        );
+        decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator(
+            &mut key_switching_key,
+            &compressed_cpk_ksk,
+            generator,
+        );
+        let shortint_cpk_ksk = shortint::key_switching_key::KeySwitchingKeyMaterial {
+            key_switching_key,
+            cast_rshift: self.material.cast_rshift,
+            destination_key: self.material.destination_key,
+        };
+        KeySwitchingKeyMaterial::from_raw_parts(shortint_cpk_ksk)
+    }
+}
+
 // Generation order:
 //
 // 1) Public key (enc params)
@@ -332,7 +502,7 @@ impl CompressedXofKeySet {
                     &mut encryption_rand_gen,
                 );
 
-            integer::key_switching_key::CompressedKeySwitchingKeyMaterial {
+            CompressedKeySwitchingKeyMaterial {
                 material: shortint::key_switching_key::CompressedKeySwitchingKeyMaterial {
                     key_switching_key,
                     cast_rshift: 0,
@@ -393,69 +563,21 @@ impl CompressedXofKeySet {
         let mut mask_generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed);
 
         let public_key = {
-            let shortint_cpk = self.compressed_public_key.into_raw_parts().0.key;
-            let compressed_pk = &shortint_cpk.key;
-            let mut pk = LweCompactPublicKey::new(
-                0u64,
-                compressed_pk.lwe_dimension(),
-                compressed_pk.ciphertext_modulus(),
-            );
-            decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator(
-                &mut pk,
-                compressed_pk,
-                &mut mask_generator,
-            );
-
-            let shortint_pk =
-                shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
-            let integer_pk = integer::CompactPublicKey::from_raw_parts(shortint_pk);
-            CompactPublicKey::from_raw_parts(integer_pk, Tag::default())
+            self.compressed_public_key
+                .decompress_with_with_existing_generator(&mut mask_generator)
         };
 
-        let (compression_key, decompression_key) =
-            match self.compressed_server_key.integer_key.compression_key {
-                Some(compressed_compression_key) => {
-                    let packing_key_switching_key = compressed_compression_key
-                        .key
-                        .packing_key_switching_key
-                        .decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(
-                            &mut mask_generator,
-                        );
+        let compression_key = self
+            .compressed_server_key
+            .integer_key
+            .compression_key
+            .map(|k| k.decompress_with_existing_generator(&mut mask_generator));
 
-                    let compression_key = integer::compression_keys::CompressionKey {
-                        key: shortint::list_compression::CompressionKey {
-                            packing_key_switching_key,
-                            lwe_per_glwe: compressed_compression_key.key.lwe_per_glwe,
-                            storage_log_modulus: compressed_compression_key.key.storage_log_modulus,
-                        },
-                    };
-
-                    let compressed_decompression_key = self
-                        .compressed_server_key
-                        .integer_key
-                        .decompression_key
-                        .unwrap();
-
-                    let compressed_blind_rot_key =
-                        &compressed_decompression_key.key.blind_rotate_key;
-
-                    let core_fourier_bsk =
-                        par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
-                            compressed_blind_rot_key,
-                            &mut mask_generator,
-                        );
-
-                    let decompression_key = integer::compression_keys::DecompressionKey {
-                        key: shortint::list_compression::DecompressionKey {
-                            blind_rotate_key: core_fourier_bsk,
-                            lwe_per_glwe: compressed_decompression_key.key.lwe_per_glwe,
-                        },
-                    };
-
-                    (Some(compression_key), Some(decompression_key))
-                }
-                None => (None, None),
-            };
+        let decompression_key = self
+            .compressed_server_key
+            .integer_key
+            .decompression_key
+            .map(|k| k.decompress_with_existing_generator(&mut mask_generator));
 
         let server_key = {
             let shortint_sk = &self.compressed_server_key.integer_key.key.key;
@@ -502,29 +624,9 @@ impl CompressedXofKeySet {
                     seeded_bsk,
                     deterministic_execution,
                 } => {
-                    let mut core_bsk = LweMultiBitBootstrapKeyOwned::new(
-                        0u64,
-                        seeded_bsk.glwe_size(),
-                        seeded_bsk.polynomial_size(),
-                        seeded_bsk.decomposition_base_log(),
-                        seeded_bsk.decomposition_level_count(),
-                        seeded_bsk.input_lwe_dimension(),
-                        seeded_bsk.grouping_factor(),
-                        seeded_bsk.ciphertext_modulus(),
-                    );
-                    par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator(
-                        &mut core_bsk,
-                        seeded_bsk,
-                        &mut mask_generator,
-                    );
-
-                    let core_fourier_bsk = FourierLweMultiBitBootstrapKeyOwned::new(
-                        core_bsk.input_lwe_dimension(),
-                        core_bsk.glwe_size(),
-                        core_bsk.polynomial_size(),
-                        core_bsk.decomposition_base_log(),
-                        core_bsk.decomposition_level_count(),
-                        core_bsk.grouping_factor(),
+                    let core_fourier_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator(
+                        &seeded_bsk,
+                        &mut mask_generator
                     );
 
                     let thread_count = match core_fourier_bsk.grouping_factor().0 {
@@ -569,101 +671,14 @@ impl CompressedXofKeySet {
                 .noise_squashing_key
                 .as_ref()
                 .map(|compressed_nsk| {
-                    let CompressedShortint128BootstrappingKey::Classic {
-                        bsk: compressed_bsk,
-                        modulus_switch_noise_reduction_key,
-                    } = compressed_nsk.key.bootstrapping_key()
-                    else {
-                        panic!("Noise squashing key is not a classic key")
-                    };
-
-                    let mut core_bsk = LweBootstrapKeyOwned::new(
-                        0u128,
-                        compressed_bsk.glwe_size(),
-                        compressed_bsk.polynomial_size(),
-                        compressed_bsk.decomposition_base_log(),
-                        compressed_bsk.decomposition_level_count(),
-                        compressed_bsk.input_lwe_dimension(),
-                        compressed_bsk.ciphertext_modulus(),
-                    );
-
-                    decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator(
-                        &mut core_bsk,
-                        compressed_bsk,
-                        &mut mask_generator,
-                    );
-
-                    let mut core_fourier_bsk = Fourier128LweBootstrapKeyOwned::new(
-                        core_bsk.input_lwe_dimension(),
-                        core_bsk.glwe_size(),
-                        core_bsk.polynomial_size(),
-                        core_bsk.decomposition_base_log(),
-                        core_bsk.decomposition_level_count(),
-                    );
-
-                    par_convert_standard_lwe_bootstrap_key_to_fourier_128(
-                        &core_bsk,
-                        &mut core_fourier_bsk,
-                    );
-
-                    let ms_nrk = decompress_compressed_mod_switch_config(
-                        modulus_switch_noise_reduction_key,
-                        &mut mask_generator,
-                    );
-
-                    let decompressed = Shortint128BootstrappingKey::Classic {
-                        bsk: core_fourier_bsk,
-                        modulus_switch_noise_reduction_key: ms_nrk,
-                    };
-
-                    integer::noise_squashing::NoiseSquashingKey::from_raw_parts(
-                        shortint::noise_squashing::NoiseSquashingKey::from_raw_parts(
-                            decompressed,
-                            compressed_nsk.key.message_modulus(),
-                            compressed_nsk.key.carry_modulus(),
-                            compressed_nsk.key.output_ciphertext_modulus(),
-                        ),
-                    )
+                    compressed_nsk.decompress_with_existing_generator(&mut mask_generator)
                 });
 
-            let compressed_cpk_ksk = &self
+            let integer_cpk_ksk = self
                 .compressed_server_key
                 .integer_key
                 .cpk_key_switching_key_material
-                .as_ref()
-                .unwrap()
-                .material;
-
-            let mut key_switching_key = LweKeyswitchKey::new(
-                0u64,
-                compressed_cpk_ksk
-                    .key_switching_key
-                    .decomposition_base_log(),
-                compressed_cpk_ksk
-                    .key_switching_key
-                    .decomposition_level_count(),
-                compressed_cpk_ksk
-                    .key_switching_key
-                    .input_key_lwe_dimension(),
-                compressed_cpk_ksk
-                    .key_switching_key
-                    .output_key_lwe_dimension(),
-                compressed_cpk_ksk.key_switching_key.ciphertext_modulus(),
-            );
-            decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator(
-                &mut key_switching_key,
-                &compressed_cpk_ksk.key_switching_key,
-                &mut mask_generator,
-            );
-            let shortint_cpk_ksk = shortint::key_switching_key::KeySwitchingKeyMaterial {
-                key_switching_key,
-                cast_rshift: compressed_cpk_ksk.cast_rshift,
-                destination_key: compressed_cpk_ksk.destination_key,
-            };
-            let integer_cpk_ksk =
-                integer::key_switching_key::KeySwitchingKeyMaterial::from_raw_parts(
-                    shortint_cpk_ksk,
-                );
+                .map(|k| k.decompress_with_existing_generator(&mut mask_generator));
 
             match &mut integer_sk.key.atomic_pattern {
                 AtomicPatternServerKey::Standard(ap) => {
@@ -712,7 +727,7 @@ impl CompressedXofKeySet {
             let noise_squashing_compression_key = None;
             ServerKey::from_raw_parts(
                 integer_sk,
-                Some(integer_cpk_ksk),
+                integer_cpk_ksk,
                 compression_key,
                 decompression_key,
                 noise_squashing_key,
@@ -882,6 +897,44 @@ where
     );
 
     par_convert_standard_lwe_bootstrap_key_to_fourier(&core_bsk, &mut core_fourier_bsk);
+
+    core_fourier_bsk
+}
+
+fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator<Gen>(
+    seeded_bsk: &SeededLweMultiBitBootstrapKeyOwned<u64>,
+    mask_generator: &mut MaskRandomGenerator<Gen>,
+) -> FourierLweMultiBitBootstrapKeyOwned
+where
+    Gen: ParallelByteRandomGenerator,
+{
+    let mut core_bsk = LweMultiBitBootstrapKeyOwned::new(
+        0u64,
+        seeded_bsk.glwe_size(),
+        seeded_bsk.polynomial_size(),
+        seeded_bsk.decomposition_base_log(),
+        seeded_bsk.decomposition_level_count(),
+        seeded_bsk.input_lwe_dimension(),
+        seeded_bsk.grouping_factor(),
+        seeded_bsk.ciphertext_modulus(),
+    );
+
+    par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator(
+        &mut core_bsk,
+        seeded_bsk,
+        mask_generator,
+    );
+
+    let mut core_fourier_bsk = FourierLweMultiBitBootstrapKeyOwned::new(
+        core_bsk.input_lwe_dimension(),
+        core_bsk.glwe_size(),
+        core_bsk.polynomial_size(),
+        core_bsk.decomposition_base_log(),
+        core_bsk.decomposition_level_count(),
+        core_bsk.grouping_factor(),
+    );
+
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&core_bsk, &mut core_fourier_bsk);
 
     core_fourier_bsk
 }
@@ -1687,8 +1740,8 @@ impl ShortintBootstrappingKey<u64> {
     }
 }
 
-impl crate::shortint::ServerKey {
-    fn compress(&self) -> crate::shortint::CompressedServerKey {
+impl shortint::ServerKey {
+    fn compress(&self) -> shortint::CompressedServerKey {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(ap) => {
                 let compressed_ksk = compress_lwe_key_switching_key(&ap.key_switching_key);
@@ -1700,7 +1753,7 @@ impl crate::shortint::ServerKey {
                         ap.pbs_order,
                     ),
                 );
-                crate::shortint::CompressedServerKey::from_raw_parts(
+                shortint::CompressedServerKey::from_raw_parts(
                     compressed_ap,
                     self.message_modulus,
                     self.carry_modulus,
@@ -1718,9 +1771,9 @@ impl crate::shortint::ServerKey {
     }
 }
 
-impl crate::integer::ServerKey {
-    fn compress(&self) -> crate::integer::CompressedServerKey {
-        crate::integer::CompressedServerKey::from_raw_parts(self.key.compress())
+impl integer::ServerKey {
+    fn compress(&self) -> integer::CompressedServerKey {
+        integer::CompressedServerKey::from_raw_parts(self.key.compress())
     }
 }
 
@@ -1809,8 +1862,8 @@ impl ServerKey {
                 }),
                 decompression_key: decompression_key.as_ref().map(|key| {
                     let shortint_key = &key.key;
-                    crate::integer::compression_keys::CompressedDecompressionKey::from_raw_parts(
-                        crate::shortint::list_compression::CompressedDecompressionKey {
+                    integer::compression_keys::CompressedDecompressionKey::from_raw_parts(
+                        shortint::list_compression::CompressedDecompressionKey {
                             blind_rotate_key: compress_fourier_lwe_bootstrap_key(
                                 &shortint_key.blind_rotate_key,
                             ),
@@ -1846,8 +1899,8 @@ impl CompactPublicKey {
 
         CompressedCompactPublicKey {
             key: crate::high_level_api::keys::IntegerCompressedCompactPublicKey {
-                key: crate::integer::CompressedCompactPublicKey {
-                    key: crate::shortint::CompressedCompactPublicKey {
+                key: integer::CompressedCompactPublicKey {
+                    key: shortint::CompressedCompactPublicKey {
                         key: seeded_key,
                         parameters: self.parameters(),
                     },
