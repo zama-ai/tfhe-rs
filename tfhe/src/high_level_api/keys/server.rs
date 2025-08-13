@@ -7,7 +7,10 @@ use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
-use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::high_level_api::keys::{
+    CompressedReRandomizationKeySwitchingKey, IntegerCompressedServerKey, IntegerServerKey,
+    ReRandomizationKeySwitchingKey,
+};
 use crate::integer::ciphertext::{
     CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
 };
@@ -65,6 +68,7 @@ impl ServerKey {
         Option<DecompressionKey>,
         Option<NoiseSquashingKey>,
         Option<NoiseSquashingCompressionKey>,
+        Option<ReRandomizationKeySwitchingKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -74,6 +78,7 @@ impl ServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
+            cpk_re_randomization_key_switching_key_material,
         } = (*self.key).clone();
 
         (
@@ -83,10 +88,12 @@ impl ServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
+            cpk_re_randomization_key_switching_key_material,
             self.tag,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         key: crate::integer::ServerKey,
         cpk_key_switching_key_material: Option<
@@ -96,6 +103,7 @@ impl ServerKey {
         decompression_key: Option<DecompressionKey>,
         noise_squashing_key: Option<NoiseSquashingKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
+        cpk_re_randomization_key_switching_key_material: Option<ReRandomizationKeySwitchingKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -106,6 +114,7 @@ impl ServerKey {
                 decompression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
+                cpk_re_randomization_key_switching_key_material,
             }),
             tag,
         }
@@ -124,6 +133,12 @@ impl ServerKey {
         &self,
     ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView<'_>> {
         self.key.cpk_casting_key()
+    }
+
+    pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
+        &self,
+    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>> {
+        self.key.re_randomization_cpk_casting_key()
     }
 
     pub fn noise_squashing_key(
@@ -245,6 +260,7 @@ impl CompressedServerKey {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -252,12 +268,16 @@ impl CompressedServerKey {
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
         Option<CompressedCompressionKey>,
         Option<CompressedDecompressionKey>,
+        Option<CompressedNoiseSquashingKey>,
+        Option<CompressedNoiseSquashingCompressionKey>,
+        Option<CompressedReRandomizationKeySwitchingKey>,
         Tag,
     ) {
-        let (a, b, c, d) = self.integer_key.into_raw_parts();
-        (a, b, c, d, self.tag)
+        let (a, b, c, d, e, f, g) = self.integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, self.tag)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         integer_key: crate::integer::CompressedServerKey,
         cpk_key_switching_key_material: Option<
@@ -267,6 +287,9 @@ impl CompressedServerKey {
         decompression_key: Option<CompressedDecompressionKey>,
         noise_squashing_key: Option<CompressedNoiseSquashingKey>,
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
+        cpk_re_randomization_key_switching_key_material: Option<
+            CompressedReRandomizationKeySwitchingKey,
+        >,
         tag: Tag,
     ) -> Self {
         Self {
@@ -277,6 +300,7 @@ impl CompressedServerKey {
                 decompression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
+                cpk_re_randomization_key_switching_key_material,
             ),
             tag,
         }
@@ -576,6 +600,7 @@ mod test {
         NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
@@ -662,11 +687,15 @@ mod test {
             let noise_squashing_compression_params =
                 NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+            let cpk_re_randomization_ksk_params =
+                PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
                 .enable_compression(comp_params)
                 .enable_noise_squashing(noise_squashing_params)
                 .enable_noise_squashing_compression(noise_squashing_compression_params)
+                .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
                 .build();
 
             let ck = ClientKey::generate(config);
@@ -709,6 +738,7 @@ mod test {
                     compression_param: None,
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
+                    cpk_re_randomization_ksk_params: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -738,6 +768,7 @@ mod test {
                 compression_param: None,
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
+                cpk_re_randomization_ksk_params: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -823,11 +854,15 @@ mod test {
             let noise_squashing_compression_params =
                 NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+            let cpk_re_randomization_ksk_params =
+                PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
                 .enable_compression(comp_params)
                 .enable_noise_squashing(noise_squashing_params)
                 .enable_noise_squashing_compression(noise_squashing_compression_params)
+                .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
                 .build();
 
             let ck = ClientKey::generate(config);
@@ -870,6 +905,7 @@ mod test {
                     compression_param: None,
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
+                    cpk_re_randomization_ksk_params: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -899,6 +935,7 @@ mod test {
                 compression_param: None,
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
+                cpk_re_randomization_ksk_params: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));

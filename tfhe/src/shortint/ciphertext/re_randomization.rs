@@ -1,0 +1,467 @@
+//! Update the random elements (mask and noise) of a ciphertext without changing its plaintext value
+//!
+//! This works by generating encrypted zeros using a public key, that will be added to the input
+//! ciphertexts
+
+use crate::core_crypto::algorithms::{
+    encrypt_lwe_compact_ciphertext_list_with_compact_public_key, keyswitch_lwe_ciphertext,
+    lwe_ciphertext_add_assign,
+};
+use crate::core_crypto::commons::generators::{
+    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
+};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder, XofSeed};
+use crate::core_crypto::commons::parameters::{LweCiphertextCount, PlaintextCount};
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::entities::{LweCiphertext, LweCompactCiphertextList, PlaintextList};
+use crate::core_crypto::prelude::LweCiphertextList;
+use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
+use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
+
+use rayon::prelude::*;
+use sha3::digest::{ExtendableOutput, Update};
+use std::io::Read;
+
+/// Size of the re-randomization seed in bits
+const RERAND_SEED_BITS: usize = 256;
+
+/// The XoF algorithm used to generate the re-randomization seed
+#[derive(Copy, Clone, Default)]
+pub enum ReRandomizationHashAlgo {
+    /// Used for NIST compliance
+    Shake256,
+    /// Faster, should be preferred unless you have specific requirements
+    #[default]
+    Blake3,
+}
+
+/// The hash state used for the re-randomization seed generation
+#[derive(Clone)]
+// blake3 is the larger variant but we expect it to be more used in performance sensitive contexts
+#[allow(clippy::large_enum_variant)]
+pub enum ReRandomizationSeedHasher {
+    Shake256(sha3::Shake256),
+    Blake3(blake3::Hasher),
+}
+
+impl ReRandomizationSeedHasher {
+    /// Create a new hash state for the provided algorithm
+    pub fn new(
+        algo: ReRandomizationHashAlgo,
+        rerand_root_seed_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+    ) -> Self {
+        let mut hasher = match algo {
+            ReRandomizationHashAlgo::Shake256 => Self::Shake256(sha3::Shake256::default()),
+            ReRandomizationHashAlgo::Blake3 => Self::Blake3(blake3::Hasher::default()),
+        };
+
+        hasher.update(&rerand_root_seed_domain_separator);
+        hasher
+    }
+
+    /// Update the hash state with new data
+    fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Shake256(hasher) => hasher.update(data),
+            Self::Blake3(hasher) => {
+                hasher.update(data);
+            }
+        }
+    }
+
+    /// Consume the state to generate a seed
+    fn finalize(self) -> [u8; RERAND_SEED_BITS / 8] {
+        let mut res = [0; RERAND_SEED_BITS / 8];
+        match self {
+            Self::Shake256(hasher) => {
+                let mut reader = hasher.finalize_xof();
+                // XoF reader cannot EoF
+                let _ = reader.read_exact(&mut res);
+            }
+            Self::Blake3(hasher) => {
+                let mut reader = hasher.finalize_xof();
+                // XoF reader cannot EoF
+                let _ = reader.read_exact(&mut res);
+            }
+        }
+        res
+    }
+}
+
+impl From<sha3::Shake256> for ReRandomizationSeedHasher {
+    fn from(value: sha3::Shake256) -> Self {
+        Self::Shake256(value)
+    }
+}
+
+impl From<blake3::Hasher> for ReRandomizationSeedHasher {
+    fn from(value: blake3::Hasher) -> Self {
+        Self::Blake3(value)
+    }
+}
+
+/// A seed that can be used to re-randomize a ciphertext
+pub struct ReRandomizationSeed(pub(crate) XofSeed);
+
+/// The context that will be hashed and used to generate unique [`ReRandomizationSeed`]
+pub struct ReRandomizationContext {
+    hash_state: ReRandomizationSeedHasher,
+    public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+}
+
+impl ReRandomizationContext {
+    /// Create a new re-randomization context with the default seed hasher (blake3).
+    ///
+    /// The rerand process is seeded in the following way:
+    /// - First the context is hashed with the `rerand_root_seed_domain_separator` and the
+    ///   `nonce_metadata` to derive a "re-rand root seed".
+    /// - Then the "re-rand root seed" is used with the `public_encryption_domain_separator` to
+    ///   create a [`DeterministicSeeder`]
+    /// - Finally the [`DeterministicSeeder`] is used to generates seeds for the
+    ///   [`SecretRandomGenerator`] and the [`EncryptionRandomGenerator`] used to generate the
+    ///   encryptions of zero
+    ///
+    /// (See [`XofSeed`] for more information)
+    ///
+    /// # Example
+    /// ```rust
+    /// use tfhe::shortint::ciphertext::ReRandomizationContext;
+    /// // Simulate a 256 bits nonce
+    /// let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+    /// let _re_rand_context = ReRandomizationContext::new(
+    ///     *b"TFHE_Rrd",
+    ///     [b"FheUint64+FheUint64".as_slice(), &nonce],
+    ///     *b"TFHE_Enc"
+    ///  );
+    pub fn new<'a>(
+        rerand_root_seed_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        nonce_metadata: impl IntoIterator<Item = &'a [u8]>,
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+    ) -> Self {
+        let seed_hasher = ReRandomizationSeedHasher::new(
+            ReRandomizationHashAlgo::default(),
+            rerand_root_seed_domain_separator,
+        );
+
+        Self::new_with_hasher(
+            nonce_metadata,
+            public_encryption_domain_separator,
+            seed_hasher,
+        )
+    }
+
+    /// Create a new re-randomization context with the provided seed hasher.
+    pub fn new_with_hasher<'a>(
+        nonce_metadata: impl IntoIterator<Item = &'a [u8]>,
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        seed_hasher: ReRandomizationSeedHasher,
+    ) -> Self {
+        let mut hash_state = seed_hasher;
+
+        for meta in nonce_metadata {
+            hash_state.update(meta);
+        }
+
+        Self {
+            hash_state,
+            public_encryption_domain_separator,
+        }
+    }
+
+    /// Adds a new ciphertext to the re-randomization context
+    pub fn add_ciphertext(&mut self, ciphertext: &Ciphertext) {
+        self.add_ciphertext_iterator([ciphertext]);
+    }
+
+    /// Adds bytes to the re-randomization context
+    pub fn add_bytes(&mut self, data: &[u8]) {
+        self.hash_state.update(data);
+    }
+
+    pub fn add_ciphertext_iterator<'a, I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a Ciphertext>,
+    {
+        // Blake3 algorithm is faster when fed with larger chunks of data, so we copy all the
+        // ciphertexts into a single buffer.
+
+        // We try to estimate the buffer size and preallocate it. This is an estimate based on the
+        // following assumptions:
+        // - all ciphertexts have the same size
+        // - the iterator size hint is correct
+        // This is not critical as a bad estimate only results in reallocations in the worst case.
+        let mut iter = iter.into_iter();
+        let Some(first) = iter.next() else {
+            return;
+        };
+
+        let hint = iter.size_hint();
+        // Use the max iterator size if it exists, or default to the min one.
+        let iter_len = hint.1.unwrap_or(hint.0);
+        let tot_len = first.ct.as_ref().len() * iter_len;
+        let mut copied: Vec<u64> = Vec::with_capacity(tot_len);
+
+        copied.extend(first.ct.as_ref());
+        for ciphertext in iter {
+            copied.extend(ciphertext.ct.as_ref());
+        }
+
+        self.hash_state.update(bytemuck::cast_slice(&copied));
+    }
+
+    /// Consumes the context to create a seed generator
+    pub fn finalize(self) -> ReRandomizationSeedGen {
+        let Self {
+            hash_state,
+            public_encryption_domain_separator,
+        } = self;
+
+        ReRandomizationSeedGen {
+            hash_state,
+            next_seed_index: 0,
+            public_encryption_domain_separator,
+        }
+    }
+}
+
+/// A generator that can be used to obtain seeds needed to re-randomize individual ciphertexts
+pub struct ReRandomizationSeedGen {
+    hash_state: ReRandomizationSeedHasher,
+    next_seed_index: u64,
+    public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+}
+
+impl ReRandomizationSeedGen {
+    pub fn next_seed(&mut self) -> ReRandomizationSeed {
+        let current_seed_index = self.next_seed_index;
+        self.next_seed_index += 1;
+
+        let mut hash_state = self.hash_state.clone();
+        hash_state.update(&current_seed_index.to_le_bytes());
+
+        let seed_256 = hash_state.finalize();
+
+        ReRandomizationSeed(XofSeed::new(
+            seed_256.to_vec(),
+            self.public_encryption_domain_separator,
+        ))
+    }
+}
+
+impl CompactPublicKey {
+    /// Re-randomize a list of ciphertexts using the provided seed and compact public key
+    ///
+    /// The key and seed are used to generate encryptions of zero that will be added to the input
+    /// ciphertexts
+    pub fn re_randomize_ciphertexts(
+        &self,
+        cts: &[Ciphertext],
+        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<Vec<Ciphertext>> {
+        if cts
+            .iter()
+            .any(|ct| !matches!(ct.atomic_pattern.pbs_order(), PBSOrder::KeyswitchBootstrap))
+        {
+            return Err(crate::error!(
+                "Tried to re-randomize a Ciphertext with unsupported PBSOrder. \
+                Required PBSOrder::KeyswitchBootstrap.",
+            ));
+        }
+
+        if key_switching_key_material.cast_rshift != 0 {
+            return Err(crate::error!(
+                "Tried to re-randomize a Ciphertext using KeySwitchingKeyMaterialView \
+                with non-zero cast_rshift, this is unsupported.",
+            ));
+        }
+
+        let ksk_dest_pbs_order = key_switching_key_material.destination_key.into_pbs_order();
+
+        if cts
+            .iter()
+            .any(|ct| ct.atomic_pattern.pbs_order() != ksk_dest_pbs_order)
+        {
+            return Err(crate::error!(
+                "Mismatched PBSOrder between Ciphertext being re-randomized and provided \
+                KeySwitchingKeyMaterialView.",
+            ));
+        }
+
+        if key_switching_key_material
+            .key_switching_key
+            .input_key_lwe_dimension()
+            != self.parameters().encryption_lwe_dimension
+        {
+            return Err(crate::error!(
+                "Mismatched LweDimension between provided CompactPublicKey and \
+                KeySwitchingKeyMaterialView input LweDimension.",
+            ));
+        }
+
+        if cts.iter().any(|ct| {
+            key_switching_key_material
+                .key_switching_key
+                .output_lwe_size()
+                != ct.ct.lwe_size()
+        }) {
+            return Err(crate::error!(
+                "Mismatched LweSize between provided Ciphertext and \
+                CompactPublicKey output LweSize.",
+            ));
+        }
+
+        if cts.iter().any(|ct| ct.noise_level() != NoiseLevel::NOMINAL) {
+            return Err(crate::error!(
+                "Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.",
+            ));
+        }
+
+        // TODO: what do we do about this ?
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed.0);
+        let mut secret_generator =
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+            deterministic_seeder.seed(),
+            &mut deterministic_seeder,
+        );
+
+        let zero_container: Vec<_> = cts
+            .chunks(self.parameters().encryption_lwe_dimension.0)
+            .flat_map(|cts| {
+                let mut encryption_of_zero = LweCompactCiphertextList::new(
+                    0,
+                    self.parameters().encryption_lwe_dimension.to_lwe_size(),
+                    LweCiphertextCount(cts.len()),
+                    self.parameters().ciphertext_modulus,
+                );
+
+                let plaintext_list = PlaintextList::new(
+                    0,
+                    PlaintextCount(encryption_of_zero.lwe_ciphertext_count().0),
+                );
+
+                let cpk_encryption_noise_distribution =
+                    self.parameters().encryption_noise_distribution;
+
+                encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                    &self.key,
+                    &mut encryption_of_zero,
+                    &plaintext_list,
+                    cpk_encryption_noise_distribution,
+                    cpk_encryption_noise_distribution,
+                    &mut secret_generator,
+                    &mut encryption_generator,
+                );
+
+                encryption_of_zero
+                    .expand_into_lwe_ciphertext_list()
+                    .into_container()
+            })
+            .collect();
+
+        let zero_lwes = LweCiphertextList::from_container(
+            zero_container,
+            self.parameters().encryption_lwe_dimension.to_lwe_size(),
+            self.parameters().ciphertext_modulus,
+        );
+
+        Ok(cts
+            .par_iter()
+            .zip(zero_lwes.par_iter())
+            .map(|(ct, lwe_randomizer_cpk)| {
+                let mut lwe_randomizer_ksed = LweCiphertext::new(
+                    0,
+                    key_switching_key_material
+                        .key_switching_key
+                        .output_lwe_size(),
+                    key_switching_key_material
+                        .key_switching_key
+                        .ciphertext_modulus(),
+                );
+
+                // Keyswitch used to convert from the cpk params to the compute ones.
+                // In theory, with a cpk made from the compute secret key, this keyswitch could be
+                // removed at the cost of an additional key.
+                keyswitch_lwe_ciphertext(
+                    key_switching_key_material.key_switching_key,
+                    &lwe_randomizer_cpk,
+                    &mut lwe_randomizer_ksed,
+                );
+
+                let mut result = ct.clone();
+
+                lwe_ciphertext_add_assign(&mut result.ct, &lwe_randomizer_ksed);
+
+                result
+            })
+            .collect())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+    };
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKey};
+
+    /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
+    #[test]
+    fn test_rerand_large_ct_count_ci_run_filter() {
+        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (cks, sks) = gen_keys(compute_params);
+        let privk = CompactPrivateKey::new(pke_params);
+        let pubk = CompactPublicKey::new(&privk);
+        let ksk = KeySwitchingKey::new((&privk, None), (&cks, &sks), ks_params);
+
+        let pke_lwe_dim = pke_params.encryption_lwe_dimension.0;
+
+        let msg1 = 1;
+        let msg2 = 2;
+
+        let mut cts = Vec::with_capacity(pke_lwe_dim * 2);
+
+        for _ in 0..pke_lwe_dim {
+            let ct1 = cks.encrypt(msg1);
+            cts.push(ct1);
+            let ct2 = cks.encrypt(msg2);
+            cts.push(ct2);
+        }
+
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+        let mut re_rand_context = ReRandomizationContext::new(
+            *b"TFHE_Rrd",
+            [b"FheUint64+FheUint64".as_slice(), &nonce],
+            *b"TFHE_Enc",
+        );
+
+        re_rand_context.add_ciphertext_iterator(&cts);
+        let mut seeder = re_rand_context.finalize();
+
+        let cts_rerand = pubk
+            .re_randomize_ciphertexts(
+                &cts,
+                &ksk.key_switching_key_material.as_view(),
+                seeder.next_seed(),
+            )
+            .unwrap();
+
+        for i in 0..pke_lwe_dim {
+            let ct1 = &cts_rerand[i * 2];
+            let ct2 = &cts_rerand[i * 2 + 1];
+
+            let sum = sks.add(ct1, ct2);
+            let dec = cks.decrypt(&sum);
+
+            assert_eq!(dec, msg1 + msg2);
+        }
+    }
+}

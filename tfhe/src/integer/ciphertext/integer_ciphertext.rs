@@ -96,3 +96,21 @@ impl IntegerCiphertext for CrtCiphertext {
         self.moduli.clone()
     }
 }
+
+// Yet another trait, this is to avoid breaking the logic with IntegerCiphertext which BooleanBlock
+// does not implement for good reasons IIRC.
+pub trait AsShortintCiphertextSlice {
+    fn as_ciphertext_slice(&self) -> &[Ciphertext];
+}
+
+impl<T: IntegerCiphertext> AsShortintCiphertextSlice for T {
+    fn as_ciphertext_slice(&self) -> &[Ciphertext] {
+        self.blocks()
+    }
+}
+
+impl AsShortintCiphertextSlice for super::BooleanBlock {
+    fn as_ciphertext_slice(&self) -> &[Ciphertext] {
+        core::slice::from_ref(&self.0)
+    }
+}
