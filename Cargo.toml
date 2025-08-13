@@ -23,7 +23,7 @@ itertools = "0.14"
 num-complex = "0.4"
 pulp = { version = ">=0.21, <0.21.5", default-features = false }
 rand = "0.8"
-rayon = "1"
+rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.100"
 
