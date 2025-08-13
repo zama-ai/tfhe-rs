@@ -3,7 +3,9 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
-use crate::shortint::parameters::{NoiseSquashingCompressionParameters, NoiseSquashingParameters};
+use crate::shortint::parameters::{
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+};
 
 /// The config type
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -71,7 +73,7 @@ impl ConfigBuilder {
     ///
     /// # Note
     ///
-    /// This requires nose squashing to be enabled first via [Self::enable_noise_squashing]
+    /// This requires noise squashing to be enabled first via [Self::enable_noise_squashing]
     pub fn enable_noise_squashing_compression(
         mut self,
         compression_parameters: NoiseSquashingCompressionParameters,
@@ -83,6 +85,24 @@ impl ConfigBuilder {
         self.config
             .inner
             .enable_noise_squashing_compression(compression_parameters);
+        self
+    }
+
+    /// Enable the re-randomization of ciphertexts after compression using a
+    /// [crate::CompactPublicKey].
+    ///
+    /// # Note
+    ///
+    /// This requires dedicated [crate::CompactPublicKey] parameters to be enabled via
+    /// [Self::use_dedicated_compact_public_key_parameters].
+    pub fn enable_ciphertext_re_randomization(
+        mut self,
+        cpk_re_randomization_ksk_params: ShortintKeySwitchingParameters,
+    ) -> Self {
+        self.config
+            .inner
+            .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params);
+
         self
     }
 

@@ -2,6 +2,7 @@ use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::keys::KeySwitchingKeyVersions;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheKeyswitch;
@@ -82,7 +83,11 @@ where
     fn keyswitch(&self, input: &FheUint<Id>) -> FheUint<Id> {
         let radix = input.ciphertext.on_cpu();
         let casted = self.key.cast(&*radix);
-        FheUint::new(casted, self.tag_out.clone())
+        FheUint::new(
+            casted,
+            self.tag_out.clone(),
+            ReRandomizationMetadata::default(),
+        )
     }
 }
 
@@ -93,7 +98,11 @@ where
     fn keyswitch(&self, input: &FheInt<Id>) -> FheInt<Id> {
         let radix = input.ciphertext.on_cpu();
         let casted = self.key.cast(&*radix);
-        FheInt::new(casted, self.tag_out.clone())
+        FheInt::new(
+            casted,
+            self.tag_out.clone(),
+            ReRandomizationMetadata::default(),
+        )
     }
 }
 
@@ -101,7 +110,11 @@ impl FheKeyswitch<FheBool> for KeySwitchingKey {
     fn keyswitch(&self, input: &FheBool) -> FheBool {
         let boolean_block = input.ciphertext.on_cpu();
         let casted = self.key.key.cast(boolean_block.as_ref());
-        FheBool::new(BooleanBlock::new_unchecked(casted), self.tag_out.clone())
+        FheBool::new(
+            BooleanBlock::new_unchecked(casted),
+            self.tag_out.clone(),
+            ReRandomizationMetadata::default(),
+        )
     }
 }
 

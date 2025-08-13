@@ -2,11 +2,14 @@ use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
-use crate::high_level_api::global_state;
+use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheEq, IfThenElse, ScalarIfThenElse, Tagged};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::traits::{FheEq, IfThenElse, ReRandomize, ScalarIfThenElse, Tagged};
+use crate::high_level_api::{global_state, CompactPublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::ciphertext::ReRandomizationSeed;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -61,6 +64,7 @@ use tfhe_hpu_backend::prelude::*;
 pub struct FheBool {
     pub(in crate::high_level_api) ciphertext: InnerBoolean,
     pub(crate) tag: Tag,
+    pub(crate) re_randomization_metadata: ReRandomizationMetadata,
 }
 
 impl Named for FheBool {
@@ -93,7 +97,11 @@ impl ParameterSetConformant for FheBool {
     type ParameterSet = FheBoolConformanceParams;
 
     fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
-        let Self { ciphertext, tag: _ } = self;
+        let Self {
+            ciphertext,
+            tag: _,
+            re_randomization_metadata: _,
+        } = self;
 
         let BooleanBlock(block) = &*ciphertext.on_cpu();
 
@@ -102,10 +110,15 @@ impl ParameterSetConformant for FheBool {
 }
 
 impl FheBool {
-    pub(in crate::high_level_api) fn new<T: Into<InnerBoolean>>(ciphertext: T, tag: Tag) -> Self {
+    pub(in crate::high_level_api) fn new<T: Into<InnerBoolean>>(
+        ciphertext: T,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
         Self {
             ciphertext: ciphertext.into(),
             tag,
+            re_randomization_metadata,
         }
     }
 
@@ -199,6 +212,14 @@ impl FheBool {
     pub fn is_trivial(&self) -> bool {
         self.ciphertext.on_cpu().is_trivial()
     }
+
+    pub fn re_randomization_metadata(&self) -> &ReRandomizationMetadata {
+        &self.re_randomization_metadata
+    }
+
+    pub fn re_randomization_metadata_mut(&mut self) -> &mut ReRandomizationMetadata {
+        &mut self.re_randomization_metadata
+    }
 }
 
 impl<Id, Scalar> ScalarIfThenElse<&FheUint<Id>, Scalar> for FheBool
@@ -238,7 +259,11 @@ where
                     &*then_value.ciphertext.on_cpu(),
                     else_value,
                 );
-                FheUint::new(inner, cpu_sks.tag.clone())
+                FheUint::new(
+                    inner,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -289,7 +314,11 @@ where
                     then_value,
                     &*else_value.ciphertext.on_cpu(),
                 );
-                FheUint::new(inner, cpu_sks.tag.clone())
+                FheUint::new(
+                    inner,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -340,7 +369,11 @@ where
                     &*then_value.ciphertext.on_cpu(),
                     else_value,
                 );
-                FheInt::new(inner, cpu_sks.tag.clone())
+                FheInt::new(
+                    inner,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -391,7 +424,11 @@ where
                     then_value,
                     &*else_value.ciphertext.on_cpu(),
                 );
-                FheInt::new(inner, cpu_sks.tag.clone())
+                FheInt::new(
+                    inner,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -436,7 +473,7 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 panic!("Hpu does not support if_then_else with clear input")
             }
         });
-        Self::new(ciphertext, tag)
+        Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -459,7 +496,11 @@ where
                     &*ct_then.ciphertext.on_cpu(),
                     &*ct_else.ciphertext.on_cpu(),
                 );
-                FheUint::new(inner, cpu_sks.tag.clone())
+                FheUint::new(
+                    inner,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -471,7 +512,11 @@ where
                     streams,
                 );
 
-                FheUint::new(inner, cuda_key.tag.clone())
+                FheUint::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -495,7 +540,11 @@ where
                 )
                 .pop()
                 .unwrap();
-                FheUint::new(hpu_result, device.tag.clone())
+                FheUint::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -517,7 +566,7 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                     &*ct_then.ciphertext.on_cpu(),
                     &*ct_else.ciphertext.on_cpu(),
                 );
-                FheInt::new(new_ct, key.tag.clone())
+                FheInt::new(new_ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -529,7 +578,11 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                     streams,
                 );
 
-                FheInt::new(inner, cuda_key.tag.clone())
+                FheInt::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -568,7 +621,7 @@ impl IfThenElse<Self> for FheBool {
                 panic!("Hpu does not support bool if then else")
             }
         });
-        Self::new(ciphertext, tag)
+        Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -613,7 +666,11 @@ where
                     other.borrow().ciphertext.on_cpu().as_ref(),
                 );
                 let ciphertext = InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner));
-                Self::new(ciphertext, key.tag.clone())
+                Self::new(
+                    ciphertext,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -624,7 +681,11 @@ where
                     streams,
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
-                Self::new(ciphertext, cuda_key.tag.clone())
+                Self::new(
+                    ciphertext,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -660,7 +721,11 @@ where
                     other.borrow().ciphertext.on_cpu().as_ref(),
                 );
                 let ciphertext = InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner));
-                Self::new(ciphertext, key.tag.clone())
+                Self::new(
+                    ciphertext,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -671,7 +736,11 @@ where
                     streams,
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
-                Self::new(ciphertext, cuda_key.tag.clone())
+                Self::new(
+                    ciphertext,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -727,7 +796,7 @@ impl FheEq<bool> for FheBool {
                 panic!("Hpu does not support FheBool::eq with a bool")
             }
         });
-        Self::new(ciphertext, tag)
+        Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 
     /// Test for equality between a [FheBool] and a [bool]
@@ -775,7 +844,7 @@ impl FheEq<bool> for FheBool {
                 panic!("Hpu does not support FheBool::ne with a bool")
             }
         });
-        Self::new(ciphertext, tag)
+        Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -929,7 +998,7 @@ where
                 panic!("Hpu does not support bitand (&)")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1058,7 +1127,7 @@ where
                 panic!("Hpu does not support bitor (|)")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1187,7 +1256,7 @@ where
                 panic!("Hpu does not support bitxor (^)")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1308,7 +1377,7 @@ impl BitAnd<bool> for &FheBool {
                 panic!("hpu does not bitand (&) with a bool")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1389,7 +1458,7 @@ impl BitOr<bool> for &FheBool {
                 panic!("hpu does not bitor (|) with a bool")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1470,7 +1539,7 @@ impl BitXor<bool> for &FheBool {
                 panic!("hpu does not bitxor (^) with a bool")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
 
@@ -1969,7 +2038,49 @@ impl std::ops::Not for &FheBool {
                 panic!("Hpu does not support bitnot (!)")
             }
         });
-        FheBool::new(ciphertext, tag)
+        FheBool::new(ciphertext, tag, ReRandomizationMetadata::default())
+    }
+}
+
+impl ReRandomize for FheBool {
+    fn add_to_re_randomization_context(
+        &self,
+        context: &mut crate::high_level_api::re_randomization::ReRandomizationContext,
+    ) {
+        let on_cpu = self.ciphertext.on_cpu();
+        context.inner.add_ciphertext(&*on_cpu);
+        context
+            .inner
+            .add_bytes(self.re_randomization_metadata.data());
+    }
+
+    fn re_randomize(
+        &self,
+        compact_public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<Self> {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let Some(re_randomization_key) = key.re_randomization_cpk_casting_key() else {
+                    return Err(UninitializedReRandKey.into());
+                };
+
+                let inner = self.ciphertext.on_cpu().re_randomize(
+                    &compact_public_key.key.key,
+                    &re_randomization_key,
+                    seed,
+                )?;
+
+                Ok((InnerBoolean::Cpu(inner), key.tag.clone()))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_cuda_key) => panic!("GPU does not support CPKReRandomize."),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("HPU does not support CPKReRandomize.")
+            }
+        })
+        .map(|(ciphertext, tag)| Self::new(ciphertext, tag, ReRandomizationMetadata::default()))
     }
 }
 

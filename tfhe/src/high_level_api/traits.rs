@@ -1,6 +1,7 @@
 use std::ops::RangeBounds;
 
 use crate::error::InvalidRangeError;
+pub use crate::high_level_api::re_randomization::ReRandomize;
 use crate::high_level_api::ClientKey;
 use crate::{FheBool, Tag};
 

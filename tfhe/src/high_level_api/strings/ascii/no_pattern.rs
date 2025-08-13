@@ -1,6 +1,7 @@
 use crate::high_level_api::global_state::with_internal_keys;
 use crate::high_level_api::integers::FheUint16;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::strings::ascii::FheAsciiString;
 use crate::high_level_api::traits::FheTrivialEncrypt;
 use crate::prelude::FheStringRepeat;
@@ -29,9 +30,11 @@ impl From<crate::strings::server_key::FheStringLen> for FheStringLen {
     fn from(value: crate::strings::server_key::FheStringLen) -> Self {
         match value {
             crate::strings::server_key::FheStringLen::NoPadding(v) => Self::NoPadding(v as u16),
-            crate::strings::server_key::FheStringLen::Padding(v) => {
-                Self::Padding(FheUint16::new(v, Tag::default()))
-            }
+            crate::strings::server_key::FheStringLen::Padding(v) => Self::Padding(FheUint16::new(
+                v,
+                Tag::default(),
+                ReRandomizationMetadata::default(),
+            )),
         }
     }
 }
@@ -58,7 +61,11 @@ impl From<crate::strings::server_key::FheStringIsEmpty> for FheStringIsEmpty {
         match value {
             crate::strings::server_key::FheStringIsEmpty::NoPadding(v) => Self::NoPadding(v),
             crate::strings::server_key::FheStringIsEmpty::Padding(bool_block) => {
-                Self::Padding(FheBool::new(bool_block, Tag::default()))
+                Self::Padding(FheBool::new(
+                    bool_block,
+                    Tag::default(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
         }
     }
@@ -182,7 +189,11 @@ impl FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().to_lowercase(&self.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -216,7 +227,11 @@ impl FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().to_uppercase(&self.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -253,7 +268,11 @@ impl FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .concat(&self.inner.on_cpu(), &other.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -312,7 +331,11 @@ impl FheStringRepeat<u16> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .repeat(&self.inner.on_cpu(), &UIntArg::Clear(count));
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -360,7 +383,11 @@ impl FheStringRepeat<(FheUint16, u16)> for FheAsciiString {
                     &self.inner.on_cpu(),
                     &UIntArg::Enc(EncU16::new(count.ciphertext.into_cpu(), Some(bound))),
                 );
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {

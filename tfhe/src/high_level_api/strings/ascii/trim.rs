@@ -1,5 +1,6 @@
 use crate::high_level_api::global_state::with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::strings::ascii::FheAsciiString;
 
 impl FheAsciiString {
@@ -23,7 +24,11 @@ impl FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().trim_start(&self.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -56,7 +61,11 @@ impl FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().trim_end(&self.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -89,7 +98,11 @@ impl FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().trim(&self.inner.on_cpu());
-                Self::new(inner, cpu_key.tag.clone())
+                Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {

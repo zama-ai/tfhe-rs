@@ -1,6 +1,7 @@
 use super::{FheIntId, FheUint, FheUintId};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::{FheInt, Seed};
@@ -34,7 +35,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                     );
 
-                Self::new(ct, key.tag.clone())
+                Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -48,7 +49,11 @@ impl<Id: FheUintId> FheUint<Id> {
                         streams,
                     );
 
-                Self::new(d_ct, cuda_key.tag.clone())
+                Self::new(
+                    d_ct,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -119,7 +124,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                     );
 
-                Self::new(ct, key.tag.clone())
+                Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -133,7 +138,11 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         streams,
                     );
-                Self::new(d_ct, cuda_key.tag.clone())
+                Self::new(
+                    d_ct,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -206,7 +215,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         seed,
                         Id::num_blocks(key.message_modulus()) as u64,
                     );
-                Self::new(ct, key.tag.clone())
+                Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -220,7 +229,11 @@ impl<Id: FheIntId> FheInt<Id> {
                         streams,
                     );
 
-                Self::new(d_ct, cuda_key.tag.clone())
+                Self::new(
+                    d_ct,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -293,7 +306,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                     );
 
-                Self::new(ct, key.tag.clone())
+                Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -307,7 +320,11 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         streams,
                     );
-                Self::new(d_ct, cuda_key.tag.clone())
+                Self::new(
+                    d_ct,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {

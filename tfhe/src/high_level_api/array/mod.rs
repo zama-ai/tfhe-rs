@@ -15,6 +15,7 @@ use crate::high_level_api::array::traits::HasClear;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::{FheBool, FheId, FheInt, FheUint, Tag};
 use std::ops::{AddAssign, Mul, RangeBounds};
 use traits::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
@@ -364,7 +365,11 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
             let result = cpu_key
                 .pbs_key()
                 .all_eq_slices_parallelized(&tmp_lhs, &tmp_rhs);
-            FheBool::new(result, cpu_key.tag.clone())
+            FheBool::new(
+                result,
+                cpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
         }
         #[cfg(feature = "gpu")]
         InternalServerKey::Cuda(gpu_key) => {
@@ -379,7 +384,11 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
                 .collect::<Vec<_>>();
 
             let result = gpu_key.key.key.all_eq_slices(&tmp_lhs, &tmp_rhs, streams);
-            FheBool::new(result, gpu_key.tag.clone())
+            FheBool::new(
+                result,
+                gpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
         }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
@@ -406,7 +415,11 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
             let result = cpu_key
                 .pbs_key()
                 .contains_sub_slice_parallelized(&tmp_lhs, &tmp_pattern);
-            FheBool::new(result, cpu_key.tag.clone())
+            FheBool::new(
+                result,
+                cpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
         }
         #[cfg(feature = "gpu")]
         InternalServerKey::Cuda(gpu_key) => {
@@ -424,7 +437,11 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
                 .key
                 .key
                 .contains_sub_slice(&tmp_lhs, &tmp_pattern, streams);
-            FheBool::new(result, gpu_key.tag.clone())
+            FheBool::new(
+                result,
+                gpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
         }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
@@ -512,7 +529,11 @@ where
     /// ```
     fn dot_product(bools: &[FheBool], clears: &[Clear]) -> Self {
         let (blocks, tag) = fhe_bool_dot_product(bools, clears, Id::num_bits() as u32);
-        Self::new(crate::integer::RadixCiphertext::from(blocks), tag)
+        Self::new(
+            crate::integer::RadixCiphertext::from(blocks),
+            tag,
+            ReRandomizationMetadata::default(),
+        )
     }
 }
 
@@ -552,6 +573,10 @@ where
     /// ```
     fn dot_product(bools: &[FheBool], clears: &[Clear]) -> Self {
         let (blocks, tag) = fhe_bool_dot_product(bools, clears, Id::num_bits() as u32);
-        Self::new(crate::integer::SignedRadixCiphertext::from(blocks), tag)
+        Self::new(
+            crate::integer::SignedRadixCiphertext::from(blocks),
+            tag,
+            ReRandomizationMetadata::default(),
+        )
     }
 }
