@@ -1,5 +1,7 @@
 use crate::core_crypto::commons::generators::{MaskRandomGenerator, NoiseRandomGenerator};
-use crate::core_crypto::commons::math::random::{CompressionSeed, RandomGenerator};
+use crate::core_crypto::commons::math::random::{
+    CompressionSeed, Distribution, RandomGenerator, Uniform,
+};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::{LweCompactPublicKey, LweKeyswitchKey};
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
@@ -64,7 +66,7 @@ impl CompressedCompactPublicKey {
             generator,
         );
 
-        CompressedCompactPublicKey::from_raw_parts(
+        Self::from_raw_parts(
             integer::CompressedCompactPublicKey::from_raw_parts(
                 shortint::CompressedCompactPublicKey::from_raw_parts(
                     core_pk,
@@ -132,7 +134,7 @@ impl integer::compression_keys::CompressedCompressionKey {
             generator,
         );
 
-        integer::compression_keys::CompressedCompressionKey {
+        Self {
             key: shortint::list_compression::CompressedCompressionKey {
                 packing_key_switching_key,
                 lwe_per_glwe: compression_params.lwe_per_glwe,
@@ -188,7 +190,7 @@ impl integer::compression_keys::CompressedDecompressionKey {
             generator,
         );
 
-        integer::compression_keys::CompressedDecompressionKey {
+        Self {
             key: shortint::list_compression::CompressedDecompressionKey {
                 blind_rotate_key: core_bsk,
                 lwe_per_glwe: compression_params.lwe_per_glwe,
@@ -246,12 +248,14 @@ impl CompressedNoiseSquashingKey {
                         generator,
                     );
 
-                let compressed_mod_switch_config = generate_compressed_mod_switch_config(
-                    &ns_params.modulus_switch_noise_reduction_params,
-                    computation_parameters,
-                    lwe_secret_key,
-                    generator,
-                );
+                let compressed_mod_switch_config =
+                    CompressedModulusSwitchConfiguration::generate_from_existing_generator(
+                        &ns_params.modulus_switch_noise_reduction_params,
+                        lwe_secret_key,
+                        computation_parameters.lwe_noise_distribution(),
+                        computation_parameters.ciphertext_modulus(),
+                        generator,
+                    );
 
                 CompressedShortint128BootstrappingKey::Classic {
                     bsk: core_bsk,
@@ -264,7 +268,7 @@ impl CompressedNoiseSquashingKey {
             }
         };
 
-        CompressedNoiseSquashingKey::from_raw_parts(
+        Self::from_raw_parts(
             shortint::noise_squashing::CompressedNoiseSquashingKey::from_raw_parts(
                 shortint_key,
                 noise_squashing_parameters.message_modulus(),
@@ -301,7 +305,7 @@ impl CompressedNoiseSquashingKey {
 
         decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator(
             &mut core_bsk,
-            &compressed_bsk,
+            compressed_bsk,
             generator,
         );
 
@@ -316,7 +320,7 @@ impl CompressedNoiseSquashingKey {
         par_convert_standard_lwe_bootstrap_key_to_fourier_128(&core_bsk, &mut core_fourier_bsk);
 
         let ms_nrk =
-            decompress_compressed_mod_switch_config(&modulus_switch_noise_reduction_key, generator);
+            modulus_switch_noise_reduction_key.decompress_with_existing_generator(generator);
 
         let decompressed = Shortint128BootstrappingKey::Classic {
             bsk: core_fourier_bsk,
@@ -354,7 +358,7 @@ impl CompressedKeySwitchingKeyMaterial {
         );
         decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator(
             &mut key_switching_key,
-            &compressed_cpk_ksk,
+            compressed_cpk_ksk,
             generator,
         );
         let shortint_cpk_ksk = shortint::key_switching_key::KeySwitchingKeyMaterial {
@@ -573,12 +577,14 @@ impl CompressedXofKeySet {
         };
 
         if let PBSParameters::PBS(pbs_params) = computation_parameters.pbs_parameters().unwrap() {
-            let mod_switch_noise_key = generate_compressed_mod_switch_config(
-                &pbs_params.modulus_switch_noise_reduction_params,
-                computation_parameters,
-                lwe_secret_key,
-                &mut encryption_rand_gen,
-            );
+            let mod_switch_noise_key =
+                CompressedModulusSwitchConfiguration::generate_from_existing_generator(
+                    &pbs_params.modulus_switch_noise_reduction_params,
+                    lwe_secret_key,
+                    computation_parameters.lwe_noise_distribution(),
+                    computation_parameters.ciphertext_modulus(),
+                    &mut encryption_rand_gen,
+                );
 
             match &mut integer_compressed_server_key.key.compressed_ap_server_key {
                 CompressedAtomicPatternServerKey::Standard(ap) => {
@@ -686,7 +692,7 @@ impl CompressedXofKeySet {
                     deterministic_execution,
                 } => {
                     let core_fourier_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator(
-                        &seeded_bsk,
+                        seeded_bsk,
                         &mut mask_generator
                     );
 
@@ -760,10 +766,8 @@ impl CompressedXofKeySet {
                                 ShortintCompressedBootstrappingKey::Classic {
                                     bsk: _,
                                     modulus_switch_noise_reduction_key,
-                                } => decompress_compressed_mod_switch_config(
-                                    modulus_switch_noise_reduction_key,
-                                    &mut mask_generator,
-                                ),
+                                } => modulus_switch_noise_reduction_key
+                                    .decompress_with_existing_generator(&mut mask_generator),
                                 ShortintCompressedBootstrappingKey::MultiBit { .. } => {
                                     // We already created the decompressed bsk matching the
                                     // compressed one
@@ -838,93 +842,89 @@ impl XofKeySet {
     }
 }
 
-fn allocate_and_generate_compressed_modulus_switch_noise_reduction_key_with_pre_seeded_generator<
-    LweCont,
-    Gen,
->(
-    lwe_secret_key: &LweSecretKey<LweCont>,
-    params: &ModulusSwitchNoiseReductionParams,
-    lwe_noise_distribution: DynamicDistribution<u64>,
-    ciphertext_modulus: CiphertextModulus<u64>,
-    noise_generator: &mut EncryptionRandomGenerator<Gen>,
-) -> CompressedModulusSwitchNoiseReductionKey<u64>
+impl<Scalar> CompressedModulusSwitchNoiseReductionKey<Scalar>
 where
-    LweCont: Container<Element = u64>,
-    Gen: ByteRandomGenerator,
+    Scalar: UnsignedInteger,
 {
-    let mut modulus_switch_zeros = SeededLweCiphertextList::new(
-        0,
-        lwe_secret_key.lwe_dimension().to_lwe_size(),
-        params.modulus_switch_zeros_count,
-        // That's weird that we have this type
-        CompressionSeed { seed: Seed(0) },
-        ciphertext_modulus,
-    );
+    /// Allocates and generates new `CompressedModulusSwitchNoiseReductionKey`
+    ///
+    /// This allocates then generates a new `CompressedModulusSwitchNoiseReductionKey`
+    /// using the given `LweSecretKey` and `ModulusSwitchNoiseReductionParams`
+    ///
+    /// The internal seeded types will have their compression seed initialized to 0
+    pub(crate) fn generate_with_existing_generator<NoiseDistribution, KeyCont, Gen>(
+        params: &ModulusSwitchNoiseReductionParams,
+        lwe_secret_key: &LweSecretKey<KeyCont>,
+        noise_distribution: NoiseDistribution,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Scalar: Encryptable<Uniform, NoiseDistribution>,
+        NoiseDistribution: Distribution,
+        KeyCont: Container<Element = Scalar>,
+        Gen: ByteRandomGenerator,
+    {
+        let mut modulus_switch_zeros = SeededLweCiphertextList::new(
+            Scalar::ZERO,
+            lwe_secret_key.lwe_dimension().to_lwe_size(),
+            params.modulus_switch_zeros_count,
+            CompressionSeed { seed: Seed(0) },
+            ciphertext_modulus,
+        );
+        let plaintext_list = PlaintextList::new(
+            Scalar::ZERO,
+            PlaintextCount(params.modulus_switch_zeros_count.0),
+        );
+        encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
+            lwe_secret_key,
+            &mut modulus_switch_zeros,
+            &plaintext_list,
+            noise_distribution,
+            generator,
+        );
 
-    let plaintext_list = PlaintextList::new(0, PlaintextCount(params.modulus_switch_zeros_count.0));
-    encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
-        lwe_secret_key,
-        &mut modulus_switch_zeros,
-        &plaintext_list,
-        lwe_noise_distribution,
-        noise_generator,
-    );
-    CompressedModulusSwitchNoiseReductionKey {
-        modulus_switch_zeros,
-        ms_bound: params.ms_bound,
-        ms_r_sigma_factor: params.ms_r_sigma_factor,
-        ms_input_variance: params.ms_input_variance,
-    }
-}
-
-fn decompress_compressed_mod_switch_config<Gen>(
-    config: &CompressedModulusSwitchConfiguration<u64>,
-    mask_generator: &mut MaskRandomGenerator<Gen>,
-) -> ModulusSwitchConfiguration<u64>
-where
-    Gen: ByteRandomGenerator,
-{
-    match config {
-        CompressedModulusSwitchConfiguration::Standard => ModulusSwitchConfiguration::Standard,
-        CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
-            ModulusSwitchConfiguration::CenteredMeanNoiseReduction
-        }
-        CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(key) => {
-            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
-                decompress_compressed_modulus_switch_noise_reduction_key_with_pre_seeded_generator(
-                    key,
-                    mask_generator,
-                ),
-            )
+        Self {
+            modulus_switch_zeros,
+            ms_bound: params.ms_bound,
+            ms_r_sigma_factor: params.ms_r_sigma_factor,
+            ms_input_variance: params.ms_input_variance,
         }
     }
 }
 
-fn decompress_compressed_modulus_switch_noise_reduction_key_with_pre_seeded_generator<Gen>(
-    compressed: &CompressedModulusSwitchNoiseReductionKey<u64>,
-    mask_generator: &mut MaskRandomGenerator<Gen>,
-) -> ModulusSwitchNoiseReductionKey<u64>
+impl<Scalar> CompressedModulusSwitchNoiseReductionKey<Scalar>
 where
-    Gen: ByteRandomGenerator,
+    Scalar: UnsignedTorus,
 {
-    let mut decompressed_list = LweCiphertextList::new(
-        0u64,
-        compressed.modulus_switch_zeros.lwe_size(),
-        compressed.modulus_switch_zeros.lwe_ciphertext_count(),
-        compressed.modulus_switch_zeros.ciphertext_modulus(),
-    );
+    /// Decompress using an existing generator, ignoring
+    /// the seed(s) stored in the compressed type
+    pub(crate) fn decompress_with_exising_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> ModulusSwitchNoiseReductionKey<Scalar>
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let mut decompressed_list = LweCiphertextList::new(
+            Scalar::ZERO,
+            self.modulus_switch_zeros.lwe_size(),
+            self.modulus_switch_zeros.lwe_ciphertext_count(),
+            self.modulus_switch_zeros.ciphertext_modulus(),
+        );
 
-    decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
-        &mut decompressed_list,
-        &compressed.modulus_switch_zeros,
-        mask_generator,
-    );
+        decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
+            &mut decompressed_list,
+            &self.modulus_switch_zeros,
+            generator,
+        );
 
-    ModulusSwitchNoiseReductionKey {
-        modulus_switch_zeros: decompressed_list,
-        ms_bound: compressed.ms_bound,
-        ms_r_sigma_factor: compressed.ms_r_sigma_factor,
-        ms_input_variance: compressed.ms_input_variance,
+        ModulusSwitchNoiseReductionKey {
+            modulus_switch_zeros: decompressed_list,
+            ms_bound: self.ms_bound,
+            ms_r_sigma_factor: self.ms_r_sigma_factor,
+            ms_input_variance: self.ms_input_variance,
+        }
     }
 }
 
@@ -1002,30 +1002,68 @@ where
     core_fourier_bsk
 }
 
-fn generate_compressed_mod_switch_config<Gen>(
-    modulus_switch_noise_reduction_params: &ModulusSwitchType,
-    computation_parameters: ShortintParameterSet,
-    lwe_secret_key: &LweSecretKeyOwned<u64>,
-    encryption_rand_gen: &mut EncryptionRandomGenerator<Gen>,
-) -> CompressedModulusSwitchConfiguration<u64>
+impl<Scalar> CompressedModulusSwitchConfiguration<Scalar>
 where
-    Gen: ByteRandomGenerator,
+    Scalar: UnsignedInteger,
 {
-    match modulus_switch_noise_reduction_params {
-        ModulusSwitchType::Standard => {
-            CompressedModulusSwitchConfiguration::Standard
+    /// Generates using an existing generator
+    ///
+    /// The internal seeded types will have their compression seed initialized to 0
+    pub(crate) fn generate_from_existing_generator<NoiseDistribution, Gen>(
+        mod_switch_type: &ModulusSwitchType,
+        lwe_secret_key: &LweSecretKeyOwned<Scalar>,
+        noise_distribution: NoiseDistribution,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+        encryption_rand_gen: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Scalar: Encryptable<Uniform, NoiseDistribution>,
+        NoiseDistribution: Distribution,
+        Gen: ByteRandomGenerator,
+    {
+        match mod_switch_type {
+            ModulusSwitchType::Standard => Self::Standard,
+            ModulusSwitchType::DriftTechniqueNoiseReduction(params) => {
+                Self::DriftTechniqueNoiseReduction(
+                    CompressedModulusSwitchNoiseReductionKey::generate_with_existing_generator(
+                        params,
+                        lwe_secret_key,
+                        noise_distribution,
+                        ciphertext_modulus,
+                        encryption_rand_gen,
+                    ),
+                )
+            }
+            ModulusSwitchType::CenteredMeanNoiseReduction => {
+                Self::CenteredMeanNoiseReduction
+            }
         }
-        ModulusSwitchType::DriftTechniqueNoiseReduction(params) => {
-            CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(allocate_and_generate_compressed_modulus_switch_noise_reduction_key_with_pre_seeded_generator(
-                lwe_secret_key,
-                params,
-                computation_parameters.lwe_noise_distribution(),
-                computation_parameters.ciphertext_modulus(),
-                encryption_rand_gen,
-            ))
-        }
-        ModulusSwitchType::CenteredMeanNoiseReduction => {
-            CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction
+    }
+}
+
+impl<Scalar> CompressedModulusSwitchConfiguration<Scalar>
+where
+    Scalar: UnsignedTorus,
+{
+    /// Decompress using an existing generator, ignoring
+    /// the seed(s) stored in the compressed type
+    pub(crate) fn decompress_with_existing_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> ModulusSwitchConfiguration<Scalar>
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Standard => ModulusSwitchConfiguration::Standard,
+            Self::CenteredMeanNoiseReduction => {
+                ModulusSwitchConfiguration::CenteredMeanNoiseReduction
+            }
+            Self::DriftTechniqueNoiseReduction(key) => {
+                ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                    key.decompress_with_exising_generator(generator),
+                )
+            }
         }
     }
 }
@@ -1382,7 +1420,7 @@ mod test {
         let compressed_xof_key_set = CompressedXofKeySet::from_raw_parts(pub_seed, cpk, csk);
         let (pk, sk) = compressed_xof_key_set.decompress().into_raw_parts();
 
-        set_server_key(sk.clone());
+        set_server_key(sk);
         {
             let c = &a * &b;
             let d = &a & &b;
@@ -1790,7 +1828,7 @@ where
 impl ShortintBootstrappingKey<u64> {
     fn compress(&self) -> ShortintCompressedBootstrappingKey<u64> {
         match self {
-            ShortintBootstrappingKey::Classic {
+            Self::Classic {
                 bsk,
                 modulus_switch_noise_reduction_key,
             } => ShortintCompressedBootstrappingKey::Classic {
@@ -1799,7 +1837,7 @@ impl ShortintBootstrappingKey<u64> {
                     modulus_switch_noise_reduction_key,
                 ),
             },
-            ShortintBootstrappingKey::MultiBit { .. } => {
+            Self::MultiBit { .. } => {
                 panic!("Multi-bit not supported")
             }
         }

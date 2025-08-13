@@ -442,10 +442,6 @@ impl NoiseSquashingKey {
     pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
         self.output_ciphertext_modulus
     }
-
-    pub(crate) fn bootstrapping_key(&self) -> &Shortint128BootstrappingKey {
-        &self.bootstrapping_key
-    }
 }
 
 #[derive(Clone, Copy)]
