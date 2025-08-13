@@ -15,14 +15,18 @@ zero_out_if(cudaStream_t const *streams, uint32_t const *gpu_indexes,
             Torus *const *ksks,
             CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
             uint32_t num_radix_blocks) {
-  if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
-      lwe_array_input->num_radix_blocks < num_radix_blocks)
-    PANIC("Cuda error: input or output radix ciphertexts does not have enough "
-          "blocks")
-  if (lwe_array_out->lwe_dimension != lwe_array_input->lwe_dimension ||
-      lwe_array_input->lwe_dimension != lwe_condition->lwe_dimension)
-    PANIC("Cuda error: input and output radix ciphertexts must have the same "
-          "lwe dimension")
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= num_radix_blocks &&
+          lwe_array_input->num_radix_blocks >= num_radix_blocks,
+      "Cuda error: input or output radix ciphertexts does not have enough "
+      "blocks");
+
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_input->lwe_dimension &&
+          lwe_array_input->lwe_dimension == lwe_condition->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
   cuda_set_device(gpu_indexes[0]);
   auto params = mem_ptr->params;
 

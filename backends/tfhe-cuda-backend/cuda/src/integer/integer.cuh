@@ -101,17 +101,20 @@ __host__ void host_radix_blocks_rotate_right(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *dst,
     CudaRadixCiphertextFFI *src, uint32_t rotations, uint32_t num_blocks) {
-  if (src == dst) {
-    PANIC("Cuda error (blocks_rotate_right): the source and destination "
-          "pointers should be different");
-  }
-  if (dst->lwe_dimension != src->lwe_dimension)
-    PANIC("Cuda error: input and output should have the same "
-          "lwe dimension")
-  if (dst->num_radix_blocks < num_blocks || src->num_radix_blocks < num_blocks)
-    PANIC("Cuda error: input and output should have more blocks than asked for "
-          "in the "
-          "function call")
+  PANIC_IF_FALSE(src != dst,
+                 "Cuda error (blocks_rotate_right): the source and destination "
+                 "pointers should be different");
+
+  PANIC_IF_FALSE(dst->lwe_dimension == src->lwe_dimension,
+                 "Cuda error: input and output should have the same "
+                 "lwe dimension");
+
+  PANIC_IF_FALSE(
+      dst->num_radix_blocks >= num_blocks &&
+          src->num_radix_blocks >= num_blocks,
+      "Cuda error: input and output should have more blocks than asked for "
+      "in the "
+      "function call");
 
   auto lwe_size = src->lwe_dimension + 1;
 
