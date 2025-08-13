@@ -43,7 +43,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         let first_index = self.state.table_index().incremented();
         let output = (0..n_children.0)
             .into_par_iter()
-            .zip(rayon::iter::repeatn(
+            .zip(rayon::iter::repeat_n(
                 (self.block_cipher.clone(), first_index, n_bytes),
                 n_children.0,
             ))
