@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 use super::details::MaybeCloned;
@@ -40,14 +41,18 @@ impl<Id: FheUintId> HlCompressible for FheUint<Id> {
         match self.ciphertext {
             crate::high_level_api::integers::unsigned::RadixCiphertext::Cpu(cpu_radix) => {
                 let blocks = cpu_radix.blocks;
-                let kind = DataKind::Unsigned(blocks.len());
-                messages.push((ToBeCompressed::Cpu(blocks), kind));
+                if let Some(n) = NonZero::new(blocks.len()) {
+                    let kind = DataKind::Unsigned(n);
+                    messages.push((ToBeCompressed::Cpu(blocks), kind));
+                }
             }
             #[cfg(feature = "gpu")]
             crate::high_level_api::integers::unsigned::RadixCiphertext::Cuda(gpu_radix) => {
                 let blocks = gpu_radix.ciphertext;
-                let kind = DataKind::Unsigned(blocks.info.blocks.len());
-                messages.push((ToBeCompressed::Cuda(blocks), kind));
+                if let Some(n) = NonZero::new(blocks.info.blocks.len()) {
+                    let kind = DataKind::Unsigned(n);
+                    messages.push((ToBeCompressed::Cuda(blocks), kind));
+                }
             }
             #[cfg(feature = "hpu")]
             crate::high_level_api::integers::unsigned::RadixCiphertext::Hpu(_) => {
@@ -61,14 +66,18 @@ impl<Id: FheIntId> HlCompressible for FheInt<Id> {
         match self.ciphertext {
             crate::high_level_api::integers::signed::SignedRadixCiphertext::Cpu(cpu_radix) => {
                 let blocks = cpu_radix.blocks;
-                let kind = DataKind::Signed(blocks.len());
-                messages.push((ToBeCompressed::Cpu(blocks), kind));
+                if let Some(n) = NonZero::new(blocks.len()) {
+                    let kind = DataKind::Signed(n);
+                    messages.push((ToBeCompressed::Cpu(blocks), kind));
+                }
             }
             #[cfg(feature = "gpu")]
             crate::high_level_api::integers::signed::SignedRadixCiphertext::Cuda(gpu_radix) => {
                 let blocks = gpu_radix.ciphertext;
-                let kind = DataKind::Signed(blocks.info.blocks.len());
-                messages.push((ToBeCompressed::Cuda(blocks), kind));
+                if let Some(n) = NonZero::new(blocks.info.blocks.len()) {
+                    let kind = DataKind::Signed(n);
+                    messages.push((ToBeCompressed::Cuda(blocks), kind));
+                }
             }
         }
     }
@@ -646,7 +655,7 @@ pub mod gpu {
             self,
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
-        ) -> DataKind {
+        ) -> Option<DataKind> {
             self.ciphertext
                 .into_gpu(streams)
                 .compress_into(messages, streams)
@@ -658,7 +667,7 @@ pub mod gpu {
             self,
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
-        ) -> DataKind {
+        ) -> Option<DataKind> {
             self.ciphertext
                 .into_gpu(streams)
                 .compress_into(messages, streams)
@@ -670,7 +679,7 @@ pub mod gpu {
             self,
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
-        ) -> DataKind {
+        ) -> Option<DataKind> {
             self.ciphertext
                 .into_gpu(streams)
                 .compress_into(messages, streams)

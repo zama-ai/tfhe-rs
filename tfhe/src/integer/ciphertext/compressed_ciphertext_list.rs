@@ -6,40 +6,41 @@ use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedC
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::num::NonZero;
 use tfhe_versionable::Versionize;
 
 pub trait Compressible {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind;
+    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> Option<DataKind>;
 }
 
 impl Compressible for BooleanBlock {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
+    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> Option<DataKind> {
         messages.push(self.0);
-        DataKind::Boolean
+        Some(DataKind::Boolean)
     }
 }
 
 impl Compressible for RadixCiphertext {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
+    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> Option<DataKind> {
         let num_blocks = self.blocks.len();
 
         for block in self.blocks {
             messages.push(block);
         }
 
-        DataKind::Unsigned(num_blocks)
+        NonZero::new(num_blocks).map(DataKind::Unsigned)
     }
 }
 
 impl Compressible for SignedRadixCiphertext {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
+    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> Option<DataKind> {
         let num_blocks = self.blocks.len();
 
         for block in self.blocks {
             messages.push(block);
         }
 
-        DataKind::Signed(num_blocks)
+        NonZero::new(num_blocks).map(DataKind::Signed)
     }
 }
 
@@ -63,12 +64,31 @@ impl CompressedCiphertextListBuilder {
         T: Compressible,
     {
         let n = self.ciphertexts.len();
-        let kind = data.compress_into(&mut self.ciphertexts);
-        let num_blocks = self
-            .ciphertexts
-            .last()
-            .map_or(0, |ct| kind.num_blocks(ct.message_modulus));
+        let maybe_kind = data.compress_into(&mut self.ciphertexts);
+
+        let Some(modulus) = self.ciphertexts.last().map(|ct| ct.message_modulus) else {
+            assert!(
+                maybe_kind.is_none(),
+                "Internal error: Incoherent block count with regard to kind"
+            );
+            return self;
+        };
+
+        let Some(kind) = maybe_kind else {
+            assert_eq!(
+                n,
+                self.ciphertexts.len(),
+                "Internal error: Incoherent block count with regard to kind"
+            );
+            return self;
+        };
+
+        let num_blocks = kind.num_blocks(modulus);
+
+        // Check that the number of blocks that were added matches the
+        // number of blocks advertised by the DataKind
         assert_eq!(n + num_blocks, self.ciphertexts.len());
+
         self.info.push(kind);
         self
     }

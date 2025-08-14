@@ -45,7 +45,7 @@ impl crate::FheTypes {
         Some(match data_kind {
             DataKind::Unsigned(n) => {
                 let num_bits_per_block = message_modulus.0.ilog2() as usize;
-                let num_bits = n * num_bits_per_block;
+                let num_bits = n.get() * num_bits_per_block;
                 match num_bits {
                     2 => Self::Uint2,
                     4 => Self::Uint4,
@@ -93,7 +93,7 @@ impl crate::FheTypes {
             }
             DataKind::Signed(n) => {
                 let num_bits_per_block = message_modulus.0.ilog2() as usize;
-                let num_bits = n * num_bits_per_block;
+                let num_bits = n.get() * num_bits_per_block;
                 match num_bits {
                     2 => Self::Int2,
                     4 => Self::Int4,

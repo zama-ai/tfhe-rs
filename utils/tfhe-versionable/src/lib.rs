@@ -18,7 +18,7 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Display;
 use std::marker::PhantomData;
-use std::num::Wrapping;
+use std::num::{NonZero, Wrapping};
 use std::sync::Arc;
 
 pub use derived_traits::{Version, VersionsDispatch};
@@ -267,6 +267,9 @@ impl_scalar_versionize!(f32);
 impl_scalar_versionize!(f64);
 
 impl_scalar_versionize!(char);
+
+impl_scalar_versionize!(NonZero<u32>);
+impl_scalar_versionize!(NonZero<usize>);
 
 impl<T: Versionize> Versionize for Wrapping<T> {
     type Versioned<'vers>

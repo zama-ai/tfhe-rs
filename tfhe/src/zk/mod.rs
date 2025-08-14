@@ -318,7 +318,7 @@ impl Named for SerializableCompactPkePublicParams {
     const NAME: &'static str = ZkCompactPkeV1PublicParams::NAME;
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ZkVerificationOutcome {
     /// The proof and its entity were valid
     Valid,

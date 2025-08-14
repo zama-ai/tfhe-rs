@@ -432,10 +432,14 @@ impl crate::HlCompressible for FheAsciiString {
             AsciiDevice::Cpu(fhe_string) => {
                 let mut blocks = vec![];
                 let data_kind = fhe_string.compress_into(&mut blocks);
-                messages.push((
-                    crate::high_level_api::compressed_ciphertext_list::ToBeCompressed::Cpu(blocks),
-                    data_kind,
-                ));
+                if let Some(data_kind) = data_kind {
+                    messages.push((
+                        crate::high_level_api::compressed_ciphertext_list::ToBeCompressed::Cpu(
+                            blocks,
+                        ),
+                        data_kind,
+                    ));
+                }
             }
         }
     }

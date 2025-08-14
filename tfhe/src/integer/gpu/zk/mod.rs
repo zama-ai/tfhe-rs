@@ -155,6 +155,7 @@ mod tests {
         ProvenCompactCiphertextList,
     };
     use crate::shortint::parameters::test_params::TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+    use std::num::NonZero;
     // TODO test params update for the v1_3
     use crate::shortint::parameters::current_params::V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::{
@@ -426,8 +427,8 @@ mod tests {
             for _ in 0..infos_block_count {
                 let map_to_fake_boolean = random::<u8>() % 2 == 1;
                 if map_to_fake_boolean {
-                    if curr_block_count != 0 {
-                        new_infos.push(DataKind::Unsigned(curr_block_count));
+                    if let Some(count) = NonZero::new(curr_block_count) {
+                        new_infos.push(DataKind::Unsigned(count));
                         curr_block_count = 0;
                     }
                     new_infos.push(DataKind::Boolean);
@@ -435,8 +436,8 @@ mod tests {
                     curr_block_count += 1;
                 }
             }
-            if curr_block_count != 0 {
-                new_infos.push(DataKind::Unsigned(curr_block_count));
+            if let Some(count) = NonZero::new(curr_block_count) {
+                new_infos.push(DataKind::Unsigned(count));
             }
 
             assert_eq!(

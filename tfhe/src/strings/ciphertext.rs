@@ -11,6 +11,7 @@ use crate::shortint::MessageModulus;
 use crate::strings::backward_compatibility::{FheAsciiCharVersions, FheStringVersions};
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
+use core::num::NonZero;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
 use serde::{Deserialize, Serialize};
@@ -64,7 +65,7 @@ impl Compactable for &ClearString {
         messages: &mut Vec<u64>,
         message_modulus: MessageModulus,
         num_blocks: Option<usize>,
-    ) -> crate::integer::ciphertext::DataKind {
+    ) -> Option<DataKind> {
         let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
 
         if let Some(n) = num_blocks {
@@ -79,7 +80,7 @@ impl Compactable for &ClearString {
             n_blocks / blocks_per_char as usize
         });
 
-        // First write the chars we have at hand
+        // First, write the chars we have at hand
         let n_real_chars = n_chars.min(self.str().len());
         for byte in &self.str.as_bytes()[..n_real_chars] {
             let mut byte = u64::from(*byte);
@@ -95,10 +96,7 @@ impl Compactable for &ClearString {
             messages.push(0);
         }
 
-        DataKind::String {
-            n_chars: n_chars as u32,
-            padded,
-        }
+        NonZero::new(n_chars as u32).map(|n_chars| DataKind::String { n_chars, padded })
     }
 }
 
@@ -110,13 +108,23 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
     ) -> &mut Self {
         let message_modulus = self.pk.key.message_modulus();
         let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let n = self.messages.len();
 
-        let kind = clear_string.compact_into(
+        let maybe_kind = clear_string.compact_into(
             &mut self.messages,
             message_modulus,
             Some((clear_string.str.len() + padding_count as usize) * blocks_per_char as usize),
         );
-        self.info.push(kind);
+
+        let added_count = maybe_kind.map_or(0, |kind| kind.num_blocks(message_modulus));
+        assert_eq!(
+            n + added_count,
+            self.messages.len(),
+            "Internal error: Incoherent number of blocks added"
+        );
+        if let Some(kind) = maybe_kind {
+            self.info.push(kind);
+        }
         self
     }
 
@@ -127,13 +135,22 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
     ) -> &mut Self {
         let message_modulus = self.pk.key.message_modulus();
         let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let n = self.messages.len();
 
-        let kind = clear_string.compact_into(
+        let maybe_kind = clear_string.compact_into(
             &mut self.messages,
             message_modulus,
             Some((size * blocks_per_char) as usize),
         );
-        self.info.push(kind);
+        let added_count = maybe_kind.map_or(0, |kind| kind.num_blocks(message_modulus));
+        assert_eq!(
+            n + added_count,
+            self.messages.len(),
+            "Internal error: Incoherent number of blocks added"
+        );
+        if let Some(kind) = maybe_kind {
+            self.info.push(kind);
+        }
         self
     }
 }
@@ -145,23 +162,19 @@ impl crate::integer::ciphertext::Expandable for FheString {
     ) -> crate::Result<Self> {
         match kind {
             DataKind::String { n_chars, padded } => {
-                if n_chars == 0 {
-                    return Ok(Self::empty());
-                }
-
                 let Some(first_block) = blocks.first() else {
                     return Err(crate::error!(
                         "Invalid number of blocks for a string of {n_chars} chars, got 0 blocks"
                     ));
                 };
                 let n_blocks_per_chars = 7u32.div_ceil(first_block.message_modulus.0.ilog2());
-                let expected_num_blocks = n_chars * n_blocks_per_chars;
+                let expected_num_blocks = n_chars.get() * n_blocks_per_chars;
                 if expected_num_blocks != blocks.len() as u32 {
                     return Err(crate::error!("Invalid number of blocks for a string of {n_chars} chars, expected {expected_num_blocks}, got {}", blocks.len()));
                 }
 
-                let mut chars = Vec::with_capacity(n_chars as usize);
-                for _ in 0..n_chars {
+                let mut chars = Vec::with_capacity(n_chars.get() as usize);
+                for _ in 0..n_chars.get() {
                     let char: Vec<_> = blocks.drain(..n_blocks_per_chars as usize).collect();
                     chars.push(FheAsciiChar {
                         enc_char: RadixCiphertext::from(char),
@@ -186,8 +199,8 @@ impl crate::integer::ciphertext::Expandable for FheString {
 }
 
 impl crate::integer::ciphertext::Compressible for FheString {
-    fn compress_into(self, messages: &mut Vec<crate::shortint::Ciphertext>) -> DataKind {
-        let n_chars = self.chars().len() as u32;
+    fn compress_into(self, messages: &mut Vec<crate::shortint::Ciphertext>) -> Option<DataKind> {
+        let n_chars = NonZero::new(self.chars().len() as u32)?;
         let padded = self.is_padded();
 
         for char in self.enc_string {
@@ -196,7 +209,7 @@ impl crate::integer::ciphertext::Compressible for FheString {
             }
         }
 
-        DataKind::String { n_chars, padded }
+        Some(DataKind::String { n_chars, padded })
     }
 }
 
