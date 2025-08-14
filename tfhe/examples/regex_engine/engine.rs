@@ -256,7 +256,7 @@ mod tests {
         let ct_content: StringCiphertext = encrypt_str(&KEYS.0, content).unwrap();
         let ct_res = has_match(&KEYS.1, &ct_content, pattern).unwrap();
 
-        let got = KEYS.0.decrypt(&ct_res);
+        let got: u64 = KEYS.0.decrypt(&ct_res);
         assert_eq!(exp, got);
     }
 }

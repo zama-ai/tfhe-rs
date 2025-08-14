@@ -103,7 +103,7 @@ impl Display for InvalidRangeError {
                 "The upper bound of the range is greater than the size of the integer"
             ),
             Self::WrongOrder => {
-                write!(f, "The upper gound is smaller than the lower bound")
+                write!(f, "The upper bound is smaller than the lower bound")
             }
         }
     }
