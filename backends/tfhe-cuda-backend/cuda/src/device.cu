@@ -1,15 +1,73 @@
 #include "device.h"
 #include <cstdint>
 #include <cuda_runtime.h>
+#include <mutex>
 
 uint32_t cuda_get_device() {
   int device;
   check_cuda_error(cudaGetDevice(&device));
   return static_cast<uint32_t>(device);
 }
+std::mutex pool_mutex;
+bool mem_pools_enabled = false;
+
+void cuda_setup_mempool(uint32_t caller_gpu_index) {
+  if (!mem_pools_enabled) {
+    pool_mutex.lock();
+    if (mem_pools_enabled)
+      return; // If mem pools are already enabled, we don't need to do anything
+
+    // We do it only once for all GPUs
+    mem_pools_enabled = true;
+    uint32_t num_gpus = cuda_get_number_of_gpus();
+    for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
+      cuda_set_device(gpu_index);
+
+#if CUDA_ARCH >= 900
+      const uint64_t warmup_size =
+          10ULL * 1024ULL * 1024ULL * 1024ULL; // 10GB warmup and reuse
+#else
+      const uint64_t warmup_size =
+          1024ULL * 1024ULL * 1024ULL; // 1GB warmup and reuse
+#endif
+      // Get default memory pool
+      cudaMemPool_t default_pool;
+      check_cuda_error(cudaDeviceGetDefaultMemPool(&default_pool, gpu_index));
+
+      // Enable opportunistic reuse
+      int reuse = 1;
+      check_cuda_error(cudaMemPoolSetAttribute(
+          default_pool, cudaMemPoolReuseAllowOpportunistic, &reuse));
+
+      // Prevent memory from being released back to the OS too soon
+      uint64_t threshold = warmup_size;
+      check_cuda_error(cudaMemPoolSetAttribute(
+          default_pool, cudaMemPoolAttrReleaseThreshold, &threshold));
+
+      // Warm up the pool by allocating and freeing a large block
+      cudaStream_t stream;
+      check_cuda_error(cudaStreamCreate(&stream));
+
+      void *warmup_ptr = nullptr;
+      check_cuda_error(cudaMallocAsync(&warmup_ptr, warmup_size, stream));
+      check_cuda_error(cudaFreeAsync(warmup_ptr, stream));
+
+      // Sync to ensure pool is grown
+      check_cuda_error(cudaStreamSynchronize(stream));
+
+      // Clean up
+      check_cuda_error(cudaStreamDestroy(stream));
+    }
+    // We return to the original gpu_index
+    cuda_set_device(caller_gpu_index);
+    pool_mutex.unlock();
+  }
+}
 
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
+  // Mempools are initialized only once in all the GPUS available
+  cuda_setup_mempool(gpu_index);
 }
 
 cudaEvent_t cuda_create_event(uint32_t gpu_index) {
