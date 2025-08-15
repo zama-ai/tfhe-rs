@@ -8,7 +8,9 @@ use crate::shortint::prelude::DecompositionBaseLog;
 use crate::core_crypto::algorithms::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::test::{FftBootstrapKeys, TestResources};
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
@@ -113,29 +115,31 @@ pub fn execute_bootstrap_u128(
     );
 
     let mut engine = ShortintEngine::new();
+    let gpu_index = 0;
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let modulus_switch_noise_reduction_key =
-        match squash_params.modulus_switch_noise_reduction_params {
-            ModulusSwitchType::Standard => None,
-            ModulusSwitchType::DriftTechniqueNoiseReduction(
-                modulus_switch_noise_reduction_params,
-            ) => Some(ModulusSwitchNoiseReductionKey::new(
+    let modulus_switch_noise_reduction_configuration = match squash_params
+        .modulus_switch_noise_reduction_params
+    {
+        ModulusSwitchType::Standard => None,
+        ModulusSwitchType::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_params) => {
+            let ms_red_key = ModulusSwitchNoiseReductionKey::new(
                 modulus_switch_noise_reduction_params,
                 &input_lwe_secret_key,
                 &mut engine,
                 input_params.ciphertext_modulus,
                 input_params.lwe_noise_distribution,
-            )),
-            ModulusSwitchType::CenteredMeanNoiseReduction => {
-                panic!("Centered MS not supportred on GPU")
-            }
-        };
+            );
+            Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&ms_red_key,&stream))
+        }
+        ModulusSwitchType::CenteredMeanNoiseReduction => {
+            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+        }
+    };
 
-    let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
         &std_bootstrapping_key,
-        modulus_switch_noise_reduction_key.as_ref(),
+        modulus_switch_noise_reduction_configuration,
         &stream,
     );
 

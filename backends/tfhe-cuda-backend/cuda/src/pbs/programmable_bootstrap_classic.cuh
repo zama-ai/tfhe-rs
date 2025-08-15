@@ -27,7 +27,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         double2 *global_join_buffer, uint32_t lwe_iteration,
         uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
         uint32_t level_count, int8_t *device_mem,
-        uint64_t device_memory_size_per_block, bool uses_noise_reduction) {
+        uint64_t device_memory_size_per_block,
+        PBS_MS_REDUCTION_T noise_reduction_type) {
 
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -55,7 +56,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      uses_noise_reduction
+      (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT)
           ? &lwe_array_in[blockIdx.x * (lwe_dimension + 1)]
           : &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
@@ -75,9 +76,16 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (first_iter) {
     // First iteration
     // Put "b" in [0, 2N[
+    constexpr auto log_modulus = params::log2_degree + 1;
     Torus b_hat = 0;
-    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                   params::log2_degree + 1);
+    Torus correction = 0;
+    if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
+      correction = centered_binary_modulus_switch_body_correction_to_add(
+          block_lwe_array_in, lwe_dimension, log_modulus);
+    }
+    modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                   log_modulus);
+
     // The y-dimension is used to select the element of the GLWE this block will
     // compute
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
@@ -307,7 +315,7 @@ __host__ uint64_t scratch_programmable_bootstrap(
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    bool allocate_ms_array) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   uint64_t full_sm_step_one =
       get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
@@ -386,7 +394,7 @@ __host__ uint64_t scratch_programmable_bootstrap(
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, allocate_ms_array, size_tracker);
+      allocate_gpu_memory, noise_reduction_type, size_tracker);
   return size_tracker;
 }
 
@@ -400,7 +408,7 @@ __host__ void execute_step_one(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
-    bool uses_noise_reduction) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
@@ -413,21 +421,21 @@ __host__ void execute_step_one(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
             lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-            full_dm, uses_noise_reduction);
+            full_dm, noise_reduction_type);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, first_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
             lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-            partial_dm, uses_noise_reduction);
+            partial_dm, noise_reduction_type);
   } else {
     device_programmable_bootstrap_step_one<Torus, params, FULLSM, first_iter>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
             lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-            uses_noise_reduction);
+            noise_reduction_type);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -508,7 +516,7 @@ __host__ void host_programmable_bootstrap(
   Torus *global_accumulator = pbs_buffer->global_accumulator;
   double2 *global_join_buffer = pbs_buffer->global_join_buffer;
   int8_t *d_mem = pbs_buffer->d_mem;
-  bool uses_noise_reduction = pbs_buffer->uses_noise_reduction;
+  auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
   for (int i = 0; i < lwe_dimension; i++) {
     if (i == 0) {
@@ -518,7 +526,7 @@ __host__ void host_programmable_bootstrap(
           global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
           glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
           partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one,
-          uses_noise_reduction);
+          noise_reduction_type);
     } else {
       execute_step_one<Torus, params, false>(
           stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
@@ -526,7 +534,7 @@ __host__ void host_programmable_bootstrap(
           global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
           glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
           partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one,
-          uses_noise_reduction);
+          noise_reduction_type);
     }
     if (i == lwe_dimension - 1) {
       execute_step_two<Torus, params, true>(

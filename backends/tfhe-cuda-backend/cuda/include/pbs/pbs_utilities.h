@@ -83,23 +83,25 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   Torus *temp_lwe_array_in;
 
   PBS_VARIANT pbs_variant;
-  bool uses_noise_reduction;
+  PBS_MS_REDUCTION_T
+  noise_reduction_type;
   bool gpu_memory_allocated;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
              uint32_t glwe_dimension, uint32_t polynomial_size,
              uint32_t level_count, uint32_t input_lwe_ciphertext_count,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
-             bool allocate_ms_array, uint64_t &size_tracker) {
+             PBS_MS_REDUCTION_T noise_reduction_type, uint64_t &size_tracker)
+      : noise_reduction_type(noise_reduction_type) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
-    this->uses_noise_reduction = allocate_ms_array;
     this->pbs_variant = pbs_variant;
 
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
     this->temp_lwe_array_in = (Torus *)cuda_malloc_with_size_tracking_async(
         (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(Torus),
-        stream, gpu_index, size_tracker, allocate_ms_array);
+        stream, gpu_index, size_tracker,
+        noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT);
     switch (pbs_variant) {
     case PBS_VARIANT::DEFAULT: {
       uint64_t full_sm_step_one =
@@ -234,7 +236,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
 
-    if (uses_noise_reduction)
+    if (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT)
       cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
                                          gpu_memory_allocated);
   }
@@ -252,26 +254,29 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
   uint64_t *trivial_indexes;
 
   PBS_VARIANT pbs_variant;
-  bool uses_noise_reduction;
+  PBS_MS_REDUCTION_T
+  noise_reduction_type;
   bool gpu_memory_allocated;
 
   pbs_buffer_128(cudaStream_t stream, uint32_t gpu_index,
                  uint32_t lwe_dimension, uint32_t glwe_dimension,
                  uint32_t polynomial_size, uint32_t level_count,
                  uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
-                 bool allocate_gpu_memory, bool allocate_ms_array,
-                 uint64_t &size_tracker) {
+                 bool allocate_gpu_memory,
+                 PBS_MS_REDUCTION_T noise_reduction_type,
+                 uint64_t &size_tracker)
+      : noise_reduction_type(noise_reduction_type) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
-    this->uses_noise_reduction = allocate_ms_array;
-    if (allocate_ms_array) {
+
+    if (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT) {
       this->temp_lwe_array_in = (InputTorus *)cuda_malloc_async(
           (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(InputTorus),
           stream, gpu_index);
       this->trivial_indexes = (uint64_t *)cuda_malloc_with_size_tracking_async(
           input_lwe_ciphertext_count * sizeof(uint64_t), stream, gpu_index,
-          size_tracker, allocate_ms_array);
+          size_tracker, true);
       uint64_t *h_trivial_indexes = new uint64_t[input_lwe_ciphertext_count];
       for (uint32_t i = 0; i < input_lwe_ciphertext_count; i++)
         h_trivial_indexes[i] = i;
@@ -420,7 +425,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
 
-    if (uses_noise_reduction) {
+    if (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT) {
       cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
                                          gpu_memory_allocated);
       cuda_drop_with_size_tracking_async(trivial_indexes, stream, gpu_index,
@@ -500,7 +505,7 @@ uint64_t scratch_cuda_programmable_bootstrap_tbc(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 #endif
 
 template <typename Torus>
@@ -508,14 +513,14 @@ uint64_t scratch_cuda_programmable_bootstrap_cg(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 template <typename Torus>
 uint64_t scratch_cuda_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,

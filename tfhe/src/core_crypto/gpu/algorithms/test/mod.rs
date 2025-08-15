@@ -11,6 +11,7 @@ mod lwe_multi_bit_programmable_bootstrapping_128;
 mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
 mod lwe_programmable_bootstrapping_128;
+mod modulus_switch;
 mod modulus_switch_noise_reduction;
 mod noise_distribution;
 

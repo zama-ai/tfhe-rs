@@ -259,7 +259,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     requested_flag,
                     uses_carry,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -318,7 +318,7 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -815,7 +815,7 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                         ct_modulus,
                     );
                 }
@@ -938,7 +938,7 @@ impl CudaServerKey {
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
                         self.message_modulus.0 as u32,
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                         ct_modulus,
                     );
                 }
@@ -1120,7 +1120,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     function_count as u32,
                     lut.sample_extraction_stride as u32,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                     ct_modulus,
                 );
             }
@@ -1264,7 +1264,7 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                         ct_modulus,
                     );
                 }
@@ -1353,7 +1353,7 @@ impl CudaServerKey {
                     num_additional_blocks as u32,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1673,7 +1673,7 @@ impl CudaServerKey {
                 self.carry_modulus,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction.as_ref(),
                 ct_modulus,
             );
         }

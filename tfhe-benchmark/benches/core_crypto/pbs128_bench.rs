@@ -171,6 +171,7 @@ mod cuda {
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+    use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::{
         cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext,
@@ -237,23 +238,28 @@ mod cuda {
         );
 
         let mut engine = ShortintEngine::new();
+        let streams = CudaStreams::new_multi_gpu();
 
-        let modulus_switch_noise_reduction_key =
-            match squash_params.modulus_switch_noise_reduction_params {
-                ModulusSwitchType::Standard => None,
-                ModulusSwitchType::DriftTechniqueNoiseReduction(
-                    modulus_switch_noise_reduction_params,
-                ) => Some(ModulusSwitchNoiseReductionKey::new(
+        let modulus_switch_noise_reduction_configuration = match squash_params
+            .modulus_switch_noise_reduction_params
+        {
+            ModulusSwitchType::Standard => None,
+            ModulusSwitchType::DriftTechniqueNoiseReduction(
+                modulus_switch_noise_reduction_params,
+            ) => {
+                let mod_redkey = ModulusSwitchNoiseReductionKey::new(
                     modulus_switch_noise_reduction_params,
                     &input_lwe_secret_key,
                     &mut engine,
                     input_params.ciphertext_modulus,
                     input_params.lwe_noise_distribution,
-                )),
-                ModulusSwitchType::CenteredMeanNoiseReduction => {
-                    panic!("Centered MS not supportred on GPU")
-                }
-            };
+                );
+                Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&mod_redkey, &streams))
+            }
+            ModulusSwitchType::CenteredMeanNoiseReduction => {
+                Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+            }
+        };
 
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
@@ -266,10 +272,9 @@ mod cuda {
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                let streams = CudaStreams::new_multi_gpu();
                 let gpu_keys = CudaLocalKeys::from_cpu_keys(
                     &cpu_keys,
-                    modulus_switch_noise_reduction_key.as_ref(),
+                    modulus_switch_noise_reduction_configuration,
                     &streams,
                 );
 
@@ -319,7 +324,7 @@ mod cuda {
             }
             BenchmarkType::Throughput => {
                 let gpu_keys_vec =
-                    cuda_local_keys_core(&cpu_keys, modulus_switch_noise_reduction_key.as_ref());
+                    cuda_local_keys_core(&cpu_keys, modulus_switch_noise_reduction_configuration);
                 let gpu_count = get_number_of_gpus() as usize;
 
                 bench_id = format!("{bench_name}::throughput::{params_name}");

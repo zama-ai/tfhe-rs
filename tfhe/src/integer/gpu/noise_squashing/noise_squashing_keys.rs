@@ -1,5 +1,7 @@
 use super::keys::CudaNoiseSquashingKey;
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 use crate::shortint::noise_squashing::CompressedShortint128BootstrappingKey;
@@ -14,19 +16,19 @@ impl CompressedNoiseSquashingKey {
         {
             let std_bsk = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
 
-            let ms_noise_reduction_key = match modulus_switch_noise_reduction_key {
-                CompressedModulusSwitchConfiguration::Standard => None,
-                CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
-                    modulus_switch_noise_reduction_key,
-                ) => Some(modulus_switch_noise_reduction_key.decompress()),
-                CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
-                    panic!("Centered MS not supportred on GPU")
-                }
-            };
+            let modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
+            CompressedModulusSwitchConfiguration::Standard => None,
+            CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                modulus_switch_noise_reduction_key,
+            ) => Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&modulus_switch_noise_reduction_key.decompress(), streams)),
+            CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
+            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+            }
+        };
 
             let bootstrapping_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                 &std_bsk,
-                ms_noise_reduction_key.as_ref(),
+                modulus_switch_noise_reduction_configuration,
                 streams,
             );
 

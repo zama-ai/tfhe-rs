@@ -123,7 +123,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -299,7 +299,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -570,7 +570,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -747,7 +747,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1005,7 +1005,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     self.carry_modulus,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 ),
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     get_full_propagate_assign_size_on_gpu(
@@ -1043,7 +1043,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 LweBskGroupingFactor(0),
                 num_blocks,
                 PBSType::Classical,
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_scalar_div_integer_radix_kb_size_on_gpu(
@@ -1110,7 +1110,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                         LweBskGroupingFactor(0),
                         num_blocks,
                         PBSType::Classical,
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1190,7 +1190,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     LweBskGroupingFactor(0),
                     num_blocks,
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction.as_ref(),
                 )
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1254,7 +1254,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                         LweBskGroupingFactor(0),
                         num_blocks,
                         PBSType::Classical,
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

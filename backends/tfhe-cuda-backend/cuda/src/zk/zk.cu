@@ -11,7 +11,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     uint32_t num_compact_lists, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, KS_TYPE casting_key_type,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   // Since CUDA backend works with the concept of "big" and "small" key, instead
   // of "input" and "output", we need to do this or otherwise our PBS will throw
@@ -25,13 +25,13 @@ uint64_t scratch_cuda_expand_without_verification_64(
       pbs_type, glwe_dimension, polynomial_size, big_lwe_dimension,
       small_lwe_dimension, computing_ks_level, computing_ks_base_log, pbs_level,
       pbs_base_log, grouping_factor, message_modulus, carry_modulus,
-      allocate_ms_array);
+      noise_reduction_type);
 
   int_radix_params casting_params(
       pbs_type, glwe_dimension, polynomial_size, casting_big_dimension,
       casting_small_dimension, casting_ks_level, casting_ks_base_log, pbs_level,
       pbs_base_log, grouping_factor, message_modulus, carry_modulus,
-      allocate_ms_array);
+      noise_reduction_type);
 
   return scratch_cuda_expand_without_verification<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count,

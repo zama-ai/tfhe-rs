@@ -144,7 +144,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
-        bsk.d_ms_noise_reduction_key.as_ref(),
+        bsk.ms_noise_reduction.as_ref(),
         ct_modulus,
     );
 }
@@ -266,7 +266,7 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
-        bsk.d_ms_noise_reduction_key.as_ref(),
+        bsk.ms_noise_reduction.as_ref(),
         ct_modulus,
     );
 }
