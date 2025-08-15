@@ -183,17 +183,23 @@ impl Fft {
             })
         };
 
-        // could not find a plan of the given size, we lock the map again and try to insert it
-        let mut plans = global_plans.write().unwrap();
-        if let Entry::Vacant(v) = plans.entry(n) {
-            v.insert(Arc::new(OnceLock::new()));
-        }
+        get_plan().map_or_else(
+            || {
+                // If we don't find a plan for the given size, we insert a new OnceLock,
+                // drop the write lock on the map and then let get_plan() initialize the OnceLock
+                // (without holding the write lock on the map).
+                let mut plans = global_plans.write().unwrap();
+                if let Entry::Vacant(v) = plans.entry(n) {
+                    v.insert(Arc::new(OnceLock::new()));
+                }
+                drop(plans);
 
-        drop(plans);
-
-        Self {
-            plan: get_plan().unwrap(),
-        }
+                Self {
+                    plan: get_plan().unwrap(),
+                }
+            },
+            |plan| Self { plan },
+        )
     }
 }
 
