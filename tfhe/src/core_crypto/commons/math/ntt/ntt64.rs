@@ -23,7 +23,8 @@ impl Ntt64 {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<Plan>>>>>;
+// Key is (polynomial size, modulus).
+type PlanMap = RwLock<HashMap<(usize, u64), Arc<OnceLock<Arc<Plan>>>>>;
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
@@ -40,30 +41,37 @@ impl Ntt64 {
         let modulus = modulus.get_custom_modulus() as u64;
         let get_plan = || {
             let plans = global_plans.read().unwrap();
-            let plan = plans.get(&n).cloned();
+            let plan = plans.get(&(n, modulus)).cloned();
             drop(plans);
 
             plan.map(|p| {
                 p.get_or_init(|| {
                     Arc::new(Plan::try_new(n, modulus).unwrap_or_else(|| {
-                        panic!("could not generate an NTT plan for the given modulus ({modulus})")
+                        panic!("could not generate an NTT plan for the given (size, modulus) ({n}, {modulus})")
                     }))
                 })
                 .clone()
             })
         };
 
-        // could not find a plan of the given size, we lock the map again and try to insert it
-        let mut plans = global_plans.write().unwrap();
-        if let Entry::Vacant(v) = plans.entry(n) {
-            v.insert(Arc::new(OnceLock::new()));
-        }
+        get_plan().map_or_else(
+            || {
+                // If we don't find a plan for the given polynomial size and modulus, we insert a
+                // new OnceLock, drop the write lock on the map and then let
+                // get_plan() initialize the OnceLock (without holding the write
+                // lock on the map).
+                let mut plans = global_plans.write().unwrap();
+                if let Entry::Vacant(v) = plans.entry((n, modulus)) {
+                    v.insert(Arc::new(OnceLock::new()));
+                }
+                drop(plans);
 
-        drop(plans);
-
-        Self {
-            plan: get_plan().unwrap(),
-        }
+                Self {
+                    plan: get_plan().unwrap(),
+                }
+            },
+            |plan| Self { plan },
+        )
     }
 }
 
