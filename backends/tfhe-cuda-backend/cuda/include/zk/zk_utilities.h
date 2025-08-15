@@ -5,6 +5,94 @@
 #include "integer/integer.cuh"
 #include <cstdint>
 
+template <typename Torus> struct lwe_mask {
+  Torus *mask;
+  uint32_t lwe_dimension;
+
+  lwe_mask(Torus *mask, uint32_t lwe_dimension)
+      : mask{mask}, lwe_dimension{lwe_dimension} {}
+};
+
+template <typename Torus> struct compact_lwe_body {
+  Torus *body;
+  uint64_t monomial_degree;
+
+  compact_lwe_body(Torus *body, uint64_t monomial_degree)
+      : body{body}, monomial_degree{monomial_degree} {}
+};
+
+template <typename Torus> struct compact_lwe_list {
+  Torus *list_start;
+  uint32_t lwe_dimension;
+  uint32_t total_num_lwes;
+
+  compact_lwe_list(Torus *list_start, uint32_t lwe_dimension,
+                   uint32_t total_num_lwes)
+      : list_start{list_start}, lwe_dimension{lwe_dimension},
+        total_num_lwes{total_num_lwes} {}
+
+  lwe_mask<Torus> get_mask() { return lwe_mask(list_start, lwe_dimension); }
+
+  compact_lwe_body<Torus> get_body(uint32_t index) {
+    if (index >= total_num_lwes) {
+      PANIC("index out of range in compact_lwe_list::get_body");
+    }
+
+    return compact_lwe_body(&list_start[lwe_dimension + index], uint64_t(index));
+  }
+};
+
+template <typename Torus> struct flattened_compact_lwe_lists {
+  Torus *list_start;
+  const uint32_t *num_lwes_per_compact_list;
+  uint32_t num_compact_lists;
+  uint32_t lwe_dimension;
+  uint32_t total_num_lwes;
+
+  flattened_compact_lwe_lists(Torus *list_start,
+                              const uint32_t *num_lwes_per_compact_list,
+                              uint32_t num_compact_lists,
+                              uint32_t lwe_dimension)
+      : list_start{list_start},
+        num_lwes_per_compact_list{num_lwes_per_compact_list},
+        num_compact_lists{num_compact_lists}, lwe_dimension{lwe_dimension} {
+    total_num_lwes = 0;
+    for (uint32_t i = 0; i < num_compact_lists; ++i) {
+      total_num_lwes += num_lwes_per_compact_list[i];
+    }
+  }
+
+  compact_lwe_list<Torus> get(uint32_t index) {
+    if (index >= num_compact_lists) {
+      PANIC("index out of range in flattened_compact_lwe_lists::get");
+    }
+
+    Torus *curr_list_start = list_start;
+
+    uint32_t curr_index;
+
+    // TODO: This is super suboptimal, in practice should cache where each list
+    // begins in the constructor and cache the value internally
+    for (curr_index = 0; curr_index == index; ++curr_index) {
+      // lwe_dimension for the size of the mask + the number of bodies of the
+      // current list to get the start of the next list
+      curr_list_start = &curr_list_start[lwe_dimension +
+                                         num_lwes_per_compact_list[curr_index]];
+    }
+
+    return compact_lwe_list(curr_list_start, lwe_dimension,
+                            num_lwes_per_compact_list[curr_index]);
+  }
+};
+
+template <typename Torus> struct expand_job {
+  lwe_mask<Torus> mask_to_use;
+  compact_lwe_body<Torus> body_to_use;
+
+  expand_job(lwe_mask<Torus> mask_to_use, compact_lwe_body<Torus> body_to_use)
+      : mask_to_use{mask_to_use}, body_to_use{body_to_use} {}
+};
+
 template <typename Torus> struct zk_expand_mem {
   int_radix_params computing_params;
   int_radix_params casting_params;
@@ -21,10 +109,13 @@ template <typename Torus> struct zk_expand_mem {
 
   uint32_t *d_body_id_per_compact_list;
   bool gpu_memory_allocated;
+  expand_job<Torus> *d_expand_jobs;
 
   zk_expand_mem(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                 uint32_t gpu_count, int_radix_params computing_params,
                 int_radix_params casting_params, KS_TYPE casting_key_type,
+                Torus *flattened_lwe_compact_lists,
+                const uint32_t flattened_lwe_compact_list_lwe_dimension,
                 const uint32_t *num_lwes_per_compact_list,
                 const bool *is_boolean_array, uint32_t num_compact_lists,
                 bool allocate_gpu_memory, uint64_t &size_tracker)
@@ -33,10 +124,11 @@ template <typename Torus> struct zk_expand_mem {
         casting_key_type(casting_key_type) {
 
     gpu_memory_allocated = allocate_gpu_memory;
-    num_lwes = 0;
-    for (int i = 0; i < num_compact_lists; i++) {
-      num_lwes += num_lwes_per_compact_list[i];
-    }
+    auto compact_lwe_lists = flattened_compact_lwe_lists(
+        flattened_lwe_compact_lists, num_lwes_per_compact_list,
+        num_compact_lists, flattened_lwe_compact_list_lwe_dimension);
+
+    num_lwes = compact_lwe_lists.total_num_lwes;
 
     if (computing_params.carry_modulus != computing_params.message_modulus) {
       PANIC("GPU backend requires carry_modulus equal to message_modulus")
@@ -165,6 +257,28 @@ template <typename Torus> struct zk_expand_mem {
       offset += num_lwes_in_kth_compact_list;
     }
 
+    d_expand_jobs =
+        static_cast<expand_job<Torus> *>(cuda_malloc_with_size_tracking_async(
+            num_lwes * sizeof(expand_job<Torus>), streams[0], gpu_indexes[0],
+            size_tracker, allocate_gpu_memory));
+
+    std::vector<expand_job<Torus>> h_expand_jobs;
+    h_expand_jobs.reserve(num_lwes);
+
+    for (auto list_index = 0; list_index < compact_lwe_lists.num_compact_lists;
+         ++list_index) {
+      auto list = compact_lwe_lists.get(list_index);
+      for (auto lwe_index = 0; lwe_index < list.total_num_lwes; ++lwe_index) {
+        auto job = expand_job<Torus>(list.get_mask(), list.get_body(lwe_index));
+        h_expand_jobs.push_back(job);
+      }
+    }
+
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        d_expand_jobs, h_expand_jobs.data(),
+        h_expand_jobs.size() * sizeof(expand_job<Torus>), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
+
     /*
      * Each LWE contains encrypted data in both carry and message spaces
      * that needs to be extracted.
@@ -267,6 +381,8 @@ template <typename Torus> struct zk_expand_mem {
     cuda_drop_with_size_tracking_async(tmp_ksed_small_to_big_expanded_lwes,
                                        streams[0], gpu_indexes[0],
                                        gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_expand_jobs, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
   }
 };
 

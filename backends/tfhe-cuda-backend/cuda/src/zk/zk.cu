@@ -8,6 +8,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
     uint32_t casting_input_dimension, uint32_t casting_output_dimension,
     uint32_t casting_ks_level, uint32_t casting_ks_base_log, uint32_t pbs_level,
     uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint64_t *flattened_lwe_compact_lists,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     uint32_t num_compact_lists, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, KS_TYPE casting_key_type,
@@ -36,6 +37,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
   return scratch_cuda_expand_without_verification<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count,
       reinterpret_cast<zk_expand_mem<uint64_t> **>(mem_ptr),
+      flattened_lwe_compact_lists, casting_input_dimension,
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
       computing_params, casting_params, casting_key_type, allocate_gpu_memory);
 }
