@@ -204,7 +204,7 @@ fn test_shortint() {
 
 # FHE Kreyvium implementation using tfhe-rs crate
 
-This will work in exactly the same way as the Trivium implementation, except that the key and iv need to be 128 bits now. Available for the same internal types as Trivium, with similar syntax.
+This will work in exactly the same way as the Trivium implementation, except that the key and IV need to be 128 bits now. Available for the same internal types as Trivium, with similar syntax.
 
 `KreyviumStreamByte<FheUint8>` and `KreyviumStreamShortint` also implement the `TransCiphering` trait.
 
