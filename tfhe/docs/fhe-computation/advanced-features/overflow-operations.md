@@ -14,7 +14,7 @@ Here's the list of operations supported along with their symbol:
 | [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html) | `overflow_sub` | Binary |
 | [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html) | `overflow_mul` | Binary |
 
-The usage of these operations is similar to the standard ones. The key difference is in the decryption process, as shown in following example:
+The usage of these operations is similar to the standard ones. The key difference is in the decryption process, as shown in the following example:
 
 ```rust
 // Adds two [FheUint] and returns a boolean indicating overflow.
