@@ -1,4 +1,4 @@
-# Generate encrypted pseudo random values
+# Generate encrypted pseudo-random values
 
 This document explains the mechanism and steps to generate an oblivious encrypted random value using only server keys.
 
