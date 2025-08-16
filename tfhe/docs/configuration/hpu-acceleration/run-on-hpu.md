@@ -2,14 +2,14 @@
 
 This guide explains how to update your existing program to leverage HPU acceleration, or to start a new program using HPU.
 
-**TFHE-rs** now supports a HPU backend based on FPGA implementation, enabling integer arithmetic operations on encrypted data.
+**TFHE-rs** now supports an HPU backend based on FPGA implementation, enabling integer arithmetic operations on encrypted data.
 
 ## Prerequisites
 
 * An [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
 * A HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/blob/main/README.md)
-* AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
-* QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
+* AMI Linux device driver version from this [fork](https://github.com/zama-ai/AVED)
+* QDMA Linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust-configuration.md)
 
 ## Importing to your project
