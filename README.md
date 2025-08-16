@@ -45,7 +45,7 @@ production-ready library for all the advanced features of TFHE.
 - **Short integer API** that enables exact, unbounded FHE integer arithmetics with up to 8 bits of message space
 - **Size-efficient public key encryption**
 - **Ciphertext and server key compression** for efficient data transfer
-- **Full Rust API, C bindings to the Rust High-Level API, and client-side Javascript API using WASM**.
+- **Full Rust API, C bindings to the Rust High-Level API, and client-side JavaScript API using WASM**.
 
 *Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
 <br></br>

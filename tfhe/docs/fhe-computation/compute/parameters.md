@@ -25,7 +25,7 @@ fn main() {
 ```
 
 {% hint style="info" %}
-These default parameters may be updated with in future releases of **TFHE-rs**, potentially causing incompatibilities between versions. For production systems, it is therefore recommended to specify a fixed parameter set.
+These default parameters may be updated within future releases of **TFHE-rs**, potentially causing incompatibilities between versions. For production systems, it is therefore recommended to specify a fixed parameter set.
 {% endhint %}
 
 ## Parameters versioning and naming scheme

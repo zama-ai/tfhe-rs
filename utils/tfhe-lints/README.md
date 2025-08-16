@@ -10,7 +10,7 @@ make tfhe_lints
 ## `serialize_without_versionize`
 
 ### What it does
-For every type that implements `Serialize`, checks that it also implement `Versionize`
+For every type that implements `Serialize`, checks that it also implements `Versionize`
 
 ### Why is this bad?
 If a type is serializable but does not implement Versionize, it is likely that the

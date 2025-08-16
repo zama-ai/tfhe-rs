@@ -17,7 +17,7 @@ You can enable this feature using the flag: `--features=zk-pok,gpu` when buildin
 
 ## Proven compact ciphertext list
 
-A proven compact list of ciphertexts can be seen as a compacted collection of ciphertexts for which encryption can be verified.
+A proven compact list of ciphertexts can be seen as a compact collection of ciphertexts for which encryption can be verified.
 This verification is currently only supported on the CPU, but the expansion can be sped up using the GPU. However, verification and expansion can be performed in parallel, efficiently using all the available computational resources.
 
 ## Supported types
