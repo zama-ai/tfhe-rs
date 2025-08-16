@@ -36,7 +36,7 @@ pub fn main() {
     // Perform the noise squashing
     let squashed = bitand.squash_noise().unwrap();
 
-    // We don't perform the noise flooding, but here verify that the noise squashing preserves our
+    // We don't perform the noise flooding, but here we verify that the noise squashing preserves our
     // data
     let recovered: u32 = squashed.decrypt(&cks);
 
