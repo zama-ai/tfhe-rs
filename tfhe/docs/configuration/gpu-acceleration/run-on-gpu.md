@@ -46,7 +46,7 @@ The following features are not supported:
 
 The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer datatypes and operations syntax are the same. All the while, some GPU program design principles must be considered:
 * Key generation, encryption, and decryption are performed on the CPU. When used in operations, ciphertexts are automatically copied to or from the first GPU that the user configures for TFHE-rs.
-* GPU syntax for integer FHE operations, key generation, and serialization is identical with equivalent CPU code.
+* GPU syntax for integer FHE operations, key generation, and serialization is identical with the equivalent CPU code.
 * When configured to compile for the GPU, TFHE-rs uses GPU specific cryptographic parameters that give high performance on the GPU. Ciphertexts and server-keys that are generated with CPU parameters can be processed with GPU-enabled TFHE-rs but performance is considerably degraded.
 * Each server key instance is assigned to a set of GPUs, which are automatically used in parallel. To set the active GPUs for a CPU thread, activate the server key assigned to the GPUs you want to use.
 * GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.
