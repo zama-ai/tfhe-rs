@@ -70,7 +70,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for LweBodyRef<'data, T> 
     type Metadata = LweBodyCreationMetadata<T>;
 
     #[inline]
-    fn create_from(from: &[T], meta: Self::Metadata) -> LweBodyRef<T> {
+    fn create_from(from: &[T], meta: Self::Metadata) -> LweBodyRef<'_, T> {
         let LweBodyCreationMetadata { ciphertext_modulus } = meta;
         LweBodyRef {
             data: &from[0],
@@ -83,7 +83,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for LweBodyRefMut<'da
     type Metadata = LweBodyCreationMetadata<T>;
 
     #[inline]
-    fn create_from(from: &mut [T], meta: Self::Metadata) -> LweBodyRefMut<T> {
+    fn create_from(from: &mut [T], meta: Self::Metadata) -> LweBodyRefMut<'_, T> {
         let LweBodyCreationMetadata { ciphertext_modulus } = meta;
         LweBodyRefMut {
             data: &mut from[0],

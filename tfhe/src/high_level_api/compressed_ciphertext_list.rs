@@ -366,7 +366,7 @@ impl InnerCompressedCiphertextList {
         }
     }
 
-    fn on_cpu(&self) -> MaybeCloned<crate::integer::ciphertext::CompressedCiphertextList> {
+    fn on_cpu(&self) -> MaybeCloned<'_, crate::integer::ciphertext::CompressedCiphertextList> {
         match self {
             Self::Cpu(cpu_ct) => MaybeCloned::Borrowed(cpu_ct),
             #[cfg(feature = "gpu")]

@@ -248,7 +248,7 @@ impl NoiseSquashingPrivateKey {
         }
     }
 
-    pub(crate) fn as_view(&self) -> NoiseSquashingPrivateKeyView {
+    pub(crate) fn as_view(&self) -> NoiseSquashingPrivateKeyView<'_> {
         NoiseSquashingPrivateKeyView {
             key: self.key.as_view(),
         }

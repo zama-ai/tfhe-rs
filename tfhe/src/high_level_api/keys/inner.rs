@@ -346,7 +346,7 @@ impl IntegerServerKey {
 
     pub(in crate::high_level_api) fn cpk_casting_key(
         &self,
-    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView> {
+    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView<'_>> {
         self.cpk_key_switching_key_material.as_ref().map(|k| {
             crate::integer::key_switching_key::KeySwitchingKeyView::from_keyswitching_key_material(
                 k.as_view(),

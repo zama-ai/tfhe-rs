@@ -43,7 +43,7 @@ impl NoiseSquashingCompressionPrivateKey {
         Self { key }
     }
 
-    pub fn private_key_view(&self) -> NoiseSquashingPrivateKeyView {
+    pub fn private_key_view(&self) -> NoiseSquashingPrivateKeyView<'_> {
         NoiseSquashingPrivateKeyView {
             key: (&self.key).into(),
         }
