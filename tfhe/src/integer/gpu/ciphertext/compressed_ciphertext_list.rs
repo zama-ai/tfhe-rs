@@ -71,7 +71,7 @@ impl CudaExpandable for CudaBooleanBlock {
     }
 }
 pub struct CudaCompressedCiphertextList {
-    pub(crate) packed_list: CudaPackedGlweCiphertextList,
+    pub(crate) packed_list: CudaPackedGlweCiphertextList<u64>,
     pub(crate) info: Vec<DataKind>,
 }
 
