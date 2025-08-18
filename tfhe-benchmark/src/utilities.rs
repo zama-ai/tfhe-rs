@@ -39,7 +39,9 @@ pub mod shortint_utils {
     use super::*;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
-    use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
+    use tfhe::shortint::parameters::{
+        NoiseSquashingCompressionParameters, ShortintKeySwitchingParameters,
+    };
     use tfhe::shortint::{
         AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters, PBSParameters,
         ShortintParameterSet,
@@ -134,6 +136,36 @@ pub mod shortint_utils {
                 packing_ks_key_noise_distribution: Some(
                     comp_params.packing_ks_key_noise_distribution,
                 ),
+                ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
+                error_probability: pbs_params
+                    .log2_p_fail()
+                    .map(|log2_pfail| 2f64.powf(log2_pfail)),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<(NoiseSquashingCompressionParameters, ClassicPBSParameters)>
+        for CryptoParametersRecord<u64>
+    {
+        fn from(
+            (comp_params, pbs_params): (NoiseSquashingCompressionParameters, ClassicPBSParameters),
+        ) -> Self {
+            let pbs_params =
+                ShortintParameterSet::new_pbs_param_set(PBSParameters::PBS(pbs_params));
+            let lwe_dimension = pbs_params.encryption_lwe_dimension();
+            CryptoParametersRecord {
+                lwe_dimension: Some(lwe_dimension),
+                br_level: None,
+                br_base_log: None,
+                packing_ks_level: Some(comp_params.packing_ks_level),
+                packing_ks_base_log: Some(comp_params.packing_ks_base_log),
+                packing_ks_polynomial_size: Some(comp_params.packing_ks_polynomial_size),
+                packing_ks_glwe_dimension: Some(comp_params.packing_ks_glwe_dimension),
+                lwe_per_glwe: Some(comp_params.lwe_per_glwe),
+                storage_log_modulus: Some(comp_params.ciphertext_modulus.into_modulus_log()),
+                lwe_noise_distribution: Some(pbs_params.encryption_noise_distribution()),
+                packing_ks_key_noise_distribution: None,
                 ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
                 error_probability: pbs_params
                     .log2_p_fail()

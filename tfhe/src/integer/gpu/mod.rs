@@ -34,6 +34,7 @@ use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::{CarryModulus, MessageModulus};
 use itertools::Itertools;
 pub use server_key::CudaServerKey;
+use std::any::TypeId;
 use std::cmp::min;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
@@ -111,8 +112,8 @@ fn prepare_cuda_lwe_ct_ffi<T: UnsignedInteger>(
     }
 }
 
-fn prepare_cuda_packed_glwe_ct_ffi(
-    input: &CudaPackedGlweCiphertextList,
+fn prepare_cuda_packed_glwe_ct_ffi<T: UnsignedInteger>(
+    input: &CudaPackedGlweCiphertextList<T>,
 ) -> CudaPackedGlweCiphertextListFFI {
     CudaPackedGlweCiphertextListFFI {
         ptr: input.data.get_mut_c_ptr(0),
@@ -733,11 +734,14 @@ where
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
+pub unsafe fn compress_integer_radix_async<
+    InputTorus: UnsignedInteger,
+    OutputTorus: UnsignedInteger,
+>(
     streams: &CudaStreams,
-    glwe_array_out: &mut CudaPackedGlweCiphertextList,
-    lwe_array_in: &CudaLweCiphertextList<T>,
-    fp_keyswitch_key: &CudaVec<u64>,
+    glwe_array_out: &mut CudaPackedGlweCiphertextList<OutputTorus>,
+    lwe_array_in: &CudaLweCiphertextList<InputTorus>,
+    fp_keyswitch_key: &CudaVec<OutputTorus>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     compression_glwe_dimension: GlweDimension,
@@ -774,40 +778,79 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     let array_in_ffi = prepare_cuda_lwe_ct_ffi(lwe_array_in);
     let mut glwe_array_out_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_array_out);
 
-    scratch_cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        compression_glwe_dimension.0 as u32,
-        compression_polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        PBSType::Classical as u32,
-        lwe_per_glwe,
-        true,
-    );
+    if TypeId::of::<OutputTorus>() == TypeId::of::<u64>() {
+        // 64 bits
+        scratch_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            lwe_per_glwe,
+            true,
+        );
 
-    cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        &raw mut glwe_array_out_ffi,
-        &raw const array_in_ffi,
-        fp_keyswitch_key.ptr.as_ptr(),
-        mem_ptr,
-    );
+        cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            &raw mut glwe_array_out_ffi,
+            &raw const array_in_ffi,
+            fp_keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+        );
 
-    cleanup_cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+        cleanup_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    } else if TypeId::of::<OutputTorus>() == TypeId::of::<u128>() {
+        // 128 bits
+        scratch_cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            lwe_per_glwe,
+            true,
+        );
+
+        cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            &raw mut glwe_array_out_ffi,
+            &raw const array_in_ffi,
+            fp_keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+        );
+
+        cleanup_cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -860,10 +903,10 @@ pub fn get_compression_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
+pub unsafe fn decompress_integer_radix_async_64<B: Numeric>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaLweCiphertextList<T>,
-    glwe_in: &CudaPackedGlweCiphertextList,
+    lwe_array_out: &mut CudaLweCiphertextList<u64>,
+    glwe_in: &CudaPackedGlweCiphertextList<u64>,
     bootstrapping_key: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -935,6 +978,78 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     );
 
     cleanup_cuda_integer_decompress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+///
+///  128-bit decompression doesn't execute a PBS as the 64-bit does.
+///  We have a different entry point because we don't need to carry a bsk to the backend.
+pub unsafe fn decompress_integer_radix_async_128(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaLweCiphertextList<u128>,
+    glwe_in: &CudaPackedGlweCiphertextList<u128>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    compression_glwe_dimension: GlweDimension,
+    compression_polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    vec_indexes: &[u32],
+    num_blocks_to_decompress: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_out.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_in.data.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        glwe_in.data.gpu_index(0).get(),
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut lwe_array_out_ffi = prepare_cuda_lwe_ct_ffi(lwe_array_out);
+    let glwe_array_in_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_in);
+
+    scratch_cuda_integer_decompress_radix_ciphertext_128(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        compression_glwe_dimension.0 as u32,
+        compression_polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        num_blocks_to_decompress,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        true,
+        false,
+    );
+
+    cuda_integer_decompress_radix_ciphertext_128(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut lwe_array_out_ffi,
+        &raw const glwe_array_in_ffi,
+        vec_indexes.as_ptr(),
+        mem_ptr,
+    );
+
+    cleanup_cuda_integer_decompress_radix_ciphertext_128(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
