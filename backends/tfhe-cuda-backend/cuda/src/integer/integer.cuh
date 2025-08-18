@@ -558,7 +558,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, 1, (Torus *)lwe_array_out->ptr,
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
@@ -586,7 +586,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
@@ -665,7 +665,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, 1, (Torus *)lwe_array_out->ptr,
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
@@ -693,7 +693,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
@@ -787,7 +787,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, 1, (Torus *)(lwe_array_out->ptr),
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
@@ -811,7 +811,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
@@ -1486,7 +1486,7 @@ void host_full_propagate_inplace(
         streams[0], gpu_indexes[0], mem_ptr->tmp_small_lwe_vector, 1, 2,
         mem_ptr->tmp_small_lwe_vector, 0, 1);
 
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, 1, (Torus *)mem_ptr->tmp_big_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, mem_ptr->lut->lut_vec,
         mem_ptr->lut->lut_indexes_vec,
@@ -2344,11 +2344,17 @@ __host__ void integer_radix_apply_noise_squashing_kb(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_128_async<__uint128_t>(
+    ///
+    /// int_noise_squashing_lut doesn't support a different output or lut
+    /// indexing than the trivial
+    execute_pbs_async<uint64_t, __uint128_t>(
         streams, gpu_indexes, 1, (__uint128_t *)lwe_array_out->ptr,
-        lut->lut_vec, lwe_after_ks_vec[0], bsks, ms_noise_reduction_key,
-        lut->pbs_buffer, small_lwe_dimension, glwe_dimension, polynomial_size,
-        pbs_base_log, pbs_level, lwe_array_out->num_radix_blocks);
+        lwe_trivial_indexes_vec[0], lut->lut_vec, lwe_trivial_indexes_vec,
+        lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
+        ms_noise_reduction_key, lut->pbs_buffer, glwe_dimension,
+        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        grouping_factor, lwe_array_out->num_radix_blocks, params.pbs_type, 0,
+        0);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -2367,11 +2373,15 @@ __host__ void integer_radix_apply_noise_squashing_kb(
         ksks, lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
         ks_level, lwe_array_out->num_radix_blocks);
 
-    execute_pbs_128_async<__uint128_t>(
-        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec, lut->lut_vec,
-        lwe_after_ks_vec, bsks, ms_noise_reduction_key, lut->pbs_buffer,
-        small_lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-        pbs_level, lwe_array_out->num_radix_blocks);
+    /// int_noise_squashing_lut doesn't support a different output or lut
+    /// indexing than the trivial
+    execute_pbs_async<uint64_t, __uint128_t>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lwe_trivial_indexes_vec,
+        lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
+        lut->pbs_buffer, glwe_dimension, small_lwe_dimension, polynomial_size,
+        pbs_base_log, pbs_level, grouping_factor,
+        lwe_array_out->num_radix_blocks, params.pbs_type, 0, 0);
 
     /// Copy data back to GPU 0 and release vecs
     /// In apply noise squashing we always use trivial indexes

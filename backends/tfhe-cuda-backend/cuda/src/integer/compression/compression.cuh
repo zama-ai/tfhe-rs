@@ -344,7 +344,7 @@ host_integer_decompress(cudaStream_t const *streams,
     auto active_gpu_count =
         get_active_gpu_count(num_blocks_to_decompress, gpu_count);
     if (active_gpu_count == 1) {
-      execute_pbs_async<Torus>(
+      execute_pbs_async<Torus, Torus>(
           streams, gpu_indexes, active_gpu_count, (Torus *)d_lwe_array_out->ptr,
           lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
           extracted_lwe, lut->lwe_indexes_in, d_bsks, nullptr, lut->buffer,
@@ -374,7 +374,7 @@ host_integer_decompress(cudaStream_t const *streams,
           compression_params.small_lwe_dimension + 1);
 
       /// Apply PBS
-      execute_pbs_async<Torus>(
+      execute_pbs_async<Torus, Torus>(
           streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
           lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
           lwe_array_in_vec, lwe_trivial_indexes_vec, d_bsks, nullptr,
