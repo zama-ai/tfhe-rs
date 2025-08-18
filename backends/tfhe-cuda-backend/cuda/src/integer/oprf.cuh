@@ -34,7 +34,7 @@ void host_integer_grouped_oprf(
   auto lut = mem_ptr->luts;
 
   if (active_gpu_count == 1) {
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, (uint32_t)1, (Torus *)(radix_lwe_out->ptr),
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
         const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in, bsks,
@@ -60,7 +60,7 @@ void host_integer_grouped_oprf(
         active_gpu_count, num_blocks_to_process,
         mem_ptr->params.small_lwe_dimension + 1);
 
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,

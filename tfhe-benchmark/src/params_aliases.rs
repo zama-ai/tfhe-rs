@@ -5,7 +5,8 @@ pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::KeySwitch32PBSParameters;
     use tfhe::shortint::parameters::{
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-        MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+        MultiBitPBSParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+        ShortintKeySwitchingParameters,
     };
 
     // KS PBS Gaussian
@@ -142,6 +143,10 @@ pub mod shortint_params_aliases {
     pub const BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         NoiseSquashingParameters =
         V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    pub const BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+        NoiseSquashingCompressionParameters =
+        V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     #[cfg(feature = "hpu")]
     // KS PBS Gaussian for Hpu
