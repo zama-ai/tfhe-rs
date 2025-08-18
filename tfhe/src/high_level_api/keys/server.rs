@@ -122,7 +122,7 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn cpk_casting_key(
         &self,
-    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView> {
+    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView<'_>> {
         self.key.cpk_casting_key()
     }
 
@@ -138,7 +138,7 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn integer_compact_ciphertext_list_expansion_mode(
         &self,
-    ) -> IntegerCompactCiphertextListExpansionMode {
+    ) -> IntegerCompactCiphertextListExpansionMode<'_> {
         self.cpk_casting_key().map_or_else(
             || {
                 IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(
