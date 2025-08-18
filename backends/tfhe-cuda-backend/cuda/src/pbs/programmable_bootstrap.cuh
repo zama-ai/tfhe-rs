@@ -7,6 +7,7 @@
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "helper_multi_gpu.h"
+#include "pbs/pbs_128_utilities.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "polynomial/polynomial_math.cuh"
 
@@ -202,15 +203,15 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
   // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
-template <typename Torus>
+template <typename InputTorus, typename OutputTorus>
 void execute_pbs_async(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, const LweArrayVariant<Torus> &lwe_array_out,
-    const LweArrayVariant<Torus> &lwe_output_indexes,
-    const std::vector<Torus *> lut_vec,
-    const std::vector<Torus *> lut_indexes_vec,
-    const LweArrayVariant<Torus> &lwe_array_in,
-    const LweArrayVariant<Torus> &lwe_input_indexes,
+    uint32_t gpu_count, const LweArrayVariant<OutputTorus> &lwe_array_out,
+    const LweArrayVariant<InputTorus> &lwe_output_indexes,
+    const std::vector<OutputTorus *> lut_vec,
+    const std::vector<InputTorus *> lut_indexes_vec,
+    const LweArrayVariant<InputTorus> &lwe_array_in,
+    const LweArrayVariant<InputTorus> &lwe_input_indexes,
     void *const *bootstrapping_keys,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
@@ -219,8 +220,7 @@ void execute_pbs_async(
     uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  switch (sizeof(Torus)) {
-  case sizeof(uint32_t):
+  if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
     // 32 bits
     switch (pbs_type) {
     case MULTI_BIT:
@@ -238,12 +238,12 @@ void execute_pbs_async(
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
         // different gpus and when it is not
-        Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
-        Torus *current_lwe_output_indexes =
-            GET_VARIANT_ELEMENT(lwe_output_indexes, i);
-        Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
-        Torus *current_lwe_input_indexes =
-            GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_output_indexes =
+            get_variant_element(lwe_output_indexes, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+        auto current_lwe_input_indexes =
+            get_variant_element(lwe_input_indexes, i);
 
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
             streams[i], gpu_indexes[i], current_lwe_array_out,
@@ -257,8 +257,7 @@ void execute_pbs_async(
     default:
       PANIC("Error: unsupported cuda PBS type.")
     }
-    break;
-  case sizeof(uint64_t):
+  } else if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
@@ -271,12 +270,12 @@ void execute_pbs_async(
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
         // different gpus and when it is not
-        Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
-        Torus *current_lwe_output_indexes =
-            GET_VARIANT_ELEMENT(lwe_output_indexes, i);
-        Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
-        Torus *current_lwe_input_indexes =
-            GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_output_indexes =
+            get_variant_element(lwe_output_indexes, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+        auto current_lwe_input_indexes =
+            get_variant_element(lwe_input_indexes, i);
 
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
@@ -300,12 +299,12 @@ void execute_pbs_async(
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
         // different gpus and when it is not
-        Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
-        Torus *current_lwe_output_indexes =
-            GET_VARIANT_ELEMENT(lwe_output_indexes, i);
-        Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
-        Torus *current_lwe_input_indexes =
-            GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_output_indexes =
+            get_variant_element(lwe_output_indexes, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+        auto current_lwe_input_indexes =
+            get_variant_element(lwe_input_indexes, i);
 
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
@@ -328,10 +327,81 @@ void execute_pbs_async(
     default:
       PANIC("Error: unsupported cuda PBS type.")
     }
-    break;
-  default:
-    PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit integer "
-          "moduli are supported.")
+  } else if constexpr (std::is_same_v<OutputTorus, __uint128_t>) {
+    // 128 bits
+    switch (pbs_type) {
+    case MULTI_BIT:
+      if (grouping_factor == 0)
+        PANIC("Multi-bit PBS error: grouping factor should be > 0.")
+      for (uint i = 0; i < gpu_count; i++) {
+        int num_inputs_on_gpu =
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+
+        // Use the macro to get the correct elements for the current iteration
+        // Handles the case when the input/output are scattered through
+        // different gpus and when it is not
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_output_indexes =
+            get_variant_element(lwe_output_indexes, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+        auto current_lwe_input_indexes =
+            get_variant_element(lwe_input_indexes, i);
+
+        int gpu_offset =
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+        auto d_lut_vector_indexes =
+            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+            streams[i], gpu_indexes[i], current_lwe_array_out,
+            current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+            current_lwe_array_in, current_lwe_input_indexes,
+            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, grouping_factor, base_log, level_count,
+            num_inputs_on_gpu, num_many_lut, lut_stride);
+      }
+      break;
+    case CLASSICAL:
+      for (uint i = 0; i < gpu_count; i++) {
+        int num_inputs_on_gpu =
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+
+        // Use the macro to get the correct elements for the current iteration
+        // Handles the case when the input/output are scattered through
+        // different gpus and when it is not
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_output_indexes =
+            get_variant_element(lwe_output_indexes, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+        auto current_lwe_input_indexes =
+            get_variant_element(lwe_input_indexes, i);
+
+        int gpu_offset =
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+        auto d_lut_vector_indexes =
+            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+
+        void *zeros = nullptr;
+        if (ms_noise_reduction_key != nullptr &&
+            ms_noise_reduction_key->ptr != nullptr)
+          zeros = ms_noise_reduction_key->ptr[i];
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
+            streams[i], gpu_indexes[i], current_lwe_array_out, lut_vec[i],
+            current_lwe_array_in, bootstrapping_keys[i], ms_noise_reduction_key,
+            zeros, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, base_log, level_count, num_inputs_on_gpu);
+      }
+      break;
+    default:
+      PANIC("Error: unsupported cuda PBS type.")
+    }
+  } else {
+    static_assert(
+        std::is_same_v<OutputTorus, uint32_t> ||
+            std::is_same_v<OutputTorus, uint64_t> ||
+            std::is_same_v<OutputTorus, __uint128_t>,
+        "Cuda error: unsupported modulus size: only 32, 64, or 128-bit integer "
+        "moduli are supported.");
   }
 }
 
@@ -344,8 +414,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          bool allocate_gpu_memory,
                          PBS_MS_REDUCTION_T noise_reduction_type,
                          uint64_t &size_tracker) {
-  switch (sizeof(Torus)) {
-  case sizeof(uint32_t):
+  if constexpr (std::is_same_v<Torus, uint32_t>) {
     // 32 bits
     switch (pbs_type) {
     case MULTI_BIT:
@@ -359,8 +428,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     default:
       PANIC("Error: unsupported cuda PBS type.")
     }
-    break;
-  case sizeof(uint64_t):
+  } else if constexpr (std::is_same_v<Torus, uint64_t>) {
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
@@ -379,10 +447,32 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     default:
       PANIC("Error: unsupported cuda PBS type.")
     }
-    break;
-  default:
-    PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit integer "
-          "moduli are supported.")
+  } else if constexpr (std::is_same_v<Torus, __uint128_t>) {
+    // 128 bits
+    switch (pbs_type) {
+    case MULTI_BIT:
+      if (grouping_factor == 0)
+        PANIC("Multi-bit PBS error: grouping factor should be > 0.")
+      size_tracker =
+          scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
+              stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
+              level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+      break;
+    case CLASSICAL:
+      size_tracker = scratch_cuda_programmable_bootstrap_128(
+          stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
+          polynomial_size, level_count, input_lwe_ciphertext_count,
+          allocate_gpu_memory, noise_reduction_type);
+      break;
+    default:
+      PANIC("Error: unsupported cuda PBS type.")
+    }
+  } else {
+    static_assert(
+        std::is_same_v<Torus, uint32_t> || std::is_same_v<Torus, uint64_t> ||
+            std::is_same_v<Torus, __uint128_t>,
+        "Cuda error: unsupported modulus size: only 32, 64, or 128-bit integer "
+        "moduli are supported.");
   }
 }
 
