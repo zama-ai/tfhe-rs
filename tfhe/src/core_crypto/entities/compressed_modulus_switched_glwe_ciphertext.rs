@@ -175,7 +175,7 @@ impl<Scalar: UnsignedInteger> CompressedModulusSwitchedGlweCiphertext<Scalar> {
 
         assert!(
             ct.ciphertext_modulus().is_power_of_two(),
-            "Modulus switch compression doe not support non power of 2 input moduli",
+            "Modulus switch compression does not support non power of 2 input moduli",
         );
 
         let uncompressed_ciphertext_modulus_log =
