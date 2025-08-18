@@ -920,6 +920,11 @@ pub unsafe fn decompress_integer_radix_async_64<B: Numeric>(
     vec_indexes: &[u32],
     num_blocks_to_decompress: u32,
 ) {
+    assert!(
+        TypeId::of::<T>() != TypeId::of::<u128>(),
+        "128-bit types are not supported by this method"
+    );
+
     assert_eq!(
         streams.gpu_indexes[0],
         lwe_array_out.0.d_vec.gpu_index(0),

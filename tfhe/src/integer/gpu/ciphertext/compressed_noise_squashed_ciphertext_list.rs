@@ -42,9 +42,8 @@ impl CudaSquashedNoiseCompressible for CudaSquashedNoiseRadixCiphertext {
         streams: &CudaStreams,
     ) -> Option<DataKind> {
         let x = self.duplicate(streams);
-        let num_blocks = x.original_block_count;
 
-        let num_blocks = NonZeroUsize::new(num_blocks);
+        let num_blocks = NonZeroUsize::new(x.original_block_count);
         if num_blocks.is_some() {
             messages.push(x)
         }
@@ -59,9 +58,8 @@ impl CudaSquashedNoiseCompressible for CudaSquashedNoiseSignedRadixCiphertext {
         streams: &CudaStreams,
     ) -> Option<DataKind> {
         let x = self.duplicate(streams);
-        let num_blocks = x.ciphertext.original_block_count;
 
-        let num_blocks = NonZeroUsize::new(num_blocks);
+        let num_blocks = NonZeroUsize::new(x.ciphertext.original_block_count);
         if num_blocks.is_some() {
             messages.push(x.ciphertext)
         }
@@ -99,6 +97,7 @@ impl CudaCompressedSquashedNoiseCiphertextListBuilder {
         if let Some(kind) = data.compress_into(&mut self.ciphertexts, streams) {
             self.info.push(kind);
         }
+
         self
     }
 
