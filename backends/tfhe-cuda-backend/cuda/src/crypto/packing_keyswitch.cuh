@@ -202,10 +202,11 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
 
   auto stride_KSK_buffer = glwe_accumulator_size * level_count;
 
-  // Shared memory requirement is 8192 bytes for 64-bit Torus elements
+  // Shared memory requirement is 4096, 8192, and 16384 bytes respectively for
+  // 32, 64, and 128-bit Torus elements We want to keep this as a sanity check
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
   // Sanity check: the shared memory size is a constant defined by the algorithm
-  GPU_ASSERT(shared_mem_size <= 8192,
+  GPU_ASSERT(shared_mem_size <= 1024 * sizeof(Torus),
              "GEMM kernel error: shared memory required might be too large");
 
   tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
