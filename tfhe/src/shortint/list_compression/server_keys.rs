@@ -243,8 +243,8 @@ impl From<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingCompressionKeyVersions)]
 pub struct NoiseSquashingCompressionKey {
-    pub(super) packing_key_switching_key: LwePackingKeyswitchKey<Vec<u128>>,
-    pub(super) lwe_per_glwe: LweCiphertextCount,
+    pub(crate) packing_key_switching_key: LwePackingKeyswitchKey<Vec<u128>>,
+    pub(crate) lwe_per_glwe: LweCiphertextCount,
 }
 
 impl NoiseSquashingCompressionKey {
