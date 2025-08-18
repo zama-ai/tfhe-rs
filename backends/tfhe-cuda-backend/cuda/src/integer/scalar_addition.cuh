@@ -7,7 +7,7 @@
 #endif
 
 #include "device.h"
-#include "integer/integer_utilities.h"
+#include "radix_ciphertext.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
 
