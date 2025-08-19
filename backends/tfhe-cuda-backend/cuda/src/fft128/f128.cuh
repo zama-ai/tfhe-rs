@@ -259,6 +259,16 @@ struct f128x2 {
     return *this;
   }
 };
+// Shuffle XOR for f128x2
+__device__ inline f128x2 shfl_xor_f128x2(f128x2 val, int laneMask,
+                                         unsigned mask = 0xFFFFFFFF) {
+  double rehi = __shfl_xor_sync(mask, val.re.hi, laneMask);
+  double relo = __shfl_xor_sync(mask, val.re.lo, laneMask);
+  double imhi = __shfl_xor_sync(mask, val.im.hi, laneMask);
+  double imlo = __shfl_xor_sync(mask, val.im.lo, laneMask);
+
+  return f128x2(f128(rehi, relo), f128(imhi, imlo));
+}
 
 __host__ __device__ inline uint64_t double_to_bits(double d) {
   uint64_t bits = *reinterpret_cast<uint64_t *>(&d);
