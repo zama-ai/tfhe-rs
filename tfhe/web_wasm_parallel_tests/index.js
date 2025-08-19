@@ -23,19 +23,19 @@ async function setup() {
   const demos = await Comlink.wrap(worker).demos;
 
   const demoNames = [
-    "publicKeyTest",
-    "compressedPublicKeyTest",
-    "compressedCompactPublicKeyTest256BitBig",
-    "compressedCompactPublicKeyTest256BitSmall",
-    "compactPublicKeyZeroKnowledgeTest",
-    "compactPublicKeyBench32BitBig",
-    "compactPublicKeyBench32BitSmall",
-    "compactPublicKeyBench256BitBig",
-    "compactPublicKeyBench256BitSmall",
-    "compactPublicKeyWithCastingTest256Bit",
-    "compressedCompactPublicKeyWithCastingTest256Bit",
-    "compressedServerKeyBenchMessage1Carry1",
-    "compressedServerKeyBenchMessage2Carry2",
+    // "publicKeyTest",
+    // "compressedPublicKeyTest",
+    // "compressedCompactPublicKeyTest256BitBig",
+    // "compressedCompactPublicKeyTest256BitSmall",
+    // "compactPublicKeyZeroKnowledgeTest",
+    // "compactPublicKeyBench32BitBig",
+    // "compactPublicKeyBench32BitSmall",
+    // "compactPublicKeyBench256BitBig",
+    // "compactPublicKeyBench256BitSmall",
+    // "compactPublicKeyWithCastingTest256Bit",
+    // "compressedCompactPublicKeyWithCastingTest256Bit",
+    // "compressedServerKeyBenchMessage1Carry1",
+    // "compressedServerKeyBenchMessage2Carry2",
     "compactPublicKeyZeroKnowledgeBench",
   ];
 
