@@ -107,8 +107,8 @@ pub mod shortint_utils {
                 pbs_level: Some(params.pbs_level()),
                 ks_base_log: Some(params.ks_base_log()),
                 ks_level: Some(params.ks_level()),
-                message_modulus: Some(params.message_modulus().0),
-                carry_modulus: Some(params.carry_modulus().0),
+                message_modulus: Some(params.message_modulus().0 as usize),
+                carry_modulus: Some(params.carry_modulus().0 as usize),
                 ciphertext_modulus: Some(
                     params
                         .ciphertext_modulus()
@@ -133,8 +133,8 @@ pub mod shortint_utils {
     impl From<CompactPublicKeyEncryptionParameters> for CryptoParametersRecord<u64> {
         fn from(params: CompactPublicKeyEncryptionParameters) -> Self {
             CryptoParametersRecord {
-                message_modulus: Some(params.message_modulus.0),
-                carry_modulus: Some(params.carry_modulus.0),
+                message_modulus: Some(params.message_modulus.0 as usize),
+                carry_modulus: Some(params.carry_modulus.0 as usize),
                 ciphertext_modulus: Some(params.ciphertext_modulus),
                 ..Default::default()
             }
@@ -153,7 +153,6 @@ pub mod shortint_utils {
 #[allow(unused_imports)]
 #[cfg(feature = "shortint")]
 pub use shortint_utils::*;
-use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
@@ -365,6 +364,7 @@ pub fn throughput_num_threads(num_block: usize) -> u64 {
 
     #[cfg(feature = "gpu")]
     {
+        use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
         // This value is for Nvidia H100 GPU
         let streaming_multiprocessors = 132;
         let num_gpus = unsafe { cuda_get_number_of_gpus() };

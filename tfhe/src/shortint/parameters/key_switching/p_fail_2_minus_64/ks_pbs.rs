@@ -24,8 +24,8 @@ pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ShortintKeySwi
 // arriving under the small key, requires a PBS to get to the big key
 pub const PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(4),
+    ks_base_log: DecompositionBaseLog(4),
     destination_key: EncryptionKeyChoice::Small,
 };
 
