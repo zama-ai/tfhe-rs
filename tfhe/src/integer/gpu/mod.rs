@@ -8,12 +8,12 @@ pub mod server_key;
 pub mod zk;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
+    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionConfiguration,
 };
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{CudaStreams, PBSMSNoiseReductionType};
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, Numeric, PolynomialSize, UnsignedInteger,
@@ -368,7 +368,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     num_scalars: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -392,9 +392,24 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         keyswitch_key.gpu_index(0).get(),
     );
     let ct_modulus = lwe_array.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut lwe_array_noise_levels = lwe_array
@@ -436,7 +451,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         pbs_type as u32,
         num_scalar_bits,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
@@ -480,9 +495,20 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let msg_bits = message_modulus.0.ilog2() as usize;
     let num_ciphertext_bits = msg_bits * num_blocks as usize;
@@ -512,7 +538,7 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
             pbs_type as u32,
             num_scalar_bits,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
 
@@ -543,7 +569,7 @@ pub fn get_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -596,7 +622,17 @@ where
         .filter(|&&rhs_bit| rhs_bit == 1u64)
         .count() as u32;
 
-    let allocate_ms_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -619,7 +655,7 @@ where
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             false,
-            allocate_ms_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -649,7 +685,7 @@ pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: SignedReciprocable,
@@ -691,7 +727,17 @@ where
         .filter(|&&bit| bit == 1u64)
         .count() as u32;
 
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -714,7 +760,7 @@ where
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -920,7 +966,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         PBSType::Classical as u32,
         true,
-        false,
+        PBSMSNoiseReductionType::NoReduction as u32,
     );
 
     cuda_integer_decompress_radix_ciphertext_64(
@@ -975,7 +1021,7 @@ pub fn get_decompression_size_on_gpu(
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             false,
-            false,
+            PBSMSNoiseReductionType::NoReduction as u32,
         )
     };
 
@@ -1089,7 +1135,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1123,9 +1169,24 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
@@ -1187,7 +1248,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         num_blocks,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_mult_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -1231,9 +1292,19 @@ pub fn get_mul_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_mult_radix_ciphertext_kb_64(
@@ -1256,7 +1327,7 @@ pub fn get_mul_integer_radix_kb_size_on_gpu(
             num_blocks,
             pbs_type as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1295,7 +1366,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1329,9 +1400,24 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
@@ -1393,7 +1479,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         pbs_type as u32,
         op as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -1433,9 +1519,19 @@ pub fn get_bitop_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_bitop_kb_64(
@@ -1458,7 +1554,7 @@ pub fn get_bitop_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             op as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1501,7 +1597,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1532,9 +1628,24 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         keyswitch_key.gpu_index(0).get(),
     );
     let ct_modulus = radix_lwe.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_degrees = radix_lwe.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_noise_levels = radix_lwe
@@ -1568,7 +1679,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         pbs_type as u32,
         op as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -1610,9 +1721,19 @@ pub fn get_scalar_bitop_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_bitop_kb_64(
@@ -1635,7 +1756,7 @@ pub fn get_scalar_bitop_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             op as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1675,7 +1796,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1717,9 +1838,24 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -1795,7 +1931,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         op as u32,
         is_signed,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_comparison_integer_radix_ciphertext_kb_64(
@@ -1838,9 +1974,20 @@ pub fn get_comparison_integer_radix_kb_size_on_gpu(
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_comparison_kb_64(
@@ -1864,7 +2011,7 @@ pub fn get_comparison_integer_radix_kb_size_on_gpu(
             op as u32,
             is_signed,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1906,7 +2053,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     signed_with_positive_scalar: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1947,9 +2094,24 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -2006,7 +2168,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         op as u32,
         signed_with_positive_scalar,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
@@ -2055,7 +2217,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2082,9 +2244,24 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_input_degrees = radix_lwe_input
         .info
@@ -2120,7 +2297,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_full_propagation_64_inplace(
         streams.ptr.as_ptr(),
@@ -2156,9 +2333,19 @@ pub fn get_full_propagate_assign_size_on_gpu(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_full_propagation_64(
@@ -2178,7 +2365,7 @@ pub fn get_full_propagate_assign_size_on_gpu(
             carry_modulus.0 as u32,
             pbs_type as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2218,7 +2405,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2246,9 +2433,24 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut radix_lwe_input_degrees = radix_lwe_input
@@ -2310,7 +2512,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         requested_flag as u32,
         uses_carry,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -2353,9 +2555,19 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let size_tracker = unsafe {
@@ -2380,7 +2592,7 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
             requested_flag as u32,
             uses_carry,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2411,9 +2623,19 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let size_tracker = unsafe {
@@ -2438,7 +2660,7 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
             requested_flag as u32,
             uses_carry,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2479,7 +2701,7 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2526,10 +2748,24 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
 
     let ct_modulus = lhs_input.d_blocks.ciphertext_modulus().raw_modulus_float();
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
 
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2604,7 +2840,7 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
         pbs_type as u32,
         requested_flag as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_sub_and_propagate_single_carry_kb_64_inplace(
@@ -2661,7 +2897,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2707,9 +2943,24 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     );
 
     let ct_modulus = lhs_input.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -2778,7 +3029,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         requested_flag as u32,
         uses_carry,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_add_and_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -2830,7 +3081,7 @@ pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
     pbs_type: PBSType,
     message_bits_per_block: u32,
     total_random_bits: u32,
-    ms_noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2843,9 +3094,24 @@ pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(ms_noise_reduction_key, ct_modulus);
-    let allocate_ms_array = ms_noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2885,7 +3151,7 @@ pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
         true,
         message_bits_per_block,
         total_random_bits,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_grouped_oprf_async_64(
@@ -2928,9 +3194,19 @@ pub(crate) fn get_grouped_oprf_size_on_gpu(
     pbs_type: PBSType,
     message_bits_per_block: u32,
     total_random_bits: u32,
-    ms_noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_array = ms_noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2956,7 +3232,7 @@ pub(crate) fn get_grouped_oprf_size_on_gpu(
             false,
             message_bits_per_block,
             total_random_bits,
-            allocate_ms_array,
+            noise_reduction_type as u32,
         )
     };
 
@@ -2999,7 +3275,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
@@ -3097,9 +3373,24 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
 
     let ct_modulus = quotient.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3142,7 +3433,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -3202,7 +3493,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
@@ -3284,9 +3575,24 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     };
 
     let ct_modulus = quotient.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3330,7 +3636,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_signed_scalar_div_rem_radix_kb_64(
@@ -3381,7 +3687,7 @@ pub unsafe fn get_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3442,7 +3748,17 @@ where
         .filter(|&&rhs_bit| rhs_bit == 1u64)
         .count() as u32;
 
-    let allocate_ms_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -3465,7 +3781,7 @@ where
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         false,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -3498,7 +3814,7 @@ pub unsafe fn get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3546,7 +3862,17 @@ where
         .filter(|&&bit| bit == 1u64)
         .count() as u32;
 
-    let allocate_ms_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = scratch_integer_signed_scalar_div_rem_radix_kb_64(
@@ -3569,7 +3895,7 @@ where
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         false,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
@@ -3608,7 +3934,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: Reciprocable,
 {
@@ -3702,9 +4028,24 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     };
 
     let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3740,7 +4081,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -3791,7 +4132,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
@@ -3855,9 +4196,24 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
     };
 
     let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3893,7 +4249,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_signed_scalar_div_radix_kb_64(
@@ -3946,7 +4302,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3971,9 +4327,24 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     );
 
     let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -4004,7 +4375,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         pbs_type as u32,
         ShiftRotateType::LeftShift as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4053,7 +4424,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4078,9 +4449,24 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     );
 
     let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -4111,7 +4497,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4159,7 +4545,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4184,9 +4570,24 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     );
 
     let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -4217,7 +4618,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4267,7 +4668,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4301,9 +4702,24 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
         .info
@@ -4352,7 +4768,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         ShiftRotateType::RightShift as u32,
         is_signed,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4399,7 +4815,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4433,9 +4849,24 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
         .info
@@ -4484,7 +4915,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         ShiftRotateType::LeftShift as u32,
         is_signed,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4534,7 +4965,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4568,9 +4999,24 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
         .info
@@ -4624,7 +5070,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         ShiftRotateType::RightRotate as u32,
         is_signed,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4674,7 +5120,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4708,9 +5154,24 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
         .info
@@ -4764,7 +5225,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         ShiftRotateType::LeftRotate as u32,
         is_signed,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -4802,9 +5263,19 @@ pub fn get_scalar_left_shift_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
@@ -4827,7 +5298,7 @@ pub fn get_scalar_left_shift_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             ShiftRotateType::LeftShift as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4857,9 +5328,19 @@ pub fn get_scalar_logical_right_shift_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
@@ -4882,7 +5363,7 @@ pub fn get_scalar_logical_right_shift_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4912,9 +5393,20 @@ pub fn get_scalar_arithmetic_right_shift_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
@@ -4937,7 +5429,7 @@ pub fn get_scalar_arithmetic_right_shift_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4968,9 +5460,19 @@ pub fn get_right_shift_integer_radix_kb_size_on_gpu(
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_shift_and_rotate_kb_64(
@@ -4994,7 +5496,7 @@ pub fn get_right_shift_integer_radix_kb_size_on_gpu(
             ShiftRotateType::RightShift as u32,
             is_signed,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5025,9 +5527,19 @@ pub fn get_left_shift_integer_radix_kb_size_on_gpu(
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_shift_and_rotate_kb_64(
@@ -5051,7 +5563,7 @@ pub fn get_left_shift_integer_radix_kb_size_on_gpu(
             ShiftRotateType::LeftShift as u32,
             is_signed,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5082,9 +5594,19 @@ pub fn get_rotate_right_integer_radix_kb_size_on_gpu(
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_shift_and_rotate_kb_64(
@@ -5108,7 +5630,7 @@ pub fn get_rotate_right_integer_radix_kb_size_on_gpu(
             ShiftRotateType::RightRotate as u32,
             is_signed,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5139,9 +5661,19 @@ pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_shift_and_rotate_kb_64(
@@ -5165,7 +5697,7 @@ pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
             ShiftRotateType::LeftRotate as u32,
             is_signed,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5205,7 +5737,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5266,9 +5798,24 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -5362,7 +5909,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_cmux_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -5402,9 +5949,19 @@ pub fn get_cmux_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_cmux_kb_64(
@@ -5426,7 +5983,7 @@ pub fn get_cmux_integer_radix_kb_size_on_gpu(
             carry_modulus.0 as u32,
             pbs_type as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5467,7 +6024,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5494,9 +6051,24 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -5530,7 +6102,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         pbs_type as u32,
         ShiftRotateType::LeftShift as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -5579,7 +6151,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5606,9 +6178,24 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -5642,7 +6229,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -5680,9 +6267,19 @@ pub fn get_scalar_rotate_left_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_scalar_rotate_kb_64(
@@ -5705,7 +6302,7 @@ pub fn get_scalar_rotate_left_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             ShiftRotateType::LeftShift as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5735,9 +6332,19 @@ pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_radix_scalar_rotate_kb_64(
@@ -5760,7 +6367,7 @@ pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5802,7 +6409,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     num_radixes: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5833,9 +6440,24 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         keyswitch_key.gpu_index(0).get(),
     );
     let ct_modulus = radix_list.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5874,7 +6496,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         pbs_type as u32,
         reduce_degrees_for_single_carry_propagation,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
         streams.ptr.as_ptr(),
@@ -5917,15 +6539,30 @@ pub unsafe fn extend_radix_with_sign_msb_async<T: UnsignedInteger, B: Numeric>(
     num_additional_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let message_modulus = ct.info.blocks.first().unwrap().message_modulus;
     let carry_modulus = ct.info.blocks.first().unwrap().carry_modulus;
     let ct_modulus = ct.d_blocks.ciphertext_modulus().raw_modulus_float();
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -5958,7 +6595,7 @@ pub unsafe fn extend_radix_with_sign_msb_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_extend_radix_with_sign_msb_64(
@@ -6011,7 +6648,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     assert_eq!(
@@ -6043,9 +6680,24 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         keyswitch_key.gpu_index(0).get(),
     );
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -6081,7 +6733,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         pbs_type as u32,
         lut_degree,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
@@ -6131,7 +6783,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     grouping_factor: LweBskGroupingFactor,
     num_many_lut: u32,
     lut_stride: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     assert_eq!(
@@ -6162,9 +6814,24 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -6201,7 +6868,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         num_many_lut,
         lut_degree,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_apply_many_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
@@ -6253,7 +6920,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
     shift: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     assert_eq!(
@@ -6292,9 +6959,24 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         keyswitch_key.gpu_index(0).get(),
     );
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -6337,7 +7019,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         pbs_type as u32,
         lut_degree,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_apply_bivariate_lut_kb_64(
         streams.ptr.as_ptr(),
@@ -6388,7 +7070,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6433,9 +7115,24 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         keyswitch_key.gpu_index(0).get(),
     );
     let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut quotient_noise_levels = quotient
@@ -6499,7 +7196,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_div_rem_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -6542,9 +7239,19 @@ pub fn get_div_rem_integer_radix_kb_size_on_gpu(
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type = ms_configuration.map_or(
+        PBSMSNoiseReductionType::NoReduction,
+        |config| match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                PBSMSNoiseReductionType::Drift
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        },
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
         scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
@@ -6567,7 +7274,7 @@ pub fn get_div_rem_integer_radix_kb_size_on_gpu(
             carry_modulus.0 as u32,
             pbs_type as u32,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -6606,7 +7313,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
     grouping_factor: LweBskGroupingFactor,
     direction: Direction,
     bit_value: BitValue,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6633,9 +7340,24 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
     let counter_num_blocks = output_ct.d_blocks.lwe_ciphertext_count().0 as u32;
     let ct_modulus = input_ct.d_blocks.ciphertext_modulus().raw_modulus_float();
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -6680,7 +7402,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
         direction,
         bit_value,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_count_of_consecutive_bits_kb_64(
@@ -6734,7 +7456,7 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
     input_num_blocks: u32,
     counter_num_blocks: u32,
     num_bits_in_ciphertext: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], output.d_blocks.0.d_vec.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
@@ -6752,9 +7474,24 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
     );
 
     let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -6841,7 +7578,7 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
         counter_num_blocks,
         num_bits_in_ciphertext,
         true,
-        allocate_ms_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_ilog2_kb_64(
@@ -6898,7 +7635,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     assert_eq!(
@@ -6930,9 +7667,24 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         keyswitch_key.gpu_index(0).get(),
     );
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -6968,7 +7720,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         pbs_type as u32,
         lut_degree,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_compute_prefix_sum_hillis_steele_64(
@@ -7070,7 +7822,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     grouping_factor: LweBskGroupingFactor,
     compute_overflow: bool,
     uses_input_borrow: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7104,9 +7856,24 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -7184,7 +7951,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         pbs_type as u32,
         compute_overflow as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_overflowing_sub_kb_64_inplace(
         streams.ptr.as_ptr(),
@@ -7234,7 +8001,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7259,9 +8026,24 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     );
 
     let ct_modulus = ct.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut ct_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
@@ -7286,7 +8068,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_integer_abs_inplace_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
@@ -7334,7 +8116,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7368,9 +8150,24 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -7425,7 +8222,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
@@ -7476,7 +8273,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7510,9 +8307,24 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         .d_blocks
         .ciphertext_modulus()
         .raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
         .blocks
@@ -7567,7 +8379,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_integer_are_all_comparisons_block_true_kb_64(
@@ -7739,7 +8551,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     assert_eq!(
@@ -7770,10 +8582,25 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -7811,7 +8638,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_apply_noise_squashing_kb(
@@ -7871,7 +8698,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
     grouping_factor: LweBskGroupingFactor,
     num_lwes_per_compact_list: &[u32],
     is_boolean: &[bool],
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7912,9 +8739,24 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let num_compact_lists = num_lwes_per_compact_list.len();
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+
+    match ms_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
 
     scratch_cuda_expand_without_verification_64(
         streams.ptr.as_ptr(),
@@ -7944,7 +8786,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         pbs_type as u32,
         casting_key_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
     cuda_expand_without_verification_64(
         streams.ptr.as_ptr(),

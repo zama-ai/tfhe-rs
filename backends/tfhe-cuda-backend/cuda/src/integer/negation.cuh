@@ -117,13 +117,13 @@ __host__ uint64_t scratch_cuda_integer_overflowing_sub_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_overflowing_sub_memory<Torus> **mem_ptr,
     uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
-    bool allocate_ms_array) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch overflowing sub")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory,
-      allocate_ms_array, size_tracker);
+      noise_reduction_type, size_tracker);
   POP_RANGE()
   return size_tracker;
 }

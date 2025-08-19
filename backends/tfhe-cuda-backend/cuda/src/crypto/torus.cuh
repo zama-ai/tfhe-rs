@@ -73,6 +73,27 @@ __device__ inline void typecast_torus_to_double<__uint128_t>(__uint128_t x,
   r = __ll2double_rn(static_cast<uint64_t>(x));
 }
 
+// Helper to get signed integer type corresponding to Torus type at compile time
+template <typename Torus> struct signed_torus_type {
+  using clean_t = std::remove_cv_t<Torus>;
+
+  // Compile time check:
+  static_assert(std::is_same<clean_t, uint32_t>::value ||
+                    std::is_same<clean_t, uint64_t>::value ||
+                    std::is_same<clean_t, __uint128_t>::value,
+                "Torus must be uint32_t, uint64_t, or __uint128_t");
+
+  // Type alias (only one will activate)
+  using type = typename std::conditional<
+      std::is_same<clean_t, uint32_t>::value, int32_t,
+      typename std::conditional<std::is_same<clean_t, uint64_t>::value, int64_t,
+                                __int128_t // fallback: we're assuming
+                                           // __uint128_t -> __int128_t
+                                >::type>::type;
+};
+template <typename Torus>
+using signed_torus_t = typename signed_torus_type<Torus>::type;
+
 template <typename T>
 __device__ inline T init_decomposer_state(T input, uint32_t base_log,
                                           uint32_t level_count) {
@@ -109,7 +130,7 @@ __device__ inline T init_decomposer_state_2_2_params(T input) {
 }
 
 template <typename T>
-__device__ __forceinline__ void modulus_switch(T input, T &output,
+__device__ __forceinline__ void modulus_switch(const T input, T &output,
                                                uint32_t log_modulus) {
   constexpr uint32_t BITS = sizeof(T) * 8;
   output = input + (((T)1) << (BITS - log_modulus - 1));
@@ -124,24 +145,139 @@ __device__ __forceinline__ T modulus_switch(T input, uint32_t log_modulus) {
 }
 
 template <typename Torus>
-__global__ void modulus_switch_inplace(Torus *array, int size,
+__global__ void modulus_switch_inplace(Torus *array, uint32_t size,
                                        uint32_t log_modulus) {
   const int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid < size) {
     array[tid] = modulus_switch(array[tid], log_modulus);
   }
 }
-
+// Applies the modulus switch on a single LWE
 template <typename Torus>
 __host__ void host_modulus_switch_inplace(cudaStream_t stream,
                                           uint32_t gpu_index, Torus *array,
-                                          int size, uint32_t log_modulus) {
+                                          uint32_t size, uint32_t log_modulus) {
   cuda_set_device(gpu_index);
 
   int num_threads = 0, num_blocks = 0;
   getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
   modulus_switch_inplace<Torus>
       <<<num_blocks, num_threads, 0, stream>>>(array, size, log_modulus);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus>
+__global__ void modulus_switch(Torus *output, const Torus *input, uint32_t size,
+                               uint32_t log_modulus) {
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < size) {
+    output[tid] = modulus_switch(input[tid], log_modulus);
+  }
+}
+// Applies the modulus switch on a single LWE
+template <typename Torus>
+__host__ void host_modulus_switch(cudaStream_t stream, uint32_t gpu_index,
+                                  Torus *output, const Torus *input,
+                                  uint32_t size, uint32_t log_modulus) {
+  cuda_set_device(gpu_index);
+
+  int num_threads = 0, num_blocks = 0;
+  getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
+
+  modulus_switch<Torus><<<num_blocks, num_threads, 0, stream>>>(
+      output, input, size, log_modulus);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
+__device__ __forceinline__ T round_error(T input, uint32_t log_modulus) {
+  T rounded;
+  constexpr uint32_t BITS = sizeof(T) * 8;
+  modulus_switch<T>(input, rounded, log_modulus);
+  rounded <<= (BITS - log_modulus);
+  rounded -= input;
+  return rounded;
+}
+
+// This method is based on rust's
+// core_crypto::centered_binary_ms_body_correction_to_add()
+template <typename T>
+__device__ T centered_binary_modulus_switch_body_correction_to_add(
+    const T *lwe, const uint32_t lwe_dimension, const uint32_t log_modulus) {
+  T sum_half_mask_round_errors = 0;
+  signed_torus_t<T> sum_halving_errors_doubled = 0;
+  constexpr auto TWO = static_cast<signed_torus_t<T>>(2);
+
+  for (auto i = 0; i < lwe_dimension; i++) {
+    auto error = round_error(lwe[i], log_modulus);
+    auto signed_error = static_cast<signed_torus_t<T>>(error);
+    auto half_error = signed_error / TWO;
+
+    // Dividing by 2 can add an error where |error| <= 1/2 in each run of the
+    // loop. Combined, they can add up to more than 1 (in the mod 2^64 torus)
+    // Thus we compute this combined error to reduce it to less than 1/2
+    // half_error = half_error_theoretical + halving_error_doubled/2
+    // where half_error_theoretical * 2 = signed_error
+    auto halving_error_doubled = (half_error * TWO) - signed_error;
+
+    sum_half_mask_round_errors += static_cast<T>(half_error);
+    sum_halving_errors_doubled += halving_error_doubled;
+  }
+
+  auto sum_halving_errors = static_cast<T>(sum_halving_errors_doubled / TWO);
+
+  // sum(half_error_theoretical) = sum(half_error) -
+  // sum(halving_error_doubled)/2
+  sum_half_mask_round_errors -= sum_halving_errors;
+
+  constexpr uint32_t BITS = sizeof(T) * 8;
+  auto half_case = static_cast<T>(1) << (BITS - log_modulus - 1);
+
+  // E(e_MMS) = - sum(mask_round_error / 2)
+  // body_centered = body_input - E(e_MMS) - half_case
+  // body_centered = body_input + sum(mask_round_error / 2) - half_case
+  // body_correction_to_add = sum(mask_round_error / 2) - half_case
+  return sum_half_mask_round_errors - half_case;
+}
+
+template <typename Torus>
+__global__ void centered_modulus_switch(Torus *output, const Torus *input,
+                                        uint32_t lwe_dimension,
+                                        uint32_t log_modulus) {
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid == lwe_dimension) {
+    auto correction = centered_binary_modulus_switch_body_correction_to_add(
+        input, lwe_dimension, log_modulus);
+
+    auto body = input[lwe_dimension];
+    output[lwe_dimension] = modulus_switch(body + correction, log_modulus);
+  } else {
+    output[tid] = modulus_switch(input[tid], log_modulus);
+  }
+}
+
+// Applies the centered modulus switch on a single LWE
+template <typename Torus>
+__host__ void host_centered_modulus_switch_inplace(
+    cudaStream_t stream, uint32_t gpu_index, Torus *output, const Torus *input,
+    uint32_t lwe_dimension, uint32_t log_modulus) {
+  cuda_set_device(gpu_index);
+  if (input == output)
+    PANIC("Input and Output arrays should be different")
+
+  // Get device properties to check max threads per block
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, gpu_index);
+
+  // Check if lwe_dimension+1 exceeds maximum threads per block
+  if (lwe_dimension + 1 > deviceProp.maxThreadsPerBlock)
+    PANIC("lwe_dimension+1 exceeds maximum number of threads per block")
+
+  // We assume
+  int num_threads = lwe_dimension + 1, num_blocks = 1;
+  centered_modulus_switch<<<num_blocks, num_threads, 0, stream>>>(
+      output, input, lwe_dimension, log_modulus);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -291,7 +427,7 @@ __global__ void __launch_bounds__(512)
 }
 
 template <typename Torus>
-__host__ void host_improve_noise_modulus_switch(
+__host__ void host_drift_modulus_switch(
     cudaStream_t stream, uint32_t gpu_index, Torus *array_out,
     Torus const *array_in, uint64_t const *indexes, const Torus *zeros,
     uint32_t lwe_size, uint32_t num_lwes, const uint32_t num_zeros,

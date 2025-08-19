@@ -12,25 +12,25 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector_64(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   return scratch_cuda_programmable_bootstrap_128_vector<uint64_t>(
       stream, gpu_index,
       (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> **)pbs_buffer,
       lwe_dimension, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
 }
 
 uint64_t scratch_cuda_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   return scratch_cuda_programmable_bootstrap_128_vector_64(
       stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
       polynomial_size, level_count, input_lwe_ciphertext_count,
-      allocate_gpu_memory, allocate_ms_array);
+      allocate_gpu_memory, noise_reduction_type);
 }
 
 template <typename InputTorus>
@@ -132,7 +132,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     __uint128_t const *lut_vector, void const *lwe_array_in,
     void const *bootstrapping_key,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_drift_noise_reduction_ptr,
     void const *ms_noise_reduction_ptr,
     pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -140,19 +140,19 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
-  // If the parameters contain noise reduction key, then apply it
-  if (ms_noise_reduction_key->num_zeros != 0) {
+  // If the parameters contain drift noise reduction key, then apply it
+  if (buffer->noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT) {
     uint32_t log_modulus = log2(polynomial_size) + 1;
-    host_improve_noise_modulus_switch<InputTorus>(
+    host_drift_modulus_switch<InputTorus>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<InputTorus *>(buffer->temp_lwe_array_in),
         static_cast<InputTorus const *>(lwe_array_in),
         static_cast<uint64_t const *>(buffer->trivial_indexes),
         static_cast<const InputTorus *>(ms_noise_reduction_ptr),
-        lwe_dimension + 1, num_samples, ms_noise_reduction_key->num_zeros,
-        ms_noise_reduction_key->ms_input_variance,
-        ms_noise_reduction_key->ms_r_sigma, ms_noise_reduction_key->ms_bound,
-        log_modulus);
+        lwe_dimension + 1, num_samples, ms_drift_noise_reduction_ptr->num_zeros,
+        ms_drift_noise_reduction_ptr->ms_input_variance,
+        ms_drift_noise_reduction_ptr->ms_r_sigma,
+        ms_drift_noise_reduction_ptr->ms_bound, log_modulus);
   } else {
     buffer->temp_lwe_array_in =
         const_cast<InputTorus *>(static_cast<const InputTorus *>(lwe_array_in));

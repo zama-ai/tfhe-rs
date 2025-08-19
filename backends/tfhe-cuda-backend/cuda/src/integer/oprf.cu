@@ -8,13 +8,13 @@ uint64_t scratch_cuda_integer_grouped_oprf_64(
     uint32_t num_blocks_to_process, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, uint32_t message_bits_per_block,
-    uint32_t total_random_bits, bool allocate_ms_array) {
+    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
-                          allocate_ms_array);
+                          noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count,

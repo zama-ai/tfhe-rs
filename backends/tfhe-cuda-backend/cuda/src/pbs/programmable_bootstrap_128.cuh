@@ -2,18 +2,17 @@
 #define CUDA_PROGRAMMABLE_BOOTSTRAP_128_CUH
 #include "pbs/pbs_128_utilities.h"
 
-static void
-execute_scratch_pbs_128(void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-                        uint32_t lwe_dimension, uint32_t glwe_dimension,
-                        uint32_t polynomial_size, uint32_t level_count,
-                        uint32_t input_lwe_ciphertext_count,
-                        bool allocate_gpu_memory, bool allocate_ms_array,
-                        uint64_t &size_tracker_on_gpu) {
+static void execute_scratch_pbs_128(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
+    uint64_t &size_tracker_on_gpu) {
   // The squash noise function receives as input 64-bit integers
   size_tracker_on_gpu = scratch_cuda_programmable_bootstrap_128_vector_64(
       stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
       polynomial_size, level_count, input_lwe_ciphertext_count,
-      allocate_gpu_memory, allocate_ms_array);
+      allocate_gpu_memory, noise_reduction_type);
 }
 template <typename Torus>
 static void execute_pbs_128_async(
