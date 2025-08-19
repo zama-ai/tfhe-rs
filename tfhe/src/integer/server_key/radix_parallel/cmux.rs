@@ -30,6 +30,13 @@ pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
     ) -> Self::Output {
         self.if_then_else_parallelized(condition, true_ct, false_ct)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: TrueCt,
+        false_ct: FalseCt,
+    ) -> (Self::Output, Self::Output);
 }
 
 impl<T> ServerKeyDefaultCMux<&T, &T> for ServerKey
@@ -100,6 +107,128 @@ where
         let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        a: &T,
+        b: &T,
+    ) -> (Self::Output, Self::Output) {
+        assert_eq!(
+            a.blocks().len(),
+            b.blocks().len(),
+            "Inputs must have the same number of blocks"
+        );
+
+        // To make use if many_lut, we require 1 bit, 1 more bit is required to pack
+        // the condition. Thus 2 bits of carry are required.
+        //
+        // Otherwise we call if_then_else twice, which is less efficient.
+        if self.carry_modulus().0 < 1 << 2 {
+            return rayon::join(
+                || self.if_then_else_parallelized(condition, b, a),
+                || self.if_then_else_parallelized(condition, a, b),
+            );
+        }
+
+        let mut ct_clones = [None, None];
+        let mut ct_refs = [a, b];
+
+        ct_refs
+            .par_iter_mut()
+            .zip(ct_clones.par_iter_mut())
+            .for_each(|(ct_ref, ct_clone)| {
+                if !ct_ref.block_carries_are_empty() {
+                    let mut cloned = ct_ref.clone();
+                    self.full_propagate_parallelized(&mut cloned);
+                    *ct_ref = ct_clone.insert(cloned);
+                }
+            });
+
+        let zero_out_if_true_fn = |packed| {
+            let condition = (packed / self.message_modulus().0) & 1;
+            let value = packed % self.message_modulus().0;
+            (1 - condition) * value
+        };
+
+        let zero_out_if_false_fn = |packed| {
+            let condition = (packed / self.message_modulus().0) & 1;
+            let value = packed % self.message_modulus().0;
+            condition * value
+        };
+
+        let lut_for_a = self
+            .key
+            .generate_many_lookup_table(&[&zero_out_if_true_fn, &zero_out_if_false_fn]);
+
+        let lut_for_b = self
+            .key
+            .generate_many_lookup_table(&[&zero_out_if_false_fn, &zero_out_if_true_fn]);
+
+        let scaled_condition = self
+            .key
+            .unchecked_scalar_mul(&condition.0, self.message_modulus().0 as u8);
+
+        let mut vec_of_blocks = ct_refs
+            .par_iter()
+            .zip([lut_for_a, lut_for_b].par_iter())
+            .map(|(ct_ref, lut)| {
+                ct_ref
+                    .blocks()
+                    .par_iter()
+                    .map(|block| {
+                        let block = self.key.unchecked_add(block, &scaled_condition);
+                        self.key.apply_many_lookup_table(&block, lut)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let results_for_b = vec_of_blocks.pop().unwrap();
+        let results_for_a = vec_of_blocks.pop().unwrap();
+
+        let mut a_blocks = Vec::with_capacity(a.blocks().len());
+        let mut a_bis_blocks = Vec::with_capacity(a.blocks().len());
+
+        for mut vec in results_for_a {
+            a_bis_blocks.push(vec.pop().unwrap());
+            a_blocks.push(vec.pop().unwrap());
+        }
+
+        let mut b_blocks = Vec::with_capacity(b.blocks().len());
+        let mut b_bis_blocks = Vec::with_capacity(b.blocks().len());
+
+        for mut vec in results_for_b {
+            b_bis_blocks.push(vec.pop().unwrap());
+            b_blocks.push(vec.pop().unwrap());
+        }
+
+        let clean_lut = self
+            .key
+            .generate_lookup_table(|x| x % self.message_modulus().0);
+        rayon::join(
+            || {
+                a_blocks
+                    .par_iter_mut()
+                    .zip(b_blocks.par_iter())
+                    .for_each(|(lhs, rhs)| {
+                        self.key.unchecked_add_assign(lhs, rhs);
+                        self.key.apply_lookup_table_assign(lhs, &clean_lut);
+                    });
+            },
+            || {
+                a_bis_blocks
+                    .par_iter_mut()
+                    .zip(b_bis_blocks.par_iter())
+                    .for_each(|(lhs, rhs)| {
+                        self.key.unchecked_add_assign(lhs, rhs);
+                        self.key.apply_lookup_table_assign(lhs, &clean_lut);
+                    });
+            },
+        );
+
+        (T::from_blocks(a_blocks), T::from_blocks(a_bis_blocks))
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<&RadixCiphertext, Scalar> for ServerKey
@@ -163,6 +292,15 @@ where
 
         self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &RadixCiphertext,
+        false_ct: Scalar,
+    ) -> (Self::Output, Self::Output) {
+        self.scalar_flip_parallelized(condition, true_ct, false_ct)
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<Scalar, &RadixCiphertext> for ServerKey
@@ -217,6 +355,16 @@ where
         let inverted_condition = self.boolean_bitnot(condition);
         self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &RadixCiphertext,
+    ) -> (Self::Output, Self::Output) {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.flip_parallelized(&inverted_condition, false_ct, true_value)
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<&SignedRadixCiphertext, Scalar> for ServerKey
@@ -242,6 +390,15 @@ where
         };
 
         self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &SignedRadixCiphertext,
+        false_ct: Scalar,
+    ) -> (Self::Output, Self::Output) {
+        self.scalar_flip_parallelized(condition, true_ct, false_ct)
     }
 }
 
@@ -296,6 +453,16 @@ where
     ) -> Self::Output {
         let inverted_condition = self.boolean_bitnot(condition);
         self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &SignedRadixCiphertext,
+    ) -> (Self::Output, Self::Output) {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.flip_parallelized(&inverted_condition, false_ct, true_value)
     }
 }
 
@@ -387,6 +554,62 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
         self.key.apply_lookup_table_assign(&mut lhs, &clean_lut);
 
         BooleanBlock::new_unchecked(lhs)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &BooleanBlock,
+        false_ct: &BooleanBlock,
+    ) -> (Self::Output, Self::Output) {
+        let flip_if_false_fn = |packed| {
+            let condition = (packed / 2) & 1;
+            let value = packed % 2;
+            value * condition
+        };
+
+        let flip_if_true_fn = |packed| {
+            let condition = (packed / 2) & 1;
+            let value = packed % 2;
+            (1 - condition) * value
+        };
+
+        let lut_for_a = self
+            .key
+            .generate_many_lookup_table(&[&flip_if_false_fn, &flip_if_true_fn]);
+
+        let lut_for_b = self
+            .key
+            .generate_many_lookup_table(&[&flip_if_true_fn, &flip_if_false_fn]);
+
+        let scaled_condition = self.key.unchecked_scalar_mul(&condition.0, 2);
+
+        let (mut vec_a, vec_b) = rayon::join(
+            || {
+                let block = self.key.unchecked_add(&true_ct.0, &scaled_condition);
+                self.key.apply_many_lookup_table(&block, &lut_for_a)
+            },
+            || {
+                let block = self.key.unchecked_add(&false_ct.0, &scaled_condition);
+                self.key.apply_many_lookup_table(&block, &lut_for_b)
+            },
+        );
+
+        let mut b = vec_a.pop().unwrap(); // b = vec_a[1]
+        let mut a = vec_a.pop().unwrap(); // a = vec_a[0]
+        self.key.unchecked_add_assign(&mut a, &vec_b[0]);
+        self.key.unchecked_add_assign(&mut b, &vec_b[1]);
+
+        let clean_lut = self.key.generate_lookup_table(|x| x % 2);
+        rayon::join(
+            || self.key.apply_lookup_table_assign(&mut a, &clean_lut),
+            || self.key.apply_lookup_table_assign(&mut b, &clean_lut),
+        );
+
+        (
+            BooleanBlock::new_unchecked(a),
+            BooleanBlock::new_unchecked(b),
+        )
     }
 }
 
@@ -774,5 +997,92 @@ impl ServerKey {
                     &lut,
                 );
             });
+    }
+
+    fn scalar_flip_parallelized<T, Scalar>(
+        &self,
+        condition: &BooleanBlock,
+        a: &T,
+        b: Scalar,
+    ) -> (T, T)
+    where
+        Scalar: DecomposableInto<u64>,
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_a;
+
+        let a = if a.block_carries_are_empty() {
+            a
+        } else {
+            tmp_a = a.clone();
+            self.full_propagate_parallelized(&mut tmp_a);
+            &tmp_a
+        };
+
+        // To make use of many_lut, we require 1 bit, 1 more bit is required to pack
+        // the condition. Thus 2 bits of carry are required.
+        //
+        // Otherwise we call if_then_else twice, which is less efficient.
+        if self.carry_modulus().0 < 1 << 2 {
+            let inverted_condition = self.boolean_bitnot(condition);
+            return rayon::join(
+                || self.unchecked_scalar_if_then_else_parallelized(&inverted_condition, a, b),
+                || self.unchecked_scalar_if_then_else_parallelized(condition, a, b),
+            );
+        }
+
+        let n_blocks = a.blocks().len();
+
+        // One of the input is a clear, so we can embed its decomposed value into the LUTs
+        // and by using many_lut we can compute both results at once.
+        let luts = BlockDecomposer::with_block_count(b, self.message_modulus().0.ilog2(), n_blocks)
+            .iter_as::<u64>()
+            .map(|scalar_block| {
+                self.key.generate_many_lookup_table(&[
+                    &|packed| {
+                        let condition = (packed / self.message_modulus().0) & 1;
+                        let value = packed % self.message_modulus().0;
+                        if condition == 1 {
+                            scalar_block
+                        } else {
+                            value
+                        }
+                    },
+                    &|packed| {
+                        let condition = (packed / self.message_modulus().0) & 1;
+                        let value = packed % self.message_modulus().0;
+                        if condition == 1 {
+                            value
+                        } else {
+                            scalar_block
+                        }
+                    },
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let scaled_condition = self
+            .key
+            .unchecked_scalar_mul(&condition.0, self.message_modulus().0 as u8);
+
+        let vec_of_blocks = a
+            .blocks()
+            .par_iter()
+            .zip(luts.par_iter())
+            .map(|(block, lut)| {
+                let block = self.key.unchecked_add(block, &scaled_condition);
+                self.key.apply_many_lookup_table(&block, lut)
+            })
+            .collect::<Vec<_>>();
+
+        let mut a_blocks = Vec::with_capacity(n_blocks);
+        let mut b_blocks = Vec::with_capacity(n_blocks);
+
+        for mut vec in vec_of_blocks {
+            b_blocks.push(vec.pop().unwrap());
+            a_blocks.push(vec.pop().unwrap());
+        }
+
+        (T::from_blocks(a_blocks), T::from_blocks(b_blocks))
     }
 }
