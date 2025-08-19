@@ -9,6 +9,147 @@ use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
 #[cfg(feature = "shortint")]
 use tfhe::shortint::PBSParameters;
 
+#[cfg(feature = "boolean")]
+impl From<BooleanParameters> for CryptoParametersRecord<u32> {
+    fn from(params: BooleanParameters) -> Self {
+        CryptoParametersRecord {
+            lwe_dimension: Some(params.lwe_dimension),
+            glwe_dimension: Some(params.glwe_dimension),
+            polynomial_size: Some(params.polynomial_size),
+            lwe_noise_distribution: Some(params.lwe_noise_distribution),
+            glwe_noise_distribution: Some(params.glwe_noise_distribution),
+            pbs_base_log: Some(params.pbs_base_log),
+            pbs_level: Some(params.pbs_level),
+            ks_base_log: Some(params.ks_base_log),
+            ks_level: Some(params.ks_level),
+            ciphertext_modulus: Some(CiphertextModulus::<u32>::new_native()),
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "shortint")]
+pub mod shortint_utils {
+    use super::*;
+    use itertools::iproduct;
+    use std::vec::IntoIter;
+    use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
+    use tfhe::shortint::parameters::list_compression::CompressionParameters;
+    #[cfg(feature = "gpu")]
+    use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+    #[cfg(not(feature = "gpu"))]
+    use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+    use tfhe::shortint::parameters::{
+        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    };
+    use tfhe::shortint::PBSParameters;
+
+    /// An iterator that yields a succession of combinations
+    /// of parameters and a num_block to achieve a certain bit_size ciphertext
+    /// in radix decomposition
+    pub struct ParamsAndNumBlocksIter {
+        params_and_bit_sizes:
+            itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
+    }
+
+    impl Default for ParamsAndNumBlocksIter {
+        fn default() -> Self {
+            let env_config = EnvConfig::new();
+
+            if env_config.is_multi_bit {
+                #[cfg(feature = "gpu")]
+                let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                #[cfg(not(feature = "gpu"))]
+                let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            } else {
+                // FIXME One set of parameter is tested since we want to benchmark only quickest
+                // operations.
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            }
+        }
+    }
+
+    impl Iterator for ParamsAndNumBlocksIter {
+        type Item = (tfhe::shortint::PBSParameters, usize, usize);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let (param, bit_size) = self.params_and_bit_sizes.next()?;
+            let num_block =
+                (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
+
+            Some((param, num_block, bit_size))
+        }
+    }
+
+    impl From<PBSParameters> for CryptoParametersRecord<u64> {
+        fn from(params: PBSParameters) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(params.lwe_dimension()),
+                glwe_dimension: Some(params.glwe_dimension()),
+                polynomial_size: Some(params.polynomial_size()),
+                lwe_noise_distribution: Some(params.lwe_noise_distribution()),
+                glwe_noise_distribution: Some(params.glwe_noise_distribution()),
+                pbs_base_log: Some(params.pbs_base_log()),
+                pbs_level: Some(params.pbs_level()),
+                ks_base_log: Some(params.ks_base_log()),
+                ks_level: Some(params.ks_level()),
+                message_modulus: Some(params.message_modulus().0 as usize),
+                carry_modulus: Some(params.carry_modulus().0 as usize),
+                ciphertext_modulus: Some(
+                    params
+                        .ciphertext_modulus()
+                        .try_to()
+                        .expect("failed to convert ciphertext modulus"),
+                ),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord<u64> {
+        fn from(params: ShortintKeySwitchingParameters) -> Self {
+            CryptoParametersRecord {
+                ks_base_log: Some(params.ks_base_log),
+                ks_level: Some(params.ks_level),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<CompactPublicKeyEncryptionParameters> for CryptoParametersRecord<u64> {
+        fn from(params: CompactPublicKeyEncryptionParameters) -> Self {
+            CryptoParametersRecord {
+                message_modulus: Some(params.message_modulus.0 as usize),
+                carry_modulus: Some(params.carry_modulus.0 as usize),
+                ciphertext_modulus: Some(params.ciphertext_modulus),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<CompressionParameters> for CryptoParametersRecord<u64> {
+        fn from(_params: CompressionParameters) -> Self {
+            CryptoParametersRecord {
+                ..Default::default()
+            }
+        }
+    }
+}
+
+#[allow(unused_imports)]
+#[cfg(feature = "shortint")]
+pub use shortint_utils::*;
+
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub lwe_dimension: Option<LweDimension>,
@@ -30,62 +171,6 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub message_modulus: Option<usize>,
     pub carry_modulus: Option<usize>,
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
-}
-
-#[cfg(feature = "boolean")]
-impl From<BooleanParameters> for CryptoParametersRecord<u32> {
-    fn from(params: BooleanParameters) -> Self {
-        CryptoParametersRecord {
-            lwe_dimension: Some(params.lwe_dimension),
-            glwe_dimension: Some(params.glwe_dimension),
-            polynomial_size: Some(params.polynomial_size),
-            lwe_noise_distribution: Some(params.lwe_noise_distribution),
-            glwe_noise_distribution: Some(params.glwe_noise_distribution),
-            pbs_base_log: Some(params.pbs_base_log),
-            pbs_level: Some(params.pbs_level),
-            ks_base_log: Some(params.ks_base_log),
-            ks_level: Some(params.ks_level),
-            ciphertext_modulus: Some(CiphertextModulus::<u32>::new_native()),
-            ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "shortint")]
-impl From<PBSParameters> for CryptoParametersRecord<u64> {
-    fn from(params: PBSParameters) -> Self {
-        CryptoParametersRecord {
-            lwe_dimension: Some(params.lwe_dimension()),
-            glwe_dimension: Some(params.glwe_dimension()),
-            polynomial_size: Some(params.polynomial_size()),
-            lwe_noise_distribution: Some(params.lwe_noise_distribution()),
-            glwe_noise_distribution: Some(params.glwe_noise_distribution()),
-            pbs_base_log: Some(params.pbs_base_log()),
-            pbs_level: Some(params.pbs_level()),
-            ks_base_log: Some(params.ks_base_log()),
-            ks_level: Some(params.ks_level()),
-            message_modulus: Some(params.message_modulus().0),
-            carry_modulus: Some(params.carry_modulus().0),
-            ciphertext_modulus: Some(
-                params
-                    .ciphertext_modulus()
-                    .try_to()
-                    .expect("failed to convert ciphertext modulus"),
-            ),
-            ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "shortint")]
-impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord<u64> {
-    fn from(params: ShortintKeySwitchingParameters) -> Self {
-        CryptoParametersRecord {
-            ks_base_log: Some(params.ks_base_log),
-            ks_level: Some(params.ks_level),
-            ..Default::default()
-        }
-    }
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {
@@ -280,6 +365,7 @@ pub fn throughput_num_threads(num_block: usize) -> u64 {
 
     #[cfg(feature = "gpu")]
     {
+        use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
         // This value is for Nvidia H100 GPU
         let streaming_multiprocessors = 132;
         let num_gpus = unsafe { cuda_get_number_of_gpus() };
@@ -312,9 +398,7 @@ impl BenchmarkType {
             _ => Err(format!("benchmark type '{raw_value}' is not supported")),
         }
     }
-
 }
-
 
 // Empty main to please clippy.
 #[allow(dead_code)]

@@ -45,7 +45,7 @@ pub const PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParamete
 
 pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ShortintKeySwitchingParameters =
     ShortintKeySwitchingParameters {
-        ks_level: DecompositionLevelCount(5),
-        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(4),
+        ks_base_log: DecompositionBaseLog(4),
         destination_key: EncryptionKeyChoice::Small,
     };
