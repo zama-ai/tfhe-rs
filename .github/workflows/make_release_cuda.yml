@@ -122,6 +122,9 @@ jobs:
     name: Publish CUDA Release
     needs: [setup-instance, package] # for comparing hashes
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    permissions:
+      # Needed for OIDC token exchange on crates.io
+      id-token: write
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options

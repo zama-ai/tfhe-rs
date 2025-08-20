@@ -87,7 +87,7 @@ jobs:
     # For provenance of npmjs publish
     permissions:
       contents: read
-      id-token: write
+      id-token: write # also needed for OIDC token exchange on crates.io
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
