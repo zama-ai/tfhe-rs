@@ -122,6 +122,12 @@ fn test_if_then_else_gpu_multibit() {
 }
 
 #[test]
+fn test_flip() {
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    super::test_case_flip(&client_key);
+}
+
+#[test]
 fn test_sum_gpu() {
     let client_key = setup_default_gpu();
     super::test_case_sum(&client_key);
