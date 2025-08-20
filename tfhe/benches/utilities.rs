@@ -438,6 +438,244 @@ pub mod integer_utils {
 #[cfg(feature = "integer")]
 pub use integer_utils::*;
 
+#[cfg(feature = "gpu")]
+mod cuda_utils {
+    use tfhe::core_crypto::entities::{
+        LweBootstrapKeyOwned, LweKeyswitchKeyOwned, LweMultiBitBootstrapKeyOwned,
+        LwePackingKeyswitchKeyOwned,
+    };
+    use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+    use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+    use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+    use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+    use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
+
+    #[allow(dead_code)]
+    pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
+
+    /// Get vector of CUDA streams that can be directly used for throughput benchmarks in
+    /// core_crypto layer.
+    #[allow(dead_code)]
+    pub fn cuda_local_streams_core() -> Vec<CudaStreams> {
+        (0..get_number_of_gpus())
+            .map(|i| CudaStreams::new_single_gpu(GpuIndex(i as u32)))
+            .collect::<Vec<_>>()
+    }
+
+    /// Computing keys in their CPU flavor.
+    #[allow(dead_code)]
+    pub struct CpuKeys<T: UnsignedInteger> {
+        ksk: Option<LweKeyswitchKeyOwned<T>>,
+        pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
+        bsk: Option<LweBootstrapKeyOwned<T>>,
+        multi_bit_bsk: Option<LweMultiBitBootstrapKeyOwned<T>>,
+    }
+
+    #[allow(dead_code)]
+    impl<T: UnsignedInteger> CpuKeys<T> {
+        pub fn builder() -> CpuKeysBuilder<T> {
+            CpuKeysBuilder::new()
+        }
+    }
+
+    #[allow(dead_code)]
+    pub struct CpuKeysBuilder<T: UnsignedInteger> {
+        ksk: Option<LweKeyswitchKeyOwned<T>>,
+        pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
+        bsk: Option<LweBootstrapKeyOwned<T>>,
+        multi_bit_bsk: Option<LweMultiBitBootstrapKeyOwned<T>>,
+    }
+
+    #[allow(dead_code)]
+    impl<T: UnsignedInteger> CpuKeysBuilder<T> {
+        pub fn new() -> CpuKeysBuilder<T> {
+            Self {
+                ksk: None,
+                pksk: None,
+                bsk: None,
+                multi_bit_bsk: None,
+            }
+        }
+
+        pub fn keyswitch_key(mut self, ksk: LweKeyswitchKeyOwned<T>) -> CpuKeysBuilder<T> {
+            self.ksk = Some(ksk);
+            self
+        }
+
+        pub fn packing_keyswitch_key(
+            mut self,
+            pksk: LwePackingKeyswitchKeyOwned<T>,
+        ) -> CpuKeysBuilder<T> {
+            self.pksk = Some(pksk);
+            self
+        }
+
+        pub fn bootstrap_key(mut self, bsk: LweBootstrapKeyOwned<T>) -> CpuKeysBuilder<T> {
+            self.bsk = Some(bsk);
+            self
+        }
+
+        pub fn multi_bit_bootstrap_key(
+            mut self,
+            mb_bsk: LweMultiBitBootstrapKeyOwned<T>,
+        ) -> CpuKeysBuilder<T> {
+            self.multi_bit_bsk = Some(mb_bsk);
+            self
+        }
+
+        pub fn build(self) -> CpuKeys<T> {
+            CpuKeys {
+                ksk: self.ksk,
+                pksk: self.pksk,
+                bsk: self.bsk,
+                multi_bit_bsk: self.multi_bit_bsk,
+            }
+        }
+    }
+    impl<T: UnsignedInteger> Default for CpuKeysBuilder<T> {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    /// Computing keys in their Cuda flavor.
+    #[allow(dead_code)]
+    pub struct CudaLocalKeys<T: UnsignedInteger> {
+        pub ksk: Option<CudaLweKeyswitchKey<T>>,
+        pub pksk: Option<CudaLwePackingKeyswitchKey<T>>,
+        pub bsk: Option<CudaLweBootstrapKey>,
+        pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey>,
+    }
+
+    #[allow(dead_code)]
+    impl<T: UnsignedInteger> CudaLocalKeys<T> {
+        pub fn from_cpu_keys(cpu_keys: &CpuKeys<T>, stream: &CudaStreams) -> Self {
+            Self {
+                ksk: cpu_keys
+                    .ksk
+                    .as_ref()
+                    .map(|ksk| CudaLweKeyswitchKey::from_lwe_keyswitch_key(ksk, stream)),
+                pksk: cpu_keys.pksk.as_ref().map(|pksk| {
+                    CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(pksk, stream)
+                }),
+                bsk: cpu_keys
+                    .bsk
+                    .as_ref()
+                    .map(|bsk| CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, stream)),
+                multi_bit_bsk: cpu_keys.multi_bit_bsk.as_ref().map(|mb_bsk| {
+                    CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(mb_bsk, stream)
+                }),
+            }
+        }
+    }
+
+    /// Instantiate Cuda computing keys to each available GPU.
+    #[allow(dead_code)]
+    pub fn cuda_local_keys_core<T: UnsignedInteger>(
+        cpu_keys: &CpuKeys<T>,
+    ) -> Vec<CudaLocalKeys<T>> {
+        let gpu_count = get_number_of_gpus() as usize;
+        let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
+        for i in 0..gpu_count {
+            let stream = CudaStreams::new_single_gpu(GpuIndex(i as u32));
+            gpu_keys_vec.push(CudaLocalKeys::from_cpu_keys(cpu_keys, &stream));
+        }
+        gpu_keys_vec
+    }
+
+    #[allow(dead_code)]
+    pub struct CudaIndexes<T: Numeric> {
+        pub d_input: CudaVec<T>,
+        pub d_output: CudaVec<T>,
+        pub d_lut: CudaVec<T>,
+    }
+
+    #[allow(dead_code)]
+    impl<T: Numeric> CudaIndexes<T> {
+        pub fn new(indexes: &[T], stream: &CudaStreams, stream_index: u32) -> Self {
+            let length = indexes.len();
+            let mut d_input = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+            let mut d_output = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+            let mut d_lut = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+            unsafe {
+                d_input.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
+                d_output.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
+                d_lut.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
+            }
+            stream.synchronize();
+
+            Self {
+                d_input,
+                d_output,
+                d_lut,
+            }
+        }
+    }
+
+    #[cfg(feature = "integer")]
+    pub mod cuda_integer_utils {
+        use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+        use tfhe::core_crypto::gpu::vec::GpuIndex;
+        use tfhe::integer::gpu::CudaServerKey;
+        use tfhe::integer::ClientKey;
+
+        /// Get number of streams usable for CUDA throughput benchmarks
+        #[allow(dead_code)]
+        fn cuda_num_streams(num_block: usize) -> u64 {
+            let num_streams_per_gpu: u32 = match num_block {
+                2 => 64,
+                4 => 32,
+                8 => 16,
+                16 => 8,
+                32 => 4,
+                64 => 2,
+                128 => 1,
+                _ => 8,
+            };
+            (num_streams_per_gpu * get_number_of_gpus() as u32) as u64
+        }
+
+        /// Get vector of CUDA streams that can be directly used for throughput benchmarks.
+        #[allow(dead_code)]
+        pub fn cuda_local_streams(
+            num_block: usize,
+            throughput_elements: usize,
+        ) -> Vec<CudaStreams> {
+            (0..cuda_num_streams(num_block))
+                .map(|i| {
+                    CudaStreams::new_single_gpu(GpuIndex(
+                        (i % get_number_of_gpus() as u64) as u32,
+                    ))
+                })
+                .cycle()
+                .take(throughput_elements)
+                .collect::<Vec<_>>()
+        }
+
+        /// Instantiate Cuda server key to each available GPU.
+        #[allow(dead_code)]
+        pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
+            let gpu_count = get_number_of_gpus() as usize;
+            let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+            for i in 0..gpu_count {
+                let stream = CudaStreams::new_single_gpu(GpuIndex(i as u32));
+                gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
+            }
+            gpu_sks_vec
+        }
+    }
+
+    #[allow(unused_imports)]
+    #[cfg(feature = "integer")]
+    pub use cuda_integer_utils::*;
+}
+
+#[allow(unused_imports)]
+#[cfg(feature = "gpu")]
+pub use cuda_utils::*;
+
 // Empty main to please clippy.
 #[allow(dead_code)]
 pub fn main() {}
