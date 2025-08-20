@@ -8,7 +8,7 @@
 //! ```
 pub use crate::high_level_api::traits::{
     BitSlice, CiphertextList, DivRem, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
-    FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, IfThenElse,
+    FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, Flip, IfThenElse,
     OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub, RotateLeft, RotateLeftAssign,
     RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
 };

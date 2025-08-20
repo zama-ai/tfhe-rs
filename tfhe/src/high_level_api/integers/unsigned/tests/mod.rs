@@ -1,7 +1,7 @@
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
-use crate::{ClientKey, FheUint256, FheUint32, FheUint64, FheUint8};
+use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8};
 use rand::{thread_rng, Rng};
 
 mod cpu;
@@ -565,6 +565,47 @@ fn test_case_if_then_else(client_key: &ClientKey) {
         decrypted_result,
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
+}
+
+fn test_case_flip(client_key: &ClientKey) {
+    let clear_a = rand::random::<u32>();
+    let clear_b = rand::random::<u32>();
+
+    let a = FheUint32::encrypt(clear_a, client_key);
+    let b = FheUint32::encrypt(clear_b, client_key);
+
+    let c = FheBool::encrypt(true, client_key);
+    let (ra, rb) = c.flip(&a, &b);
+    let decrypted_a: u32 = ra.decrypt(client_key);
+    let decrypted_b: u32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_b, clear_a));
+
+    let c = FheBool::encrypt(false, client_key);
+
+    let (ra, rb) = c.flip(&a, &b);
+    let decrypted_a: u32 = ra.decrypt(client_key);
+    let decrypted_b: u32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_a, clear_b));
+}
+
+fn test_case_scalar_flip(client_key: &ClientKey) {
+    let clear_a = rand::random::<u32>();
+    let clear_b = rand::random::<u32>();
+
+    let a = FheUint32::encrypt(clear_a, client_key);
+    let b = FheUint32::encrypt(clear_b, client_key);
+
+    let c = FheBool::encrypt(true, client_key);
+    let (ra, rb) = c.flip(&a, clear_b);
+    let decrypted_a: u32 = ra.decrypt(client_key);
+    let decrypted_b: u32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_b, clear_a));
+
+    let c = FheBool::encrypt(false, client_key);
+    let (ra, rb) = c.flip(clear_a, &b);
+    let decrypted_a: u32 = ra.decrypt(client_key);
+    let decrypted_b: u32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_a, clear_b));
 }
 
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
