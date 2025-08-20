@@ -27,20 +27,22 @@ void cuda_sub_and_propagate_single_carry_kb_64_inplace(
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t requested_flag, uint32_t uses_carry) {
-
+  PUSH_RANGE("sub")
   host_sub_and_propagate_single_carry<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, lhs_array, rhs_array,
       carry_out, carry_in, (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks), ms_noise_reduction_key, requested_flag, uses_carry);
+  POP_RANGE()
 }
 
 void cleanup_cuda_sub_and_propagate_single_carry(void *const *streams,
                                                  uint32_t const *gpu_indexes,
                                                  uint32_t gpu_count,
                                                  int8_t **mem_ptr_void) {
-
+  PUSH_RANGE("cleanup sub")
   int_sub_and_propagate<uint64_t> *mem_ptr =
       (int_sub_and_propagate<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+  POP_RANGE()
 }

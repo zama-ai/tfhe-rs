@@ -1759,7 +1759,7 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch univar lut")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, allocate_gpu_memory,
@@ -1772,6 +1772,7 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  POP_RANGE()
   return size_tracker;
 }
 
@@ -1795,7 +1796,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t num_many_lut,
     uint64_t lut_degree, bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch many lut")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, num_many_lut,
@@ -1808,6 +1809,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  POP_RANGE()
   return size_tracker;
 }
 
@@ -1831,7 +1833,7 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch bivar lut")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, allocate_gpu_memory,
@@ -1844,6 +1846,7 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  POP_RANGE()
   return size_tracker;
 }
 
@@ -1869,11 +1872,12 @@ uint64_t scratch_cuda_propagate_single_carry_kb_inplace(
     uint32_t gpu_count, int_sc_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch add & propagate sc")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_sc_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
       uses_carry, allocate_gpu_memory, size_tracker);
+  POP_RANGE()
   return size_tracker;
 }
 // This function perform the three steps of Thomas' new carry propagation
@@ -2142,11 +2146,12 @@ uint64_t scratch_cuda_integer_overflowing_sub(
     uint32_t gpu_count, int_borrow_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     uint32_t compute_overflow, bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch overflow sub")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_borrow_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
       compute_overflow, allocate_gpu_memory, size_tracker);
+  POP_RANGE()
   return size_tracker;
 }
 

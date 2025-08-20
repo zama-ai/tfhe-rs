@@ -9,9 +9,11 @@ template <typename Torus>
 __host__ void host_extend_radix_with_trivial_zero_blocks_msb(
     CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
     cudaStream_t const *streams, uint32_t const *gpu_indexes) {
+  PUSH_RANGE("extend only")
   copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], output,
                                            0, input->num_radix_blocks, input, 0,
                                            input->num_radix_blocks);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -39,13 +41,13 @@ __host__ uint64_t scratch_extend_radix_with_sign_msb(
     uint32_t gpu_count, int_extend_radix_with_sign_msb_buffer<Torus> **mem_ptr,
     const int_radix_params params, uint32_t num_radix_blocks,
     uint32_t num_additional_blocks, const bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch cast/extend")
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_extend_radix_with_sign_msb_buffer<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
       num_additional_blocks, allocate_gpu_memory, size_tracker);
-
+  POP_RANGE()
   return size_tracker;
 }
 
@@ -59,11 +61,13 @@ __host__ void host_extend_radix_with_sign_msb(
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   if (num_additional_blocks == 0) {
+    PUSH_RANGE("cast/extend no addblocks")
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output,
                                        input);
+    POP_RANGE()
     return;
   }
-
+  PUSH_RANGE("cast/extend")
   const uint32_t input_blocks = input->num_radix_blocks;
 
   if (input_blocks == 0) {
@@ -89,6 +93,7 @@ __host__ void host_extend_radix_with_sign_msb(
                                              dst_block_idx, dst_block_idx + 1,
                                              mem_ptr->padding_block, 0, 1);
   }
+  POP_RANGE()
 }
 
 #endif

@@ -43,20 +43,22 @@ void cuda_extend_radix_with_sign_msb_64(
     int8_t *mem_ptr, uint32_t num_additional_blocks, void *const *bsks,
     void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
-
+  PUSH_RANGE("cast")
   host_extend_radix_with_sign_msb<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count, output, input,
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)mem_ptr,
       num_additional_blocks, bsks, (uint64_t **)ksks, ms_noise_reduction_key);
+  POP_RANGE()
 }
 
 void cleanup_cuda_extend_radix_with_sign_msb_64(void *const *streams,
                                                 uint32_t const *gpu_indexes,
                                                 uint32_t gpu_count,
                                                 int8_t **mem_ptr_void) {
-
+  PUSH_RANGE("clean cast")
   int_extend_radix_with_sign_msb_buffer<uint64_t> *mem_ptr =
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
