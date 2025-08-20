@@ -18,13 +18,13 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry(
     uint32_t gpu_count, int_sub_and_propagate<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
     bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch sub")
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_sub_and_propagate<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
       allocate_gpu_memory, size_tracker);
-
+  POP_RANGE()
   return size_tracker;
 }
 

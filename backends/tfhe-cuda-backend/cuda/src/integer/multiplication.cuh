@@ -690,10 +690,12 @@ __host__ uint64_t scratch_cuda_integer_mult_radix_ciphertext_kb(
     bool const is_boolean_left, bool const is_boolean_right,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
+  PUSH_RANGE("scratch mul")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_mul_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, is_boolean_left,
       is_boolean_right, num_radix_blocks, allocate_gpu_memory, size_tracker);
+  POP_RANGE()
   return size_tracker;
 }
 

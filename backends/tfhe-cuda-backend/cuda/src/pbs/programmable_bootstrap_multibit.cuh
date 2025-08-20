@@ -156,7 +156,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 // will wrap it up in a nicer/cleaner version in the future.
 // Additionally, we initialize an int8_t vector with coefficients used in the
 // monomial multiplication The size of this vector is 3x2048 and the
-// coefficients are: [0 .. 2047] = -1 [2048 .. 4095] = 1 [4096 .. 6143] = -11
+// coefficients are: [0 .. 2047] = -1 [2048 .. 4095] = 1 [4096 .. 6143] = -1
 // Then we can just calculate the offset needed to apply this coefficients, and
 // the operation transforms into a pointwise vector multiplication, avoiding to
 // perform extra instructions other than MADD

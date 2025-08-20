@@ -52,7 +52,6 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch propagate sc")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -62,7 +61,6 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       requested_flag, uses_carry, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
@@ -73,7 +71,7 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch add & propagate sc")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -83,7 +81,6 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       requested_flag, uses_carry, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
@@ -94,7 +91,6 @@ uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t compute_overflow,
     bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch overflow sub")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -104,7 +100,6 @@ uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_borrow_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       compute_overflow, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 void cuda_propagate_single_carry_kb_64_inplace(
@@ -192,7 +187,7 @@ uint64_t scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch univar lut")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -204,7 +199,6 @@ uint64_t scratch_cuda_apply_univariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
@@ -216,7 +210,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint32_t num_many_lut, uint64_t lut_degree, bool allocate_gpu_memory,
     bool allocate_ms_array) {
-  PUSH_RANGE("scratch many lut")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -228,7 +222,6 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       num_many_lut, lut_degree, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 void cuda_apply_univariate_lut_kb_64(
@@ -277,7 +270,7 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch bivar lut")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -289,7 +282,6 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
-  POP_RANGE()
 }
 
 void cuda_apply_bivariate_lut_kb_64(
@@ -393,12 +385,13 @@ uint64_t scratch_cuda_apply_noise_squashing_mem(
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t num_radix_blocks, uint32_t original_num_blocks,
     bool allocate_gpu_memory) {
-
+  PUSH_RANGE("scratch noise squashing")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_noise_squashing_lut<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count, params, glwe_dimension,
       polynomial_size, num_radix_blocks, original_num_blocks,
       allocate_gpu_memory, size_tracker);
+  POP_RANGE()
   return size_tracker;
 }
 
@@ -411,7 +404,7 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
     uint32_t num_radix_blocks, uint32_t original_num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, bool allocate_ms_array) {
-  PUSH_RANGE("scratch noise squashing")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -423,7 +416,6 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
       (int_noise_squashing_lut<uint64_t> **)mem_ptr, input_glwe_dimension,
       input_polynomial_size, num_radix_blocks, original_num_blocks,
       allocate_gpu_memory);
-  POP_RANGE()
 }
 
 void cuda_apply_noise_squashing_kb(
