@@ -1,9 +1,11 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use std::env;
+use crate::utilities::{BenchmarkType, BENCH_TYPE};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use rand::prelude::*;
+use rayon::prelude::*;
+use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -16,9 +18,7 @@ use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_p
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PBSParameters;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
-use rayon::prelude::*;
 use utilities::{write_to_json, OperatorType};
-use crate::utilities::{BenchmarkType, BENCH_TYPE};
 
 struct ProofConfig {
     crs_size: usize,
@@ -235,11 +235,9 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             let msg_bits =
                 (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
             println!("Generating CRS... ");
-            let crs = CompactPkeCrs::from_shortint_params(
-                param_pke,
-                proof_config.crs_size / msg_bits,
-            )
-            .unwrap();
+            let crs =
+                CompactPkeCrs::from_shortint_params(param_pke, proof_config.crs_size / msg_bits)
+                    .unwrap();
 
             let public_params = crs.public_params();
 
@@ -253,7 +251,6 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 let fhe_uint_count = bits / 64;
 
                 let shortint_params: PBSParameters = param_fhe.into();
-
 
                 for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                     let zk_load = match compute_load {
@@ -367,7 +364,11 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                     let messages = vec![input_msg; fhe_uint_count];
                                     tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                         .extend(messages.iter().copied())
-                                        .build_with_proof_packed(public_params, &metadata, compute_load)
+                                        .build_with_proof_packed(
+                                            public_params,
+                                            &metadata,
+                                            compute_load,
+                                        )
                                         .unwrap()
                                 })
                                 .collect::<Vec<_>>();
