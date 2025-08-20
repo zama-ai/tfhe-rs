@@ -56,6 +56,9 @@ jobs:
     name: Publish tfhe-versionable-derive Release
     needs: [ verify_tag, package-derive ] # for comparing hashes
     runs-on: ubuntu-latest
+    permissions:
+      # Needed for OIDC token exchange on crates.io
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
