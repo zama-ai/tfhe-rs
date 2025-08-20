@@ -883,7 +883,7 @@ bench_unsigned_integer_multi_bit_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,zk-pok,nightly-avx512 \
