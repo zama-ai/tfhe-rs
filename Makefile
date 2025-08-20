@@ -16,6 +16,7 @@ GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
+BENCH_TYPE?=latency
 NIGHTLY_TESTS?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22.6
@@ -1011,7 +1012,7 @@ bench_integer_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
@@ -1055,7 +1056,7 @@ bench_unsigned_integer_multi_bit_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,zk-pok,nightly-avx512 \
