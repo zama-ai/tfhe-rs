@@ -14,6 +14,10 @@ use crate::core_crypto::entities::*;
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
 ///
+/// # Panics
+///
+/// This function will panic if `lhs` and `rhs` do not have the same polynomial size.
+///
 /// # Example
 ///
 /// ```rust
@@ -55,6 +59,10 @@ pub fn polynomial_wrapping_add_assign_custom_mod<Scalar, OutputCont, InputCont>(
 ///
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
+///
+/// # Panics
+///
+/// This function will panic if `lhs` and `rhs` do not have the same polynomial size.
 ///
 /// # Example
 ///
@@ -107,7 +115,9 @@ pub fn polynomial_wrapping_sub_assign_custom_mod<Scalar, OutputCont, InputCont>(
 ///
 /// # Panics
 ///
-/// This function will panic if the lists are not of the same size
+/// This function will panic in any of these situations:
+/// - the lists are not of the same size
+/// - the polynomial sizes are not the same
 ///
 /// # Example
 ///
@@ -165,6 +175,17 @@ pub fn polynomial_wrapping_add_multisum_assign_custom_mod<
     }
 }
 
+/// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
+/// $(X^{N} + 1)$ with the schoolbook algorithm.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Panics
+///
+/// This function will panic if `output`, `lhs` and `rhs` do not have the same polynomial size.
 fn polynomial_wrapping_add_mul_schoolbook_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     lhs: &Polynomial<InputCont1>,
@@ -175,6 +196,7 @@ fn polynomial_wrapping_add_mul_schoolbook_assign<Scalar, OutputCont, InputCont1,
     InputCont1: Container<Element = Scalar>,
     InputCont2: Container<Element = Scalar>,
 {
+    assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
     fn implementation<Scalar: UnsignedInteger>(
         mut output: Polynomial<&mut [Scalar]>,
         lhs: Polynomial<&[Scalar]>,
@@ -265,6 +287,10 @@ fn polynomial_wrapping_add_mul_schoolbook_assign_custom_mod<
 ///
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
+///
+/// # Panics
+///
+/// This function will panic if `output`, `lhs` and `rhs` do not have the same polynomial size.
 ///
 /// # Example
 ///
@@ -500,6 +526,10 @@ fn copy_without_neg<Scalar: UnsignedInteger>(dst: &mut [Scalar], src: &[Scalar])
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
 ///
+/// # Panics
+///
+/// This function will panic if `output` and `input` do not have the same polynomial size.
+///
 /// # Examples
 ///
 /// ```rust
@@ -560,6 +590,10 @@ pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
 ///
+/// # Panics
+///
+/// This function will panic if `output` and `input` do not have the same polynomial size.
+///
 /// # Examples
 ///
 /// ```rust
@@ -616,6 +650,10 @@ pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
 /// $X^{degree}$, then subtract the input from the result and assign to the output.
 ///
 /// output = input * X^degree - input
+///
+/// # Panics
+///
+/// This function will panic if `output` and `input` do not have the same polynomial size.
 ///
 /// # Note
 ///
@@ -704,7 +742,9 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
 ///
 /// # Panics
 ///
-/// This function will panic if the lists are not of the same size
+/// This function will panic in any of these situations:
+/// - the lists are not of the same size
+/// - the polynomial sizes are not the same
 ///
 /// # Example
 ///
@@ -862,6 +902,10 @@ fn polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod<
 ///
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
+///
+/// # Panics
+///
+/// This function will panic if `output`, `lhs` and `rhs` do not have the same polynomial size.
 ///
 /// # Example
 ///
@@ -1040,6 +1084,10 @@ pub fn polynomial_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
 ///
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
+///
+/// # Panics
+///
+/// This function will panic if `output`, `lhs` and `rhs` do not have the same polynomial size.
 ///
 /// # Example
 ///
