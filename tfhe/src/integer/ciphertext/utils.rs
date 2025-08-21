@@ -2,15 +2,16 @@ use super::{BooleanBlock, IntegerRadixCiphertext};
 use crate::integer::backward_compatibility::ciphertext::DataKindVersions;
 use crate::shortint::{Ciphertext, MessageModulus};
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroUsize;
 use tfhe_versionable::Versionize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(DataKindVersions)]
 pub enum DataKind {
     /// The held value is a number of radix blocks.
-    Unsigned(usize),
+    Unsigned(NonZeroUsize),
     /// The held value is a number of radix blocks.
-    Signed(usize),
+    Signed(NonZeroUsize),
     Boolean,
     String {
         n_chars: u32,
@@ -21,7 +22,7 @@ pub enum DataKind {
 impl DataKind {
     pub fn num_blocks(self, message_modulus: MessageModulus) -> usize {
         match self {
-            Self::Unsigned(n) | Self::Signed(n) => n,
+            Self::Unsigned(n) | Self::Signed(n) => n.get(),
             Self::Boolean => 1,
             Self::String { n_chars, .. } => {
                 let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());

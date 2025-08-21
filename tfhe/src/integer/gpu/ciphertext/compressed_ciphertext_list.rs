@@ -20,6 +20,7 @@ use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
+use std::num::NonZeroUsize;
 
 pub trait CudaExpandable: Sized {
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;
@@ -447,7 +448,7 @@ pub trait CudaCompressible {
         self,
         messages: &mut Vec<CudaRadixCiphertext>,
         streams: &CudaStreams,
-    ) -> DataKind;
+    ) -> Option<DataKind>;
 }
 
 impl CudaCompressible for CudaSignedRadixCiphertext {
@@ -455,12 +456,15 @@ impl CudaCompressible for CudaSignedRadixCiphertext {
         self,
         messages: &mut Vec<CudaRadixCiphertext>,
         streams: &CudaStreams,
-    ) -> DataKind {
+    ) -> Option<DataKind> {
         let x = self.ciphertext.duplicate(streams);
         let num_blocks = x.d_blocks.lwe_ciphertext_count().0;
 
-        messages.push(x);
-        DataKind::Signed(num_blocks)
+        let num_blocks = NonZeroUsize::new(num_blocks);
+        if num_blocks.is_some() {
+            messages.push(x)
+        }
+        num_blocks.map(DataKind::Signed)
     }
 }
 
@@ -469,11 +473,11 @@ impl CudaCompressible for CudaBooleanBlock {
         self,
         messages: &mut Vec<CudaRadixCiphertext>,
         streams: &CudaStreams,
-    ) -> DataKind {
+    ) -> Option<DataKind> {
         let x = self.0.ciphertext.duplicate(streams);
 
         messages.push(x);
-        DataKind::Boolean
+        Some(DataKind::Boolean)
     }
 }
 impl CudaCompressible for CudaUnsignedRadixCiphertext {
@@ -481,12 +485,15 @@ impl CudaCompressible for CudaUnsignedRadixCiphertext {
         self,
         messages: &mut Vec<CudaRadixCiphertext>,
         streams: &CudaStreams,
-    ) -> DataKind {
+    ) -> Option<DataKind> {
         let x = self.ciphertext.duplicate(streams);
         let num_blocks = x.d_blocks.lwe_ciphertext_count().0;
 
-        messages.push(x);
-        DataKind::Unsigned(num_blocks)
+        let num_blocks = NonZeroUsize::new(num_blocks);
+        if num_blocks.is_some() {
+            messages.push(x)
+        }
+        num_blocks.map(DataKind::Unsigned)
     }
 }
 
@@ -505,13 +512,9 @@ impl CudaCompressedCiphertextListBuilder {
     }
 
     pub fn push<T: CudaCompressible>(&mut self, data: T, streams: &CudaStreams) -> &mut Self {
-        let kind = data.compress_into(&mut self.ciphertexts, streams);
-        let message_modulus = self.ciphertexts.last().unwrap().info.blocks[0].message_modulus;
-
-        if kind.num_blocks(message_modulus) != 0 {
+        if let Some(kind) = data.compress_into(&mut self.ciphertexts, streams) {
             self.info.push(kind);
         }
-
         self
     }
 
