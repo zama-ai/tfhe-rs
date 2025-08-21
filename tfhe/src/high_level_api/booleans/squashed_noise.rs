@@ -5,12 +5,18 @@ use crate::backward_compatibility::booleans::{
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::{
+    with_cuda_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheDecrypt, SquashNoise, Tagged};
 use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::ciphertext::SquashedNoiseBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::named::Named;
@@ -21,12 +27,20 @@ use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOw
 /// Enum that manages the current inner representation of a boolean.
 pub(in crate::high_level_api) enum InnerSquashedNoiseBoolean {
     Cpu(SquashedNoiseBooleanBlock),
+    #[cfg(feature = "gpu")]
+    Cuda(CudaSquashedNoiseBooleanBlock),
 }
 
 impl Clone for InnerSquashedNoiseBoolean {
     fn clone(&self) -> Self {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                })
+            }
         }
     }
 }
@@ -101,17 +115,66 @@ impl InnerSquashedNoiseBoolean {
     pub(crate) fn on_cpu(&self) -> MaybeCloned<'_, SquashedNoiseBooleanBlock> {
         match self {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                    MaybeCloned::Cloned(ct.to_squashed_noise_boolean_block(streams))
+                })
+            }
+        }
+    }
+
+    fn current_device(&self) -> crate::Device {
+        match self {
+            Self::Cpu(_) => crate::Device::Cpu,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => crate::Device::CudaGpu,
         }
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn move_to_device(&mut self, device: Device) {
-        match (&self, device) {
-            (Self::Cpu(_), Device::Cpu) => {
-                // Nothing to do, we already are on the correct device
+    fn move_to_device(&mut self, target_device: Device) {
+        let current_device = self.current_device();
+
+        if current_device == target_device {
+            #[cfg(feature = "gpu")]
+            // We may not be on the correct Cuda device
+            if let Self::Cuda(cuda_ct) = self {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                        *cuda_ct = cuda_ct.duplicate(streams);
+                    }
+                })
             }
-            #[cfg(any(feature = "gpu", feature = "hpu"))]
-            _ => panic!("Cuda/Hpu devices do not support noise squashing yet"),
+            return;
+        }
+
+        // The logic is that the common device is the CPU, all other devices
+        // know how to transfer from and to CPU.
+
+        // So we first transfer to CPU
+        let cpu_ct = self.on_cpu();
+
+        // Then we can transfer the desired device
+        match target_device {
+            Device::Cpu => {
+                let _ = cpu_ct;
+            }
+            #[cfg(feature = "gpu")]
+            Device::CudaGpu => {
+                let new_inner = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    CudaSquashedNoiseBooleanBlock::from_squashed_noise_boolean_block(
+                        &cpu_ct, streams,
+                    )
+                });
+                *self = Self::Cuda(new_inner);
+            }
+            #[cfg(feature = "hpu")]
+            Device::Hpu => {
+                panic!("HPU does not support compression");
+            }
         }
     }
 
