@@ -324,6 +324,10 @@ template <typename Torus> struct int_radix_lut {
   uint32_t *gpu_indexes;
   bool gpu_memory_allocated;
 
+  cudaEvent_t event_scatter_in;
+  cudaEvent_t event_scatter_out[8];
+  cudaEvent_t event_broadcast;
+
   int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, bool allocate_gpu_memory,
@@ -362,6 +366,15 @@ template <typename Torus> struct int_radix_lut {
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
     }
+
+    // if(active_gpu_count > 1){
+    event_scatter_in = cuda_create_event(gpu_indexes[0]);
+    event_broadcast = cuda_create_event(gpu_indexes[0]);
+
+    for (int i = 0; i < active_gpu_count; i++) {
+      event_scatter_out[i] = cuda_create_event(gpu_indexes[i]);
+    }
+    //}
 
     // Allocate LUT
     // LUT is used as a trivial encryption and must be initialized outside
@@ -579,7 +592,14 @@ template <typename Torus> struct int_radix_lut {
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
     }
+    // if(active_gpu_count > 1){
+    event_scatter_in = cuda_create_event(gpu_indexes[0]);
+    event_broadcast = cuda_create_event(gpu_indexes[0]);
 
+    for (int i = 0; i < active_gpu_count; i++) {
+      event_scatter_out[i] = cuda_create_event(gpu_indexes[i]);
+    }
+    //}
     // Allocate LUT
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
@@ -718,9 +738,10 @@ template <typename Torus> struct int_radix_lut {
     auto src_lut = lut_vec[0];
     auto src_lut_indexes = lut_indexes_vec[0];
 
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    cuda_event_record(event_broadcast, streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       if (gpu_indexes[i] != gpu_indexes[0]) {
+        cuda_stream_wait_event(streams[i], event_broadcast, gpu_indexes[i]);
         auto dst_lut = lut_vec[i];
         auto dst_lut_indexes = lut_indexes_vec[i];
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
@@ -745,7 +766,13 @@ template <typename Torus> struct int_radix_lut {
       cuda_drop_with_size_tracking_async(lut_indexes_vec[i], streams[i],
                                          gpu_indexes[i], gpu_memory_allocated);
     }
-
+    // if( active_gpu_count > 1) {
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_event_destroy(event_scatter_out[i], gpu_indexes[i]);
+    }
+    cuda_event_destroy(event_scatter_in, gpu_indexes[0]);
+    cuda_event_destroy(event_broadcast, gpu_indexes[0]);
+    //}
     cuda_drop_with_size_tracking_async(lwe_indexes_in, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(lwe_indexes_out, streams[0],
@@ -1614,6 +1641,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
+
     setup_index_buffers(streams, gpu_indexes, size_tracker);
     // because we setup_lut in host function for sum_ciphertexts to save memory
     // the size_tracker is topped up here to have a max bound on the used memory
@@ -1661,6 +1689,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
     this->luts_message_carry = reused_lut;
+
     setup_index_buffers(streams, gpu_indexes, size_tracker);
   }
 
@@ -5909,6 +5938,9 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
                                    allocate_gpu_memory);
     delete ct_prepared;
     ct_prepared = nullptr;
+
+    propagate_mem->release(streams, gpu_indexes, gpu_count);
+    delete propagate_mem;
 
     prepare_mem->release(streams, gpu_indexes, gpu_count);
     delete prepare_mem;
