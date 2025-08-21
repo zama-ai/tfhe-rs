@@ -4,6 +4,10 @@ use super::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::list_compression::{
     CompressedNoiseSquashingCompressionKeyVersions, CompressedSquashedNoiseCiphertextListVersions,
     NoiseSquashingCompressionPrivateKeyVersions,
@@ -25,6 +29,8 @@ use crate::Versionize;
 use std::num::NonZero;
 
 use crate::integer::backward_compatibility::list_compression::NoiseSquashingCompressionKeyVersions;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingCompressionPrivateKeyVersions)]
@@ -77,6 +83,21 @@ impl CompressedNoiseSquashingCompressionKey {
     pub fn decompress(&self) -> NoiseSquashingCompressionKey {
         let key = self.key.decompress();
         NoiseSquashingCompressionKey { key }
+    }
+
+    #[cfg(feature = "gpu")]
+    pub fn decompress_to_cuda(&self, streams: &CudaStreams) -> CudaNoiseSquashingCompressionKey {
+        CudaNoiseSquashingCompressionKey {
+            packing_key_switching_key: CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(
+                &self
+                    .key
+                    .packing_key_switching_key
+                    .clone()
+                    .decompress_into_lwe_packing_keyswitch_key(),
+                streams,
+            ),
+            lwe_per_glwe: self.key.lwe_per_glwe,
+        }
     }
 
     pub fn from_raw_parts(key: ShortintCompressedNoiseSquashingCompressionKey) -> Self {
