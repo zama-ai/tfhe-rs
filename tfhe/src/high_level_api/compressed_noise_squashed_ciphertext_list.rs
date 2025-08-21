@@ -15,6 +15,7 @@ use crate::named::Named;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::{SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, Tag, Versionize};
 use serde::{Deserialize, Serialize};
+use std::num::NonZero;
 use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
 pub(in crate::high_level_api) enum InnerCompressedSquashedNoiseCiphertextList {
@@ -223,7 +224,10 @@ impl SquashedNoiseExpandable for SquashedNoiseFheUint {
                 )
             })
         } else {
-            Err(create_error_message(DataKind::Unsigned(0), kind))
+            Err(create_error_message(
+                DataKind::Unsigned(NonZero::new(1).unwrap()),
+                kind,
+            ))
         }
     }
 }
@@ -242,7 +246,10 @@ impl SquashedNoiseExpandable for SquashedNoiseFheInt {
                 )
             })
         } else {
-            Err(create_error_message(DataKind::Signed(0), kind))
+            Err(create_error_message(
+                DataKind::Signed(NonZero::new(1).unwrap()),
+                kind,
+            ))
         }
     }
 }
@@ -279,11 +286,14 @@ impl HlSquashedNoiseCompressible for SquashedNoiseFheUint {
     fn compress_into(self, messages: &mut Vec<(private::SquashedNoiseToBeCompressed, DataKind)>) {
         match self.inner {
             InnerSquashedNoiseRadixCiphertext::Cpu(cpu_ct) => {
-                let kind = DataKind::Unsigned(cpu_ct.original_block_count);
-                messages.push((
-                    private::SquashedNoiseToBeCompressed::Cpu(cpu_ct.packed_blocks),
-                    kind,
-                ))
+                if cpu_ct.original_block_count != 0 {
+                    let kind =
+                        DataKind::Unsigned(NonZero::new(cpu_ct.original_block_count).unwrap());
+                    messages.push((
+                        private::SquashedNoiseToBeCompressed::Cpu(cpu_ct.packed_blocks),
+                        kind,
+                    ))
+                }
             }
         }
     }
@@ -293,11 +303,13 @@ impl HlSquashedNoiseCompressible for SquashedNoiseFheInt {
     fn compress_into(self, messages: &mut Vec<(private::SquashedNoiseToBeCompressed, DataKind)>) {
         match self.inner {
             InnerSquashedNoiseSignedRadixCiphertext::Cpu(cpu_ct) => {
-                let kind = DataKind::Signed(cpu_ct.original_block_count);
-                messages.push((
-                    private::SquashedNoiseToBeCompressed::Cpu(cpu_ct.packed_blocks),
-                    kind,
-                ))
+                if cpu_ct.original_block_count() != 0 {
+                    let kind = DataKind::Signed(NonZero::new(cpu_ct.original_block_count).unwrap());
+                    messages.push((
+                        private::SquashedNoiseToBeCompressed::Cpu(cpu_ct.packed_blocks),
+                        kind,
+                    ))
+                }
             }
         }
     }

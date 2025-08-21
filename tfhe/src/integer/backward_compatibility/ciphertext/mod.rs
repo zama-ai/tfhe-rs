@@ -1,7 +1,3 @@
-use std::convert::Infallible;
-
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
-
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
     CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
@@ -13,6 +9,9 @@ use crate::integer::BooleanBlock;
 #[cfg(feature = "zk-pok")]
 use crate::integer::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
+use std::convert::Infallible;
+use std::num::NonZero;
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
 pub enum BaseRadixCiphertextVersions<Block> {
@@ -44,7 +43,10 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
         // Since we can't guess the type of data here, we set them by default as unsigned integer.
         // Since it this data comes from 0.6, if it is included in a homogeneous compact list it
         // will be converted to the right type at expand time.
-        let info = vec![DataKind::Unsigned(self.num_blocks_per_integer); radix_count];
+
+        let info = NonZero::new(self.num_blocks_per_integer)
+            .map(|n| vec![DataKind::Unsigned(n); radix_count])
+            .unwrap_or_default();
 
         Ok(CompactCiphertextList::from_raw_parts(self.ct_list, info))
     }
@@ -62,9 +64,40 @@ pub enum ProvenCompactCiphertextListVersions {
     V0(ProvenCompactCiphertextList),
 }
 
+#[derive(Version)]
+pub enum DataKindV0 {
+    /// The held value is a number of radix blocks.
+    Unsigned(usize),
+    /// The held value is a number of radix blocks.
+    Signed(usize),
+    Boolean,
+    String {
+        n_chars: u32,
+        padded: bool,
+    },
+}
+
 #[derive(VersionsDispatch)]
 pub enum DataKindVersions {
-    V0(DataKind),
+    V0(DataKindV0),
+    V1(DataKind),
+}
+
+impl Upgrade<DataKind> for DataKindV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<DataKind, Self::Error> {
+        match self {
+            Self::Unsigned(n) => NonZero::new(n)
+                .ok_or_else(|| crate::error!("DataKind::Unsigned requires non-zero block count"))
+                .map(DataKind::Unsigned),
+            Self::Signed(n) => NonZero::new(n)
+                .ok_or_else(|| crate::error!("DataKind::Signed requires non-zero block count"))
+                .map(DataKind::Signed),
+            Self::Boolean => Ok(DataKind::Boolean),
+            Self::String { n_chars, padded } => Ok(DataKind::String { n_chars, padded }),
+        }
+    }
 }
 
 #[derive(VersionsDispatch)]
