@@ -120,9 +120,12 @@ impl NoiseSquashingCompressionKey {
 
 #[cfg(test)]
 mod test {
+    use crate::shortint::ciphertext::MaxDegree;
     use crate::shortint::keycache::KEY_CACHE;
     use crate::shortint::list_compression::private_key::NoiseSquashingCompressionPrivateKey;
-    use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+    use crate::shortint::noise_squashing::{
+        NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
+    };
     use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::*;
 
@@ -188,11 +191,23 @@ mod test {
             // Compress the ciphertexts in a list
             let compressed = compression_key.compress_noise_squashed_ciphertexts_into_list(&ct);
 
-            // Extract from the list and decrypt
-            let decrypted_values =
-                compression_private_key.unpack_and_decrypt_squashed_noise_ciphertexts(&compressed);
+            let expected_degree = Degree::new(
+                MaxDegree::from_msg_carry_modulus(sks.message_modulus, sks.carry_modulus).get(),
+            );
 
-            for (idx, value) in decrypted_values.iter().enumerate() {
+            // Extract from the list
+            let extracted = (0..compressed.len()).map(|i| {
+                let ciphertext = compressed.unpack(i).unwrap();
+                assert_eq!(ciphertext.degree(), expected_degree);
+                ciphertext
+            });
+
+            // Decrypt
+            let decryption_key = NoiseSquashingPrivateKeyView::from(&compression_private_key);
+            let decrypted_values = extracted
+                .map(|ciphertext| decryption_key.decrypt_squashed_noise_ciphertext(&ciphertext));
+
+            for (idx, value) in decrypted_values.enumerate() {
                 let dec_msg1 = value / (sks.message_modulus.0 as u128);
                 let dec_msg2 = value % (sks.message_modulus.0 as u128);
 
