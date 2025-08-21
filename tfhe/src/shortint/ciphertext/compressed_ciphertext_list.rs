@@ -14,7 +14,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus};
 
-use super::SquashedNoiseCiphertext;
+use super::{Degree, MaxDegree, SquashedNoiseCiphertext};
 
 /// Metadata needed to rebuild the ciphertexts in a [`CompressedCiphertextList`]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -229,6 +229,9 @@ impl CompressedSquashedNoiseCiphertextList {
             extracted_lwe.lwe_ciphertext_mut(),
             monomial_degree,
         );
+        extracted_lwe.set_degree(Degree::new(
+            MaxDegree::from_msg_carry_modulus(meta.message_modulus, meta.carry_modulus).get(),
+        ));
 
         Ok(extracted_lwe)
     }
