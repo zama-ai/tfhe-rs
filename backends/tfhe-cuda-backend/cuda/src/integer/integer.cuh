@@ -567,16 +567,22 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+
+    cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
+    }
 
     /// With multiple GPUs we push to the vectors on each GPU then when we
     /// gather data to GPU 0 we can copy back to the original indexing
+    PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (Torus *)lwe_array_in->ptr, lut->h_lwe_indexes_in,
+        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in,
         lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
-
+    POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
                                    lwe_after_ks_vec, lwe_trivial_indexes_vec,
@@ -595,16 +601,26 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
-    multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
-                                      (Torus *)lwe_array_out->ptr,
-                                      lwe_after_pbs_vec, lut->h_lwe_indexes_out,
-                                      lut->using_trivial_lwe_indexes,
-                                      num_radix_blocks, big_lwe_dimension + 1);
-
-    /// Synchronize all GPUs
-    for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    PUSH_RANGE("gather")
+    multi_gpu_gather_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, (Torus *)lwe_array_out->ptr,
+        lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        num_radix_blocks, big_lwe_dimension + 1);
+    POP_RANGE()
+    // other gpus record their events
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_event_record(lut->event_scatter_out[j], streams[j], gpu_indexes[j]);
     }
+    // GPU 0 waits for all
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
+                             gpu_indexes[0]);
+    }
+
+    // /// Synchronize all GPUs
+    // for (uint i = 0; i < active_gpu_count; i++) {
+    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    // }
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -674,16 +690,20 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
+    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
+    }
     /// With multiple GPUs we push to the vectors on each GPU then when we
     /// gather data to GPU 0 we can copy back to the original indexing
+    PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (Torus *)lwe_array_in->ptr, lut->h_lwe_indexes_in,
+        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in,
         lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
-
+    POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
                                    lwe_after_ks_vec, lwe_trivial_indexes_vec,
@@ -702,16 +722,27 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
+    PUSH_RANGE("gather")
     multi_gpu_gather_many_lut_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, (Torus *)lwe_array_out->ptr,
         lwe_after_pbs_vec, lut->h_lwe_indexes_out,
         lut->using_trivial_lwe_indexes, num_radix_blocks, big_lwe_dimension + 1,
         num_many_lut);
+    POP_RANGE()
 
-    /// Synchronize all GPUs
-    for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    // other gpus record their events
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_event_record(lut->event_scatter_out[j], streams[j], gpu_indexes[j]);
     }
+    // GPU 0 waits for all
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
+                             gpu_indexes[0]);
+    }
+    // /// Synchronize all GPUs
+    // for (uint i = 0; i < active_gpu_count; i++) {
+    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    // }
   }
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
@@ -795,13 +826,18 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
+    }
+    PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (Torus *)lwe_array_pbs_in->ptr, lut->h_lwe_indexes_in,
+        (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in,
         lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
-
+    POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
                                    lwe_after_ks_vec, lwe_trivial_indexes_vec,
@@ -820,16 +856,26 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
-    multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
-                                      (Torus *)(lwe_array_out->ptr),
-                                      lwe_after_pbs_vec, lut->h_lwe_indexes_out,
-                                      lut->using_trivial_lwe_indexes,
-                                      num_radix_blocks, big_lwe_dimension + 1);
-
-    /// Synchronize all GPUs
-    for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    PUSH_RANGE("gather")
+    multi_gpu_gather_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, (Torus *)(lwe_array_out->ptr),
+        lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        num_radix_blocks, big_lwe_dimension + 1);
+    POP_RANGE()
+    // other gpus record their events
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_event_record(lut->event_scatter_out[j], streams[j], gpu_indexes[j]);
     }
+    // GPU 0 waits for all
+    for (int j = 1; j < active_gpu_count; j++) {
+      cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
+                             gpu_indexes[0]);
+    }
+
+    // /// Synchronize all GPUs
+    // for (uint i = 0; i < active_gpu_count; i++) {
+    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    // }
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -1000,9 +1046,10 @@ void generate_device_accumulator_no_encoding(
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  cudaLaunchHostFunc(
+      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
+  // cuda_synchronize_stream(stream, gpu_index);
+  // free(h_lut);
 }
 
 template <typename Torus>
@@ -1074,8 +1121,10 @@ void generate_device_accumulator_bivariate(
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
       gpu_memory_allocated);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  // cuda_synchronize_stream(stream, gpu_index);
+  cudaLaunchHostFunc(
+      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
+  // free(h_lut);
   POP_RANGE()
 }
 
@@ -1104,15 +1153,17 @@ void generate_device_accumulator_bivariate_with_factor(
       h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus, f,
       factor);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  // copy host lut and lut_indexes_vec to device
+  // cuda_synchronize_stream(stream, gpu_index);
+  //  copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
       gpu_memory_allocated);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  // cuda_synchronize_stream(stream, gpu_index);
+  cudaLaunchHostFunc(
+      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
+  // free(h_lut);
 }
 
 template <typename Torus>
@@ -1137,9 +1188,10 @@ void generate_device_accumulator_with_encoding(
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  cudaLaunchHostFunc(
+      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
+  // cuda_synchronize_stream(stream, gpu_index);
+  // free(h_lut);
 }
 
 /*
@@ -1194,8 +1246,10 @@ void generate_many_lut_device_accumulator(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  // cuda_synchronize_stream(stream, gpu_index);
+  cudaLaunchHostFunc(
+      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
+  // free(h_lut);
   POP_RANGE()
 }
 
@@ -2357,7 +2411,7 @@ __host__ void integer_radix_apply_noise_squashing_kb(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<InputTorus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (InputTorus *)lwe_array_pbs_in->ptr, lut->h_lwe_indexes_in,
+        (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in,
         lut->using_trivial_lwe_indexes, lut->active_gpu_count,
         lwe_array_out->num_radix_blocks, lut->input_big_lwe_dimension + 1);
 
