@@ -373,6 +373,9 @@ pub struct IntegerCudaServerKey {
         Option<crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey>,
     pub(crate) noise_squashing_key:
         Option<crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey>,
+    pub(crate) noise_squashing_compression_key: Option<
+        crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
+    >,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
