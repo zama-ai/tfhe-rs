@@ -330,6 +330,7 @@ impl CompressedServerKey {
         let decompression_key: Option<
             crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
         > = match &self.integer_key.decompression_key {
+            // Convert decompression_key in the (cpu) integer keyset to the GPU if it's defined
             Some(decompression_key) => {
                 let polynomial_size = decompression_key.key.blind_rotate_key.polynomial_size();
                 let glwe_dimension = decompression_key
@@ -352,6 +353,8 @@ impl CompressedServerKey {
             }
             None => None,
         };
+
+        // Convert noise_squashing_key in the (cpu) integer keyset to the GPU if it's defined
         let noise_squashing_key: Option<
             crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey,
         > = self
@@ -359,6 +362,19 @@ impl CompressedServerKey {
             .noise_squashing_key
             .as_ref()
             .map(|noise_squashing_key| noise_squashing_key.decompress_to_cuda(&streams));
+
+        // Convert noise_squashing_compression_key in the (cpu) integer keyset to the GPU if it's
+        // defined
+        let noise_squashing_compression_key: Option<
+            crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
+        > = self
+            .integer_key
+            .noise_squashing_compression_key
+            .as_ref()
+            .map(|noise_squashing_compression_key| {
+                noise_squashing_compression_key.decompress_to_cuda(&streams)
+            });
+
         synchronize_devices(streams.len() as u32);
         CudaServerKey {
             key: Arc::new(IntegerCudaServerKey {
@@ -367,6 +383,7 @@ impl CompressedServerKey {
                 compression_key,
                 decompression_key,
                 noise_squashing_key,
+                noise_squashing_compression_key,
             }),
             tag: self.tag.clone(),
             streams,
