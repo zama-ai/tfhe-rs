@@ -365,13 +365,13 @@ host_integer_decompress(cudaStream_t const *streams,
       /// Make sure all data that should be on GPU 0 is indeed there
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-      /// With multiple GPUs we push to the vectors on each GPU then when we
-      /// gather data to GPU 0 we can copy back to the original indexing
-      multi_gpu_scatter_lwe_async<Torus>(
-          streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-          extracted_lwe, lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes,
-          lut->active_gpu_count, num_blocks_to_decompress,
-          compression_params.small_lwe_dimension + 1);
+    /// With multiple GPUs we push to the vectors on each GPU then when we
+    /// gather data to GPU 0 we can copy back to the original indexing
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lwe_array_in_vec, extracted_lwe,
+        lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->active_gpu_count, num_blocks_to_decompress,
+        compression_params.small_lwe_dimension + 1);
 
       /// Apply PBS
       execute_pbs_async<Torus, Torus>(
@@ -385,12 +385,11 @@ host_integer_decompress(cudaStream_t const *streams,
           num_blocks_to_decompress, encryption_params.pbs_type, num_many_lut,
           lut_stride);
 
-      /// Copy data back to GPU 0 and release vecs
-      multi_gpu_gather_lwe_async<Torus>(
-          streams, gpu_indexes, active_gpu_count, (Torus *)d_lwe_array_out->ptr,
-          lwe_after_pbs_vec, lut->h_lwe_indexes_out,
-          lut->using_trivial_lwe_indexes, num_blocks_to_decompress,
-          encryption_params.big_lwe_dimension + 1);
+    /// Copy data back to GPU 0 and release vecs
+    multi_gpu_gather_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, (Torus *)d_lwe_array_out->ptr,
+        lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        num_blocks_to_decompress, encryption_params.big_lwe_dimension + 1);
 
       /// Synchronize all GPUs
       for (uint i = 0; i < active_gpu_count; i++) {

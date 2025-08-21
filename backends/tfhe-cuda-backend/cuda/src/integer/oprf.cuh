@@ -56,7 +56,7 @@ void host_integer_grouped_oprf(
 
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        seeded_lwe_input, lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        seeded_lwe_input, lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
         active_gpu_count, num_blocks_to_process,
         mem_ptr->params.small_lwe_dimension + 1);
 
@@ -72,9 +72,8 @@ void host_integer_grouped_oprf(
 
     multi_gpu_gather_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, (Torus *)radix_lwe_out->ptr,
-        lwe_after_pbs_vec, lut->h_lwe_indexes_out,
-        lut->using_trivial_lwe_indexes, num_blocks_to_process,
-        mem_ptr->params.big_lwe_dimension + 1);
+        lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        num_blocks_to_process, mem_ptr->params.big_lwe_dimension + 1);
 
     for (uint32_t i = 0; i < active_gpu_count; i++) {
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
