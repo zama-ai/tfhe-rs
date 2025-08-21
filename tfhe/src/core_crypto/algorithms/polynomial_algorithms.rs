@@ -105,6 +105,10 @@ pub fn polynomial_wrapping_sub_assign_custom_mod<Scalar, OutputCont, InputCont>(
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
 ///
+/// # Panics
+///
+/// This function will panic if the lists are not of the same size
+///
 /// # Example
 ///
 /// ```rust
@@ -127,6 +131,10 @@ pub fn polynomial_wrapping_add_multisum_assign<Scalar, OutputCont, InputCont1, I
     InputCont1: Container<Element = Scalar>,
     InputCont2: Container<Element = Scalar>,
 {
+    assert_eq!(
+        poly_list_1.polynomial_count(),
+        poly_list_2.polynomial_count()
+    );
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
         polynomial_wrapping_add_mul_assign(output, &poly_1, &poly_2);
     }
@@ -148,6 +156,10 @@ pub fn polynomial_wrapping_add_multisum_assign_custom_mod<
     InputCont1: Container<Element = Scalar>,
     InputCont2: Container<Element = Scalar>,
 {
+    assert_eq!(
+        poly_list_1.polynomial_count(),
+        poly_list_2.polynomial_count()
+    );
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
         polynomial_wrapping_add_mul_assign_custom_mod(output, &poly_1, &poly_2, custom_modulus);
     }
@@ -690,6 +702,10 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
 /// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
 /// unsigned integer capacity.
 ///
+/// # Panics
+///
+/// This function will panic if the lists are not of the same size
+///
 /// # Example
 ///
 /// ```rust
@@ -712,6 +728,10 @@ pub fn polynomial_wrapping_sub_multisum_assign<Scalar, OutputCont, InputCont1, I
     InputCont1: Container<Element = Scalar>,
     InputCont2: Container<Element = Scalar>,
 {
+    assert_eq!(
+        poly_list_1.polynomial_count(),
+        poly_list_2.polynomial_count()
+    );
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
         polynomial_wrapping_sub_mul_assign(output, &poly_1, &poly_2);
     }
@@ -733,6 +753,10 @@ pub fn polynomial_wrapping_sub_multisum_assign_custom_mod<
     InputCont1: Container<Element = Scalar>,
     InputCont2: Container<Element = Scalar>,
 {
+    assert_eq!(
+        poly_list_1.polynomial_count(),
+        poly_list_2.polynomial_count()
+    );
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
         polynomial_wrapping_sub_mul_assign_custom_mod(output, &poly_1, &poly_2, custom_modulus);
     }

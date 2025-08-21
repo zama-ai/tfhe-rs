@@ -84,6 +84,13 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign_native_mod_compatible<
         output_mask.ciphertext_modulus(),
         output_body.ciphertext_modulus()
     );
+    assert_eq!(
+        output_mask.glwe_dimension(),
+        glwe_secret_key.glwe_dimension(),
+        "Mismatched GlweDimension between output_mask ({:?}) and glwe_secret_key ({:?})",
+        output_mask.glwe_dimension(),
+        glwe_secret_key.glwe_dimension(),
+    );
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
 
