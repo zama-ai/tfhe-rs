@@ -210,4 +210,19 @@ mod tests {
             }
         }
     }
+
+    // Regression tests for Barrett reduction double-subtraction bug
+    #[test]
+    fn test_barrett_regression_v4ifma() {
+        if let Some(simd) = crate::V4IFma::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x3fffffffffffff; // 2^50 - 1 (max for this file)
+            let a = 0x3ffffffffffffe; // p - 1
+            let b = 0x3ffffffffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+        }
+    }
 }
