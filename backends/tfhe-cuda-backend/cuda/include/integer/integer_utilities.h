@@ -5902,6 +5902,10 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
     delete sum_mem;
     sum_mem = nullptr;
 
+    propagate_mem->release(streams, gpu_indexes, gpu_count);
+    delete propagate_mem;
+    propagate_mem = nullptr;
+
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], cts,
                                    allocate_gpu_memory);
     delete cts;
