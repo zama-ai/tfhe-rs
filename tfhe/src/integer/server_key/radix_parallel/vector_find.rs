@@ -1071,7 +1071,7 @@ impl ServerKey {
     /// otherwise it will be 0.
     ///
     /// Requires ct to have empty carries
-    fn compute_equality_selectors<T, Iter, Clear>(
+    pub(crate) fn compute_equality_selectors<T, Iter, Clear>(
         &self,
         ct: &T,
         possible_input_values: Iter,
@@ -1211,13 +1211,20 @@ impl ServerKey {
     /// (i.e. at most one of the vector element is non-zero) into single ciphertext
     /// containing the non-zero value.
     ///
-    /// The elements in the one hot vector have their block packed.
+    /// The elements in the one hot vector may have their block packed or not
     ///
     /// The returned result has non packed blocks
-    fn aggregate_one_hot_vector<T>(&self, mut one_hot_vector: Vec<T>) -> T
+    pub(super) fn aggregate_one_hot_vector<T>(&self, mut one_hot_vector: Vec<T>) -> T
     where
         T: IntegerRadixCiphertext,
     {
+        let blocks_are_packed = one_hot_vector.iter().any(|radix| {
+            radix
+                .blocks()
+                .iter()
+                .any(|block| block.degree.get() >= self.message_modulus().0)
+        });
+
         // Used to clean the noise
         let identity_lut = self.key.generate_lookup_table(|x| x);
 
@@ -1260,18 +1267,27 @@ impl ServerKey {
             }
         }
 
-        let unpacked_blocks = result
-            .blocks()
-            .par_iter()
-            .flat_map(|block| -> [Ciphertext; 2] {
-                rayon::join(
-                    || self.key.message_extract(block),
-                    || self.key.carry_extract(block),
-                )
-                .into()
-            })
-            .collect::<Vec<_>>();
-        T::from_blocks(unpacked_blocks)
+        if blocks_are_packed {
+            let unpacked_blocks = result
+                .blocks()
+                .par_iter()
+                .flat_map(|block| -> [Ciphertext; 2] {
+                    rayon::join(
+                        || self.key.message_extract(block),
+                        || self.key.carry_extract(block),
+                    )
+                    .into()
+                })
+                .collect::<Vec<_>>();
+            T::from_blocks(unpacked_blocks)
+        } else {
+            result
+                .blocks_mut()
+                .par_iter_mut()
+                .for_each(|block| self.key.message_extract_assign(block));
+
+            result
+        }
     }
 
     /// Only keeps at most one Ciphertext that encrypts 1
