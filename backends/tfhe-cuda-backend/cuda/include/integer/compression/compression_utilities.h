@@ -10,6 +10,7 @@ template <typename Torus> struct int_compression {
   Torus *tmp_lwe;
   Torus *tmp_glwe_array_out;
   bool gpu_memory_allocated;
+  uint32_t lwe_per_glwe;
 
   int_compression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count, int_radix_params compression_params,
@@ -21,15 +22,16 @@ template <typename Torus> struct int_compression {
     uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                      compression_params.polynomial_size;
 
-    tmp_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
+    tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
             sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
-    tmp_glwe_array_out = (Torus *)cuda_malloc_with_size_tracking_async(
-        lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory));
+    tmp_glwe_array_out =
+        static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
+            lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
+            gpu_indexes[0], size_tracker, allocate_gpu_memory));
 
-    size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe_64(
+    size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe<Torus>(
         streams[0], gpu_indexes[0], &fp_ks_buffer,
         compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
@@ -73,9 +75,6 @@ template <typename Torus> struct int_decompression {
     uint64_t lwe_accumulator_size = (compression_params.glwe_dimension *
                                          compression_params.polynomial_size +
                                      1);
-    decompression_rescale_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, encryption_params, 1,
-        num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
 
     tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_blocks_to_decompress * glwe_accumulator_size * sizeof(Torus),
@@ -87,28 +86,38 @@ template <typename Torus> struct int_decompression {
         num_blocks_to_decompress * lwe_accumulator_size * sizeof(Torus),
         streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
-    // Rescale is done using an identity LUT
-    // Here we do not divide by message_modulus
-    // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
-    // space, we want to keep the original 2 bits value in the 4 bits space,
-    // so we apply the identity and the encoding will rescale it for us.
-    auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
+    // rescale is only needed on 64-bit decompression
+    if constexpr (std::is_same_v<Torus, uint64_t>) {
+      decompression_rescale_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, encryption_params, 1,
+          num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
 
-    auto effective_compression_message_modulus =
-        encryption_params.carry_modulus;
-    auto effective_compression_carry_modulus = 1;
+      // Rescale is done using an identity LUT
+      // Here we do not divide by message_modulus
+      // Example: in the 2_2 case we are mapping a 2-bit message onto a 4-bit
+      // space, we want to keep the original 2-bit value in the 4-bit space,
+      // so we apply the identity and the encoding will rescale it for us.
+      decompression_rescale_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, encryption_params, 1,
+          num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
+      auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
 
-    generate_device_accumulator_with_encoding<Torus>(
-        streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
-        decompression_rescale_lut->get_degree(0),
-        decompression_rescale_lut->get_max_degree(0),
-        encryption_params.glwe_dimension, encryption_params.polynomial_size,
-        effective_compression_message_modulus,
-        effective_compression_carry_modulus, encryption_params.message_modulus,
-        encryption_params.carry_modulus, decompression_rescale_f,
-        gpu_memory_allocated);
+      auto effective_compression_message_modulus =
+          encryption_params.carry_modulus;
+      auto effective_compression_carry_modulus = 1;
 
-    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes);
+      generate_device_accumulator_with_encoding<Torus>(
+          streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
+          decompression_rescale_lut->get_degree(0),
+          decompression_rescale_lut->get_max_degree(0),
+          encryption_params.glwe_dimension, encryption_params.polynomial_size,
+          effective_compression_message_modulus,
+          effective_compression_carry_modulus,
+          encryption_params.message_modulus, encryption_params.carry_modulus,
+          decompression_rescale_f, gpu_memory_allocated);
+
+      decompression_rescale_lut->broadcast_lut(streams, gpu_indexes);
+    }
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -118,9 +127,10 @@ template <typename Torus> struct int_decompression {
                                        gpu_indexes[0], gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(tmp_indexes_array, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
-
-    decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
-    delete decompression_rescale_lut;
+    if constexpr (std::is_same_v<Torus, uint64_t>) {
+      decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
+      delete decompression_rescale_lut;
+    }
   }
 };
 #endif

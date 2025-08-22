@@ -1,6 +1,7 @@
 pub mod boolean_value;
 pub mod compact_list;
 pub mod compressed_ciphertext_list;
+pub mod compressed_noise_squashed_ciphertext_list;
 pub mod info;
 pub mod squashed_noise;
 
@@ -13,6 +14,8 @@ use crate::integer::parameters::LweDimension;
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext, EncryptionKeyChoice};
 use crate::GpuIndex;
+
+pub use compressed_noise_squashed_ciphertext_list::*;
 
 pub trait CudaIntegerRadixCiphertext: Sized {
     const IS_SIGNED: bool;

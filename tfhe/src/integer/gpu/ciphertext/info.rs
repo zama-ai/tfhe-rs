@@ -1,6 +1,7 @@
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::{CarryModulus, MessageModulus};
+use itertools::Itertools;
 
 #[derive(Clone, Copy)]
 pub struct CudaBlockInfo {
@@ -14,6 +15,15 @@ pub struct CudaBlockInfo {
 impl CudaBlockInfo {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.get() < self.message_modulus.0
+    }
+    pub fn duplicate(&self) -> Self {
+        Self {
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            atomic_pattern: self.atomic_pattern,
+            noise_level: self.noise_level,
+        }
     }
 }
 
@@ -87,5 +97,15 @@ impl CudaRadixCiphertextInfo {
             .blocks
             .extend(self.blocks[..num_blocks].iter().copied());
         new_block_info
+    }
+
+    pub fn duplicate(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|block| block.duplicate())
+                .collect_vec(),
+        }
     }
 }
