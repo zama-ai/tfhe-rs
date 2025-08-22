@@ -375,6 +375,7 @@ impl NamedParam for Parameters {
                 WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6,
                 WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7,
                 PARAM_4_BITS_5_BLOCKS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             )
         );
     }

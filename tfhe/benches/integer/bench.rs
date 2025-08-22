@@ -1,13 +1,20 @@
 #![allow(dead_code)]
 
-use criterion::{criterion_group, criterion_main, Criterion};
+#[path = "../utilities.rs"]
+mod utilities;
+
+use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
+use criterion::{criterion_group, Criterion, Throughput};
 use itertools::iproduct;
-use rand::Rng;
-use std::array::IntoIter;
+use rand::prelude::*;
+use rayon::prelude::*;
+use std::env;
+use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{RadixCiphertextBig, ServerKey};
 use tfhe::shortint::keycache::NamedParam;
 
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
@@ -18,22 +25,37 @@ use tfhe::shortint::parameters::{
 /// of parameters and a num_block to achieve a certain bit_size ciphertext
 /// in radix decomposition
 struct ParamsAndNumBlocksIter {
-    params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::Parameters, 3>, IntoIter<usize, 7>>,
+    params_and_bit_sizes: itertools::Product<IntoIter<tfhe::shortint::Parameters>, IntoIter<usize>>,
 }
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        const PARAMS: [tfhe::shortint::Parameters; 3] = [
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4,
+        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+            Ok(val) => val.to_lowercase() == "multi_bit",
+            Err(_) => false,
+        };
+
+        // if is_multi_bit {
+        //     let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+        //     let bit_sizes = vec![8, 16, 32, 40, 64];
+        //     let params_and_bit_sizes = iproduct!(params, bit_sizes);
+        //     Self {
+        //         params_and_bit_sizes,
+        //     }
+        // } else {
+        // FIXME One set of parameter is tested since we want to benchmark only quickest
+        // operations.
+        let params = vec![
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
+            // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
         ];
-        const BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
-        let params_and_bit_sizes = iproduct!(PARAMS, BIT_SIZES);
+        let bit_sizes = vec![64];
+        let params_and_bit_sizes = iproduct!(params, bit_sizes);
         Self {
             params_and_bit_sizes,
         }
+        // }
     }
 }
 impl Iterator for ParamsAndNumBlocksIter {
@@ -51,7 +73,7 @@ impl Iterator for ParamsAndNumBlocksIter {
 /// Base function to bench a server key function that is a binary operation
 fn bench_server_key_binary_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
 where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig, &mut RadixCiphertextBig),
+    F: Fn(&ServerKey, &mut RadixCiphertextBig, &mut RadixCiphertextBig) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -62,46 +84,119 @@ where
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}/{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+        let bench_id;
 
-            let encrypt_two_values = || {
-                let clearlow = rng.gen::<u128>();
-                let clearhigh = rng.gen::<u128>();
-                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-                let clearlow = rng.gen::<u128>();
-                let clearhigh = rng.gen::<u128>();
-                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
-                let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let encrypt_two_values = || {
+                        let clearlow = rng.gen::<u128>();
+                        let clearhigh = rng.gen::<u128>();
+                        let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                        let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus.0;
-                while carry_mod > 0 {
-                    // Raise the degree, so as to ensure worst case path in operations
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_2 = cks.encrypt_radix(clear_2, num_block);
-                    sks.unchecked_add_assign(&mut ct_0, &ct_2);
-                    sks.unchecked_add_assign(&mut ct_1, &ct_2);
+                        let clearlow = rng.gen::<u128>();
+                        let clearhigh = rng.gen::<u128>();
+                        let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                        let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-                    carry_mod -= 1;
-                }
+                        // Raise the degree, so as to ensure worst case path in operations
+                        let mut carry_mod = param.carry_modulus.0;
+                        while carry_mod > 0 {
+                            // Raise the degree, so as to ensure worst case path in operations
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                            sks.unchecked_add_assign(&mut ct_0, &ct_2);
+                            sks.unchecked_add_assign(&mut ct_1, &ct_2);
 
-                (ct_0, ct_1)
-            };
+                            carry_mod -= 1;
+                        }
 
-            b.iter_batched(
-                encrypt_two_values,
-                |(mut ct_0, mut ct_1)| {
-                    binary_op(&sks, &mut ct_0, &mut ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, ct_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(mut ct_0, mut ct_1)| {
+                            binary_op(&sks, &mut ct_0, &mut ct_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                            // Raise the degree, so as to ensure worst case path in operations
+                            let mut carry_mod = param.carry_modulus.0;
+                            while carry_mod > 0 {
+                                // Raise the degree, so as to ensure worst case path in operations
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
+                                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                                sks.unchecked_add_assign(&mut ct_0, &ct_2);
+
+                                carry_mod -= 1;
+                            }
+
+                            ct_0
+                        })
+                        .collect::<Vec<_>>();
+                    let mut cts_1 = (0..elements)
+                        .map(|_| {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                            // Raise the degree, so as to ensure worst case path in operations
+                            let mut carry_mod = param.carry_modulus.0;
+                            while carry_mod > 0 {
+                                // Raise the degree, so as to ensure worst case path in operations
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
+                                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                                sks.unchecked_add_assign(&mut ct_1, &ct_2);
+
+                                carry_mod -= 1;
+                            }
+
+                            ct_1
+                        })
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0
+                            .par_iter_mut()
+                            .zip(cts_1.par_iter_mut())
+                            .for_each(|(ct_0, ct_1)| {
+                                binary_op(&sks, ct_0, ct_1);
+                            })
+                    })
+                });
+            }
+        }
     }
 
     bench_group.finish()
@@ -332,18 +427,18 @@ criterion_group!(
 criterion_group!(
     smart_arithmetic_parallelized_operation,
     smart_add_parallelized,
-    smart_sub_parallelized,
+    // smart_sub_parallelized,
     smart_mul_parallelized,
-    smart_bitand_parallelized,
-    smart_bitor_parallelized,
-    smart_bitxor_parallelized,
-    smart_max_parallelized,
-    smart_min_parallelized,
-    smart_eq_parallelized,
-    smart_lt_parallelized,
-    smart_le_parallelized,
+    // smart_bitand_parallelized,
+    // smart_bitor_parallelized,
+    // smart_bitxor_parallelized,
+    // smart_max_parallelized,
+    // smart_min_parallelized,
+    // smart_eq_parallelized,
+    // smart_lt_parallelized,
+    // smart_le_parallelized,
     smart_gt_parallelized,
-    smart_ge_parallelized,
+    // smart_ge_parallelized,
 );
 
 criterion_group!(
@@ -396,12 +491,10 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
-criterion_main!(
-    smart_arithmetic_operation,
-    smart_arithmetic_parallelized_operation,
-    smart_scalar_arithmetic_operation,
-    smart_scalar_arithmetic_parallel_operation,
-    unchecked_arithmetic_operation,
-    unchecked_scalar_arithmetic_operation,
-    misc,
-);
+fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
+    smart_arithmetic_parallelized_operation();
+
+    Criterion::default().configure_from_args().final_summary();
+}
