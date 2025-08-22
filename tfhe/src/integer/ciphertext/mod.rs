@@ -4,7 +4,7 @@ mod compact_list;
 mod compressed;
 mod compressed_ciphertext_list;
 mod compressed_modulus_switched_ciphertext;
-mod compressed_noise_squashed_ciphertext_list;
+pub mod compressed_noise_squashed_ciphertext_list;
 mod integer_ciphertext;
 mod squashed_noise;
 mod utils;
