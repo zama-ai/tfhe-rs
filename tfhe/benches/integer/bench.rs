@@ -3,17 +3,20 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, OperatorType};
-use std::env;
-
-use criterion::{criterion_group, criterion_main, Criterion};
+use crate::utilities::{
+    throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType, BENCH_TYPE,
+};
+use criterion::{criterion_group, Criterion, Throughput};
 use itertools::iproduct;
-use rand::Rng;
+use rand::prelude::*;
+use rayon::prelude::*;
+use std::env;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{RadixCiphertext, ServerKey};
 use tfhe::shortint::keycache::NamedParam;
 
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -46,11 +49,11 @@ impl Default for ParamsAndNumBlocksIter {
             // FIXME One set of parameter is tested since we want to benchmark only quickest
             // operations.
             let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
-            let bit_sizes = vec![8, 16, 32, 40, 64, 128, 256];
+            let bit_sizes = vec![64];
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
@@ -153,7 +156,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
+    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -164,32 +167,75 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+        let bench_id;
 
-            let encrypt_two_values = || {
-                let clearlow = rng.gen::<u128>();
-                let clearhigh = rng.gen::<u128>();
-                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
-                let ct_0 = cks.encrypt_radix(clear_0, num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-                let clearlow = rng.gen::<u128>();
-                let clearhigh = rng.gen::<u128>();
-                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
-                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let encrypt_two_values = || {
+                        let clearlow = rng.gen::<u128>();
+                        let clearhigh = rng.gen::<u128>();
+                        let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                (ct_0, ct_1)
-            };
+                        let clearlow = rng.gen::<u128>();
+                        let clearhigh = rng.gen::<u128>();
+                        let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-            b.iter_batched(
-                encrypt_two_values,
-                |(mut ct_0, mut ct_1)| {
-                    binary_op(&sks, &mut ct_0, &mut ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, ct_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(mut ct_0, mut ct_1)| {
+                            binary_op(&sks, &mut ct_0, &mut ct_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            cks.encrypt_radix(clear_1, num_block)
+                        })
+                        .collect::<Vec<_>>();
+                    let mut cts_1 = (0..elements)
+                        .map(|_| {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            cks.encrypt_radix(clear_1, num_block)
+                        })
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0
+                            .par_iter_mut()
+                            .zip(cts_1.par_iter_mut())
+                            .for_each(|(ct_0, ct_1)| {
+                                binary_op(&sks, ct_0, ct_1);
+                            })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -775,19 +821,21 @@ criterion_group!(
 criterion_group!(
     arithmetic_parallelized_operation,
     add_parallelized,
-    sub_parallelized,
+    // unsigned_overflowing_add_parallelized,
+    // sub_parallelized,
+    // unsigned_overflowing_sub_parallelized,
     mul_parallelized,
-    bitand_parallelized,
-    bitnot_parallelized,
-    bitor_parallelized,
-    bitxor_parallelized,
-    max_parallelized,
-    min_parallelized,
-    eq_parallelized,
-    lt_parallelized,
-    le_parallelized,
+    // bitand_parallelized,
+    // bitnot_parallelized,
+    // bitor_parallelized,
+    // bitxor_parallelized,
+    // max_parallelized,
+    // min_parallelized,
+    // eq_parallelized,
+    // lt_parallelized,
+    // le_parallelized,
     gt_parallelized,
-    ge_parallelized,
+    // ge_parallelized,
 );
 
 criterion_group!(
@@ -888,13 +936,10 @@ criterion_group!(
     scalar_max_parallelized,
 );
 
-criterion_main!(
-    fast_integer_benchmarks,
-    // smart_arithmetic_operation,
-    // smart_arithmetic_parallelized_operation,
-    // smart_scalar_arithmetic_operation,
-    // smart_scalar_arithmetic_parallel_operation,
-    // unchecked_arithmetic_operation,
-    // unchecked_scalar_arithmetic_operation,
-    // misc,
-);
+fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
+    arithmetic_parallelized_operation();
+
+    Criterion::default().configure_from_args().final_summary();
+}

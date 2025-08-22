@@ -14,6 +14,20 @@ BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
+FAST_BENCH?=FALSE
+BENCH_OP_FLAVOR?=DEFAULT
+BENCH_TYPE?=latency
+NODE_VERSION=20
+# sed: -n, do not print input stream, -e means a script/expression
+# 1,/version/ indicates from the first line, to the line matching version at the start of the line
+# p indicates to print, so we keep only the start of the Cargo.toml until we hit the first version
+# entry which should be the version of tfhe
+TFHE_CURRENT_VERSION:=\
+$(shell sed -n -e '1,/^version/p' tfhe/Cargo.toml | \
+grep '^version[[:space:]]*=' | cut -d '=' -f 2 | xargs)
+# Cargo has a hard time distinguishing between our package from the workspace and a package that
+# could be a dependency, so we build an unambiguous spec here
+TFHE_SPEC:=tfhe@$(TFHE_CURRENT_VERSION)
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -406,7 +420,8 @@ no_tfhe_typo:
 
 .PHONY: bench_integer # Run benchmarks for integer
 bench_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe --
 

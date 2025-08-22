@@ -1124,6 +1124,23 @@ pub const PARAM_MESSAGE_4_CARRY_4_PBS_KS: ClassicPBSParameters = ClassicPBSParam
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
+    ClassicPBSParameters {
+        lwe_dimension: LweDimension(879),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(4096),
+        lwe_modular_std_dev: StandardDev(0.0000006791658447437413),
+        glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+        pbs_base_log: DecompositionBaseLog(23),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+    };
+
 /// Return a parameter set from a message and carry moduli.
 ///
 /// # Example
