@@ -603,13 +603,20 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  auto h_lut_indexes =
+      static_cast<Torus *>(malloc(num_radix_blocks * sizeof(Torus)));
+  cuda_memcpy_async_to_cpu(h_lut_indexes, lut->get_lut_indexes(0, 0),
+                           num_radix_blocks * sizeof(Torus), streams[0],
+                           gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
-    auto degrees_index = lut->h_lut_indexes[i];
+    auto degrees_index = h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  free(h_lut_indexes);
   POP_RANGE()
 }
 
@@ -710,13 +717,20 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  auto h_lut_indexes =
+      static_cast<Torus *>(malloc(lut->num_blocks * sizeof(Torus)));
+  cuda_memcpy_async_to_cpu(h_lut_indexes, lut->get_lut_indexes(0, 0),
+                           lut->num_blocks * sizeof(Torus), streams[0],
+                           gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-    auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
+    auto degrees_index = h_lut_indexes[i % lut->num_blocks];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  free(h_lut_indexes);
   POP_RANGE()
 }
 
@@ -828,13 +842,20 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  auto h_lut_indexes =
+      static_cast<Torus *>(malloc(num_radix_blocks * sizeof(Torus)));
+  cuda_memcpy_async_to_cpu(h_lut_indexes, lut->get_lut_indexes(0, 0),
+                           num_radix_blocks * sizeof(Torus), streams[0],
+                           gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
-    auto degrees_index = lut->h_lut_indexes[i];
+    auto degrees_index = h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  free(h_lut_indexes);
   POP_RANGE()
 }
 
@@ -1462,8 +1483,10 @@ void host_full_propagate_inplace(
     void *const *bsks, uint32_t num_blocks) {
   auto params = mem_ptr->lut->params;
 
-  int big_lwe_size = (params.glwe_dimension * params.polynomial_size + 1);
-  int small_lwe_size = (params.small_lwe_dimension + 1);
+  Torus degrees_index;
+  cuda_memcpy_async_to_cpu(&degrees_index, mem_ptr->lut->get_lut_indexes(0, 0),
+                           sizeof(Torus), streams[0], gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
@@ -1496,7 +1519,7 @@ void host_full_propagate_inplace(
     copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                              &cur_input_block, 0, 1,
                                              mem_ptr->tmp_big_lwe_vector, 0, 1);
-    auto degrees_index = mem_ptr->lut->h_lut_indexes[0];
+
     input_blocks->degrees[i] = mem_ptr->lut->degrees[degrees_index];
     input_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(input_blocks->noise_levels[i], params.message_modulus,
