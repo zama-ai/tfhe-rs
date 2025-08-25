@@ -273,7 +273,8 @@ mod cuda {
 
                     let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
                         .ceil() as usize;
-                    let elements = throughput_num_threads(num_block, pbs_count);
+                    // let elements = throughput_num_threads(num_block, pbs_count);
+                    let elements = 1500;
                     bench_group.throughput(Throughput::Elements(elements));
 
                     // Encrypt
