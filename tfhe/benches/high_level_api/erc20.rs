@@ -263,12 +263,101 @@ fn bench_transfer_throughput<FheType, F>(
         );
     }
 }
+#[cfg(feature = "gpu")]
+fn cuda_bench_transfer_throughput<FheType, F>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    transfer_func: F,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
+{
+    let mut rng = thread_rng();
+    let num_gpus = 8;
+    let compressed_server_key = CompressedServerKey::new(client_key);
+
+    // Not available yet at this time (copied from eoq 2025 Q1)
+    // let sks_vec = (0..num_gpus)
+    //     .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+    //     .collect::<Vec<_>>();
+
+    // for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    for num_elems in [500 * num_gpus] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            let num_streams_per_gpu = 8; // Hard coded stream value for FheUint64
+            let chunk_size = (num_elems / num_gpus) as usize;
+
+            b.iter(|| {
+                from_amounts
+                    .par_chunks(chunk_size) // Split into chunks of num_gpus
+                    .zip(
+                        to_amounts
+                            .par_chunks(chunk_size)
+                            .zip(amounts.par_chunks(chunk_size)),
+                    ) // Zip with the other data
+                    .enumerate() // Get the index for GPU
+                    .for_each(
+                        |(i, (from_amount_gpu_i, (to_amount_gpu_i, amount_gpu_i)))| {
+                            // Process chunks within each GPU
+                            let stream_chunk_size = from_amount_gpu_i.len() / num_streams_per_gpu;
+                            from_amount_gpu_i
+                                .par_chunks(stream_chunk_size)
+                                .zip(to_amount_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(amount_gpu_i.par_chunks(stream_chunk_size))
+                                .for_each(
+                                    |((from_amount_chunk, to_amount_chunk), amount_chunk)| {
+                                        // Set the server key for the current GPU
+                                        // set_server_key(sks_vec[i].clone());
+                                        // Parallel iteration over the chunks of data
+                                        from_amount_chunk
+                                            .iter()
+                                            .zip(to_amount_chunk.iter().zip(amount_chunk.iter()))
+                                            .for_each(|(from_amount, (to_amount, amount))| {
+                                                transfer_func(from_amount, to_amount, amount);
+                                            });
+                                    },
+                                );
+                        },
+                    );
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "erc20-transfer",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
 
 #[cfg(feature = "pbs-stats")]
 use pbs_stats::print_transfer_pbs_counts;
 #[cfg(feature = "gpu")]
 use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
+#[cfg(not(feature = "gpu"))]
 fn main() {
     #[cfg(not(feature = "gpu"))]
     let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -396,6 +485,118 @@ fn main() {
             "safe",
             transfer_safe::<FheUint64>,
         );
+        group.finish();
+    }
+
+    c.final_summary();
+}
+
+#[cfg(feature = "gpu")]
+fn main() {
+    let params = PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+
+    let config = ConfigBuilder::with_custom_parameters(params).build();
+    let cks = ClientKey::generate(config);
+
+    let mut c = Criterion::default().sample_size(10).configure_from_args();
+
+    let bench_name = "hlapi::cuda::erc20::transfer";
+
+    // FheUint64 PBS counts
+    // We don't run multiple times since every input is encrypted
+    // PBS count is always the same
+    #[cfg(feature = "pbs-stats")]
+    {
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+    }
+
+    // FheUint64 latency
+    {
+        let mut group = c.benchmark_group(bench_name);
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::whitepaper",
+        //     par_transfer_whitepaper::<FheUint64>,
+        // );
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::no_cmux",
+        //     transfer_no_cmux::<FheUint64>,
+        // );
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::safe",
+        //     transfer_safe::<FheUint64>,
+        // );
+
+        group.finish();
+    }
+
+    // FheUint64 Throughput
+    {
+        let mut group = c.benchmark_group(bench_name);
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::whitepaper",
+        //     par_transfer_whitepaper::<FheUint64>,
+        // );
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::no_cmux",
+        //     transfer_no_cmux::<FheUint64>,
+        // );
+        cuda_bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::safe",
+        //     transfer_safe::<FheUint64>,
+        // );
         group.finish();
     }
 
