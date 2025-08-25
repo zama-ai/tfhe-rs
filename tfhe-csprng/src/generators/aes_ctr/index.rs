@@ -47,35 +47,35 @@ impl TableIndex {
     }
 
     /// Shifts the table index forward of `shift` bytes.
-    pub fn increase(&mut self, shift: usize) {
+    pub fn increase(&mut self, shift: u128) {
         // Compute full shifts to avoid overflows
-        let full_aes_shifts = shift / BYTES_PER_AES_CALL;
-        let shift_remainder = shift % BYTES_PER_AES_CALL;
+        let full_aes_shifts = shift / BYTES_PER_AES_CALL as u128;
+        let shift_remainder = (shift % BYTES_PER_AES_CALL as u128) as usize;
 
         // Get the additional shift if any
         let new_byte_index = self.byte_index.0 + shift_remainder;
-        let full_aes_shifts = full_aes_shifts + new_byte_index / BYTES_PER_AES_CALL;
+        let full_aes_shifts = full_aes_shifts + (new_byte_index / BYTES_PER_AES_CALL) as u128;
 
         // Store the remainder in the byte index
         self.byte_index.0 = new_byte_index % BYTES_PER_AES_CALL;
 
-        self.aes_index.0 = self.aes_index.0.wrapping_add(full_aes_shifts as u128);
+        self.aes_index.0 = self.aes_index.0.wrapping_add(full_aes_shifts);
     }
 
     /// Shifts the table index backward of `shift` bytes.
-    pub fn decrease(&mut self, shift: usize) {
-        let remainder = shift % BYTES_PER_AES_CALL;
+    pub fn decrease(&mut self, shift: u128) {
+        let remainder = (shift % BYTES_PER_AES_CALL as u128) as usize;
         if remainder <= self.byte_index.0 {
             self.aes_index.0 = self
                 .aes_index
                 .0
-                .wrapping_sub((shift / BYTES_PER_AES_CALL) as u128);
+                .wrapping_sub(shift / BYTES_PER_AES_CALL as u128);
             self.byte_index.0 -= remainder;
         } else {
             self.aes_index.0 = self
                 .aes_index
                 .0
-                .wrapping_sub((shift / BYTES_PER_AES_CALL) as u128 + 1);
+                .wrapping_sub((shift / BYTES_PER_AES_CALL as u128) + 1);
             self.byte_index.0 += BYTES_PER_AES_CALL - remainder;
         }
     }
@@ -91,14 +91,14 @@ impl TableIndex {
     }
 
     /// Returns the table index shifted forward by `shift` bytes.
-    pub fn increased(mut self, shift: usize) -> Self {
+    pub fn increased(mut self, shift: u128) -> Self {
         self.increase(shift);
         self
     }
 
     /// Returns the table index shifted backward by `shift` bytes.
     #[allow(unused)] // to please clippy when tests are not activated
-    pub fn decreased(mut self, shift: usize) -> Self {
+    pub fn decreased(mut self, shift: u128) -> Self {
         self.decrease(shift);
         self
     }
@@ -179,7 +179,7 @@ mod test {
         })
     }
 
-    fn any_usize() -> impl Iterator<Item = usize> {
+    fn any_u128() -> impl Iterator<Item = u128> {
         std::iter::repeat_with(|| thread_rng().gen())
     }
 
@@ -260,15 +260,10 @@ mod test {
     fn prop_table_index_distance_increase() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
-                .find(|(t, inc)| {
-                    (*inc as u128) < TableIndex::distance(&TableIndex::LAST, t).unwrap().0
-                })
+                .zip(any_u128())
+                .find(|(t, inc)| (*inc) < TableIndex::distance(&TableIndex::LAST, t).unwrap().0)
                 .unwrap();
-            assert_eq!(
-                TableIndex::distance(&t.increased(inc), &t).unwrap().0 as usize,
-                inc
-            );
+            assert_eq!(TableIndex::distance(&t.increased(inc), &t).unwrap().0, inc);
         }
     }
 
@@ -293,10 +288,8 @@ mod test {
     fn prop_table_index_greater() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
-                .find(|(t, inc)| {
-                    (*inc as u128) < TableIndex::distance(&TableIndex::LAST, t).unwrap().0
-                })
+                .zip(any_u128())
+                .find(|(t, inc)| *inc < TableIndex::distance(&TableIndex::LAST, t).unwrap().0)
                 .unwrap();
             assert_eq!(
                 std::cmp::PartialOrd::partial_cmp(&t.increased(inc), &t),
@@ -313,10 +306,8 @@ mod test {
     fn prop_table_index_less() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
-                .find(|(t, inc)| {
-                    (*inc as u128) < TableIndex::distance(t, &TableIndex::FIRST).unwrap().0
-                })
+                .zip(any_u128())
+                .find(|(t, inc)| *inc < TableIndex::distance(t, &TableIndex::FIRST).unwrap().0)
                 .unwrap();
             assert_eq!(
                 std::cmp::PartialOrd::partial_cmp(&t.decreased(inc), &t),
@@ -350,10 +341,10 @@ mod test {
     #[test]
     /// Check the property:
     ///     For all table indices t, positive integer i,
-    ///         increase(decrease(t, i), i) = t.
+    ///         decrease(increase(t, i), i) = t.
     fn prop_table_index_increase_decrease() {
         for _ in 0..REPEATS {
-            let (t, i) = any_table_index().zip(any_usize()).next().unwrap();
+            let (t, i) = any_table_index().zip(any_u128()).next().unwrap();
             assert_eq!(t.increased(i).decreased(i), t);
         }
     }
@@ -361,10 +352,10 @@ mod test {
     #[test]
     /// Check the property:
     ///     For all table indices t, positive integer i,
-    ///         decrease(increase(t, i), i) = t.
+    ///         increase(decrease(t, i), i) = t.
     fn prop_table_index_decrease_increase() {
         for _ in 0..REPEATS {
-            let (t, i) = any_table_index().zip(any_usize()).next().unwrap();
+            let (t, i) = any_table_index().zip(any_u128()).next().unwrap();
             assert_eq!(t.decreased(i).increased(i), t);
         }
     }
@@ -378,7 +369,7 @@ mod test {
 
         // Now increase by usize::MAX, as the underlying byte index stores a usize this may overflow
         // depending on implementation, ensure it does not overflow
-        let big_increase = second.increased(usize::MAX);
+        let big_increase = second.increased(usize::MAX as u128);
         let total_full_aes_shifts = (1u128 + usize::MAX as u128) / BYTES_PER_AES_CALL as u128;
 
         assert_eq!(

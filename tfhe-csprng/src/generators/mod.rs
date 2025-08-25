@@ -7,15 +7,20 @@ use std::fmt::{Display, Formatter};
 
 /// The number of children created when a generator is forked.
 #[derive(Debug, Copy, Clone)]
-pub struct ChildrenCount(pub usize);
+pub struct ChildrenCount(pub u64);
 
 /// The number of bytes each child can generate, when a generator is forked.
 #[derive(Debug, Copy, Clone)]
-pub struct BytesPerChild(pub usize);
+pub struct BytesPerChild(pub u64);
 
 /// A structure representing the number of bytes between two table indices.
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ByteCount(pub u128);
+
+/// Multiplies two u64 values without overflow, returning the full 128-bit product.
+pub(crate) fn widening_mul(a: u64, b: u64) -> u128 {
+    (a as u128) * (b as u128)
+}
 
 /// An error occurring during a generator fork.
 #[derive(Debug)]
@@ -141,11 +146,11 @@ pub mod generator_generic_test {
     }
 
     fn some_children_count() -> impl Iterator<Item = ChildrenCount> {
-        std::iter::repeat_with(|| ChildrenCount(rand::thread_rng().gen::<usize>() % 16 + 1))
+        std::iter::repeat_with(|| ChildrenCount(rand::thread_rng().gen::<u64>() % 16 + 1))
     }
 
     fn some_bytes_per_child() -> impl Iterator<Item = BytesPerChild> {
-        std::iter::repeat_with(|| BytesPerChild(rand::thread_rng().gen::<usize>() % 128 + 1))
+        std::iter::repeat_with(|| BytesPerChild(rand::thread_rng().gen::<u64>() % 128 + 1))
     }
 
     /// Checks that the PRNG roughly generates uniform numbers.
