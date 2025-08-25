@@ -2,22 +2,22 @@ use crate::generators::aes_ctr::block_cipher::{AesBlockCipher, AesKey};
 use crate::generators::aes_ctr::index::TableIndex;
 use crate::generators::aes_ctr::states::{BufferPointer, ShiftAction, State};
 use crate::generators::aes_ctr::BYTES_PER_BATCH;
-use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError};
+use crate::generators::{widening_mul, ByteCount, BytesPerChild, ChildrenCount, ForkError};
 use crate::seeders::SeedKind;
 
 // Usually, to work with iterators and parallel iterators, we would use opaque types such as
 // `impl Iterator<..>`. Unfortunately, it is not yet possible to return existential types in
 // traits, which we would need for `RandomGenerator`. For this reason, we have to use the
-// full type name where needed. Hence the following trait aliases definition:
+// full type name where needed. Hence the following type aliases definition:
 
 /// A type alias for the children iterator closure type.
 pub type ChildrenClosure<BlockCipher> =
-    fn((usize, (Box<BlockCipher>, TableIndex, BytesPerChild))) -> AesCtrGenerator<BlockCipher>;
+    fn((u64, (Box<BlockCipher>, TableIndex, BytesPerChild))) -> AesCtrGenerator<BlockCipher>;
 
 /// A type alias for the children iterator type.
 pub type ChildrenIterator<BlockCipher> = std::iter::Map<
     std::iter::Zip<
-        std::ops::Range<usize>,
+        std::ops::Range<u64>,
         std::iter::Repeat<(Box<BlockCipher>, TableIndex, BytesPerChild)>,
     >,
     ChildrenClosure<BlockCipher>,
@@ -172,9 +172,9 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                 (|(i, (block_cipher, first_index, n_bytes))| {
                     // The first index to be outputted by the child is the `first_index` shifted by
                     // the proper amount of `child_bytes`.
-                    let child_first_index = first_index.increased(n_bytes.0 * i);
+                    let child_first_index = first_index.increased(widening_mul(n_bytes.0, i));
                     // The bound of the child is the first index of its next sibling.
-                    let child_bound_index = first_index.increased(n_bytes.0 * (i + 1));
+                    let child_bound_index = first_index.increased(widening_mul(n_bytes.0, (i + 1)));
                     AesCtrGenerator::from_block_cipher(
                         block_cipher,
                         child_first_index,
@@ -183,7 +183,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                 }) as ChildrenClosure<BlockCipher>,
             );
         // The parent next index is the bound of the last child.
-        let next_index = first_index.increased(n_bytes.0 * n_children.0);
+        let next_index = first_index.increased(widening_mul(n_bytes.0, n_children.0));
         self.state = State::new(next_index);
 
         Ok(output)
@@ -195,7 +195,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         child_bytes: BytesPerChild,
     ) -> bool {
         let mut end = self.state.table_index();
-        end.increase(n_child.0 * child_bytes.0);
+        end.increase(widening_mul(n_child.0, child_bytes.0));
         end <= self.last
     }
 }
@@ -240,16 +240,16 @@ pub mod aes_ctr_generic_test {
         })
     }
 
-    pub fn any_usize() -> impl Iterator<Item = usize> {
+    pub fn any_u128() -> impl Iterator<Item = u128> {
         std::iter::repeat_with(|| thread_rng().gen())
     }
 
     pub fn any_children_count() -> impl Iterator<Item = ChildrenCount> {
-        std::iter::repeat_with(|| ChildrenCount(thread_rng().gen::<usize>() % 2048 + 1))
+        std::iter::repeat_with(|| ChildrenCount(thread_rng().gen::<u64>() % 2048 + 1))
     }
 
     pub fn any_bytes_per_child() -> impl Iterator<Item = BytesPerChild> {
-        std::iter::repeat_with(|| BytesPerChild(thread_rng().gen::<usize>() % 2048 + 1))
+        std::iter::repeat_with(|| BytesPerChild(thread_rng().gen::<u64>() % 2048 + 1))
     }
 
     pub fn any_key() -> impl Iterator<Item = AesKey> {
@@ -266,15 +266,15 @@ pub mod aes_ctr_generic_test {
     /// Put differently, if we initialize a parent generator at t and fork it with (nc, nb), our
     /// parent generator current index gets shifted to an index, distant of at least i bytes of
     /// the max index.
-    pub fn any_valid_fork(
-    ) -> impl Iterator<Item = (TableIndex, ChildrenCount, BytesPerChild, usize)> {
+    pub fn any_valid_fork() -> impl Iterator<Item = (TableIndex, ChildrenCount, BytesPerChild, u128)>
+    {
         any_table_index()
             .zip(any_children_count())
             .zip(any_bytes_per_child())
-            .zip(any_usize())
+            .zip(any_u128())
             .map(|(((t, nc), nb), i)| (t, nc, nb, i))
             .filter(|(t, nc, nb, i)| {
-                TableIndex::distance(&TableIndex::LAST, t).unwrap().0 > (nc.0 * nb.0 + i) as u128
+                TableIndex::distance(&TableIndex::LAST, t).unwrap().0 > widening_mul(nc.0, nb.0) + i
             })
     }
 
@@ -285,8 +285,11 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let original_generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let original_generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let mut forked_generator = original_generator.clone();
             let first_child = forked_generator.try_fork(nc, nb).unwrap().next().unwrap();
             assert_eq!(original_generator.table_index(), first_child.table_index());
@@ -300,8 +303,11 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let mut parent_generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let mut parent_generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let last_child = parent_generator.try_fork(nc, nb).unwrap().last().unwrap();
             assert_eq!(
                 parent_generator.table_index().incremented(),
@@ -316,8 +322,11 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let original_generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let original_generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let mut forked_generator = original_generator.clone();
             forked_generator.try_fork(nc, nb).unwrap().last().unwrap();
             assert_eq!(original_generator.get_bound(), forked_generator.get_bound());
@@ -331,14 +340,17 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let original_generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let original_generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let mut forked_generator = original_generator.clone();
             forked_generator.try_fork(nc, nb).unwrap().last().unwrap();
             assert_eq!(
                 forked_generator.table_index(),
                 // Decrement accounts for the fact that the table index stored is the previous one
-                t.increased(nc.0 * nb.0).decremented()
+                t.increased(widening_mul(nc.0, nb.0)).decremented()
             );
         }
     }
@@ -351,10 +363,15 @@ pub mod aes_ctr_generic_test {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
             let bytes_to_go = nc.0 * nb.0;
-            let original_generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let original_generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let mut forked_generator = original_generator.clone();
-            let initial_output: Vec<u8> = original_generator.take(bytes_to_go).collect();
+            let initial_output: Vec<u8> = original_generator
+                .take(usize::try_from(bytes_to_go).unwrap())
+                .collect();
             let forked_output: Vec<u8> = forked_generator
                 .try_fork(nc, nb)
                 .unwrap()
@@ -371,8 +388,11 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let mut generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let mut generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             assert!(generator
                 .try_fork(nc, nb)
                 .unwrap()
@@ -388,8 +408,11 @@ pub mod aes_ctr_generic_test {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
             let bytes_to_go = nc.0 * nb.0;
-            let mut generator =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(nc.0 * nb.0 + i)));
+            let mut generator = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+            );
             let before_remaining_bytes = generator.remaining_bytes();
             let _ = generator.try_fork(nc, nb).unwrap();
             let after_remaining_bytes = generator.remaining_bytes();
