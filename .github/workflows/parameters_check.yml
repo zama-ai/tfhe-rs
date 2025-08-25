@@ -29,7 +29,7 @@ jobs:
         with:
           repository: malb/lattice-estimator
           path: lattice_estimator
-          ref: 'e80ec6bbbba212428b0e92d0467c18629cf9ed67'
+          ref: '52f4b7a99ae7b5dfd088c5c295070bd38ff0d1e0'
           persist-credentials: 'false'
 
       - name: Install Sage
