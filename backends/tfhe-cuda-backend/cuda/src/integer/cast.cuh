@@ -25,10 +25,10 @@ __host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertextFFI *output,
   const uint32_t input_start_lwe_index =
       input->num_radix_blocks - output->num_radix_blocks;
 
-  if (input->num_radix_blocks <= output->num_radix_blocks) {
-    PANIC("Cuda error: input num blocks should be greater than output num "
-          "blocks");
-  }
+  PANIC_IF_FALSE(input->num_radix_blocks > output->num_radix_blocks,
+                 "Cuda error: input num blocks (%d) should be greater than "
+                 "output num blocks (%d)",
+                 input->num_radix_blocks, output->num_radix_blocks);
 
   copy_radix_ciphertext_slice_async<Torus>(
       streams[0], gpu_indexes[0], output, 0, output->num_radix_blocks, input,
@@ -70,9 +70,7 @@ __host__ void host_extend_radix_with_sign_msb(
   PUSH_RANGE("cast/extend")
   const uint32_t input_blocks = input->num_radix_blocks;
 
-  if (input_blocks == 0) {
-    PANIC("Cuda error: input blocks cannot be zero");
-  }
+  PANIC_IF_FALSE(input_blocks > 0, "Cuda error: input blocks cannot be zero");
 
   copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], output,
                                            0, input_blocks, input, 0,

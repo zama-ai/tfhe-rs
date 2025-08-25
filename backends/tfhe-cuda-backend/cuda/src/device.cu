@@ -196,14 +196,14 @@ void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
     return;
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
-  if (attr_dest.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.")
-  }
+  PANIC_IF_FALSE(
+      attr_dest.type == cudaMemoryTypeDevice,
+      "Cuda error: invalid dest device pointer in copy from GPU to GPU.");
   cudaPointerAttributes attr_src;
   check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
-  if (attr_src.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
-  }
+  PANIC_IF_FALSE(
+      attr_src.type == cudaMemoryTypeDevice,
+      "Cuda error: invalid src device pointer in copy from GPU to GPU.");
   cuda_set_device(gpu_index);
   if (attr_src.device == attr_dest.device) {
     check_cuda_error(
@@ -227,14 +227,14 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
     return;
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
-  if (attr_dest.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.")
-  }
+  PANIC_IF_FALSE(
+      attr_dest.type == cudaMemoryTypeDevice,
+      "Cuda error: invalid dest device pointer in copy from GPU to GPU.");
   cudaPointerAttributes attr_src;
   check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
-  if (attr_src.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
-  }
+  PANIC_IF_FALSE(
+      attr_src.type == cudaMemoryTypeDevice,
+      "Cuda error: invalid src device pointer in copy from GPU to GPU.");
   cuda_set_device(gpu_index);
   if (attr_src.device == attr_dest.device) {
     check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToDevice));

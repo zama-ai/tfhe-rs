@@ -31,13 +31,13 @@ __host__ void host_expand_without_verification(
                             : mem_ptr->casting_params.small_lwe_dimension);
   auto d_lwe_compact_input_indexes = mem_ptr->d_lwe_compact_input_indexes;
   auto d_body_id_per_compact_list = mem_ptr->d_body_id_per_compact_list;
-  if (sizeof(Torus) == 8) {
-    cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
-                       lwe_flattened_compact_array_in, lwe_dimension, num_lwes,
-                       d_lwe_compact_input_indexes, d_body_id_per_compact_list);
 
-  } else
-    PANIC("Cuda error: expand is only supported on 64 bits")
+  GPU_ASSERT(sizeof(Torus) == 8,
+             "Cuda error: expand is only supported on 64 bits");
+
+  cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
+                     lwe_flattened_compact_array_in, lwe_dimension, num_lwes,
+                     d_lwe_compact_input_indexes, d_body_id_per_compact_list);
 
   auto ksks = casting_keys;
   auto lwe_array_input = expanded_lwes;
