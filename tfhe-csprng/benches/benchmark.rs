@@ -20,7 +20,7 @@ use tfhe_csprng::seeders::UnixSeeder as ActivatedSeeder;
 use tfhe_csprng::seeders::Seeder;
 
 // The number of bytes to generate during one benchmark iteration.
-const N_GEN: usize = 1_000_000;
+const N_GEN: u64 = 1_000_000;
 
 fn new_seeder() -> ActivatedSeeder {
     #[cfg(target_os = "macos")]

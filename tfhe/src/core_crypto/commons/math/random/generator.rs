@@ -163,7 +163,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         bytes_per_child: usize,
     ) -> Result<impl Iterator<Item = Self>, ForkError> {
         self.0
-            .try_fork(ChildrenCount(n_child), BytesPerChild(bytes_per_child))
+            .try_fork(
+                ChildrenCount(n_child as u64),
+                BytesPerChild(bytes_per_child as u64),
+            )
             .map(|iter| iter.map(Self))
     }
 
@@ -821,7 +824,10 @@ impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
         bytes_per_child: usize,
     ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         self.0
-            .par_try_fork(ChildrenCount(n_child), BytesPerChild(bytes_per_child))
+            .par_try_fork(
+                ChildrenCount(n_child as u64),
+                BytesPerChild(bytes_per_child as u64),
+            )
             .map(|iter| iter.map(Self))
     }
 }

@@ -66,15 +66,16 @@ impl State {
     }
 
     /// Shifts the state forward of `shift` bytes.
-    pub fn increase(&mut self, shift: usize) -> ShiftAction {
+    pub fn increase(&mut self, shift: u128) -> ShiftAction {
         self.table_index.increase(shift);
-        let total_batch_index = self.buffer_pointer.0 + shift;
-        if total_batch_index > BYTES_PER_BATCH - 1 {
+        let total_batch_index = self.buffer_pointer.0 as u128 + shift;
+        if total_batch_index > BYTES_PER_BATCH as u128 - 1 {
             self.buffer_pointer.0 = self.table_index.byte_index.0;
             let index = AesIndex(self.table_index.aes_index.0.wrapping_add(self.offset.0));
             ShiftAction::RefreshBatchAndOutputByte(index, self.buffer_pointer)
         } else {
-            self.buffer_pointer.0 = total_batch_index;
+            // Ok to unwrap because total_batch_index <= BYTES_PER_BATCH < usize::MAX
+            self.buffer_pointer.0 = usize::try_from(total_batch_index).unwrap();
             ShiftAction::OutputByte(self.buffer_pointer)
         }
     }
@@ -118,6 +119,10 @@ mod test {
         std::iter::repeat_with(|| thread_rng().gen())
     }
 
+    fn any_u128() -> impl Iterator<Item = u128> {
+        std::iter::repeat_with(|| thread_rng().gen())
+    }
+
     #[test]
     /// Check the property:
     ///     For all table indices t,
@@ -142,7 +147,7 @@ mod test {
     fn prop_state_increase_table_index() {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
-                .zip(any_usize())
+                .zip(any_u128())
                 .map(|(t, i)| (t, State::new(t), i))
                 .next()
                 .unwrap();
@@ -165,7 +170,7 @@ mod test {
                 .unwrap();
             s.increment();
             assert!(matches!(
-                s.increase(i),
+                s.increase(i as u128),
                 ShiftAction::OutputByte(BufferPointer(p_)) if p_ == t.byte_index.0 + i
             ));
         }
@@ -187,9 +192,9 @@ mod test {
                 .unwrap();
             s.increment();
             assert!(matches!(
-                s.increase(i),
+                s.increase(i as u128),
                 ShiftAction::RefreshBatchAndOutputByte(t_, BufferPointer(p_))
-                    if t_ == t.increased(i).aes_index && p_ == t.increased(i).byte_index.0
+                    if t_ == t.increased(i as u128).aes_index && p_ == t.increased(i as u128).byte_index.0
             ));
         }
     }
