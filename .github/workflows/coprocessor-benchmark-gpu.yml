@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   schedule:
     # Nightly tests @ 1AM after each work day
-    - cron: "0 1 * * MON-FRI"
+    - cron: "0 2 * * MON-FRI"
 
 permissions:
   contents: read
