@@ -296,7 +296,8 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
         .collect::<Vec<_>>();
 
-    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    // for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    for num_elems in [500 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
@@ -521,22 +522,22 @@ fn main() {
     // FheUint64 latency
     {
         let mut group = c.benchmark_group(bench_name);
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "no_cmux",
-            transfer_no_cmux::<FheUint64>,
-        );
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::whitepaper",
+        //     par_transfer_whitepaper::<FheUint64>,
+        // );
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::no_cmux",
+        //     transfer_no_cmux::<FheUint64>,
+        // );
         bench_transfer_latency(
             &mut group,
             &cks,
@@ -545,14 +546,14 @@ fn main() {
             "overflow",
             transfer_overflow::<FheUint64>,
         );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "safe",
-            transfer_safe::<FheUint64>,
-        );
+        // bench_transfer_latency(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::safe",
+        //     transfer_safe::<FheUint64>,
+        // );
 
         group.finish();
     }
@@ -560,22 +561,22 @@ fn main() {
     // FheUint64 Throughput
     {
         let mut group = c.benchmark_group(bench_name);
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "no_cmux",
-            transfer_no_cmux::<FheUint64>,
-        );
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::whitepaper",
+        //     par_transfer_whitepaper::<FheUint64>,
+        // );
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::no_cmux",
+        //     transfer_no_cmux::<FheUint64>,
+        // );
         cuda_bench_transfer_throughput(
             &mut group,
             &cks,
@@ -584,14 +585,14 @@ fn main() {
             "overflow",
             transfer_overflow::<FheUint64>,
         );
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "safe",
-            transfer_safe::<FheUint64>,
-        );
+        // cuda_bench_transfer_throughput(
+        //     &mut group,
+        //     &cks,
+        //     bench_name,
+        //     "FheUint64",
+        //     "transfer::safe",
+        //     transfer_safe::<FheUint64>,
+        // );
         group.finish();
     }
 
