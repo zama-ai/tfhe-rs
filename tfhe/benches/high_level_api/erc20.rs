@@ -497,6 +497,13 @@ fn main() {
 
     let config = ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
+    let compressed_sks = CompressedServerKey::new(&cks);
+
+    #[cfg(feature = "gpu")]
+    let sks = compressed_sks.decompress_to_gpu();
+
+    rayon::broadcast(|_| set_server_key(sks.clone()));
+    set_server_key(sks);
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
