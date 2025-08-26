@@ -346,8 +346,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
 
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   mem_ptr->setup_lookup_tables(streams, gpu_indexes, gpu_count,
                                num_radix_in_vec, current_blocks->degrees);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   while (needs_processing) {
     auto luts_message_carry = mem_ptr->luts_message_carry;
@@ -370,14 +372,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                                       luts_message_carry->h_lut_indexes,
                                       total_ciphertexts, total_messages,
                                       needs_processing);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
                                         luts_message_carry->h_lwe_indexes_in,
                                         luts_message_carry->h_lwe_indexes_out);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     cuda_memcpy_with_size_tracking_async_to_gpu(
         luts_message_carry->get_lut_indexes(0, 0),
         luts_message_carry->h_lut_indexes,
         luts_message_carry->num_blocks * sizeof(Torus), streams[0],
         gpu_indexes[0], true);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     luts_message_carry->broadcast_lut(streams, gpu_indexes);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
@@ -404,6 +409,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           streams, gpu_indexes, gpu_count, current_blocks, current_blocks, bsks,
           ksks, ms_noise_reduction_key, luts_message_carry, total_ciphertexts);
     }
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
   }
@@ -421,14 +427,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     auto h_pbs_indexes_in = mem_ptr->luts_message_carry->h_lwe_indexes_in;
     auto h_pbs_indexes_out = mem_ptr->luts_message_carry->h_lwe_indexes_out;
     auto h_lut_indexes = mem_ptr->luts_message_carry->h_lut_indexes;
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     current_columns.final_calculation(luts_message_carry->h_lwe_indexes_in,
                                       luts_message_carry->h_lwe_indexes_out,
                                       luts_message_carry->h_lut_indexes);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     mem_ptr->luts_message_carry->set_lwe_indexes(
         streams[0], gpu_indexes[0], h_pbs_indexes_in, h_pbs_indexes_out);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     cuda_memcpy_with_size_tracking_async_to_gpu(
         luts_message_carry->get_lut_indexes(0, 0), h_lut_indexes,
         2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0], true);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     luts_message_carry->broadcast_lut(streams, gpu_indexes);
 
     set_zero_radix_ciphertext_slice_async<Torus>(
@@ -461,6 +471,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           bsks, ksks, ms_noise_reduction_key, luts_message_carry,
           2 * num_radix_blocks);
     }
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
                             mem_ptr->params.message_modulus);
