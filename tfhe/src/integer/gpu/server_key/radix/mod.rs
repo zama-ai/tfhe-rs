@@ -1648,34 +1648,69 @@ impl CudaServerKey {
             ),
         };
         unsafe {
-            noise_squashing_async::<u128, f64>(
-                streams,
-                &mut output_slice,
-                &mut output_degrees,
-                &mut output_noise_levels,
-                &input_slice,
-                &d_bsk.d_vec,
-                &self.key_switching_key.d_vec,
-                self.key_switching_key
-                    .output_key_lwe_size()
-                    .to_lwe_dimension(),
-                d_bsk.glwe_dimension,
-                d_bsk.polynomial_size,
-                input_glwe_dimension,
-                input_polynomial_size,
-                self.key_switching_key.decomposition_level_count(),
-                self.key_switching_key.decomposition_base_log(),
-                d_bsk.decomp_level_count,
-                d_bsk.decomp_base_log,
-                num_output_blocks as u32,
-                input.d_blocks.lwe_ciphertext_count().0 as u32,
-                self.message_modulus,
-                self.carry_modulus,
-                PBSType::Classical,
-                LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
-                ct_modulus,
-            );
+            match &d_bsk {
+                CudaBootstrappingKey::Classic(bsk) => {
+                    noise_squashing_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice,
+                        &bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        input_glwe_dimension,
+                        input_polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        num_output_blocks as u32,
+                        input.d_blocks.lwe_ciphertext_count().0 as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key(),
+                        ct_modulus,
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                    noise_squashing_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice,
+                        &mb_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        input_glwe_dimension,
+                        input_polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        num_output_blocks as u32,
+                        input.d_blocks.lwe_ciphertext_count().0 as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        mb_bsk.grouping_factor,
+                        None,
+                        ct_modulus,
+                    );
+                }
+            }
+
         }
 
         for (i, info) in output.info.blocks.iter_mut().enumerate() {
