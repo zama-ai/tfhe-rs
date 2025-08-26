@@ -189,31 +189,29 @@ __host__ void host_integer_ilog2(
         mem_ptr->params.message_modulus - 1;
   }
 
-  // Propagate inputs before summing them.
-  //
-  host_full_propagate_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, mem_ptr->message_blocks_not,
-      mem_ptr->pre_sum_full_propagate_mem, ksks, ms_noise_reduction_key, bsks,
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem_ptr->sum_input_cts, 0,
+      mem_ptr->counter_num_blocks, mem_ptr->message_blocks_not, 0,
       mem_ptr->counter_num_blocks);
 
-  host_full_propagate_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, mem_ptr->rotated_carry_blocks,
-      mem_ptr->pre_sum_full_propagate_mem, ksks, ms_noise_reduction_key, bsks,
-      mem_ptr->counter_num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem_ptr->sum_input_cts,
+      mem_ptr->counter_num_blocks, 2 * mem_ptr->counter_num_blocks,
+      mem_ptr->rotated_carry_blocks, 0, mem_ptr->counter_num_blocks);
 
-  // Final sum of the 3 components to get the result:
-  // output <- message_blocks_not + rotated_carry_blocks + trivial_ct_2
-  //
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output_ct,
-                                     mem_ptr->message_blocks_not);
-  host_add_and_propagate_single_carry<Torus>(
-      streams, gpu_indexes, gpu_count, output_ct, mem_ptr->rotated_carry_blocks,
-      nullptr, nullptr, mem_ptr->final_sum_propagate_mem, bsks, ksks,
-      ms_noise_reduction_key, 0, 0);
-  host_add_and_propagate_single_carry<Torus>(
-      streams, gpu_indexes, gpu_count, output_ct, trivial_ct_2, nullptr,
-      nullptr, mem_ptr->final_sum_propagate_mem, bsks, ksks,
-      ms_noise_reduction_key, 0, 0);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem_ptr->sum_input_cts,
+      2 * mem_ptr->counter_num_blocks, 3 * mem_ptr->counter_num_blocks,
+      trivial_ct_2, 0, mem_ptr->counter_num_blocks);
+
+  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
+      streams, gpu_indexes, gpu_count, output_ct, mem_ptr->sum_input_cts, bsks,
+      ksks, ms_noise_reduction_key, mem_ptr->sum_mem,
+      mem_ptr->counter_num_blocks, 3);
+
+  host_full_propagate_inplace<Torus>(
+      streams, gpu_indexes, gpu_count, output_ct, mem_ptr->final_propagate_mem,
+      ksks, ms_noise_reduction_key, bsks, mem_ptr->counter_num_blocks);
 }
 
 #endif

@@ -6066,8 +6066,7 @@ template <typename Torus> struct int_ilog2_buffer {
 
   int_prepare_count_of_consecutive_bits_buffer<Torus> *prepare_mem;
   int_sum_ciphertexts_vec_memory<Torus> *sum_mem;
-  int_fullprop_buffer<Torus> *pre_sum_full_propagate_mem;
-  int_sc_prop_memory<Torus> *final_sum_propagate_mem;
+  int_fullprop_buffer<Torus> *final_propagate_mem;
 
   CudaRadixCiphertextFFI *ct_in_buffer;
   CudaRadixCiphertextFFI *sum_input_cts;
@@ -6117,8 +6116,6 @@ template <typename Torus> struct int_ilog2_buffer {
         counter_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    // LUT to compute `~message`
-    //
     this->lut_message_not = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, params, 1, counter_num_blocks,
         allocate_gpu_memory, size_tracker);
@@ -6134,8 +6131,6 @@ template <typename Torus> struct int_ilog2_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         lut_message_lambda, allocate_gpu_memory);
 
-    // LUT to compute `~carry`
-    //
     this->lut_carry_not = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, params, 1, counter_num_blocks,
         allocate_gpu_memory, size_tracker);
@@ -6168,13 +6163,9 @@ template <typename Torus> struct int_ilog2_buffer {
         counter_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->pre_sum_full_propagate_mem =
+    this->final_propagate_mem =
         new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
                                        allocate_gpu_memory, size_tracker);
-
-    this->final_sum_propagate_mem = new int_sc_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, counter_num_blocks, 0, 0,
-        allocate_gpu_memory, size_tracker);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -6228,13 +6219,9 @@ template <typename Torus> struct int_ilog2_buffer {
     delete this->rotated_carry_blocks;
     this->rotated_carry_blocks = nullptr;
 
-    this->pre_sum_full_propagate_mem->release(streams, gpu_indexes, gpu_count);
-    delete this->pre_sum_full_propagate_mem;
-    this->pre_sum_full_propagate_mem = nullptr;
-
-    this->final_sum_propagate_mem->release(streams, gpu_indexes, gpu_count);
-    delete this->final_sum_propagate_mem;
-    this->final_sum_propagate_mem = nullptr;
+    this->final_propagate_mem->release(streams, gpu_indexes, gpu_count);
+    delete this->final_propagate_mem;
+    this->final_propagate_mem = nullptr;
   }
 };
 
