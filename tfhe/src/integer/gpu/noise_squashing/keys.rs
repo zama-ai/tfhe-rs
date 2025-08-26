@@ -1,4 +1,3 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::CudaStreams;
 
 use crate::core_crypto::prelude::LweCiphertextCount;
@@ -9,13 +8,14 @@ use crate::integer::gpu::ciphertext::squashed_noise::{
     CudaSquashedNoiseSignedRadixCiphertext,
 };
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaSignedRadixCiphertext};
+use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::CudaServerKey;
 use crate::shortint::parameters::CoreCiphertextModulus;
 
 use crate::shortint::{CarryModulus, MessageModulus};
 
 pub struct CudaNoiseSquashingKey {
-    pub bootstrapping_key: CudaLweBootstrapKey,
+    pub bootstrapping_key: CudaBootstrappingKey<u128>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub output_ciphertext_modulus: CoreCiphertextModulus<u128>,
