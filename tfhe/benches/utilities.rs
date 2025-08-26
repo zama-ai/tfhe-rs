@@ -38,10 +38,10 @@ pub mod shortint_utils {
     use std::vec::IntoIter;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
+    #[cfg(not(feature = "gpu"))]
+    use tfhe::shortint::parameters::p_fail_2_minus_64::ks_pbs::PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     #[cfg(feature = "gpu")]
     use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-    #[cfg(not(feature = "gpu"))]
-    use tfhe::shortint::parameters::V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::{
         ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
@@ -63,9 +63,8 @@ pub mod shortint_utils {
                 #[cfg(feature = "gpu")]
                 let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
                 #[cfg(not(feature = "gpu"))]
-                let params = vec![
-                    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
-                ];
+                let params =
+                    vec![PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
@@ -108,8 +107,8 @@ pub mod shortint_utils {
                 pbs_level: Some(params.pbs_level()),
                 ks_base_log: Some(params.ks_base_log()),
                 ks_level: Some(params.ks_level()),
-                message_modulus: Some(params.message_modulus().0),
-                carry_modulus: Some(params.carry_modulus().0),
+                message_modulus: Some(params.message_modulus().0 as u64),
+                carry_modulus: Some(params.carry_modulus().0 as u64),
                 ciphertext_modulus: Some(
                     params
                         .ciphertext_modulus()
@@ -134,8 +133,8 @@ pub mod shortint_utils {
     impl From<CompactPublicKeyEncryptionParameters> for CryptoParametersRecord<u64> {
         fn from(params: CompactPublicKeyEncryptionParameters) -> Self {
             CryptoParametersRecord {
-                message_modulus: Some(params.message_modulus.0),
-                carry_modulus: Some(params.carry_modulus.0),
+                message_modulus: Some(params.message_modulus.0 as u64),
+                carry_modulus: Some(params.carry_modulus.0 as u64),
                 ciphertext_modulus: Some(params.ciphertext_modulus),
                 ..Default::default()
             }
