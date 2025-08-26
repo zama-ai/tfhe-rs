@@ -1,11 +1,13 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionKey,
+};
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
-    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
-    LweMultiBitBootstrapKeyOwned,
+    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, DecompositionBaseLog, GlweDimension,
+    LweBootstrapKeyOwned, LweDimension, LweMultiBitBootstrapKeyOwned, PolynomialSize,
 };
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
@@ -14,7 +16,7 @@ use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKe
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::parameters::{DecompositionLevelCount, ModulusSwitchType};
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey,
 };
@@ -25,6 +27,15 @@ mod radix;
 pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
     Classic(CudaLweBootstrapKey),
     MultiBit(CudaLweMultiBitBootstrapKey<Scalar>),
+}
+
+impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
+    pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
+        match self {
+            CudaBootstrappingKey::Classic(bsk) => bsk.output_lwe_dimension(),
+            CudaBootstrappingKey::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
+        }
+    }
 }
 
 /// A structure containing the server public key.

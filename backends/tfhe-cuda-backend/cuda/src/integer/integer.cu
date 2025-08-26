@@ -410,7 +410,6 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
                           allocate_ms_array);
-
   return scratch_cuda_apply_noise_squashing_mem(
       streams, gpu_indexes, gpu_count, params,
       (int_noise_squashing_lut<uint64_t> **)mem_ptr, input_glwe_dimension,
