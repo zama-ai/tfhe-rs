@@ -147,7 +147,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 }
 
 // Calculates the keybundles for 2_2 params
-// Lwe Dimension = 920
 // Polynomial Size = 2048
 // Grouping factor = 4
 // Glwe dimension = 1
@@ -164,10 +163,10 @@ template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
-    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_offset,
-    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input) {
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t lwe_offset, uint32_t lwe_chunk_size,
+    uint32_t keybundle_size_per_input) {
 
-  constexpr uint32_t lwe_dimension = 920;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t grouping_factor = 4;
   constexpr uint32_t glwe_dimension = 1;
@@ -714,7 +713,7 @@ __host__ void execute_compute_keybundle(
             cuda_get_max_shared_memory(gpu_index));
 
     if (supports_tbc && polynomial_size == 2048 && grouping_factor == 4 &&
-        level_count == 1 && glwe_dimension == 1 && lwe_dimension == 920) {
+        level_count == 1 && glwe_dimension == 1) {
       dim3 thds_new_keybundle(512, 1, 1);
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
@@ -729,7 +728,7 @@ __host__ void execute_compute_keybundle(
           Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
                                          3 * full_sm_keybundle, stream>>>(
           lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-          lwe_offset, chunk_size, keybundle_size_per_input);
+          lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
     } else {
       device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
           <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
