@@ -1,9 +1,9 @@
 use criterion::Criterion;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::current_params::{
-    V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
 };
 use tfhe::shortint::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
@@ -11,19 +11,19 @@ use tfhe_trivium::{TransCiphering, TriviumStreamShortint};
 
 pub fn trivium_shortint_warmup(c: &mut Criterion) {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
     let (client_key, server_key): (ClientKey, ServerKey) =
-        gen_keys(V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+        V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -64,19 +64,19 @@ pub fn trivium_shortint_warmup(c: &mut Criterion) {
 
 pub fn trivium_shortint_gen(c: &mut Criterion) {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
     let (client_key, server_key): (ClientKey, ServerKey) =
-        gen_keys(V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+        V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -112,19 +112,19 @@ pub fn trivium_shortint_gen(c: &mut Criterion) {
 
 pub fn trivium_shortint_trans(c: &mut Criterion) {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
     let (client_key, server_key): (ClientKey, ServerKey) =
-        gen_keys(V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+        V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();

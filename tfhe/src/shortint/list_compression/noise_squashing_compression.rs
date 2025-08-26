@@ -126,7 +126,7 @@ mod test {
     use crate::shortint::noise_squashing::{
         NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
     };
-    use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::parameters::v1_4::V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::*;
 
     use rand::prelude::*;
@@ -143,7 +143,7 @@ mod test {
         let noise_squashing_key = NoiseSquashingKey::new(cks, &noise_squashing_private_key);
 
         let compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         );
 
         let compression_key = noise_squashing_private_key
@@ -153,7 +153,7 @@ mod test {
 
         let id_lut = sks.generate_lookup_table(|x| x);
         let max_ct_count =
-            V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.lwe_per_glwe;
+            V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.lwe_per_glwe;
 
         for ct_count in [0, 1, max_ct_count.0] {
             // Generate random msgs

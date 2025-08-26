@@ -647,7 +647,7 @@ int main(void) {
     assert(ok == 0);
     // Then use small parameters, those are gaussians as we don't have small TUniform params
     ok = config_builder_use_custom_parameters(
-        &builder, SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
+        &builder, SHORTINT_V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
     ok = config_builder_build(builder, &config);
     assert(ok == 0);
 
