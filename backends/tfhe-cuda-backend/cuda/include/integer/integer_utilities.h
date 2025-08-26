@@ -755,6 +755,37 @@ template <typename Torus> struct int_radix_lut {
     // at the beginning
     cuda_set_device(active_device);
   }
+  // Broadcast luts from device gpu_indexes[0] to all active gpus
+  void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                     uint32_t new_active_gpu_count,
+                     bool broadcast_lut_values = true) {
+    int active_device = cuda_get_device();
+
+    uint64_t lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
+
+    auto src_lut = lut_vec[0];
+    auto src_lut_indexes = lut_indexes_vec[0];
+
+    cuda_event_record(event_broadcast, streams[0], gpu_indexes[0]);
+    for (uint i = 0; i < new_active_gpu_count; i++) {
+      if (gpu_indexes[i] != gpu_indexes[0]) {
+        cuda_stream_wait_event(streams[i], event_broadcast, gpu_indexes[i]);
+        if (broadcast_lut_values) {
+          auto dst_lut = lut_vec[i];
+          cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+              dst_lut, src_lut, num_luts * lut_size * sizeof(Torus), streams[i],
+              gpu_indexes[i], gpu_memory_allocated);
+        }
+        auto dst_lut_indexes = lut_indexes_vec[i];
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            dst_lut_indexes, src_lut_indexes, num_blocks * sizeof(Torus),
+            streams[i], gpu_indexes[i], gpu_memory_allocated);
+      }
+    }
+    // Ensure the device set at the end of this method is the same as it was set
+    // at the beginning
+    cuda_set_device(active_device);
+  }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -1072,7 +1103,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
         lut->get_lut_indexes(0, 0), h_lut_indexes,
         num_radix_blocks * bits_per_block * sizeof(Torus), streams[0],
         gpu_indexes[0], allocate_gpu_memory);
-    lut->broadcast_lut(streams, gpu_indexes);
+
+    auto active_gpu_count =
+        get_active_gpu_count(bits_per_block * num_radix_blocks, gpu_count);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     /**
      * the input indexes should take the first bits_per_block PBS to target
@@ -1239,7 +1273,9 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         mux_lut->get_degree(0), mux_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, mux_lut_f, gpu_memory_allocated);
-    mux_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count_mux =
+        get_active_gpu_count(bits_per_block * num_radix_blocks, gpu_count);
+    mux_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count_mux);
 
     auto cleaning_lut_f = [params](Torus x) -> Torus {
       return x % params.message_modulus;
@@ -1249,7 +1285,10 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         cleaning_lut->get_degree(0), cleaning_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cleaning_lut_f, gpu_memory_allocated);
-    cleaning_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count_cleaning =
+        get_active_gpu_count(num_radix_blocks, gpu_count);
+    cleaning_lut->broadcast_lut(streams, gpu_indexes,
+                                active_gpu_count_cleaning);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1474,9 +1513,11 @@ template <typename Torus> struct int_overflowing_sub_memory {
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_message_acc, gpu_memory_allocated);
 
-    luts_array->broadcast_lut(streams, gpu_indexes);
-    luts_borrow_propagation_sum->broadcast_lut(streams, gpu_indexes);
-    message_acc->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    luts_array->broadcast_lut(streams, gpu_indexes, active_gpu_count);
+    luts_borrow_propagation_sum->broadcast_lut(streams, gpu_indexes,
+                                               active_gpu_count);
+    message_acc->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1585,9 +1626,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t total_messages = 0;
     current_columns.next_accumulation(total_ciphertexts, total_messages,
                                       _needs_processing);
-
+    uint32_t pbs_count = std::max(total_ciphertexts, 2 * num_blocks_in_radix);
     if (!mem_reuse) {
-      uint32_t pbs_count = std::max(total_ciphertexts, 2 * num_blocks_in_radix);
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
@@ -1622,7 +1662,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
           luts_message_carry->get_max_degree(1), params.glwe_dimension,
           params.polynomial_size, message_modulus, params.carry_modulus,
           lut_f_carry, gpu_memory_allocated);
-      luts_message_carry->broadcast_lut(streams, gpu_indexes);
+      auto active_gpu_count_mc = get_active_gpu_count(pbs_count, gpu_count);
+      luts_message_carry->broadcast_lut(streams, gpu_indexes,
+                                        active_gpu_count_mc);
     }
   }
   int_sum_ciphertexts_vec_memory(
@@ -1774,8 +1816,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
     cuda_memcpy_with_size_tracking_async_to_gpu(
         seq_lut_indexes, h_seq_lut_indexes, num_seq_luts * sizeof(Torus),
         streams[0], gpu_indexes[0], allocate_gpu_memory);
-
-    lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_seq_luts, gpu_count);
+    lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes,
+                                            active_gpu_count);
     free(h_seq_lut_indexes);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1830,8 +1873,8 @@ template <typename Torus> struct int_hs_group_prop_memory {
         lut_hillis_steele->get_degree(0), lut_hillis_steele->get_max_degree(0),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_hillis_steele, gpu_memory_allocated);
-
-    lut_hillis_steele->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_groups, gpu_count);
+    lut_hillis_steele->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2007,8 +2050,9 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         lut_indexes, h_lut_indexes, lut_indexes_size, streams[0],
         gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
-
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes,
+                                         active_gpu_count);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2269,7 +2313,9 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         scalar_array_cum_sum, h_scalar_array_cum_sum,
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         allocate_gpu_memory);
-    luts_array_second_step->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes,
+                                          active_gpu_count);
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
 
@@ -2288,14 +2334,16 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(cudaStream_t const *streams,
-                          uint32_t const *gpu_indexes, Torus *new_lut_indexes,
-                          Torus *new_scalars, uint32_t new_num_blocks) {
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          Torus *new_lut_indexes, Torus *new_scalars,
+                          uint32_t new_num_blocks) {
     Torus *lut_indexes = luts_array_second_step->get_lut_indexes(0, 0);
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
         streams[0], gpu_indexes[0], gpu_memory_allocated);
-
-    luts_array_second_step->broadcast_lut(streams, gpu_indexes);
+    auto new_active_gpu_count = get_active_gpu_count(new_num_blocks, gpu_count);
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes,
+                                          new_active_gpu_count, false);
 
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         scalar_array_cum_sum, new_scalars, new_num_blocks * sizeof(Torus),
@@ -2460,7 +2508,9 @@ template <typename Torus> struct int_sc_prop_memory {
           polynomial_size, message_modulus, carry_modulus, f_overflow_fp,
           gpu_memory_allocated);
 
-      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes);
+      auto active_gpu_count = get_active_gpu_count(1, gpu_count);
+      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes,
+                                            active_gpu_count);
     }
 
     // For the final cleanup in case of overflow or carry (it seems that I can)
@@ -2529,7 +2579,9 @@ template <typename Torus> struct int_sc_prop_memory {
           (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0],
           allocate_gpu_memory);
     }
-    lut_message_extract->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count =
+        get_active_gpu_count(num_radix_blocks + 1, gpu_count);
+    lut_message_extract->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   };
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -2724,19 +2776,22 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
         lut_indexes, h_lut_indexes, lut_indexes_size, streams[0],
         gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
-
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes,
+                                         active_gpu_count);
   };
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(cudaStream_t const *streams,
-                          uint32_t const *gpu_indexes, Torus *new_lut_indexes,
-                          uint32_t new_num_blocks) {
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          Torus *new_lut_indexes, uint32_t new_num_blocks) {
     Torus *lut_indexes = luts_array_first_step->get_lut_indexes(0, 0);
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
         streams[0], gpu_indexes[0], gpu_memory_allocated);
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
+    auto new_active_gpu_count = get_active_gpu_count(new_num_blocks, gpu_count);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes,
+                                         new_active_gpu_count, false);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2836,7 +2891,10 @@ template <typename Torus> struct int_borrow_prop_memory {
         message_modulus, carry_modulus, f_message_extract,
         gpu_memory_allocated);
 
-    lut_message_extract->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count_message =
+        get_active_gpu_count(num_radix_blocks, gpu_count);
+    lut_message_extract->broadcast_lut(streams, gpu_indexes,
+                                       active_gpu_count_message);
 
     if (compute_overflow) {
       lut_borrow_flag = new int_radix_lut<Torus>(
@@ -2852,8 +2910,10 @@ template <typename Torus> struct int_borrow_prop_memory {
           lut_borrow_flag->get_degree(0), lut_borrow_flag->get_max_degree(0),
           glwe_dimension, polynomial_size, message_modulus, carry_modulus,
           f_borrow_flag, gpu_memory_allocated);
-
-      lut_borrow_flag->broadcast_lut(streams, gpu_indexes);
+      auto active_gpu_count_overflow =
+          get_active_gpu_count(num_radix_blocks, gpu_count);
+      lut_borrow_flag->broadcast_lut(streams, gpu_indexes,
+                                     active_gpu_count_overflow);
     }
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
@@ -2881,15 +2941,15 @@ template <typename Torus> struct int_borrow_prop_memory {
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(cudaStream_t const *streams,
-                          uint32_t const *gpu_indexes,
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
                           Torus *first_indexes_for_div,
                           Torus *second_indexes_for_div, Torus *scalars_for_div,
                           uint32_t new_num_blocks) {
     shifted_blocks_borrow_state_mem->update_lut_indexes(
-        streams, gpu_indexes, first_indexes_for_div, new_num_blocks);
+        streams, gpu_indexes, gpu_count, first_indexes_for_div, new_num_blocks);
     prop_simu_group_carries_mem->update_lut_indexes(
-        streams, gpu_indexes, second_indexes_for_div, scalars_for_div,
-        new_num_blocks);
+        streams, gpu_indexes, gpu_count, second_indexes_for_div,
+        scalars_for_div, new_num_blocks);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
