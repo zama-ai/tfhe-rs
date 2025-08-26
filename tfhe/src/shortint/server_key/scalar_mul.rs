@@ -90,7 +90,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
-    /// The operation is modulo the the precision bits to the power of two.
+    /// The operation is modulo the precision bits to the power of two.
     ///
     /// This function does _not_ check whether the capacity of the ciphertext is exceeded.
     ///

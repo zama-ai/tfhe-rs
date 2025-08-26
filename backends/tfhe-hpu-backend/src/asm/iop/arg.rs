@@ -13,7 +13,7 @@ pub const ASM_OPCODE_WIDTH: usize = 8;
 /// Parsing error
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ParsingError {
-    #[error("Opcode {0} is in in reserved range")]
+    #[error("Opcode {0} is in reserved range")]
     Opcode(u8),
     #[error("Unknown IOp alias {0}")]
     Opalias(String),

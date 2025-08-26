@@ -70,7 +70,7 @@ impl Compactable for &ClearString {
         if let Some(n) = num_blocks {
             assert!(
                 n as u32 % blocks_per_char == 0,
-                "Inconsistent num block would split the string inside a a character"
+                "Inconsistent num block would split the string inside a character"
             );
         }
 
