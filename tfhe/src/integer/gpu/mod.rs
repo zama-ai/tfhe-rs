@@ -7889,7 +7889,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
     output_degrees: &mut Vec<u64>,
     output_noise_levels: &mut Vec<u64>,
     input: &CudaSlice<u64>,
-    bootstrapping_key: &CudaVec<f64>,
+    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<u64>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
