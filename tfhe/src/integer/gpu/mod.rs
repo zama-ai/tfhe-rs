@@ -7837,7 +7837,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
     output_degrees: &mut Vec<u64>,
     output_noise_levels: &mut Vec<u64>,
     input: &CudaSlice<u64>,
-    bootstrapping_key: &CudaVec<f64>,
+    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<u64>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
@@ -7857,6 +7857,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
     ct_modulus: f64,
 ) {
+
     assert_eq!(
         streams.gpu_indexes[0],
         input.gpu_index(0),
