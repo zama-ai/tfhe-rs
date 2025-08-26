@@ -447,7 +447,7 @@ mod cuda_utils {
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+    use tfhe::core_crypto::gpu::vec::CudaVec;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
 
@@ -459,7 +459,7 @@ mod cuda_utils {
     #[allow(dead_code)]
     pub fn cuda_local_streams_core() -> Vec<CudaStreams> {
         (0..get_number_of_gpus())
-            .map(|i| CudaStreams::new_single_gpu(GpuIndex(i as u32)))
+            .map(|i| CudaStreams::new_single_gpu(i as u32))
             .collect::<Vec<_>>()
     }
 
@@ -578,7 +578,7 @@ mod cuda_utils {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
         for i in 0..gpu_count {
-            let stream = CudaStreams::new_single_gpu(GpuIndex(i as u32));
+            let stream = CudaStreams::new_single_gpu(i as u32);
             gpu_keys_vec.push(CudaLocalKeys::from_cpu_keys(cpu_keys, &stream));
         }
         gpu_keys_vec
@@ -615,7 +615,6 @@ mod cuda_utils {
 
     #[cfg(feature = "integer")]
     pub mod cuda_integer_utils {
-        use tfhe::core_crypto::gpu::vec::GpuIndex;
         use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::integer::gpu::CudaServerKey;
         use tfhe::integer::ClientKey;
@@ -644,7 +643,7 @@ mod cuda_utils {
         ) -> Vec<CudaStreams> {
             (0..cuda_num_streams(num_block))
                 .map(|i| {
-                    CudaStreams::new_single_gpu(GpuIndex((i % get_number_of_gpus() as u64) as u32))
+                    CudaStreams::new_single_gpu((i % get_number_of_gpus() as u64)as u32)
                 })
                 .cycle()
                 .take(throughput_elements)
@@ -657,7 +656,7 @@ mod cuda_utils {
             let gpu_count = get_number_of_gpus() as usize;
             let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
             for i in 0..gpu_count {
-                let stream = CudaStreams::new_single_gpu(GpuIndex(i as u32));
+                let stream = CudaStreams::new_single_gpu(i as u32);
                 gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
             }
             gpu_sks_vec
