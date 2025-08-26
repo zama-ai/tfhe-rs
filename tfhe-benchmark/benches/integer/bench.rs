@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod aes;
 mod oprf;
 
 use benchmark::params::ParamsAndNumBlocksIter;
@@ -2795,6 +2796,7 @@ mod cuda {
         cuda_trailing_ones,
         cuda_ilog2,
         oprf::cuda::cuda_unsigned_oprf,
+        aes::cuda::cuda_aes,
     );
 
     criterion_group!(
@@ -2823,6 +2825,7 @@ mod cuda {
         cuda_scalar_div,
         cuda_scalar_rem,
         oprf::cuda::cuda_unsigned_oprf,
+        aes::cuda::cuda_aes,
     );
 
     criterion_group!(

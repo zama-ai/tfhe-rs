@@ -80,6 +80,7 @@ fn main() {
             "cuda/include/ciphertext.h",
             "cuda/include/integer/compression/compression.h",
             "cuda/include/integer/integer.h",
+            "cuda/include/aes/aes.h",
             "cuda/include/zk/zk.h",
             "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
