@@ -6438,6 +6438,237 @@ template <typename Torus> struct int_ilog2_buffer {
   }
 };
 
+template <typename Torus> struct int_aes_encrypt_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_radix_lut<Torus> *and_lut;
+  int_radix_lut<Torus> *flush_lut;
+  int_radix_lut<Torus> *carry_lut;
+
+  // Trivial ciphertext encrypting the value 1.
+  //
+  CudaRadixCiphertextFFI *trivial_1_bit;
+
+  // Device pointer to an array of plaintext scalars for creating trivial
+  // ciphertexts.
+  //
+  Torus *d_trivial_scalars;
+
+  // Device pointer to a plaintext zero.
+  //
+  Torus *d_trivial_scalars_zero;
+
+  // Host pointer to a plaintext zero.
+  //
+  Torus *h_trivial_scalars_zero;
+
+  // General-purpose temporary 8-bit buffers.
+  //
+  CudaRadixCiphertextFFI *tmp_byte_1;
+  CudaRadixCiphertextFFI *tmp_byte_2;
+
+  // Temporary 128-bit buffer for state-wide operations like ShiftRows.
+  //
+  CudaRadixCiphertextFFI *tmp_full_state;
+
+  // 128-bit workspace for intermediate variables inside the S-box computation.
+  //
+  CudaRadixCiphertextFFI *sbox_vars;
+
+  // 1-bit temporary buffer for the carry in the full adder.
+  //
+  CudaRadixCiphertextFFI *tmp_carry;
+
+  // 1-bit temporary buffer for a bit from the input `a` in the full adder.
+  //
+  CudaRadixCiphertextFFI *tmp_bit_1;
+
+  // 1-bit temporary buffer for the sum bit in the full adder.
+  //
+  CudaRadixCiphertextFFI *tmp_sum_1;
+
+  int_aes_encrypt_buffer(cudaStream_t const *streams,
+                         uint32_t const *gpu_indexes, uint32_t gpu_count,
+                         const int_radix_params params,
+                         const bool allocate_gpu_memory,
+                         uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    uint32_t num_bits_in_byte = 8;
+    uint32_t num_bits_in_state = 128;
+    uint32_t num_sbox_vars = 128;
+    uint32_t num_bits_in_1_bit_ct = 1;
+
+    this->and_lut =
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 8,
+                                 allocate_gpu_memory, size_tracker);
+    std::function<Torus(Torus, Torus)> and_lambda =
+        [](Torus a, Torus b) -> Torus { return a & b; };
+    generate_device_accumulator_bivariate<Torus>(
+        streams[0], gpu_indexes[0], this->and_lut->get_lut(0, 0),
+        this->and_lut->get_degree(0), this->and_lut->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, and_lambda, allocate_gpu_memory);
+    this->and_lut->broadcast_lut(streams, gpu_indexes);
+
+    this->flush_lut = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, 1, num_bits_in_state,
+        allocate_gpu_memory, size_tracker);
+    std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
+      return x & 1;
+    };
+    generate_device_accumulator(
+        streams[0], gpu_indexes[0], this->flush_lut->get_lut(0, 0),
+        this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, flush_lambda, allocate_gpu_memory);
+    this->flush_lut->broadcast_lut(streams, gpu_indexes);
+
+    this->carry_lut =
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
+                                 allocate_gpu_memory, size_tracker);
+    std::function<Torus(Torus)> carry_lambda = [](Torus x) -> Torus {
+      return (x >> 1) & 1;
+    };
+    generate_device_accumulator(
+        streams[0], gpu_indexes[0], this->carry_lut->get_lut(0, 0),
+        this->carry_lut->get_degree(0), this->carry_lut->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, carry_lambda, allocate_gpu_memory);
+    this->carry_lut->broadcast_lut(streams, gpu_indexes);
+
+    Torus *h_trivial_scalars = (Torus *)calloc(num_bits_in_byte, sizeof(Torus));
+    size_tracker += num_bits_in_byte * sizeof(Torus);
+
+    h_trivial_scalars_zero =
+        (Torus *)calloc(num_bits_in_1_bit_ct, sizeof(Torus));
+    size_tracker += num_bits_in_1_bit_ct * sizeof(Torus);
+
+    d_trivial_scalars = (Torus *)cuda_malloc_with_size_tracking_async(
+        num_bits_in_byte * sizeof(Torus), streams[0], gpu_indexes[0],
+        size_tracker, allocate_gpu_memory);
+    d_trivial_scalars_zero = (Torus *)cuda_malloc_with_size_tracking_async(
+        num_bits_in_1_bit_ct * sizeof(Torus), streams[0], gpu_indexes[0],
+        size_tracker, allocate_gpu_memory);
+    cuda_memset_async(d_trivial_scalars_zero, 0,
+                      num_bits_in_1_bit_ct * sizeof(Torus), streams[0],
+                      gpu_indexes[0]);
+
+    h_trivial_scalars[0] = 1;
+    cuda_memcpy_async_to_gpu(d_trivial_scalars, h_trivial_scalars,
+                             num_bits_in_byte * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+    this->trivial_1_bit = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->trivial_1_bit, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    set_trivial_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->trivial_1_bit, d_trivial_scalars,
+        h_trivial_scalars, 1, params.message_modulus, params.carry_modulus);
+    h_trivial_scalars[0] = 0;
+
+    Torus h_0x1b_vals[] = {1, 1, 0, 1, 1, 0, 0, 0};
+    memcpy(h_trivial_scalars, h_0x1b_vals, num_bits_in_byte * sizeof(Torus));
+    cuda_memcpy_async_to_gpu(d_trivial_scalars, h_trivial_scalars,
+                             num_bits_in_byte * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+
+    free(h_trivial_scalars);
+
+    this->tmp_byte_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_byte_1, num_bits_in_byte,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->tmp_byte_2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_byte_2, num_bits_in_byte,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->tmp_full_state = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_full_state, num_bits_in_state,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->sbox_vars = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->sbox_vars, num_sbox_vars,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->tmp_carry = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_carry, num_bits_in_1_bit_ct,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->tmp_bit_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_bit_1, num_bits_in_1_bit_ct,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->tmp_sum_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->tmp_sum_1, num_bits_in_1_bit_ct,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    this->and_lut->release(streams, gpu_indexes, gpu_count);
+    delete this->and_lut;
+    this->and_lut = nullptr;
+
+    this->flush_lut->release(streams, gpu_indexes, gpu_count);
+    delete this->flush_lut;
+    this->flush_lut = nullptr;
+
+    this->carry_lut->release(streams, gpu_indexes, gpu_count);
+    delete this->carry_lut;
+    this->carry_lut = nullptr;
+
+    cuda_drop_async(this->d_trivial_scalars, streams[0], gpu_indexes[0]);
+    this->d_trivial_scalars = nullptr;
+    cuda_drop_async(this->d_trivial_scalars_zero, streams[0], gpu_indexes[0]);
+    this->d_trivial_scalars_zero = nullptr;
+    free(this->h_trivial_scalars_zero);
+    this->h_trivial_scalars_zero = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   this->trivial_1_bit, allocate_gpu_memory);
+    delete this->trivial_1_bit;
+    this->trivial_1_bit = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->tmp_byte_1,
+                                   allocate_gpu_memory);
+    delete this->tmp_byte_1;
+    this->tmp_byte_1 = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->tmp_byte_2,
+                                   allocate_gpu_memory);
+    delete this->tmp_byte_2;
+    this->tmp_byte_2 = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   this->tmp_full_state, allocate_gpu_memory);
+    delete this->tmp_full_state;
+    this->tmp_full_state = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->sbox_vars,
+                                   allocate_gpu_memory);
+    delete this->sbox_vars;
+    this->sbox_vars = nullptr;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->tmp_carry,
+                                   allocate_gpu_memory);
+    delete this->tmp_carry;
+    this->tmp_carry = nullptr;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->tmp_bit_1,
+                                   allocate_gpu_memory);
+    delete this->tmp_bit_1;
+    this->tmp_bit_1 = nullptr;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], this->tmp_sum_1,
+                                   allocate_gpu_memory);
+    delete this->tmp_sum_1;
+    this->tmp_sum_1 = nullptr;
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
