@@ -465,6 +465,8 @@ clippy_all_targets: install_rs_check_toolchain
 clippy_tfhe_csprng: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=parallel,software-prng -p tfhe-csprng -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=parallel -p tfhe-csprng -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
 clippy_zk_pok: install_rs_check_toolchain
