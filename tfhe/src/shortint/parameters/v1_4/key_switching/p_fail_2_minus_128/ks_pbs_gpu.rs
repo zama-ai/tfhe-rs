@@ -1,0 +1,5 @@
+use crate::shortint::parameters::ShortintKeySwitchingParameters;
+
+pub const V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_3_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_3_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
