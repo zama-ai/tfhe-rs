@@ -261,21 +261,20 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
                 ),
             },
             || {
-                // We have to check if pat is empty as in that case the returned index is str.len()
-                // (the actual length) which doesn't correspond to our `last_match_index`
-                let padded_pat_is_empty = match self.is_empty(&trivial_or_enc_pat) {
-                    FheStringIsEmpty::Padding(is_empty) => Some(is_empty),
-                    FheStringIsEmpty::NoPadding(_) => None,
-                };
-
                 // The non padded str case was handled thanks to + 1 in the ext_iter
-                if str.is_padded() && padded_pat_is_empty.is_some() {
+                if str.is_padded() {
                     let str_true_len = match self.len(str) {
                         FheStringLen::Padding(cipher_len) => cipher_len,
                         FheStringLen::NoPadding(len) => sk.create_trivial_radix(len as u32, 16),
                     };
 
-                    Some((padded_pat_is_empty.unwrap(), str_true_len))
+                    // We have to check if pat is empty as in that case the returned index is
+                    // str.len() (the actual length) which doesn't correspond to
+                    // our `last_match_index`
+                    match self.is_empty(&trivial_or_enc_pat) {
+                        FheStringIsEmpty::Padding(is_empty) => Some((is_empty, str_true_len)),
+                        FheStringIsEmpty::NoPadding(_) => None,
+                    }
                 } else {
                     None
                 }

@@ -18,6 +18,8 @@ pub use experimental::*;
 
 #[cfg(feature = "experimental")]
 mod experimental {
+    use core::slice;
+
     pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
     use crate::core_crypto::prelude::*;
     use crate::integer::client_key::utils::i_crt;
@@ -500,7 +502,7 @@ mod experimental {
             ct1: &CrtCiphertext,
             lut: &IntegerWopbsLUT,
         ) -> CrtCiphertext {
-            self.circuit_bootstrap_vertical_packing_native_crt(&[ct1.clone()], lut)
+            self.circuit_bootstrap_vertical_packing_native_crt(slice::from_ref(ct1), lut)
         }
 
         /// # Example

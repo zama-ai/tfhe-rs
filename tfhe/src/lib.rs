@@ -60,7 +60,6 @@
 
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
-#![allow(clippy::missing_const_for_fn)] // 243
 #![allow(clippy::redundant_pub_crate)] // 116
 #![allow(clippy::suboptimal_flops)] // 43
 #![allow(clippy::significant_drop_tightening)] // 10

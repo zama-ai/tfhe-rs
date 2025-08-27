@@ -1,5 +1,5 @@
 use crate::c64;
-use core::{fmt::Debug, marker::PhantomData};
+use core::{f64, fmt::Debug, marker::PhantomData};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[derive(Copy, Clone, Debug)]
@@ -54,7 +54,7 @@ pub const H1Y: f64 = -0.38268343236508984f64;
 struct AssertC64Vec<T>(PhantomData<T>);
 impl<T> AssertC64Vec<T> {
     pub const VALID: () = {
-        assert!(core::mem::size_of::<T>() % core::mem::size_of::<c64>() == 0);
+        assert!(core::mem::size_of::<T>().is_multiple_of(core::mem::size_of::<c64>()));
     };
 }
 
@@ -276,7 +276,7 @@ pub fn sincospi64(mut a: f64) -> (f64, f64) {
     let s = s * t;
     r *= s;
 
-    let mut s = fma(t, 3.1415926535897931e+0, r);
+    let mut s = fma(t, f64::consts::PI, r);
     // map results according to quadrant
 
     if (i & 2) != 0 {

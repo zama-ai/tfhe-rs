@@ -11,9 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::entities::HpuPBSParameters;
 use crate::ffi::{self, SyncMode};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct IpcError {}
-
 /// Register request
 #[derive(Debug, Serialize, Deserialize)]
 pub enum RegisterReq {

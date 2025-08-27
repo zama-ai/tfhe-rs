@@ -406,9 +406,9 @@ where
     assert!(total_plaintext_modulus > Scalar::cast_from(4u128));
 
     let f1 = |x: Scalar| x % total_plaintext_modulus;
-    let f2 = |x: Scalar| (x.wrapping_mul(Scalar::cast_from(3u128)) % total_plaintext_modulus);
-    let f3 = |x: Scalar| ((x + Scalar::ONE) % total_plaintext_modulus);
-    let f4 = |x: Scalar| ((x / Scalar::TWO) % total_plaintext_modulus);
+    let f2 = |x: Scalar| x.wrapping_mul(Scalar::cast_from(3u128)) % total_plaintext_modulus;
+    let f3 = |x: Scalar| (x + Scalar::ONE) % total_plaintext_modulus;
+    let f4 = |x: Scalar| (x / Scalar::TWO) % total_plaintext_modulus;
 
     let funcs: [&dyn Fn(Scalar) -> Scalar; 4] = [&f1, &f2, &f3, &f4];
 

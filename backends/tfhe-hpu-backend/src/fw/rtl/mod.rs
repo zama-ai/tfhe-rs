@@ -595,7 +595,7 @@ impl ProgManager for MulsOp {
                 a.reg_lock()
             };
 
-            assert!((a.is_in(PosKind::REG) || a.is_cst()));
+            assert!(a.is_in(PosKind::REG) || a.is_cst());
 
             if !a.is_cst() {
                 d.reg_alloc_mv();

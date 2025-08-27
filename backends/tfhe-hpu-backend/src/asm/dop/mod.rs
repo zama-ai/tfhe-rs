@@ -438,7 +438,7 @@ pbs!(
     },
     @1 =>{
         |params: &DigitParameters, val| { val >> params.msg_w };
-        |params: &DigitParameters, _deg| ((1 << (params.carry_w - 1)) - 1);
+        |params: &DigitParameters, _deg| (1 << (params.carry_w - 1)) - 1;
     }
 ]],
 ["CmpGtMrg" => 27 [

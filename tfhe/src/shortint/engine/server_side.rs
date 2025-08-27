@@ -29,7 +29,6 @@ impl ShortintEngine {
     }
 
     pub(crate) fn get_thread_count_for_multi_bit_pbs(
-        &self,
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
@@ -156,7 +155,7 @@ impl ShortintEngine {
                     pbs_params.ciphertext_modulus,
                 );
 
-                let thread_count = self.get_thread_count_for_multi_bit_pbs(
+                let thread_count = Self::get_thread_count_for_multi_bit_pbs(
                     pbs_params.lwe_dimension,
                     pbs_params.glwe_dimension,
                     pbs_params.polynomial_size,

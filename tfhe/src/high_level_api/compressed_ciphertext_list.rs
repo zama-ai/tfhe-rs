@@ -385,6 +385,7 @@ impl InnerCompressedCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> MaybeCloned<
+        '_,
         crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList,
     > {
         match self {
@@ -1092,7 +1093,7 @@ mod tests {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));
                 assert!(
-                    (i != N_ATTEMPTS - 1),
+                    i != N_ATTEMPTS - 1,
                     "test_compression_decompression_size_on_gpu:
                          could not allocate enough memory for compression on GPU"
                 );

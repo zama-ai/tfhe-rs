@@ -190,7 +190,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone()], &[rhs]);
+                    let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[rhs]);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -200,7 +200,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone()], &[rhs])
+                    HpuCmd::exec_assign(proto, opcode, std::slice::from_ref(&self.0), &[rhs])
                 }
             }
         }
