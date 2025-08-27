@@ -1046,10 +1046,8 @@ void generate_device_accumulator_no_encoding(
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-  cudaLaunchHostFunc(
-      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
-  // cuda_synchronize_stream(stream, gpu_index);
-  // free(h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 template <typename Torus>
@@ -1121,10 +1119,8 @@ void generate_device_accumulator_bivariate(
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
       gpu_memory_allocated);
 
-  // cuda_synchronize_stream(stream, gpu_index);
-  cudaLaunchHostFunc(
-      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
-  // free(h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
   POP_RANGE()
 }
 
@@ -1160,10 +1156,8 @@ void generate_device_accumulator_bivariate_with_factor(
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
       gpu_memory_allocated);
 
-  // cuda_synchronize_stream(stream, gpu_index);
-  cudaLaunchHostFunc(
-      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
-  // free(h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 template <typename Torus>
@@ -1188,10 +1182,8 @@ void generate_device_accumulator_with_encoding(
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-  cudaLaunchHostFunc(
-      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
-  // cuda_synchronize_stream(stream, gpu_index);
-  // free(h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 /*
@@ -1246,10 +1238,8 @@ void generate_many_lut_device_accumulator(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
 
-  // cuda_synchronize_stream(stream, gpu_index);
-  cudaLaunchHostFunc(
-      stream, [](void *ptr_data) { free(ptr_data); }, h_lut);
-  // free(h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
   POP_RANGE()
 }
 
