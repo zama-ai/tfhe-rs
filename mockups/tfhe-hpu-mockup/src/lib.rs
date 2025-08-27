@@ -1,3 +1,6 @@
+// Should be removed when we raise MSRV above 1.87
+#![allow(clippy::manual_is_multiple_of)]
+
 #[cfg(feature = "isc-order-check")]
 use hpu_asm::dop::ToAsm;
 use hpu_asm::PbsLut;

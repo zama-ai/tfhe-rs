@@ -3,8 +3,6 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CastFrom, CastInto, UnsignedInteger};
 use crate::keycache::NamedParam;
 #[cfg(feature = "gpu")]
-use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
-#[cfg(feature = "gpu")]
 use crate::shortint::parameters::ModulusSwitchType;
 use serde::{Deserialize, Serialize};
 
@@ -22,13 +20,6 @@ pub struct MultiBitBootstrapKeys<Scalar: UnsignedInteger> {
     pub big_lwe_sk: LweSecretKey<Vec<Scalar>>,
     pub bsk: LweMultiBitBootstrapKeyOwned<Scalar>,
     pub fbsk: FourierLweMultiBitBootstrapKeyOwned,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MultiBitStdBootstrapKeys<Scalar: UnsignedInteger> {
-    pub small_lwe_sk: LweSecretKey<Vec<Scalar>>,
-    pub big_lwe_sk: LweSecretKey<Vec<Scalar>>,
-    pub bsk: LweMultiBitBootstrapKeyOwned<Scalar>,
 }
 
 // Fourier key is generated afterward in order to use generic test function
@@ -90,6 +81,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub thread_count: ThreadCount,
 }
 
+#[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct NoiseSquashingMultiBitTestParameters<Scalar: UnsignedInteger> {
     pub glwe_dimension: GlweDimension,
@@ -160,21 +152,6 @@ pub struct NoiseSquashingTestParams<Scalar: UnsignedInteger> {
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub modulus_switch_noise_reduction_params: ModulusSwitchType,
-    pub ciphertext_modulus: CiphertextModulus<Scalar>,
-}
-// Parameters to test NoiseSquashing implementation
-#[cfg(feature = "gpu")]
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct NoiseSquashingMultiBitTestParams<Scalar: UnsignedInteger> {
-    pub lwe_dimension: LweDimension,
-    pub glwe_dimension: GlweDimension,
-    pub polynomial_size: PolynomialSize,
-    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub pbs_base_log: DecompositionBaseLog,
-    pub pbs_level: DecompositionLevelCount,
-    pub grouping_factor: LweBskGroupingFactor,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 

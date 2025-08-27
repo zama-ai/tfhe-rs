@@ -594,7 +594,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             .sum();
         let mut functions = Vec::with_capacity(total_block_count);
 
-        let mut push_luts_for_function = |block_count: usize, func: &(dyn Fn(u64) -> u64)| {
+        let mut push_luts_for_function = |block_count: usize, func: &dyn Fn(u64) -> u64| {
             let lut = sks.key.generate_lookup_table(func);
             for _ in 0..block_count {
                 functions.push(lut.clone());

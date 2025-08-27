@@ -177,7 +177,7 @@ impl ClientKey {
                         &std_bsk, &mut fbsk,
                     );
 
-                    let thread_count = engine.get_thread_count_for_multi_bit_pbs(
+                    let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
                         std_cks.lwe_secret_key.lwe_dimension(),
                         params.glwe_dimension,
                         params.polynomial_size,

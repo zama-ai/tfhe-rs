@@ -338,7 +338,7 @@ pub fn prove<G: Curve>(
     let y = OneBased(y);
 
     let scalars = (n + 1 - big_d..n + 1)
-        .map(|j| (y[n + 1 - j] * G::Zp::from_u64(w[n + 1 - j] as u64)))
+        .map(|j| y[n + 1 - j] * G::Zp::from_u64(w[n + 1 - j] as u64))
         .collect::<Vec<_>>();
     let c_y = g.mul_scalar(gamma_y) + G::G1::multi_mul_scalar(&g_list.0[n - big_d..n], &scalars);
 

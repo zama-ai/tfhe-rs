@@ -229,7 +229,7 @@ pub enum GenericPattern {
 }
 
 impl GenericPattern {
-    pub fn as_ref(&self) -> GenericPatternRef {
+    pub fn as_ref(&self) -> GenericPatternRef<'_> {
         match self {
             Self::Clear(clear_string) => GenericPatternRef::Clear(clear_string),
             Self::Enc(fhe_string) => GenericPatternRef::Enc(fhe_string),

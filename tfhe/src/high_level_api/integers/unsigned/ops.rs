@@ -2514,11 +2514,14 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
-                let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[0_u128])
-                        .pop()
-                        .expect("SSUB must return a single value");
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    std::slice::from_ref(&hpu_self),
+                    &[0_u128],
+                )
+                .pop()
+                .expect("SSUB must return a single value");
                 FheUint::new(hpu_result, device.tag.clone())
             }
         })

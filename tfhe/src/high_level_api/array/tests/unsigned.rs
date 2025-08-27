@@ -1,3 +1,5 @@
+use core::slice;
+
 use crate::array::ClearArray;
 use crate::prelude::*;
 use crate::{generate_keys, set_server_key, ConfigBuilder, CpuFheUint32Array, FheUint32Array};
@@ -109,8 +111,8 @@ fn test_single_dimension() {
     let ys = FheUint32Array::try_encrypt(clear_ys.as_slice(), &cks).unwrap();
 
     let range = 1..3;
-    let xss = xs.slice(&[range.clone()]);
-    let yss = ys.slice(&[range.clone()]);
+    let xss = xs.slice(slice::from_ref(&range));
+    let yss = ys.slice(slice::from_ref(&range));
 
     let zs = xss + yss;
 

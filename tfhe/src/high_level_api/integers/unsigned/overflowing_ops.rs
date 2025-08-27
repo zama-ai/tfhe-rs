@@ -206,9 +206,12 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
-                let mut hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_lhs.clone()], &[imm_rhs]);
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    std::slice::from_ref(&hpu_lhs),
+                    &[imm_rhs],
+                );
                 let overflow = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
                 (
@@ -482,9 +485,12 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
-                let mut hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_lhs.clone()], &[imm_rhs]);
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    std::slice::from_ref(&hpu_lhs),
+                    &[imm_rhs],
+                );
                 let overflow = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
                 (

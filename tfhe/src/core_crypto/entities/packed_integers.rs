@@ -276,8 +276,9 @@ mod test {
 
         rand::thread_rng().fill(cont.as_mut_slice());
 
-        cont.iter_mut()
-            .for_each(|val| *val %= log_modulus.cast_into());
+        for val in cont.iter_mut() {
+            *val %= log_modulus.cast_into();
+        }
 
         let packed = PackedIntegers::<Scalar>::pack(&cont, CiphertextModulusLog(log_modulus));
 

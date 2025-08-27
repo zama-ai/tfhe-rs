@@ -276,16 +276,14 @@ where
                 fourier_bsk,
                 deterministic_execution,
             } => {
-                let thread_count = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.get_thread_count_for_multi_bit_pbs(
-                        fourier_bsk.input_lwe_dimension(),
-                        fourier_bsk.glwe_size().to_glwe_dimension(),
-                        fourier_bsk.polynomial_size(),
-                        fourier_bsk.decomposition_base_log(),
-                        fourier_bsk.decomposition_level_count(),
-                        fourier_bsk.grouping_factor(),
-                    )
-                });
+                let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                    fourier_bsk.input_lwe_dimension(),
+                    fourier_bsk.glwe_size().to_glwe_dimension(),
+                    fourier_bsk.polynomial_size(),
+                    fourier_bsk.decomposition_base_log(),
+                    fourier_bsk.decomposition_level_count(),
+                    fourier_bsk.grouping_factor(),
+                );
                 Self::MultiBit {
                     fourier_bsk,
                     thread_count,
@@ -428,16 +426,14 @@ where
                 thread_count,
                 ..
             } => {
-                *thread_count = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.get_thread_count_for_multi_bit_pbs(
-                        fourier_bsk.input_lwe_dimension(),
-                        fourier_bsk.glwe_size().to_glwe_dimension(),
-                        fourier_bsk.polynomial_size(),
-                        fourier_bsk.decomposition_base_log(),
-                        fourier_bsk.decomposition_level_count(),
-                        fourier_bsk.grouping_factor(),
-                    )
-                })
+                *thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                    fourier_bsk.input_lwe_dimension(),
+                    fourier_bsk.glwe_size().to_glwe_dimension(),
+                    fourier_bsk.polynomial_size(),
+                    fourier_bsk.decomposition_base_log(),
+                    fourier_bsk.decomposition_level_count(),
+                    fourier_bsk.grouping_factor(),
+                )
             }
         }
     }

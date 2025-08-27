@@ -123,7 +123,7 @@ impl ServerKey {
                     .flat_map(|chunk| {
                         let funcs_ref = chunk
                             .iter()
-                            .map(|f| f as &(dyn Fn(u64) -> u64))
+                            .map(|f| f as &dyn Fn(u64) -> u64)
                             .collect::<Vec<_>>();
 
                         let lut = self.key.generate_many_lookup_table(funcs_ref.as_slice());

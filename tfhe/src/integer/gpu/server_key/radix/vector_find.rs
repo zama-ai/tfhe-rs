@@ -1636,7 +1636,7 @@ impl CudaServerKey {
 
         let message_extract_lut =
             self.generate_lookup_table(|x| (x % self.message_modulus.0) % self.message_modulus.0);
-        let carry_extract_lut = self.generate_lookup_table(|x| (x / self.message_modulus.0));
+        let carry_extract_lut = self.generate_lookup_table(|x| x / self.message_modulus.0);
         let mut message_ct: T =
             unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 

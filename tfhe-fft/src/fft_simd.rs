@@ -1,5 +1,5 @@
 use crate::c64;
-use core::{fmt::Debug, marker::PhantomData};
+use core::{f64, fmt::Debug, marker::PhantomData};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[derive(Copy, Clone, Debug)]
@@ -276,7 +276,7 @@ pub fn sincospi64(mut a: f64) -> (f64, f64) {
     let s = s * t;
     r *= s;
 
-    let mut s = fma(t, 3.1415926535897931e+0, r);
+    let mut s = fma(t, f64::consts::PI, r);
     // map results according to quadrant
 
     if (i & 2) != 0 {
