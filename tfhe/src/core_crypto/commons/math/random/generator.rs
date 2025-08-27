@@ -836,7 +836,9 @@ impl<G: ByteRandomGenerator> rand_core::RngCore for RandomGenerator<G> {
     }
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        dest.iter_mut().for_each(|b| *b = self.generate_next());
+        for b in dest.iter_mut() {
+            *b = self.generate_next();
+        }
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {

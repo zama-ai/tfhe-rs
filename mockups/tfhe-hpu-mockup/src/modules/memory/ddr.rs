@@ -18,7 +18,7 @@ impl DdrMem {
     pub(crate) fn alloc_at(&mut self, paddr: u64, size_b: usize) {
         // Check that required chunk is in the Ddr range
         assert!(
-            ((paddr as usize + size_b) < DDR_SIZE_B),
+            (paddr as usize + size_b) < DDR_SIZE_B,
             "Error: Required chunk @0x{paddr:x}[0x{size_b}] is out of Ddr range [0x0, 0x{DDR_SIZE_B}]"
         );
 

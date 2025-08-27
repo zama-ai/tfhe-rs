@@ -10,7 +10,7 @@ use tfhe::{generate_keys, ConfigBuilder, FheBool, FheUint64, FheUint8};
 // file testvectors/trivium-80.80.test-vectors
 
 fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
-    assert!(a.len() % 8 == 0);
+    assert!(a.len().is_multiple_of(8));
     let mut hexadecimal: String = "".to_string();
     for test in a.chunks(8) {
         // Encoding is bytes in LSB order
@@ -63,7 +63,7 @@ fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
 }
 
 fn get_hexagonal_string_from_bytes(a: Vec<u8>) -> String {
-    assert!(a.len() % 8 == 0);
+    assert!(a.len().is_multiple_of(8));
     let mut hexadecimal: String = "".to_string();
     for test in a {
         hexadecimal.push_str(&format!("{test:02X?}"));

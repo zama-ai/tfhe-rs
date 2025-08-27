@@ -60,7 +60,6 @@
 
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
-#![allow(clippy::missing_const_for_fn)] // 243
 #![allow(clippy::redundant_pub_crate)] // 116
 #![allow(clippy::suboptimal_flops)] // 43
 #![allow(clippy::significant_drop_tightening)] // 10
@@ -68,6 +67,8 @@
 #![allow(clippy::iter_with_drain)] // 2
 #![allow(clippy::large_stack_frames)] // 1
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
+// Temporary workaround until we raise msrv to 1.89
+#![allow(stable_features)]
 #![cfg_attr(
     all(
         any(target_arch = "x86", target_arch = "x86_64"),

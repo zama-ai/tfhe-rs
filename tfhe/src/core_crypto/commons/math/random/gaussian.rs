@@ -47,12 +47,12 @@ macro_rules! implement_gaussian {
                 let mut uniform_rand_bytes_u = [0u8; std::mem::size_of::<$S>()];
                 let mut uniform_rand_bytes_v = [0u8; std::mem::size_of::<$S>()];
                 loop {
-                    uniform_rand_bytes_u
-                        .iter_mut()
-                        .for_each(|a| *a = generator.generate_next());
-                    uniform_rand_bytes_v
-                        .iter_mut()
-                        .for_each(|a| *a = generator.generate_next());
+                    for a in uniform_rand_bytes_u.iter_mut() {
+                        *a = generator.generate_next();
+                    }
+                    for a in uniform_rand_bytes_v.iter_mut() {
+                        *a = generator.generate_next();
+                    }
                     let size = <$T>::BITS as i32;
                     let mut u: $T = <$S>::from_le_bytes(uniform_rand_bytes_u).cast_into();
                     u *= <$T>::TWO.powi(-size + 1);

@@ -65,7 +65,10 @@ pub mod public_key;
 pub mod server_key;
 #[cfg(feature = "experimental")]
 pub mod wopbs;
-#[cfg(not(feature = "experimental"))]
+#[cfg(all(
+    not(feature = "experimental"),
+    any(test, doctest, feature = "internal-keycache")
+))]
 pub(crate) mod wopbs;
 
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};

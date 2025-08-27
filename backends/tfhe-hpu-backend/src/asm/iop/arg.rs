@@ -331,9 +331,9 @@ impl std::str::FromStr for OperandBundle {
                     };
                     Ok(Operand::new(block, base_cid, 1, None))
                 } else {
-                    return Err(ParsingError::Unmatch(format!(
+                    Err(ParsingError::Unmatch(format!(
                         "Invalid argument format {s}"
-                    )));
+                    )))
                 }
             })
             .collect::<Result<Vec<_>, ParsingError>>()?;

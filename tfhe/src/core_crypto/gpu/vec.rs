@@ -389,7 +389,7 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr[index as usize].cast_const()
     }
 
-    pub(crate) fn as_slice<R>(&self, range: R, index: usize) -> Option<CudaSlice<T>>
+    pub(crate) fn as_slice<R>(&self, range: R, index: usize) -> Option<CudaSlice<'_, T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -414,7 +414,7 @@ impl<T: Numeric> CudaVec<T> {
 
     // clippy complains as we only manipulate pointers, but we want to keep rust semantics
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn as_mut_slice<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<T>>
+    pub(crate) fn as_mut_slice<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<'_, T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,

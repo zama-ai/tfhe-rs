@@ -349,7 +349,9 @@ pub mod test_tools {
         let m_norm = f64::sqrt(m_tilde.iter().fold(0.0, |acc, x| acc + x * x));
         // Coefficients
         let mut coeffs = m_tilde;
-        coeffs.iter_mut().for_each(|x| *x /= m_norm);
+        for x in coeffs.iter_mut() {
+            *x /= m_norm;
+        }
         // Test statistic
         let denominator = samples.iter().fold(0.0, |acc, x| acc + (x - mean).powi(2));
         let numerator = samples
@@ -459,9 +461,9 @@ pub mod test_tools {
         let failures: f64 = (0..RUNS)
             .map(|_| {
                 let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
-                samples
-                    .iter_mut()
-                    .for_each(|x| *x = normal.sample(&mut rng));
+                for x in samples.iter_mut() {
+                    *x = normal.sample(&mut rng)
+                }
                 if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
                     // If we are normal return 0, it's not a failure
                     0.0
@@ -484,7 +486,9 @@ pub mod test_tools {
         let failures: f64 = (0..RUNS)
             .map(|_| {
                 let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
-                samples.iter_mut().for_each(|x| *x = rng.gen());
+                for x in samples.iter_mut() {
+                    *x = rng.gen();
+                }
                 if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
                     // If we are normal return 0, it's not a failure
                     0.0

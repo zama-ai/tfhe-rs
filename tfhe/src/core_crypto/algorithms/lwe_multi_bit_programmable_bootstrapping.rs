@@ -636,7 +636,9 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 
@@ -863,7 +865,9 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 
@@ -1468,7 +1472,9 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 
@@ -1730,7 +1736,9 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 
@@ -2147,7 +2155,9 @@ pub fn std_multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, 
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 
@@ -2567,7 +2577,9 @@ pub fn multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyC
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
         }
 
-        threads.into_iter().for_each(|t| t.join().unwrap());
+        for t in threads {
+            t.join().unwrap();
+        }
     });
 }
 

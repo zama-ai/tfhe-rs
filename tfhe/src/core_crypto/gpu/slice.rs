@@ -144,7 +144,7 @@ where
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_mut<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<T>>
+    pub(crate) fn get_mut<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<'_, T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -172,7 +172,7 @@ where
         &mut self,
         mid: usize,
         index: usize,
-    ) -> (Option<CudaSliceMut<T>>, Option<CudaSliceMut<T>>)
+    ) -> (Option<CudaSliceMut<'_, T>>, Option<CudaSliceMut<'_, T>>)
     where
         T: Numeric,
     {

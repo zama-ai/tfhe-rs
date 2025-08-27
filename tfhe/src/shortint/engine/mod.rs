@@ -297,6 +297,12 @@ pub struct ShortintEngine {
     ciphertext_buffers: CiphertextBuffer,
 }
 
+impl Default for ShortintEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShortintEngine {
     /// Safely gives access to the `thead_local` shortint engine
     /// to call one (or many) of its method.

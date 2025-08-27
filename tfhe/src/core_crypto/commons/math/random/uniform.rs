@@ -15,7 +15,9 @@ macro_rules! implement_uniform_uint {
                 distribution: Uniform,
             ) -> Self {
                 let mut buf = [0; std::mem::size_of::<$T>()];
-                buf.iter_mut().for_each(|a| *a = generator.generate_next());
+                for a in buf.iter_mut() {
+                    *a = generator.generate_next();
+                }
                 // We use from_le_bytes as most platforms are low endian, this avoids endianness
                 // issues
                 <$T>::from_le_bytes(buf)
@@ -97,7 +99,9 @@ macro_rules! implement_uniform_int {
                 distribution: Uniform,
             ) -> Self {
                 let mut buf = [0; std::mem::size_of::<$T>()];
-                buf.iter_mut().for_each(|a| *a = generator.generate_next());
+                for a in buf.iter_mut() {
+                    *a = generator.generate_next();
+                }
                 // We use from_le_bytes as most platforms are low endian, this avoids endianness
                 // issues
                 <$T>::from_le_bytes(buf)

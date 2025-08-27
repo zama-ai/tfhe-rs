@@ -428,9 +428,9 @@ fn sha256_fhe_parallel(input: Vec<FheUint32>) -> [FheUint32; 8] {
         for i in 16..64 {
             let (s0_a, s0_b, s1_a, s1_b) = join!(
                 || par_rotr(&w[i - 15], [7u32, 18]),
-                || (&w[i - 15] >> 3u32),
+                || &w[i - 15] >> 3u32,
                 || par_rotr(&w[i - 2], [17u32, 19]),
-                || (&w[i - 2] >> 10u32),
+                || &w[i - 2] >> 10u32,
             );
 
             let (s0, s1) =

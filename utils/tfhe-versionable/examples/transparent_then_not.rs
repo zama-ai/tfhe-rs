@@ -122,6 +122,7 @@ mod v1 {
 
     #[derive(Versionize)]
     #[repr(transparent)]
+    #[allow(unused)]
     struct MyStructWrapper<T>(MyStruct<T>);
 
     #[derive(Versionize)]

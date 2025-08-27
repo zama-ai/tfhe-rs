@@ -703,11 +703,10 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                             &asm_iop.format().expect("Unspecified IOP format").proto,
                                         )
                                     };
-                                    // These clones are cheap are they are just Arc
                                     let mut hpu_result = HpuRadixCiphertext::exec(
                                         proto,
                                         opcode,
-                                        &[hpu_lhs.clone()],
+                                        std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
                                     );
                                     let remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
@@ -1762,11 +1761,10 @@ macro_rules! define_scalar_ops {
                                             &asm_iop.format().expect("Unspecified IOP format").proto,
                                         )
                                     };
-                                    // These clones are cheap are they are just Arc
                                     let mut hpu_result = HpuRadixCiphertext::exec(
                                         proto,
                                         opcode,
-                                        &[hpu_lhs.clone()],
+                                        std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
                                     );
                                     let _remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
@@ -1839,11 +1837,10 @@ macro_rules! define_scalar_ops {
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
                                 )
                             };
-                            // These clones are cheap are they are just Arc
                             let mut hpu_result = HpuRadixCiphertext::exec(
                                 proto,
                                 opcode,
-                                &[hpu_lhs.clone()],
+                                std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
                             );
                             let remainder = hpu_result.pop().expect("IOP_MODS must return 1 value");
@@ -2351,11 +2348,10 @@ macro_rules! define_scalar_ops {
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
                                 )
                             };
-                            // These clones are cheap are they are just Arc
                             let mut hpu_result = HpuRadixCiphertext::exec(
                                 proto,
                                 opcode,
-                                &[hpu_lhs.clone()],
+                                std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
                             );
                             let _remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
@@ -2399,11 +2395,10 @@ macro_rules! define_scalar_ops {
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
                                 )
                             };
-                            // These clones are cheap are they are just Arc
                             HpuRadixCiphertext::exec_assign(
                                 proto,
                                 opcode,
-                                &[hpu_lhs.clone()],
+                                std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
                             );
                         }
