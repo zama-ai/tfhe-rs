@@ -3,7 +3,6 @@ use std::sync::{Arc, OnceLock};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
-use rustc_span::sym;
 
 use crate::utils::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
 
@@ -22,7 +21,7 @@ impl SerializeWithoutVersionizeInner {
     pub fn versionize_trait(&self, cx: &LateContext<'_>) -> Option<DefId> {
         self.versionize_trait
             .get_or_init(|| {
-                let versionize_trait = cx.tcx.all_traits().find(|def_id| {
+                let versionize_trait = cx.tcx.all_traits_including_private().find(|def_id| {
                     let path = cx.get_def_path(*def_id);
                     path == symbols_list_from_str(&VERSIONIZE_TRAIT)
                 });
@@ -75,7 +74,7 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
 
             if let Some(type_def_id) = get_def_id_from_ty(ty) {
                 // If the type has been automatically generated, skip it
-                if cx.tcx.has_attr(type_def_id, sym::automatically_derived) {
+                if cx.tcx.is_automatically_derived(type_def_id) {
                     return;
                 }
 
