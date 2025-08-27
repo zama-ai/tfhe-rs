@@ -174,29 +174,7 @@ impl ServerKey {
             let low2 = RadixCiphertext::from(d2.blocks[..num_blocks - block_index].to_vec());
             let low3 = RadixCiphertext::from(d3.blocks[..num_blocks - block_index].to_vec());
             let mut rem = RadixCiphertext::from(remainder.blocks[block_index..].to_vec());
-            println!("low1");
-            for block in &low1.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
 
-            println!("low2");
-            for block in &low2.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("low3");
-            for block in &low3.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("rem");
-            for block in &rem.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
             let (mut sub_results, cmps) = rayon::join(
                 || {
                     [&low3, &low2, &low1]
@@ -224,24 +202,6 @@ impl ServerKey {
             let (mut r2, mut o2) = sub_results.pop().unwrap();
             let (mut r3, mut o3) = sub_results.pop().unwrap();
 
-            println!("r1");
-            for block in &r1.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("r2");
-            for block in &r2.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("r3");
-            for block in &r3.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
             [&mut o3, &mut o2, &mut o1]
                 .into_par_iter()
                 .zip(cmps.par_iter())
@@ -249,13 +209,6 @@ impl ServerKey {
                     self.boolean_bitor_assign(ox, cmpx);
                 });
 
-            println!("o1: {:?}", o1.0.ct.get_body().data);
-            println!("o2: {:?}", o2.0.ct.get_body().data);
-            println!("o3: {:?}", o3.0.ct.get_body().data);
-
-            println!("cmp1: {:?}", cmps[0].0.ct.get_body().data);
-            println!("cmp2: {:?}", cmps[1].0.ct.get_body().data);
-            println!("cmp3: {:?}", cmps[2].0.ct.get_body().data);
             // The cx variables tell whether the corresponding result of the subtraction
             // should be kept, and what value the quotient block should have
             //
@@ -274,20 +227,10 @@ impl ServerKey {
             };
             let c0 = o1.0;
 
-            println!("c0: {:?}", c0.ct.get_body().data);
-            println!("c1: {:?}", c1.ct.get_body().data);
-            println!("c2: {:?}", c2.ct.get_body().data);
-            println!("c3: {:?}", c3.ct.get_body().data);
-
-            // println!("cpu_before_rem");
-            // for block in &rem.blocks {
-            //     println!("{:?}", block.ct.get_body().data);
-            // }
-            // println!();
             let (_, [q1, q2, q3]) = rayon::join(
                 || {
                     [&c3, &c2, &c1, &c0]
-                        .into_iter()
+                        .into_par_iter()
                         .zip([&mut r3, &mut r2, &mut r1, &mut rem])
                         .zip([
                             &zero_out_if_not_1_lut,
@@ -298,25 +241,9 @@ impl ServerKey {
                         .for_each(|((cx, rx), (lut, factor))| {
                             // Manual zero_out_if to avoid noise problems
                             rx.blocks.par_iter_mut().for_each(|block| {
-                                // println!("cpu_before_scalar_mul_rem");
-                                // println!("{:?}", block.ct.get_body().data);
-                                // println!();
                                 self.key.unchecked_scalar_mul_assign(block, *factor);
-
-                                // println!("factor: {:?}", factor);
-                                // println!("cpu_after_scalar_mul_rem");
-                                // println!("{:?}", block.ct.get_body().data);
-                                // println!();
-
                                 self.key.unchecked_add_assign(block, cx);
-                                // println!("cpu_after_add_rem");
-                                // println!("{:?}", block.ct.get_body().data);
-                                // println!();
-
                                 self.key.apply_lookup_table_assign(block, lut);
-                                // println!("cpu_after_pbs_rem");
-                                // println!("{:?}", block.ct.get_body().data);
-                                // println!();
                             });
                         });
                 },
@@ -331,33 +258,6 @@ impl ServerKey {
                 },
             );
 
-            println!("cpu_after_r1");
-            for block in &r1.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("cpu_after_r2");
-            for block in &r2.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("cpu_after_r3");
-            for block in &r3.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("cpu_after_rem");
-            for block in &rem.blocks {
-                println!("{:?}", block.ct.get_body().data);
-            }
-            println!();
-
-            println!("cpu_after_q1: {:?}", q1.ct.get_body().data);
-            println!("cpu_after_q2: {:?}", q2.ct.get_body().data);
-            println!("cpu_after_q3: {:?}", q3.ct.get_body().data);
             // Only one of rx and rem is not zero
             for rx in [&r3, &r2, &r1] {
                 self.unchecked_add_assign(&mut rem, rx);
