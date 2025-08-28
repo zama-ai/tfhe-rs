@@ -208,7 +208,7 @@ jobs:
 
       - name: Get nsys profile name
         id: nsys_profile_name
-        run: echo "profile=coprocessor_profile_$(date +"%Y-%m-%d-%Hh").nsys-rep" >> "$GITHUB_STATE"
+        run: echo "profile=coprocessor_profile_$(date +"%Y-%m-%d-%Hh").nsys-rep" >> "$GITHUB_OUTPUT"
 
       - name: Timestamp nsys profile # zizmor: ignore[template-injection]
         env:
