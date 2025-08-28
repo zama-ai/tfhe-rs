@@ -4292,6 +4292,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   int_bitop_buffer<Torus> *bitor_mem_1;
   int_bitop_buffer<Torus> *bitor_mem_2;
   int_bitop_buffer<Torus> *bitor_mem_3;
+  int_logical_scalar_shift_buffer<Torus> *shift_mem;
 
   // lookup tables
   int_radix_lut<Torus> *message_extract_lut_1;
@@ -4620,7 +4621,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
         streams, gpu_indexes, gpu_count, params, num_blocks + 1,
         outputFlag::FLAG_NONE, allocate_gpu_memory, size_tracker);
-
     bitor_mem_1 = new int_bitop_buffer<Torus>(
         streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
@@ -4630,6 +4630,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     bitor_mem_3 = new int_bitop_buffer<Torus>(
         streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
+    shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
+        params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
 
     init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
                        allocate_gpu_memory, size_tracker);
@@ -4674,6 +4677,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     bitor_mem_1->release(streams, gpu_indexes, gpu_count);
     bitor_mem_2->release(streams, gpu_indexes, gpu_count);
     bitor_mem_3->release(streams, gpu_indexes, gpu_count);
+    shift_mem->release(streams, gpu_indexes, gpu_count);
 
     delete overflow_sub_mem_1;
     delete overflow_sub_mem_2;
@@ -4685,6 +4689,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete bitor_mem_1;
     delete bitor_mem_2;
     delete bitor_mem_3;
+    delete shift_mem;
 
     // release and delete lut objects
     message_extract_lut_1->release(streams, gpu_indexes, gpu_count);
@@ -4768,9 +4773,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete low2;
     delete low3;
     delete rem;
-    delete sub_results_1;
-    delete sub_results_2;
-    delete sub_results_3;
+    delete sub_result_1;
+    delete sub_result_2;
+    delete sub_result_3;
     delete sub_1_overflowed;
     delete sub_2_overflowed;
     delete sub_3_overflowed;
@@ -4975,6 +4980,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
       return x % message_modulus;
     };
 
+    int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
+                                     message_extract_lut_2};
     for (int j = 0; j < 2; j++) {
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
@@ -5110,8 +5117,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     overflow_sub_mem = new int_borrow_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
         allocate_gpu_memory, size_tracker);
-    uint32_t group_size = overflow_sub_mem_1->group_size;
-    bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
+    uint32_t group_size = overflow_sub_mem->group_size;
+    bool use_seq = overflow_sub_mem->prop_simu_group_carries_mem
                        ->use_sequential_algorithm_to_resolve_group_carries;
     create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
                                     group_size, use_seq, allocate_gpu_memory,
