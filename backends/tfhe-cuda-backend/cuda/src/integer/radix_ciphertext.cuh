@@ -7,12 +7,11 @@
 #include "utils/helper_profile.cuh"
 #include "utils/kernel_dimensions.cuh"
 
-inline CudaLweCiphertextListFFI to_lwe_ciphertext_list(CudaRadixCiphertextFFI* radix) {
-  return {
-      .ptr = radix->ptr,
-      .num_radix_blocks = radix->num_radix_blocks,
-      .lwe_dimension = radix->lwe_dimension
-  };
+inline CudaLweCiphertextListFFI
+to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
+  return {.ptr = radix->ptr,
+          .num_radix_blocks = radix->num_radix_blocks,
+          .lwe_dimension = radix->lwe_dimension};
 }
 template <typename Torus>
 void create_zero_radix_ciphertext_async(cudaStream_t const stream,
