@@ -603,6 +603,9 @@ fn collect_next_term_split(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
+///
+/// # Panics
+/// This will panic if ct0_lo, ct0_hi, ct1_lo and ct1_hi are not of the same size
 pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
     ct0_lo: &mut GlweCiphertext<ContCt0Lo>,
     ct0_hi: &mut GlweCiphertext<ContCt0Hi>,

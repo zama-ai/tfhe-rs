@@ -800,6 +800,9 @@ pub fn cmux_scratch<Scalar>(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
+///
+/// # Panics
+/// This will panic if ct0 and ct1 are not of the same size
 pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
     ct0: &mut GlweCiphertext<ContCt0>,
     ct1: &mut GlweCiphertext<ContCt1>,

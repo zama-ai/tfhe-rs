@@ -203,6 +203,9 @@ pub fn blind_rotate_ntt64_bnf_assign<OutputCont, KeyCont>(
 /// a properly configured [`Ntt64View`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of
 /// [`blind_rotate_ntt64_bnf_assign_mem_optimized_requirement`].
+///
+/// # Panics
+/// This will panic if the input mask len does not match the size of the bsk
 pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<OutputCont, KeyCont>(
     msed_input: &impl ModulusSwitchedLweCiphertext<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
@@ -676,6 +679,9 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
+///
+/// # Panics
+/// This will panic if ct0 and ct1 are not of the same size
 pub(crate) fn cmux_ntt64_bnf_assign(
     ct0: GlweCiphertextMutView<'_, u64>,
     ct1: GlweCiphertextMutView<'_, u64>,
