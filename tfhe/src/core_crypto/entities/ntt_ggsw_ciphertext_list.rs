@@ -207,7 +207,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertextL
     /// consider calling [`NttGgswCiphertextList::as_view`] or
     /// [`NttGgswCiphertextList::as_mut_view`] first to have an iterator over borrowed contents
     /// instead of consuming the original entity.
-    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = NttGgswCiphertext<C>>
+    pub fn into_ggsw_iter(
+        self,
+    ) -> impl DoubleEndedIterator<Item = NttGgswCiphertext<C>>
+           + ExactSizeIterator<Item = NttGgswCiphertext<C>>
     where
         C: Split,
     {

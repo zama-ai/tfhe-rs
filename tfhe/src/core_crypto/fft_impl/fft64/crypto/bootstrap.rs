@@ -14,7 +14,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
@@ -72,7 +72,10 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     }
 
     /// Return an iterator over the GGSW ciphertexts composing the key.
-    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
+    pub fn into_ggsw_iter(
+        self,
+    ) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
+           + ExactSizeIterator<Item = FourierGgswCiphertext<C>>
     where
         C: Split,
     {
@@ -197,7 +200,7 @@ impl FourierLweBootstrapKeyMutView<'_> {
         stack: &mut PodStack,
     ) {
         for (fourier_ggsw, standard_ggsw) in
-            izip!(self.as_mut_view().into_ggsw_iter(), coef_bsk.iter())
+            izip_eq!(self.as_mut_view().into_ggsw_iter(), coef_bsk.iter())
         {
             fourier_ggsw.fill_with_forward_fourier(standard_ggsw, fft, stack);
         }
@@ -325,7 +328,8 @@ impl FourierLweBootstrapKeyView<'_> {
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(msed_lwe_mask, self.into_ggsw_iter()) {
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip_eq!(msed_lwe_mask, self.into_ggsw_iter())
+        {
             if lwe_mask_element != 0 {
                 let monomial_degree = MonomialDegree(lwe_mask_element);
 
@@ -335,7 +339,7 @@ impl FourierLweBootstrapKeyView<'_> {
 
                 // We rotate ct_1 and subtract ct_0 (first step of cmux) by performing
                 // ct_1 <- (ct_0 * X^{a_hat}) - ct_0
-                for (mut ct1_poly, ct0_poly) in izip!(
+                for (mut ct1_poly, ct0_poly) in izip_eq!(
                     ct1.as_mut_polynomial_list().iter_mut(),
                     ct0.as_polynomial_list().iter(),
                 ) {
@@ -386,7 +390,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let ciphertext_modulus = lut_list.ciphertext_modulus();
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-        for (mut lut, lwe) in izip!(lut_list.as_mut_view().iter_mut(), msed_lwe_list.iter()) {
+        for (mut lut, lwe) in izip_eq!(lut_list.as_mut_view().iter_mut(), msed_lwe_list.iter()) {
             let msed_lwe_body = lwe.body();
 
             let monomial_degree = MonomialDegree(msed_lwe_body.cast_into());
@@ -414,7 +418,7 @@ impl FourierLweBootstrapKeyView<'_> {
         );
 
         for (idx, bootstrap_key_ggsw) in self.into_ggsw_iter().enumerate() {
-            for (mut ct0, mut ct1, msed_lwe) in izip!(
+            for (mut ct0, mut ct1, msed_lwe) in izip_eq!(
                 ct0_list.as_mut_view().iter_mut(),
                 ct1_list.as_mut_view().iter_mut(),
                 msed_lwe_list.iter()
@@ -431,7 +435,7 @@ impl FourierLweBootstrapKeyView<'_> {
 
                     // We rotate ct_1 and subtract ct_0 (first step of cmux) by performing
                     // ct_1 <- (ct_0 * X^{a_hat}) - ct_0
-                    for (mut ct1_poly, ct0_poly) in izip!(
+                    for (mut ct1_poly, ct0_poly) in izip_eq!(
                         ct1.as_mut_polynomial_list().iter_mut(),
                         ct0.as_polynomial_list().iter(),
                     ) {
@@ -551,7 +555,8 @@ impl FourierLweBootstrapKeyView<'_> {
 
         self.batch_blind_rotate_assign(local_accumulator.as_mut_view(), &lwe_in_msed, fft, stack);
 
-        for (mut lwe_out, local_accumulator) in izip!(lwe_out.iter_mut(), local_accumulator.iter())
+        for (mut lwe_out, local_accumulator) in
+            izip_eq!(lwe_out.iter_mut(), local_accumulator.iter())
         {
             extract_lwe_sample_from_glwe_ciphertext(
                 &local_accumulator,
