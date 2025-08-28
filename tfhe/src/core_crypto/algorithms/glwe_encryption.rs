@@ -728,8 +728,11 @@ pub fn encrypt_glwe_ciphertext_list<
     Gen: ByteRandomGenerator,
 {
     assert!(
-        output_glwe_ciphertext_list.polynomial_size().0
-            * output_glwe_ciphertext_list.glwe_ciphertext_count().0
+        output_glwe_ciphertext_list
+            .polynomial_size()
+            .0
+            .checked_mul(output_glwe_ciphertext_list.glwe_ciphertext_count().0)
+            .unwrap()
             == input_plaintext_list.plaintext_count().0,
         "Mismatch between required number of plaintexts: {} ({:?} * {:?}) and input \
         PlaintextCount: {:?}",
@@ -1349,7 +1352,11 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator<
         output.glwe_size().to_glwe_dimension(),
     );
     assert!(
-        output.glwe_ciphertext_count().0 * output.polynomial_size().0
+        output
+            .glwe_ciphertext_count()
+            .0
+            .checked_mul(output.polynomial_size().0)
+            .unwrap()
             == encoded.plaintext_count().0,
         "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts while {:?} plaintexts are required to encrypt {:?} ciphertexts.",
