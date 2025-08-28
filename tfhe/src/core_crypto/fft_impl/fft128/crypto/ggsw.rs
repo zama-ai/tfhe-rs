@@ -113,6 +113,9 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
             decomposition_level_count,
         );
         assert_eq!(data_re0.container_len(), container_len);
+        assert_eq!(data_re1.container_len(), container_len);
+        assert_eq!(data_im0.container_len(), container_len);
+        assert_eq!(data_im1.container_len(), container_len);
 
         Self {
             data_re0,
