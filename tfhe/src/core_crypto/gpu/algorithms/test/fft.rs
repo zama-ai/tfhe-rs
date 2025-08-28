@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::{
     fourier_transform_backward_as_torus_f128_async, fourier_transform_forward_as_torus_f128_async,
@@ -53,7 +53,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             cuda_synchronize_device(0);
         }
 
-        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+        for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS <= 64 {
                 assert_eq!(*expected, *actual);
             } else {

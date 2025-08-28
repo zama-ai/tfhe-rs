@@ -11,7 +11,7 @@
 
 use super::super::super::c64;
 use super::TwistiesView;
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -178,7 +178,7 @@ pub fn convert_forward_integer_u32_v4(
             let w_re = pulp::as_arrays::<8, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<8, _>(twisties.im).0;
 
-            for (out, &in_re, &in_im, &w_re, &w_im) in izip!(out, in_re, in_im, w_re, w_im) {
+            for (out, &in_re, &in_im, &w_re, &w_im) in izip_eq!(out, in_re, in_im, w_re, w_im) {
                 let in_re = pulp::cast(in_re);
                 let in_im = pulp::cast(in_im);
                 let w_re = pulp::cast(w_re);
@@ -270,7 +270,7 @@ pub fn convert_forward_integer_u64_v4(
             let w_re = pulp::as_arrays::<8, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<8, _>(twisties.im).0;
 
-            for (out, &in_re, &in_im, &w_re, &w_im) in izip!(out, in_re, in_im, w_re, w_im) {
+            for (out, &in_re, &in_im, &w_re, &w_im) in izip_eq!(out, in_re, in_im, w_re, w_im) {
                 let in_re = pulp::cast(in_re);
                 let in_im = pulp::cast(in_im);
                 let w_re = pulp::cast(w_re);
@@ -363,7 +363,7 @@ pub fn convert_forward_integer_u32_v3(
             let w_re = pulp::as_arrays::<4, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<4, _>(twisties.im).0;
 
-            for (out, &in_re, &in_im, &w_re, &w_im) in izip!(out, in_re, in_im, w_re, w_im) {
+            for (out, &in_re, &in_im, &w_re, &w_im) in izip_eq!(out, in_re, in_im, w_re, w_im) {
                 let in_re = pulp::cast(in_re);
                 let in_im = pulp::cast(in_im);
                 let w_re = pulp::cast(w_re);
@@ -456,7 +456,7 @@ pub fn convert_forward_integer_u64_avx2_v3(
             let w_re = pulp::as_arrays::<4, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<4, _>(twisties.im).0;
 
-            for (out, &in_re, &in_im, &w_re, &w_im) in izip!(out, in_re, in_im, w_re, w_im) {
+            for (out, &in_re, &in_im, &w_re, &w_im) in izip_eq!(out, in_re, in_im, w_re, w_im) {
                 let in_re = pulp::cast(in_re);
                 let in_im = pulp::cast(in_im);
                 let w_re = pulp::cast(w_re);
@@ -604,7 +604,7 @@ pub fn convert_add_backward_torus_u32_v4(
             let w_re = pulp::as_arrays::<8, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<8, _>(twisties.im).0;
 
-            for (out_re, out_im, &inp, &w_re, &w_im) in izip!(out_re, out_im, inp, w_re, w_im) {
+            for (out_re, out_im, &inp, &w_re, &w_im) in izip_eq!(out_re, out_im, inp, w_re, w_im) {
                 let inp = pulp::cast::<_, [__m512d; 2]>(inp);
                 let w_re = pulp::cast(w_re);
                 let w_im = pulp::cast(w_im);
@@ -690,7 +690,7 @@ pub fn convert_add_backward_torus_u64_v4(
             let w_re = pulp::as_arrays::<8, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<8, _>(twisties.im).0;
 
-            for (out_re, out_im, &inp, &w_re, &w_im) in izip!(out_re, out_im, inp, w_re, w_im) {
+            for (out_re, out_im, &inp, &w_re, &w_im) in izip_eq!(out_re, out_im, inp, w_re, w_im) {
                 let inp = pulp::cast::<_, [__m512d; 2]>(inp);
                 let w_re = pulp::cast(w_re);
                 let w_im = pulp::cast(w_im);
@@ -832,7 +832,7 @@ pub fn convert_add_backward_torus_u32_v3(
             let w_re = pulp::as_arrays::<4, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<4, _>(twisties.im).0;
 
-            for (out_re, out_im, &inp, &w_re, &w_im) in izip!(out_re, out_im, inp, w_re, w_im) {
+            for (out_re, out_im, &inp, &w_re, &w_im) in izip_eq!(out_re, out_im, inp, w_re, w_im) {
                 let inp = pulp::cast::<_, [__m128d; 4]>(inp);
                 let w_re = pulp::cast(w_re);
                 let w_im = pulp::cast(w_im);
@@ -917,7 +917,7 @@ pub fn convert_add_backward_torus_u64_v3(
             let w_re = pulp::as_arrays::<4, _>(twisties.re).0;
             let w_im = pulp::as_arrays::<4, _>(twisties.im).0;
 
-            for (out_re, out_im, &inp, &w_re, &w_im) in izip!(out_re, out_im, inp, w_re, w_im) {
+            for (out_re, out_im, &inp, &w_re, &w_im) in izip_eq!(out_re, out_im, inp, w_re, w_im) {
                 let inp = pulp::cast::<_, [__m128d; 4]>(inp);
                 let w_re = pulp::cast(w_re);
                 let w_im = pulp::cast(w_im);

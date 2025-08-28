@@ -7,7 +7,7 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::ntt::ntt64::{Ntt64, Ntt64View};
 use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, PolynomialSize};
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{lwe_ciphertext_modulus_switch, ModulusSwitchedLweCiphertext};
 use aligned_vec::CACHELINE_ALIGN;
@@ -234,7 +234,8 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<OutputCont, KeyCont>(
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(msed_lwe_mask, bsk.into_ggsw_iter()) {
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip_eq!(msed_lwe_mask, bsk.into_ggsw_iter())
+        {
             if lwe_mask_element != 0 {
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
@@ -623,7 +624,7 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                 //
                 //        t = 1                           t = 2                     ...
 
-                izip!(
+                izip_eq!(
                     ggsw_decomp_matrix.into_rows(),
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
@@ -657,7 +658,7 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
         //
         // We iterate over the polynomials in the output.
         if !is_output_uninit {
-            izip!(
+            izip_eq!(
                 out.as_mut_polynomial_list().iter_mut(),
                 output_fft_buffer
                     .into_chunks(poly_size)
@@ -689,7 +690,7 @@ pub(crate) fn cmux_ntt64_bnf_assign(
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
     ) {
-        izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+        izip_eq!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
             *c1 = c1.wrapping_sub(*c0);
         });
         add_external_product_ntt64_bnf_assign(ct0, ggsw, &ct1, ntt, stack);
@@ -711,7 +712,7 @@ pub(crate) fn update_with_fmadd_ntt64_bnf(
         output_fft_buffer.fill(0);
     }
 
-    izip!(
+    izip_eq!(
         output_fft_buffer.into_chunks(poly_size),
         lhs_polynomial_list.into_chunks(poly_size)
     )
