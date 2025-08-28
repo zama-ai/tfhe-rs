@@ -147,7 +147,7 @@ public:
     auto cache_of_stream = cache.find(stream);
     if (cache_of_stream != cache.end()) {
       auto cache_of_size = cache_of_stream->second.find(size);
-      if (cache_of_size != cache_of_stream->end() &&
+      if (cache_of_size != cache_of_stream->second.end() &&
           !cache_of_size->second.empty()) {
         auto cached_alloc = cache_of_size->second.front();
         cache_of_size->second.pop_front();
