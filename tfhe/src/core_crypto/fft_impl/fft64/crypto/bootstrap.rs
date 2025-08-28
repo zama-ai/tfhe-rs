@@ -193,6 +193,9 @@ pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, S
 impl FourierLweBootstrapKeyMutView<'_> {
     /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
     /// domain.
+    ///
+    /// # Panics
+    /// This will panic if self and coeff_bsk are not of the same size
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
         mut self,
         coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
