@@ -521,7 +521,7 @@ pub fn test_cmux_tree() {
             level,
         );
         for (&single_bit_msg, mut fourier_ggsw) in
-            izip!(vec_message.iter(), ggsw_list.as_mut_view().into_ggsw_iter())
+            izip_eq!(vec_message.iter(), ggsw_list.as_mut_view().into_ggsw_iter())
         {
             let mut ggsw = GgswCiphertextOwned::new(
                 0_u64,

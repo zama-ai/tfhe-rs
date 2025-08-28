@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 pub use crate::core_crypto::fft_impl::fft128::math::fft::Fft128View;
 use dyn_stack::PodStack;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -819,7 +819,7 @@ pub fn convert_forward_integer_avx2(
             let in_im_hi = pulp::as_arrays::<4, _>(in_im_hi).0;
 
             for (out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi) in
-                izip!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
+                izip_eq!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
             {
                 let out_re =
                     to_signed_to_f128_avx2(simd, (pulp::cast(*in_re_lo), pulp::cast(*in_re_hi)));
@@ -899,7 +899,7 @@ pub fn convert_forward_integer_avx512(
             let in_im_hi = pulp::as_arrays::<8, _>(in_im_hi).0;
 
             for (out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi) in
-                izip!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
+                izip_eq!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
             {
                 let out_re =
                     to_signed_to_f128_avx512(simd, (pulp::cast(*in_re_lo), pulp::cast(*in_re_hi)));
@@ -938,7 +938,7 @@ pub fn convert_forward_integer_scalar(
     in_im_hi: &[u64],
 ) {
     for (out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi) in
-        izip!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
+        izip_eq!(out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi)
     {
         let out_re = to_signed_to_f128((*in_re_lo, *in_re_hi));
         let out_im = to_signed_to_f128((*in_im_lo, *in_im_hi));
@@ -990,7 +990,7 @@ pub fn convert_add_backward_torus_scalar(
 ) {
     let norm = 1.0 / in_re0.len() as f64;
     for (out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1) in
-        izip!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
+        izip_eq!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
     {
         let in_re = f128(*in_re0 * norm, *in_re1 * norm);
         let in_im = f128(*in_im0 * norm, *in_im1 * norm);
@@ -1056,7 +1056,7 @@ pub fn convert_add_backward_torus_avx2(
             let in_im1 = pulp::as_arrays::<4, _>(in_im1).0;
 
             for (out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1) in
-                izip!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
+                izip_eq!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
             {
                 let in_re = (
                     simd.mul_f64x4(pulp::cast(*in_re0), norm),
@@ -1149,7 +1149,7 @@ pub fn convert_add_backward_torus_avx512(
             let in_im1 = pulp::as_arrays::<8, _>(in_im1).0;
 
             for (out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1) in
-                izip!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
+                izip_eq!(out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1)
             {
                 let in_re = (
                     simd.mul_f64x8(pulp::cast(*in_re0), norm),

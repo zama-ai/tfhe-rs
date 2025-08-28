@@ -5,7 +5,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, IntoContainerOwned, Split,
 };
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::experimental::entities::PseudoGgswCiphertext;
 use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel;
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
@@ -159,7 +159,10 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
     }
 
     /// Return an iterator over the rows of the level matrices.
-    pub fn into_rows(self) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelRow<C>>
+    pub fn into_rows(
+        self,
+    ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelRow<C>>
+           + ExactSizeIterator<Item = PseudoFourierGgswLevelRow<C>>
     where
         C: Split,
     {
@@ -278,7 +281,7 @@ impl PseudoFourierGgswCiphertextMutView<'_> {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
 
-        for (fourier_poly, coef_poly) in izip!(
+        for (fourier_poly, coef_poly) in izip_eq!(
             self.data().into_chunks(fourier_poly_size),
             coef_ggsw.as_polynomial_list().iter()
         ) {

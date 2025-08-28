@@ -288,7 +288,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswLevelMatrix
     }
 
     /// Return an iterator over the rows of the level matrices.
-    pub fn into_rows(self) -> impl DoubleEndedIterator<Item = NttGgswLevelRow<C>>
+    pub fn into_rows(
+        self,
+    ) -> impl DoubleEndedIterator<Item = NttGgswLevelRow<C>> + ExactSizeIterator<Item = NttGgswLevelRow<C>>
     where
         C: Split,
     {

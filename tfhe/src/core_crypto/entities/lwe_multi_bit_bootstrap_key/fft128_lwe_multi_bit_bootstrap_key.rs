@@ -6,7 +6,7 @@ use crate::core_crypto::commons::parameters::{
     PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, Split};
-use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::Fourier128GgswCiphertext;
 use crate::core_crypto::prelude::MultiBitBootstrapKeyConformanceParams;
 
@@ -77,7 +77,7 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
         let ggsw_count =
             multi_bit_lwe_dim.0 * self.grouping_factor().ggsw_per_multi_bit_element().0;
 
-        izip!(
+        izip_eq!(
             self.data_re0.split_into(ggsw_count),
             self.data_re1.split_into(ggsw_count),
             self.data_im0.split_into(ggsw_count),

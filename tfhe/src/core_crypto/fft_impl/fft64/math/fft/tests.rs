@@ -34,7 +34,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
         fft.backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack);
 
-        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+        for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
                 assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
@@ -48,7 +48,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
         fft.add_backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack);
 
-        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+        for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
                 assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
@@ -62,7 +62,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
         fft.add_backward_in_place_as_torus(roundtrip.as_mut_view(), fourier.as_mut_view(), stack);
 
-        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+        for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
                 assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
@@ -119,7 +119,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             };
 
             let integer_magnitude = 16;
-            for (x, y) in izip!(poly0.as_mut().iter_mut(), poly1.as_mut().iter_mut()) {
+            for (x, y) in izip_eq!(poly0.as_mut().iter_mut(), poly1.as_mut().iter_mut()) {
                 *x = generator.random_uniform();
                 *y = generator.random_uniform();
                 *y >>= Scalar::BITS - integer_magnitude;
@@ -135,7 +135,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack);
             fft.forward_as_integer(fourier1.as_mut_view(), poly1.as_view(), stack);
 
-            for (f0, f1) in izip!(&mut *fourier0.data, &*fourier1.data) {
+            for (f0, f1) in izip_eq!(&mut *fourier0.data, &*fourier1.data) {
                 *f0 *= *f1;
             }
 
@@ -152,7 +152,7 @@ fn test_product<Scalar: UnsignedTorus>() {
                 stack,
             );
 
-            for (expected, actual) in izip!(
+            for (expected, actual) in izip_eq!(
                 convolution_from_naive.as_ref().iter(),
                 convolution_from_fft.as_ref().iter()
             ) {
@@ -174,7 +174,7 @@ fn test_product<Scalar: UnsignedTorus>() {
                 stack,
             );
 
-            for (expected, actual) in izip!(
+            for (expected, actual) in izip_eq!(
                 convolution_from_naive.as_ref().iter(),
                 convolution_from_fft.as_ref().iter()
             ) {
@@ -198,7 +198,7 @@ fn test_product<Scalar: UnsignedTorus>() {
                 stack,
             );
 
-            for (expected, actual) in izip!(
+            for (expected, actual) in izip_eq!(
                 convolution_from_naive.as_ref().iter(),
                 convolution_from_fft.as_ref().iter()
             ) {
