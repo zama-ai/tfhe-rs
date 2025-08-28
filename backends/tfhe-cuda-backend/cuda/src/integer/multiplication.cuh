@@ -94,18 +94,10 @@ __global__ inline void radix_vec_to_columns(uint32_t *const *const columns,
   columns_counter[idx] = cnt;
 }
 
-template <typename Torus>
-__global__ inline void prepare_new_columns_and_pbs_indexes(
+__global__ inline void prepare_new_columns(
     uint32_t *const *const new_columns, uint32_t *const new_columns_counter,
-    Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
-    Torus *const lut_indexes, const uint32_t *const *const columns,
-    const uint32_t *const columns_counter, const uint32_t chunk_size) {
-  __shared__ uint32_t counter;
-
-  if (threadIdx.x == 0) {
-    counter = 0;
-  }
-  __syncthreads();
+    const uint32_t *const *const columns, const uint32_t *const columns_counter,
+    const uint32_t chunk_size) {
 
   const uint32_t base_id = threadIdx.x;
   const uint32_t column_len = columns_counter[base_id];
@@ -116,13 +108,8 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
     // for message ciphertexts in and out index should be same
     const uint32_t in_index = columns[base_id][i];
     new_columns[base_id][ct_count] = in_index;
-    const uint32_t pbs_index = atomicAdd(&counter, 1);
-    pbs_indexes_in[pbs_index] = in_index;
-    pbs_indexes_out[pbs_index] = in_index;
-    lut_indexes[pbs_index] = 0;
     ++ct_count;
   }
-  __syncthreads();
 
   if (base_id > 0) {
     const uint32_t prev_base_id = base_id - 1;
@@ -132,13 +119,8 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
       // those indexes are for carry ciphertexts
       // for carry ciphertexts input is same as for message
       // output will be placed to next block in the column
-      const uint32_t in_index = columns[prev_base_id][i];
       const uint32_t out_index = columns[prev_base_id][i + 1];
       new_columns[base_id][ct_count] = out_index;
-      const uint32_t pbs_index = atomicAdd(&counter, 1);
-      pbs_indexes_in[pbs_index] = in_index;
-      pbs_indexes_out[pbs_index] = out_index;
-      lut_indexes[pbs_index] = 1;
       ++ct_count;
     }
   }
@@ -150,16 +132,6 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
   }
 
   new_columns_counter[base_id] = ct_count;
-}
-
-template <typename Torus>
-__global__ inline void prepare_final_pbs_indexes(
-    Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
-    Torus *const lut_indexes, const uint32_t num_radix_blocks) {
-  int idx = threadIdx.x;
-  pbs_indexes_in[idx] = idx % num_radix_blocks;
-  pbs_indexes_out[idx] = idx + idx / num_radix_blocks;
-  lut_indexes[idx] = idx / num_radix_blocks;
 }
 
 template <typename Torus>
@@ -367,8 +339,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       num_radix_in_vec);
 
   bool needs_processing = false;
-  radix_columns current_columns(current_blocks->degrees, num_radix_blocks,
-                                num_radix_in_vec, chunk_size, needs_processing);
+  radix_columns<Torus> current_columns(current_blocks->degrees,
+                                       num_radix_blocks, num_radix_in_vec,
+                                       chunk_size, needs_processing);
   int number_of_threads = std::min(256, (int)mem_ptr->params.polynomial_size);
   int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
@@ -380,20 +353,32 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     auto luts_message_carry = mem_ptr->luts_message_carry;
     auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
     auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
+    cuda_set_device(gpu_indexes[0]);
     calculate_chunks<Torus>
         <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
             chunk_size, big_lwe_size);
 
-    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0, streams[0]>>>(
-        d_new_columns, d_new_columns_counter, d_pbs_indexes_in,
-        d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0), d_columns,
-        d_columns_counter, chunk_size);
+    prepare_new_columns<<<1, num_radix_blocks, 0, streams[0]>>>(
+        d_new_columns, d_new_columns_counter, d_columns, d_columns_counter,
+        chunk_size);
 
-    uint32_t total_ciphertexts;
-    uint32_t total_messages;
-    current_columns.next_accumulation(total_ciphertexts, total_messages,
+    uint32_t total_ciphertexts = 0;
+    uint32_t total_messages = 0;
+    current_columns.next_accumulation(luts_message_carry->h_lwe_indexes_in,
+                                      luts_message_carry->h_lwe_indexes_out,
+                                      luts_message_carry->h_lut_indexes,
+                                      total_ciphertexts, total_messages,
                                       needs_processing);
+    luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
+                                        luts_message_carry->h_lwe_indexes_in,
+                                        luts_message_carry->h_lwe_indexes_out);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        luts_message_carry->get_lut_indexes(0, 0),
+        luts_message_carry->h_lut_indexes,
+        luts_message_carry->num_blocks * sizeof(Torus), streams[0],
+        gpu_indexes[0], true);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
     if (active_gpu_count == 1) {
@@ -415,42 +400,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           total_ciphertexts, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);
     } else {
-      Torus *h_lwe_indexes_in_pinned;
-      Torus *h_lwe_indexes_out_pinned;
-      cudaMallocHost((void **)&h_lwe_indexes_in_pinned,
-                     total_ciphertexts * sizeof(Torus));
-      cudaMallocHost((void **)&h_lwe_indexes_out_pinned,
-                     total_ciphertexts * sizeof(Torus));
-      for (uint32_t i = 0; i < total_ciphertexts; i++) {
-        h_lwe_indexes_in_pinned[i] = luts_message_carry->h_lwe_indexes_in[i];
-        h_lwe_indexes_out_pinned[i] = luts_message_carry->h_lwe_indexes_out[i];
-      }
-      cuda_memcpy_async_to_cpu(
-          h_lwe_indexes_in_pinned, luts_message_carry->lwe_indexes_in,
-          total_ciphertexts * sizeof(Torus), streams[0], gpu_indexes[0]);
-      cuda_memcpy_async_to_cpu(
-          h_lwe_indexes_out_pinned, luts_message_carry->lwe_indexes_out,
-          total_ciphertexts * sizeof(Torus), streams[0], gpu_indexes[0]);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-      for (uint32_t i = 0; i < total_ciphertexts; i++) {
-        luts_message_carry->h_lwe_indexes_in[i] = h_lwe_indexes_in_pinned[i];
-        luts_message_carry->h_lwe_indexes_out[i] = h_lwe_indexes_out_pinned[i];
-      }
-      cudaFreeHost(h_lwe_indexes_in_pinned);
-      cudaFreeHost(h_lwe_indexes_out_pinned);
-
-      luts_message_carry->broadcast_lut(streams, gpu_indexes);
-      luts_message_carry->using_trivial_lwe_indexes = false;
-
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, current_blocks, current_blocks, bsks,
           ksks, ms_noise_reduction_key, luts_message_carry, total_ciphertexts);
     }
-    cuda_set_device(gpu_indexes[0]);
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
   }
 
+  cuda_set_device(gpu_indexes[0]);
   calculate_final_chunk_into_radix<Torus>
       <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
           (Torus *)(radix_lwe_out->ptr), (Torus *)(current_blocks->ptr),
@@ -460,10 +418,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     auto luts_message_carry = mem_ptr->luts_message_carry;
     auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
     auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
-    prepare_final_pbs_indexes<Torus>
-        <<<1, 2 * num_radix_blocks, 0, streams[0]>>>(
-            d_pbs_indexes_in, d_pbs_indexes_out,
-            luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
+    auto h_pbs_indexes_in = mem_ptr->luts_message_carry->h_lwe_indexes_in;
+    auto h_pbs_indexes_out = mem_ptr->luts_message_carry->h_lwe_indexes_out;
+    auto h_lut_indexes = mem_ptr->luts_message_carry->h_lut_indexes;
+    current_columns.final_calculation(luts_message_carry->h_lwe_indexes_in,
+                                      luts_message_carry->h_lwe_indexes_out,
+                                      luts_message_carry->h_lut_indexes);
+    mem_ptr->luts_message_carry->set_lwe_indexes(
+        streams[0], gpu_indexes[0], h_pbs_indexes_in, h_pbs_indexes_out);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        luts_message_carry->get_lut_indexes(0, 0), h_lut_indexes,
+        2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0], true);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes);
 
     set_zero_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], current_blocks, num_radix_blocks,
@@ -490,38 +456,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           2 * num_radix_blocks, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);
     } else {
-      uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
-      Torus *h_lwe_indexes_in_pinned;
-      Torus *h_lwe_indexes_out_pinned;
-      cudaMallocHost((void **)&h_lwe_indexes_in_pinned,
-                     num_blocks_in_apply_lut * sizeof(Torus));
-      cudaMallocHost((void **)&h_lwe_indexes_out_pinned,
-                     num_blocks_in_apply_lut * sizeof(Torus));
-      for (uint32_t i = 0; i < num_blocks_in_apply_lut; i++) {
-        h_lwe_indexes_in_pinned[i] = luts_message_carry->h_lwe_indexes_in[i];
-        h_lwe_indexes_out_pinned[i] = luts_message_carry->h_lwe_indexes_out[i];
-      }
-      cuda_memcpy_async_to_cpu(
-          h_lwe_indexes_in_pinned, luts_message_carry->lwe_indexes_in,
-          num_blocks_in_apply_lut * sizeof(Torus), streams[0], gpu_indexes[0]);
-      cuda_memcpy_async_to_cpu(
-          h_lwe_indexes_out_pinned, luts_message_carry->lwe_indexes_out,
-          num_blocks_in_apply_lut * sizeof(Torus), streams[0], gpu_indexes[0]);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-      for (uint32_t i = 0; i < num_blocks_in_apply_lut; i++) {
-        luts_message_carry->h_lwe_indexes_in[i] = h_lwe_indexes_in_pinned[i];
-        luts_message_carry->h_lwe_indexes_out[i] = h_lwe_indexes_out_pinned[i];
-      }
-      cudaFreeHost(h_lwe_indexes_in_pinned);
-      cudaFreeHost(h_lwe_indexes_out_pinned);
-
-      luts_message_carry->broadcast_lut(streams, gpu_indexes);
-      luts_message_carry->using_trivial_lwe_indexes = false;
-
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, active_gpu_count, current_blocks, radix_lwe_out,
           bsks, ksks, ms_noise_reduction_key, luts_message_carry,
-          num_blocks_in_apply_lut);
+          2 * num_radix_blocks);
     }
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
