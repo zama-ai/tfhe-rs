@@ -145,7 +145,7 @@ pub mod shortint_params_aliases {
 
     pub const BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         NoiseSquashingCompressionParameters =
-        V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     #[cfg(feature = "hpu")]
     // KS PBS Gaussian for Hpu
