@@ -32,7 +32,7 @@ pub mod shortint_params {
     use tfhe::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
     use tfhe::shortint::{
         AtomicPatternParameters, CarryModulus, ClassicPBSParameters, MessageModulus,
-        MultiBitPBSParameters,
+        MultiBitPBSParameters, PBSParameters,
     };
 
     pub const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
@@ -206,6 +206,11 @@ pub mod shortint_params {
 
     #[cfg(feature = "internal-keycache")]
     pub use shortint_params_keycache::*;
+    use tfhe::shortint::parameters::{
+        CompactPublicKeyEncryptionParameters, CompressionParameters,
+        NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+        ShortintKeySwitchingParameters,
+    };
 
     pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
@@ -392,6 +397,155 @@ pub mod shortint_params {
                 Some((*p, *name))
             })
             .collect()
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct ParamsGroup {
+        base: PBSParameters,
+        cpke: Option<CompactPublicKeyEncryptionParameters>,
+        compression: Option<CompressionParameters>,
+        cast: Option<ShortintKeySwitchingParameters>,
+        noise_squash: Option<NoiseSquashingParameters>,
+        noise_squash_compression: Option<NoiseSquashingCompressionParameters>,
+    }
+
+    impl crate::params::ParamsGroup {
+        pub fn base(&self) -> PBSParameters {
+            self.base
+        }
+
+        pub fn cpke(&self) -> Option<CompactPublicKeyEncryptionParameters> {
+            self.cpke
+        }
+
+        pub fn compression(&self) -> Option<CompressionParameters> {
+            self.compression
+        }
+
+        pub fn cast(&self) -> Option<ShortintKeySwitchingParameters> {
+            self.cast
+        }
+
+        pub fn noise_squash(&self) -> Option<NoiseSquashingParameters> {
+            self.noise_squash
+        }
+
+        pub fn noise_squash_compression(&self) -> Option<NoiseSquashingCompressionParameters> {
+            self.noise_squash_compression
+        }
+    }
+
+    struct ParamsGroupBuilder {
+        params_group: crate::params::ParamsGroup,
+    }
+
+    impl ParamsGroupBuilder {
+        pub fn new(base_params: PBSParameters) -> Self {
+            Self {
+                params_group: crate::params::ParamsGroup {
+                    base: base_params,
+                    cpke: None,
+                    compression: None,
+                    cast: None,
+                    noise_squash: None,
+                    noise_squash_compression: None,
+                },
+            }
+        }
+
+        pub fn cpke(mut self, params: CompactPublicKeyEncryptionParameters) -> Self {
+            self.params_group.cpke = Some(params);
+            self
+        }
+
+        pub fn compression(mut self, params: CompressionParameters) -> Self {
+            self.params_group.compression = Some(params);
+            self
+        }
+
+        pub fn cast(mut self, params: ShortintKeySwitchingParameters) -> Self {
+            self.params_group.cast = Some(params);
+            self
+        }
+
+        pub fn noise_squash(mut self, params: NoiseSquashingParameters) -> Self {
+            self.params_group.noise_squash = Some(params);
+            self
+        }
+
+        pub fn noise_squash_compression(
+            mut self,
+            params: NoiseSquashingCompressionParameters,
+        ) -> Self {
+            self.params_group.noise_squash_compression = Some(params);
+            self
+        }
+
+        pub fn build(self) -> crate::params::ParamsGroup {
+            self.params_group
+        }
+    }
+
+    pub fn get_classical_tuniform_groups() -> Vec<crate::params::ParamsGroup> {
+        // TODO Complete parameters groups once corresponding parameters set are available.
+        vec![
+            ParamsGroupBuilder::new(BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into())
+                .build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into())
+                .cpke(BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .compression(BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .cast(BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .noise_squash(BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .noise_squash_compression(
+                    BENCH_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into())
+                .build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into())
+                .build(),
+        ]
+    }
+
+    pub fn get_multi_bit_tuniform_groups() -> Vec<crate::params::ParamsGroup> {
+        // TODO Complete parameters groups once corresponding parameters set are available.
+        vec![
+            // Group 2
+            // CPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+            // GPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+            // Group 3
+            // CPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+            // GPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+            // Group 4
+            // CPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+            // GPU ---
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into())
+                .compression(BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .noise_squash(BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into()).build(),
+            ParamsGroupBuilder::new(BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into()).build(),
+        ]
     }
 }
 

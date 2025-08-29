@@ -1,3 +1,4 @@
+use benchmark::params::get_classical_tuniform_groups;
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 use std::fs::{File, OpenOptions};
@@ -8,8 +9,8 @@ use tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::server_key::{StandardServerKey, StandardServerKeyView};
 use tfhe::shortint::{
-    ClassicPBSParameters, ClientKey, CompactPrivateKey, CompressedCompactPublicKey,
-    CompressedKeySwitchingKey, CompressedServerKey, PBSParameters,
+    ClientKey, CompactPrivateKey, CompressedCompactPublicKey, CompressedKeySwitchingKey,
+    CompressedServerKey, PBSParameters,
 };
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -20,21 +21,38 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 
 fn client_server_key_sizes(results_file: &Path) {
     let shortint_params_vec: Vec<PBSParameters> = vec![
+        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
         BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128.into(),
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
         BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.into(),
         BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128.into(),
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
+        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
     ];
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()
@@ -157,124 +175,131 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
     println!("Measuring shortint key sizes:");
 
-    let param_fhe = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_fhe_name = param_fhe.name();
-    let cks = ClientKey::new(param_fhe);
-    let compressed_sks = CompressedServerKey::new(&cks);
-    let sks = StandardServerKey::try_from(compressed_sks.decompress()).unwrap();
+    for group in get_classical_tuniform_groups().iter() {
+        let param_fhe = group.base();
+        println!(
+            "---- Base parameters set : {}",
+            param_fhe.name().to_lowercase()
+        );
 
-    let std_compressed_ap_key = match &compressed_sks.compressed_ap_server_key {
-        CompressedAtomicPatternServerKey::Standard(
-            compressed_standard_atomic_pattern_server_key,
-        ) => compressed_standard_atomic_pattern_server_key,
-        CompressedAtomicPatternServerKey::KeySwitch32(_) => {
-            panic!("KS32 is unsupported to measure key sizes at the moment")
+        let param_fhe_name = param_fhe.name();
+        let cks = ClientKey::new(param_fhe);
+        let compressed_sks = CompressedServerKey::new(&cks);
+        let sks = StandardServerKey::try_from(compressed_sks.decompress()).unwrap();
+
+        let std_compressed_ap_key = match &compressed_sks.compressed_ap_server_key {
+            CompressedAtomicPatternServerKey::Standard(
+                compressed_standard_atomic_pattern_server_key,
+            ) => compressed_standard_atomic_pattern_server_key,
+            CompressedAtomicPatternServerKey::KeySwitch32(_) => {
+                panic!("KS32 is unsupported to measure key sizes at the moment")
+            }
+        };
+
+        measure_serialized_size(
+            &sks.atomic_pattern.key_switching_key,
+            param_fhe,
+            &param_fhe_name,
+            "ksk",
+            "KSK",
+            &mut file,
+        );
+        measure_serialized_size(
+            std_compressed_ap_key.key_switching_key(),
+            param_fhe,
+            &param_fhe_name,
+            "ksk_compressed",
+            "KSK",
+            &mut file,
+        );
+
+        measure_serialized_size(
+            &sks.atomic_pattern.bootstrapping_key,
+            param_fhe,
+            &param_fhe_name,
+            "bsk",
+            "BSK",
+            &mut file,
+        );
+        measure_serialized_size(
+            &std_compressed_ap_key.bootstrapping_key(),
+            param_fhe,
+            &param_fhe_name,
+            "bsk_compressed",
+            "BSK",
+            &mut file,
+        );
+
+        if let Some(param_pke) = group.cpke() {
+            let param_pke_name = param_pke.name();
+            let compact_private_key = CompactPrivateKey::new(param_pke);
+            let compressed_pk = CompressedCompactPublicKey::new(&compact_private_key);
+            let pk = compressed_pk.decompress();
+
+            measure_serialized_size(&pk, param_pke, &param_pke_name, "cpk", "CPK", &mut file);
+            measure_serialized_size(
+                &compressed_pk,
+                param_pke,
+                &param_pke_name,
+                "cpk_compressed",
+                "CPK",
+                &mut file,
+            );
+
+            if let Some(param_casting) = group.cast() {
+                let param_casting_name = param_casting.name();
+                let compressed_casting_key = CompressedKeySwitchingKey::new(
+                    (&compact_private_key, None),
+                    (&cks, &compressed_sks),
+                    param_casting,
+                );
+                let casting_key = compressed_casting_key.decompress();
+
+                measure_serialized_size(
+                    &casting_key.into_raw_parts().0,
+                    param_casting,
+                    &param_casting_name,
+                    "casting_key",
+                    "CastKey",
+                    &mut file,
+                );
+                measure_serialized_size(
+                    &compressed_casting_key.into_raw_parts().0,
+                    param_casting,
+                    &param_casting_name,
+                    "casting_key_compressed",
+                    "CastKey",
+                    &mut file,
+                );
+            }
         }
-    };
 
-    measure_serialized_size(
-        &sks.atomic_pattern.key_switching_key,
-        <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
-        &param_fhe_name,
-        "ksk",
-        "KSK",
-        &mut file,
-    );
-    measure_serialized_size(
-        std_compressed_ap_key.key_switching_key(),
-        <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
-        &param_fhe_name,
-        "ksk_compressed",
-        "KSK",
-        &mut file,
-    );
+        if let Some(param_compression) = group.compression() {
+            let param_compression_name = param_compression.name();
+            let params_tuple = (param_compression, param_fhe);
 
-    measure_serialized_size(
-        &sks.atomic_pattern.bootstrapping_key,
-        <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
-        &param_fhe_name,
-        "bsk",
-        "BSK",
-        &mut file,
-    );
-    measure_serialized_size(
-        &std_compressed_ap_key.bootstrapping_key(),
-        <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
-        &param_fhe_name,
-        "bsk_compressed",
-        "BSK",
-        &mut file,
-    );
+            let private_compression_key = cks.new_compression_private_key(param_compression);
+            let (compression_key, decompression_key) =
+                cks.new_compression_decompression_keys(&private_compression_key);
 
-    let param_pke = BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_pke_name = param_pke.name();
-    let compact_private_key = CompactPrivateKey::new(param_pke);
-    let compressed_pk = CompressedCompactPublicKey::new(&compact_private_key);
-    let pk = compressed_pk.decompress();
-
-    measure_serialized_size(&pk, param_pke, &param_pke_name, "cpk", "CPK", &mut file);
-    measure_serialized_size(
-        &compressed_pk,
-        param_pke,
-        &param_pke_name,
-        "cpk_compressed",
-        "CPK",
-        &mut file,
-    );
-
-    let param_compression = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_compression_name = param_compression.name();
-    let params_tuple = (
-        param_compression,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    );
-
-    let private_compression_key = cks.new_compression_private_key(param_compression);
-    let (compression_key, decompression_key) =
-        cks.new_compression_decompression_keys(&private_compression_key);
-
-    measure_serialized_size(
-        &compression_key,
-        params_tuple,
-        &param_compression_name,
-        "compression_key",
-        "CompressionKey",
-        &mut file,
-    );
-    measure_serialized_size(
-        &decompression_key,
-        params_tuple,
-        &param_compression_name,
-        "decompression_key",
-        "CompressionKey",
-        &mut file,
-    );
-
-    let param_casting = BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_casting_name = param_casting.name();
-    let compressed_casting_key = CompressedKeySwitchingKey::new(
-        (&compact_private_key, None),
-        (&cks, &compressed_sks),
-        param_casting,
-    );
-    let casting_key = compressed_casting_key.decompress();
-
-    measure_serialized_size(
-        &casting_key.into_raw_parts().0,
-        param_casting,
-        &param_casting_name,
-        "casting_key",
-        "CastKey",
-        &mut file,
-    );
-    measure_serialized_size(
-        &compressed_casting_key.into_raw_parts().0,
-        param_casting,
-        &param_casting_name,
-        "casting_key_compressed",
-        "CastKey",
-        &mut file,
-    );
+            measure_serialized_size(
+                &compression_key,
+                params_tuple,
+                &param_compression_name,
+                "compression_key",
+                "CompressionKey",
+                &mut file,
+            );
+            measure_serialized_size(
+                &decompression_key,
+                params_tuple,
+                &param_compression_name,
+                "decompression_key",
+                "CompressionKey",
+                &mut file,
+            );
+        }
+    }
 }
 
 fn main() {
