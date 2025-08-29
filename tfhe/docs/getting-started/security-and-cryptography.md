@@ -95,7 +95,15 @@ For example, when adding two ciphertexts, the sum could exceed the range of eith
 
 ## Security
 
-By default, the cryptographic parameters provided by **TFHE-rs** ensure at least 128 bits of security. The security has been evaluated using the latest versions of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.RC.BDGL16`.
+By default, the cryptographic parameters provided by **TFHE-rs** ensure at least 128 bits of security. The security has been evaluated using the latest version of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.MATZOV` which is currently the default cost model. To estimate the security of a TFHE-rs parameter set such as `V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128`, the Lattice Estimator can be called in the following way:
+
+```
+from estimator import *
+params_lwe = LWE.Parameters(n=879, q=2**64, Xs=ND.Binary, Xe=ND.TUniform(46))
+LWE.estimate(params_lwe, deny_list=("arora-gb", "bkw"))
+```
+
+The output corresponds to a selection of attack costs (`usvp`, `bdd`, etc), each with running time `rop`. The security level is the `log2` of the smallest `rop` value (in this case `dual_hybrid` with `2^134.8`). Therefore, the security level of this parameter set is ~134 bits. The same technique can be applied to the GLWE parameters by replacing the LWE dimension `879` by `k*N = 512*4`, i.e. `n=2048` and `Xe=ND.TUniform(46)` by `Xe = ND.TUniform(17)`.
 
 For the High-Level API the default parameters are selected with a bootstrapping failure probability (or error probability) fixed at $$p_{error} \le 2^{-128}$$ for the x86 CPU backend, and $$p_{error} \le 2^{-64}$$ for the GPU backend.
 A failure probability below $$2^{-128}$$ ensures that our implementation is resilient against attacks in the IND-CPA-D model [1]. In the case where only the IND-CPA model is considered, there is a possibility to choose parameters with a $$p_{error} \le 2^{-64}$$, see the dedicated [Parameters section](../fhe-computation/compute/parameters.md)
