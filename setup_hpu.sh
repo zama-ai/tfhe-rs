@@ -5,7 +5,7 @@ CUR_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 HPU_BACKEND_DIR=$CUR_SCRIPT_DIR/backends/tfhe-hpu-backend
 HPU_MOCKUP_DIR=$CUR_SCRIPT_DIR/mockups/tfhe-hpu-mockup
 
-# Default default bitstream
+# Default bitstream
 # Available options are:
 #  * sim: use with the mockup (i.e simulation)
 #  * u55c: use with u55c (latest bitstream with gf64 config)
