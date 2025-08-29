@@ -289,7 +289,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
     ) -> u64;
 }
 unsafe extern "C" {

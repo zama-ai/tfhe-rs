@@ -75,7 +75,7 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_128(
     int8_t **mem_ptr, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
     uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory);
 
 void cuda_integer_compress_radix_ciphertext_128(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
