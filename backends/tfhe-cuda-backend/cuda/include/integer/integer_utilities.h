@@ -4597,6 +4597,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                   uint32_t num_blocks, bool allocate_gpu_memory,
                                   uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
+    active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
     this->params = params;
 
     uint32_t compute_overflow = 1;
@@ -4666,6 +4667,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+
+    printf("2_2 release\n");
     // release and delete integer ops memory objects
     overflow_sub_mem_1->release(streams, gpu_indexes, gpu_count);
     overflow_sub_mem_2->release(streams, gpu_indexes, gpu_count);
@@ -4739,12 +4742,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_3_overflowed,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], comparison_blocks_1,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], comparison_blocks_2,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], comparison_blocks_3,
-                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   comparison_blocks_1, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   comparison_blocks_2, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   comparison_blocks_3, gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_1,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_2,
@@ -5097,14 +5100,17 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                               int_radix_params params, uint32_t num_blocks,
                               bool allocate_gpu_memory,
                               uint64_t &size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+    active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
+    this->params = params;
+
     if (params.message_modulus == 4 && params.carry_modulus == 4) {
       div_rem_2_2_mem = new unsigned_int_div_rem_2_2_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_blocks,
           allocate_gpu_memory, size_tracker);
+      return;
     }
-    gpu_memory_allocated = allocate_gpu_memory;
-    active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
-    this->params = params;
+
     shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(
         streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
@@ -5247,6 +5253,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+
+    if (params.message_modulus == 4 && params.carry_modulus == 4) {
+      div_rem_2_2_mem->release(streams, gpu_indexes, gpu_count);
+      delete div_rem_2_2_mem;
+      return;
+    }
     uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
 
     // release and delete other operation memory objects
@@ -5260,10 +5272,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     delete overflow_sub_mem;
     delete comparison_buffer;
 
-    if (params.message_modulus == 4 && params.carry_modulus == 4) {
-      div_rem_2_2_mem->release(streams, gpu_indexes, gpu_count);
-      delete div_rem_2_2_mem;
-    }
     // drop temporary buffers
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], remainder1,
                                    gpu_memory_allocated);
