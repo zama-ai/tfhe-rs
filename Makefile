@@ -1291,6 +1291,13 @@ bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-zk-pok --
 
+.PHONY: bench_hlapi_noise_squash # Run benchmarks for noise squash operation
+bench_hlapi_noise_squash: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-noise-squash \
+	--features=shortint,integer,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+
 #
 # Utility tools
 #
