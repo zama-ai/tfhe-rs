@@ -156,7 +156,7 @@ required-features = ["shortint", "internal-keycache"]
 
 [[bin]]
 name = "hlapi_compact_pk_ct_sizes"
-path = "src/bin/hlapi_compact_pk_ct_sizes.rs"
+path = "src/bin/hlapi_ct_sizes.rs"
 required-features = ["integer", "internal-keycache"]
 
 [[bin]]
