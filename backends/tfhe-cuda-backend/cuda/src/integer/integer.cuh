@@ -1712,6 +1712,7 @@ __host__ void reduce_signs(
           "than the number of blocks to operate on")
 
   auto diff_buffer = mem_ptr->diff_buffer;
+  auto active_gpu_count = mem_ptr->active_gpu_count;
 
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
@@ -1741,7 +1742,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, reduce_two_orderings_function, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
@@ -1772,7 +1773,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, final_lut_f, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
                        num_sign_blocks, message_modulus);
@@ -1792,7 +1793,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, final_lut_f, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, signs_array_out, signs_a, bsks, ksks,
@@ -1818,7 +1819,8 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }
@@ -1855,7 +1857,8 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }
@@ -1892,7 +1895,8 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }

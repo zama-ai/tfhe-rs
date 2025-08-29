@@ -107,8 +107,10 @@ template <typename Torus> struct int_decompression {
         effective_compression_carry_modulus, encryption_params.message_modulus,
         encryption_params.carry_modulus, decompression_rescale_f,
         gpu_memory_allocated);
-
-    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_gpu_count =
+        get_active_gpu_count(num_blocks_to_decompress, gpu_count);
+    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes,
+                                             active_gpu_count);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {

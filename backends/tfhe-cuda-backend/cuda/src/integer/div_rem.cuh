@@ -311,8 +311,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
           mem_ptr->scalars_for_overflow_sub
               [merged_interesting_remainder->num_radix_blocks - 1];
       mem_ptr->overflow_sub_mem->update_lut_indexes(
-          streams, gpu_indexes, first_indexes, second_indexes, scalar_indexes,
-          merged_interesting_remainder->num_radix_blocks);
+          streams, gpu_indexes, gpu_count, first_indexes, second_indexes,
+          scalar_indexes, merged_interesting_remainder->num_radix_blocks);
       host_integer_overflowing_sub<uint64_t>(
           streams, gpu_indexes, gpu_count, new_remainder,
           merged_interesting_remainder, interesting_divisor,
