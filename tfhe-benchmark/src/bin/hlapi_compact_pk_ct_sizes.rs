@@ -1,3 +1,4 @@
+use benchmark::params::{get_classical_tuniform_groups, get_multi_bit_tuniform_groups};
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json, OperatorType};
 use rand::Rng;
@@ -6,13 +7,159 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
+use tfhe::prelude::{FheEncrypt, SquashNoise};
 use tfhe::shortint::PBSParameters;
-use tfhe::{generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder};
+use tfhe::{
+    generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey,
+    CompressedCiphertextListBuilder, CompressedFheUint64, CompressedServerKey,
+    CompressedSquashedNoiseCiphertextList, ConfigBuilder, FheUint64,
+};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
     let error_message = format!("cannot write {name} result into file");
     file.write_all(line.as_bytes()).expect(&error_message);
+}
+
+pub fn ct_sizes(results_file: &Path) {
+    let mut rng = rand::thread_rng();
+
+    File::create(results_file).expect("create results file failed");
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(results_file)
+        .expect("cannot open results file");
+
+    let operator = OperatorType::Atomic;
+
+    let params_groups = [
+        get_classical_tuniform_groups(),
+        get_multi_bit_tuniform_groups(),
+    ]
+    .concat();
+
+    for group in params_groups.iter() {
+        let param_fhe = group.base();
+
+        if param_fhe.message_modulus().0 > 4 {
+            println!(
+                "Skipping {} because message modulus is too large",
+                param_fhe.name()
+            );
+            continue;
+        }
+
+        println!(
+            "Ciphertext sizes for: {} and {} ciphertext",
+            param_fhe.name(),
+            stringify!(FheUint64)
+        );
+
+        let mut config = ConfigBuilder::default().use_custom_parameters(param_fhe);
+
+        if let Some(comp_params) = group.compression() {
+            config = config.enable_compression(comp_params);
+        }
+        if let Some(ns_params) = group.noise_squash() {
+            config = config.enable_noise_squashing(ns_params);
+        }
+        if let Some(ns_comp_params) = group.noise_squash_compression() {
+            config = config.enable_noise_squashing_compression(ns_comp_params);
+        }
+        if let (Some(cpke_params), Some(cast_params)) = (group.cpke(), group.cast()) {
+            config = config.use_dedicated_compact_public_key_parameters((cpke_params, cast_params));
+        }
+
+        let config = config.build();
+
+        println!("Generating keys...");
+        let (client_key, _) = generate_keys(config);
+
+        let compressed_sks = CompressedServerKey::new(&client_key);
+        set_server_key(compressed_sks.decompress());
+
+        let params_record = param_fhe;
+
+        let mut write_and_record_result = |res: usize, test_name: &str, display_name: &str| {
+            write_result(&mut file, test_name, res);
+            write_to_json::<u64, _>(
+                test_name,
+                params_record,
+                param_fhe.name(),
+                display_name,
+                &operator,
+                0,
+                vec![],
+            );
+        };
+
+        let plaintext = rng.gen::<u64>();
+
+        let test_name = format!("hlapi_ct_size::{}", param_fhe.name());
+        let regular_ct = FheUint64::encrypt(plaintext, &client_key);
+        let regular_ct_size = bincode::serialize(&regular_ct).unwrap().len();
+        println!("\t* Regular CT: {regular_ct_size} bytes");
+        write_and_record_result(regular_ct_size, &test_name, "ct-size");
+
+        let test_name = format!("hlapi_seeded_ct_size::{}", param_fhe.name());
+        let seeded_ct = CompressedFheUint64::encrypt(plaintext, &client_key);
+        let seeded_ct_size = bincode::serialize(&seeded_ct).unwrap().len();
+        println!("\t* Seeded CT: {seeded_ct_size} bytes");
+        write_and_record_result(seeded_ct_size, &test_name, "seeded-ct-size");
+
+        let test_name = format!("hlapi_ms_compressed_ct_size::{}", param_fhe.name());
+        let ms_compressed_ct = regular_ct.compress();
+        let ms_compressed_ct_size = bincode::serialize(&ms_compressed_ct).unwrap().len();
+        println!("\t* Compressed with ModSwitch only CT: {ms_compressed_ct_size} bytes");
+        write_and_record_result(ms_compressed_ct_size, &test_name, "ms-compressed-ct-size");
+
+        if group.compression().is_some() {
+            let test_name = format!("hlapi_compressed_ct_size::{}", param_fhe.name());
+            let compressed_ct = CompressedCiphertextListBuilder::new()
+                .push(regular_ct.clone())
+                .build()
+                .unwrap();
+            let compressed_ct_size = bincode::serialize(&compressed_ct).unwrap().len();
+            println!("\t* Compressed CT: {compressed_ct_size} bytes");
+            write_and_record_result(compressed_ct_size, &test_name, "compressed-ct-size");
+        }
+
+        if group.noise_squash().is_some() {
+            let test_name = format!("hlapi_sns_ct_size::{}", param_fhe.name());
+            let sns_ct = regular_ct.squash_noise().unwrap();
+            let sns_ct_size = bincode::serialize(&sns_ct).unwrap().len();
+            println!("\t* SNS CT: {sns_ct_size} bytes");
+            write_and_record_result(sns_ct_size, &test_name, "sns-ct-size");
+
+            if group.noise_squash_compression().is_some() {
+                let test_name = format!("hlapi_compressed_sns_ct_size::{}", param_fhe.name());
+                let compressed_sns_ct = CompressedSquashedNoiseCiphertextList::builder()
+                    .push(sns_ct)
+                    .build()
+                    .unwrap();
+                let compressed_sns_ct_size = bincode::serialize(&compressed_sns_ct).unwrap().len();
+                println!("\t* Compressed SNS CT: {compressed_sns_ct_size} bytes");
+                write_and_record_result(
+                    compressed_sns_ct_size,
+                    &test_name,
+                    "compressed-sns-ct-size",
+                );
+            }
+        }
+
+        if group.cpke().is_some() {
+            let test_name = format!("hlapi_cpk_ct_size::{}", param_fhe.name());
+            let public_key = CompactPublicKey::new(&client_key);
+            let cpk_ct = CompactCiphertextList::builder(&public_key)
+                .push(plaintext)
+                .build();
+            let cpk_ct_size = bincode::serialize(&cpk_ct).unwrap().len();
+            println!("\t* CPK CT: {cpk_ct_size} bytes");
+            write_and_record_result(cpk_ct_size, &test_name, "cpk-ct-size");
+        }
+    }
 }
 
 pub fn cpk_and_cctl_sizes(results_file: &Path) {
@@ -140,6 +287,7 @@ fn main() {
     new_work_dir.push("tfhe-benchmark");
     std::env::set_current_dir(new_work_dir).unwrap();
 
-    let results_file = Path::new("hlapi_cpk_and_cctl_sizes.csv");
+    let results_file = Path::new("hlapi_ct_key_sizes.csv");
+    ct_sizes(results_file);
     cpk_and_cctl_sizes(results_file)
 }

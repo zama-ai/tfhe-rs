@@ -165,19 +165,6 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
 
-      # Run these benchmarks only once
-      - name: Measure public key and ciphertext sizes in HL Api
-        if:  matrix.browser == 'chrome'
-        run: |
-          make measure_hlapi_compact_pk_ct_sizes
-
-      - name: Parse key and ciphertext sizes results
-        if:  matrix.browser == 'chrome'
-        run: |
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
-          --key-gen \
-          --append-results
-
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
