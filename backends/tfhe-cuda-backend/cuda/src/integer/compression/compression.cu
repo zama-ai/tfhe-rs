@@ -100,7 +100,7 @@ uint64_t scratch_cuda_integer_compress_radix_ciphertext_128(
       pbs_type, compression_glwe_dimension, compression_polynomial_size,
       (compression_glwe_dimension + 1) * compression_polynomial_size,
       lwe_dimension, ks_level, ks_base_log, 0, 0, 0, message_modulus,
-      carry_modulus, allocate_gpu_memory);
+      carry_modulus, PBS_MS_REDUCTION_T::NO_REDUCTION);
 
   return scratch_cuda_compress_integer_radix_ciphertext<__uint128_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
@@ -112,14 +112,15 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_128(
     int8_t **mem_ptr, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
     uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory) {
 
   // 128-bit decompression doesn't run PBSs, so we don't need encryption_params
   int_radix_params compression_params(
       PBS_TYPE::CLASSICAL, compression_glwe_dimension,
       compression_polynomial_size,
       compression_glwe_dimension * compression_polynomial_size, lwe_dimension,
-      0, 0, 0, 0, 0, message_modulus, carry_modulus, allocate_ms_array);
+      0, 0, 0, 0, 0, message_modulus, carry_modulus,
+      PBS_MS_REDUCTION_T::NO_REDUCTION);
 
   return scratch_cuda_integer_decompress_radix_ciphertext<__uint128_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,

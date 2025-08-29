@@ -1081,7 +1081,6 @@ pub unsafe fn decompress_integer_radix_async_128(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         true,
-        false,
     );
 
     cuda_integer_decompress_radix_ciphertext_128(
