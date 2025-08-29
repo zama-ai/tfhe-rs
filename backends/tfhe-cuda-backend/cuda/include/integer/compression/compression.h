@@ -2,27 +2,7 @@
 #define CUDA_INTEGER_COMPRESSION_H
 
 #include "../../pbs/pbs_enums.h"
-
-typedef struct {
-  void *ptr;
-  uint32_t num_radix_blocks;
-  uint32_t lwe_dimension;
-} CudaLweCiphertextListFFI;
-
-typedef struct {
-  void *ptr;
-  uint32_t storage_log_modulus;
-  uint32_t lwe_per_glwe;
-  // Input LWEs are grouped by groups of `lwe_per_glwe`(the last group may be
-  // smaller)
-  // Each group is then packed into one GLWE with `lwe_per_glwe` bodies (one for
-  // each LWE of the group). In the end the total number of bodies is equal to
-  // the number of input LWE
-  uint32_t total_lwe_bodies_count;
-  uint32_t glwe_dimension;
-  uint32_t polynomial_size;
-} CudaPackedGlweCiphertextListFFI;
-
+#include "../integer.h"
 extern "C" {
 uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
