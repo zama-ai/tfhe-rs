@@ -99,6 +99,13 @@ impl SerializationHeader {
 
     /// Checks the validity of the header
     fn validate<T: Named>(&self) -> Result<(), String> {
+        if self.header_version != SERIALIZATION_VERSION {
+            return Err(format!(
+                "On deserialization, expected serialization header version {SERIALIZATION_VERSION}, \
+got version {}", self.header_version
+            ));
+        }
+
         match &self.versioning_mode {
             SerializationVersioningMode::Versioned { versioning_version } => {
                 // For the moment there is only one versioning scheme, so another value is
