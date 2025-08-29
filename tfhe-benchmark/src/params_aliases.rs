@@ -1,8 +1,8 @@
 #[cfg(any(feature = "shortint", feature = "integer"))]
 pub mod shortint_params_aliases {
-    use tfhe::shortint::parameters::current_params::*;
     #[cfg(feature = "hpu")]
     use tfhe::shortint::parameters::KeySwitch32PBSParameters;
+    use tfhe::shortint::parameters::{current_params::*, KeySwitch32PBSParameters};
     use tfhe::shortint::parameters::{
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
         MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
@@ -31,6 +31,13 @@ pub mod shortint_params_aliases {
 
     pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 140] =
         VEC_ALL_CLASSIC_PBS_PARAMETERS;
+
+    // KS32
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
+        V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+
+    pub const BENCH_ALL_KS32_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] =
+        VEC_ALL_KS32_PARAMETERS;
 
     // MultiBit
     // CPU Gaussian

@@ -62,7 +62,7 @@ jobs:
       - name: Set benchmark types
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          echo "OP_FLAVOR=[\"fast_default\"]" >> "${GITHUB_ENV}"
           if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
