@@ -20,9 +20,12 @@ pub const V1_4_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M1
 /// p-fail = 2^-131.073, algorithmic cost ~ 10902, 2-norm = 17
 pub const V1_4_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128: MultiBitPBSParameters = crate::shortint::parameters::v1_1::V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128;
 /// p-fail = 2^-128.034, algorithmic cost ~ 76, 2-norm = 3
+/// Parameters found gaussian:  {'l_ks': 4, 'l_bs': 1, 'k': 1, 'N': 2048, 'y': 164, 'b_ks': 8, 'b_bs': 4194304}
+// Failure probability: (225113738.63843, 68.541808, 1.0584085770481941e-10)
+// pfail -33
 pub const V1_4_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(736),
+    lwe_dimension: LweDimension(656),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
