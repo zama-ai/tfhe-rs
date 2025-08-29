@@ -567,8 +567,6 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
     cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
     for (int j = 1; j < active_gpu_count; j++) {
       cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
@@ -580,7 +578,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
+        lut->using_trivial_lwe_indexes, lut->non_trivial_setup,
+        lut->lwe_aligned_vec, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -605,7 +604,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     multi_gpu_gather_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, (Torus *)lwe_array_out->ptr,
         lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        num_radix_blocks, big_lwe_dimension + 1);
+        lut->non_trivial_setup, lut->lwe_aligned_vec, num_radix_blocks,
+        big_lwe_dimension + 1);
     POP_RANGE()
     // other gpus record their events
     for (int j = 1; j < active_gpu_count; j++) {
@@ -616,11 +616,6 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
                              gpu_indexes[0]);
     }
-
-    // /// Synchronize all GPUs
-    // for (uint i = 0; i < active_gpu_count; i++) {
-    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-    // }
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -690,7 +685,6 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
     for (int j = 1; j < active_gpu_count; j++) {
       cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
@@ -701,7 +695,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
+        lut->using_trivial_lwe_indexes, lut->non_trivial_setup,
+        lut->lwe_aligned_vec, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -739,10 +734,6 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
       cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
                              gpu_indexes[0]);
     }
-    // /// Synchronize all GPUs
-    // for (uint i = 0; i < active_gpu_count; i++) {
-    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-    // }
   }
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
@@ -826,7 +817,6 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
-    // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
     for (int j = 1; j < active_gpu_count; j++) {
       cuda_stream_wait_event(streams[j], lut->event_scatter_in, gpu_indexes[j]);
@@ -835,7 +825,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
         (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->active_gpu_count, num_radix_blocks,
+        lut->using_trivial_lwe_indexes, lut->non_trivial_setup,
+        lut->lwe_aligned_vec, lut->active_gpu_count, num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -860,7 +851,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     multi_gpu_gather_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, (Torus *)(lwe_array_out->ptr),
         lwe_after_pbs_vec, lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        num_radix_blocks, big_lwe_dimension + 1);
+        lut->non_trivial_setup, lut->lwe_aligned_vec, num_radix_blocks,
+        big_lwe_dimension + 1);
     POP_RANGE()
     // other gpus record their events
     for (int j = 1; j < active_gpu_count; j++) {
@@ -871,11 +863,6 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
       cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
                              gpu_indexes[0]);
     }
-
-    // /// Synchronize all GPUs
-    // for (uint i = 0; i < active_gpu_count; i++) {
-    //   cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-    // }
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -1712,6 +1699,7 @@ __host__ void reduce_signs(
           "than the number of blocks to operate on")
 
   auto diff_buffer = mem_ptr->diff_buffer;
+  auto active_gpu_count = mem_ptr->active_gpu_count;
 
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
@@ -1741,7 +1729,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, reduce_two_orderings_function, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
@@ -1772,7 +1760,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, final_lut_f, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
                        num_sign_blocks, message_modulus);
@@ -1792,7 +1780,7 @@ __host__ void reduce_signs(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, final_lut_f, true);
-    lut->broadcast_lut(streams, gpu_indexes);
+    lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, signs_array_out, signs_a, bsks, ksks,
@@ -1818,7 +1806,8 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }
@@ -1855,7 +1844,8 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }
@@ -1892,7 +1882,8 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  (*mem_ptr)->broadcast_lut(streams, gpu_indexes);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, active_gpu_count);
   POP_RANGE()
   return size_tracker;
 }
@@ -2408,7 +2399,8 @@ __host__ void integer_radix_apply_noise_squashing_kb(
     multi_gpu_scatter_lwe_async<InputTorus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
         (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->active_gpu_count,
+        lut->using_trivial_lwe_indexes, lut->non_trivial_setup,
+        lut->lwe_aligned_scatter_vec, lut->active_gpu_count,
         lwe_array_out->num_radix_blocks, lut->input_big_lwe_dimension + 1);
 
     execute_keyswitch_async<InputTorus>(
@@ -2432,7 +2424,8 @@ __host__ void integer_radix_apply_noise_squashing_kb(
     multi_gpu_gather_lwe_async<__uint128_t>(
         streams, gpu_indexes, active_gpu_count,
         (__uint128_t *)lwe_array_out->ptr, lwe_after_pbs_vec, nullptr,
-        lut->using_trivial_lwe_indexes, lwe_array_out->num_radix_blocks,
+        lut->using_trivial_lwe_indexes, lut->non_trivial_setup,
+        lut->lwe_aligned_gather_vec, lwe_array_out->num_radix_blocks,
         big_lwe_dimension + 1);
 
     /// Synchronize all GPUs

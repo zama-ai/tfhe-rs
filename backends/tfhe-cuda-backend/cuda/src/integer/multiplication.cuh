@@ -416,7 +416,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           lut_stride);
     } else {
 
-      luts_message_carry->broadcast_lut(streams, gpu_indexes);
+      // we just need to broadcast the indexes
+      luts_message_carry->broadcast_lut(streams, gpu_indexes, active_gpu_count,
+                                        false);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -468,8 +470,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           lut_stride);
     } else {
       uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
-
-      luts_message_carry->broadcast_lut(streams, gpu_indexes);
+      // we just need to broadcast the indexes
+      luts_message_carry->broadcast_lut(streams, gpu_indexes, active_gpu_count,
+                                        false);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
