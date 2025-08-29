@@ -38,6 +38,19 @@ void multi_gpu_copy_array_async(cudaStream_t const *streams,
         gpu_indexes[i], gpu_memory_allocated);
   }
 }
+/// Copy an array residing on one CPU to all active gpus
+template <typename Torus>
+void multi_gpu_copy_array_from_cpu_async(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, std::vector<Torus *> &dest, Torus const *h_src,
+    uint32_t elements_per_gpu, bool gpu_memory_allocated) {
+  dest.resize(gpu_count);
+  for (uint i = 0; i < gpu_count; i++) {
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        dest[i], h_src, elements_per_gpu * sizeof(Torus), streams[i],
+        gpu_indexes[i], gpu_memory_allocated);
+  }
+}
 /// Allocates the input/output vector for all devices
 /// Initializes also the related indexing and initializes it to the trivial
 /// index
@@ -93,10 +106,13 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
   }
 }
 
-// Each block handles one lwe
+// This function reads lwes using the indexes and place them in a single aligned
+// array. This function is needed before communication to perform a single
+// contiguous data movement. Each block handles one lwe.
 template <typename Torus>
-__global__ void pack_data(Torus *d_packed_vector, Torus const *d_vector,
-                          Torus const *d_indexes, int lwe_size) {
+__global__ void align_with_indexes(Torus *d_packed_vector,
+                                   Torus const *d_vector,
+                                   Torus const *d_indexes, int lwe_size) {
 
   int output_offset = blockIdx.x * lwe_size;
   int input_offset = d_indexes[blockIdx.x] * lwe_size;
@@ -105,10 +121,12 @@ __global__ void pack_data(Torus *d_packed_vector, Torus const *d_vector,
   }
 }
 
-// Each block handles one lwe
+// This function takes the aligned array after communication and places it in
+// the corresponding indexes. Each block handles one lwe.
 template <typename Torus>
-__global__ void unpack_data(Torus *d_vector, Torus const *d_packed_vector,
-                            Torus const *d_indexes, int lwe_size) {
+__global__ void realign_with_indexes(Torus *d_vector,
+                                     Torus const *d_packed_vector,
+                                     Torus const *d_indexes, int lwe_size) {
 
   int input_offset = blockIdx.x * lwe_size;
   int output_offset = d_indexes[blockIdx.x] * lwe_size;
@@ -128,13 +146,13 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
                                  Torus const *src, Torus const *d_src_indexes,
                                  bool is_trivial_index,
+                                 std::vector<Torus *> &aligned_vec,
                                  uint32_t max_active_gpu_count,
                                  uint32_t num_inputs, uint32_t lwe_size) {
 
   if (max_active_gpu_count < gpu_count)
     PANIC("Cuda error: number of gpus in scatter should be <= number of gpus "
           "used to create the lut")
-  // cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
@@ -151,28 +169,28 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
           gpu_indexes[i], true);
 
     } else {
+      if (aligned_vec.size() == 0)
+        PANIC("Cuda error: auxiliary arrays should be setup!");
+
       if (d_src_indexes == nullptr)
         PANIC("Cuda error: source indexes should be initialized!");
-      Torus *d_packed_vector = (Torus *)cuda_malloc_async(
-          inputs_on_gpu * lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
 
       cudaEvent_t temp_event2 = cuda_create_event(gpu_indexes[0]);
-
-      pack_data<Torus><<<inputs_on_gpu, 1024, 0, streams[0]>>>(
-          d_packed_vector, (Torus *)src, (Torus *)d_src_indexes + gpu_offset,
+      cuda_set_device(gpu_indexes[0]);
+      align_with_indexes<Torus><<<inputs_on_gpu, 1024, 0, streams[0]>>>(
+          aligned_vec[i], (Torus *)src, (Torus *)d_src_indexes + gpu_offset,
           lwe_size);
       check_cuda_error(cudaGetLastError());
       cuda_event_record(temp_event2, streams[0], gpu_indexes[0]);
       cuda_stream_wait_event(streams[i], temp_event2, gpu_indexes[i]);
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          dest[i], d_packed_vector, inputs_on_gpu * lwe_size * sizeof(Torus),
+          dest[i], aligned_vec[i], inputs_on_gpu * lwe_size * sizeof(Torus),
           streams[i], gpu_indexes[i], true);
 
       cudaEvent_t temp_event = cuda_create_event(gpu_indexes[i]);
       cuda_event_record(temp_event, streams[i], gpu_indexes[i]);
       cuda_stream_wait_event(streams[0], temp_event, gpu_indexes[0]);
-      cuda_drop_async(d_packed_vector, streams[0], gpu_indexes[0]);
     }
   }
 }
@@ -185,6 +203,7 @@ void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
                                 uint32_t const *gpu_indexes, uint32_t gpu_count,
                                 Torus *dest, const std::vector<Torus *> &src,
                                 Torus *d_dest_indexes, bool is_trivial_index,
+                                std::vector<Torus *> &aligned_vec,
                                 uint32_t num_inputs, uint32_t lwe_size) {
 
   for (uint i = 0; i < gpu_count; i++) {
@@ -202,30 +221,27 @@ void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
           d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
           gpu_indexes[i], true);
     } else {
+      if (aligned_vec.size() == 0)
+        PANIC("Cuda error: auxiliary arrays should be setup!");
       if (d_dest_indexes == nullptr)
         PANIC("Cuda error: destination indexes should be initialized!");
 
-      Torus *d_packed_vector = (Torus *)cuda_malloc_async(
-          inputs_on_gpu * lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
       cudaEvent_t temp_event2 = cuda_create_event(gpu_indexes[0]);
 
       cuda_event_record(temp_event2, streams[0], gpu_indexes[0]);
       cuda_stream_wait_event(streams[i], temp_event2, gpu_indexes[i]);
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          d_packed_vector, src[i], inputs_on_gpu * lwe_size * sizeof(Torus),
+          aligned_vec[i], src[i], inputs_on_gpu * lwe_size * sizeof(Torus),
           streams[i], gpu_indexes[i], true);
-      cudaEvent_t temp_event3 = cuda_create_event(gpu_indexes[i]);
 
+      cudaEvent_t temp_event3 = cuda_create_event(gpu_indexes[i]);
       cuda_event_record(temp_event3, streams[i], gpu_indexes[i]);
       cuda_stream_wait_event(streams[0], temp_event3, gpu_indexes[0]);
-
-      unpack_data<Torus><<<inputs_on_gpu, 1024, 0, streams[0]>>>(
-          dest, d_packed_vector, (Torus *)d_dest_indexes + gpu_offset,
-          lwe_size);
+      cuda_set_device(gpu_indexes[0]);
+      realign_with_indexes<Torus><<<inputs_on_gpu, 1024, 0, streams[0]>>>(
+          dest, aligned_vec[i], (Torus *)d_dest_indexes + gpu_offset, lwe_size);
       check_cuda_error(cudaGetLastError());
-
-      cuda_drop_async(d_packed_vector, streams[0], gpu_indexes[0]);
     }
   }
 }
