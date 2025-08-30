@@ -8,6 +8,7 @@ pub(crate) mod test_comparison;
 mod test_count_zeros_ones;
 pub(crate) mod test_div_mod;
 pub(crate) mod test_ilog2;
+mod test_kv_store;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
