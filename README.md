@@ -45,7 +45,7 @@ production-ready library for all the advanced features of TFHE.
 - **Short integer API** that enables exact, unbounded FHE integer arithmetics with up to 8 bits of message space
 - **Size-efficient public key encryption**
 - **Ciphertext and server key compression** for efficient data transfer
-- **Full Rust API, C bindings to the Rust High-Level API, and client-side Javascript API using WASM**.
+- **Full Rust API, C bindings to the Rust High-Level API, and client-side JavaScript API using WASM**.
 
 *Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
 <br></br>
@@ -79,7 +79,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 ```
 
 > [!Note]
-> Note: You need to use Rust version >= 1.84 to compile TFHE-rs.
+> Note: You need Rust version 1.84 or newer to compile TFHE-rs. You can check your version with `rustc --version`.
 
 > [!Note]
 > Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
@@ -147,7 +147,7 @@ To run this code, use the following command:
 
 > [!Note]
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
-to run in release mode with cargo's `--release` flag to have the best performances possible.
+to run in release mode with cargo's `--release` flag to have the best performance possible.
 
 *Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick-start)*
 
