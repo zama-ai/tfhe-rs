@@ -29,7 +29,7 @@ pub use uniform_binary::*;
 pub use uniform_ternary::*;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 mod gaussian;
 mod generator;
