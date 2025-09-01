@@ -6,6 +6,12 @@
 #include <cuda_profiler_api.h>
 #endif
 
+#ifdef CUDA_STREAM_POOL
+#include <deque>
+#include <mutex>
+#include <unordered_map>
+#endif
+
 uint32_t cuda_get_device() {
   int device;
   check_cuda_error(cudaGetDevice(&device));
@@ -115,18 +121,89 @@ void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index) {
   check_cuda_error(cudaEventDestroy(event));
 }
 
+#ifdef CUDA_STREAM_POOL
+struct CudaBoundStream
+{
+  cudaStream_t stream;
+  uint32_t gpu_index;
+};
+
+class CudaStreamPool
+{
+  std::vector<CudaBoundStream> poolCompute;
+  std::vector<CudaBoundStream> poolTransfer;
+
+  std::mutex mutex_pools;
+
+  size_t nextStream = 0;
+
+  const size_t MAX_STREAMS = 16;
+
+public:
+  cudaStream_t create_stream(uint32_t gpu_index)
+  {
+    std::lock_guard<std::mutex> lock(mutex_pools);
+    if (poolCompute.empty())
+    {
+      poolCompute.reserve(MAX_STREAMS);
+
+      cuda_set_device(gpu_index);
+      for (size_t i = 0; i < MAX_STREAMS; i++)
+      {
+        cudaStream_t stream;
+        check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+        poolCompute.push_back(CudaBoundStream{stream, gpu_index});
+      }
+    }
+
+    PANIC_IF_FALSE(gpu_index == poolCompute[nextStream].gpu_index, "Bad gpu in stream pool");
+    cudaStream_t res = poolCompute[nextStream].stream;
+    nextStream = (nextStream + 1) % poolCompute.size();
+    return res;
+  }
+
+  void destroy_stream(cudaStream_t stream, uint32_t gpu_index)
+  {
+    //do nothing
+  }
+};
+
+
+class CudaMultiStreamPool {
+  std::unordered_map<uint32_t, CudaStreamPool> per_gpu_pools;
+  std::mutex pools_mutex; // for creation of the mem managers
+
+public:
+  CudaStreamPool &get(uint32_t gpu_index) {
+      std::lock_guard<std::mutex> guard(pools_mutex);
+      return per_gpu_pools[gpu_index]; // creates it if it does not exist
+  }
+};
+
+CudaMultiStreamPool gCudaStreamPool;
+#endif
+
+
 /// Unsafe function to create a CUDA stream, must check first that GPU exists
 cudaStream_t cuda_create_stream(uint32_t gpu_index) {
+#ifdef CUDA_STREAM_POOL
+  return gCudaStreamPool.get(gpu_index).create_stream(gpu_index);
+#else
   cuda_set_device(gpu_index);
   cudaStream_t stream;
   check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   return stream;
+#endif
 }
 
 /// Unsafe function to destroy CUDA stream, must check first the GPU exists
 void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index) {
+#ifdef CUDA_STREAM_POOL
+  gCudaStreamPool.get(gpu_index).destroy_stream(stream, gpu_index);
+#else
   cuda_set_device(gpu_index);
   check_cuda_error(cudaStreamDestroy(stream));
+#endif
 }
 
 void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index) {
