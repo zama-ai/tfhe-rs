@@ -4,6 +4,8 @@ use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable, T
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, Numeric, UnsignedInteger};
 use crate::core_crypto::commons::test_tools::*;
+use itertools::Itertools;
+use std::ops::AddAssign;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
     //! test if the normal random generation with std_dev is below 3*std_dev (99.7%)
@@ -432,12 +434,18 @@ fn dkw_cdf_bands_width(number_of_samples: usize, confidence_interval: f64) -> f6
     // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#Building_CDF_bands
     // the true CDF is between the empirical CDF +/- this band width with probability 1 - alpha
     // Said otherwise, the abs diff should be less than that value with high probability
-    fn dkw_cdf_bands_width_formula(sample_size: f64, alpha: f64) -> f64 {
-        f64::sqrt(f64::ln(2.0 / alpha) / (2.0 * sample_size))
-    }
 
     // alpha = 1 - probability of being in the interval
     dkw_cdf_bands_width_formula(number_of_samples as f64, 1.0 - confidence_interval)
+}
+
+pub fn dkw_cdf_bands_width_formula(sample_size: f64, alpha: f64) -> f64 {
+    f64::sqrt(f64::ln(2.0 / alpha) / (2.0 * sample_size))
+}
+
+// https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#The_DKW_inequality
+pub fn dkw_alpha_from_epsilon(sample_size: f64, epsilon: f64) -> f64 {
+    2.0 * (-epsilon * epsilon * (2.0 * sample_size)).exp()
 }
 
 fn test_random_from_distribution_custom_mod<Scalar, D>(
@@ -490,43 +498,22 @@ fn test_random_from_distribution_custom_mod<Scalar, D>(
             }
         }
 
-        let mut cumulative_sums = vec![0u64; distinct_values];
+        let cumulative_bins = cumulate(&bins);
 
-        let mut curr_sum = 0;
-
-        // Compute the cumulative sums
-        for (bin_count, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()) {
-            curr_sum += bin_count;
-            *cum_sum = curr_sum;
-        }
+        let theoretical_cdf: Vec<f64> = (0..distinct_values)
+            .map(|bin_idx| {
+                let integer_value: Scalar =
+                    distribution.map_usize_to_value(bin_idx, ciphertext_modulus);
+                // CDF for the uniform distribution
+                distribution.cumulative_distribution_function(integer_value, ciphertext_modulus)
+            })
+            .collect();
 
         // Inaccurate if modulus >~ 2^53 / number_of_samples_per_bin, but if that's the case your
         // memory most likely blew up before (or the universe died its heat death)
         let number_of_samples = NUMBER_OF_SAMPLES_PER_VALUE * distinct_values;
 
-        let sup_diff: f64 = cumulative_sums
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(bin_idx, x)| {
-                // Compute the observed CDF
-                let empirical_cdf = x as f64 / number_of_samples as f64;
-
-                let integer_value: Scalar =
-                    distribution.map_usize_to_value(bin_idx, ciphertext_modulus);
-                // CDF for the uniform distribution
-                let theoretical_cdf = distribution
-                    .cumulative_distribution_function(integer_value, ciphertext_modulus);
-
-                if theoretical_cdf == 1.0 {
-                    assert_eq!(empirical_cdf, 1.0);
-                }
-
-                let diff = empirical_cdf - theoretical_cdf;
-                diff.abs()
-            })
-            .max_by(f64::total_cmp)
-            .unwrap();
+        let sup_diff = sup_diff(&cumulative_bins, &theoretical_cdf);
 
         let upper_bound_for_cdf_abs_diff =
             dkw_cdf_bands_width(number_of_samples, CONFIDENCE_INTERVAL);
@@ -543,6 +530,36 @@ fn test_random_from_distribution_custom_mod<Scalar, D>(
         nok_ratio <= EXPECTED_NOK_RATE_WITH_TOLERANCE,
         "nok_ratio={nok_ratio}"
     );
+}
+
+pub fn sup_diff(cumulative_bins: &[u64], theoretical_cdf: &[f64]) -> f64 {
+    let number_of_samples = *cumulative_bins.last().unwrap();
+
+    cumulative_bins
+        .iter()
+        .copied()
+        .zip_eq(theoretical_cdf.iter().copied())
+        .map(|(x, theoretical_cdf)| {
+            let empirical_cdf = x as f64 / number_of_samples as f64;
+
+            if theoretical_cdf == 1.0 {
+                assert_eq!(empirical_cdf, 1.0);
+            }
+
+            let diff = empirical_cdf - theoretical_cdf;
+            diff.abs()
+        })
+        .max_by(f64::total_cmp)
+        .unwrap()
+}
+
+pub fn cumulate<T: AddAssign + Default + Copy>(bins: &[T]) -> Vec<T> {
+    bins.iter()
+        .scan(T::default(), |sum, x| {
+            *sum += *x;
+            Some(*sum)
+        })
+        .collect()
 }
 
 impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTestHelper<Scalar>
