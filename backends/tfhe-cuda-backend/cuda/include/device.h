@@ -119,6 +119,8 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
 
 int cuda_get_number_of_gpus();
 
+int cuda_get_number_of_sms();
+
 void cuda_synchronize_device(uint32_t gpu_index);
 
 void cuda_drop(void *ptr, uint32_t gpu_index);
