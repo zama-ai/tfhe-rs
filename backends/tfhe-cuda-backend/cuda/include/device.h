@@ -8,6 +8,15 @@
 #include <cuda_runtime.h>
 #include <vector>
 
+#define CUDA_STREAM_POOL
+
+enum CudaStreamType
+{
+  KEY = 0,
+  ALLOC = 1,
+  TEMP_HELPER = 2,
+};
+
 extern "C" {
 
 #define check_cuda_error(ans)                                                  \
