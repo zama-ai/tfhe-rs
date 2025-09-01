@@ -276,7 +276,9 @@ pub fn sincospi64(mut a: f64) -> (f64, f64) {
     let s = s * t;
     r *= s;
 
-    let mut s = fma(t, f64::consts::PI, r);
+    // Noise analysis has been done based on this precise value
+    #[allow(clippy::approx_constant)]
+    let mut s = fma(t, 3.1415926535897931e+0, r);
     // map results according to quadrant
 
     if (i & 2) != 0 {
