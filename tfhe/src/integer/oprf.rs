@@ -40,7 +40,6 @@ impl ServerKey {
 
         let sk = &self.key;
 
-        assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
         let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
@@ -117,7 +116,6 @@ impl ServerKey {
             "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[", 
         );
 
-        assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
         let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
@@ -153,6 +151,112 @@ impl ServerKey {
             .collect::<Vec<_>>();
 
         RadixCiphertext::from(blocks)
+    }
+
+    /// Generates an encrypted `num_blocks_output` blocks unsigned integer
+    /// taken almost uniformly in [0, excluded_upper_bound[ using the given seed.
+    /// The encrypted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
+    /// The higher num_input_random_bits, the closer to a uniform the distribution will be (at the
+    /// cost of computation time).
+    /// It is recommended to use a multiple of `log2_message_modulus`
+    /// as `num_input_random_bits`
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::Seed;
+    ///
+    /// let size = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
+    ///
+    /// let num_input_random_bits = 5;
+    /// let excluded_upper_bound = 3;
+    /// let num_blocks_output = 8;
+    ///
+    /// let ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+    ///     Seed(0),
+    ///     num_input_random_bits,
+    ///     excluded_upper_bound,
+    ///     num_blocks_output,
+    /// );
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    ///
+    /// assert!(dec_result < excluded_upper_bound);
+    /// ```
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
+        &self,
+        seed: Seed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: u64,
+        num_blocks_output: u64,
+    ) -> RadixCiphertext {
+        assert!(self.message_modulus().0.is_power_of_two());
+        let message_bits_count = self.message_modulus().0.ilog2() as u64;
+
+        assert!(
+            !excluded_upper_bound.is_power_of_two(),
+            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
+        );
+
+        let num_bits_output = num_blocks_output * self.message_modulus().0;
+        assert!((excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32));
+
+        let post_mul_log2_range =
+            num_input_random_bits as f64 + (excluded_upper_bound as f64).log2();
+
+        let num_random_blocks =
+            (num_input_random_bits as f64 / message_bits_count as f64).ceil() as usize;
+
+        let num_blocks = (post_mul_log2_range / message_bits_count as f64).ceil() as usize;
+
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+
+        let seeds: Vec<Seed> = (0..num_random_blocks)
+            .map(|_| deterministic_seeder.seed())
+            .collect();
+
+        let mut in_blocks = seeds
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, seed)| {
+                let i = i as u64;
+
+                // if we generate 5 bits of noise in n blocks of 2 bits, the third (i=2) block
+                // must have only one bit of random
+                let random_bits_count = if num_input_random_bits < (i + 1) * message_bits_count {
+                    let top_message_bits_count = num_input_random_bits - i * message_bits_count;
+
+                    assert!(top_message_bits_count <= message_bits_count);
+
+                    top_message_bits_count
+                } else {
+                    message_bits_count
+                };
+
+                self.key
+                    .generate_oblivious_pseudo_random(seed, random_bits_count)
+            })
+            .collect::<Vec<_>>();
+
+        in_blocks.resize(num_blocks, self.key.create_trivial(0));
+
+        let input = RadixCiphertext::from(in_blocks);
+
+        let before_shift = self.scalar_mul_parallelized(&input, excluded_upper_bound);
+
+        let mut result = self.scalar_right_shift_parallelized(&before_shift, num_input_random_bits);
+
+        // Adjust the number of leading (MSB) trivial zeros blocks
+        result
+            .blocks
+            .resize(num_blocks_output as usize, self.key.create_trivial(0));
+
+        result
     }
 }
 
@@ -250,7 +354,6 @@ impl ServerKey {
             );
         }
 
-        assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
         let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
@@ -291,8 +394,14 @@ impl ServerKey {
 
 #[cfg(test)]
 pub(crate) mod test {
-
+    use crate::core_crypto::commons::math::random::tests::{
+        cumulate, dkw_alpha_from_epsilon, sup_diff,
+    };
+    use crate::integer::keycache::KEY_CACHE;
+    use crate::integer::IntegerKeyKind;
     use crate::shortint::oprf::test::test_uniformity;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use tfhe_csprng::seeders::Seed;
 
     #[test]
@@ -305,9 +414,10 @@ pub(crate) mod test {
 
         let num_blocks = 2;
 
-        use crate::integer::gen_keys_radix;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
+        let (ck, sk) = KEY_CACHE.get_from_params(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            IntegerKeyKind::Radix,
+        );
 
         let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
             test_uniformity(sample_count, p_value_limit, distinct_values, f)
@@ -319,7 +429,7 @@ pub(crate) mod test {
                 random_bits_count,
                 num_blocks as u64,
             );
-            ck.decrypt(&img)
+            ck.decrypt_radix(&img)
         });
 
         test_uniformity(1 << random_bits_count, &|seed| {
@@ -328,7 +438,7 @@ pub(crate) mod test {
                 random_bits_count,
                 num_blocks as u64,
             );
-            let result = ck.decrypt_signed::<i64>(&img);
+            let result = ck.decrypt_signed_radix::<i64>(&img);
 
             assert!(result >= 0);
 
@@ -342,11 +452,109 @@ pub(crate) mod test {
             );
 
             // Move from [-2^(p-1), 2^(p-1)[ to [0, 2^p[ (p = 2 * num_blocks)
-            let result = ck.decrypt_signed::<i64>(&img) + (1 << (2 * num_blocks - 1));
+            let result = ck.decrypt_signed_radix::<i64>(&img) + (1 << (2 * num_blocks - 1));
 
             assert!(result >= 0);
 
             result as u64
         });
+    }
+
+    #[test]
+    fn oprf_test_any_range_ci_run_filter() {
+        let (ck, sk) = KEY_CACHE.get_from_params(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            IntegerKeyKind::Radix,
+        );
+
+        let num_loops = 100;
+
+        for seed in 0..num_loops {
+            let seed = Seed(seed);
+
+            for num_input_random_bits in [1, 2, 63, 64] {
+                for (excluded_upper_bound, num_blocks_output) in
+                    [(3, 1), (3, 32), ((1 << 32) + 1, 64)]
+                {
+                    let img = sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                        seed,
+                        num_input_random_bits,
+                        excluded_upper_bound,
+                        num_blocks_output as u64,
+                    );
+
+                    assert_eq!(img.blocks.len(), num_blocks_output);
+
+                    let decrypted: u64 = ck.decrypt_radix(&img);
+
+                    assert!(decrypted < excluded_upper_bound);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn oprf_test_almost_uniformity_ci_run_filter() {
+        let sample_count: usize = 10_000;
+
+        let p_value_limit: f64 = 0.001;
+
+        let num_input_random_bits: usize = 4;
+
+        let num_blocks_output = 64;
+
+        let excluded_upper_bound = 10;
+
+        let (ck, sk) = KEY_CACHE.get_from_params(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            IntegerKeyKind::Radix,
+        );
+
+        let random_input_upper_bound = 2_f64.powi(num_input_random_bits as i32);
+
+        let mut density = vec![0_usize; excluded_upper_bound];
+
+        for i in 0..1 << num_input_random_bits {
+            let index = ((i * excluded_upper_bound) as f64 / random_input_upper_bound) as usize;
+
+            density[index] += 1;
+        }
+
+        //probability density function
+        let theoretical_pdf: Vec<f64> = density
+            .iter()
+            .map(|count| *count as f64 / random_input_upper_bound)
+            .collect();
+
+        let values: Vec<u64> = (0..sample_count)
+            .into_par_iter()
+            .map(|seed| {
+                let img = sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                    Seed(seed as u128),
+                    num_input_random_bits as u64,
+                    excluded_upper_bound as u64,
+                    num_blocks_output as u64,
+                );
+                ck.decrypt_radix(&img)
+            })
+            .collect();
+
+        let mut bins = vec![0_u64; excluded_upper_bound];
+
+        for value in values {
+            bins[value as usize] += 1;
+        }
+
+        let cumulative_bins = cumulate(&bins);
+
+        let theoretical_cdf = cumulate(&theoretical_pdf);
+
+        let sup_diff = sup_diff(&cumulative_bins, &theoretical_cdf);
+
+        let p_value_upper_bound = dkw_alpha_from_epsilon(sample_count as f64, sup_diff);
+
+        println!("p_value_upper_bound {p_value_upper_bound}");
+
+        assert!(p_value_limit < p_value_upper_bound);
     }
 }
