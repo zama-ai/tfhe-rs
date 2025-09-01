@@ -329,6 +329,13 @@ int cuda_get_number_of_gpus() {
   return num_gpus;
 }
 
+int cuda_get_number_of_sms() {
+  int num_sms = 0;
+  check_cuda_error(
+      cudaDeviceGetAttribute(&num_sms, cudaDevAttrMultiProcessorCount, 0));
+  return num_sms;
+}
+
 /// Drop a cuda array
 void cuda_drop(void *ptr, uint32_t gpu_index) {
   cuda_set_device(gpu_index);
