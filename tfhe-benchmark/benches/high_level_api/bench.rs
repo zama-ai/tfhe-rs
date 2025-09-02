@@ -32,7 +32,12 @@ fn bench_fhe_type<FheType>(
     for<'a> FheType: FheMin<&'a FheType, Output = FheType> + FheMax<&'a FheType, Output = FheType>,
 {
     let mut bench_group = c.benchmark_group(type_name);
-    let bench_prefix = "hlapi::ops";
+    let mut bench_prefix = "hlapi::ops".to_string();
+    if cfg!(feature = "gpu") {
+        bench_prefix = format!("{}::cuda", bench_prefix);
+    } else if cfg!(feature = "hpu") {
+        bench_prefix = format!("{}::hpu", bench_prefix);
+    }
 
     let mut rng = thread_rng();
 
