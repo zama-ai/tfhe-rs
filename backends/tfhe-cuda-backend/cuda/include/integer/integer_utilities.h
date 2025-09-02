@@ -3745,6 +3745,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
   int_radix_lut<Torus> *is_max_value;
+  Torus *preallocated_h_lut;
   bool gpu_memory_allocated;
 
   int_are_all_block_true_buffer(cudaStream_t const *streams,
@@ -3776,7 +3777,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     auto is_max_value_f = [max_value](Torus x) -> Torus {
       return x == max_value;
     };
-
+    preallocated_h_lut = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], is_max_value->get_lut(0, 0),
         is_max_value->get_degree(0), is_max_value->get_max_degree(0),
@@ -3789,11 +3791,13 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_out,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                    tmp_block_accumulated, gpu_memory_allocated);
     is_max_value->release(streams, gpu_indexes, gpu_count);
+    free(preallocated_h_lut);
     delete is_max_value;
     delete tmp_out;
     delete tmp_block_accumulated;
@@ -3909,6 +3913,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
   int_radix_lut<Torus> *tree_last_leaf_scalar_lut;
 
+  Torus *preallocated_h_lut;
   CudaRadixCiphertextFFI *tmp_x;
   CudaRadixCiphertextFFI *tmp_y;
   bool gpu_memory_allocated;
@@ -3944,7 +3949,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_lut =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
                                  allocate_gpu_memory, size_tracker);
-
+    preallocated_h_lut = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     tree_last_leaf_scalar_lut =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
                                  allocate_gpu_memory, size_tracker);
@@ -3960,6 +3966,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_x,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_y,
@@ -3973,6 +3980,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
     delete tmp_x;
     delete tmp_y;
+    free(preallocated_h_lut);
   }
 };
 
@@ -3990,7 +3998,8 @@ template <typename Torus> struct int_comparison_diff_buffer {
   CudaRadixCiphertextFFI *tmp_signs_b;
   int_radix_lut<Torus> *reduce_signs_lut;
   bool gpu_memory_allocated;
-
+  Torus *preallocated_h_lut1;
+  Torus *preallocated_h_lut2;
   int_comparison_diff_buffer(cudaStream_t const *streams,
                              uint32_t const *gpu_indexes, uint32_t gpu_count,
                              COMPARISON_TYPE op, int_radix_params params,
@@ -4036,10 +4045,15 @@ template <typename Torus> struct int_comparison_diff_buffer {
     reduce_signs_lut = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, params, 1, num_radix_blocks,
         allocate_gpu_memory, size_tracker);
+    preallocated_h_lut1 = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+    preallocated_h_lut2 = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_packed,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_signs_a,
@@ -4054,6 +4068,8 @@ template <typename Torus> struct int_comparison_diff_buffer {
     delete tmp_packed;
     delete tmp_signs_a;
     delete tmp_signs_b;
+    free(preallocated_h_lut1);
+    free(preallocated_h_lut2);
   }
 };
 
@@ -4091,6 +4107,7 @@ template <typename Torus> struct int_comparison_buffer {
   cudaStream_t *msb_streams;
   uint32_t active_gpu_count;
   bool gpu_memory_allocated;
+  Torus *preallocated_h_lut;
 
   int_comparison_buffer(cudaStream_t const *streams,
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -4244,6 +4261,8 @@ template <typename Torus> struct int_comparison_buffer {
       auto active_gpu_count = get_active_gpu_count(1, gpu_count);
       signed_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
     }
+    preallocated_h_lut = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -4298,6 +4317,7 @@ template <typename Torus> struct int_comparison_buffer {
     }
     free(lsb_streams);
     free(msb_streams);
+    free(preallocated_h_lut);
   }
 };
 
