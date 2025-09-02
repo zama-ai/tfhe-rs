@@ -14,7 +14,7 @@ env:
 permissions: {}
 
 jobs:
-  integer-benchmarks-hpu:
+  hlapi-benchmarks-hpu:
     name: Execute HLAPI benchmarks for HPU backend
     runs-on: v80-desktop
     concurrency:
@@ -29,7 +29,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -48,12 +48,12 @@ jobs:
           SHA: ${{ github.sha }}
 
       - name: Install rust
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: nightly
 
       - name: Checkout Slab repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           repository: zama-ai/slab
           path: slab
@@ -62,9 +62,11 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          git lfs pull --include="*" --exclude=""
-          make bench_hlapi_hpu
+          make pull_hpu_files
+          export V80_SERIAL_NUMBER=XFL12E4XJXWK
+          source /opt/xilinx/Vivado/2024.2/settings64.sh
           make bench_hlapi_erc20_hpu
+          make bench_hlapi_hpu
 
       - name: Parse results
         run: |
