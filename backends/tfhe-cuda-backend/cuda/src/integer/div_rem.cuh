@@ -131,7 +131,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                             int_borrow_prop_memory<Torus> *overflow_sub_mem,
                             CudaRadixCiphertextFFI *low) {
       sub_result->num_radix_blocks = low->num_radix_blocks;
-      overflow_sub_mem->update_lut_indexes(streams, gpu_indexes, first_indexes,
+      overflow_sub_mem->update_lut_indexes(streams, gpu_indexes, gpu_count, first_indexes,
                                            second_indexes, scalar_indexes,
                                            mem_ptr->rem->num_radix_blocks);
       host_integer_overflowing_sub<uint64_t>(
