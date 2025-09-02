@@ -3766,6 +3766,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
   int_radix_lut<Torus> *is_max_value;
+  Torus* cached_h_lut;
   bool gpu_memory_allocated;
 
   int_are_all_block_true_buffer(cudaStream_t const *streams,
@@ -3797,7 +3798,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     auto is_max_value_f = [max_value](Torus x) -> Torus {
       return x == max_value;
     };
-
+    cached_h_lut = (Torus *)malloc((params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], is_max_value->get_lut(0, 0),
         is_max_value->get_degree(0), is_max_value->get_max_degree(0),
@@ -3815,6 +3816,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                    tmp_block_accumulated, gpu_memory_allocated);
     is_max_value->release(streams, gpu_indexes, gpu_count);
+    free(cached_h_lut);
     delete is_max_value;
     delete tmp_out;
     delete tmp_block_accumulated;
@@ -3930,6 +3932,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
   int_radix_lut<Torus> *tree_last_leaf_scalar_lut;
 
+  Torus* cached_h_lut;
   CudaRadixCiphertextFFI *tmp_x;
   CudaRadixCiphertextFFI *tmp_y;
   bool gpu_memory_allocated;
@@ -3965,7 +3968,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_lut =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
                                  allocate_gpu_memory, size_tracker);
-
+    cached_h_lut = (Torus *)malloc((params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     tree_last_leaf_scalar_lut =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
                                  allocate_gpu_memory, size_tracker);
@@ -3994,6 +3997,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
     delete tmp_x;
     delete tmp_y;
+    free(cached_h_lut);
   }
 };
 

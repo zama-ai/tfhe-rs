@@ -1172,6 +1172,32 @@ void generate_device_accumulator_with_encoding(
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
 }
+template <typename Torus>
+void generate_device_accumulator_with_encoding_with_cache(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t input_message_modulus, uint32_t input_carry_modulus,
+    uint32_t output_message_modulus, uint32_t output_carry_modulus,
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated, Torus* cached_h_lut) {
+
+  // host lut
+  // Torus *h_lut =
+  //     (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+  *max_degree = input_message_modulus * input_carry_modulus - 1;
+  // fill accumulator
+  *degree = generate_lookup_table_with_encoding<Torus>(
+      cached_h_lut, glwe_dimension, polynomial_size, input_message_modulus,
+      input_carry_modulus, output_message_modulus, output_carry_modulus, f);
+
+  // copy host lut and lut_indexes_vec to device
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc, cached_h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      stream, gpu_index, gpu_memory_allocated);
+
+  // cuda_synchronize_stream(stream, gpu_index);
+  // free(h_lut);
+}
 
 /*
  *  generate accumulator for device pointer
@@ -1195,6 +1221,28 @@ void generate_device_accumulator(
   POP_RANGE()
 }
 
+
+/*
+ *  generate accumulator for device pointer
+ *    v_stream - cuda stream
+ *    acc - device pointer for accumulator
+ *    ...
+ *    f - evaluating function with one Torus input
+ */
+template <typename Torus>
+void generate_device_accumulator_with_cache(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated, Torus* cached_h_lut) {
+
+  PUSH_RANGE("gen lut acc")
+  generate_device_accumulator_with_encoding_with_cache(
+      stream, gpu_index, acc, degree, max_degree, glwe_dimension,
+      polynomial_size, message_modulus, carry_modulus, message_modulus,
+      carry_modulus, f, gpu_memory_allocated, cached_h_lut);
+  POP_RANGE()
+}
 /*
  *  generate many lut accumulator for device pointer
  *    v_stream - cuda stream
