@@ -1140,6 +1140,41 @@ void generate_device_accumulator_bivariate_with_factor(
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
 }
+/*
+ *  generate bivariate accumulator for device pointer
+ *  using preallocated host lut to avoid blocking the cpu thread
+ *  with the stream synchronization (required to free the host lut).
+ *  This enables concurrent execution of multiple streams when using
+ *  a single cpu thread.
+ *    stream - cuda stream
+ *    acc - device pointer for bivariate accumulator
+ *    ...
+ *    f - wrapping function with two Torus inputs
+ *    h_lut - preallocated host lut to be used
+ *
+ */
+template <typename Torus>
+void generate_device_accumulator_bivariate_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, bool gpu_memory_allocated,
+    Torus *h_lut) {
+  PUSH_RANGE("gen bivar lut acc")
+
+  *max_degree = message_modulus * carry_modulus - 1;
+  // fill bivariate accumulator
+  *degree = generate_lookup_table_bivariate<Torus>(
+      h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+      f);
+
+  // copy host lut and lut_indexes_vec to device
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc_bivariate, h_lut,
+      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
+      gpu_memory_allocated);
+  POP_RANGE()
+}
 
 template <typename Torus>
 void generate_device_accumulator_with_encoding(
@@ -1166,6 +1201,28 @@ void generate_device_accumulator_with_encoding(
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
 }
+template <typename Torus>
+void generate_device_accumulator_with_encoding_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t input_message_modulus, uint32_t input_carry_modulus,
+    uint32_t output_message_modulus, uint32_t output_carry_modulus,
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated,
+    Torus *preallocated_h_lut) {
+
+  *max_degree = input_message_modulus * input_carry_modulus - 1;
+  // fill accumulator
+  *degree = generate_lookup_table_with_encoding<Torus>(
+      preallocated_h_lut, glwe_dimension, polynomial_size,
+      input_message_modulus, input_carry_modulus, output_message_modulus,
+      output_carry_modulus, f);
+
+  // copy host lut and lut_indexes_vec to device
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc, preallocated_h_lut,
+      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
+      gpu_memory_allocated);
+}
 
 /*
  *  generate accumulator for device pointer
@@ -1189,6 +1246,33 @@ void generate_device_accumulator(
   POP_RANGE()
 }
 
+/*
+ *  generate accumulator for device pointer using preallocated
+ *  host lut to avoid blocking the cpu thread with the stream
+ *  synchronization (required to free the host lut).
+ *  This enables concurrent execution of multiple streams when using
+ *  a single cpu thread.
+ *    v_stream - cuda stream
+ *    acc - device pointer for accumulator
+ *    ...
+ *    f - evaluating function with one Torus input
+ *   h_lut - preallocated host lut to be used
+ */
+template <typename Torus>
+void generate_device_accumulator_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated,
+    Torus *preallocated_h_lut) {
+
+  PUSH_RANGE("gen lut acc")
+  generate_device_accumulator_with_encoding_with_cpu_prealloc(
+      stream, gpu_index, acc, degree, max_degree, glwe_dimension,
+      polynomial_size, message_modulus, carry_modulus, message_modulus,
+      carry_modulus, f, gpu_memory_allocated, preallocated_h_lut);
+  POP_RANGE()
+}
 /*
  *  generate many lut accumulator for device pointer
  *    v_stream - cuda stream
@@ -1719,10 +1803,11 @@ __host__ void reduce_signs(
                                            0, num_sign_blocks);
   if (num_sign_blocks > 2) {
     auto lut = diff_buffer->reduce_signs_lut;
-    generate_device_accumulator<Torus>(
+    generate_device_accumulator_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, reduce_two_orderings_function, true);
+        message_modulus, carry_modulus, reduce_two_orderings_function, true,
+        diff_buffer->preallocated_h_lut1);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     while (num_sign_blocks > 2) {
@@ -1750,10 +1835,11 @@ __host__ void reduce_signs(
     };
 
     auto lut = diff_buffer->reduce_signs_lut;
-    generate_device_accumulator<Torus>(
+    generate_device_accumulator_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, final_lut_f, true);
+        message_modulus, carry_modulus, final_lut_f, true,
+        diff_buffer->preallocated_h_lut2);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
@@ -1770,10 +1856,11 @@ __host__ void reduce_signs(
     };
 
     auto lut = mem_ptr->diff_buffer->reduce_signs_lut;
-    generate_device_accumulator<Torus>(
+    generate_device_accumulator_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, final_lut_f, true);
+        message_modulus, carry_modulus, final_lut_f, true,
+        diff_buffer->preallocated_h_lut2);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
