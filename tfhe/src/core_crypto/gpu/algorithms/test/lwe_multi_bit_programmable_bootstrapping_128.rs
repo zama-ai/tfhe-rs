@@ -36,144 +36,163 @@ fn execute_multibit_bootstrap_u128(
 
     let delta = encoding_with_padding / msg_modulus.0 as u128;
     let delta_64 = encoding_with_padding_64 / msg_modulus.0 as u64;
-    let mut msg = msg_modulus.0 as u64;
     const NB_TESTS: usize = 10;
-    let number_of_messages = 1;
+    for number_of_messages in [1_usize, 2_usize, 100_usize] {
+        let mut msg = msg_modulus.0 as u64;
 
-    let accumulator = generate_programmable_bootstrap_glwe_lut(
-        polynomial_size,
-        glwe_dimension.to_glwe_size(),
-        msg_modulus.0.cast_into(),
-        ciphertext_modulus,
-        delta,
-        f,
-    );
-
-    assert!(check_encrypted_content_respects_mod(
-        &accumulator,
-        ciphertext_modulus
-    ));
-
-    // Create the LweSecretKey
-    let small_lwe_sk: LweSecretKeyOwned<u128> = allocate_and_generate_new_binary_lwe_secret_key(
-        input_lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
-    let input_lwe_secret_key = LweSecretKey::from_container(
-        small_lwe_sk
-            .clone()
-            .into_container()
-            .iter()
-            .copied()
-            .map(|x| x as u64)
-            .collect::<Vec<_>>(),
-    );
-    let output_glwe_secret_key: GlweSecretKeyOwned<u128> =
-        allocate_and_generate_new_binary_glwe_secret_key(
-            glwe_dimension,
+        let accumulator = generate_programmable_bootstrap_glwe_lut(
             polynomial_size,
+            glwe_dimension.to_glwe_size(),
+            msg_modulus.0.cast_into(),
+            ciphertext_modulus,
+            delta,
+            f,
+        );
+
+        assert!(check_encrypted_content_respects_mod(
+            &accumulator,
+            ciphertext_modulus
+        ));
+
+        // Create the LweSecretKey
+        let small_lwe_sk: LweSecretKeyOwned<u128> = allocate_and_generate_new_binary_lwe_secret_key(
+            input_lwe_dimension,
             &mut rsc.secret_random_generator,
         );
-    let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
-    let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
-
-    let mut bsk = LweMultiBitBootstrapKey::new(
-        0u128,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        decomp_base_log,
-        decomp_level_count,
-        input_lwe_dimension,
-        grouping_factor,
-        ciphertext_modulus,
-    );
-
-    par_generate_lwe_multi_bit_bootstrap_key(
-        &small_lwe_sk,
-        &output_glwe_secret_key,
-        &mut bsk,
-        glwe_noise_distribution,
-        &mut rsc.encryption_random_generator,
-    );
-
-    assert!(check_encrypted_content_respects_mod(
-        &*bsk,
-        ciphertext_modulus
-    ));
-
-    let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &stream);
-
-    while msg != 0 {
-        msg -= 1;
-        for _ in 0..NB_TESTS {
-            let plaintext = Plaintext(msg * delta_64);
-
-            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
-                plaintext,
-                lwe_noise_distribution,
-                ciphertext_modulus_64,
-                &mut rsc.encryption_random_generator,
-            );
-
-            assert!(check_encrypted_content_respects_mod(
-                &lwe_ciphertext_in,
-                ciphertext_modulus_64
-            ));
-
-            let d_lwe_ciphertext_in =
-                CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
-            let mut d_out_pbs_ct = CudaLweCiphertextList::new(
-                output_lwe_dimension,
-                LweCiphertextCount(1),
-                ciphertext_modulus,
-                &stream,
-            );
-            let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
-
-            let mut test_vector_indexes: Vec<u64> = vec![0; number_of_messages];
-            for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
-                *ind = <usize as CastInto<u64>>::cast_into(i);
-            }
-
-            let mut d_test_vector_indexes =
-                unsafe { CudaVec::<u64>::new_async(number_of_messages, &stream, 0) };
-            unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0) };
-
-            let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
-            let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
-            let lwe_indexes = lwe_indexes_usize
+        let input_lwe_secret_key = LweSecretKey::from_container(
+            small_lwe_sk
+                .clone()
+                .into_container()
                 .iter()
-                .map(|&x| <usize as CastInto<u64>>::cast_into(x))
-                .collect_vec();
-            let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks, &stream, 0) };
-            let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks, &stream, 0) };
-            unsafe {
-                d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
-                d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
-            }
-
-            cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext(
-                &d_lwe_ciphertext_in,
-                &mut d_out_pbs_ct,
-                &d_accumulator,
-                &d_test_vector_indexes,
-                &d_output_indexes,
-                &d_input_indexes,
-                &d_bsk,
-                &stream,
+                .copied()
+                .map(|x| x as u64)
+                .collect::<Vec<_>>(),
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<u128> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                glwe_dimension,
+                polynomial_size,
+                &mut rsc.secret_random_generator,
             );
+        let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
+        let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
 
-            let out_pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
-            assert!(check_encrypted_content_respects_mod(
-                &out_pbs_ct,
-                ciphertext_modulus
-            ));
+        let mut bsk = LweMultiBitBootstrapKey::new(
+            0u128,
+            glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            grouping_factor,
+            ciphertext_modulus,
+        );
 
-            let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
+        par_generate_lwe_multi_bit_bootstrap_key(
+            &small_lwe_sk,
+            &output_glwe_secret_key,
+            &mut bsk,
+            glwe_noise_distribution,
+            &mut rsc.encryption_random_generator,
+        );
 
-            let decoded = round_decode(decrypted.0, delta) % msg_modulus.0 as u128;
-            assert_eq!(decoded, f(msg as u128));
+        assert!(check_encrypted_content_respects_mod(
+            &*bsk,
+            ciphertext_modulus
+        ));
+
+        let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &stream);
+
+        while msg != 0 {
+            msg -= 1;
+            for _ in 0..NB_TESTS {
+                let input_plaintext_list =
+                    PlaintextList::from_container(vec![msg * delta_64; number_of_messages]);
+
+                let mut par_lwe_list = LweCiphertextList::new(
+                    0u64,
+                    input_lwe_dimension.to_lwe_size(),
+                    LweCiphertextCount(number_of_messages),
+                    ciphertext_modulus_64,
+                );
+
+                par_encrypt_lwe_ciphertext_list(
+                    &input_lwe_secret_key,
+                    &mut par_lwe_list,
+                    &input_plaintext_list,
+                    lwe_noise_distribution,
+                    &mut rsc.encryption_random_generator,
+                );
+
+                assert!(check_encrypted_content_respects_mod(
+                    &par_lwe_list,
+                    ciphertext_modulus_64
+                ));
+
+                let d_lwe_ciphertext_in =
+                    CudaLweCiphertextList::from_lwe_ciphertext_list(&par_lwe_list, &stream);
+                let mut d_out_pbs_ct = CudaLweCiphertextList::new(
+                    output_lwe_dimension,
+                    d_lwe_ciphertext_in.lwe_ciphertext_count(),
+                    ciphertext_modulus,
+                    &stream,
+                );
+                let d_accumulator =
+                    CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+
+                let test_vector_indexes: Vec<u64> = vec![0; par_lwe_list.lwe_ciphertext_count().0];
+
+                let mut d_test_vector_indexes =
+                    unsafe { CudaVec::<u64>::new_async(number_of_messages, &stream, 0) };
+                unsafe {
+                    d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0)
+                };
+
+                let num_blocks = d_lwe_ciphertext_in.lwe_ciphertext_count().0;
+                let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
+                let lwe_indexes = lwe_indexes_usize
+                    .iter()
+                    .map(|&x| <usize as CastInto<u64>>::cast_into(x))
+                    .collect_vec();
+                let mut d_output_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_blocks, &stream, 0) };
+                let mut d_input_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_blocks, &stream, 0) };
+                unsafe {
+                    d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
+                    d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
+                }
+
+                cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext(
+                    &d_lwe_ciphertext_in,
+                    &mut d_out_pbs_ct,
+                    &d_accumulator,
+                    &d_test_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    &d_bsk,
+                    &stream,
+                );
+
+                let out_pbs_ct_list = d_out_pbs_ct.to_lwe_ciphertext_list(&stream);
+                assert!(check_encrypted_content_respects_mod(
+                    &out_pbs_ct_list,
+                    ciphertext_modulus
+                ));
+
+                let mut output_plaintext_list =
+                    PlaintextList::from_container(vec![0u128; number_of_messages]);
+                decrypt_lwe_ciphertext_list(
+                    &output_lwe_secret_key,
+                    &out_pbs_ct_list,
+                    &mut output_plaintext_list,
+                );
+
+                output_plaintext_list.iter().for_each(|decrypted| {
+                    let decoded = round_decode(*decrypted.0, delta) % msg_modulus.0 as u128;
+                    assert_eq!(decoded, f(msg as u128));
+                });
+            }
         }
     }
 }
