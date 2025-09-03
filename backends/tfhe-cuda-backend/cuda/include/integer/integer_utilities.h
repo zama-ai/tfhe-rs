@@ -347,7 +347,6 @@ template <typename Torus> struct int_radix_lut {
 
     ///////////////
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
@@ -512,7 +511,6 @@ template <typename Torus> struct int_radix_lut {
       cuda_memset_with_size_tracking_async(lut_indexes, 0, lut_indexes_size,
                                            streams[i], gpu_indexes[i],
                                            allocate_gpu_memory);
-
       lut_vec.push_back(lut);
       lut_indexes_vec.push_back(lut_indexes);
     }
@@ -615,7 +613,6 @@ template <typename Torus> struct int_radix_lut {
       cuda_memset_with_size_tracking_async(lut_indexes, 0, lut_indexes_size,
                                            streams[i], gpu_indexes[i],
                                            allocate_gpu_memory);
-
       lut_vec.push_back(lut);
       lut_indexes_vec.push_back(lut_indexes);
     }
@@ -812,7 +809,7 @@ template <typename Torus> struct int_radix_lut {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    PUSH_RANGE("Release gpu mem lut")
+    free(this->gpu_indexes);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_drop_with_size_tracking_async(lut_vec[i], streams[i], gpu_indexes[i],
                                          gpu_memory_allocated);
@@ -825,6 +822,12 @@ template <typename Torus> struct int_radix_lut {
                                        gpu_indexes[0], gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(lwe_trivial_indexes, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
+
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    lut_vec.clear();
+    lut_indexes_vec.clear();
+    free(h_lwe_indexes_in);
+    free(h_lwe_indexes_out);
 
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
@@ -842,59 +845,44 @@ template <typename Torus> struct int_radix_lut {
         default:
           PANIC("Cuda error (PBS): unknown PBS type. ")
         }
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
+      delete tmp_lwe_before_ks;
+      buffer.clear();
+
       if (gpu_memory_allocated) {
         multi_gpu_release_async(streams, gpu_indexes, lwe_array_in_vec);
         multi_gpu_release_async(streams, gpu_indexes, lwe_after_ks_vec);
         multi_gpu_release_async(streams, gpu_indexes, lwe_after_pbs_vec);
         multi_gpu_release_async(streams, gpu_indexes, lwe_trivial_indexes_vec);
+        for (uint i = 0; i < active_gpu_count; i++)
+          cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
-      if (active_gpu_count > 1) {
-        for (uint i = 0; i < active_gpu_count; i++) {
-          cuda_event_destroy(event_scatter_out[i], gpu_indexes[i]);
-        }
-        cuda_event_destroy(event_scatter_in, gpu_indexes[0]);
-        cuda_event_destroy(event_broadcast, gpu_indexes[0]);
-      }
-    }
-    if (lwe_aligned_vec.size() > 0) {
-      for (uint i = 0; i < active_gpu_count; i++) {
-        cuda_drop_with_size_tracking_async(lwe_aligned_vec[i], streams[0],
-                                           gpu_indexes[0],
-                                           gpu_memory_allocated);
-      }
-    }
-    POP_RANGE()
-    PUSH_RANGE("Free cpu mem lut")
-    if (!mem_reuse) {
-      for (uint i = 0; i < active_gpu_count; i++)
-        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-      delete tmp_lwe_before_ks;
-      buffer.clear();
-
       lwe_array_in_vec.clear();
       lwe_after_ks_vec.clear();
       lwe_after_pbs_vec.clear();
       lwe_trivial_indexes_vec.clear();
-
-      if (active_gpu_count > 1)
+      if (active_gpu_count > 1) {
+        for (uint i = 0; i < active_gpu_count; i++) {
+          cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+          cuda_event_destroy(event_scatter_out[i], gpu_indexes[i]);
+        }
+        cuda_event_destroy(event_scatter_in, gpu_indexes[0]);
+        cuda_event_destroy(event_broadcast, gpu_indexes[0]);
         free(event_scatter_out);
+      }
+      if (lwe_aligned_vec.size() > 0) {
+        for (uint i = 0; i < active_gpu_count; i++) {
+          cuda_drop_with_size_tracking_async(lwe_aligned_vec[i], streams[0],
+                                             gpu_indexes[0],
+                                             gpu_memory_allocated);
+        }
+        lwe_aligned_vec.clear();
+      }
     }
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
-    if (lwe_aligned_vec.size() > 0) {
-      lwe_aligned_vec.clear();
-    }
-    lut_vec.clear();
-    lut_indexes_vec.clear();
-    free(h_lwe_indexes_in);
-    free(h_lwe_indexes_out);
-
     free(h_lut_indexes);
     free(degrees);
     free(max_degrees);
-    free(this->gpu_indexes);
-    POP_RANGE()
   }
 };
 
@@ -3434,6 +3422,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(streams, gpu_indexes, gpu_count);
       delete buffer;
@@ -3609,6 +3598,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint j = 0; j < active_gpu_count; j++) {
       cuda_destroy_stream(local_streams_1[j], gpu_indexes[j]);
       cuda_destroy_stream(local_streams_2[j], gpu_indexes[j]);
@@ -4301,6 +4291,7 @@ template <typename Torus> struct int_comparison_buffer {
       delete signed_msb_lut;
       delete tmp_trivial_sign_block;
     }
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint j = 0; j < active_gpu_count; j++) {
       cuda_destroy_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_destroy_stream(msb_streams[j], gpu_indexes[j]);
@@ -4873,6 +4864,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     delete[] merge_overflow_flags_luts;
 
     // release sub streams
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
       cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
@@ -5321,6 +5313,7 @@ template <typename Torus> struct int_div_rem_memory {
       delete compare_signed_bits_lut;
 
       // release sub streams
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       for (uint i = 0; i < gpu_count; i++) {
         cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
         cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
