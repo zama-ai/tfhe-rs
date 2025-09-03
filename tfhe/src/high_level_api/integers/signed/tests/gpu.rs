@@ -143,6 +143,7 @@ fn test_gpu_get_bitops_size_on_gpu() {
 }
 #[test]
 fn test_gpu_get_comparisons_size_on_gpu() {
+    println!("0");
     let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen_range(1..=i32::MAX);
@@ -155,23 +156,32 @@ fn test_gpu_get_comparisons_size_on_gpu() {
     let b = &b;
 
     let gt_tmp_buffer_size = a.get_gt_size_on_gpu(b);
+    println!("1");
     let scalar_gt_tmp_buffer_size = a.get_gt_size_on_gpu(clear_b);
+    println!("2");
     check_valid_cuda_malloc_assert_oom(gt_tmp_buffer_size, GpuIndex::new(0));
+    println!("3");
     check_valid_cuda_malloc_assert_oom(scalar_gt_tmp_buffer_size, GpuIndex::new(0));
     let ge_tmp_buffer_size = a.get_ge_size_on_gpu(b);
+    println!("4");
     let scalar_ge_tmp_buffer_size = a.get_ge_size_on_gpu(clear_b);
     check_valid_cuda_malloc_assert_oom(ge_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_ge_tmp_buffer_size, GpuIndex::new(0));
     let lt_tmp_buffer_size = a.get_lt_size_on_gpu(b);
+    println!("5");
     let scalar_lt_tmp_buffer_size = a.get_lt_size_on_gpu(clear_b);
+    println!("6");
     check_valid_cuda_malloc_assert_oom(lt_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_lt_tmp_buffer_size, GpuIndex::new(0));
     let le_tmp_buffer_size = a.get_le_size_on_gpu(b);
+    println!("7");
     let scalar_le_tmp_buffer_size = a.get_le_size_on_gpu(clear_b);
     check_valid_cuda_malloc_assert_oom(le_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_le_tmp_buffer_size, GpuIndex::new(0));
     let max_tmp_buffer_size = a.get_max_size_on_gpu(b);
+    println!("8");
     let scalar_max_tmp_buffer_size = a.get_max_size_on_gpu(clear_b);
+    println!("9");
     check_valid_cuda_malloc_assert_oom(max_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_max_tmp_buffer_size, GpuIndex::new(0));
     let min_tmp_buffer_size = a.get_min_size_on_gpu(b);
