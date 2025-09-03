@@ -44,6 +44,12 @@ enum BitValue { Zero = 0, One = 1 };
 extern "C" {
 
 typedef struct {
+  void *const *streams;
+  uint32_t const *gpu_indexes;
+  uint32_t gpu_count;
+} CudaStreamsFFI;
+
+typedef struct {
   void *ptr;
   uint64_t *degrees;
   uint64_t *noise_levels;
@@ -800,4 +806,5 @@ void cleanup_cuda_integer_ilog2_kb_64(void *const *streams,
                                       uint32_t gpu_count,
                                       int8_t **mem_ptr_void);
 } // extern C
+
 #endif // CUDA_INTEGER_H

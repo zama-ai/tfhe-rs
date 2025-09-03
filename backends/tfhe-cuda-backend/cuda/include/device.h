@@ -139,4 +139,28 @@ bool cuda_check_support_thread_block_clusters();
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n);
+
+#include "integer/integer.h"
+struct CudaStreams {
+private:
+  cudaStream_t const *_streams;
+  uint32_t const *_gpu_indexes;
+  uint32_t _gpu_count;
+
+  CudaStreams() {}
+
+public:
+  cudaStream_t const *streams() const { return _streams; }
+
+  uint32_t const *gpu_indexes() const { return _gpu_indexes; }
+
+  cudaStream_t stream(uint32_t idx) const { return _streams[idx]; }
+  uint32_t gpu_index(uint32_t idx) const { return _gpu_indexes[idx]; }
+  uint32_t count() const { return _gpu_count; }
+
+  CudaStreams(CudaStreamsFFI &ffi)
+      : _streams((cudaStream_t *)ffi.streams), _gpu_indexes(ffi.gpu_indexes),
+        _gpu_count(ffi.gpu_count) {}
+};
+
 #endif

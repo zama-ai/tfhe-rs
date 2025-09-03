@@ -7917,9 +7917,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
     let allocate_ms_noise_array = noise_reduction_key.is_some();
 
     scratch_cuda_expand_without_verification_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
+        streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         computing_glwe_dimension.0 as u32,
         computing_polynomial_size.0 as u32,
@@ -7947,9 +7945,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         allocate_ms_noise_array,
     );
     cuda_expand_without_verification_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
+        streams.ffi(),
         lwe_array_out.0.d_vec.as_mut_c_ptr(0),
         lwe_flattened_compact_array_in.as_c_ptr(0),
         mem_ptr,
@@ -7958,10 +7954,5 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         casting_key.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
     );
-    cleanup_expand_without_verification_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    cleanup_expand_without_verification_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }

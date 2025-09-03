@@ -262,6 +262,24 @@ pub const BitValue_One: BitValue = 1;
 pub type BitValue = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct CudaStreamsFFI {
+    pub streams: *const *mut ffi::c_void,
+    pub gpu_indexes: *const u32,
+    pub gpu_count: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaStreamsFFI"][::std::mem::size_of::<CudaStreamsFFI>() - 24usize];
+    ["Alignment of CudaStreamsFFI"][::std::mem::align_of::<CudaStreamsFFI>() - 8usize];
+    ["Offset of field: CudaStreamsFFI::streams"]
+        [::std::mem::offset_of!(CudaStreamsFFI, streams) - 0usize];
+    ["Offset of field: CudaStreamsFFI::gpu_indexes"]
+        [::std::mem::offset_of!(CudaStreamsFFI, gpu_indexes) - 8usize];
+    ["Offset of field: CudaStreamsFFI::gpu_count"]
+        [::std::mem::offset_of!(CudaStreamsFFI, gpu_count) - 16usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct CudaRadixCiphertextFFI {
     pub ptr: *mut ffi::c_void,
     pub degrees: *mut u64,
@@ -1951,9 +1969,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn scratch_cuda_expand_without_verification_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
+        streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1981,9 +1997,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_expand_without_verification_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
+        streams: CudaStreamsFFI,
         lwe_array_out: *mut ffi::c_void,
         lwe_flattened_compact_array_in: *const ffi::c_void,
         mem_ptr: *mut i8,
@@ -1995,9 +2009,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_expand_without_verification_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
+        streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
 }
