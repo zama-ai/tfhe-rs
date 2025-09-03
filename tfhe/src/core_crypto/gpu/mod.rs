@@ -109,6 +109,14 @@ impl CudaStreams {
         // The cast here is safe as GpuIndex is repr(transparent)
         self.gpu_indexes.as_ptr().cast()
     }
+
+    pub fn ffi(&self) -> CudaStreamsFFI {
+        CudaStreamsFFI {
+            streams: self.ptr.as_ptr(),
+            gpu_indexes: self.gpu_indexes_ptr(),
+            gpu_count: self.len() as u32,
+        }
+    }
 }
 
 impl Clone for CudaStreams {

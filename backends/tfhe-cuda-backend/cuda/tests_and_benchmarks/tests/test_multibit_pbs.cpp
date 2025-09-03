@@ -1,3 +1,4 @@
+#include "device.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
