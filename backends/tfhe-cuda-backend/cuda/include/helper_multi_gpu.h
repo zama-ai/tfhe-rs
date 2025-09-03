@@ -4,6 +4,8 @@
 #include <variant>
 #include <vector>
 
+#include "integer/integer.h"
+
 extern std::mutex m;
 extern bool p2p_enabled;
 extern const int THRESHOLD_MULTI_GPU;
@@ -37,10 +39,148 @@ get_variant_element(const std::variant<std::vector<Torus>, Torus> &variant,
   }
 }
 
-int get_active_gpu_count(int num_inputs, int gpu_count);
+uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count);
 
 int get_num_inputs_on_gpu(int total_num_inputs, int gpu_index, int gpu_count);
 
 int get_gpu_offset(int total_num_inputs, int gpu_index, int gpu_count);
+
+// A Set of GPU Streams and associated GPUs
+// Can be constructed from the FFI struct CudaStreamsFFI which
+// is only used to pass the streams/gpus at the rust/C interface
+// This class should only be constructed from the FFI struct,
+// through class methods or through the copy constructor. The class
+// can also be constructed as an empty set
+struct CudaStreams {
+private:
+  cudaStream_t const *_streams;
+  uint32_t const *_gpu_indexes;
+  uint32_t _gpu_count;
+  bool _owns_streams;
+
+  // Prevent the construction of a CudaStreams class from user-code
+  CudaStreams(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+              uint32_t gpu_count)
+      : _streams(streams), _gpu_indexes(gpu_indexes), _gpu_count(gpu_count),
+        _owns_streams(false) {}
+
+public:
+  // Construct an empty set. Invalid use of an empty set should raise an error
+  // right away through asserts or because of a nullptr dereference
+  CudaStreams()
+      : _streams(nullptr), _gpu_indexes(nullptr), _gpu_count((uint32_t)-1),
+        _owns_streams(false) {}
+
+  // Returns a subset of this set as an active subset. An active subset is one
+  // that is temporarily used to perform some computation
+  CudaStreams active_gpu_subset(int num_radix_blocks) {
+    return CudaStreams(_streams, _gpu_indexes,
+                       get_active_gpu_count(num_radix_blocks, _gpu_count));
+  }
+
+  // Returns a subset containing only the first gpu of this set. It
+  // is used to create subset of streams for mono-GPU functions
+  CudaStreams subset_first_gpu() const {
+    return CudaStreams(_streams, _gpu_indexes, 1);
+  }
+
+  // Synchronize all the streams in the set
+  void synchronize() const {
+    for (uint32_t i = 0; i < _gpu_count; i++) {
+      cuda_synchronize_stream(_streams[i], _gpu_indexes[i]);
+    }
+  }
+
+  cudaStream_t stream(uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _gpu_count, "Invalid GPU index");
+    return _streams[idx];
+  }
+  uint32_t gpu_index(uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _gpu_count, "Invalid GPU index");
+    return _gpu_indexes[idx];
+  }
+  uint32_t count() const { return _gpu_count; }
+
+  // Construct from the rust FFI stream set. Streams are created in rust
+  // using the bindings.
+  CudaStreams(CudaStreamsFFI &ffi)
+      : _streams((cudaStream_t *)ffi.streams), _gpu_indexes(ffi.gpu_indexes),
+        _gpu_count(ffi.gpu_count), _owns_streams(false) {}
+
+  // Create a new set of streams on the same gpus as those of the current stream
+  // set Can be used to parallelize computation by issuing kernels on multiple
+  // streams on the same GPU
+  void create_on_same_gpus(const CudaStreams &other) {
+    GPU_ASSERT(_streams == nullptr, "Assign clone to non-empty cudastreams");
+
+    cudaStream_t *new_streams = new cudaStream_t[other._gpu_count];
+
+    uint32_t *gpu_indexes_clone = new uint32_t[_gpu_count];
+    for (uint32_t i = 0; i < other._gpu_count; ++i) {
+      new_streams[i] = cuda_create_stream(other._gpu_indexes[i]);
+      gpu_indexes_clone[i] = other._gpu_indexes[i];
+    }
+
+    this->_streams = new_streams;
+    this->_gpu_indexes = gpu_indexes_clone;
+    this->_gpu_count = other._gpu_count;
+
+    // Flag this instance as owning streams so that we can destroy
+    // the streams when they aren't needed anymore
+    this->_owns_streams = true;
+  }
+
+  // Copy constructor, setting the own flag to false
+  // Only the initial instance of CudaStreams created with
+  // assign_clone owns streams, all copies of it do not own the
+  // streams
+  CudaStreams(const CudaStreams &src)
+      : _streams(src._streams), _gpu_indexes(src._gpu_indexes),
+        _gpu_count(src._gpu_count), _owns_streams(false) {}
+
+  CudaStreams &operator=(CudaStreams const &other) {
+    PANIC_IF_FALSE(this->_streams == nullptr ||
+                       this->_streams == other._streams,
+                   "Assigning an already initialized CudaStreams");
+    this->_streams = other._streams;
+    this->_gpu_indexes = other._gpu_indexes;
+    this->_gpu_count = other._gpu_count;
+
+    // Only the initial instance of CudaStreams created with
+    // assign_clone owns streams, all copies of it do not own the
+    // streams
+    this->_owns_streams = false;
+    return *this;
+  }
+
+  // Destroy the streams if they are created by assign_clone.
+  // We require the developer to call `destroy` on all instances
+  // of cloned streams.
+  void release() {
+    // If this instance doesn't own streams, there's nothing to do
+    // as the streams were created on the Rust side.
+    if (_owns_streams) {
+      for (uint32_t i = 0; i < _gpu_count; ++i) {
+        cuda_destroy_stream(_streams[i], _gpu_indexes[i]);
+      }
+      delete[] _streams;
+      _streams = nullptr;
+      delete[] _gpu_indexes;
+      _gpu_indexes = nullptr;
+    }
+  }
+
+  // The destructor checks that streams created with assign_clone
+  // were destroyed manually with `destroy`.
+  ~CudaStreams() {
+    // Ensure streams are destroyed
+    PANIC_IF_FALSE(
+        !_owns_streams || _streams == nullptr,
+        "Destroy  (this=%p) was not called on a CudaStreams object that "
+        "is a clone "
+        "of another one, %p",
+        this, this->_streams);
+  }
+};
 
 #endif

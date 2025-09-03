@@ -1,3 +1,4 @@
+#include "device.h"
 #include "helper_multi_gpu.h"
 #include <cmath>
 #include <cstdint>
