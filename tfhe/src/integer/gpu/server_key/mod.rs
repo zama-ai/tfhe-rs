@@ -6,8 +6,8 @@ use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstr
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
-    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key,
-    LweBootstrapKeyOwned, LweDimension, LweMultiBitBootstrapKeyOwned,
+    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned, LweDimension,
+    LweMultiBitBootstrapKeyOwned,
 };
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
