@@ -1650,7 +1650,7 @@ impl CudaServerKey {
         unsafe {
             match &d_bootstrapping_key {
                 CudaBootstrappingKey::Classic(bsk) => {
-                    noise_squashing_async::<u128, f64>(
+                    noise_squashing_async(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -1680,7 +1680,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(mb_bsk) => {
-                    noise_squashing_async::<u128, u128>(
+                    noise_squashing_async(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
