@@ -33,6 +33,7 @@ rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.100"
+getrandom = "0.2.8"
 
 [profile.bench]
 lto = "fat"
