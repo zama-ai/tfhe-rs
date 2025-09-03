@@ -205,8 +205,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
 
 template <typename InputTorus, typename OutputTorus>
 void execute_pbs_async(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, const LweArrayVariant<OutputTorus> &lwe_array_out,
+    CudaStreams streams, const LweArrayVariant<OutputTorus> &lwe_array_out,
     const LweArrayVariant<InputTorus> &lwe_output_indexes,
     const std::vector<OutputTorus *> lut_vec,
     const std::vector<InputTorus *> lut_indexes_vec,
@@ -226,12 +225,12 @@ void execute_pbs_async(
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case CLASSICAL:
-      for (uint i = 0; i < gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
 
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, streams.count());
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
@@ -246,7 +245,7 @@ void execute_pbs_async(
             get_variant_element(lwe_input_indexes, i);
 
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
-            streams[i], gpu_indexes[i], current_lwe_array_out,
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
@@ -263,9 +262,9 @@ void execute_pbs_async(
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      for (uint i = 0; i < gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -278,12 +277,12 @@ void execute_pbs_async(
             get_variant_element(lwe_input_indexes, i);
 
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, streams.count());
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams[i], gpu_indexes[i], current_lwe_array_out,
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
@@ -292,9 +291,9 @@ void execute_pbs_async(
       }
       break;
     case CLASSICAL:
-      for (uint i = 0; i < gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -307,7 +306,7 @@ void execute_pbs_async(
             get_variant_element(lwe_input_indexes, i);
 
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, streams.count());
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
@@ -316,7 +315,7 @@ void execute_pbs_async(
             ms_noise_reduction_key->ptr != nullptr)
           zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams[i], gpu_indexes[i], current_lwe_array_out,
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], ms_noise_reduction_key, zeros, pbs_buffer[i],
@@ -333,9 +332,9 @@ void execute_pbs_async(
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      for (uint i = 0; i < gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -348,7 +347,7 @@ void execute_pbs_async(
             get_variant_element(lwe_input_indexes, i);
 
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
-            streams[i], gpu_indexes[i], current_lwe_array_out,
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], current_lwe_array_in,
             current_lwe_input_indexes, bootstrapping_keys[i], pbs_buffer[i],
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
@@ -356,9 +355,9 @@ void execute_pbs_async(
       }
       break;
     case CLASSICAL:
-      for (uint i = 0; i < gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -371,7 +370,7 @@ void execute_pbs_async(
             get_variant_element(lwe_input_indexes, i);
 
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, streams.count());
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
@@ -380,10 +379,11 @@ void execute_pbs_async(
             ms_noise_reduction_key->ptr != nullptr)
           zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
-            streams[i], gpu_indexes[i], current_lwe_array_out, lut_vec[i],
-            current_lwe_array_in, bootstrapping_keys[i], ms_noise_reduction_key,
-            zeros, pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu);
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+            lut_vec[i], current_lwe_array_in, bootstrapping_keys[i],
+            ms_noise_reduction_key, zeros, pbs_buffer[i], lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count,
+            num_inputs_on_gpu);
       }
       break;
     default:

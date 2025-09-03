@@ -13,22 +13,20 @@
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
-      streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
-      allocate_gpu_memory, size_tracker);
+      streams, shift_type, params, num_radix_blocks, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
 template <typename Torus>
 __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
@@ -56,16 +54,15 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
-                                          &rotated_buffer, lwe_array, rotations,
-                                          num_blocks);
+    host_radix_blocks_rotate_right<Torus>(streams, &rotated_buffer, lwe_array,
+                                          rotations, num_blocks);
 
     // create trivial assign for value = 0
-    set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                                 &rotated_buffer, 0, rotations);
-    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                             lwe_array, 0, num_blocks,
-                                             &rotated_buffer, 0, num_blocks);
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &rotated_buffer, 0, rotations);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
+        &rotated_buffer, 0, num_blocks);
 
     if (shift_within_block == 0 || rotations == num_blocks) {
       return;
@@ -83,25 +80,24 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     size_t partial_block_count = num_blocks - rotations;
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, &partial_current_blocks,
-        &partial_current_blocks, &partial_previous_blocks, bsks, ksks,
-        ms_noise_reduction_key, lut_bivariate, partial_block_count,
+        streams, &partial_current_blocks, &partial_current_blocks,
+        &partial_previous_blocks, bsks, ksks, ms_noise_reduction_key,
+        lut_bivariate, partial_block_count,
         lut_bivariate->params.message_modulus);
 
   } else {
     // right shift
-    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
-                                         &rotated_buffer, lwe_array, rotations,
-                                         num_blocks);
+    host_radix_blocks_rotate_left<Torus>(streams, &rotated_buffer, lwe_array,
+                                         rotations, num_blocks);
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
     set_zero_radix_ciphertext_slice_async<Torus>(
-        streams[0], gpu_indexes[0], &rotated_buffer, num_blocks - rotations,
-        num_blocks);
-    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                             lwe_array, 0, num_blocks,
-                                             &rotated_buffer, 0, num_blocks);
+        streams.stream(0), streams.gpu_index(0), &rotated_buffer,
+        num_blocks - rotations, num_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
+        &rotated_buffer, 0, num_blocks);
 
     if (shift_within_block == 0 || rotations == num_blocks) {
       return;
@@ -116,31 +112,28 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     size_t partial_block_count = num_blocks - rotations;
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, partial_current_blocks,
-        partial_current_blocks, &partial_next_blocks, bsks, ksks,
-        ms_noise_reduction_key, lut_bivariate, partial_block_count,
-        lut_bivariate->params.message_modulus);
+        streams, partial_current_blocks, partial_current_blocks,
+        &partial_next_blocks, bsks, ksks, ms_noise_reduction_key, lut_bivariate,
+        partial_block_count, lut_bivariate->params.message_modulus);
   }
 }
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus>(
-      streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
-      allocate_gpu_memory, size_tracker);
+      streams, shift_type, params, num_radix_blocks, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
 template <typename Torus>
 __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
@@ -167,12 +160,11 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
                                    num_blocks + 2, num_blocks + 3);
 
   if (mem->shift_type == RIGHT_SHIFT) {
-    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
-                                         mem->tmp_rotated, lwe_array, rotations,
-                                         num_blocks);
-    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                             lwe_array, 0, num_blocks,
-                                             mem->tmp_rotated, 0, num_blocks);
+    host_radix_blocks_rotate_left<Torus>(streams, mem->tmp_rotated, lwe_array,
+                                         rotations, num_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
+        mem->tmp_rotated, 0, num_blocks);
 
     if (num_bits_in_block == 1) {
       // if there is only 1 bit in the msg part, it means shift_within block is
@@ -183,7 +175,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       // we can optimize things by not doing the pbs to extract this sign bit
       for (uint i = 0; i < num_blocks; i++) {
         copy_radix_ciphertext_slice_async<Torus>(
-            streams[0], gpu_indexes[0], mem->tmp_rotated,
+            streams.stream(0), streams.gpu_index(0), mem->tmp_rotated,
             num_blocks - rotations + i, num_blocks - rotations + i + 1,
             mem->tmp_rotated, num_blocks - rotations - 1,
             num_blocks - rotations);
@@ -201,8 +193,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
                                        num_blocks - rotations - 1,
                                        num_blocks - rotations);
       copy_radix_ciphertext_slice_async<Torus>(
-          streams[0], gpu_indexes[0], &last_block_copy, 0, 1, mem->tmp_rotated,
-          num_blocks - rotations - 1, num_blocks - rotations);
+          streams.stream(0), streams.gpu_index(0), &last_block_copy, 0, 1,
+          mem->tmp_rotated, num_blocks - rotations - 1, num_blocks - rotations);
       if (shift_within_block != 0) {
         auto partial_current_blocks = lwe_array;
         CudaRadixCiphertextFFI partial_next_blocks;
@@ -212,42 +204,37 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
         integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-            streams, gpu_indexes, gpu_count, partial_current_blocks,
-            partial_current_blocks, &partial_next_blocks, bsks, ksks,
-            ms_noise_reduction_key, lut_bivariate, partial_block_count,
+            streams, partial_current_blocks, partial_current_blocks,
+            &partial_next_blocks, bsks, ksks, ms_noise_reduction_key,
+            lut_bivariate, partial_block_count,
             lut_bivariate->params.message_modulus);
       }
       // Since our CPU threads will be working on different streams we shall
       // Ensure the work in the main stream is completed
-      for (uint j = 0; j < gpu_count; j++) {
-        cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-      }
+      streams.synchronize();
       auto lut_univariate_padding_block =
           mem->lut_buffers_univariate[num_bits_in_block - 1];
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          mem->local_streams_1, gpu_indexes, gpu_count, &padding_block,
-          &last_block_copy, bsks, ksks, ms_noise_reduction_key,
-          lut_univariate_padding_block, 1);
+          mem->local_streams_1, &padding_block, &last_block_copy, bsks, ksks,
+          ms_noise_reduction_key, lut_univariate_padding_block, 1);
       // Replace blocks 'pulled' from the left with the correct padding
       // block
       for (uint i = 0; i < rotations; i++) {
         copy_radix_ciphertext_slice_async<Torus>(
-            mem->local_streams_1[0], gpu_indexes[0], lwe_array,
-            num_blocks - rotations + i, num_blocks - rotations + i + 1,
-            &padding_block, 0, 1);
+            mem->local_streams_1.stream(0), mem->local_streams_1.gpu_index(0),
+            lwe_array, num_blocks - rotations + i,
+            num_blocks - rotations + i + 1, &padding_block, 0, 1);
       }
       if (shift_within_block != 0) {
         auto lut_univariate_shift_last_block =
             mem->lut_buffers_univariate[shift_within_block - 1];
         integer_radix_apply_univariate_lookup_table_kb<Torus>(
-            mem->local_streams_2, gpu_indexes, gpu_count, &last_block,
-            &last_block_copy, bsks, ksks, ms_noise_reduction_key,
-            lut_univariate_shift_last_block, 1);
+            mem->local_streams_2, &last_block, &last_block_copy, bsks, ksks,
+            ms_noise_reduction_key, lut_univariate_shift_last_block, 1);
       }
-      for (uint j = 0; j < mem->active_gpu_count; j++) {
-        cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
-        cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
-      }
+
+      mem->local_streams_1.synchronize();
+      mem->local_streams_2.synchronize();
     }
   } else {
     PANIC("Cuda error (scalar shift): left scalar shift is never of the "
