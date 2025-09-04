@@ -30,7 +30,7 @@ impl XofSeed {
     pub fn new_u128(seed: u128, domain_separator: [u8; Self::DOMAIN_SEP_LEN]) -> Self {
         let mut data = vec![0u8; size_of::<u128>() + domain_separator.len()];
         data[..Self::DOMAIN_SEP_LEN].copy_from_slice(domain_separator.as_slice());
-        data[Self::DOMAIN_SEP_LEN..].copy_from_slice(seed.to_ne_bytes().as_slice());
+        data[Self::DOMAIN_SEP_LEN..].copy_from_slice(seed.to_le_bytes().as_slice());
 
         Self { data }
     }
@@ -134,16 +134,19 @@ mod generic_tests {
 
     #[test]
     fn test_xof_seed_getters() {
-        let bits = u128::from_ne_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let seed_bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let bits = u128::from_le_bytes(seed_bytes);
         let dsep = [b't', b'f', b'h', b'e', b'k', b's', b'p', b's'];
         let seed = XofSeed::new_u128(bits, dsep);
 
-        let s = u128::from_ne_bytes(seed.seed().try_into().unwrap());
+        let s = u128::from_le_bytes(seed.seed().try_into().unwrap());
         assert_eq!(s, bits);
         assert_eq!(seed.domain_separator(), dsep);
         assert_eq!(seed.bit_len(), 192);
 
         let collected_u128s = seed.iter_u128_blocks().collect::<Vec<_>>();
+        // Those u128 are used in AES computations and are just a way to handle a [u8; 16] so those
+        // are ok to check in ne_bytes
         assert_eq!(
             collected_u128s,
             vec![
@@ -155,7 +158,7 @@ mod generic_tests {
         );
 
         // To make sure both constructors yield the same results
-        let seed2 = XofSeed::new(bits.to_ne_bytes().to_vec(), dsep);
+        let seed2 = XofSeed::new(seed_bytes.to_vec(), dsep);
         assert_eq!(seed.data, seed2.data);
     }
 }
