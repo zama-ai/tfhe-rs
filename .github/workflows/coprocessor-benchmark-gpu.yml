@@ -3,6 +3,21 @@ name: Cuda Coprocessor benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        options:
+          - "l40 (n3-L40x1)"
+          - "single-h100 (n3-H100x1)"
+          - "2-h100 (n3-H100x2)"
+          - "4-h100 (n3-H100x4)"
+          - "multi-h100 (n3-H100x8)"
+          - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
+          - "multi-h100-sxm5_fallback (n3-H100x8-SXM5)"
+
   schedule:
     # Weekly tests @ 1AM
     - cron: "0 1 * * 6"
@@ -17,7 +32,6 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  PROFILE: "multi-h100-sxm5 (n3-H100x8-SXM5)"
   BENCHMARK_TYPE: "ALL"
   OPTIMIZATION_TARGET: "throughput"
   BATCH_SIZE: "5000"
@@ -40,15 +54,25 @@ jobs:
       - name: Parse profile
         id: parse_profile
         run: |
+          if [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
+            PROFILE_RAW="${{ inputs.profile }}"
+          else
+            PROFILE_RAW="${PROFILE}"
+          fi
           # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
+          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
           echo "profile=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
+          if [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
+            PROFILE_RAW="${{ inputs.profile }}"
+          else
+            PROFILE_RAW="${PROFILE}"
+          fi
           # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
+          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|.*[[:space:]](\(.*\))|\1|')
           echo "name=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
@@ -203,7 +227,11 @@ jobs:
 
       - name: Profile erc20 no-cmux benchmark on GPU
         run: |
-          BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" BENCHMARK_TYPE="LATENCY" OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" make -e "profile_erc20_gpu"
+          BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" \
+          FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" \
+          BENCHMARK_TYPE="THROUGHPUT_200" \
+          OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" \
+          make -e "profile_erc20_gpu"
         working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
 
       - name: Get nsys profile name

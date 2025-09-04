@@ -5,6 +5,9 @@
 uint32_t cuda_get_device() {
   int device;
   check_cuda_error(cudaGetDevice(&device));
+#ifdef USE_NVTOOLS
+  cudaStartProfile();
+#endif
   return static_cast<uint32_t>(device);
 }
 
