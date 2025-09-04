@@ -136,7 +136,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         const InputTorus *__restrict__ lwe_array_in,
         const InputTorus *__restrict__ lwe_input_indexes,
         const __uint128_t *__restrict__ lut_vector,
-        const InputTorus *__restrict__ lut_vector_indexes,
         __uint128_t *global_accumulator, double *global_accumulator_fft,
         uint32_t lwe_dimension, uint32_t glwe_dimension,
         uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
@@ -169,8 +168,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
-  auto block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.x] *
-                                      params::degree * (glwe_dimension + 1)];
+  auto block_lut_vector = lut_vector;
 
   auto global_slice =
       &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
@@ -368,7 +366,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         __uint128_t *lwe_array_out,
         const InputTorus *__restrict__ lwe_output_indexes,
         const __uint128_t *__restrict__ lut_vector,
-        const InputTorus *__restrict__ lut_vector_indexes,
         const InputTorus *__restrict__ lwe_array_in,
         const InputTorus *__restrict__ lwe_input_indexes,
         const double *__restrict__ keybundle_array, double *join_buffer,
@@ -409,8 +406,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
-  auto block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.x] *
-                                      params::degree * (glwe_dimension + 1)];
+  auto block_lut_vector = lut_vector;
 
   auto block_join_buffer =
       &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
@@ -591,8 +587,7 @@ __host__ void execute_compute_keybundle_128(
 template <typename InputTorus, class params, bool is_first_iter>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
-    InputTorus const *lut_vector_indexes, InputTorus const *lwe_array_in,
-    InputTorus const *lwe_input_indexes,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count) {
@@ -618,27 +613,26 @@ __host__ void execute_step_one_128(
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, NOSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, 0, stream>>>(
-            lwe_array_in, lwe_input_indexes, lut_vector, lut_vector_indexes,
-            global_accumulator, global_accumulator_fft, lwe_dimension,
-            glwe_dimension, polynomial_size, base_log, level_count, d_mem,
+            lwe_array_in, lwe_input_indexes, lut_vector, global_accumulator,
+            global_accumulator_fft, lwe_dimension, glwe_dimension,
+            polynomial_size, base_log, level_count, d_mem,
             full_sm_accumulate_step_one);
   else if (max_shared_memory < full_sm_accumulate_step_one)
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, PARTIALSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, partial_sm_accumulate_step_one,
            stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
-                     lut_vector_indexes, global_accumulator,
-                     global_accumulator_fft, lwe_dimension, glwe_dimension,
-                     polynomial_size, base_log, level_count, d_mem,
-                     partial_sm_accumulate_step_one);
+                     global_accumulator, global_accumulator_fft, lwe_dimension,
+                     glwe_dimension, polynomial_size, base_log, level_count,
+                     d_mem, partial_sm_accumulate_step_one);
   else
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, FULLSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, full_sm_accumulate_step_one,
            stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
-                     lut_vector_indexes, global_accumulator,
-                     global_accumulator_fft, lwe_dimension, glwe_dimension,
-                     polynomial_size, base_log, level_count, d_mem, 0);
+                     global_accumulator, global_accumulator_fft, lwe_dimension,
+                     glwe_dimension, polynomial_size, base_log, level_count,
+                     d_mem, 0);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -691,8 +685,8 @@ template <typename InputTorus, class params>
 __host__ void host_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
-    InputTorus const *lut_vector_indexes, InputTorus const *lwe_array_in,
-    InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
+    __uint128_t const *bootstrapping_key,
     pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -717,14 +711,14 @@ __host__ void host_multi_bit_programmable_bootstrap_128(
           (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
       if (is_first_iter) {
         execute_step_one_128<InputTorus, params, true>(
-            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-            lwe_input_indexes, buffer, num_samples, lwe_dimension,
-            glwe_dimension, polynomial_size, base_log, level_count);
+            stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count);
       } else {
         execute_step_one_128<InputTorus, params, false>(
-            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-            lwe_input_indexes, buffer, num_samples, lwe_dimension,
-            glwe_dimension, polynomial_size, base_log, level_count);
+            stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count);
       }
 
       if (is_last_iter) {
@@ -745,9 +739,8 @@ __host__ void host_multi_bit_programmable_bootstrap_128(
 template <typename InputTorus, class params>
 __host__ void execute_cg_external_product_loop_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
-    InputTorus const *lut_vector_indexes, InputTorus const *lwe_array_in,
-    InputTorus const *lwe_input_indexes, __uint128_t *lwe_array_out,
-    InputTorus const *lwe_output_indexes,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
+    __uint128_t *lwe_array_out, InputTorus const *lwe_output_indexes,
     pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
@@ -780,46 +773,45 @@ __host__ void execute_cg_external_product_loop_128(
   auto global_accumulator = buffer->global_accumulator;
   auto join_buffer = buffer->global_join_buffer;
 
-  void *kernel_args[22];
+  void *kernel_args[21];
   kernel_args[0] = &lwe_array_out;
   kernel_args[1] = &lwe_output_indexes;
   kernel_args[2] = &lut_vector;
-  kernel_args[3] = &lut_vector_indexes;
-  kernel_args[4] = &lwe_array_in;
-  kernel_args[5] = &lwe_input_indexes;
-  kernel_args[6] = &keybundle_fft;
-  kernel_args[7] = &join_buffer;
-  kernel_args[8] = &global_accumulator;
-  kernel_args[9] = &lwe_dimension;
-  kernel_args[10] = &glwe_dimension;
-  kernel_args[11] = &polynomial_size;
-  kernel_args[12] = &base_log;
-  kernel_args[13] = &level_count;
-  kernel_args[14] = &grouping_factor;
-  kernel_args[15] = &lwe_offset;
-  kernel_args[16] = &chunk_size;
-  kernel_args[17] = &keybundle_size_per_input;
-  kernel_args[18] = &d_mem;
-  kernel_args[20] = &num_many_lut;
-  kernel_args[21] = &lut_stride;
+  kernel_args[3] = &lwe_array_in;
+  kernel_args[4] = &lwe_input_indexes;
+  kernel_args[5] = &keybundle_fft;
+  kernel_args[6] = &join_buffer;
+  kernel_args[7] = &global_accumulator;
+  kernel_args[8] = &lwe_dimension;
+  kernel_args[9] = &glwe_dimension;
+  kernel_args[10] = &polynomial_size;
+  kernel_args[11] = &base_log;
+  kernel_args[12] = &level_count;
+  kernel_args[13] = &grouping_factor;
+  kernel_args[14] = &lwe_offset;
+  kernel_args[15] = &chunk_size;
+  kernel_args[16] = &keybundle_size_per_input;
+  kernel_args[17] = &d_mem;
+  kernel_args[19] = &num_many_lut;
+  kernel_args[20] = &lut_stride;
 
   dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < partial_dm) {
-    kernel_args[19] = &full_dm;
+    kernel_args[18] = &full_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             InputTorus, params, NOSM>,
         grid_accumulate, thds, (void **)kernel_args, 0, stream));
   } else if (max_shared_memory < full_dm) {
-    kernel_args[19] = &partial_dm;
+    kernel_args[18] = &partial_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             InputTorus, params, PARTIALSM>,
         grid_accumulate, thds, (void **)kernel_args, partial_sm, stream));
   } else {
-    kernel_args[19] = &no_dm;
+    kernel_args[18] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             InputTorus, params, FULLSM>,
@@ -831,8 +823,8 @@ template <typename InputTorus, class params>
 __host__ void host_cg_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
-    InputTorus const *lut_vector_indexes, InputTorus const *lwe_array_in,
-    InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
+    __uint128_t const *bootstrapping_key,
     pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -851,11 +843,10 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_128(
 
     // Accumulate
     execute_cg_external_product_loop_128<InputTorus, params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
-        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride);
+        stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+        lwe_array_out, lwe_output_indexes, buffer, num_samples, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        lwe_offset, num_many_lut, lut_stride);
   }
 }
 

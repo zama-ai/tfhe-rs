@@ -2698,7 +2698,6 @@ unsafe extern "C" {
         lwe_array_out: *mut ffi::c_void,
         lwe_output_indexes: *const ffi::c_void,
         lut_vector: *const ffi::c_void,
-        lut_vector_indexes: *const ffi::c_void,
         lwe_array_in: *const ffi::c_void,
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,

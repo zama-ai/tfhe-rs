@@ -1066,8 +1066,18 @@ template <typename InputTorus> struct int_noise_squashing_lut {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                    tmp_lwe_before_ks, gpu_memory_allocated);
     for (int i = 0; i < pbs_buffer.size(); i++) {
-      cleanup_cuda_programmable_bootstrap_128(streams[i], gpu_indexes[i],
-                                              &pbs_buffer[i]);
+      switch (params.pbs_type) {
+      case MULTI_BIT:
+        cleanup_cuda_multi_bit_programmable_bootstrap_128(
+            streams[i], gpu_indexes[i], &pbs_buffer[i]);
+        break;
+      case CLASSICAL:
+        cleanup_cuda_programmable_bootstrap_128(streams[i], gpu_indexes[i],
+                                                &pbs_buffer[i]);
+        break;
+      default:
+        PANIC("Cuda error (PBS): unknown PBS type. ")
+      }
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
     if (lwe_aligned_gather_vec.size() > 0) {

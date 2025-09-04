@@ -140,13 +140,8 @@ fn execute_multibit_bootstrap_u128(
                 let d_accumulator =
                     CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
-                let test_vector_indexes: Vec<u64> = vec![0; par_lwe_list.lwe_ciphertext_count().0];
-
-                let mut d_test_vector_indexes =
-                    unsafe { CudaVec::<u64>::new_async(number_of_messages, &stream, 0) };
-                unsafe {
-                    d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0)
-                };
+                // We initialize it so cargo won't complain, but we don't use it internally
+                let d_test_vector_indexes = unsafe { CudaVec::<u64>::new_async(1, &stream, 0) };
 
                 let num_blocks = d_lwe_ciphertext_in.lwe_ciphertext_count().0;
                 let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();

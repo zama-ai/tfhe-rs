@@ -1,8 +1,12 @@
+#[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::{
     BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 #[cfg(not(feature = "gpu"))]
@@ -25,8 +29,12 @@ use tfhe::prelude::*;
 
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::get_number_of_gpus;
+use tfhe::shortint::parameters::{
+    CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+};
+use tfhe::shortint::PBSParameters;
 #[cfg(feature = "gpu")]
-use tfhe::{set_server_key, GpuIndex};
+use tfhe::GpuIndex;
 use tfhe::{
     ClientKey, CompressedCiphertextListBuilder, CompressedServerKey,
     CompressedSquashedNoiseCiphertextListBuilder, FheUint10, FheUint12, FheUint128, FheUint14,
@@ -36,18 +44,42 @@ use tfhe::{
 
 fn bench_sns_only_fhe_type<FheType>(
     c: &mut Criterion,
-    client_key: &ClientKey,
+    params: (
+        PBSParameters,
+        NoiseSquashingParameters,
+        NoiseSquashingCompressionParameters,
+        CompressionParameters,
+    ),
     type_name: &str,
     num_bits: usize,
 ) where
     FheType: FheEncrypt<u128, ClientKey> + Send + Sync,
     FheType: SquashNoise,
 {
+    let (param, noise_param, _, _) = params;
+
+    use tfhe::{set_server_key, ConfigBuilder};
+    let config = ConfigBuilder::with_custom_parameters(param)
+        .enable_noise_squashing(noise_param)
+        .build();
+    let client_key = ClientKey::generate(config);
+    let compressed_sks = CompressedServerKey::new(&client_key);
+
+    #[cfg(feature = "gpu")]
+    set_server_key(compressed_sks.decompress_to_gpu());
+
+    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+    {
+        let decompressed_sks = compressed_sks.decompress();
+        rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
+        set_server_key(decompressed_sks);
+    }
+
     let mut bench_group = c.benchmark_group(type_name);
     let bench_id_prefix = if cfg!(feature = "gpu") {
-        "hlapi::cuda"
+        format!("hlapi::cuda::{}", noise_param.name())
     } else {
-        "hlapi"
+        "hlapi".to_string()
     };
     let bench_id_suffix = format!("noise_squash::{type_name}");
 
@@ -60,9 +92,9 @@ fn bench_sns_only_fhe_type<FheType>(
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
 
             #[cfg(feature = "gpu")]
-            configure_gpu(client_key);
+            configure_gpu(&client_key);
 
-            let input = FheType::encrypt(rng.gen(), client_key);
+            let input = FheType::encrypt(rng.gen(), &client_key);
 
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
@@ -82,7 +114,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
-                let compressed_server_key = CompressedServerKey::new(client_key);
+                let compressed_server_key = CompressedServerKey::new(&client_key);
                 let sks_vec = (0..gpu_count)
                     .map(|i| {
                         compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32))
@@ -92,7 +124,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.bench_function(&bench_id, |b| {
                     let encrypt_values = || {
                         (0..elements)
-                            .map(|_| FheType::encrypt(rng.gen(), client_key))
+                            .map(|_| FheType::encrypt(rng.gen(), &client_key))
                             .collect::<Vec<_>>()
                     };
 
@@ -118,7 +150,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.bench_function(&bench_id, |b| {
                     let encrypt_values = || {
                         (0..elements)
-                            .map(|_| FheType::encrypt(rng.gen(), client_key))
+                            .map(|_| FheType::encrypt(rng.gen(), &client_key))
                             .collect::<Vec<_>>()
                     };
 
@@ -150,7 +182,12 @@ fn bench_sns_only_fhe_type<FheType>(
 
 fn bench_decomp_sns_comp_fhe_type<FheType>(
     c: &mut Criterion,
-    client_key: &ClientKey,
+    params: (
+        PBSParameters,
+        NoiseSquashingParameters,
+        NoiseSquashingCompressionParameters,
+        CompressionParameters,
+    ),
     type_name: &str,
     num_bits: usize,
 ) where
@@ -158,11 +195,32 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     FheType: SquashNoise + Tagged + HlExpandable + HlCompressible,
     <FheType as SquashNoise>::Output: HlSquashedNoiseCompressible,
 {
+    let (param, noise_param, comp_noise_param, comp_param) = params;
+
+    use tfhe::{set_server_key, ConfigBuilder};
+    let config = ConfigBuilder::with_custom_parameters(param)
+        .enable_noise_squashing(noise_param)
+        .enable_noise_squashing_compression(comp_noise_param)
+        .enable_compression(comp_param)
+        .build();
+    let client_key = ClientKey::generate(config);
+    let compressed_sks = CompressedServerKey::new(&client_key);
+
+    #[cfg(feature = "gpu")]
+    set_server_key(compressed_sks.decompress_to_gpu());
+
+    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+    {
+        let decompressed_sks = compressed_sks.decompress();
+        rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
+        set_server_key(decompressed_sks);
+    }
+
     let mut bench_group = c.benchmark_group(type_name);
     let bench_id_prefix = if cfg!(feature = "gpu") {
-        "hlapi::cuda"
+        format!("hlapi::cuda::{}", noise_param.name())
     } else {
-        "hlapi"
+        "hlapi".to_string()
     };
     let bench_id_suffix = format!("decomp_noise_squash_comp::{type_name}");
 
@@ -175,9 +233,9 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
 
             #[cfg(feature = "gpu")]
-            configure_gpu(client_key);
+            configure_gpu(&client_key);
 
-            let input = FheType::encrypt(rng.gen(), client_key);
+            let input = FheType::encrypt(rng.gen(), &client_key);
 
             let mut builder = CompressedCiphertextListBuilder::new();
             builder.push(input);
@@ -205,7 +263,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
-                let compressed_server_key = CompressedServerKey::new(client_key);
+                let compressed_server_key = CompressedServerKey::new(&client_key);
                 let sks_vec = (0..gpu_count)
                     .map(|i| {
                         compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32))
@@ -216,7 +274,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
-                                let input = FheType::encrypt(rng.gen(), client_key);
+                                let input = FheType::encrypt(rng.gen(), &client_key);
                                 let mut builder = CompressedCiphertextListBuilder::new();
                                 builder.push(input);
                                 builder.build().unwrap()
@@ -254,7 +312,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
-                                let input = FheType::encrypt(rng.gen(), client_key);
+                                let input = FheType::encrypt(rng.gen(), &client_key);
                                 let mut builder = CompressedCiphertextListBuilder::new();
                                 builder.push(input);
                                 builder.build().unwrap()
@@ -296,8 +354,10 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 macro_rules! bench_sns_only_type {
     ($fhe_type:ident) => {
         ::paste::paste! {
-            fn [<bench_sns_only_ $fhe_type:snake>](c: &mut Criterion, cks: &ClientKey) {
-                bench_sns_only_fhe_type::<$fhe_type>(c, cks, stringify!($fhe_type), $fhe_type::num_bits());
+            fn [<bench_sns_only_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
+                for param in params {
+                    bench_sns_only_fhe_type::<$fhe_type>(c, *param, stringify!($fhe_type), $fhe_type::num_bits());
+                }
             }
         }
     };
@@ -306,8 +366,10 @@ macro_rules! bench_sns_only_type {
 macro_rules! bench_decomp_sns_comp_type {
     ($fhe_type:ident) => {
         ::paste::paste! {
-            fn [<bench_decomp_sns_comp_ $fhe_type:snake>](c: &mut Criterion, cks: &ClientKey) {
-                bench_decomp_sns_comp_fhe_type::<$fhe_type>(c, cks, stringify!($fhe_type), $fhe_type::num_bits());
+            fn [<bench_decomp_sns_comp_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
+                for param in params {
+                bench_decomp_sns_comp_fhe_type::<$fhe_type>(c, *param, stringify!($fhe_type), $fhe_type::num_bits());
+    }
             }
         }
     };
@@ -330,65 +392,55 @@ bench_decomp_sns_comp_type!(FheUint64);
 fn main() {
     #[cfg(feature = "hpu")]
     panic!("Noise squashing is not supported on HPU");
-    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
-    let cks = {
-        use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        use tfhe::{set_server_key, ConfigBuilder};
-        let config = ConfigBuilder::with_custom_parameters(
-            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .enable_noise_squashing(BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-        .enable_noise_squashing_compression(
-            BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .enable_compression(BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-        .build();
-        let cks = ClientKey::generate(config);
-        let compressed_sks = CompressedServerKey::new(&cks);
 
-        let decompressed_sks = compressed_sks.decompress();
-        rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
-        set_server_key(decompressed_sks);
-        cks
-    };
-    #[cfg(feature = "gpu")]
-    let cks = {
-        use tfhe::{set_server_key, ConfigBuilder};
-        let config = ConfigBuilder::with_custom_parameters(
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .enable_noise_squashing(
-            BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .enable_noise_squashing_compression(
-            BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .enable_compression(
-            BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .build();
-        let cks = ClientKey::generate(config);
-        let compressed_sks = CompressedServerKey::new(&cks);
+    let params: Vec<(
+        PBSParameters,
+        NoiseSquashingParameters,
+        NoiseSquashingCompressionParameters,
+        CompressionParameters,
+    )> = {
+        #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+        {
+            vec![(
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )]
+        }
 
-        set_server_key(compressed_sks.decompress_to_gpu());
-        cks
+        #[cfg(feature = "gpu")]
+        {
+            vec![(
+                     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                     BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                 ), (
+                     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                     BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                 ),
+            ]
+        }
     };
 
     let mut c = Criterion::default().configure_from_args();
 
-    bench_sns_only_fhe_uint2(&mut c, &cks);
-    bench_sns_only_fhe_uint4(&mut c, &cks);
-    bench_sns_only_fhe_uint6(&mut c, &cks);
-    bench_sns_only_fhe_uint8(&mut c, &cks);
-    bench_sns_only_fhe_uint10(&mut c, &cks);
-    bench_sns_only_fhe_uint12(&mut c, &cks);
-    bench_sns_only_fhe_uint14(&mut c, &cks);
-    bench_sns_only_fhe_uint16(&mut c, &cks);
-    bench_sns_only_fhe_uint32(&mut c, &cks);
-    bench_sns_only_fhe_uint64(&mut c, &cks);
-    bench_sns_only_fhe_uint128(&mut c, &cks);
+    bench_sns_only_fhe_uint2(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint4(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint6(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint8(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint10(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint12(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint14(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint16(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint32(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint64(&mut c, params.as_slice());
+    bench_sns_only_fhe_uint128(&mut c, params.as_slice());
 
-    bench_decomp_sns_comp_fhe_uint64(&mut c, &cks);
+    bench_decomp_sns_comp_fhe_uint64(&mut c, params.as_slice());
 
     c.final_summary();
 }

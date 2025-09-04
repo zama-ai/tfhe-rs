@@ -32,8 +32,8 @@ pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
 impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
     pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
         match self {
-            CudaBootstrappingKey::Classic(bsk) => bsk.output_lwe_dimension(),
-            CudaBootstrappingKey::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
+            Self::Classic(bsk) => bsk.output_lwe_dimension(),
+            Self::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
         }
     }
 }
