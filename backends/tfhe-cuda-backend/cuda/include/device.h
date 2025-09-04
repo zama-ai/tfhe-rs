@@ -3,11 +3,13 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <cuda_runtime.h>
-#include <vector>
 
+struct GpuBoundStream
+{
+  cudaStream_t stream;
+  uint32_t gpu_index;
+};
 extern "C" {
 
 #define check_cuda_error(ans)                                                  \
@@ -150,6 +152,11 @@ private:
   CudaStreams() {}
 
 public:
+
+  GpuBoundStream get(uint32_t idx)  {
+    return GpuBoundStream { _streams[idx], _gpu_indexes[idx] };
+  }
+
   cudaStream_t const *streams() const { return _streams; }
 
   uint32_t const *gpu_indexes() const { return _gpu_indexes; }
