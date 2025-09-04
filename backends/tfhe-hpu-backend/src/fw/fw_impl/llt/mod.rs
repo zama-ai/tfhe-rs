@@ -772,7 +772,6 @@ fn bw_inv(prog: &mut Program, b: Vec<VarCell>) -> Vec<VarCell> {
 /// Maybe this should go into a SIMD firmware implementation... At some point we
 /// would need a mechanism to choose between implementations on the fly to make
 /// real good use of all of this.
-
 fn simd<F>(prog: &mut Program, batch_size: usize, rtl_closure: F)
 where
     F: Fn(&mut Program, u8) -> Rtl,
