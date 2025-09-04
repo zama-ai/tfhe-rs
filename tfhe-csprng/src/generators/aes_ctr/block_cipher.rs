@@ -1,8 +1,11 @@
 use crate::generators::aes_ctr::{AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH};
 
 /// Represents a key used in the AES block cipher.
+///
+/// The u128 endianness should be ignored by implementations and the u128 should be seen as a simple
+/// [u8; 16].
 #[derive(Clone, Copy)]
-pub struct AesKey(pub u128);
+pub(crate) struct AesKey(pub u128);
 
 /// A trait for AES block ciphers.
 ///
