@@ -2,6 +2,9 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <mutex>
+#ifdef USE_NVTOOLS
+#include <cuda_profiler_api.h>
+#endif
 
 uint32_t cuda_get_device() {
   int device;
@@ -83,6 +86,9 @@ void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
   // Mempools are initialized only once in all the GPUS available
   cuda_setup_mempool(gpu_index);
+#ifdef USE_NVTOOLS
+  check_cuda_error(cudaProfilerStart());
+#endif
 }
 
 cudaEvent_t cuda_create_event(uint32_t gpu_index) {

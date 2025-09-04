@@ -1004,6 +1004,11 @@ test_list_gpu: install_rs_build_toolchain install_cargo_nextest
 		--features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/.*gpu.*/)"
 
+.PHONY: build_one_hl_api_test_gpu
+build_one_hl_api_test_gpu: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+		   --features=integer,gpu-debug -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
+
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
 ifeq ($(HPU_CONFIG), v80)
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
