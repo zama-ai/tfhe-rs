@@ -10,6 +10,10 @@ use crate::core_crypto::commons::noise_formulas::lwe_packing_keyswitch::{
     packing_keyswitch_additive_variance_132_bits_security_gaussian,
     packing_keyswitch_additive_variance_132_bits_security_tuniform,
 };
+use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::{
+    pbs_variance_132_bits_security_gaussian_fft_mul,
+    pbs_variance_132_bits_security_tuniform_fft_mul,
+};
 use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap_128::{
     pbs_128_variance_132_bits_security_gaussian_fft_mul,
     pbs_128_variance_132_bits_security_tuniform_fft_mul,
@@ -24,6 +28,8 @@ use crate::core_crypto::commons::traits::container::Container;
 use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKey;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
+use crate::core_crypto::fft_impl::fft64::c64;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::parameters::noise_squashing::{
     NoiseSquashingCompressionParameters, NoiseSquashingParameters,
@@ -88,6 +94,18 @@ pub struct NoiseSimulationLwe {
 }
 
 impl NoiseSimulationLwe {
+    pub fn new(
+        lwe_dimension: LweDimension,
+        variance: Variance,
+        modulus: NoiseSimulationModulus,
+    ) -> Self {
+        Self {
+            lwe_dimension,
+            variance,
+            modulus,
+        }
+    }
+
     pub fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension
     }
@@ -469,14 +487,11 @@ impl NoiseSimulationGlwe {
     }
 }
 
-impl AllocateBlindRotationResult for NoiseSimulationGlwe {
+impl AllocateBootstrapResult for NoiseSimulationGlwe {
     type Output = NoiseSimulationLwe;
     type SideResources = ();
 
-    fn allocated_blind_rotation_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_bootstrap_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
         let lwe_dimension = self
             .glwe_dimension()
             .to_equivalent_lwe_dimension(self.polynomial_size());
@@ -621,6 +636,139 @@ impl StandardFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimula
                     self.modulus().as_f64(),
                 )
             }
+        };
+
+        let output_lwe_dimension = self
+            .output_glwe_size()
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(self.output_polynomial_size());
+
+        output.lwe_dimension = output_lwe_dimension;
+        output.variance =
+            Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0);
+        output.modulus = accumulator.modulus;
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NoiseSimulationLweFourierBsk {
+    input_lwe_dimension: LweDimension,
+    output_glwe_size: GlweSize,
+    output_polynomial_size: PolynomialSize,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_distribution: DynamicDistribution<u64>,
+    modulus: NoiseSimulationModulus,
+}
+
+impl NoiseSimulationLweFourierBsk {
+    // We can't really build a key from an already generated key as we need to know what the noise
+    // distribution is.
+    pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
+        Self {
+            input_lwe_dimension: params.lwe_dimension(),
+            output_glwe_size: params.glwe_dimension().to_glwe_size(),
+            output_polynomial_size: params.polynomial_size(),
+            decomp_base_log: params.pbs_base_log(),
+            decomp_level_count: params.pbs_level(),
+            noise_distribution: params.glwe_noise_distribution(),
+            modulus: NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+        }
+    }
+
+    pub fn matches_actual_bsk<C: Container<Element = c64>>(
+        &self,
+        lwe_bsk: &FourierLweBootstrapKey<C>,
+    ) -> bool {
+        let Self {
+            input_lwe_dimension,
+            output_glwe_size: glwe_size,
+            output_polynomial_size: polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            noise_distribution: _,
+            modulus: _,
+        } = *self;
+
+        let bsk_input_lwe_dimension = lwe_bsk.input_lwe_dimension();
+        let bsk_glwe_size = lwe_bsk.glwe_size();
+        let bsk_polynomial_size = lwe_bsk.polynomial_size();
+        let bsk_decomp_base_log = lwe_bsk.decomposition_base_log();
+        let bsk_decomp_level_count = lwe_bsk.decomposition_level_count();
+
+        input_lwe_dimension == bsk_input_lwe_dimension
+            && glwe_size == bsk_glwe_size
+            && polynomial_size == bsk_polynomial_size
+            && decomp_base_log == bsk_decomp_base_log
+            && decomp_level_count == bsk_decomp_level_count
+    }
+
+    pub fn input_lwe_dimension(&self) -> LweDimension {
+        self.input_lwe_dimension
+    }
+
+    pub fn output_glwe_size(&self) -> GlweSize {
+        self.output_glwe_size
+    }
+
+    pub fn output_polynomial_size(&self) -> PolynomialSize {
+        self.output_polynomial_size
+    }
+
+    pub fn decomp_base_log(&self) -> DecompositionBaseLog {
+        self.decomp_base_log
+    }
+
+    pub fn decomp_level_count(&self) -> DecompositionLevelCount {
+        self.decomp_level_count
+    }
+
+    pub fn noise_distribution(&self) -> DynamicDistribution<u64> {
+        self.noise_distribution
+    }
+
+    pub fn modulus(&self) -> NoiseSimulationModulus {
+        self.modulus
+    }
+}
+
+impl StandardFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+    for NoiseSimulationLweFourierBsk
+{
+    type SideResources = ();
+
+    fn standard_fft_pbs(
+        &self,
+        input: &NoiseSimulationLwe,
+        output: &mut NoiseSimulationLwe,
+        accumulator: &NoiseSimulationGlwe,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert_eq!(self.input_lwe_dimension(), input.lwe_dimension());
+        assert_eq!(
+            self.output_glwe_size(),
+            accumulator.glwe_dimension().to_glwe_size()
+        );
+        assert_eq!(self.output_polynomial_size(), accumulator.polynomial_size());
+        assert_eq!(self.modulus(), accumulator.modulus());
+
+        let br_additive_variance = match self.noise_distribution() {
+            DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian_fft_mul(
+                self.input_lwe_dimension(),
+                self.output_glwe_size().to_glwe_dimension(),
+                self.output_polynomial_size(),
+                self.decomp_base_log(),
+                self.decomp_level_count(),
+                self.modulus().as_f64(),
+            ),
+            DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform_fft_mul(
+                self.input_lwe_dimension(),
+                self.output_glwe_size().to_glwe_dimension(),
+                self.output_polynomial_size(),
+                self.decomp_base_log(),
+                self.decomp_level_count(),
+                self.modulus().as_f64(),
+            ),
         };
 
         let output_lwe_dimension = self

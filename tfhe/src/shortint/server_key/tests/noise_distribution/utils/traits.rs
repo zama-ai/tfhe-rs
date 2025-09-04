@@ -76,14 +76,11 @@ pub trait DrifTechniqueStandardModSwitch<Input, OutputAfterDriftTechnique, Outpu
     );
 }
 
-pub trait AllocateBlindRotationResult {
+pub trait AllocateBootstrapResult {
     type Output;
     type SideResources;
 
-    fn allocated_blind_rotation_result(
-        &self,
-        side_resources: &mut Self::SideResources,
-    ) -> Self::Output;
+    fn allocate_bootstrap_result(&self, side_resources: &mut Self::SideResources) -> Self::Output;
 }
 
 pub trait StandardFftBootstrap<Input, Output, Accumulator> {

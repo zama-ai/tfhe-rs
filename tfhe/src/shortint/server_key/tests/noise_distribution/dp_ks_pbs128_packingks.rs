@@ -76,7 +76,7 @@ where
         >,
     // The accumulator has the information about the output size and modulus, therefore it is the
     // one to allocate the blind rotation result
-    Accumulator: AllocateBlindRotationResult<Output = PbsResult, SideResources = Resources>,
+    Accumulator: AllocateBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
     Bsk: StandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
@@ -93,7 +93,7 @@ where
         side_resources,
     );
 
-    let mut pbs_result = accumulator.allocated_blind_rotation_result(side_resources);
+    let mut pbs_result = accumulator.allocate_bootstrap_result(side_resources);
     bsk_128.standard_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
@@ -163,7 +163,7 @@ where
         > + Sync,
     // The accumulator has the information about the output size and modulus, therefore it is the
     // one to allocate the blind rotation result
-    Accumulator: AllocateBlindRotationResult<Output = PbsResult, SideResources = Resources> + Sync,
+    Accumulator: AllocateBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
     // We need to be able to apply the PBS
     Bsk:
         StandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources> + Sync,
