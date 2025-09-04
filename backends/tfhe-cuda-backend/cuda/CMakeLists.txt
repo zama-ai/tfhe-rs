@@ -86,6 +86,7 @@ if(CMAKE_BUILD_TYPE_LOWERCASE STREQUAL "debug")
   message("Compiling in Debug mode")
   add_definitions(-DDEBUG)
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O0 -G -g")
+  set(USE_NVTOOLS 1)
 else()
   # Release mode
   message("Compiling in Release mode")

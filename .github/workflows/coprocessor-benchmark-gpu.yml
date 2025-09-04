@@ -3,6 +3,22 @@ name: coprocessor-benchmark-gpu
 
 on:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        options:
+          - "l40 (n3-L40x1)"
+          - "4-l40 (n3-L40x4)"
+          - "single-h100 (n3-H100x1)"
+          - "2-h100 (n3-H100x2)"
+          - "4-h100 (n3-H100x4)"
+          - "multi-h100 (n3-H100x8)"
+          - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
+          - "multi-h100-sxm5_fallback (n3-H100x8-SXM5)"
+
   schedule:
     # Weekly tests @ 1AM
     - cron: "0 1 * * 6"
@@ -17,7 +33,9 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  PROFILE: "multi-h100-sxm5 (n3-H100x8-SXM5)"
+  PROFILE_SCHEDULED_RUN: "multi-h100-sxm5 (n3-H100x8-SXM5)"
+  PROFILE_MANUAL_RUN: ${{ inputs.profile }}
+  IS_MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' }}
   BENCHMARK_TYPE: "ALL"
   OPTIMIZATION_TARGET: "throughput"
   BATCH_SIZE: "5000"
@@ -40,15 +58,25 @@ jobs:
       - name: Parse profile
         id: parse_profile
         run: |
+          if [[ ${IS_MANUAL_RUN} == true ]]; then
+            PROFILE_RAW="${PROFILE_MANUAL_RUN}"
+          else
+            PROFILE_RAW="${PROFILE_SCHEDULED_RUN}"
+          fi
           # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
+          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
           echo "profile=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
+          if [[ ${IS_MANUAL_RUN} == true ]]; then
+            PROFILE_RAW="${PROFILE_MANUAL_RUN}"
+          else
+            PROFILE_RAW="${PROFILE}"
+          fi
           # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
+          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|.*[[:space:]](\(.*\))|\1|')
           echo "name=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
@@ -130,6 +158,13 @@ jobs:
           } >> "${GITHUB_ENV}"
         working-directory: tfhe-rs/
 
+      - name: Setup Hyperstack dependencies
+        uses: ./tfhe-rs/.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+
       - name: Check fhEVM and TFHE-rs repos
         run: |
           pwd
@@ -140,13 +175,6 @@ jobs:
         run: git lfs checkout
         working-directory: fhevm/
 
-      - name: Setup Hyperstack dependencies
-        uses: ./fhevm/.github/actions/gpu_setup
-        with:
-          cuda-version: ${{ matrix.cuda }}
-          gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
-
       - name: Install rust
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
@@ -154,7 +182,7 @@ jobs:
 
       - name: Install cargo dependencies
         run: |
-          sudo apt-get install -y protobuf-compiler cmake pkg-config libssl-dev \
+          sudo apt-get install -y protobuf-compiler pkg-config libssl-dev \
                                   libclang-dev docker-compose-v2 docker.io acl
           sudo usermod -aG docker "$USER"
           newgrp docker
@@ -181,9 +209,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Login to Chainguard Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: cgr.dev
+          username: ${{ secrets.CGR_USERNAME }}
+          password: ${{ secrets.CGR_PASSWORD }}
+
       - name: Init database
         run: make init_db
-        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
+        working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Use Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -203,8 +238,12 @@ jobs:
 
       - name: Profile erc20 no-cmux benchmark on GPU
         run: |
-          BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" BENCHMARK_TYPE="LATENCY" OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" make -e "profile_erc20_gpu"
-        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
+          BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" \
+          FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" \
+          BENCHMARK_TYPE="THROUGHPUT_200" \
+          OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" \
+          make -e "profile_erc20_gpu"
+        working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Get nsys profile name
         id: nsys_profile_name
@@ -215,7 +254,7 @@ jobs:
           REPORT_NAME: ${{ steps.nsys_profile_name.outputs.profile }}
         run: |
           mv report1.nsys-rep ${{ env.REPORT_NAME }}
-        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
+        working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Upload profile artifact
         env:
@@ -223,17 +262,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ env.REPORT_NAME }}
-          path: fhevm/coprocessor/fhevm-engine/coprocessor/${{ env.REPORT_NAME }}
+          path: fhevm/coprocessor/fhevm-engine/tfhe-worker/${{ env.REPORT_NAME }}
 
       - name: Run latency benchmark on GPU
         run: |
           BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" BENCHMARK_TYPE="LATENCY" OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" make -e "benchmark_${BENCHMARKS}_gpu"
-        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
+        working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Run throughput benchmarks on GPU
         run: |
           BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" BENCHMARK_TYPE="THROUGHPUT_200" OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" make -e "benchmark_${BENCHMARKS}_gpu"
-        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
+        working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Parse results
         run: |
@@ -246,7 +285,7 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
-          --crate "coprocessor/fhevm-engine/coprocessor" \
+          --crate "coprocessor/fhevm-engine/tfhe-worker" \
           --name-suffix "operation_batch_size_${BATCH_SIZE}-schedule_${SCHEDULING_POLICY}-optimization_target_${OPTIMIZATION_TARGET}"
         working-directory: fhevm/
 

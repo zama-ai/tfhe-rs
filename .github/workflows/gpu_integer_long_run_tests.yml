@@ -43,7 +43,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
-          profile: multi-gpu-test
+          profile: 4-l40
 
   cuda-tests:
     name: gpu_integer_long_run_tests/cuda-tests
