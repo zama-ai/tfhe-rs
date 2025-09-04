@@ -694,10 +694,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
 
     // Proof configuration:
     let proof_configs = [
-      {"crs_bit_size": 64, "bits_to_encrypt": [64]},
-      {"crs_bit_size": 640, "bits_to_encrypt": [640]},
-      {"crs_bit_size": 2048, "bits_to_encrypt": [2048, 64 * 4]}  // 64 * 4 is a production use-case
-      //{"crs_bit_size": 4096, "bits_to_encrypt": [4096]}, // This case is too big and make webdriver timeout
+      //{"crs_bit_size": 64, "bits_to_encrypt": [64]},
+      //{"crs_bit_size": 640, "bits_to_encrypt": [640]},
+      //{"crs_bit_size": 2048, "bits_to_encrypt": [2048, 64 * 4]}  // 64 * 4 is a production use-case
+      {"crs_bit_size": 4096, "bits_to_encrypt": [4096]}, // This case is too big and make webdriver timeout
     ];
 
     for (const proof_config of proof_configs) {
