@@ -578,28 +578,40 @@ __host__ void aes_encrypt_inplace(
 }
 
 /**
- * Orchestrates the homomorphic AES-CTR encryption process.
+ * Orchestrates the homomorphic AES-CTR encryption process for multiple blocks.
  * Steps:
- * 1. If a counter value is provided, homomorphically adds it to the state (IV).
- * 2. Calls the main homomorphic AES encryption routine on the resulting state.
+ * 1. Loops for `num_blocks` iterations.
+ * 2. In each iteration, it prepares a 128-bit state by adding the counter to
+ * the IV.
+ * 3. Calls the main homomorphic AES encryption routine on the resulting state.
  */
 template <typename Torus>
 __host__ void host_integer_aes_ctr_encrypt(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *state,
-    CudaRadixCiphertextFFI const *round_keys,
-    const Torus *plaintext_counter_bits, int_aes_encrypt_buffer<Torus> *mem,
-    void *const *bsks, Torus *const *ksks,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
+    const Torus *counter_bits_le_all_blocks, uint32_t num_blocks,
+    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  if (plaintext_counter_bits != nullptr) {
-    aes_full_adder_inplace(streams, gpu_indexes, gpu_count, state,
-                           plaintext_counter_bits, mem, bsks, ksks,
-                           ms_noise_reduction_key);
-  }
+  for (uint32_t block = 0; block < num_blocks; ++block) {
+    CudaRadixCiphertextFFI current_block;
+    as_radix_ciphertext_slice<Torus>(&current_block, output, block * 128,
+                                     (block + 1) * 128);
 
-  aes_encrypt_inplace(streams, gpu_indexes, gpu_count, state, round_keys, mem,
-                      bsks, ksks, ms_noise_reduction_key);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                       &current_block, iv);
+
+    const Torus *current_block_counter_bits =
+        &counter_bits_le_all_blocks[block * 128];
+
+    aes_full_adder_inplace(streams, gpu_indexes, gpu_count, &current_block,
+                           current_block_counter_bits, mem, bsks, ksks,
+                           ms_noise_reduction_key);
+
+    aes_encrypt_inplace(streams, gpu_indexes, gpu_count, &current_block,
+                        round_keys, mem, bsks, ksks, ms_noise_reduction_key);
+  }
 }
 
 #endif

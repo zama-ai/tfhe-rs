@@ -820,9 +820,10 @@ uint64_t scratch_cuda_integer_aes_encrypt_64(
 
 void cuda_integer_aes_ctr_encrypt_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    CudaRadixCiphertextFFI *state, CudaRadixCiphertextFFI const *round_keys,
-    const uint64_t *plaintext_counter_bits, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
+    CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *iv,
+    CudaRadixCiphertextFFI const *round_keys,
+    const uint64_t *counter_bits_le_all_blocks, uint32_t num_blocks,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key);
 
 void cleanup_cuda_integer_aes_encrypt_64(void *const *streams,

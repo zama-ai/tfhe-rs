@@ -8219,9 +8219,11 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    state: &mut CudaRadixCiphertext,
+    output: &mut CudaRadixCiphertext,
+    iv: &CudaRadixCiphertext,
     round_keys: &CudaRadixCiphertext,
-    plaintext_counter_bits: &[u64],
+    start_counter: u128,
+    num_blocks: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -8237,10 +8239,14 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
-    let mut state_degrees = state.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut state_noise_levels = state.info.blocks.iter().map(|b| b.noise_level.0).collect();
-    let mut cuda_ffi_state =
-        prepare_cuda_radix_ffi(state, &mut state_degrees, &mut state_noise_levels);
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let mut iv_degrees = iv.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut iv_noise_levels = iv.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_iv = prepare_cuda_radix_ffi(iv, &mut iv_degrees, &mut iv_noise_levels);
 
     let mut round_keys_degrees = round_keys.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut round_keys_noise_levels = round_keys
@@ -8255,7 +8261,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
         &mut round_keys_noise_levels,
     );
 
-    let ct_modulus = state.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ct_modulus = output.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
         prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
     let allocate_ms_noise_array = noise_reduction_key.is_some();
@@ -8281,13 +8287,22 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
         allocate_ms_noise_array,
     );
 
+    let counter_bits_le: Vec<u64> = (0..num_blocks)
+        .flat_map(|i| {
+            let current_counter = start_counter + i as u128;
+            (0..128).map(move |bit_index| ((current_counter >> bit_index) & 1) as u64)
+        })
+        .collect();
+
     cuda_integer_aes_ctr_encrypt_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        &raw mut cuda_ffi_state,
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_iv,
         &raw const cuda_ffi_round_keys,
-        plaintext_counter_bits.as_ptr(),
+        counter_bits_le.as_ptr(),
+        num_blocks,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
@@ -8301,5 +8316,5 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
         std::ptr::addr_of_mut!(mem_ptr),
     );
 
-    update_noise_degree(state, &cuda_ffi_state);
+    update_noise_degree(output, &cuda_ffi_output);
 }
