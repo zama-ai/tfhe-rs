@@ -399,7 +399,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<
             lwe_array_out.as_mut_c_ptr(0),
             output_indexes.as_c_ptr(0),
             test_vector.as_c_ptr(0),
-            test_vector_indexes.as_c_ptr(0),
             lwe_array_in.as_c_ptr(0),
             input_indexes.as_c_ptr(0),
             bootstrapping_key.as_c_ptr(0),

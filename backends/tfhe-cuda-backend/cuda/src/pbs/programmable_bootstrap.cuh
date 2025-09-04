@@ -347,18 +347,12 @@ void execute_pbs_async(
         auto current_lwe_input_indexes =
             get_variant_element(lwe_input_indexes, i);
 
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
-        auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
-
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
             streams[i], gpu_indexes[i], current_lwe_array_out,
-            current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
-            current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_many_lut, lut_stride);
+            current_lwe_output_indexes, lut_vec[i], current_lwe_array_in,
+            current_lwe_input_indexes, bootstrapping_keys[i], pbs_buffer[i],
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            base_log, level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     case CLASSICAL:

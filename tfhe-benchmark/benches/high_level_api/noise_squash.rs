@@ -1,5 +1,6 @@
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+use benchmark::params_aliases::BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(not(feature = "gpu"))]
 use benchmark::params_aliases::BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
@@ -182,7 +183,7 @@ fn main() {
         cks
     };
     #[cfg(feature = "gpu")]
-    let cks = {
+    let cks_classical = {
         use tfhe::{set_server_key, ConfigBuilder};
         let config = ConfigBuilder::with_custom_parameters(
             BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -198,19 +199,45 @@ fn main() {
         cks
     };
 
+    let cks_multibit = {
+        use tfhe::{set_server_key, ConfigBuilder};
+        let config = ConfigBuilder::with_custom_parameters(
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_noise_squashing(
+            BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        set_server_key(compressed_sks.decompress_to_gpu());
+        cks
+    };
     let mut c = Criterion::default().configure_from_args();
 
-    bench_fhe_uint2(&mut c, &cks);
-    bench_fhe_uint4(&mut c, &cks);
-    bench_fhe_uint6(&mut c, &cks);
-    bench_fhe_uint8(&mut c, &cks);
-    bench_fhe_uint10(&mut c, &cks);
-    bench_fhe_uint12(&mut c, &cks);
-    bench_fhe_uint14(&mut c, &cks);
-    bench_fhe_uint16(&mut c, &cks);
-    bench_fhe_uint32(&mut c, &cks);
-    bench_fhe_uint64(&mut c, &cks);
-    bench_fhe_uint128(&mut c, &cks);
+    bench_fhe_uint2(&mut c, &cks_classical);
+    bench_fhe_uint4(&mut c, &cks_classical);
+    bench_fhe_uint6(&mut c, &cks_classical);
+    bench_fhe_uint8(&mut c, &cks_classical);
+    bench_fhe_uint10(&mut c, &cks_classical);
+    bench_fhe_uint12(&mut c, &cks_classical);
+    bench_fhe_uint14(&mut c, &cks_classical);
+    bench_fhe_uint16(&mut c, &cks_classical);
+    bench_fhe_uint32(&mut c, &cks_classical);
+    bench_fhe_uint64(&mut c, &cks_classical);
+    bench_fhe_uint128(&mut c, &cks_classical);
+    bench_fhe_uint2(&mut c, &cks_multibit);
+    bench_fhe_uint4(&mut c, &cks_multibit);
+    bench_fhe_uint6(&mut c, &cks_multibit);
+    bench_fhe_uint8(&mut c, &cks_multibit);
+    bench_fhe_uint10(&mut c, &cks_multibit);
+    bench_fhe_uint12(&mut c, &cks_multibit);
+    bench_fhe_uint14(&mut c, &cks_multibit);
+    bench_fhe_uint16(&mut c, &cks_multibit);
+    bench_fhe_uint32(&mut c, &cks_multibit);
+    bench_fhe_uint64(&mut c, &cks_multibit);
+    bench_fhe_uint128(&mut c, &cks_multibit);
 
     c.final_summary();
 }
