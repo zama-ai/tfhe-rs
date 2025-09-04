@@ -249,6 +249,8 @@ pub struct Plan {
     inv_twid_shoup: ABox<[u64]>,
     p: u64,
     p_div: Div64,
+    has_ifma: bool,
+    can_use_fast_reduction_code: bool,
 
     // used for elementwise product
     p_barrett: u64,
@@ -721,6 +723,41 @@ fn normalize_scalar(values: &mut [u64], p: u64, n_inv_mod_p: u64, n_inv_mod_p_sh
     }
 }
 
+struct BarrettInit64 {
+    bits: u32,
+    big_q: u64,
+    p_barrett: u64,
+    requires_single_reduction_step: bool,
+}
+
+impl BarrettInit64 {
+    pub fn new(modulus: u64, bits: u32) -> Self {
+        let big_q = modulus.ilog2() + 1;
+        let big_l = big_q + bits - 1;
+        let m_as_u128: u128 = modulus.into();
+        let two_to_the_l = 1u128 << big_l; // Equivalent to 2^{2k} from the zk security blog
+        let (p_barrett, beta) = (
+            (two_to_the_l / m_as_u128) as u64,
+            (two_to_the_l % m_as_u128),
+        );
+
+        // Check that the chosen prime will only trigger a single barrett reduction step with
+        // our implementation. If two reductions are needed there can be cases where it is not
+        // possible to decide whether a reduction is required yielding wrong results.
+        // Formula derived with https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
+        let single_reduction_threshold = m_as_u128 - (1 << (big_q - 1));
+
+        let requires_single_reduction_step = beta <= single_reduction_threshold;
+
+        Self {
+            bits,
+            big_q: big_q.into(),
+            p_barrett,
+            requires_single_reduction_step,
+        }
+    }
+}
+
 impl Plan {
     /// Returns a negacyclic NTT plan for the given polynomial size and modulus, or `None` if no
     /// suitable roots of unity can be found for the wanted parameters.
@@ -736,16 +773,48 @@ impl Plan {
         {
             None
         } else {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
-            let has_ifma = (modulus < (1u64 << 51)) && crate::V4IFma::try_new().is_some();
-            #[cfg(not(all(
-                any(target_arch = "x86", target_arch = "x86_64"),
-                feature = "nightly",
-            )))]
-            let has_ifma = false;
+            let ifma_instructions_available = {
+                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+                #[cfg(feature = "nightly")]
+                let has_ifma = crate::V4IFma::try_new().is_some();
+                #[cfg(not(all(
+                    any(target_arch = "x86", target_arch = "x86_64"),
+                    feature = "nightly",
+                )))]
+                let has_ifma = false;
 
-            let bits = if has_ifma { 52 } else { 64 };
+                has_ifma
+            };
+
+            // See prime32 for the logic behind the checks performed here
+            // They avoid overflows and allow the use of fast code paths.
+            let init_ifma = if ifma_instructions_available && modulus < (1u64 << 52) {
+                let init_less_than_52_bits = BarrettInit64::new(modulus, 52);
+                if (modulus < 1501199875790166)
+                    || (init_less_than_52_bits.requires_single_reduction_step
+                        && modulus < (1 << 51))
+                {
+                    // If we comply with the 52 bits code requirements return the init params
+                    Some(init_less_than_52_bits)
+                } else {
+                    // Otherwise we will need a 64 bits fallback
+                    None
+                }
+            } else {
+                None
+            };
+
+            let BarrettInit64 {
+                bits,
+                big_q,
+                p_barrett,
+                requires_single_reduction_step,
+            } = init_ifma.unwrap_or_else(|| BarrettInit64::new(modulus, 64));
+
+            let has_ifma = bits == 52 && requires_single_reduction_step;
+            let can_use_fast_reduction_code = has_ifma
+                || ((modulus < 6148914691236517206)
+                    || (requires_single_reduction_step && (modulus < (1 << 63))));
 
             let mut twid = avec![0u64; polynomial_size].into_boxed_slice();
             let mut inv_twid = avec![0u64; polynomial_size].into_boxed_slice();
@@ -774,9 +843,6 @@ impl Plan {
 
             let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, modulus - 2);
             let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << bits) / modulus as u128) as u64;
-            let big_q = (modulus.ilog2() + 1) as u64;
-            let big_l = big_q + (bits - 1) as u64;
-            let p_barrett = ((1u128 << big_l) / modulus as u128) as u64;
 
             Some(Self {
                 twid,
@@ -785,6 +851,8 @@ impl Plan {
                 inv_twid,
                 p: modulus,
                 p_div,
+                has_ifma,
+                can_use_fast_reduction_code,
                 p_barrett,
                 big_q,
                 n_inv_mod_p,
@@ -969,15 +1037,12 @@ impl Plan {
     /// polynomial modulo the NTT modulus, and stores the result in `lhs`.
     pub fn mul_assign_normalize(&self, lhs: &mut [u64], rhs: &[u64]) {
         let p = self.p;
+        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
-        let has_ifma = (p < (1u64 << 51)) && crate::V4IFma::try_new().is_some();
-
-        if p < (1 << 63) {
+        if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "nightly")]
-            if has_ifma {
+            if self.has_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
                 mul_assign_normalize_ifma(
@@ -1059,15 +1124,12 @@ impl Plan {
     /// the result in `values`.
     pub fn normalize(&self, values: &mut [u64]) {
         let p = self.p;
+        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
-        let has_ifma = (p < (1u64 << 51)) && crate::V4IFma::try_new().is_some();
-
-        if p < (1 << 63) {
+        if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "nightly")]
-            if has_ifma {
+            if self.has_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
                 normalize_ifma(simd, values, p, self.n_inv_mod_p, self.n_inv_mod_p_shoup);
@@ -1107,15 +1169,12 @@ impl Plan {
     /// Computes the elementwise product of `lhs` and `rhs` and accumulates the result to `acc`.
     pub fn mul_accumulate(&self, acc: &mut [u64], lhs: &[u64], rhs: &[u64]) {
         let p = self.p;
+        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
-        let has_ifma = (p < (1u64 << 51)) && crate::V4IFma::try_new().is_some();
-
-        if p < (1 << 63) {
+        if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "nightly")]
-            if has_ifma {
+            if self.has_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
                 mul_accumulate_ifma(simd, acc, lhs, rhs, p, self.p_barrett, self.big_q);
