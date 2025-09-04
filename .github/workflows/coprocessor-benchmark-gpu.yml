@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - "l40 (n3-L40x1)"
+          - "4-l40 (n3-L40x4)"
           - "single-h100 (n3-H100x1)"
           - "2-h100 (n3-H100x2)"
           - "4-h100 (n3-H100x4)"
@@ -204,6 +205,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Chainguard Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: cgr.dev
+          username: ${{ secrets.CGR_USERNAME }}
+          password: ${{ secrets.CGR_PASSWORD }}
 
       - name: Init database
         run: make init_db

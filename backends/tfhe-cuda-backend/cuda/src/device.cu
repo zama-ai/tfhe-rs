@@ -1,12 +1,15 @@
 #include "device.h"
 #include <cstdint>
 #include <cuda_runtime.h>
+#ifdef USE_NVTOOLS
+#include <cuda_profiler_api.h>
+#endif
 
 uint32_t cuda_get_device() {
   int device;
   check_cuda_error(cudaGetDevice(&device));
 #ifdef USE_NVTOOLS
-  cudaStartProfile();
+  check_cuda_error(cudaProfilerStart());
 #endif
   return static_cast<uint32_t>(device);
 }
