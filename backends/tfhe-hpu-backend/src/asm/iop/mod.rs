@@ -176,9 +176,9 @@ pub const IOP_2CT_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
     imm: 1,
 };
 
-pub const SIMD_N: usize = 12; //TODO: We need to come up with a way to have this dynamic
-pub const IOP_NCT_F_2NCT: ConstIOpProto<{ 1 * SIMD_N }, { 2 * SIMD_N }> = ConstIOpProto {
-    dst: [VarMode::Native; 1 * SIMD_N],
+pub const SIMD_N: usize = 9; //TODO: We need to come up with a way to have this dynamic
+pub const IOP_NCT_F_2NCT: ConstIOpProto<{ SIMD_N }, { 2 * SIMD_N }> = ConstIOpProto {
+    dst: [VarMode::Native; SIMD_N],
     src: [VarMode::Native; 2 * SIMD_N],
     imm: 0,
 };

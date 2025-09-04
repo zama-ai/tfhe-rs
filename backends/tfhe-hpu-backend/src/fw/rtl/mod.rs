@@ -1500,7 +1500,7 @@ impl Arch {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Rtl(Vec<VarCell>);
 
 impl Rtl {
@@ -1613,12 +1613,6 @@ impl Rtl {
     #[instrument(level = "trace", skip(self, prog))]
     pub fn estimate(self, prog: &Program) -> usize {
         self.raw_add(prog).0
-    }
-}
-
-impl Default for Rtl {
-    fn default() -> Self {
-        Rtl(Vec::new())
     }
 }
 
