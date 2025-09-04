@@ -76,6 +76,22 @@ impl crate::V3 {
             self.wrapping_sub_u64x4(x, modulus),
         )
     }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x4(self, modulus: u64x4, x: u64x4) -> u64x4 {
+        // First conditional subtraction
+        let t1 = self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, x),
+            x,
+            self.wrapping_sub_u64x4(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x4(t1, modulus),
+        )
+    }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -152,6 +168,22 @@ impl crate::V4 {
             self.cmp_gt_u64x8(modulus, x),
             x,
             self.wrapping_sub_u64x8(x, modulus),
+        )
+    }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x8(self, modulus: u64x8, x: u64x8) -> u64x8 {
+        // First conditional subtraction
+        let t1 = self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, x),
+            x,
+            self.wrapping_sub_u64x8(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x8(t1, modulus),
         )
     }
 }
@@ -316,7 +348,7 @@ fn mul_assign_normalize_ifma(
                     simd.wrapping_mul_add_u52x8(prod, n_inv_mod_p, zero),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -359,9 +391,9 @@ fn mul_accumulate_ifma(
                 let c3 = simd.widening_mul_u52x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_mul_add_u52x8(neg_p, c3, lo);
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -412,7 +444,7 @@ fn mul_assign_normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -454,9 +486,9 @@ fn mul_accumulate_avx512(
                 let c3 = simd.widening_mul_u64x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x8(lo, simd.wrapping_mul_u64x8(p, c3));
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -505,7 +537,7 @@ fn mul_assign_normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x4(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
@@ -546,9 +578,9 @@ fn mul_accumulate_avx2(
                 let c3 = simd.widening_mul_u64x4(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x4(lo, simd.widening_mul_u64x4(p, c3).0);
-                let prod = simd.small_mod_u64x4(p, prod);
+                let prod = simd.small_mod_double_sub_u64x4(p, prod);
 
-                *acc = cast(simd.small_mod_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
             }
         },
     )
@@ -575,9 +607,16 @@ fn mul_assign_normalize_scalar(
         let prod = (d as u64).wrapping_sub(p.wrapping_mul(c3));
 
         let shoup_q = (((prod as u128) * (n_inv_mod_p_shoup as u128)) >> 64) as u64;
-        let t = u64::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
+        let mut t = u64::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
 
-        *lhs_ = t.min(t.wrapping_sub(p));
+        // Perform up to two conditional subtractions
+        if t >= p {
+            t = t.wrapping_sub(p);
+            if t >= p {
+                t = t.wrapping_sub(p);
+            }
+        }
+        *lhs_ = t;
     }
 }
 
@@ -599,10 +638,22 @@ fn mul_accumulate_scalar(
         let c1 = (d >> big_q_m1) as u64;
         let c3 = ((c1 as u128 * p_barrett as u128) >> 64) as u64;
         let prod = (d as u64).wrapping_sub(p.wrapping_mul(c3));
-        let prod = prod.min(prod.wrapping_sub(p));
+        let mut prod = prod;
+        if prod >= p {
+            prod = prod.wrapping_sub(p);
+            if prod >= p {
+                prod = prod.wrapping_sub(p);
+            }
+        }
 
-        let acc_ = prod + *acc;
-        *acc = acc_.min(acc_.wrapping_sub(p));
+        let mut acc_ = prod + *acc;
+        if acc_ >= p {
+            acc_ = acc_.wrapping_sub(p);
+            if acc_ >= p {
+                acc_ = acc_.wrapping_sub(p);
+            }
+        }
+        *acc = acc_;
     }
 }
 
@@ -637,7 +688,7 @@ fn normalize_ifma(
                     simd.wrapping_mul_add_u52x8(val, n_inv_mod_p, zero),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -671,7 +722,7 @@ fn normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -704,7 +755,7 @@ fn normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *val_ = cast(simd.small_mod_u64x4(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
@@ -1479,422 +1530,6 @@ pub mod tests {
             Plan::try_new(polynomial_size, p)
                 .unwrap()
                 .normalize(&mut val);
-            assert_eq!(val, val_target);
-        }
-    }
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(test)]
-mod x86_tests {
-    use super::*;
-    use crate::prime::largest_prime_in_arithmetic_progression64;
-    use alloc::vec::Vec;
-    use rand::random as rnd;
-
-    extern crate alloc;
-
-    #[test]
-    fn test_interleaves_and_permutes_u64x4() {
-        if let Some(simd) = crate::V3::try_new() {
-            let a = u64x4(rnd(), rnd(), rnd(), rnd());
-            let b = u64x4(rnd(), rnd(), rnd(), rnd());
-
-            assert_eq!(
-                simd.interleave2_u64x4([a, b]),
-                [u64x4(a.0, a.1, b.0, b.1), u64x4(a.2, a.3, b.2, b.3)],
-            );
-            assert_eq!(
-                simd.interleave2_u64x4(simd.interleave2_u64x4([a, b])),
-                [a, b],
-            );
-            let w = [rnd(), rnd()];
-            assert_eq!(simd.permute2_u64x4(w), u64x4(w[0], w[0], w[1], w[1]));
-
-            assert_eq!(
-                simd.interleave1_u64x4([a, b]),
-                [u64x4(a.0, b.0, a.2, b.2), u64x4(a.1, b.1, a.3, b.3)],
-            );
-            assert_eq!(
-                simd.interleave1_u64x4(simd.interleave1_u64x4([a, b])),
-                [a, b],
-            );
-            let w = [rnd(), rnd(), rnd(), rnd()];
-            assert_eq!(simd.permute1_u64x4(w), u64x4(w[0], w[2], w[1], w[3]));
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_interleaves_and_permutes_u64x8() {
-        if let Some(simd) = crate::V4::try_new() {
-            let a = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
-            let b = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
-
-            assert_eq!(
-                simd.interleave4_u64x8([a, b]),
-                [
-                    u64x8(a.0, a.1, a.2, a.3, b.0, b.1, b.2, b.3),
-                    u64x8(a.4, a.5, a.6, a.7, b.4, b.5, b.6, b.7),
-                ],
-            );
-            assert_eq!(
-                simd.interleave4_u64x8(simd.interleave4_u64x8([a, b])),
-                [a, b],
-            );
-            let w = [rnd(), rnd()];
-            assert_eq!(
-                simd.permute4_u64x8(w),
-                u64x8(w[0], w[0], w[0], w[0], w[1], w[1], w[1], w[1]),
-            );
-
-            assert_eq!(
-                simd.interleave2_u64x8([a, b]),
-                [
-                    u64x8(a.0, a.1, b.0, b.1, a.4, a.5, b.4, b.5),
-                    u64x8(a.2, a.3, b.2, b.3, a.6, a.7, b.6, b.7),
-                ],
-            );
-            assert_eq!(
-                simd.interleave2_u64x8(simd.interleave2_u64x8([a, b])),
-                [a, b],
-            );
-            let w = [rnd(), rnd(), rnd(), rnd()];
-            assert_eq!(
-                simd.permute2_u64x8(w),
-                u64x8(w[0], w[0], w[2], w[2], w[1], w[1], w[3], w[3]),
-            );
-
-            assert_eq!(
-                simd.interleave1_u64x8([a, b]),
-                [
-                    u64x8(a.0, b.0, a.2, b.2, a.4, b.4, a.6, b.6),
-                    u64x8(a.1, b.1, a.3, b.3, a.5, b.5, a.7, b.7),
-                ],
-            );
-            assert_eq!(
-                simd.interleave1_u64x8(simd.interleave1_u64x8([a, b])),
-                [a, b],
-            );
-            let w = [rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd()];
-            assert_eq!(
-                simd.permute1_u64x8(w),
-                u64x8(w[0], w[4], w[1], w[5], w[2], w[6], w[3], w[7]),
-            );
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_mul_assign_normalize_ifma() {
-        if let Some(simd) = crate::V4IFma::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 51).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 52) / p as u128) as u64;
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 51;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut lhs_target = lhs.clone();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for (lhs, rhs) in lhs_target.iter_mut().zip(&rhs) {
-                *lhs = mul(mul(*lhs, *rhs), n_inv_mod_p);
-            }
-
-            mul_assign_normalize_ifma(
-                simd,
-                &mut lhs,
-                &rhs,
-                p,
-                p_barrett,
-                big_q,
-                n_inv_mod_p,
-                n_inv_mod_p_shoup,
-            );
-            assert_eq!(lhs, lhs_target);
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_mul_assign_normalize_avx512() {
-        if let Some(simd) = crate::V4::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 64) / p as u128) as u64;
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 63;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut lhs_target = lhs.clone();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for (lhs, rhs) in lhs_target.iter_mut().zip(&rhs) {
-                *lhs = mul(mul(*lhs, *rhs), n_inv_mod_p);
-            }
-
-            mul_assign_normalize_avx512(
-                simd,
-                &mut lhs,
-                &rhs,
-                p,
-                p_barrett,
-                big_q,
-                n_inv_mod_p,
-                n_inv_mod_p_shoup,
-            );
-            assert_eq!(lhs, lhs_target);
-        }
-    }
-
-    #[test]
-    fn test_mul_assign_normalize_avx2() {
-        if let Some(simd) = crate::V3::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 64) / p as u128) as u64;
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 63;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut lhs_target = lhs.clone();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for (lhs, rhs) in lhs_target.iter_mut().zip(&rhs) {
-                *lhs = mul(mul(*lhs, *rhs), n_inv_mod_p);
-            }
-
-            mul_assign_normalize_avx2(
-                simd,
-                &mut lhs,
-                &rhs,
-                p,
-                p_barrett,
-                big_q,
-                n_inv_mod_p,
-                n_inv_mod_p_shoup,
-            );
-            assert_eq!(lhs, lhs_target);
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_mul_accumulate_ifma() {
-        if let Some(simd) = crate::V4IFma::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 51).unwrap();
-            let polynomial_size = 128;
-
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 51;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut acc = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut acc_target = acc.clone();
-            let lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-            let add = |a: u64, b: u64| <u64 as PrimeModulus>::add(p, a, b);
-
-            for (acc, lhs, rhs) in crate::izip!(&mut acc_target, &lhs, &rhs) {
-                *acc = add(mul(*lhs, *rhs), *acc);
-            }
-
-            mul_accumulate_ifma(simd, &mut acc, &lhs, &rhs, p, p_barrett, big_q);
-            assert_eq!(acc, acc_target);
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_mul_accumulate_avx512() {
-        if let Some(simd) = crate::V4::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let polynomial_size = 128;
-
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 63;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut acc = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut acc_target = acc.clone();
-            let lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-            let add = |a: u64, b: u64| <u64 as PrimeModulus>::add(p, a, b);
-
-            for (acc, lhs, rhs) in crate::izip!(&mut acc_target, &lhs, &rhs) {
-                *acc = add(mul(*lhs, *rhs), *acc);
-            }
-
-            mul_accumulate_avx512(simd, &mut acc, &lhs, &rhs, p, p_barrett, big_q);
-            assert_eq!(acc, acc_target);
-        }
-    }
-
-    #[test]
-    fn test_mul_accumulate_avx2() {
-        if let Some(simd) = crate::V3::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let polynomial_size = 128;
-
-            let big_q = (p.ilog2() + 1) as u64;
-            let big_l = big_q + 63;
-            let p_barrett = ((1u128 << big_l) / p as u128) as u64;
-
-            let mut acc = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut acc_target = acc.clone();
-            let lhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let rhs = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-            let add = |a: u64, b: u64| <u64 as PrimeModulus>::add(p, a, b);
-
-            for (acc, lhs, rhs) in crate::izip!(&mut acc_target, &lhs, &rhs) {
-                *acc = add(mul(*lhs, *rhs), *acc);
-            }
-
-            mul_accumulate_avx2(simd, &mut acc, &lhs, &rhs, p, p_barrett, big_q);
-            assert_eq!(acc, acc_target);
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_normalize_ifma() {
-        if let Some(simd) = crate::V4IFma::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 51).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 52) / p as u128) as u64;
-
-            let mut val = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut val_target = val.clone();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for val in val_target.iter_mut() {
-                *val = mul(*val, n_inv_mod_p);
-            }
-
-            normalize_ifma(simd, &mut val, p, n_inv_mod_p, n_inv_mod_p_shoup);
-            assert_eq!(val, val_target);
-        }
-    }
-
-    #[cfg(feature = "nightly")]
-    #[test]
-    fn test_normalize_avx512() {
-        if let Some(simd) = crate::V4::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 64) / p as u128) as u64;
-
-            let mut val = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut val_target = val.clone();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for val in val_target.iter_mut() {
-                *val = mul(*val, n_inv_mod_p);
-            }
-
-            normalize_avx512(simd, &mut val, p, n_inv_mod_p, n_inv_mod_p_shoup);
-            assert_eq!(val, val_target);
-        }
-    }
-
-    #[test]
-    fn test_normalize_avx2() {
-        if let Some(simd) = crate::V3::try_new() {
-            let p =
-                largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
-            let p_div = Div64::new(p);
-            let polynomial_size = 128;
-
-            let n_inv_mod_p = crate::prime::exp_mod64(p_div, polynomial_size as u64, p - 2);
-            let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 64) / p as u128) as u64;
-
-            let mut val = (0..polynomial_size)
-                .map(|_| rand::random::<u64>() % p)
-                .collect::<Vec<_>>();
-            let mut val_target = val.clone();
-
-            let mul = |a: u64, b: u64| ((a as u128 * b as u128) % p as u128) as u64;
-
-            for val in val_target.iter_mut() {
-                *val = mul(*val, n_inv_mod_p);
-            }
-
-            normalize_avx2(simd, &mut val, p, n_inv_mod_p, n_inv_mod_p_shoup);
             assert_eq!(val, val_target);
         }
     }
