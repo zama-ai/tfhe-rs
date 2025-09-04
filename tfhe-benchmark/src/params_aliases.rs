@@ -7,6 +7,7 @@ pub mod shortint_params_aliases {
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
         MultiBitPBSParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
         ShortintKeySwitchingParameters,
+        NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     // KS PBS Gaussian
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
@@ -142,6 +143,10 @@ pub mod shortint_params_aliases {
     pub const BENCH_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         NoiseSquashingParameters =
         V1_4_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    pub const BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+        NoiseSquashingParameters =
+    NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     pub const BENCH_COMP_NOISE_SQUASHING_PARAM_GPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         NoiseSquashingCompressionParameters =
