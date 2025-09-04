@@ -33,6 +33,7 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  PROFILE_UNATTENDED_RUN: "multi-h100-sxm5 (n3-H100x8-SXM5)"
   BENCHMARK_TYPE: "ALL"
   OPTIMIZATION_TARGET: "throughput"
   BATCH_SIZE: "5000"
@@ -58,7 +59,7 @@ jobs:
           if [[ ${{ github.event_name == 'workflow_dispatch' }} == true ]]; then
             PROFILE_RAW="${{ inputs.profile }}"
           else
-            PROFILE_RAW="${PROFILE}"
+            PROFILE_RAW="${PROFILE_UNATTENDED_RUN}"
           fi
           # shellcheck disable=SC2001
           PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
