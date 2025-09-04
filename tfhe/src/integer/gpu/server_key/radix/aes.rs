@@ -13,10 +13,12 @@ impl CudaServerKey {
         &self,
         iv: &CudaUnsignedRadixCiphertext,
         round_keys: &CudaUnsignedRadixCiphertext,
-        counter_value: u128,
+        start_counter: u128,
+        num_blocks: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let result = unsafe { self.aes_encrypt_async(iv, round_keys, counter_value, streams) };
+        let result =
+            unsafe { self.aes_encrypt_async(iv, round_keys, start_counter, num_blocks, streams) };
         streams.synchronize();
         result
     }
@@ -29,20 +31,22 @@ impl CudaServerKey {
         &self,
         iv: &CudaUnsignedRadixCiphertext,
         round_keys: &CudaUnsignedRadixCiphertext,
-        counter_value: u128,
+        start_counter: u128,
+        num_blocks: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let mut state_to_encrypt = iv.duplicate_async(streams);
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(num_blocks * 128, streams);
 
-        let num_state_blocks = 128;
+        let num_iv_blocks = 128;
         let num_round_key_blocks = 11 * 128;
 
         assert_eq!(
-            state_to_encrypt.as_ref().d_blocks.lwe_ciphertext_count().0,
-            num_state_blocks,
-            "AES state must contain {} encrypted bits, but contains {}",
-            num_state_blocks,
-            state_to_encrypt.as_ref().d_blocks.lwe_ciphertext_count().0
+            iv.as_ref().d_blocks.lwe_ciphertext_count().0,
+            num_iv_blocks,
+            "AES IV must contain {} encrypted bits, but contains {}",
+            num_iv_blocks,
+            iv.as_ref().d_blocks.lwe_ciphertext_count().0
         );
         assert_eq!(
             round_keys.as_ref().d_blocks.lwe_ciphertext_count().0,
@@ -51,18 +55,24 @@ impl CudaServerKey {
             num_round_key_blocks,
             round_keys.as_ref().d_blocks.lwe_ciphertext_count().0
         );
-
-        let counter_bits_le = (0..128)
-            .map(|i| ((counter_value >> i) & 1) as u64)
-            .collect::<Vec<_>>();
+        assert_eq!(
+            result.as_ref().d_blocks.lwe_ciphertext_count().0,
+            num_blocks * 128,
+            "AES result must contain {} encrypted bits for {} blocks, but contains {}",
+            num_blocks * 128,
+            num_blocks,
+            result.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async(
                     streams,
-                    state_to_encrypt.as_mut(),
+                    result.as_mut(),
+                    iv.as_ref(),
                     round_keys.as_ref(),
-                    &counter_bits_le,
+                    start_counter,
+                    num_blocks as u32,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -82,9 +92,11 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async(
                     streams,
-                    state_to_encrypt.as_mut(),
+                    result.as_mut(),
+                    iv.as_ref(),
                     round_keys.as_ref(),
-                    &counter_bits_le,
+                    start_counter,
+                    num_blocks as u32,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -102,7 +114,7 @@ impl CudaServerKey {
                 );
             }
         }
-        state_to_encrypt
+        result
     }
 
     pub fn aes_sbox_byte(&self, byte: &mut CudaUnsignedRadixCiphertext, streams: &CudaStreams) {
@@ -303,14 +315,12 @@ mod test {
     #[test]
     fn test_encrypt_aes() {
         let gpu_index = 0;
-        let (cks, sks) = {
-            let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-            gen_keys_radix_gpu(
-                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                1,
-                &streams,
-            )
-        };
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
@@ -330,52 +340,41 @@ mod test {
         let p_iv_bits = u128_to_bits(iv);
         let ct_iv_radix_cpu = encrypt_bits(&cks, &p_iv_bits);
 
-        let number_of_outputs = 4;
+        let number_of_outputs = nist_expected_outputs.len();
 
-        let overall_start = Instant::now();
+        let d_round_keys =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
+        let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
 
-        for (i, &expected_output) in nist_expected_outputs
-            .iter()
-            .enumerate()
-            .take(number_of_outputs)
-        {
-            let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-            let d_round_keys = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                &ct_round_keys_radix_cpu,
-                &streams,
-            );
-            let d_iv =
-                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
+        let t0 = Instant::now();
+        let d_encrypted_states =
+            sks.aes_encrypt(&d_iv, &d_round_keys, 0, number_of_outputs, &streams);
+        let t_elapsed = t0.elapsed();
 
-            let t0 = Instant::now();
-            let d_encrypted_state = sks.aes_encrypt(&d_iv, &d_round_keys, i as u128, &streams);
-            let t_elapsed = t0.elapsed();
+        println!(
+            "[Benchmark] aes_encrypt() time for {} blocks: {:.3} ms",
+            number_of_outputs,
+            t_elapsed.as_secs_f64() * 1000.0,
+        );
+        println!(
+            "[Benchmark] Average time per block: {:.3} ms",
+            t_elapsed.as_secs_f64() * 1000.0 / number_of_outputs as f64
+        );
 
-            println!(
-                "[Benchmark] aes_encrypt() time for block {}: {:.3} ms",
-                i,
-                t_elapsed.as_secs_f64() * 1000.0,
-            );
+        let result_radix_cpu = d_encrypted_states.to_radix_ciphertext(&streams);
 
-            let result_radix_cpu = d_encrypted_state.to_radix_ciphertext(&streams);
-            let decrypted_bits = decrypt_bits(&cks, &result_radix_cpu);
+        for (i, &expected_output) in nist_expected_outputs.iter().enumerate() {
+            let start = i * 128;
+            let end = (i + 1) * 128;
+
+            let block_slice = &result_radix_cpu.blocks[start..end];
+            let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
+
+            let decrypted_bits = decrypt_bits(&cks, &block_radix_ct);
             let y = bits_to_u128(&decrypted_bits);
 
             assert_eq!(y, expected_output, "block {i}");
         }
-
-        let overall_elapsed = overall_start.elapsed();
-
         println!("\nAES test passed!");
-
-        println!(
-            "\n[Benchmark] Total wall time for {} sequential block(s): {:.3} ms",
-            number_of_outputs,
-            overall_elapsed.as_secs_f64() * 1000.0
-        );
-        println!(
-            "[Benchmark] Average time per block (based on wall time): {:.3} ms",
-            overall_elapsed.as_secs_f64() * 1000.0 / number_of_outputs as f64
-        );
     }
 }
