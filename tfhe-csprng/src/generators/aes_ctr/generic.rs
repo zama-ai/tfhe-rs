@@ -85,7 +85,15 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
 
     pub(crate) fn from_seed(seed: impl Into<SeedKind>) -> Self {
         match seed.into() {
-            SeedKind::Ctr(seed) => Self::new(AesKey(seed.0), None, None),
+            SeedKind::Ctr(seed) => {
+                // AesKey has an unspoken requirement to have bytes in an order independent of
+                // platform endianness, problem is the Seed(u128) has an endianness, meaning
+                // 1u128 == [1, 0, ..., 0] for little endian
+                // but
+                // 1u128 == [0, ..., 0, 1] for big endian
+                let seed_u128 = u128::from_le(seed.0);
+                Self::new(AesKey(seed_u128), None, None)
+            }
             SeedKind::Xof(seed) => {
                 let (key, init_index) = super::xof_init(seed);
                 let last_index = TableIndex::LAST.decremented();
