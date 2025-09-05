@@ -232,6 +232,10 @@ mod test_gpu_doc {
         configuration_gpu_acceleration_gpu_operations
     );
     doctest!(
+        "../docs/configuration/gpu-acceleration/noise-squashing.md",
+        configuration_gpu_acceleration_noise_squashing
+    );
+    doctest!(
         "../docs/configuration/gpu-acceleration/compressing-ciphertexts.md",
         configuration_gpu_acceleration_compressing_ciphertexts
     );
