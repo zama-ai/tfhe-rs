@@ -50,7 +50,7 @@ __host__ void host_integer_radix_subtraction(
     CudaRadixCiphertextFFI const *lwe_array_in_1,
     CudaRadixCiphertextFFI const *lwe_array_in_2, uint64_t message_modulus,
     uint64_t carry_modulus, uint32_t num_radix_blocks) {
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
       lwe_array_in_1->num_radix_blocks < num_radix_blocks ||

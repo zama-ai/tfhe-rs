@@ -30,7 +30,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
     PANIC("Cuda error: lwe_shift and lwe_array num radix blocks must be "

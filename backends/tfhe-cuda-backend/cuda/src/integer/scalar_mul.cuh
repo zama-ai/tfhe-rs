@@ -132,7 +132,7 @@ __host__ void host_integer_small_scalar_mul_radix(
   if (output_lwe_array->lwe_dimension != input_lwe_array->lwe_dimension)
     PANIC("Cuda error: input and output lwe_dimension must be the same")
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
   auto lwe_dimension = input_lwe_array->lwe_dimension;
   auto num_radix_blocks = input_lwe_array->num_radix_blocks;
 

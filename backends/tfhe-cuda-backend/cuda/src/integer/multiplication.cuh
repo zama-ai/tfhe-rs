@@ -357,7 +357,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   cuda_memcpy_async_to_gpu(d_degrees, current_blocks->degrees,
                            total_blocks_in_vec * sizeof(uint64_t), streams.stream(0), streams.gpu_index(0));
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
   radix_vec_to_columns<<<1, num_radix_blocks, 0, streams.stream(0)>>>(
       d_columns, d_columns_counter, d_degrees, num_radix_blocks,
       num_radix_in_vec);
@@ -391,17 +391,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     current_columns.next_accumulation(total_ciphertexts, total_messages,
                                       needs_processing);
 
-    auto active_gpus.count() = get_active_gpu_count(total_ciphertexts, gpu_count);
+    auto active_gpus = streams.active_gpu_subset(total_ciphertexts);
+
     if (active_gpus.count() == 1) {
       execute_keyswitch_async<Torus>(
-          streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr,
+          streams.subset_first_gpu(),  (Torus *)small_lwe_vector->ptr,
           d_pbs_indexes_in, (Torus *)current_blocks->ptr, d_pbs_indexes_in,
           ksks, big_lwe_dimension, small_lwe_dimension,
           mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
           total_messages);
 
       execute_pbs_async<Torus>(
-          streams, gpu_indexes, 1, (Torus *)current_blocks->ptr,
+          streams.subset_first_gpu(),  (Torus *)current_blocks->ptr,
           d_pbs_indexes_out, luts_message_carry->lut_vec,
           luts_message_carry->lut_indexes_vec, (Torus *)small_lwe_vector->ptr,
           d_pbs_indexes_in, bsks, ms_noise_reduction_key,
@@ -441,7 +442,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       integer_radix_apply_univariate_lookup_table_kb<Torus>(streams, current_blocks, current_blocks, bsks,
           ksks, ms_noise_reduction_key, luts_message_carry, total_ciphertexts);
     }
-    cuda_set_device(streams.gpu_indexes(0));
+    cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
   }
@@ -464,18 +465,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         streams.stream(0), streams.gpu_index(0), current_blocks, num_radix_blocks,
         num_radix_blocks + 1);
 
-    auto active_gpus.count() =
-        get_active_gpu_count(2 * num_radix_blocks, gpu_count);
+    auto active_gpus=
+        streams.active_gpu_subset(2 * num_radix_blocks);
 
     if (active_gpus.count() == 1) {
       execute_keyswitch_async<Torus>(
-          streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr,
+          streams.subset_first_gpu(), (Torus *)small_lwe_vector->ptr,
           d_pbs_indexes_in, (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
           mem_ptr->params.ks_level, num_radix_blocks);
 
       execute_pbs_async<Torus>(
-          streams, gpu_indexes, 1, (Torus *)current_blocks->ptr,
+          streams.subset_first_gpu(),  (Torus *)current_blocks->ptr,
           d_pbs_indexes_out, luts_message_carry->lut_vec,
           luts_message_carry->lut_indexes_vec, (Torus *)small_lwe_vector->ptr,
           d_pbs_indexes_in, bsks, ms_noise_reduction_key,
@@ -521,7 +522,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
                             mem_ptr->params.message_modulus);
-    cuda_set_device(streams.gpu_indexes(0));
+    cuda_set_device(streams.gpu_index(0));
     CudaRadixCiphertextFFI current_blocks_slice;
     as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
                                      num_radix_blocks, 2 * num_radix_blocks);
@@ -627,7 +628,7 @@ __host__ void host_integer_mult_radix_kb(
   dim3 grid(lsb_vector_block_count, 1, 1);
   dim3 thds(params::degree / params::opt, 1, 1);
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
   all_shifted_lhs_rhs<Torus, params><<<grid, thds, 0, streams.stream(0)>>>(
       (Torus *)radix_lwe_left->ptr, (Torus *)vector_result_lsb->ptr,
       (Torus *)vector_result_msb.ptr, (Torus *)radix_lwe_right->ptr,
@@ -643,7 +644,7 @@ __host__ void host_integer_mult_radix_kb(
                                    lsb_vector_block_count,
                                    block_mul_res->num_radix_blocks);
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
   fill_radix_from_lsb_msb<Torus, params>
       <<<num_blocks * num_blocks, params::degree / params::opt, 0,
          streams.stream(0)>>>(

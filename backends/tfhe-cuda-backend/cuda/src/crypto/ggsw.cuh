@@ -58,7 +58,7 @@ void batch_fft_ggsw_vector(CudaStreams streams, double2 *dest, T *src,
                  "gpus is not supported yet.",
                  gpu_count);
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   int shared_memory_size = sizeof(double) * polynomial_size;
 

@@ -26,8 +26,8 @@ static void execute_pbs_128_async(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples) {
 
-  for (uint32_t i = 0; i < gpu_count; i++) {
-    int num_inputs_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
+  for (uint32_t i = 0; i < streams.count(); i++) {
+    int num_inputs_on_gpu = get_num_inputs_on_gpu(num_samples, i, streams.count());
 
     Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
     uint64_t *current_lwe_array_in = GET_VARIANT_ELEMENT_64BIT(lwe_array_in, i);

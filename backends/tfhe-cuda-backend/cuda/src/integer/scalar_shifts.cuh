@@ -223,7 +223,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       // block
       for (uint i = 0; i < rotations; i++) {
         copy_radix_ciphertext_slice_async<Torus>(
-            mem->local_streams_1[0], streams.gpu_indexes(0), lwe_array,
+            mem->local_streams_1[0], streams.gpu_index(0), lwe_array,
             num_blocks - rotations + i, num_blocks - rotations + i + 1,
             &padding_block, 0, 1);
       }

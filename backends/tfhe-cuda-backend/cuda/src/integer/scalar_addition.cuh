@@ -31,7 +31,7 @@ __host__ void host_integer_radix_scalar_addition_inplace(
   if (lwe_array->num_radix_blocks < num_scalars)
     PANIC("Cuda error: num scalars should be smaller or equal to input num "
           "radix blocks")
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -71,7 +71,7 @@ template <typename Torus>
 __host__ void host_integer_radix_add_scalar_one_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     uint32_t message_modulus, uint32_t carry_modulus) {
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -114,7 +114,7 @@ __host__ void host_integer_radix_scalar_subtraction_inplace(
     CudaStreams streams, Torus *lwe_array, Torus *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;

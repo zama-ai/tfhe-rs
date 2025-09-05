@@ -8,7 +8,7 @@
 template <typename Torus>
 __host__ void host_extend_radix_with_trivial_zero_blocks_msb(
     CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
-    cudaStream_t const *streams, uint32_t const *gpu_indexes) {
+    CudaStreams streams) {
   PUSH_RANGE("extend only")
   copy_radix_ciphertext_slice_async<Torus>(streams.stream(0), streams.gpu_index(0), output,
                                            0, input->num_radix_blocks, input, 0,
@@ -19,8 +19,7 @@ __host__ void host_extend_radix_with_trivial_zero_blocks_msb(
 template <typename Torus>
 __host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertextFFI *output,
                                          CudaRadixCiphertextFFI const *input,
-                                         cudaStream_t const *streams,
-                                         uint32_t const *gpu_indexes) {
+                                         CudaStreams streams) {
 
   const uint32_t input_start_lwe_index =
       input->num_radix_blocks - output->num_radix_blocks;

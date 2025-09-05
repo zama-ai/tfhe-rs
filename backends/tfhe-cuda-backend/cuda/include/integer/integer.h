@@ -111,7 +111,7 @@ void cuda_apply_univariate_lut_kb_64(
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     void *const *bsks);
 
-void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreams streams,
+void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
                                              int8_t **mem_ptr_void);
 
 uint64_t scratch_cuda_apply_bivariate_lut_kb_64(

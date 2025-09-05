@@ -26,7 +26,7 @@ zero_out_if(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
       "Cuda error: input and output radix ciphertexts must have the same "
       "lwe dimension");
 
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
   auto params = mem_ptr->params;
 
   // We can't use integer_radix_apply_bivariate_lookup_table_kb since the

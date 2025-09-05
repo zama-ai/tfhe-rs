@@ -58,7 +58,7 @@ __host__ void host_integer_radix_negation(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, uint64_t message_modulus,
     uint64_t carry_modulus, uint32_t num_radix_blocks) {
-  cuda_set_device(streams.gpu_indexes(0));
+  cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
       lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -160,7 +160,7 @@ __host__ void host_integer_overflowing_sub(
 
   auto stream = (cudaStream_t *)streams;
   host_unchecked_sub_with_correcting_term<Torus>(
-      stream[0], streams.gpu_indexes(0), output, input_left, input_right, num_blocks,
+      stream[0], streams.gpu_index(0), output, input_left, input_right, num_blocks,
       radix_params.message_modulus, radix_params.carry_modulus);
 
   host_single_borrow_propagate<Torus>(streams, output, overflow_block, input_borrow,

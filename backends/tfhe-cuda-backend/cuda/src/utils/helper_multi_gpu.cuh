@@ -214,16 +214,14 @@ void multi_gpu_gather_many_lut_lwe_async(
 }
 
 template <typename Torus>
-void multi_gpu_release_async(cudaStream_t const *streams,
-                             uint32_t const *gpu_indexes,
+void multi_gpu_release_async(CudaStreams streams,
                              std::vector<Torus *> &vec) {
 
   for (uint i = 0; i < vec.size(); i++)
     cuda_drop_async(vec[i], streams.stream(i), streams.gpu_index(i));
 }
 template void
-multi_gpu_release_async<__uint128_t>(cudaStream_t const *streams,
-                                     uint32_t const *gpu_indexes,
+multi_gpu_release_async<__uint128_t>(CudaStreams streams,
                                      std::vector<__uint128_t *> &vec);
 
 #endif
