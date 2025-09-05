@@ -47,9 +47,29 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   auto radix_params = mem_ptr->params;
   auto num_blocks = quotient->num_radix_blocks;
   auto used_gpu_count = mem_ptr->used_gpu_count;
+  auto remainder_gpu_0 = remainder;
+  auto remainder_gpu_1 = mem_ptr->remainder_gpu_1;
+  auto remainder_gpu_2 = mem_ptr->remainder_gpu_2;
+  auto divisor_gpu_0 = divisor;
+  auto divisor_gpu_1 = mem_ptr->divisor_gpu_1;
+  auto divisor_gpu_2 = mem_ptr->divisor_gpu_2;
 
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder,
+
+
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_0,
                                      numerator);
+
+  if (used_gpu_count == 4) {
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_1,
+                                      remainder_gpu_0);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_2,
+                                      remainder_gpu_0);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], divisor_gpu_1,
+                                      divisor_gpu_0);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], divisor_gpu_2,
+                                      divisor_gpu_0);
+
+  }
   set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                quotient, 0, num_blocks);
   quotient->num_radix_blocks = 0;
