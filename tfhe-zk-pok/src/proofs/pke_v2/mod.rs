@@ -928,7 +928,7 @@ fn prove_impl<G: Curve>(
         )
         .collect::<Box<[_]>>();
 
-    let v = four_squares(B_squared - e_sqr_norm).map(|v| v as i64);
+    let v = four_squares(B_squared - e_sqr_norm, sanity_check_mode).map(|v| v as i64);
 
     let e1_zp = &*e1
         .iter()
