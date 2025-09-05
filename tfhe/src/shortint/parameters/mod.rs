@@ -43,6 +43,7 @@ pub mod hpu;
 pub mod key_switching;
 pub mod ks32;
 pub mod list_compression;
+pub mod meta;
 pub mod multi_bit;
 pub mod noise_squashing;
 pub mod parameters_wopbs;
@@ -77,11 +78,22 @@ pub use compact_public_key_only::{
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use ks32::KeySwitch32PBSParameters;
+pub use meta::MetaParameters;
 pub use multi_bit::MultiBitPBSParameters;
-pub use noise_squashing::{NoiseSquashingCompressionParameters, NoiseSquashingParameters};
+pub use noise_squashing::{
+    MetaNoiseSquashingParameters, NoiseSquashingClassicParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+};
 pub use parameters_wopbs::*;
 #[cfg(test)]
 pub use test_params::TestParameters;
+
+/// Backend supported by tfhe-rs
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Backend {
+    Cpu,
+    CudaGpu,
+}
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
 /// $m = p\bmod{MessageModulus}$ and so $0 <= m < MessageModulus$.
