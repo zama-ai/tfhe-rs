@@ -150,10 +150,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator<Torus>(
+    generate_device_accumulator_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_last_leaf_lut_f, true);
+        message_modulus, carry_modulus, scalar_last_leaf_lut_f, true,
+        mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut);
     auto active_gpu_count = get_active_gpu_count(1, gpu_count);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
@@ -250,10 +251,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     };
 
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator_bivariate<Torus>(
+    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true);
+        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true,
+        mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut);
     auto active_gpu_count = get_active_gpu_count(1, gpu_count);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
@@ -283,11 +285,12 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, params, 1, 1, true, size);
 
-      generate_device_accumulator<Torus>(
+      generate_device_accumulator_with_cpu_prealloc<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, one_block_lut_f, true);
+          params.carry_modulus, one_block_lut_f, true,
+          mem_ptr->preallocated_h_lut);
       auto active_gpu_count = get_active_gpu_count(1, gpu_count);
       one_block_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
@@ -432,10 +435,11 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator_bivariate<Torus>(
+    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true);
+        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true,
+        mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut);
     auto active_gpu_count = get_active_gpu_count(1, gpu_count);
     lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
@@ -538,11 +542,11 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     };
 
     auto signed_msb_lut = mem_ptr->signed_msb_lut;
-    generate_device_accumulator_bivariate<Torus>(
+    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
         msb_streams[0], gpu_indexes[0], signed_msb_lut->get_lut(0, 0),
         signed_msb_lut->get_degree(0), signed_msb_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, lut_f, true);
+        params.carry_modulus, lut_f, true, mem_ptr->preallocated_h_lut);
     auto active_gpu_count = get_active_gpu_count(1, gpu_count);
     signed_msb_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
@@ -587,11 +591,12 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, params, 1, 1, true, size);
 
-      generate_device_accumulator<Torus>(
+      generate_device_accumulator_with_cpu_prealloc<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, one_block_lut_f, true);
+          params.carry_modulus, one_block_lut_f, true,
+          mem_ptr->preallocated_h_lut);
       auto active_gpu_count = get_active_gpu_count(1, gpu_count);
       one_block_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
 
