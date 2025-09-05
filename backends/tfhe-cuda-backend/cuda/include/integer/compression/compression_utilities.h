@@ -11,8 +11,7 @@ template <typename Torus> struct int_compression {
   Torus *tmp_glwe_array_out;
   bool gpu_memory_allocated;
 
-  int_compression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                  uint32_t gpu_count, int_radix_params compression_params,
+  int_compression(CudaStreams streams, int_radix_params compression_params,
                   uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
                   bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
@@ -24,25 +23,22 @@ template <typename Torus> struct int_compression {
     tmp_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
             sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        streams.stream(0), streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     tmp_glwe_array_out = (Torus *)cuda_malloc_with_size_tracking_async(
-        lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams.stream(0), streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe_64(
-        streams[0], gpu_indexes[0], &fp_ks_buffer,
+        streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
         compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
         num_radix_blocks, allocate_gpu_memory);
   }
-  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-               uint32_t gpu_count) {
-    cuda_drop_with_size_tracking_async(tmp_lwe, streams[0], gpu_indexes[0],
+  void release(CudaStreams streams) {
+    cuda_drop_with_size_tracking_async(tmp_lwe, streams.stream(0), streams.gpu_index(0),
                                        gpu_memory_allocated);
-    cuda_drop_with_size_tracking_async(tmp_glwe_array_out, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(tmp_glwe_array_out, streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
     cleanup_packing_keyswitch_lwe_list_to_glwe(
-        streams[0], gpu_indexes[0], &fp_ks_buffer, gpu_memory_allocated);
+        streams.stream(0), streams.gpu_index(0), &fp_ks_buffer, gpu_memory_allocated);
   }
 };
 
@@ -58,8 +54,7 @@ template <typename Torus> struct int_decompression {
   int_radix_lut<Torus> *decompression_rescale_lut;
   bool gpu_memory_allocated;
 
-  int_decompression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                    uint32_t gpu_count, int_radix_params encryption_params,
+  int_decompression(CudaStreams streams, int_radix_params encryption_params,
                     int_radix_params compression_params,
                     uint32_t num_blocks_to_decompress, bool allocate_gpu_memory,
                     uint64_t &size_tracker) {
@@ -73,19 +68,18 @@ template <typename Torus> struct int_decompression {
     uint64_t lwe_accumulator_size = (compression_params.glwe_dimension *
                                          compression_params.polynomial_size +
                                      1);
-    decompression_rescale_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, encryption_params, 1,
+    decompression_rescale_lut = new int_radix_lut<Torus>(streams, encryption_params, 1,
         num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
 
     tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_blocks_to_decompress * glwe_accumulator_size * sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        streams.stream(0), streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     tmp_indexes_array = (uint32_t *)cuda_malloc_with_size_tracking_async(
-        num_blocks_to_decompress * sizeof(uint32_t), streams[0], gpu_indexes[0],
+        num_blocks_to_decompress * sizeof(uint32_t), streams.stream(0), streams.gpu_index(0),
         size_tracker, allocate_gpu_memory);
     tmp_extracted_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_blocks_to_decompress * lwe_accumulator_size * sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        streams.stream(0), streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     // Rescale is done using an identity LUT
     // Here we do not divide by message_modulus
@@ -99,7 +93,7 @@ template <typename Torus> struct int_decompression {
     auto effective_compression_carry_modulus = 1;
 
     generate_device_accumulator_with_encoding<Torus>(
-        streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
+        streams.stream(0), streams.gpu_index(0), decompression_rescale_lut->get_lut(0, 0),
         decompression_rescale_lut->get_degree(0),
         decompression_rescale_lut->get_max_degree(0),
         encryption_params.glwe_dimension, encryption_params.polynomial_size,
@@ -108,18 +102,14 @@ template <typename Torus> struct int_decompression {
         encryption_params.carry_modulus, decompression_rescale_f,
         gpu_memory_allocated);
 
-    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes);
+    decompression_rescale_lut->broadcast_lut(streams);
   }
-  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-               uint32_t gpu_count) {
-    cuda_drop_with_size_tracking_async(tmp_extracted_glwe, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
-    cuda_drop_with_size_tracking_async(tmp_extracted_lwe, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
-    cuda_drop_with_size_tracking_async(tmp_indexes_array, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
+  void release(CudaStreams streams) {
+    cuda_drop_with_size_tracking_async(tmp_extracted_glwe, streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(tmp_extracted_lwe, streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(tmp_indexes_array, streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
 
-    decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
+    decompression_rescale_lut->release(streams);
     delete decompression_rescale_lut;
   }
 };

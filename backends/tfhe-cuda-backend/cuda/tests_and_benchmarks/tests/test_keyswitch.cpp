@@ -48,7 +48,7 @@ protected:
   // Data stays at gpu 0
   uint32_t gpu_index = 0;
   uint gpu_count = 0;
-  uint active_gpu_count = 0;
+  uint active_gpus.count() = 0;
   uint base_num_inputs_on_gpu = 0;
 
 public:
@@ -66,8 +66,8 @@ public:
 
     // Enable Multi-GPU logic
     gpu_count = cuda_setup_multi_gpu(0);
-    active_gpu_count = std::min((uint)number_of_inputs, gpu_count);
-    for (uint gpu_i = 0; gpu_i < active_gpu_count; gpu_i++) {
+    active_gpus.count() = std::min((uint)number_of_inputs, gpu_count);
+    for (uint gpu_i = 0; gpu_i < active_gpus.count() gpu_i++) {
       streams.push_back(cuda_create_stream(gpu_i));
     }
 
@@ -94,8 +94,8 @@ public:
                        d_ksk_array, plaintexts, d_lwe_ct_in_array,
                        lwe_input_indexes, d_lwe_ct_out_array,
                        lwe_output_indexes);
-    if (active_gpu_count > 1) {
-      for (uint gpu_i = 1; gpu_i < active_gpu_count; gpu_i++) {
+    if (active_gpus.count() > 1) {
+      for (uint gpu_i = 1; gpu_i < active_gpus.count() gpu_i++) {
         cuda_destroy_stream(streams[gpu_i], gpu_i);
       }
     }
@@ -115,8 +115,8 @@ TEST_P(KeyswitchMultiGPUTestPrimitives_u64, keyswitch) {
           (ptrdiff_t)((r * SAMPLES * number_of_inputs + s * number_of_inputs) *
                       (input_lwe_dimension + 1));
 
-#pragma omp parallel for num_threads(active_gpu_count)
-      for (uint gpu_i = 0; gpu_i < active_gpu_count; gpu_i++) {
+#pragma omp parallel for num_threads(active_gpus.count())
+      for (uint gpu_i = 0; gpu_i < active_gpus.count() gpu_i++) {
         auto num_inputs = base_num_inputs_on_gpu;
         /// If the index reaches the last GPU, add the remainder of inputs/gpus
         /// to the number of inputs on the last GPU
@@ -140,7 +140,7 @@ TEST_P(KeyswitchMultiGPUTestPrimitives_u64, keyswitch) {
             d_lwe_ct_in_slice, lwe_input_indexes, d_ksk, input_lwe_dimension,
             output_lwe_dimension, ksk_base_log, ksk_level, num_inputs);
       }
-      for (uint gpu_i = 0; gpu_i < active_gpu_count; gpu_i++) {
+      for (uint gpu_i = 0; gpu_i < active_gpus.count() gpu_i++) {
         cuda_synchronize_stream(streams[gpu_i], gpu_i);
       }
       // Copy result back

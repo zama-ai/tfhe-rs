@@ -42,8 +42,8 @@ int32_t cuda_setup_multi_gpu(int device_0_id) {
 int get_active_gpu_count(int num_inputs, int gpu_count) {
   int ceil_div_inputs =
       std::max(1, (num_inputs + THRESHOLD_MULTI_GPU - 1) / THRESHOLD_MULTI_GPU);
-  int active_gpu_count = std::min(ceil_div_inputs, gpu_count);
-  return active_gpu_count;
+  int active_gpus.count() = std::min(ceil_div_inputs, gpu_count);
+  return active_gpus.count();
 }
 
 int get_gpu_offset(int total_num_inputs, int gpu_index, int gpu_count) {

@@ -17,8 +17,7 @@ execute_scratch_pbs_128(void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
 }
 template <typename Torus>
 static void execute_pbs_128_async(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, const LweArrayVariant<__uint128_t> &lwe_array_out,
+    CudaStreams streams, const LweArrayVariant<__uint128_t> &lwe_array_out,
     const std::vector<Torus *> lut_vector,
     const LweArrayVariant<uint64_t> &lwe_array_in,
     void *const *bootstrapping_keys,
@@ -37,7 +36,7 @@ static void execute_pbs_128_async(
       zeros = ms_noise_reduction_key->ptr[i];
 
     cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
-        streams[i], gpu_indexes[i], current_lwe_array_out, lut_vector[i],
+        streams.stream(i), streams.gpu_index(i), current_lwe_array_out, lut_vector[i],
         current_lwe_array_in, bootstrapping_keys[i], ms_noise_reduction_key,
         zeros, pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, num_inputs_on_gpu);

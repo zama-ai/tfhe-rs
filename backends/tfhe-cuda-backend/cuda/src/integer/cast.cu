@@ -17,7 +17,7 @@ void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
 }
 
 uint64_t scratch_cuda_extend_radix_with_sign_msb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -32,34 +32,32 @@ uint64_t scratch_cuda_extend_radix_with_sign_msb_64(
                           allocate_ms_array);
 
   return scratch_extend_radix_with_sign_msb<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count,
+      CudaStreams(streams),
       (int_extend_radix_with_sign_msb_buffer<uint64_t> **)mem_ptr, params,
       num_blocks, num_additional_blocks, allocate_gpu_memory);
 }
 
 void cuda_extend_radix_with_sign_msb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
     int8_t *mem_ptr, uint32_t num_additional_blocks, void *const *bsks,
     void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
   PUSH_RANGE("cast")
   host_extend_radix_with_sign_msb<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count, output, input,
+      CudaStreams(streams), output, input,
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)mem_ptr,
       num_additional_blocks, bsks, (uint64_t **)ksks, ms_noise_reduction_key);
   POP_RANGE()
 }
 
-void cleanup_cuda_extend_radix_with_sign_msb_64(void *const *streams,
-                                                uint32_t const *gpu_indexes,
-                                                uint32_t gpu_count,
+void cleanup_cuda_extend_radix_with_sign_msb_64(CudaStreamsFFI streams,
                                                 int8_t **mem_ptr_void) {
   PUSH_RANGE("clean cast")
   int_extend_radix_with_sign_msb_buffer<uint64_t> *mem_ptr =
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
   POP_RANGE()
   delete mem_ptr;
   *mem_ptr_void = nullptr;

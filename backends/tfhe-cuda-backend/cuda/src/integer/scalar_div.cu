@@ -1,7 +1,7 @@
 #include "scalar_div.cuh"
 
 uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -16,39 +16,39 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
                           allocate_ms_array);
 
   return scratch_integer_unsigned_scalar_div_radix<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
+      CudaStreams(streams), params,
       (int_unsigned_scalar_div_mem<uint64_t> **)mem_ptr, num_blocks,
       scalar_divisor_ffi, allocate_gpu_memory);
 }
 
 void cuda_integer_unsigned_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
     const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   host_integer_unsigned_scalar_div_radix<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count, numerator_ct,
+      CudaStreams(streams), numerator_ct,
       (int_unsigned_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
       ms_noise_reduction_key, scalar_divisor_ffi);
 }
 
 void cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_unsigned_scalar_div_mem<uint64_t> *mem_ptr =
       (int_unsigned_scalar_div_mem<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
 
 uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -63,39 +63,39 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
                           allocate_ms_array);
 
   return scratch_integer_signed_scalar_div_radix_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
+      CudaStreams(streams), params,
       (int_signed_scalar_div_mem<uint64_t> **)mem_ptr, num_blocks,
       scalar_divisor_ffi, allocate_gpu_memory);
 }
 
 void cuda_integer_signed_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, uint32_t numerator_bits) {
 
   host_integer_signed_scalar_div_radix_kb<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count, numerator_ct,
+      CudaStreams(streams), numerator_ct,
       (int_signed_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
       ms_noise_reduction_key, scalar_divisor_ffi, numerator_bits);
 }
 
 void cleanup_cuda_integer_signed_scalar_div_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_signed_scalar_div_mem<uint64_t> *mem_ptr =
       (int_signed_scalar_div_mem<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
 
 uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -111,13 +111,13 @@ uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
                           allocate_ms_array);
 
   return scratch_integer_unsigned_scalar_div_rem_radix<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
+      CudaStreams(streams), params,
       (int_unsigned_scalar_div_rem_buffer<uint64_t> **)mem_ptr, num_blocks,
       scalar_divisor_ffi, active_bits_divisor, allocate_gpu_memory);
 }
 
 void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaRadixCiphertextFFI *quotient_ct, CudaRadixCiphertextFFI *remainder_ct,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
@@ -128,7 +128,7 @@ void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
     uint32_t num_clear_blocks) {
 
   host_integer_unsigned_scalar_div_rem_radix<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count, quotient_ct,
+      CudaStreams(streams), quotient_ct,
       remainder_ct, (int_unsigned_scalar_div_rem_buffer<uint64_t> *)mem_ptr,
       bsks, (uint64_t **)ksks, ms_noise_reduction_key, scalar_divisor_ffi,
       divisor_has_at_least_one_set, decomposed_divisor, num_scalars_divisor,
@@ -136,20 +136,20 @@ void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
 }
 
 void cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_unsigned_scalar_div_rem_buffer<uint64_t> *mem_ptr =
       (int_unsigned_scalar_div_rem_buffer<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
 
 uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -165,13 +165,13 @@ uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
                           allocate_ms_array);
 
   return scratch_integer_signed_scalar_div_rem_radix<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
+      CudaStreams(streams), params,
       (int_signed_scalar_div_rem_buffer<uint64_t> **)mem_ptr, num_blocks,
       scalar_divisor_ffi, active_bits_divisor, allocate_gpu_memory);
 }
 
 void cuda_integer_signed_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaRadixCiphertextFFI *quotient_ct, CudaRadixCiphertextFFI *remainder_ct,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
@@ -181,7 +181,7 @@ void cuda_integer_signed_scalar_div_rem_radix_kb_64(
     uint32_t numerator_bits) {
 
   host_integer_signed_scalar_div_rem_radix<uint64_t>(
-      (cudaStream_t *)streams, gpu_indexes, gpu_count, quotient_ct,
+      CudaStreams(streams), quotient_ct,
       remainder_ct, (int_signed_scalar_div_rem_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks, ms_noise_reduction_key, scalar_divisor_ffi,
       divisor_has_at_least_one_set, decomposed_divisor, num_scalars_divisor,
@@ -189,13 +189,13 @@ void cuda_integer_signed_scalar_div_rem_radix_kb_64(
 }
 
 void cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_signed_scalar_div_rem_buffer<uint64_t> *mem_ptr =
       (int_signed_scalar_div_rem_buffer<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;

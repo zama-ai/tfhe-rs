@@ -13,8 +13,7 @@
 
 template <typename Torus>
 __host__ void host_integer_radix_bitop_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
     void *const *bsks, Torus *const *ksks,
@@ -45,8 +44,7 @@ __host__ void host_integer_radix_bitop_kb(
                                 lwe_array_1->num_radix_blocks);
   }
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(streams, lwe_array_out, lwe_array_1, lwe_array_2,
       bsks, ksks, ms_noise_reduction_key, lut, lwe_array_out->num_radix_blocks,
       lut->params.message_modulus);
 
@@ -56,13 +54,12 @@ __host__ void host_integer_radix_bitop_kb(
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_radix_bitop_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_bitop_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_bitop_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_bitop_buffer<Torus>(streams, gpu_indexes, gpu_count, op,
+  *mem_ptr = new int_bitop_buffer<Torus>(streams, op,
                                          params, num_radix_blocks,
                                          allocate_gpu_memory, size_tracker);
   return size_tracker;

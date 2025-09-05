@@ -6,15 +6,13 @@
 
 template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_grouped_oprf_memory<Torus> **mem_ptr,
+    CudaStreams streams, int_grouped_oprf_memory<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks_to_process,
     uint32_t num_blocks, uint32_t message_bits_per_block,
     uint64_t total_random_bits, bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_grouped_oprf_memory<Torus>(
-      streams, gpu_indexes, gpu_count, params, num_blocks_to_process,
+  *mem_ptr = new int_grouped_oprf_memory<Torus>(streams, params, num_blocks_to_process,
       num_blocks, message_bits_per_block, total_random_bits,
       allocate_gpu_memory, size_tracker);
 
@@ -23,17 +21,15 @@ uint64_t scratch_cuda_integer_grouped_oprf(
 
 template <typename Torus>
 void host_integer_grouped_oprf(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     const Torus *seeded_lwe_input, uint32_t num_blocks_to_process,
     int_grouped_oprf_memory<Torus> *mem_ptr, void *const *bsks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  auto active_gpu_count =
-      get_active_gpu_count(num_blocks_to_process, gpu_count);
+  auto active_gpus = streams.active_gpu_subset(num_blocks_to_process);
   auto lut = mem_ptr->luts;
 
-  if (active_gpu_count == 1) {
+  if (active_gpus.count() == 1) {
     execute_pbs_async<Torus>(
         streams, gpu_indexes, (uint32_t)1, (Torus *)(radix_lwe_out->ptr),
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
@@ -48,20 +44,20 @@ void host_integer_grouped_oprf(
     std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
     std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 
     if (!lut->using_trivial_lwe_indexes) {
       PANIC("lut->using_trivial_lwe_indexes should be true");
     }
 
     multi_gpu_scatter_lwe_async<Torus>(
-        streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
+        active_gpus, lwe_array_in_vec,
         seeded_lwe_input, lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes,
-        active_gpu_count, num_blocks_to_process,
+        active_gpus.count(), num_blocks_to_process,
         mem_ptr->params.small_lwe_dimension + 1);
 
     execute_pbs_async<Torus>(
-        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
+        active_gpus, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
         lut->buffer, mem_ptr->params.glwe_dimension,
@@ -71,13 +67,13 @@ void host_integer_grouped_oprf(
         mem_ptr->params.pbs_type, 1, 0);
 
     multi_gpu_gather_lwe_async<Torus>(
-        streams, gpu_indexes, active_gpu_count, (Torus *)radix_lwe_out->ptr,
+        active_gpus, (Torus *)radix_lwe_out->ptr,
         lwe_after_pbs_vec, lut->h_lwe_indexes_out,
         lut->using_trivial_lwe_indexes, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
 
-    for (uint32_t i = 0; i < active_gpu_count; i++) {
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    for (uint32_t i = 0; i < active_gpus.count(); i++) {
+      cuda_synchronize_stream(streams.stream(i), streams.gpu_index(i));
     }
   }
 
@@ -87,7 +83,7 @@ void host_integer_grouped_oprf(
     radix_lwe_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 
-  host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, radix_lwe_out,
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), radix_lwe_out, radix_lwe_out,
                        mem_ptr->plaintext_corrections, num_blocks_to_process,
                        mem_ptr->params.message_modulus,
                        mem_ptr->params.carry_modulus);

@@ -1,7 +1,7 @@
 #include "compression.cuh"
 
 uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t num_radix_blocks,
@@ -15,12 +15,12 @@ uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
       carry_modulus, allocate_gpu_memory);
 
   return scratch_cuda_compress_integer_radix_ciphertext<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      CudaStreams(streams),
       (int_compression<uint64_t> **)mem_ptr, num_radix_blocks,
       compression_params, lwe_per_glwe, allocate_gpu_memory);
 }
 uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr, uint32_t encryption_glwe_dimension,
     uint32_t encryption_polynomial_size, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
@@ -42,50 +42,49 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
       allocate_ms_array);
 
   return scratch_cuda_integer_decompress_radix_ciphertext<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      CudaStreams(streams),
       (int_decompression<uint64_t> **)mem_ptr, num_blocks_to_decompress,
       encryption_params, compression_params, allocate_gpu_memory);
 }
 void cuda_integer_compress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaPackedGlweCiphertextListFFI *glwe_array_out,
     CudaLweCiphertextListFFI const *lwe_array_in, void *const *fp_ksk,
     int8_t *mem_ptr) {
 
-  host_integer_compress<uint64_t>((cudaStream_t *)(streams), gpu_indexes,
-                                  gpu_count, glwe_array_out, lwe_array_in,
+  host_integer_compress<uint64_t>(CudaStreams(streams), glwe_array_out, lwe_array_in,
                                   (uint64_t *const *)(fp_ksk),
                                   (int_compression<uint64_t> *)mem_ptr);
 }
 void cuda_integer_decompress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     CudaLweCiphertextListFFI *lwe_array_out,
     CudaPackedGlweCiphertextListFFI const *glwe_in,
     uint32_t const *indexes_array, void *const *bsks, int8_t *mem_ptr) {
 
   host_integer_decompress<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out, glwe_in,
+      CudaStreams(streams), lwe_array_out, glwe_in,
       indexes_array, bsks, (int_decompression<uint64_t> *)mem_ptr);
 }
 
 void cleanup_cuda_integer_compress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_compression<uint64_t> *mem_ptr =
       (int_compression<uint64_t> *)(*mem_ptr_void);
-  mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
 
 void cleanup_cuda_integer_decompress_radix_ciphertext_64(
-    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaStreamsFFI streams,
     int8_t **mem_ptr_void) {
 
   int_decompression<uint64_t> *mem_ptr =
       (int_decompression<uint64_t> *)(*mem_ptr_void);
-  mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
