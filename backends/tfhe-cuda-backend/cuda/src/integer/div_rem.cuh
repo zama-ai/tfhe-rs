@@ -46,6 +46,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   // alias
   auto radix_params = mem_ptr->params;
   auto num_blocks = quotient->num_radix_blocks;
+  auto used_gpu_count = mem_ptr->used_gpu_count;
 
   copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder,
                                      numerator);
