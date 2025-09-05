@@ -142,3 +142,12 @@ pub struct NoiseSquashingCompressionParameters {
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct MetaNoiseSquashingParameters {
+    /// Parameters to do the actual noise squashing
+    pub parameters: NoiseSquashingParameters,
+    /// Parameters for compression of noise squashed ciphertexts aka
+    /// CompressedSquashedNoiseCiphertextList
+    pub compression_parameters: Option<NoiseSquashingCompressionParameters>,
+}
