@@ -1,6 +1,4 @@
 use super::rtl::VarCell;
-use super::*;
-use crate::pbs_by_name;
 use tracing::trace;
 
 #[derive(Clone, Eq, Default, Debug)]
@@ -48,48 +46,6 @@ impl PartialEq for VarDeg {
 pub struct VarCellDeg {
     pub var: VarCell,
     pub deg: VarDeg,
-}
-
-impl VarCellDeg {
-    pub fn bootstrap(&self, props: &FwParameters) -> (VarCellDeg, Option<VarCellDeg>) {
-        trace!(target: "vardeg::VarCellDeg::bootstrap", "bootstrap: {:?}", self);
-
-        let pbs_many_carry = pbs_by_name!("ManyCarryMsg");
-        let pbs_carry = pbs_by_name!("CarryInMsg");
-        let pbs_msg = pbs_by_name!("MsgOnly");
-
-        if self.deg.deg <= props.max_msg() {
-            match self.deg.nu {
-                1 => (self.clone(), None),
-                _ => (
-                    VarCellDeg::new(self.deg.deg, self.var.single_pbs(&pbs_msg)),
-                    None,
-                ),
-            }
-        // If we still have a bit available to do manyLUT
-        } else if self.deg.deg > props.max_msg() && self.deg.deg <= (props.max_val() >> 1) {
-            let mut pbs = self.var.pbs(&pbs_many_carry).into_iter();
-            (
-                VarCellDeg::new(props.max_msg().min(self.deg.deg), pbs.next().unwrap()),
-                Some(VarCellDeg::new(
-                    self.deg.deg >> props.carry_w,
-                    pbs.next().unwrap(),
-                )),
-            )
-        //Otherwise, we'll have to use two independent PBSs
-        } else {
-            (
-                VarCellDeg::new(
-                    self.deg.deg.min(props.max_msg()),
-                    self.var.single_pbs(&pbs_msg),
-                ),
-                Some(VarCellDeg::new(
-                    self.deg.deg >> props.carry_w,
-                    self.var.single_pbs(&pbs_carry),
-                )),
-            )
-        }
-    }
 }
 
 impl PartialOrd for VarCellDeg {
@@ -149,23 +105,25 @@ impl std::fmt::Debug for VarCellDeg {
 }
 
 impl VecVarCellDeg {
-    pub fn deg_chunks(&self, max_deg: &VarDeg) -> <Vec<Vec<VarCellDeg>> as IntoIterator>::IntoIter {
+    pub fn deg_chunks(
+        mut self,
+        max_deg: &VarDeg,
+    ) -> <Vec<Vec<VarCellDeg>> as IntoIterator>::IntoIter {
         trace!(target: "llt:deg_chunks", "len: {:?}, {:?}", self.len(), self.0);
 
         let mut res: Vec<Vec<VarCellDeg>> = Vec::new();
         let mut acc: VarDeg = VarDeg::default();
         let mut chunk: Vec<VarCellDeg> = Vec::new();
-        let mut copy = self.0.clone();
 
         // There are many ways to combine the whole vector in chunks up to
         // max_deg. We'll be greedy and sum up the elements by maximum degree
         // first.
-        copy.sort();
+        self.0.sort();
 
-        while !copy.is_empty() {
-            let sum = &acc + &copy.last().unwrap().deg;
+        while !self.is_empty() {
+            let sum = &acc + &self.0.last().unwrap().deg;
             if sum <= *max_deg {
-                chunk.push(copy.pop().unwrap());
+                chunk.push(self.0.pop().unwrap());
                 acc = sum;
             } else {
                 res.push(chunk);
@@ -173,7 +131,7 @@ impl VecVarCellDeg {
                 chunk = Vec::new();
             }
             trace!(target: "llt:deg_chunks:loop", "len: {:?}, {:?}, chunk: {:?}, acc: {:?}",
-                self.len(), copy, chunk, acc);
+                self.len(), self.0, chunk, acc);
         }
 
         // Any remaining chunk is appended
@@ -200,9 +158,5 @@ impl VecVarCellDeg {
 
     pub fn is_empty(&self) -> bool {
         self.0.len() == 0
-    }
-
-    pub fn push(&mut self, item: VarCellDeg) {
-        self.0.push(item)
     }
 }

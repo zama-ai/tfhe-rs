@@ -15,7 +15,7 @@ use crate::core_crypto::commons::math::decomposition::{
 use crate::core_crypto::commons::math::ntt::ntt64::{Ntt64, Ntt64View};
 use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, PolynomialSize};
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
@@ -208,9 +208,6 @@ pub fn blind_rotate_ntt64_assign<InputCont, OutputCont, KeyCont>(
 /// a properly configured [`Ntt64View`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of
 /// [`blind_rotate_ntt64_assign_mem_optimized_requirement`].
-///
-/// # Panics
-/// This will panic if the input mask len does not match the size of the bsk
 pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
@@ -253,9 +250,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in
-            izip_eq!(lwe_mask.iter(), bsk.into_ggsw_iter())
-        {
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
             if *lwe_mask_element != 0u64 {
                 let stack = &mut *stack;
                 // We copy ct_0 to ct_1
@@ -620,7 +615,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             //
             //        t = 1                           t = 2                     ...
 
-            izip_eq!(
+            izip!(
                 ggsw_decomp_matrix.into_rows(),
                 glwe_decomp_term.as_polynomial_list().iter()
             )
@@ -652,7 +647,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     //
     // We iterate over the polynomials in the output.
     if !is_output_uninit {
-        izip_eq!(
+        izip!(
             out.as_mut_polynomial_list().iter_mut(),
             output_fft_buffer
                 .into_chunks(poly_size)
@@ -665,9 +660,6 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
-///
-/// # Panics
-/// This will panic if ct0 and ct1 are not of the same size
 pub(crate) fn cmux_ntt64_assign(
     ct0: GlweCiphertextMutView<'_, u64>,
     mut ct1: GlweCiphertextMutView<'_, u64>,
@@ -675,7 +667,7 @@ pub(crate) fn cmux_ntt64_assign(
     ntt: Ntt64View<'_>,
     stack: &mut PodStack,
 ) {
-    izip_eq!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
     });
     add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
@@ -694,7 +686,7 @@ pub(crate) fn update_with_fmadd_ntt64(
         output_fft_buffer.fill(0);
     }
 
-    izip_eq!(
+    izip!(
         output_fft_buffer.into_chunks(poly_size),
         lhs_polynomial_list.into_chunks(poly_size)
     )

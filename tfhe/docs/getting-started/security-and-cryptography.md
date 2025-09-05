@@ -97,7 +97,7 @@ For example, when adding two ciphertexts, the sum could exceed the range of eith
 
 By default, the cryptographic parameters provided by **TFHE-rs** ensure at least 128 bits of security. The security has been evaluated using the latest versions of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.RC.BDGL16`.
 
-For the High-Level API the default parameters are selected with a bootstrapping failure probability (or error probability) fixed at $$p_{error} \le 2^{-128}$$ for all backends (x86 CPU, GPU and HPU).
+For the High-Level API the default parameters are selected with a bootstrapping failure probability (or error probability) fixed at $$p_{error} \le 2^{-128}$$ for the x86 CPU backend, and $$p_{error} \le 2^{-64}$$ for the GPU backend.
 A failure probability below $$2^{-128}$$ ensures that our implementation is resilient against attacks in the IND-CPA-D model [1]. In the case where only the IND-CPA model is considered, there is a possibility to choose parameters with a $$p_{error} \le 2^{-64}$$, see the dedicated [Parameters section](../fhe-computation/compute/parameters.md)
 
 \[1][ Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022.](https://eprint.iacr.org/2022/816.pdf)

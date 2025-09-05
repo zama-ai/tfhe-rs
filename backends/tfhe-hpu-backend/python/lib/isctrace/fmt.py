@@ -31,22 +31,14 @@ class LD(BaseInstruction):
         self.__dict__ = d
 
     def args(self):
-        try:
-            return f'R{self.rid} @{hex(self.slot["Addr"])}'
-        except:
-            # It can happen that an IOP is not translated by the FW
-            return f'R{self.rid} @{self.slot}'
+        return f'R{self.rid} @{hex(self.slot["Addr"])}'
 
 class ST(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        try:
-            return f'@{hex(self.slot["Addr"])} R{self.rid}'
-        except:
-            # It can happen that an IOP is not translated by the FW
-            return f'@{self.slot} R{self.rid}'
+        return f'@{hex(self.slot["Addr"])} R{self.rid}'
 
 class MAC(BaseInstruction):
     def __init__(self, d):

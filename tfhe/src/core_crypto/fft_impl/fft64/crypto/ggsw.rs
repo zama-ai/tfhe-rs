@@ -10,7 +10,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::ggsw_ciphertext::{
     fourier_ggsw_level_matrix_size, GgswCiphertextView,
 };
@@ -154,10 +154,7 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
     }
 
     /// Return an iterator over the rows of the level matrices.
-    pub fn into_rows(
-        self,
-    ) -> impl DoubleEndedIterator<Item = FourierGgswLevelRow<C>>
-           + ExactSizeIterator<Item = FourierGgswLevelRow<C>>
+    pub fn into_rows(self) -> impl DoubleEndedIterator<Item = FourierGgswLevelRow<C>>
     where
         C: Split,
     {
@@ -265,7 +262,7 @@ impl FourierGgswCiphertextMutView<'_> {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
 
-        for (fourier_poly, coef_poly) in izip_eq!(
+        for (fourier_poly, coef_poly) in izip!(
             self.data().into_chunks(fourier_poly_size),
             coef_ggsw.as_polynomial_list().iter()
         ) {
@@ -404,10 +401,7 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         }
     }
 
-    pub fn into_ggsw_iter(
-        self,
-    ) -> impl ExactSizeIterator<Item = FourierGgswCiphertext<C>>
-           + DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
+    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
     where
         C: Split,
     {
@@ -554,7 +548,7 @@ pub fn add_external_product_assign<Scalar>(
             //
             //        t = 1                           t = 2                     ...
 
-            izip_eq!(
+            izip!(
                 ggsw_decomp_matrix.into_rows(),
                 glwe_decomp_term.as_polynomial_list().iter()
             )
@@ -592,7 +586,7 @@ pub fn add_external_product_assign<Scalar>(
     //
     // We iterate over the polynomials in the output.
     if !is_output_uninit {
-        izip_eq!(
+        izip!(
             out.as_mut_polynomial_list().iter_mut(),
             output_fft_buffer
                 .into_chunks(fourier_poly_size)
@@ -655,26 +649,26 @@ pub(crate) fn update_with_fmadd(
                 let rhs = S::as_simd_c64s(fourier).0;
 
                 if is_output_uninit {
-                    for (output_fourier, ggsw_poly) in izip_eq!(
+                    for (output_fourier, ggsw_poly) in izip!(
                         output_fft_buffer.into_chunks(fourier_poly_size),
                         lhs_polynomial_list.into_chunks(fourier_poly_size)
                     ) {
                         let out = S::as_mut_simd_c64s(output_fourier).0;
                         let lhs = S::as_simd_c64s(ggsw_poly).0;
 
-                        for (out, lhs, rhs) in izip_eq!(out, lhs, rhs) {
+                        for (out, lhs, rhs) in izip!(out, lhs, rhs) {
                             *out = simd.mul_c64s(*lhs, *rhs);
                         }
                     }
                 } else {
-                    for (output_fourier, ggsw_poly) in izip_eq!(
+                    for (output_fourier, ggsw_poly) in izip!(
                         output_fft_buffer.into_chunks(fourier_poly_size),
                         lhs_polynomial_list.into_chunks(fourier_poly_size)
                     ) {
                         let out = S::as_mut_simd_c64s(output_fourier).0;
                         let lhs = S::as_simd_c64s(ggsw_poly).0;
 
-                        for (out, lhs, rhs) in izip_eq!(out, lhs, rhs) {
+                        for (out, lhs, rhs) in izip!(out, lhs, rhs) {
                             *out = simd.mul_add_c64s(*lhs, *rhs, *out);
                         }
                     }
@@ -725,7 +719,7 @@ pub(crate) fn update_with_fmadd_factor(
         fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
             let factor = simd.splat_c64s(self.factor);
 
-            for (output_fourier, ggsw_poly) in izip_eq!(
+            for (output_fourier, ggsw_poly) in izip!(
                 self.output_fft_buffer.into_chunks(self.fourier_poly_size),
                 self.lhs_polynomial_list.into_chunks(self.fourier_poly_size)
             ) {
@@ -734,12 +728,12 @@ pub(crate) fn update_with_fmadd_factor(
                 let rhs = S::as_simd_c64s(self.fourier).0;
 
                 if self.is_output_uninit {
-                    for (out, &lhs, &rhs) in izip_eq!(out, lhs, rhs) {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
                         // NOTE: factor * (lhs * rhs) is more efficient than (lhs * rhs) * factor
                         *out = simd.mul_c64s(factor, simd.mul_c64s(lhs, rhs));
                     }
                 } else {
-                    for (out, &lhs, &rhs) in izip_eq!(out, lhs, rhs) {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
                         // NOTE: see above
                         *out = simd.mul_add_c64s(factor, simd.mul_c64s(lhs, rhs), *out);
                     }
@@ -775,7 +769,7 @@ pub fn cmux<Scalar: UnsignedTorus>(
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) {
-    izip_eq!(ct1.as_mut(), ct0.as_ref()).for_each(|(c1, c0)| {
+    izip!(ct1.as_mut(), ct0.as_ref()).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);
     });
     add_external_product_assign(ct0, ggsw, ct1.as_view(), fft, stack);

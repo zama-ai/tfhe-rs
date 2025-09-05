@@ -36,7 +36,7 @@
 [pc_params]
     ksk_pc= 16
     ksk_bytes_w= 32
-    bsk_pc= 16
+    bsk_pc= 8
     bsk_bytes_w= 32
     pem_pc= 2
     pem_bytes_w= 32

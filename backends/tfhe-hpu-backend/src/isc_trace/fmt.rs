@@ -64,13 +64,13 @@ pub struct IscPoolState {
     pub(super) vld: bool,
     pub(super) wr_lock: u32,
     pub(super) rd_lock: u32,
-    pub(super) issue_lock: u32,
+    //pub(super) issue_lock: u32,
     pub(super) sync_id: u32,
 }
 
 impl Len for IscPoolState {
     fn len() -> usize {
-        28
+        21
     }
 }
 
@@ -85,8 +85,8 @@ where
             vld: *(slice.get(2).ok_or(NoMoreBits)?),
             wr_lock: slice.get(3..10).ok_or(NoMoreBits)?.load::<u32>(),
             rd_lock: slice.get(10..17).ok_or(NoMoreBits)?.load::<u32>(),
-            issue_lock: slice.get(17..24).ok_or(NoMoreBits)?.load::<u32>(),
-            sync_id: slice.get(24..28).ok_or(NoMoreBits)?.load::<u32>(),
+            //issue_lock: slice.get(17..24).ok_or(NoMoreBits)?.load::<u32>(),
+            sync_id: slice.get(17..21).ok_or(NoMoreBits)?.load::<u32>(),
         })
     }
 }

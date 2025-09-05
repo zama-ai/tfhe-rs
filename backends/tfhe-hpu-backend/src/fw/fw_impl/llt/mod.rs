@@ -57,16 +57,16 @@ crate::impl_fw!("Llt" [
     OVF_SSUB => fw_impl::ilp::iop_overflow_ssub;
     OVF_MULS => fw_impl::ilp::iop_overflow_muls;
 
-    BW_AND       => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
-    BW_OR        => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
-    BW_XOR       => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwXor::default().into())});
+    BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
+    BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
+    BW_XOR => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwXor::default().into())});
 
-    CMP_GT       => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGtMrg"), pbs_by_name!("CmpGt"))});
-    CMP_GTE      => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGteMrg"), pbs_by_name!("CmpGte"))});
-    CMP_LT       => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLtMrg"), pbs_by_name!("CmpLt"))});
-    CMP_LTE      => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLteMrg"), pbs_by_name!("CmpLte"))});
-    CMP_EQ       => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpEqMrg"), pbs_by_name!("CmpEq"))});
-    CMP_NEQ      => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpNeqMrg"), pbs_by_name!("CmpNeq"))});
+    CMP_GT  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGtMrg"), pbs_by_name!("CmpGt"))});
+    CMP_GTE => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGteMrg"), pbs_by_name!("CmpGte"))});
+    CMP_LT  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLtMrg"), pbs_by_name!("CmpLt"))});
+    CMP_LTE => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLteMrg"), pbs_by_name!("CmpLte"))});
+    CMP_EQ  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpEqMrg"), pbs_by_name!("CmpEq"))});
+    CMP_NEQ => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpNeqMrg"), pbs_by_name!("CmpNeq"))});
 
     IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
@@ -81,10 +81,6 @@ crate::impl_fw!("Llt" [
     LEAD1 => fw_impl::ilp_log::iop_lead1;
     TRAIL0 => fw_impl::ilp_log::iop_trail0;
     TRAIL1 => fw_impl::ilp_log::iop_trail1;
-
-    // SIMD Implementations
-    ADD_SIMD     => fw_impl::llt::iop_add_simd;
-    ERC_20_SIMD  => fw_impl::llt::iop_erc_20_simd;
 ]);
 
 // ----------------------------------------------------------------------------
@@ -104,17 +100,6 @@ pub fn iop_add(prog: &mut Program) {
     // Add Comment header
     prog.push_comment("ADD Operand::Dst Operand::Src Operand::Src".to_string());
     iop_addx(prog, dst, src_a, src_b);
-}
-
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_add_simd(prog: &mut Program) {
-    // Add Comment header
-    prog.push_comment("ADD_SIMD Operand::Dst Operand::Src Operand::Src".to_string());
-    simd(
-        prog,
-        crate::asm::iop::SIMD_N,
-        fw_impl::llt::iop_add_ripple_rtl,
-    );
 }
 
 pub fn iop_adds(prog: &mut Program) {
@@ -204,7 +189,7 @@ pub fn iop_mul(prog: &mut Program) {
 
     // Add Comment header
     prog.push_comment("MUL Operand::Dst Operand::Src Operand::Src".to_string());
-
+    // Deferred implementation to generic mulx function
     iop_mulx(prog, dst, src_a, src_b).add_to_prog(prog);
 }
 
@@ -220,50 +205,29 @@ pub fn iop_muls(prog: &mut Program) {
 
     // Add Comment header
     prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
-
+    // Deferred implementation to generic mulx function
     iop_mulx(prog, dst, src_a, src_b).add_to_prog(prog);
 }
-
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20(prog: &mut Program) {
-    // Add Comment header
-    prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
-    iop_erc_20_rtl(prog, 0).add_to_prog(prog);
-}
-
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20_simd(prog: &mut Program) {
-    // Add Comment header
-    prog.push_comment("ERC_20_SIMD (new_from, new_to) <- (from, to, amount)".to_string());
-    simd(prog, crate::asm::iop::SIMD_N, fw_impl::llt::iop_erc_20_rtl);
-}
-
-// ----------------------------------------------------------------------------
-// Helper Functions
-// ----------------------------------------------------------------------------
 
 /// Implement erc_20 fund xfer
 /// Targeted algorithm is as follow:
 /// 1. Check that from has enough funds
 /// 2. Compute real_amount to xfer (i.e. amount or 0)
 /// 3. Compute new amount (from - new_amount, to + new_amount)
-///
-/// The input operands are:
-///     (from[0], to[0], amount[0], ..., from[N-1], to[N-1], amount[N-1])
-/// The output operands are:
-///     (dst_from[0], dst_to[0], ..., dst_from[N-1], dst_to[N-1])
-/// Where N is the batch size
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
+pub fn iop_erc_20(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
-    let dst_from = prog.iop_template_var(OperandKind::Dst, 2 * batch_index);
-    let dst_to = prog.iop_template_var(OperandKind::Dst, 2 * batch_index + 1);
+    let dst_from = prog.iop_template_var(OperandKind::Dst, 0);
+    let dst_to = prog.iop_template_var(OperandKind::Dst, 1);
     // Src -> Operand
-    let src_from = prog.iop_template_var(OperandKind::Src, 3 * batch_index);
-    let src_to = prog.iop_template_var(OperandKind::Src, 3 * batch_index + 1);
+    let src_from = prog.iop_template_var(OperandKind::Src, 0);
+    let src_to = prog.iop_template_var(OperandKind::Src, 1);
     // Src Amount -> Operand
-    let src_amount = prog.iop_template_var(OperandKind::Src, 3 * batch_index + 2);
+    let src_amount = prog.iop_template_var(OperandKind::Src, 2);
+
+    // Add Comment header
+    prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
 
     // TODO: Make this a parameter or sweep this
     // All these little parameters would be very handy to write an
@@ -272,7 +236,7 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
     let kogge_blk_w = 10;
     let ripple = true;
 
-    {
+    let tree = {
         let props = prog.params();
         let tfhe_params: asm::DigitParameters = props.clone().into();
         let lut = pbs_by_name!("IfFalseZeroed");
@@ -309,26 +273,13 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
             kogge::add(prog, dst_to, src_to, src_amount.clone(), None, kogge_blk_w)
                 + kogge::sub(prog, dst_from, src_from, src_amount, kogge_blk_w)
         }
-    }
+    };
+    tree.add_to_prog(prog);
 }
 
-/// A SIMD implementation of add for maximum throughput
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_add_ripple_rtl(prog: &mut Program, i: u8) -> Rtl {
-    // Allocate metavariables:
-    let dst = prog.iop_template_var(OperandKind::Dst, i);
-    let src_a = prog.iop_template_var(OperandKind::Src, 2 * i);
-    let src_b = prog.iop_template_var(OperandKind::Src, 2 * i + 1);
-
-    // Convert MetaVarCell in VarCell for Rtl analysis
-    let a = VarCell::from_vec(src_a);
-    let b = VarCell::from_vec(src_b);
-    let d = VarCell::from_vec(dst);
-
-    // Do a + b with the ripple carry adder
-    kogge::ripple_add(d, a, b, None)
-}
-
+// ----------------------------------------------------------------------------
+// Helper Functions
+// ----------------------------------------------------------------------------
 fn iop_addx(
     prog: &mut Program,
     dst: Vec<MetaVarCell>,
@@ -362,181 +313,11 @@ fn iop_subx(
     .add_to_prog(prog);
 }
 
-/// Generic mul operation for massively parallel HPUs
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_mulx_par(
-    prog: &mut Program,
-    dst: Vec<metavar::MetaVarCell>,
-    src_a: Vec<metavar::MetaVarCell>,
-    src_b: Vec<metavar::MetaVarCell>,
-) -> Rtl {
-    let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
-    let blk_w = props.blk_w();
-
-    // Transform metavars into RTL vars
-    let mut dst = VarCell::from_vec(dst);
-    let src_a = VarCell::from_vec(src_a);
-    let src_b = VarCell::from_vec(src_b);
-    let max_deg = VarDeg {
-        deg: props.max_val(),
-        nu: props.nu,
-    };
-
-    let pbs_mul_lsb = pbs_by_name!("MultCarryMsgLsb");
-    let pbs_mul_msb = pbs_by_name!("MultCarryMsgMsb");
-    let max_carry = (props.max_msg() * props.max_msg()) >> props.msg_w;
-    let max_msg = props.max_msg();
-
-    let mut mul_map: HashMap<usize, Vec<VarCellDeg>> = HashMap::new();
-    itertools::iproduct!(0..blk_w, 0..blk_w).for_each(|(i, j)| {
-        let pp = src_a[i].mac(tfhe_params.msg_range(), &src_b[j]);
-        let lsb = pp.single_pbs(&pbs_mul_lsb);
-        let msb = pp.single_pbs(&pbs_mul_msb);
-        mul_map
-            .entry(i + j)
-            .or_default()
-            .push(VarCellDeg::new(max_msg, lsb));
-        mul_map
-            .entry(i + j + 1)
-            .or_default()
-            .push(VarCellDeg::new(max_carry, msb));
-    });
-
-    let mut pp: Vec<VecVarCellDeg> = (0..dst.len())
-        .map(|i| mul_map.remove(&i).unwrap().into())
-        .collect();
-
-    // Reduce dada tree like
-    while pp.iter().any(|x| x.len() > 1) {
-        trace!(
-            target: "llt::mul",
-            "pp length: {:?}",
-            pp.iter().map(|x| x.len()).collect::<Vec<_>>()
-        );
-        for c in (0..dst.len()).rev() {
-            let mut col_len = pp[c].len();
-            let mut reduced = Vec::new();
-            let mut chunks = pp[c].deg_chunks(&max_deg).peekable();
-            let max_col = if c == (dst.len() - 1) {
-                0
-            } else {
-                dst.len() - 1
-            };
-
-            while chunks.peek().is_some() && col_len > pp[max_col].len() {
-                let mut chunk = chunks.next().unwrap();
-                let chunk_len = chunk.len();
-                col_len -= chunk.len();
-
-                // sum the chunk
-                while chunk.len() > 1 {
-                    chunk = chunk
-                        .chunks(2)
-                        .map(|chunk| match chunk.len() {
-                            1 => chunk[0].clone(),
-                            2 => &chunk[0] + &chunk[1],
-                            _ => panic!("Invalid chunk size"),
-                        })
-                        .collect()
-                }
-
-                // And bootstrap if needed
-                let element = chunk
-                    .into_iter()
-                    .next()
-                    .map(|sum| {
-                        assert!(sum.deg.nu <= props.nu);
-                        if sum.deg == max_deg || chunk_len == 1 {
-                            let (data, carry) = sum.bootstrap(&props);
-                            if let (Some(carry), Some(elm)) = (carry, pp.get_mut(c + 1)) {
-                                elm.push(carry);
-                            }
-                            data
-                        } else {
-                            sum
-                        }
-                    })
-                    .unwrap();
-
-                reduced.push(element);
-            }
-
-            pp[c] = reduced
-                .into_iter()
-                .chain(chunks.flatten())
-                .collect::<Vec<_>>()
-                .into();
-        }
-    }
-
-    trace!(
-        target: "llt::mul",
-        "final pp: {:?}", pp
-    );
-
-    // Extract carry and message and do carry propagation
-    let mut a: Vec<Option<VarCell>> = (0..dst.len() + 1).map(|_| None).collect();
-    let mut b: Vec<Option<VarCell>> = (0..dst.len() + 1).map(|_| None).collect();
-
-    pp.into_iter().enumerate().for_each(|(i, pp)| {
-        assert!(pp.len() == 1);
-        let vardeg = pp.first().unwrap();
-        let (msg, carry) = vardeg.bootstrap(&props);
-        a[i] = Some(msg.var);
-        if let Some(carry) = carry {
-            b[i + 1] = Some(carry.var);
-        }
-    });
-
-    let cs: Vec<_> = a
-        .into_iter()
-        .take(dst.len())
-        .zip(b.into_iter())
-        .map(|(a, b)| match (a, b) {
-            (Some(a), Some(b)) => &a + &b,
-            (Some(a), None) => a,
-            (None, Some(b)) => b,
-            _ => panic!("Fix your code"),
-        })
-        .collect();
-
-    // Do fully parallel carry propagation
-    kogge::propagate_carry(prog, dst.as_mut_slice(), cs.as_slice(), &None);
-
-    Rtl::from(dst)
-}
-
-/// multiplier wrapper, to choose between parallel and serial implementations
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_mulx(
-    prog: &mut Program,
-    dst: Vec<metavar::MetaVarCell>,
-    src_a: Vec<metavar::MetaVarCell>,
-    src_b: Vec<metavar::MetaVarCell>,
-) -> Rtl {
-    // When the batch size is enough to do a full stage in parallel, do parallel
-    // mul.
-    // Note: The break-even point might not be this one, but choosing the right
-    // point is uninportant since we'll leap imensely the number of batches from
-    // FPGA to ASIC.
-    let parallel = prog
-        .op_cfg()
-        .parallel
-        .unwrap_or_else(|| prog.params().pbs_batch_w >= dst.len());
-
-    if parallel {
-        iop_mulx_par(prog, dst, src_a, src_b)
-    } else {
-        iop_mulx_ser(prog, dst, src_a, src_b)
-    }
-}
-
 /// Generic mul operation
 /// One destination and two sources operation
 /// Source could be Operand or Immediat
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_mulx_ser(
+pub fn iop_mulx(
     prog: &mut Program,
     dst: Vec<metavar::MetaVarCell>,
     src_a: Vec<metavar::MetaVarCell>,
@@ -586,10 +367,7 @@ pub fn iop_mulx_ser(
                     sum.var.single_pbs(&pbs_carry),
                 ));
             }
-            VarCellDeg::new(
-                sum.deg.deg.min(props.max_msg()),
-                sum.var.single_pbs(&pbs_msg),
-            )
+            VarCellDeg::new(props.max_msg(), sum.var.single_pbs(&pbs_msg))
         };
 
         while to_sum.len() > 1 {
@@ -761,24 +539,4 @@ fn bw_inv(prog: &mut Program, b: Vec<VarCell>) -> Vec<VarCell> {
             }
         })
         .collect::<Vec<_>>()
-}
-
-/// Creates a SIMD version of the closure
-/// Make sure that the closure is a PBS optimized version of the operation
-/// The closure receives as inputs the program and the batch index.
-/// How the ASM operands are actually organized is defined by the closure
-/// itself.
-///
-/// Maybe this should go into a SIMD firmware implementation... At some point we
-/// would need a mechanism to choose between implementations on the fly to make
-/// real good use of all of this.
-fn simd<F>(prog: &mut Program, batch_size: usize, rtl_closure: F)
-where
-    F: Fn(&mut Program, u8) -> Rtl,
-{
-    (0..batch_size)
-        .map(|i| i as u8)
-        .map(|i| rtl_closure(prog, i))
-        .sum::<Rtl>()
-        .add_to_prog(prog);
 }

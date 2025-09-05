@@ -87,10 +87,6 @@ pub const LEAD1: u8 = 0x85;
 pub const TRAIL0: u8 = 0x86;
 pub const TRAIL1: u8 = 0x87;
 
-// SIMD for maximum throughput
-pub const ADD_SIMD: u8 = 0xF0;
-pub const ERC_20_SIMD: u8 = 0xF1;
-//
 // Utility operations
 // Used to handle real clone of ciphertext already uploaded in the Hpu memory
 pub const MEMCPY: u8 = 0xFF;

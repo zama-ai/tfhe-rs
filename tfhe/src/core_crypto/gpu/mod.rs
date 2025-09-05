@@ -1212,11 +1212,6 @@ pub fn get_number_of_gpus() -> u32 {
     unsafe { cuda_get_number_of_gpus() as u32 }
 }
 
-/// Get the number of sms on the GPU
-pub fn get_number_of_sms() -> u32 {
-    unsafe { cuda_get_number_of_sms() as u32 }
-}
-
 /// Setup multi-GPU and return the number of GPUs used
 pub fn setup_multi_gpu(device_0_id: GpuIndex) -> u32 {
     unsafe { cuda_setup_multi_gpu(device_0_id.get()) as u32 }

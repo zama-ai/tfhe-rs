@@ -88,8 +88,6 @@ extern "C" {
 
     pub fn cuda_get_number_of_gpus() -> i32;
 
-    pub fn cuda_get_number_of_sms() -> i32;
-
     pub fn cuda_synchronize_device(gpu_index: u32);
 
     pub fn cuda_drop(ptr: *mut c_void, gpu_index: u32);

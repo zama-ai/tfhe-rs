@@ -73,6 +73,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+Performance can be improved by setting `lto="fat"` in `Cargo.toml`
+
+```toml
+[profile.release]
+lto = "fat"
+```
+
+and by building the code for the native CPU architecture and in release mode, e.g. by calling `RUSTFLAGS="-C target-cpu=native" cargo run --release`.
+
 {% hint style="info" %}
 You can choose a more costly proof with `ZkComputeLoad::Proof`, which has a faster verification time. Alternatively, you can select `ZkComputeLoad::Verify` for a faster proof and slower verification.
 {% endhint %}

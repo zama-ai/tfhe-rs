@@ -85,8 +85,7 @@ Now that the project has **TFHE-rs** as a dependency here are the detailed steps
 5. Server-side: [compute over encrypted data](../fhe-computation/compute/)
 6. Client-side: [decrypt data](../fhe-computation/compute/decrypt-data.md)
 
-This example demonstrates the basic workflow combining the client and server parts.
-Edit the `main.rs` file that has been generated at the previous step and add this content:
+This example demonstrates the basic workflow combining the client and server parts:
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
@@ -117,21 +116,4 @@ fn main() {
 }
 ```
 
-Now, you are ready to compute your first homomorphic operations! To run the project, simply invoke the following command:
-```console
-$ cargo run --release
-```
-{% hint style="success" %}
-**Performance**: for optimal performance, it is highly recommended to run code that uses **`TFHE-rs`** in release mode with cargo's `--release` flag.
-{% endhint %}
-
 You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../configuration/rust-configuration.md)
-
-## Perforance tips
-Performance can be further improved by setting `lto="fat"` in `Cargo.toml`
-```toml
-[profile.release]
-lto = "fat"
-```
-
-If your application does not need to be portable, you can also build the code for the native CPU architecture, e.g. by calling `RUSTFLAGS="-C target-cpu=native" cargo run --release`.

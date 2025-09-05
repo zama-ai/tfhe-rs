@@ -4,7 +4,7 @@ use crate::core_crypto::commons::traits::container::Split;
 use crate::core_crypto::commons::traits::contiguous_entity_container::{
     ContiguousEntityContainer, ContiguousEntityContainerMut,
 };
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::update_with_fmadd;
 use crate::core_crypto::prelude::{Container, ContainerMut, SignedDecomposer};
@@ -86,7 +86,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             let (decomposition_states_hi, substack1) =
                 stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
-            for (out_lo, out_hi, in_lo, in_hi) in izip_eq!(
+            for (out_lo, out_hi, in_lo, in_hi) in izip!(
                 &mut *decomposition_states_lo,
                 &mut *decomposition_states_hi,
                 glwe_lo.as_ref(),
@@ -153,7 +153,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 //
                 //        t = 1                           t = 2                     ...
 
-                for (ggsw_row, glwe_poly_lo, glwe_poly_hi) in izip_eq!(
+                for (ggsw_row, glwe_poly_lo, glwe_poly_hi) in izip!(
                     ggsw_decomp_matrix.into_rows(),
                     glwe_decomp_term_lo.as_polynomial_list().iter(),
                     glwe_decomp_term_hi.as_polynomial_list().iter(),
@@ -202,7 +202,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
         //
         // We iterate over the polynomials in the output.
         if !is_output_uninit {
-            for (mut out_lo, mut out_hi, fourier_re0, fourier_re1, fourier_im0, fourier_im1) in izip_eq!(
+            for (mut out_lo, mut out_hi, fourier_re0, fourier_re1, fourier_im0, fourier_im1) in izip!(
                 out_lo.as_mut_polynomial_list().iter_mut(),
                 out_hi.as_mut_polynomial_list().iter_mut(),
                 output_fft_buffer_re0.into_chunks(fourier_poly_size),
@@ -293,7 +293,7 @@ fn collect_next_term_split_avx512(
             let base_log_complement = simd.splat_u64x8(64u64.wrapping_sub(base_log));
             let base_log = simd.splat_u64x8(base_log);
 
-            for (out_lo, out_hi, state_lo, state_hi) in izip_eq!(
+            for (out_lo, out_hi, state_lo, state_hi) in izip!(
                 glwe_decomp_term_lo,
                 glwe_decomp_term_hi,
                 decomposition_states_lo,
@@ -425,7 +425,7 @@ fn collect_next_term_split_avx2(
             let base_log_complement = simd.splat_u64x4(64u64.wrapping_sub(base_log));
             let base_log = simd.splat_u64x4(base_log);
 
-            for (out_lo, out_hi, state_lo, state_hi) in izip_eq!(
+            for (out_lo, out_hi, state_lo, state_hi) in izip!(
                 glwe_decomp_term_lo,
                 glwe_decomp_term_hi,
                 decomposition_states_lo,
@@ -507,7 +507,7 @@ fn collect_next_term_split_scalar(
     base_log: usize,
 ) {
     assert!(base_log < 128);
-    for (out_lo, out_hi, state_lo, state_hi) in izip_eq!(
+    for (out_lo, out_hi, state_lo, state_hi) in izip!(
         glwe_decomp_term_lo,
         glwe_decomp_term_hi,
         decomposition_states_lo,
@@ -603,9 +603,6 @@ fn collect_next_term_split(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
-///
-/// # Panics
-/// This will panic if ct0_lo, ct0_hi, ct1_lo and ct1_hi are not of the same size
 pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
     ct0_lo: &mut GlweCiphertext<ContCt0Lo>,
     ct0_hi: &mut GlweCiphertext<ContCt0Hi>,
@@ -630,7 +627,7 @@ pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) {
-        for (c1_lo, c1_hi, c0_lo, c0_hi) in izip_eq!(
+        for (c1_lo, c1_hi, c0_lo, c0_hi) in izip!(
             ct1_lo.as_mut(),
             ct1_hi.as_mut(),
             ct0_lo.as_ref(),

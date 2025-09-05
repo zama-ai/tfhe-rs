@@ -12,7 +12,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
@@ -216,7 +216,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         *out_pbs_body = (*out_pbs_body).wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
 
         // Remove the extracted bit from the initial LWE to get a 0 at the extracted bit location.
-        izip_eq!(lwe_in_buffer.as_mut(), lwe_out_pbs_buffer.as_ref())
+        izip!(lwe_in_buffer.as_mut(), lwe_out_pbs_buffer.as_ref())
             .for_each(|(out, inp)| *out = (*out).wrapping_sub(*inp));
     }
 }
@@ -521,7 +521,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                 break;
             };
 
-            let mut t_iter = izip_eq!(t_0.iter_mut(), t_1.iter_mut()).enumerate();
+            let mut t_iter = izip!(t_0.iter_mut(), t_1.iter_mut()).enumerate();
 
             let (mut j_counter, (mut t0_j, mut t1_j)) = t_iter.next().unwrap();
 
@@ -539,7 +539,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                 if t_fill[j] == 2 {
                     let (diff_data, stack) = stack.collect_aligned(
                         CACHELINE_ALIGN,
-                        izip_eq!(t1_j.as_ref(), t0_j.as_ref()).map(|(&a, &b)| a.wrapping_sub(b)),
+                        izip!(t1_j.as_ref(), t0_j.as_ref()).map(|(&a, &b)| a.wrapping_sub(b)),
                     );
                     let diff = GlweCiphertext::from_container(
                         &*diff_data,
@@ -709,7 +709,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         pfpksk_list.ciphertext_modulus(),
     );
 
-    for (lwe_in, ggsw) in izip_eq!(lwe_list_in.iter(), ggsw_list.as_mut_view().into_ggsw_iter()) {
+    for (lwe_in, ggsw) in izip!(lwe_list_in.iter(), ggsw_list.as_mut_view().into_ggsw_iter()) {
         circuit_bootstrap_boolean(
             fourier_bsk,
             lwe_in,
@@ -728,7 +728,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
 
     let small_lut_size = big_lut_as_polynomial_list.polynomial_count().0 / number_of_luts;
 
-    for (lut, lwe_out) in izip_eq!(
+    for (lut, lwe_out) in izip!(
         big_lut_as_polynomial_list.chunks_exact(small_lut_size),
         lwe_list_out.iter_mut(),
     ) {

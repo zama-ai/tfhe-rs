@@ -232,13 +232,8 @@ template <typename Torus> struct zk_expand_mem {
         num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
         allocate_gpu_memory);
 
-    auto active_gpu_count = get_active_gpu_count(2 * num_lwes, gpu_count);
-    message_and_carry_extract_luts->broadcast_lut(streams, gpu_indexes,
-                                                  active_gpu_count);
+    message_and_carry_extract_luts->broadcast_lut(streams, gpu_indexes);
 
-    message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(
-        streams, gpu_indexes, active_gpu_count, 2 * num_lwes, size_tracker,
-        allocate_gpu_memory);
     // The expanded LWEs will always be on the casting key format
     tmp_expanded_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
         num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),

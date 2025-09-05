@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
@@ -186,7 +186,7 @@ impl ServerKey {
         // and did the last one separately
         let blocks_to_replace = &mut ct.blocks[..num_blocks - rotations - 1];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
-        for (block, shifted_block) in izip_eq!(blocks_to_replace, partial_blocks) {
+        for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
             *block = shifted_block;
         }
         debug_assert!(ct.block_carries_are_empty());
@@ -330,7 +330,7 @@ impl ServerKey {
         // and did the last one separately
         let blocks_to_replace = &mut ct.blocks[rotations + 1..];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
-        for (block, shifted_block) in izip_eq!(blocks_to_replace, partial_blocks) {
+        for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
             *block = shifted_block;
         }
         debug_assert!(ct.block_carries_are_empty());

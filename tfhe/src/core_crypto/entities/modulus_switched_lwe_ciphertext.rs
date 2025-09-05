@@ -52,7 +52,7 @@ impl<Scalar: Copy> ModulusSwitchedLweCiphertext<Scalar>
         *self.container.last().unwrap()
     }
 
-    fn mask(&self) -> impl ExactSizeIterator<Item = Scalar> + '_ {
+    fn mask(&self) -> impl Iterator<Item = Scalar> + '_ {
         let (_body, mask) = self.container.split_last().unwrap();
 
         mask.iter().copied()
@@ -138,7 +138,7 @@ where
         .cast_into()
     }
 
-    fn mask(&self) -> impl ExactSizeIterator<Item = SwitchedScalar> {
+    fn mask(&self) -> impl Iterator<Item = SwitchedScalar> {
         self.lwe_in
             .as_ref()
             .split_last()
