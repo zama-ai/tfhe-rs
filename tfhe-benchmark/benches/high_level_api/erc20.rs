@@ -18,6 +18,8 @@ use tfhe::prelude::*;
 use tfhe::GpuIndex;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, FheBool, FheUint64};
 
+pub const HPU_SIMD_N: usize = 9;
+
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
 /// and cmuxes based on the comparison result
@@ -243,6 +245,28 @@ where
     (new_from, new_to)
 }
 
+#[cfg(feature = "hpu")]
+/// This one use a dedicated IOp inside Hpu
+fn transfer_hpu_simd<FheType>(
+    from_amount: &Vec<FheType>,
+    to_amount: &Vec<FheType>,
+    amount: &Vec<FheType>,
+) -> Vec<FheType>
+where
+    FheType: FheHpu,
+{
+    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
+    let src = HpuHandle {
+        native: vec![from_amount, to_amount, amount].into_iter().flatten().collect(),
+        boolean: vec![],
+        imm: vec![],
+    };
+    let res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_20_SIMD, src);
+    // Iop erc_20 return new_from, new_to
+    let res = res_handle.native;
+    res
+}
+
 #[cfg(all(feature = "pbs-stats", not(feature = "hpu")))]
 mod pbs_stats {
     use super::*;
@@ -350,6 +374,60 @@ fn bench_transfer_latency<FheType, F>(
         params,
         params.name(),
         "erc20-transfer",
+        &OperatorType::Atomic,
+        64,
+        vec![],
+    );
+}
+
+#[cfg(feature = "hpu")]
+fn bench_transfer_latency_simd<FheType, F>(
+    c: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    transfer_func: F,
+) where
+    FheType: FheEncrypt<u64, ClientKey>,
+    FheType: FheWait,
+    F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
+{
+    #[cfg(feature = "gpu")]
+    configure_gpu(client_key);
+
+    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+    c.bench_function(&bench_id, |b| {
+        let mut rng = thread_rng();
+
+        let mut from_amounts: Vec<FheType> = vec![];
+        let mut to_amounts: Vec<FheType> = vec![];
+        let mut amounts: Vec<FheType> = vec![];
+        for _i in 0..HPU_SIMD_N-1 {
+            let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+            let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+            let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+            from_amounts.push(from_amount);
+            to_amounts.push(to_amount);
+            amounts.push(amount);
+        }
+
+        b.iter(|| {
+            let res = transfer_func(&from_amounts, &to_amounts, &amounts);
+            for ct in res {
+                ct.wait();
+                criterion::black_box(ct);
+            }
+        })
+    });
+
+    let params = client_key.computation_parameters();
+
+    write_to_json::<u64, _>(
+        &bench_id,
+        params,
+        params.name(),
+        "erc20-simd-transfer",
         &OperatorType::Atomic,
         64,
         vec![],
@@ -550,6 +628,81 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             params,
             params.name(),
             "erc20-transfer",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
+
+#[cfg(feature = "hpu")]
+fn hpu_bench_transfer_throughput_simd<FheType, F>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    transfer_func: F,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    FheType: FheWait,
+    F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
+{
+    let mut rng = thread_rng();
+
+    for num_elems in [2, 10] {
+        group.throughput(Throughput::Elements(num_elems*(HPU_SIMD_N as u64)));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_amounts = (0..num_elems)
+                .map(|_| {
+                    (0..HPU_SIMD_N-1)
+                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .collect()
+                })
+                .collect::<Vec<_>>();
+            let to_amounts = (0..num_elems)
+                .map(|_| {
+                    (0..HPU_SIMD_N-1)
+                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .collect()
+                })
+                .collect::<Vec<_>>();
+            let amounts = (0..num_elems)
+                .map(|_| {
+                    (0..HPU_SIMD_N-1)
+                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .collect()
+                })
+                .collect::<Vec<_>>();
+
+            b.iter(|| {
+                let last_res_vec = std::iter::zip(
+                    from_amounts.iter(),
+                    std::iter::zip(to_amounts.iter(), amounts.iter()),
+                )
+                .map(|(from_amount, (to_amount, amount))| {
+                    transfer_func(from_amount, to_amount, amount)
+                })
+                .last()
+                .unwrap();
+
+                // Wait on last result to enforce all computation is over
+                for ct in last_res_vec {
+                    ct.wait();
+                    criterion::black_box(ct);
+                }
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "erc20-simd-ransfer",
             &OperatorType::Atomic,
             64,
             vec![],
@@ -844,6 +997,15 @@ fn main() {
             "hpu_optim",
             transfer_hpu::<FheUint64>,
         );
+        // Erc20 SIMD instruction only available on Hpu
+        bench_transfer_latency_simd(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_simd",
+            transfer_hpu_simd::<FheUint64>,
+        );
         group.finish();
     }
 
@@ -866,6 +1028,15 @@ fn main() {
             "FheUint64",
             "hpu_optim",
             transfer_hpu::<FheUint64>,
+        );
+        // Erc20 SIMD instruction only available on Hpu
+        hpu_bench_transfer_throughput_simd(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_simd",
+            transfer_hpu_simd::<FheUint64>,
         );
         group.finish();
     }
