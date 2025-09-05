@@ -49,15 +49,3 @@ offset= 0x10
   read_access="Read"
   write_access="Write"
   duplicate=["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb", "_pc2_lsb", "_pc2_msb", "_pc3_lsb", "_pc3_msb", "_pc4_lsb", "_pc4_msb", "_pc5_lsb", "_pc5_msb", "_pc6_lsb", "_pc6_msb", "_pc7_lsb", "_pc7_msb", "_pc8_lsb", "_pc8_msb", "_pc9_lsb", "_pc9_msb", "_pc10_lsb", "_pc10_msb", "_pc11_lsb", "_pc11_msb", "_pc12_lsb", "_pc12_msb", "_pc13_lsb", "_pc13_msb", "_pc14_lsb", "_pc14_msb", "_pc15_lsb", "_pc15_msb"]
-
-[section.hpu_reset]
-description="Used to control the HPU soft reset"
-offset= 0x100
-
-[section.hpu_reset.register.trigger]
-  description="A soft reset for the whole HPU reconfigurable logic"
-  owner="Kernel"
-  read_access="Read"
-  write_access="WriteNotify"
-  field.request = { size_b=1, offset_b=0 ,  default={Cst=0}, description="request"}
-  field.done    = { size_b=1, offset_b=31 , default={Cst=0}, description="done"}

@@ -141,7 +141,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         // mid here is the number of ref_elements, we need to multiply by the size of a single
         // element to know where to split the underlying container
 
-        let mid = mid.checked_mul(self.get_entity_view_pod_size()).unwrap();
+        let mid = mid * self.get_entity_view_pod_size();
         let self_meta = self.get_self_view_creation_metadata();
 
         let (container_left, container_right) = self.as_ref().split_at(mid);
@@ -156,7 +156,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         // index here is the number of ref_elements, we need to multiply by the size of a single
         // element to know where to reference the underlying container
 
-        let start = index.checked_mul(self.get_entity_view_pod_size()).unwrap();
+        let start = index * self.get_entity_view_pod_size();
         let stop = start + self.get_entity_view_pod_size();
         let meta = self.get_entity_view_creation_metadata();
 
@@ -178,12 +178,8 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
             Bound::Unbounded => self.entity_count(),
         };
 
-        let start_index = entity_start_index
-            .checked_mul(self.get_entity_view_pod_size())
-            .unwrap();
-        let stop_index = entity_stop_index
-            .checked_mul(self.get_entity_view_pod_size())
-            .unwrap();
+        let start_index = entity_start_index * self.get_entity_view_pod_size();
+        let stop_index = entity_stop_index * self.get_entity_view_pod_size();
 
         let self_meta = self.get_self_view_creation_metadata();
 
@@ -218,7 +214,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let entity_count = self.entity_count();
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
@@ -239,7 +235,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         );
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
@@ -277,7 +273,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let entity_count = self.entity_count();
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
@@ -303,7 +299,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         );
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
@@ -390,12 +386,8 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
             Bound::Unbounded => self.entity_count(),
         };
 
-        let start_index = entity_start_index
-            .checked_mul(self.get_entity_view_pod_size())
-            .unwrap();
-        let stop_index = entity_stop_index
-            .checked_mul(self.get_entity_view_pod_size())
-            .unwrap();
+        let start_index = entity_start_index * self.get_entity_view_pod_size();
+        let stop_index = entity_stop_index * self.get_entity_view_pod_size();
 
         let self_meta = self.get_self_view_creation_metadata();
 
@@ -420,7 +412,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let entity_count = self.entity_count();
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
@@ -442,7 +434,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         );
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
@@ -495,7 +487,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let entity_count = self.entity_count();
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
@@ -521,7 +513,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         );
 
         let entity_view_pod_size = self.get_entity_view_pod_size();
-        let pod_chunk_size = entity_view_pod_size.checked_mul(chunk_size).unwrap();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
 
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()

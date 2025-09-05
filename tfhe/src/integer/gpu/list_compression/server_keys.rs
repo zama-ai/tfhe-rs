@@ -2,7 +2,6 @@ use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePacking
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::{
     glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
     GlweCiphertextCount, LweCiphertextCount, PolynomialSize, UnsignedInteger,
@@ -18,11 +17,7 @@ use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async_64,
     get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
-use crate::prelude::CastInto;
-use crate::shortint::ciphertext::{
-    CompressedSquashedNoiseCiphertextList as ShortintCompressedSquashedNoiseCiphertextList, Degree,
-    NoiseLevel,
-};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
@@ -73,100 +68,6 @@ pub struct CudaPackedGlweCiphertextList<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
-    pub(crate) fn from_glwe_ciphertext_list(
-        ct_list: &ShortintCompressedSquashedNoiseCiphertextList,
-        streams: &CudaStreams,
-    ) -> Self {
-        let flat_packed_integers: Vec<T> = ct_list
-            .glwe_ciphertext_list
-            .iter()
-            .flat_map(|ct| {
-                ct.packed_integers()
-                    .packed_coeffs()
-                    .iter()
-                    .map(|&x| x.cast_into())
-            })
-            .collect();
-
-        let data = unsafe {
-            CudaVec::from_cpu_async(
-                flat_packed_integers.as_slice(),
-                streams,
-                streams.gpu_indexes[0].get(),
-            )
-        };
-
-        let input_meta = ct_list.meta.clone().unwrap();
-        let total_lwe_bodies_count = ct_list
-            .glwe_ciphertext_list
-            .iter()
-            .map(|ct| ct.bodies_count().0)
-            .sum();
-        let glwe_dimension = ct_list
-            .glwe_ciphertext_list
-            .first()
-            .unwrap()
-            .glwe_dimension();
-        let polynomial_size = ct_list
-            .glwe_ciphertext_list
-            .first()
-            .unwrap()
-            .polynomial_size();
-        let num_glwes = ct_list.glwe_ciphertext_list.len();
-        let glwe_mask_size = glwe_mask_size(glwe_dimension, polynomial_size);
-        let initial_len = num_glwes * glwe_mask_size + total_lwe_bodies_count;
-
-        let meta = Some(CudaPackedGlweCiphertextListMeta::<T> {
-            glwe_dimension: ct_list
-                .glwe_ciphertext_list
-                .first()
-                .unwrap()
-                .glwe_dimension(),
-            polynomial_size: ct_list
-                .glwe_ciphertext_list
-                .first()
-                .unwrap()
-                .polynomial_size(),
-            message_modulus: ct_list.message_modulus().unwrap(),
-            carry_modulus: input_meta.carry_modulus,
-            ciphertext_modulus: CiphertextModulus::new_native(),
-            storage_log_modulus: ct_list
-                .glwe_ciphertext_list
-                .first()
-                .unwrap()
-                .packed_integers()
-                .log_modulus(),
-            lwe_per_glwe: input_meta.lwe_per_glwe,
-            total_lwe_bodies_count,
-            initial_len,
-        });
-
-        Self { data, meta }
-    }
-
-    // Split PackedIntegers considering their GLWE representation
-    pub(crate) fn to_vec_packed_integers(&self, streams: &CudaStreams) -> Vec<PackedIntegers<T>> {
-        let mut packed_coeffs: Vec<T> = vec![T::ZERO; self.data.len()];
-
-        unsafe {
-            self.data
-                .copy_to_cpu_async(packed_coeffs.as_mut_slice(), streams, 0);
-        }
-        streams.synchronize();
-
-        let glwe_size = glwe_ciphertext_size(
-            self.meta.unwrap().glwe_dimension.to_glwe_size(),
-            self.meta.unwrap().polynomial_size,
-        );
-        let log_modulus = self.meta.unwrap().storage_log_modulus;
-        let initial_len = self.meta.unwrap().initial_len;
-
-        packed_coeffs
-            .chunks(glwe_size)
-            .map(|chunk| PackedIntegers::from_raw_parts(chunk.to_vec(), log_modulus, initial_len))
-            .collect_vec()
-    }
-
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
     pub fn message_modulus(&self) -> Option<MessageModulus> {
         self.meta.as_ref().map(|meta| meta.message_modulus)

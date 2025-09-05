@@ -3,15 +3,6 @@ name: Hpu Integer Benchmarks
 
 on:
   workflow_dispatch:
-    inputs:
-      bench_type:
-        description: "Benchmarks type"
-        type: choice
-        default: both
-        options:
-          - latency
-          - throughput
-          - both
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,46 +14,13 @@ env:
 permissions: {}
 
 jobs:
-  prepare-matrix:
-    name: Prepare operations matrix
-    runs-on: v80-desktop
-    outputs:
-      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
-    steps:
-      - name: Set benchmark types
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [[ -z $INPUTS_BENCH_TYPE || "${INPUTS_BENCH_TYPE}" == "both" ]]; then
-            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
-          else
-            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
-          fi
-        env:
-          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
-
-      - name: Default benchmark type
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
-
-
-      - name: Set benchmark types output
-        id: set_bench_type
-        run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
-
   integer-benchmarks-hpu:
     name: Execute integer & erc20 benchmarks for HPU backend
-    needs: prepare-matrix
     runs-on: v80-desktop
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     timeout-minutes: 1440  # 24 hours
-    strategy:
-      max-parallel: 1
-      matrix:
-        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       # Needed as long as hw_regmap repository is private
       - name: Configure SSH
@@ -105,11 +63,8 @@ jobs:
       - name: Run benchmarks
         run: |
           make pull_hpu_files
-          export V80_SERIAL_NUMBER=XFL12E4XJXWK
-          source /opt/xilinx/Vivado/2024.2/settings64.sh
-          make BENCH_TYPE="${BENCH_TYPE}" bench_integer_hpu
-        env:
-          BENCH_TYPE: ${{ matrix.bench_type }}
+          make bench_integer_hpu
+          make bench_hlapi_erc20_hpu
 
       - name: Parse results
         run: |
@@ -121,16 +76,14 @@ jobs:
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
-          --walk-subdirs \
-          --bench-type "${BENCH_TYPE}"
+          --walk-subdirs
         env:
           REF_NAME: ${{ github.ref_name }}
-          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_${{ matrix.bench_type }}_integer_benchmarks
+          name: ${{ github.sha }}_integer_benchmarks
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab

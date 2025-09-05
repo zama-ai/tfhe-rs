@@ -692,68 +692,58 @@ async function compactPublicKeyZeroKnowledgeBench() {
       [ZkComputeLoad.Verify]: "compute_load_verify",
     };
 
-    // Proof configuration:
-    let proof_configs = [
-      { crs_bit_size: 64, bits_to_encrypt: [64] },
-      { crs_bit_size: 640, bits_to_encrypt: [640] },
-      { crs_bit_size: 2048, bits_to_encrypt: [2048, 64 * 4] }, // 64 * 4 is a production use-case
-      { crs_bit_size: 4096, bits_to_encrypt: [4096] },
-    ];
+    let bits_to_encrypt = [64, 640, 1280, 4096];
 
-    for (const proof_config of proof_configs) {
+    let encrypt_counts = bits_to_encrypt.map((v) => v / 64);
+
+    for (const encrypt_count of encrypt_counts) {
       console.log("Start CRS generation");
       console.time("CRS generation");
-      let crs = CompactPkeCrs.from_config(config, proof_config["crs_bit_size"]);
+      let crs = CompactPkeCrs.from_config(config, encrypt_count * 64);
       console.timeEnd("CRS generation");
 
       // 320 bits is a use case we have, 8 bits per byte
       const metadata = new Uint8Array(320 / 8);
       crypto.getRandomValues(metadata);
 
-      for (const bits_to_encrypt of proof_config["bits_to_encrypt"]) {
-        let encrypt_count = bits_to_encrypt / 64;
-
-        let inputs = Array.from(Array(encrypt_count).keys()).map(
-          (_) => U64_MAX,
-        );
-        for (const loadChoice of load_choices) {
-          let serialized_size = 0;
-          let timing = 0;
-          for (let i = 0; i < bench_loops; i++) {
-            console.time("Loop " + i);
-            let compact_list_builder =
-              ProvenCompactCiphertextList.builder(publicKey);
-            for (let j = 0; j < encrypt_count; j++) {
-              compact_list_builder.push_u64(inputs[j]);
-            }
-            const start = performance.now();
-            let list = compact_list_builder.build_with_proof_packed(
-              crs,
-              metadata,
-              loadChoice,
-            );
-            const end = performance.now();
-            console.timeEnd("Loop " + i);
-            timing += end - start;
-            serialized_size = list.safe_serialize(BigInt(10000000)).length;
+      let inputs = Array.from(Array(encrypt_count).keys()).map((_) => U64_MAX);
+      for (const loadChoice of load_choices) {
+        let serialized_size = 0;
+        let timing = 0;
+        for (let i = 0; i < bench_loops; i++) {
+          console.time("Loop " + i);
+          let compact_list_builder =
+            ProvenCompactCiphertextList.builder(publicKey);
+          for (let j = 0; j < encrypt_count; j++) {
+            compact_list_builder.push_u64(inputs[j]);
           }
-          const mean = timing / bench_loops;
-          const common_bench_str =
-            "compact_fhe_uint_proven_encryption_" +
-            params.zk_scheme +
-            "_" +
-            encrypt_count * 64 +
-            "_bits_packed_" +
-            load_to_str[loadChoice];
-          const bench_str_1 = common_bench_str + "_mean_" + block_params_name;
-          console.log(bench_str_1, ": ", mean, " ms");
-          const bench_str_2 =
-            common_bench_str + "_serialized_size_mean_" + block_params_name;
-          console.log(bench_str_2, ": ", serialized_size, " bytes");
-
-          bench_results[bench_str_1] = mean;
-          bench_results[bench_str_2] = serialized_size;
+          const start = performance.now();
+          let list = compact_list_builder.build_with_proof_packed(
+            crs,
+            metadata,
+            loadChoice,
+          );
+          const end = performance.now();
+          console.timeEnd("Loop " + i);
+          timing += end - start;
+          serialized_size = list.safe_serialize(BigInt(10000000)).length;
         }
+        const mean = timing / bench_loops;
+        const common_bench_str =
+          "compact_fhe_uint_proven_encryption_" +
+          params.zk_scheme +
+          "_" +
+          encrypt_count * 64 +
+          "_bits_packed_" +
+          load_to_str[loadChoice];
+        const bench_str_1 = common_bench_str + "_mean_" + block_params_name;
+        console.log(bench_str_1, ": ", mean, " ms");
+        const bench_str_2 =
+          common_bench_str + "_serialized_size_mean_" + block_params_name;
+        console.log(bench_str_2, ": ", serialized_size, " bytes");
+
+        bench_results[bench_str_1] = mean;
+        bench_results[bench_str_2] = serialized_size;
       }
     }
   }

@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -123,7 +123,7 @@ impl Ntt64View<'_> {
         pulp::Arch::new().dispatch(
             #[inline(always)]
             || {
-                for (out, inp) in izip_eq!(standard, &*ntt) {
+                for (out, inp) in izip!(standard, &*ntt) {
                     *out = u64::wrapping_add_custom_mod(*out, *inp, self.custom_modulus());
                 }
             },
@@ -258,7 +258,7 @@ impl Ntt64View<'_> {
         pulp::Arch::new().dispatch(
             #[inline(always)]
             || {
-                for (out, inp) in izip_eq!(standard, &*ntt) {
+                for (out, inp) in izip!(standard, &*ntt) {
                     *out = u64::wrapping_add(*out, *inp);
                 }
             },

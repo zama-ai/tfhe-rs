@@ -3,7 +3,7 @@
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
     PseudoFourierGgswCiphertext, PseudoFourierGgswCiphertextView,
@@ -237,7 +237,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
                 //
                 //        t = 1                           t = 2                     ...
 
-                izip_eq!(
+                izip!(
                     ggsw_decomp_matrix.into_rows(),
                     glwe_decomp_term.get_mask().as_polynomial_list().iter()
                 )
@@ -276,7 +276,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
         //
         // We iterate over the polynomials in the output.
         if !is_output_uninit {
-            izip_eq!(
+            izip!(
                 out.as_mut_polynomial_list().iter_mut(),
                 output_fft_buffer
                     .into_chunks(fourier_poly_size)

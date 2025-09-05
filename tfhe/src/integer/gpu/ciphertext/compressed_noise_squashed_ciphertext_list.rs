@@ -1,12 +1,8 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::error::error;
-use crate::integer::ciphertext::{
-    CompressedSquashedNoiseCiphertextList as IntegerCompressedSquashedNoiseCiphertextList,
-    CompressedSquashedNoiseCiphertextList, DataKind,
-};
+use crate::integer::ciphertext::DataKind;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::squashed_noise::{
     CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext,
@@ -16,11 +12,9 @@ use crate::integer::gpu::decompress_integer_radix_async_128;
 use crate::integer::gpu::list_compression::server_keys::{
     CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList,
 };
-use crate::shortint::ciphertext::{CompressedSquashedNoiseCiphertextListMeta, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{AtomicPatternKind, PBSOrder};
-use crate::{shortint, GpuIndex};
 use itertools::Itertools;
-use shortint::ciphertext::CompressedSquashedNoiseCiphertextList as ShortintCompressedSquashedNoiseCiphertextList;
 use std::num::NonZeroUsize;
 
 pub struct CudaCompressedSquashedNoiseCiphertextListBuilder {
@@ -28,86 +22,9 @@ pub struct CudaCompressedSquashedNoiseCiphertextListBuilder {
     pub(crate) info: Vec<DataKind>,
 }
 
-#[derive(Clone)]
 pub struct CudaCompressedSquashedNoiseCiphertextList {
     pub(crate) packed_list: CudaPackedGlweCiphertextList<u128>,
     pub(crate) info: Vec<DataKind>,
-}
-
-impl CudaCompressedSquashedNoiseCiphertextList {
-    pub(crate) fn to_compressed_squashed_noise_ciphertext_list(
-        &self,
-        streams: &CudaStreams,
-    ) -> IntegerCompressedSquashedNoiseCiphertextList {
-        // Extract the packed list
-        let vec_packed_integers = self.packed_list.to_vec_packed_integers(streams);
-        let lwe_per_glwe = self.packed_list.meta.unwrap().lwe_per_glwe;
-        let total_num_lwes = self.packed_list.bodies_count();
-
-        let glwe_ciphertext_list = vec_packed_integers
-            .iter()
-            .enumerate()
-            .map(|(pack_index, packed_integers)| {
-                // Calculate number of LWEs for this GLWE
-                let num_lwes =
-                    std::cmp::min(lwe_per_glwe.0, total_num_lwes - pack_index * lwe_per_glwe.0);
-
-                CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    packed_integers.clone(),
-                    self.packed_list.meta.unwrap().glwe_dimension,
-                    self.packed_list.meta.unwrap().polynomial_size,
-                    LweCiphertextCount(num_lwes),
-                    self.packed_list.meta.unwrap().ciphertext_modulus,
-                )
-            })
-            .collect_vec();
-
-        // Extract the metadata
-        let meta = Some(CompressedSquashedNoiseCiphertextListMeta {
-            message_modulus: self.packed_list.meta.unwrap().message_modulus,
-            carry_modulus: self.packed_list.meta.unwrap().carry_modulus,
-            lwe_per_glwe: self.packed_list.meta.unwrap().lwe_per_glwe,
-        });
-
-        let list = ShortintCompressedSquashedNoiseCiphertextList {
-            glwe_ciphertext_list,
-            meta,
-        };
-
-        let info = self.info.clone();
-
-        IntegerCompressedSquashedNoiseCiphertextList { list, info }
-    }
-
-    pub(crate) fn from_compressed_squashed_noise_ciphertext_list(
-        ct: &CompressedSquashedNoiseCiphertextList,
-        streams: &CudaStreams,
-    ) -> Self {
-        Self {
-            packed_list: CudaPackedGlweCiphertextList::from_glwe_ciphertext_list(&ct.list, streams),
-            info: ct.info.clone(),
-        }
-    }
-
-    pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        self.packed_list.data.gpu_indexes.as_slice()
-    }
-
-    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
-        Self {
-            packed_list: self.packed_list.duplicate(streams),
-            info: self.info.clone(),
-        }
-    }
-
-    /// Returns the number of squashed noise ciphertext that are stored
-    pub fn len(&self) -> usize {
-        self.info.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.info.len() == 0
-    }
 }
 
 pub trait CudaSquashedNoiseCompressible {

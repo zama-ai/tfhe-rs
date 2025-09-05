@@ -15,7 +15,7 @@
 
 [rtl]
   bpip_use = true
-  bpip_use_opportunism = false
+  bpip_use_opportunism = true
   bpip_timeout = 100_000
 
 [board]
@@ -35,21 +35,13 @@
 
   bsk_pc = [
     {Hbm={pc=8}},
-    {Hbm={pc=10}},
     {Hbm={pc=12}},
-    {Hbm={pc=14}},
     {Hbm={pc=24}},
-    {Hbm={pc=26}},
     {Hbm={pc=28}},
-    {Hbm={pc=30}},
     {Hbm={pc=40}},
-    {Hbm={pc=42}},
     {Hbm={pc=44}},
-    {Hbm={pc=46}},
     {Hbm={pc=56}},
-    {Hbm={pc=58}},
-    {Hbm={pc=60}},
-    {Hbm={pc=62}}
+    {Hbm={pc=60}}
   ]
 
   ksk_pc = [
@@ -78,7 +70,7 @@
   #implementation = "Ilp"
   implementation = "Llt"
   integer_w=[2,4,6,8,10,12,14,16,32,64,128]
-  min_batch_size = 9
+  min_batch_size = 11
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
   custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
   custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
@@ -95,8 +87,8 @@
   custom_iop.'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_21.asm"
 
 [firmware.op_cfg.default]
-  fill_batch_fifo = false
-  min_batch_size = true
+  fill_batch_fifo = true
+  min_batch_size = false
   use_tiers = false
   flush_behaviour = "Patient"
   flush = true

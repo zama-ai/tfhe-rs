@@ -217,6 +217,24 @@ fn stockham_core_1x2<c64xN: Pod>(
         let pp = simd.mul(wf, simd.add(s08pjs4c_pv_s2apjs6e, hf_s19pjs5d_pv_s3bpjs7f));
 
         let ab = simd.catlo(aa, bb);
+        y[0] = ab;
+        let cd = simd.catlo(cc, dd);
+        y[1] = cd;
+        let ef = simd.catlo(ee, ff);
+        y[2] = ef;
+        let gh = simd.catlo(gg, hh);
+        y[3] = gh;
+
+        let ab = simd.cathi(aa, bb);
+        y[4] = ab;
+        let cd = simd.cathi(cc, dd);
+        y[5] = cd;
+        let ef = simd.cathi(ee, ff);
+        y[6] = ef;
+        let gh = simd.cathi(gg, hh);
+        y[7] = gh;
+
+        let ab = simd.catlo(aa, bb);
         y[0x0] = ab;
         let cd = simd.catlo(cc, dd);
         y[0x1] = cd;

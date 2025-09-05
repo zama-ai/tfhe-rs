@@ -45,7 +45,7 @@ production-ready library for all the advanced features of TFHE.
 - **Short integer API** that enables exact, unbounded FHE integer arithmetics with up to 8 bits of message space
 - **Size-efficient public key encryption**
 - **Ciphertext and server key compression** for efficient data transfer
-- **Full Rust API, C bindings to the Rust High-Level API, and client-side Javascript API using WASM**.
+- **Full Rust API, C bindings to the Rust High-Level API, and client-side JavaScript API using WASM**.
 
 *Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
 <br></br>
@@ -79,7 +79,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 ```
 
 > [!Note]
-> Note: You need to use Rust version >= 1.84 to compile TFHE-rs.
+> Note: You need Rust version 1.84 or newer to compile TFHE-rs. You can check your version with `rustc --version`.
 
 > [!Note]
 > Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
@@ -147,7 +147,7 @@ To run this code, use the following command:
 
 > [!Note]
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
-to run in release mode with cargo's `--release` flag to have the best performances possible.
+to run in release mode with cargo's `--release` flag to have the best performance possible.
 
 *Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick-start)*
 
@@ -201,8 +201,10 @@ When a new update is published in the Lattice Estimator, we update parameters ac
 
 ### Security model
 
-By default, the parameter sets used in the High-Level API have a failure probability $\le 2^{-128}$ to securely work in the IND-CPA^D model using the algorithmic techniques provided in our code base [1].
+By default, the parameter sets used in the High-Level API with the x86 CPU backend have a failure probability $\le 2^{128}$ to securely work in the IND-CPA^D model using the algorithmic techniques provided in our code base [1].
 If you want to work within the IND-CPA security model, which is less strict than the IND-CPA-D model, the parameter sets can easily be changed and would have slightly better performance. More details can be found in the [TFHE-rs documentation](https://docs.zama.ai/tfhe-rs).
+
+The default parameters used in the High-Level API with the GPU backend are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at $p_{error} \le 2^{-128}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [2].
 
 [1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
 
@@ -242,7 +244,7 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 #### FAQ
 **Is Zama’s technology free to use?**
 >Zama’s libraries are free to use under the BSD 3-Clause Clear license only for development, research, prototyping, and experimentation purposes. However, for any commercial use of Zama's open source code, companies must purchase Zama’s commercial patent license.
->
+->
 >Everything we do is open source and we are very transparent on what it means for our users, you can read more about how we monetize our open source products at Zama in [this blogpost](https://www.zama.ai/post/open-source).
 
 **What do I need to do if I want to use Zama’s technology for commercial purposes?**

@@ -354,7 +354,7 @@ impl InfoPePbs {
     }
 
     pub fn update_load_bsk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-        (0..16).for_each(|i| {
+        (1..16).for_each(|i| {
             let reg_name = format!("runtime_3in3::pep_load_bsk_rcp_dur_pc{i}");
             let reg = regmap
                 .register()
@@ -364,7 +364,7 @@ impl InfoPePbs {
         });
     }
     pub fn update_load_ksk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-        (0..16).for_each(|i| {
+        (1..16).for_each(|i| {
             let reg_name = format!("runtime_1in3::pep_load_ksk_rcp_dur_pc{i}");
             let reg = regmap
                 .register()

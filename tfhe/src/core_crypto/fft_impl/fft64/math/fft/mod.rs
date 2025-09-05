@@ -6,7 +6,7 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
 use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
@@ -65,7 +65,7 @@ impl Twisties {
         let mut im = avec![0.0; n].into_boxed_slice();
 
         let unit = core::f64::consts::PI / (2.0 * n as f64);
-        for (i, (re, im)) in izip_eq!(&mut *re, &mut *im).enumerate() {
+        for (i, (re, im)) in izip!(&mut *re, &mut *im).enumerate() {
             (*im, *re) = (i as f64 * unit).sin_cos();
         }
 
@@ -212,7 +212,7 @@ fn convert_forward_torus<Scalar: UnsignedTorus>(
 ) {
     let normalization = 2.0_f64.powi(-(Scalar::BITS as i32));
 
-    izip_eq!(out, in_re, in_im, twisties.re, twisties.im).for_each(
+    izip!(out, in_re, in_im, twisties.re, twisties.im).for_each(
         |(out, in_re, in_im, w_re, w_im)| {
             let in_re: f64 = in_re.into_signed().cast_into() * normalization;
             let in_im: f64 = in_im.into_signed().cast_into() * normalization;
@@ -233,7 +233,7 @@ fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
     in_im: &[Scalar],
     twisties: TwistiesView<'_>,
 ) {
-    izip_eq!(out, in_re, in_im, twisties.re, twisties.im).for_each(
+    izip!(out, in_re, in_im, twisties.re, twisties.im).for_each(
         |(out, in_re, in_im, w_re, w_im)| {
             let in_re: f64 = in_re.into_signed().cast_into();
             let in_im: f64 = in_im.into_signed().cast_into();
@@ -278,7 +278,7 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
     twisties: TwistiesView<'_>,
 ) {
     let normalization = 1.0 / inp.len() as f64;
-    izip_eq!(out_re, out_im, inp, twisties.re, twisties.im).for_each(
+    izip!(out_re, out_im, inp, twisties.re, twisties.im).for_each(
         |(out_re, out_im, inp, w_re, w_im)| {
             let tmp = inp
                 * (c64 {
@@ -299,7 +299,7 @@ fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
     twisties: TwistiesView<'_>,
 ) {
     let normalization = 1.0 / inp.len() as f64;
-    izip_eq!(out_re, out_im, inp, twisties.re, twisties.im).for_each(
+    izip!(out_re, out_im, inp, twisties.re, twisties.im).for_each(
         |(out_re, out_im, inp, w_re, w_im)| {
             let tmp = inp
                 * (c64 {
@@ -781,7 +781,7 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
 
             let stack = PodStack::new(&mut mem);
 
-            for (fourier_poly, standard_poly) in izip_eq!(
+            for (fourier_poly, standard_poly) in izip!(
                 fourier_poly_chunk.chunks_exact_mut(f_polynomial_size),
                 standard_poly_chunk.chunks_exact(polynomial_size.0)
             ) {

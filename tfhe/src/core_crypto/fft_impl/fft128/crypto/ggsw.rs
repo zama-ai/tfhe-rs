@@ -8,7 +8,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::ggsw_ciphertext::{
     fourier_ggsw_ciphertext_size, fourier_ggsw_level_matrix_size, GgswCiphertext,
 };
@@ -113,9 +113,6 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
             decomposition_level_count,
         );
         assert_eq!(data_re0.container_len(), container_len);
-        assert_eq!(data_re1.container_len(), container_len);
-        assert_eq!(data_im0.container_len(), container_len);
-        assert_eq!(data_im1.container_len(), container_len);
 
         Self {
             data_re0,
@@ -187,7 +184,7 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
         C: Split,
     {
         let decomposition_level_count = self.decomposition_level_count.0;
-        izip_eq!(
+        izip!(
             self.data_re0.split_into(decomposition_level_count),
             self.data_re1.split_into(decomposition_level_count),
             self.data_im0.split_into(decomposition_level_count),
@@ -238,15 +235,12 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
     }
 
     /// Return an iterator over the rows of the level matrices.
-    pub fn into_rows(
-        self,
-    ) -> impl DoubleEndedIterator<Item = Fourier128GgswLevelRow<C>>
-           + ExactSizeIterator<Item = Fourier128GgswLevelRow<C>>
+    pub fn into_rows(self) -> impl DoubleEndedIterator<Item = Fourier128GgswLevelRow<C>>
     where
         C: Split,
     {
         let row_count = self.row_count();
-        izip_eq!(
+        izip!(
             self.data_re0.split_into(row_count),
             self.data_re1.split_into(row_count),
             self.data_im0.split_into(row_count),
@@ -355,7 +349,7 @@ where
 
             let (data_re0, data_re1, data_im0, data_im1) = this.data();
 
-            for (fourier_re0, fourier_re1, fourier_im0, fourier_im1, coef_poly) in izip_eq!(
+            for (fourier_re0, fourier_re1, fourier_im0, fourier_im1, coef_poly) in izip!(
                 data_re0.into_chunks(poly_size),
                 data_re1.into_chunks(poly_size),
                 data_im0.into_chunks(poly_size),
@@ -491,7 +485,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 //
                 //        t = 1                           t = 2                     ...
 
-                for (ggsw_row, glwe_poly) in izip_eq!(
+                for (ggsw_row, glwe_poly) in izip!(
                     ggsw_decomp_matrix.into_rows(),
                     glwe_decomp_term.as_polynomial_list().iter()
                 ) {
@@ -537,7 +531,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
         //
         // We iterate over the polynomials in the output.
         if !is_output_uninit {
-            for (mut out, fourier_re0, fourier_re1, fourier_im0, fourier_im1) in izip_eq!(
+            for (mut out, fourier_re0, fourier_re1, fourier_im0, fourier_im1) in izip!(
                 out.as_mut_polynomial_list().iter_mut(),
                 output_fft_buffer_re0.into_chunks(fourier_poly_size),
                 output_fft_buffer_re1.into_chunks(fourier_poly_size),
@@ -610,7 +604,7 @@ fn update_with_fmadd_scalar(
             rhs_re1,
             rhs_im0,
             rhs_im1,
-        ) in izip_eq!(
+        ) in izip!(
             output_fourier_re0,
             output_fourier_re1,
             output_fourier_im0,
@@ -653,7 +647,7 @@ fn update_with_fmadd_scalar(
             rhs_re1,
             rhs_im0,
             rhs_im1,
-        ) in izip_eq!(
+        ) in izip!(
             output_fourier_re0,
             output_fourier_re1,
             output_fourier_im0,
@@ -709,7 +703,7 @@ pub fn update_with_fmadd(
         ggsw_poly_re1,
         ggsw_poly_im0,
         ggsw_poly_im1,
-    ) in izip_eq!(
+    ) in izip!(
         output_fft_buffer_re0.into_chunks(fourier_poly_size),
         output_fft_buffer_re1.into_chunks(fourier_poly_size),
         output_fft_buffer_im0.into_chunks(fourier_poly_size),
@@ -803,9 +797,6 @@ pub fn cmux_scratch<Scalar>(
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
-///
-/// # Panics
-/// This will panic if ct0 and ct1 are not of the same size
 pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
     ct0: &mut GlweCiphertext<ContCt0>,
     ct1: &mut GlweCiphertext<ContCt1>,
@@ -825,7 +816,7 @@ pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) {
-        for (c1, c0) in izip_eq!(ct1.as_mut(), ct0.as_ref()) {
+        for (c1, c0) in izip!(ct1.as_mut(), ct0.as_ref()) {
             *c1 = c1.wrapping_sub(*c0);
         }
         add_external_product_assign(&mut ct0, &ggsw, &ct1, fft, stack);

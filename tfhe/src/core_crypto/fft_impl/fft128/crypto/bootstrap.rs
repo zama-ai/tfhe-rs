@@ -14,7 +14,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::ggsw_ciphertext::fourier_ggsw_ciphertext_size;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
@@ -78,14 +78,11 @@ impl<C: Container<Element = f64>> Fourier128LweBootstrapKey<C> {
     }
 
     /// Return an iterator over the GGSW ciphertexts composing the key.
-    pub fn into_ggsw_iter(
-        self,
-    ) -> impl DoubleEndedIterator<Item = Fourier128GgswCiphertext<C>>
-           + ExactSizeIterator<Item = Fourier128GgswCiphertext<C>>
+    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = Fourier128GgswCiphertext<C>>
     where
         C: Split,
     {
-        izip_eq!(
+        izip!(
             self.data_re0.split_into(self.input_lwe_dimension.0),
             self.data_re1.split_into(self.input_lwe_dimension.0),
             self.data_im0.split_into(self.input_lwe_dimension.0),
@@ -219,9 +216,7 @@ where
             coef_bsk: LweBootstrapKey<&[Scalar]>,
             fft: Fft128View<'_>,
         ) {
-            for (mut fourier_ggsw, standard_ggsw) in
-                izip_eq!(this.into_ggsw_iter(), coef_bsk.iter())
-            {
+            for (mut fourier_ggsw, standard_ggsw) in izip!(this.into_ggsw_iter(), coef_bsk.iter()) {
                 fourier_ggsw.fill_with_forward_fourier(&standard_ggsw, fft);
             }
         }
@@ -292,7 +287,7 @@ where
             let mut ct0 = lut;
 
             for (lwe_mask_element, bootstrap_key_ggsw) in
-                izip_eq!(msed_lwe_mask, this.into_ggsw_iter())
+                izip!(msed_lwe_mask, this.into_ggsw_iter())
             {
                 if lwe_mask_element != 0 {
                     let stack = &mut *stack;

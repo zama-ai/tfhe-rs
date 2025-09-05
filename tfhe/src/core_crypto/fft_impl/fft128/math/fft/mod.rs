@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use core::any::TypeId;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use std::collections::hash_map::Entry;
@@ -277,7 +277,7 @@ pub fn convert_forward_torus<Scalar: UnsignedTorus>(
     let normalization = 2.0_f64.powi(-(Scalar::BITS as i32));
 
     for (out_re0, out_re1, out_im0, out_im1, &in_re, &in_im) in
-        izip_eq!(out_re0, out_re1, out_im0, out_im1, in_re, in_im)
+        izip!(out_re0, out_re1, out_im0, out_im1, in_re, in_im)
     {
         let out_re = to_signed_to_f128(in_re);
         let out_im = to_signed_to_f128(in_im);
@@ -301,7 +301,7 @@ pub fn convert_forward_integer<Scalar: UnsignedTorus>(
     in_im: &[Scalar],
 ) {
     for (out_re0, out_re1, out_im0, out_im1, &in_re, &in_im) in
-        izip_eq!(out_re0, out_re1, out_im0, out_im1, in_re, in_im)
+        izip!(out_re0, out_re1, out_im0, out_im1, in_re, in_im)
     {
         let out_re = to_signed_to_f128(in_re);
         let out_im = to_signed_to_f128(in_im);
@@ -323,7 +323,7 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
 ) {
     let norm = 1.0 / in_re0.len() as f64;
     for (out_re, out_im, in_re0, in_re1, in_im0, in_im1) in
-        izip_eq!(out_re, out_im, in_re0, in_re1, in_im0, in_im1)
+        izip!(out_re, out_im, in_re0, in_re1, in_im0, in_im1)
     {
         let in_re = f128(*in_re0 * norm, *in_re1 * norm);
         let in_im = f128(*in_im0 * norm, *in_im1 * norm);
@@ -343,7 +343,7 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
 ) {
     let norm = 1.0 / in_re0.len() as f64;
     for (out_re, out_im, in_re0, in_re1, in_im0, in_im1) in
-        izip_eq!(out_re, out_im, in_re0, in_re1, in_im0, in_im1)
+        izip!(out_re, out_im, in_re0, in_re1, in_im0, in_im1)
     {
         let in_re = f128(*in_re0 * norm, *in_re1 * norm);
         let in_im = f128(*in_im0 * norm, *in_im1 * norm);

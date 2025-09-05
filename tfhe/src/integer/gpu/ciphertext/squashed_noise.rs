@@ -1,8 +1,6 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    LweCiphertextCount, LweCiphertextList, LweCiphertextOwned, LweSize,
-};
+use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextOwned, LweSize};
 use crate::integer::ciphertext::{
     SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
@@ -10,8 +8,6 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::shortint::ciphertext::{Degree, NoiseLevel, SquashedNoiseCiphertext};
 use crate::shortint::parameters::CoreCiphertextModulus;
 use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus, PBSOrder};
-use crate::GpuIndex;
-use itertools::Itertools;
 
 pub struct CudaSquashedNoiseRadixCiphertext {
     pub packed_d_blocks: CudaLweCiphertextList<u128>,
@@ -103,125 +99,6 @@ impl CudaSquashedNoiseRadixCiphertext {
             original_block_count: self.original_block_count,
         }
     }
-
-    pub(crate) fn from_cpu_blocks(
-        blocks: &[SquashedNoiseCiphertext],
-        streams: &CudaStreams,
-    ) -> Self {
-        let mut h_radix_ciphertext = blocks
-            .iter()
-            .flat_map(|block| block.lwe_ciphertext().clone().into_container())
-            .collect::<Vec<_>>();
-
-        let lwe_size = blocks.first().unwrap().lwe_ciphertext().lwe_size();
-        let ciphertext_modulus = blocks
-            .first()
-            .unwrap()
-            .lwe_ciphertext()
-            .ciphertext_modulus();
-
-        let h_ct = LweCiphertextList::from_container(
-            h_radix_ciphertext.as_mut_slice(),
-            lwe_size,
-            ciphertext_modulus,
-        );
-        let packed_d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
-
-        let info = CudaRadixCiphertextInfo {
-            blocks: blocks
-                .iter()
-                .map(|block| CudaBlockInfo {
-                    degree: block.degree(),
-                    message_modulus: block.message_modulus(),
-                    carry_modulus: block.carry_modulus(),
-                    atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        };
-
-        let original_block_count = blocks.len();
-
-        Self {
-            packed_d_blocks,
-            info,
-            original_block_count,
-        }
-    }
-
-    pub(crate) fn from_squashed_noise_ciphertext(
-        ct: &SquashedNoiseCiphertext,
-        streams: &CudaStreams,
-    ) -> Self {
-        Self {
-            packed_d_blocks: CudaLweCiphertextList::from_lwe_ciphertext(
-                ct.lwe_ciphertext(),
-                streams,
-            ),
-            info: CudaRadixCiphertextInfo {
-                blocks: vec![CudaBlockInfo {
-                    degree: ct.degree(),
-                    message_modulus: ct.message_modulus(),
-                    carry_modulus: ct.carry_modulus(),
-                    atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                    noise_level: NoiseLevel::NOMINAL,
-                }],
-            },
-            original_block_count: 1,
-        }
-    }
-
-    pub(crate) fn from_squashed_noise_radix_ciphertext(
-        ct: &SquashedNoiseRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> Self {
-        let lwe_size = ct
-            .packed_blocks
-            .first()
-            .unwrap()
-            .lwe_ciphertext()
-            .lwe_size();
-        let ciphertext_modulus = ct
-            .packed_blocks
-            .first()
-            .unwrap()
-            .lwe_ciphertext()
-            .ciphertext_modulus();
-
-        let vec_lwe = ct
-            .packed_blocks
-            .iter()
-            .flat_map(|ct| ct.lwe_ciphertext().clone().into_container())
-            .collect_vec();
-        let lwe_list = LweCiphertextList::from_container(vec_lwe, lwe_size, ciphertext_modulus);
-        let packed_d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&lwe_list, streams);
-
-        let info = CudaRadixCiphertextInfo {
-            blocks: ct
-                .packed_blocks
-                .iter()
-                .map(|ct| CudaBlockInfo {
-                    degree: ct.degree(),
-                    message_modulus: ct.message_modulus(),
-                    carry_modulus: ct.carry_modulus(),
-                    atomic_pattern: AtomicPatternKind::KeySwitch32,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect_vec(),
-        };
-
-        let original_block_count = ct.original_block_count;
-
-        Self {
-            packed_d_blocks,
-            info,
-            original_block_count,
-        }
-    }
-
-    pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        self.packed_d_blocks.0.d_vec.gpu_indexes.as_slice()
-    }
 }
 
 impl CudaSquashedNoiseSignedRadixCiphertext {
@@ -238,64 +115,10 @@ impl CudaSquashedNoiseSignedRadixCiphertext {
         }
     }
 
-    pub(crate) fn from_squashed_noise_signed_radix_ciphertext(
-        ct: &SquashedNoiseSignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> Self {
-        let lwe_size = ct
-            .packed_blocks
-            .first()
-            .unwrap()
-            .lwe_ciphertext()
-            .lwe_size();
-        let ciphertext_modulus = ct
-            .packed_blocks
-            .first()
-            .unwrap()
-            .lwe_ciphertext()
-            .ciphertext_modulus();
-
-        let vec_lwe = ct
-            .packed_blocks
-            .iter()
-            .flat_map(|ct| ct.lwe_ciphertext().clone().into_container())
-            .collect_vec();
-        let lwe_list = LweCiphertextList::from_container(vec_lwe, lwe_size, ciphertext_modulus);
-        let packed_d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&lwe_list, streams);
-
-        let info = CudaRadixCiphertextInfo {
-            blocks: ct
-                .packed_blocks
-                .iter()
-                .map(|ct| CudaBlockInfo {
-                    degree: ct.degree(),
-                    message_modulus: ct.message_modulus(),
-                    carry_modulus: ct.carry_modulus(),
-                    atomic_pattern: AtomicPatternKind::KeySwitch32,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect_vec(),
-        };
-
-        let original_block_count = ct.original_block_count;
-
-        Self {
-            ciphertext: CudaSquashedNoiseRadixCiphertext {
-                packed_d_blocks,
-                info,
-                original_block_count,
-            },
-        }
-    }
-
     pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self {
             ciphertext: self.ciphertext.duplicate(streams),
         }
-    }
-
-    pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        self.ciphertext.gpu_indexes()
     }
 }
 
@@ -313,25 +136,9 @@ impl CudaSquashedNoiseBooleanBlock {
         }
     }
 
-    pub(crate) fn from_squashed_noise_boolean_block(
-        ct: &SquashedNoiseBooleanBlock,
-        streams: &CudaStreams,
-    ) -> Self {
-        Self {
-            ciphertext: CudaSquashedNoiseRadixCiphertext::from_squashed_noise_ciphertext(
-                &ct.ciphertext,
-                streams,
-            ),
-        }
-    }
-
     pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self {
             ciphertext: self.ciphertext.duplicate(streams),
         }
-    }
-
-    pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        self.ciphertext.gpu_indexes()
     }
 }

@@ -23,7 +23,7 @@ V80_PCIE_DEV="unselected"
 XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
 
 # V80 bitstream refresh require insmod of ami.ko module
-AMI_PATH=${AMI_PATH:-"/opt/v80/ami/ef9249f"}
+AMI_PATH=${AMI_PATH:-"/opt/v80/ami/1e6a8da"}
 
 # Parse user CLI ##############################################################
 opt_short="hc:l:p:"
@@ -63,9 +63,6 @@ do
             if [ -n "${2}" ] && [[ ! ${2} =~ ^- ]]; then
                 V80_PCIE_DEV="${2}"
                 ((i++))
-                shift 1
-            elif [[ ${#DEVICE[@]} -eq 1 ]]; then
-                V80_PCIE_DEV=${DEVICE[0]%%:*}
             else
                 echo "Please select a device in following list (1st two digits):"
                 for item in "${DEVICE[@]}"; do
@@ -73,7 +70,7 @@ do
                 done
                 return 1
             fi
-            shift 1
+            shift 2
             ;;
         "") # End of input reading
             break ;;

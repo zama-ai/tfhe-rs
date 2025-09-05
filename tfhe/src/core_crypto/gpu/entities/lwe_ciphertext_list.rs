@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::vec::{range_bounds_to_start_end, CudaVec};
-use crate::core_crypto::gpu::{CudaLweList, CudaStreams, GpuIndex};
+use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
     LweDimension, LweSize, UnsignedInteger,
@@ -211,10 +211,6 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self(self.0.duplicate(streams))
-    }
-
-    pub(crate) fn gpu_indexes(&self) -> &[GpuIndex] {
-        self.0.d_vec.gpu_indexes.as_slice()
     }
 
     pub(crate) fn lwe_dimension(&self) -> LweDimension {

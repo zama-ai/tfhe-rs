@@ -31,7 +31,7 @@ impl ModulusSwitchedLweCiphertext<usize> for PrfSeededModulusSwitched {
         self.body
     }
 
-    fn mask(&self) -> impl ExactSizeIterator<Item = usize> + '_ {
+    fn mask(&self) -> impl Iterator<Item = usize> + '_ {
         self.mask.iter().copied()
     }
 }

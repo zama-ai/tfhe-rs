@@ -11,7 +11,6 @@ env:
   CARGO_TERM_COLOR: always
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
@@ -32,7 +31,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
-          persist-credentials: "false"
+          persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
@@ -46,46 +45,18 @@ jobs:
               - tfhe-ntt/**
               - '.github/workflows/cargo_test_ntt.yml'
 
-  setup-instance:
-    needs: should-run
-    if: needs.should-run.outputs.ntt_test == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      matrix_os: ${{ steps.set-os-matrix.outputs.matrix_os }}
-      runner-name: ${{ steps.start-remote-instance.outputs.label }}
-    steps:
-      - name: Start remote instance
-        id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-small
-
-      - name: Set os matrix
-        id: set-os-matrix
-        env:
-          SLAB_INSTANCE: ${{ steps.start-remote-instance.outputs.label }}
-        run: |
-          INSTANCE_TO_USE="${SLAB_INSTANCE:-ubuntu-latest}"
-          echo "matrix_os=[\"${INSTANCE_TO_USE}\", \"macos-latest\", \"windows-latest\"]" >> "$GITHUB_OUTPUT"
-
   cargo-tests-ntt:
-    needs: [should-run, setup-instance]
+    needs: should-run
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{fromJson(needs.setup-instance.outputs.matrix_os)}}
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
       fail-fast: false
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          persist-credentials: "false"
+          persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install Rust
@@ -101,16 +72,16 @@ jobs:
         run: make test_ntt_no_std
 
   cargo-tests-ntt-nightly:
-    needs: [should-run, setup-instance]
+    needs: should-run
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{fromJson(needs.setup-instance.outputs.matrix_os)}}
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          persist-credentials: "false"
+          persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install Rust
@@ -126,7 +97,7 @@ jobs:
         run: make test_ntt_no_std_nightly
 
   cargo-tests-ntt-successful:
-    needs: [should-run, cargo-tests-ntt, cargo-tests-ntt-nightly]
+    needs: [ should-run, cargo-tests-ntt, cargo-tests-ntt-nightly ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -149,28 +120,3 @@ jobs:
         run: |
           echo "Some tfhe-ntt tests failed"
           exit 1
-
-  teardown-instance:
-    name: Teardown instance (cargo-tests-ntt-successful)
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [setup-instance, cargo-tests-ntt-successful]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop remote instance
-        id: stop-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cargo-tests-ntt) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

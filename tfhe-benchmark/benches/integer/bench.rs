@@ -3032,7 +3032,7 @@ mod hpu {
         fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
             bench_hpu_iop_clean_inputs(
                 c,
-                concat!("integer::hpu::scalar_", stringify!($iop)),
+                concat!("integer::hpu::scalar::", stringify!($iop)),
                 stringify!($name),
                 &hpu_asm::iop::[< IOP_ $iop:upper >],
             )
@@ -3629,9 +3629,6 @@ fn go_through_hpu_bench_groups(val: &str) {
             hpu::default_hpu_bitwise();
             hpu::default_hpu_cmp();
             hpu::default_hpu_select();
-            hpu::default_hpu_shiftrot();
-            hpu::default_hpu_shiftrot_scalar();
-            hpu::default_hpu_bitcnt();
         }
         "fast_default" => {
             hpu::default_hpu_ops();

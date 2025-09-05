@@ -5,7 +5,7 @@ pub trait ModulusSwitchedLweCiphertext<Scalar> {
     fn log_modulus(&self) -> CiphertextModulusLog;
     fn lwe_dimension(&self) -> LweDimension;
     fn body(&self) -> Scalar;
-    fn mask(&self) -> impl ExactSizeIterator<Item = Scalar> + '_;
+    fn mask(&self) -> impl Iterator<Item = Scalar> + '_;
 }
 
 pub fn lwe_ciphertext_modulus_switch<Scalar, SwitchedScalar, Cont>(

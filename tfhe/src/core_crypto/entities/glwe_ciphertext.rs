@@ -255,6 +255,9 @@ pub fn glwe_ciphertext_encryption_noise_sample_count(
 
 /// A [`GLWE ciphertext`](`GlweCiphertext`).
 ///
+/// **Remark:** GLWE ciphertexts generalize LWE ciphertexts by definition, however in this library,
+/// GLWE ciphertext entities do not generalize LWE ciphertexts, i.e., polynomial size cannot be 1.
+///
 /// # Formal Definition
 ///
 /// ## GLWE Ciphertext

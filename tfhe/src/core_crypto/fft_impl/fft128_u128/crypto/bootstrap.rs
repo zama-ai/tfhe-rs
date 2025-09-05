@@ -6,7 +6,7 @@ use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, MonomialDegree,
 };
 use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{Container, ContainerMut, ModulusSwitchedLweCiphertext};
 use aligned_vec::CACHELINE_ALIGN;
@@ -21,13 +21,13 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign_split(
     let output_hi = output_hi.into_container();
     let full_cycles_count = monomial_degree.0 / output_lo.container_len();
     if full_cycles_count % 2 != 0 {
-        izip_eq!(&mut *output_lo, &mut *output_hi)
+        izip!(&mut *output_lo, &mut *output_hi)
             .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
     }
     let remaining_degree = monomial_degree.0 % output_lo.container_len();
     output_lo.rotate_right(remaining_degree);
     output_hi.rotate_right(remaining_degree);
-    izip_eq!(output_lo, output_hi)
+    izip!(output_lo, output_hi)
         .take(remaining_degree)
         .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
 }
@@ -41,13 +41,13 @@ pub fn polynomial_wrapping_monic_monomial_div_assign_split(
     let output_hi = output_hi.into_container();
     let full_cycles_count = monomial_degree.0 / output_lo.container_len();
     if full_cycles_count % 2 != 0 {
-        izip_eq!(&mut *output_lo, &mut *output_hi)
+        izip!(&mut *output_lo, &mut *output_hi)
             .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
     }
     let remaining_degree = monomial_degree.0 % output_lo.container_len();
     output_lo.rotate_left(remaining_degree);
     output_hi.rotate_left(remaining_degree);
-    izip_eq!(output_lo, output_hi)
+    izip!(output_lo, output_hi)
         .rev()
         .take(remaining_degree)
         .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
@@ -79,7 +79,7 @@ where
             let msed_lwe_mask = msed_lwe.mask();
             let msed_lwe_body = msed_lwe.body();
 
-            for (poly_lo, poly_hi) in izip_eq!(
+            for (poly_lo, poly_hi) in izip!(
                 lut_lo.as_mut_polynomial_list().iter_mut(),
                 lut_hi.as_mut_polynomial_list().iter_mut(),
             ) {
@@ -95,7 +95,7 @@ where
             let mut ct0_hi = lut_hi;
 
             for (lwe_mask_element, bootstrap_key_ggsw) in
-                izip_eq!(msed_lwe_mask, this.into_ggsw_iter())
+                izip!(msed_lwe_mask, this.into_ggsw_iter())
             {
                 if lwe_mask_element != 0 {
                     let stack = &mut *stack;
@@ -116,7 +116,7 @@ where
                     );
 
                     // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
-                    for (poly_lo, poly_hi) in izip_eq!(
+                    for (poly_lo, poly_hi) in izip!(
                         ct1_lo.as_mut_polynomial_list().iter_mut(),
                         ct1_hi.as_mut_polynomial_list().iter_mut(),
                     ) {
@@ -204,7 +204,7 @@ where
             );
             let (local_accumulator, _) = stack.collect_aligned(
                 align,
-                izip_eq!(local_accumulator_lo.as_ref(), local_accumulator_hi.as_ref())
+                izip!(local_accumulator_lo.as_ref(), local_accumulator_hi.as_ref())
                     .map(|(&lo, &hi)| lo as u128 | ((hi as u128) << 64)),
             );
             let mut local_accumulator = GlweCiphertextMutView::from_container(

@@ -1312,11 +1312,11 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
-	source ./setup_hpu.sh --config $(HPU_CONFIG) -p ; \
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark -- --quick
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
@@ -1497,13 +1497,11 @@ bench_hlapi_gpu: install_rs_check_toolchain
 	--bench hlapi \
 	--features=integer,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --
 
-.PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
+.PHONY: bench_hlapi_hpu # Run benchmarks for integer operations on HPU
 bench_hlapi_hpu: install_rs_check_toolchain
-	source ./setup_hpu.sh --config $(HPU_CONFIG) -p ; \
-	RUSTFLAGS="$(RUSTFLAGS)" \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark --
+	--features=integer,hpu,hpu-v80,internal-keycache,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc20 # Run benchmarks for ERC20 operations
 bench_hlapi_erc20: install_rs_check_toolchain
@@ -1531,11 +1529,11 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
-	source ./setup_hpu.sh --config $(HPU_CONFIG) -p ; \
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark --
+	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark -- --quick
 
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
