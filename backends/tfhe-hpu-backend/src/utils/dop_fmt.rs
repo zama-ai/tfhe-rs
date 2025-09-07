@@ -9,15 +9,15 @@ use tfhe_hpu_backend::asm::{self};
 /// Define CLI arguments
 use clap::Parser;
 #[derive(clap::Parser, Debug, Clone)]
-#[clap(long_about = "DOp format management")]
+#[command(long_about = "DOp format management")]
 pub struct Args {
     // Input/Output configuration --------------------------------------------
     /// Convert from the given file. If file not available cast String in AsmOp
-    #[clap(short, long, value_parser)]
+    #[arg(short, long)]
     from: String,
 
     /// Output file
-    #[clap(short, long, value_parser)]
+    #[arg(short, long)]
     to: String,
 }
 
