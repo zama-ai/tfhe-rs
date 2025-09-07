@@ -12,70 +12,67 @@ use tfhe_hpu_backend::fw::{self, Fw, FwParameters};
 use clap::Parser;
 use tfhe_hpu_backend::prelude::{HpuConfig, HpuParameters, ShellString};
 #[derive(clap::Parser, Debug, Clone)]
-#[clap(long_about = "Translate IOp or Stream of IOps in DOps stream")]
+#[command(long_about = "Translate IOp or Stream of IOps in DOps stream")]
 pub struct Args {
     // Configuration -----------------------------------------------------
     /// Toml top-level configuration file
     /// Enable to retrieved runtime configuration register
-    #[clap(
+    #[arg(
         long,
-        value_parser,
         default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
     )]
     pub config: ShellString,
 
     /// Hpu rtl parameters
     /// Enable to retrieved the associated tfhe-rs parameters and other Rtl parameters
-    #[clap(
+    #[arg(
         long,
-        value_parser,
         default_value = "${HPU_MOCKUP_DIR}/params/gaussian_64b_fast.toml"
     )]
     pub params: ShellString,
 
     /// Supported nu
     /// Number of linear operation supported
-    #[clap(long, value_parser, default_value_t = 5)]
+    #[arg(long, default_value_t = 5)]
     nu: usize,
 
     /// Fw kind
-    #[clap(long, value_parser, default_value = "Ilp")]
+    #[arg(long, default_value = "Ilp")]
     fw_kind: fw::FwName,
 
     /// Number of Heap slots
-    #[clap(long, value_parser, default_value_t = 512)]
+    #[arg(long, default_value_t = 512)]
     heap: usize,
 
     /// Kogge configuration file
-    #[clap(
+    #[arg(
         long,
-        value_parser,
         default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
     )]
     kogge_cfg: ShellString,
 
     /// Use ipip configuration
-    #[clap(long, value_parser, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     use_ipip: bool,
 
     /// Use ipip configuration
-    #[clap(long, value_parser, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     use_bpip_opportunism: bool,
 
     /// Try to fill the batch fifo
-    #[clap(long, value_parser, default_value_t = true)]
+    #[arg(long, default_value_t = true)]
     fill_batch_fifo: bool,
 
     /// Use the minimum batch size for a PE
-    #[clap(long, value_parser, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     min_batch_size: bool,
 
     /// Use the minimum batch size for a PE
-    #[clap(long, value_parser, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     use_tiers: bool,
 
     /// Flush PBS batches to force a specific scheduling
-    #[clap(long, value_parser, default_value_t = true)]
+    #[arg(long, default_value_t = true)]
     flush: bool,
 
     /// Flush PBS batches behaviour
@@ -84,11 +81,11 @@ pub struct Args {
     /// NoPBS,
     /// Opportunist,
     /// Timeout(usize),
-    #[clap(long, value_parser, default_value = "Patient")]
+    #[arg(long, default_value = "Patient")]
     flush_behaviour: FlushBehaviour,
 
     /// Integer bit width
-    #[clap(long, value_parser, default_value_t = 8)]
+    #[arg(long, default_value_t = 8)]
     integer_w: usize,
 
     // Override params --------------------------------------------------
@@ -96,22 +93,22 @@ pub struct Args {
     // configuration file
     // Used to override some parameters at runtime
     /// Override Number of Register
-    #[clap(long, value_parser)]
+    #[arg(long)]
     register: Option<usize>,
 
     /// Override HPU lookahead buffer depth
     /// Number of instruction that are considered in advance
-    #[clap(long, value_parser)]
+    #[arg(long)]
     isc_depth: Option<usize>,
 
     // Input/Output configuration --------------------------------------------
     /// Expand the given IOpcode
     /// NB: couldn't use `convert_file` and `expand` at the same time
-    #[clap(short, long, value_parser)]
+    #[arg(short, long)]
     expand: Vec<asm::AsmIOpcode>,
 
     /// Output folder
-    #[clap(long, value_parser, default_value = "output")]
+    #[arg(long, default_value = "output")]
     out_folder: String,
 }
 

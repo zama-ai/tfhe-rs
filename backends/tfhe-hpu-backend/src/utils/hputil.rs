@@ -17,7 +17,7 @@ use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
-    #[clap(about = "Read register")]
+    #[command(about = "Read register")]
     Read {
         /// Register name
         #[arg(short, long)]
@@ -26,7 +26,7 @@ pub enum Command {
         range: usize,
     },
 
-    #[clap(about = "Write register")]
+    #[command(about = "Write register")]
     Write {
         /// Register name
         #[arg(short, long)]
@@ -35,23 +35,23 @@ pub enum Command {
         value: u32,
     },
 
-    #[clap(about = "Dump given register section")]
+    #[command(about = "Dump given register section")]
     Dump {
         /// Section name
         #[arg(index = 1)]
         name: Vec<Section>,
     },
 
-    #[clap(about = "Reset given register section")]
+    #[command(about = "Reset given register section")]
     Reset {
         /// Section name
         #[arg(index = 1)]
         name: Vec<Section>,
     },
-    #[clap(about = "Flush ackq")]
+    #[command(about = "Flush ackq")]
     Flush,
 
-    #[clap(about = "Memory Zone read (Hbm)")]
+    #[command(about = "Memory Zone read (Hbm)")]
     MzRead {
         /// Hbm pc
         #[arg(long, value_parser=maybe_hex::<usize>)]
@@ -61,7 +61,7 @@ pub enum Command {
         size: usize,
     },
 
-    #[clap(about = "Memory Zone write (Hbm)")]
+    #[command(about = "Memory Zone write (Hbm)")]
     MzWrite {
         /// Hbm pc
         #[arg(long, value_parser=maybe_hex::<usize>)]
@@ -74,13 +74,13 @@ pub enum Command {
         pattern: u8,
     },
 
-    #[clap(about = "Trace Dump")]
+    #[command(about = "Trace Dump")]
     TraceDump {
         #[arg(short, long, default_value_t = String::from("trace.json"))]
         file: String,
     },
 
-    #[clap(about = "Resets all HPU processing logic")]
+    #[command(about = "Resets all HPU processing logic")]
     SoftReset {},
 }
 

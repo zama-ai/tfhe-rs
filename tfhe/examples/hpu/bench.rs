@@ -25,15 +25,14 @@ use rand::{Rng, SeedableRng};
 pub use clap::Parser;
 pub use clap_num::maybe_hex;
 #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
-#[clap(
+#[command(
     long_about = "HPU stimulus generation application: Start operation on HPU for RTL test purpose."
 )]
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
-    #[clap(
+    #[arg(
         long,
-        value_parser,
         default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
     )]
     pub config: ShellString,
@@ -41,24 +40,24 @@ pub struct Args {
     // Exec configuration ----------------------------------------------------
     /// Select integer width to bench
     /// If None default to All available one (c.f. Firmware configuration)
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub integer_w: Vec<usize>,
 
     /// Iop to expand and simulate
     /// If None default to All IOp
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub iop: Vec<hpu_asm::AsmIOpcode>,
 
     /// Number of iteration for each IOp
-    #[clap(long, value_parser, default_value_t = 1)]
+    #[arg(long, default_value_t = 1)]
     pub iter: usize,
 
     /// Force ct input values
-    #[clap(long, value_parser=maybe_hex::<u128>)]
+    #[arg(long, value_parser = maybe_hex::<u128>)]
     pub src: Vec<u128>,
 
     /// Force immediat input values
-    #[clap(long, value_parser=maybe_hex::<u128>)]
+    #[arg(long, value_parser = maybe_hex::<u128>)]
     pub imm: Vec<u128>,
 
     /// Fallback prototype
@@ -69,25 +68,25 @@ pub struct Args {
     /// * N, Nat, Native -> Full size integer;
     /// * H, Half -> Half size integer;
     /// * B, Bool -> boolean value;
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub user_proto: Option<hpu_asm::IOpProto>,
 
     /// Seed used for some rngs
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub seed: Option<u128>,
 
     // Debug option ----------------------------------------------------------
     #[cfg(feature = "hpu-debug")]
     /// Hpu io dump path
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub io_dump: Option<String>,
 
     /// Use trivial encrypt ciphertext
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub trivial: bool,
 
     /// Override the firmware implementation used
-    #[clap(long, value_parser)]
+    #[arg(long)]
     pub fw_impl: Option<String>,
 }
 

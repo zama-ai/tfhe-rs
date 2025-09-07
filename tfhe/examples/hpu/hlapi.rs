@@ -112,20 +112,19 @@ fn main() {
     pub use clap::Parser;
     /// Define CLI arguments
     #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
-    #[clap(long_about = "HPU example that shows the use of the HighLevelAPI.")]
+    #[command(long_about = "HPU example that shows the use of the HighLevelAPI.")]
     pub struct Args {
         // Fpga configuration ------------------------------------------------------
         /// Toml top-level configuration file
-        #[clap(
+        #[arg(
             long,
-            value_parser,
             default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
         )]
         pub config: ShellString,
 
         // Exec configuration ----------------------------------------------------
         /// Seed used for some rngs
-        #[clap(long, value_parser)]
+        #[arg(long)]
         pub seed: Option<u128>,
     }
     let args = Args::parse();

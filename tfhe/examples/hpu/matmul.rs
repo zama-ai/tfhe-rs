@@ -31,23 +31,22 @@ fn main() {
 
     /// Define CLI arguments
     #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
-    #[clap(long_about = "HPU example that shows the use of the HighLevelAPI.")]
+    #[command(long_about = "HPU example that shows the use of the HighLevelAPI.")]
     pub struct Args {
-        #[clap(
+        #[arg(
             long,
-            value_parser,
             default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
         )]
         pub config: ShellString,
 
         /// Number of rows in matrix A
-        #[clap(long, value_parser, default_value_t = 2)]
+        #[arg(long, default_value_t = 2)]
         pub m: usize,
         /// Number of columns in matrix A and Number of rows in matrix B
-        #[clap(long, value_parser, default_value_t = 2)]
+        #[arg(long, default_value_t = 2)]
         pub n: usize,
         /// Number of columns in matrix B
-        #[clap(long, value_parser, default_value_t = 2)]
+        #[arg(long, default_value_t = 2)]
         pub p: usize,
     }
     let args = Args::parse();
