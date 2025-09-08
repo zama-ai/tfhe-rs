@@ -1,5 +1,5 @@
 # Run a small subset of tests to ensure quick feedback.
-name: Fast AWS Tests on CPU
+name: aws_tfhe_fast_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,6 +29,7 @@ permissions:
 
 jobs:
   should-run:
+    name: aws_tfhe_fast_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -132,7 +133,7 @@ jobs:
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
   setup-instance:
-    name: Setup instance (fast-tests)
+    name: aws_tfhe_fast_tests/setup-instance
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name != 'workflow_dispatch' && needs.should-run.outputs.any_file_changed == 'true')
     needs: should-run
@@ -288,7 +289,7 @@ jobs:
           SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (fast-tests)
+    name: aws_tfhe_fast_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, fast-tests ]
     runs-on: ubuntu-latest

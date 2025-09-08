@@ -1,5 +1,5 @@
 # Publish new release of tfhe-fft
-name: Publish tfhe-fft release
+name: make_release_tfhe_fft
 
 on:
   workflow_dispatch:
@@ -19,15 +19,17 @@ env:
 permissions: {}
 
 jobs:
-  verify_tag:
+  verify-tag:
+    name: make_release_tfhe_fft/verify-tag
     uses: ./.github/workflows/verify_tagged_commit.yml
     secrets:
       RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package:
+    name: make_release_tfhe_fft/package
     runs-on: ubuntu-latest
-    needs: verify_tag
+    needs: verify-tag
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
     steps:
@@ -49,6 +51,7 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance:
+    name: make_release_tfhe_fft/provenance
     if: ${{ !inputs.dry_run  }}
     needs: [package]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
@@ -64,9 +67,9 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish_release:
-    name: Publish tfhe-fft Release
+    name: make_release_tfhe_fft/publish-release
     runs-on: ubuntu-latest
-    needs: [verify_tag, package] # for comparing hashes
+    needs: [verify-tag, package] # for comparing hashes
     permissions:
       # Needed for OIDC token exchange on crates.io
       id-token: write

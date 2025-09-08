@@ -1,4 +1,4 @@
-name: CSPRNG randomness testing Workflow
+name: csprng_randomness_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (csprng-randomness-tests)
+    name: csprng_randomness_tests/setup-instance
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
     runs-on: ubuntu-latest
     outputs:
@@ -52,7 +52,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   csprng-randomness-tests:
-    name: CSPRNG randomness tests
+    name: csprng_randomness_tests/csprng-randomness-tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -83,7 +83,7 @@ jobs:
           SLACK_MESSAGE: "tfhe-csprng randomness check finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (csprng-randomness-tests)
+    name: csprng_randomness_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, csprng-randomness-tests ]
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-name: Publish tfhe-zk-pok release
+name: make_release_zk_pok
 
 on:
   workflow_dispatch:
@@ -15,33 +15,43 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-permissions: {}
+permissions: { }
 
 jobs:
+  verify-tag:
+    name: make_release_zk_pok/verify-tag
+    uses: ./.github/workflows/verify_tagged_commit.yml
+    secrets:
+      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
   package:
-      runs-on: ubuntu-latest
-      outputs:
-        hash: ${{ steps.hash.outputs.hash }}
-      steps:
-        - name: Checkout
-          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-          with:
-            fetch-depth: 0
-            persist-credentials: 'false'
-            token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-        - name: Prepare package
-          run: |
-            cargo package -p tfhe-zk-pok
-        - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-          with:
-            name: crate-zk-pok
-            path: target/package/*.crate
-        - name: generate hash
-          id: hash
-          run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+    name: make_release_zk_pok/package
+    runs-on: ubuntu-latest
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      - name: Prepare package
+        run: |
+          cargo package -p tfhe-zk-pok
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: crate-zk-pok
+          path: target/package/*.crate
+      - name: generate hash
+        id: hash
+        run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
   provenance:
+    name: make_release_zk_pok/provenance
     if: ${{ !inputs.dry_run  }}
-    needs: [package]
+    needs: [ package ]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       # Needed to detect the GitHub Actions environment
@@ -54,15 +64,9 @@ jobs:
       # SHA-256 hashes of the Crate package.
       base64-subjects: ${{ needs.package.outputs.hash }}
 
-  verify_tag:
-    uses: ./.github/workflows/verify_tagged_commit.yml
-    secrets:
-      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
-      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
-
   publish_release:
-    name: Publish tfhe-zk-pok Release
-    needs: [verify_tag, package] # for comparing hashes
+    name: make_release_zk_pok/publish-release
+    needs: [ verify-tag, package ] # for comparing hashes
     runs-on: ubuntu-latest
     permissions:
       # Needed for OIDC token exchange on crates.io

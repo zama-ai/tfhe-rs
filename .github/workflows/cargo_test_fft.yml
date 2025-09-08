@@ -1,5 +1,5 @@
 # Test tfhe-fft
-name: Cargo Test tfhe-fft
+name: cargo_test_fft
 
 on:
   pull_request:
@@ -21,6 +21,7 @@ permissions:
 
 jobs:
   should-run:
+    name: cargo_test_fft/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -46,6 +47,7 @@ jobs:
               - '.github/workflows/cargo_test_fft.yml'
 
   cargo-tests-fft:
+    name: cargo_test_fft/cargo-tests-fft
     needs: should-run
     if: needs.should-run.outputs.fft_test == 'true'
     runs-on: ${{ matrix.runner_type }}
@@ -77,6 +79,7 @@ jobs:
           make test_fft_no_std
 
   cargo-tests-fft-nightly:
+    name: cargo_test_fft/cargo-tests-fft-nightly
     needs: should-run
     if: needs.should-run.outputs.fft_test == 'true'
     runs-on: ${{ matrix.runner_type }}
@@ -104,6 +107,7 @@ jobs:
           make test_fft_no_std_nightly
 
   cargo-tests-fft-node-js:
+    name: cargo_test_fft/cargo-tests-fft-node-js
     needs: should-run
     if: needs.should-run.outputs.fft_test == 'true'
     runs-on: ubuntu-latest
@@ -119,6 +123,7 @@ jobs:
           make test_fft_node_js_ci
 
   cargo-tests-fft-successful:
+    name: cargo_test_fft/cargo-tests-fft-successful (bpr)
     needs: [ should-run, cargo-tests-fft, cargo-tests-fft-nightly, cargo-tests-fft-node-js ]
     if: ${{ always() }}
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: Cuda - Full tests on H100
+name: gpu_full_h100_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -20,7 +20,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-h100-tests)
+    name: gpu_full_h100_tests/setup-instance
     runs-on: ubuntu-latest
     outputs:
       # Use permanent remote instance label first as on-demand remote instance label output is set before the end of start-remote-instance step.
@@ -50,7 +50,7 @@ jobs:
           echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: CUDA H100 tests
+    name: gpu_full_h100_tests/cuda-tests-linux
     needs: [ setup-instance ]
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -102,7 +102,7 @@ jobs:
           make test_high_level_api_gpu
 
   slack-notify:
-    name: Slack Notification
+    name: gpu_full_h100_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ failure() }}
@@ -115,7 +115,7 @@ jobs:
           SLACK_MESSAGE: "Full H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-h100-tests)
+    name: gpu_full_h100_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest

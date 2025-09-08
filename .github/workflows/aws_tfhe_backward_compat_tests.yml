@@ -1,5 +1,5 @@
 # Run backward compatibility tests
-name: Backward compatibility Tests on CPU
+name: aws_tfhe_backward_compat_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (backward-compat-tests)
+    name: aws_tfhe_backward_compat_tests/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -53,7 +53,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   backward-compat-tests:
-    name: Backward compatibility tests
+    name: aws_tfhe_backward_compat_tests/backward-compat-tests (bpr)
     needs: [ setup-instance ]
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -123,7 +123,7 @@ jobs:
           SLACK_MESSAGE: "Backward compatibility tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (backward-compat-tests)
+    name: aws_tfhe_backward_compat_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, backward-compat-tests ]
     runs-on: ubuntu-latest

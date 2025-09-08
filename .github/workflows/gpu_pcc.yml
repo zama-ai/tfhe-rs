@@ -1,5 +1,5 @@
 # Perform tfhe-cuda-backend post-commit checks on an AWS instance
-name: Cuda - Post-commit Checks
+name: gpu_pcc
 
 env:
   CARGO_TERM_COLOR: always
@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-pcc)
+    name: gpu_pcc/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -53,7 +53,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-pcc:
-    name: CUDA post-commit checks
+    name: gpu_pcc/cuda-pcc (bpr)
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -149,7 +149,7 @@ jobs:
           SLACK_MESSAGE: "CUDA AWS post-commit checks finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cuda-pcc)
+    name: cuda_pcc/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-pcc ]
     runs-on: ubuntu-latest

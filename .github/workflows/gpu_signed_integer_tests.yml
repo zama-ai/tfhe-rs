@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend signed integer on an AWS instance
-name: Cuda - Signed integer tests
+name: gpu_signed_integer_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,6 +31,7 @@ permissions:
 
 jobs:
   should-run:
+    name: gpu_signed_integer_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -67,7 +68,7 @@ jobs:
               - ci/slab.toml
 
   setup-instance:
-    name: Setup instance (cuda-signed-integer-tests)
+    name: gpu_signed_integer_tests/setup-instance
     runs-on: ubuntu-latest
     needs: should-run
     if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
@@ -96,7 +97,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-signed-integer-tests:
-    name: CUDA signed integer tests
+    name: gpu_signed_integer_tests/cuda-signed-integer-tests
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -146,7 +147,7 @@ jobs:
           make test_signed_integer_multi_bit_gpu_ci
 
   slack-notify:
-    name: Slack Notification
+    name: gpu_signed_integer_tests/slack-notify
     needs: [ setup-instance, cuda-signed-integer-tests ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-signed-integer-tests.result != 'skipped' && failure() }}
@@ -168,7 +169,7 @@ jobs:
           SLACK_MESSAGE: "Signed GPU tests finished with status: ${{ needs.cuda-signed-integer-tests.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cuda-tests)
+    name: gpu_signed_integer_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-signed-integer-tests ]
     runs-on: ubuntu-latest

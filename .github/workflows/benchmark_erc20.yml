@@ -1,5 +1,5 @@
 # Run all ERC20 benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: ERC20 benchmarks
+name: benchmark_erc20
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (erc20-benchmarks)
+    name: benchmark_erc20/setup-instance
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -42,7 +42,7 @@ jobs:
           profile: bench
 
   erc20-benchmarks:
-    name: Execute ERC20 benchmarks
+    name: benchmark_erc20/erc20-benchmarks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
@@ -129,7 +129,7 @@ jobs:
           SLACK_MESSAGE: "ERC20 benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (erc20-benchmarks)
+    name: benchmark_erc20/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, erc20-benchmarks ]
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an AWS instance
-name: Cuda - GPU Memory Checks
+name: gpu_memory_sanitizer
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-tests)
+    name: gpu_memory_sanitizer/setup-instance
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved')
@@ -57,7 +57,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: CUDA Memory Checks tests
+    name: gpu_memory_sanitizer/cuda-tests-linux
     needs: [ setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -102,7 +102,7 @@ jobs:
           make test_high_level_api_gpu_sanitizer
 
   slack-notify:
-    name: Slack Notification
+    name: gpu_memory_sanitizer/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -124,7 +124,7 @@ jobs:
           SLACK_MESSAGE: "GPU Memory Checks tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cuda-tests)
+    name: gpu_memory_sanitizer/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest

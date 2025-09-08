@@ -1,4 +1,4 @@
-name: Publish CUDA release
+name: make_release_cuda
 
 on:
   workflow_dispatch:
@@ -18,15 +18,16 @@ env:
 permissions: {}
 
 jobs:
-  verify_tag:
+  verify-tag:
+    name: make_release_cuda/verify-tag
     uses: ./.github/workflows/verify_tagged_commit.yml
     secrets:
       RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   setup-instance:
-    name: Setup instance (publish-cuda-release)
-    needs: verify_tag
+    name: make_release_cuda/setup-instance
+    needs: verify-tag
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -43,7 +44,7 @@ jobs:
           profile: gpu-build
 
   package:
-    name: Package CUDA Release for provenance
+    name: make_release_cuda/package
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     outputs:
@@ -104,6 +105,7 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance:
+    name: make_release_cuda/provenance
     if: ${{ !inputs.dry_run  }}
     needs: [package]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
@@ -119,7 +121,7 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish-cuda-release:
-    name: Publish CUDA Release
+    name: make_release_cuda/publish-cuda-release
     needs: [setup-instance, package] # for comparing hashes
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     permissions:
@@ -201,7 +203,7 @@ jobs:
           SLACK_MESSAGE: "tfhe-cuda-backend release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (publish-release)
+    name: make_release_cuda/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [setup-instance, publish-cuda-release]
     runs-on: ubuntu-latest

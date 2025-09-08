@@ -1,5 +1,5 @@
 # Run WASM client benchmarks on an instance and return parsed results to Slab CI bot.
-name: WASM client benchmarks
+name: benchmark_wasm_client
 
 on:
   workflow_dispatch:
@@ -26,6 +26,7 @@ permissions: {}
 
 jobs:
   should-run:
+    name: benchmark_wasm_client/should-run
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
@@ -57,7 +58,7 @@ jobs:
               - .github/workflows/wasm_client_benchmark.yml
 
   setup-instance:
-    name: Setup instance (wasm-client-benchmarks)
+    name: benchmark_wasm_client/setup-instance
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.wasm_bench)
@@ -78,7 +79,7 @@ jobs:
           profile: cpu-small
 
   wasm-client-benchmarks:
-    name: Execute WASM client benchmarks
+    name: benchmark_wasm_client/wasm-client-benchmarks
     needs: setup-instance
     if: needs.setup-instance.result != 'skipped'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
@@ -210,7 +211,7 @@ jobs:
           SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (wasm-client-benchmarks)
+    name: benchmark_wasm_client/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, wasm-client-benchmarks ]
     runs-on: ubuntu-latest

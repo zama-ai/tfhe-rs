@@ -1,5 +1,5 @@
 # Test tfhe-ntt
-name: Cargo Test tfhe-ntt
+name: cargo_test_ntt
 
 on:
   pull_request:
@@ -22,6 +22,7 @@ permissions:
 
 jobs:
   should-run:
+    name: cargo_test_ntt/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -47,6 +48,7 @@ jobs:
               - '.github/workflows/cargo_test_ntt.yml'
 
   setup-instance:
+    name: cargo_test_ntt/setup-instance
     needs: should-run
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ubuntu-latest
@@ -75,6 +77,7 @@ jobs:
           echo "matrix_os=[\"${INSTANCE_TO_USE}\", \"macos-latest\", \"windows-latest\"]" >> "$GITHUB_OUTPUT"
 
   cargo-tests-ntt:
+    name: cargo_test_ntt/cargo-tests-ntt
     needs: [should-run, setup-instance]
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
@@ -101,6 +104,7 @@ jobs:
         run: make test_ntt_no_std
 
   cargo-tests-ntt-nightly:
+    name: cargo_test_ntt/cargo-tests-ntt-nightly
     needs: [should-run, setup-instance]
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
@@ -126,6 +130,7 @@ jobs:
         run: make test_ntt_no_std_nightly
 
   cargo-tests-ntt-successful:
+    name: cargo_test_ntt/cargo-tests-ntt-successful (bpr)
     needs: [should-run, cargo-tests-ntt, cargo-tests-ntt-nightly]
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -151,7 +156,7 @@ jobs:
           exit 1
 
   teardown-instance:
-    name: Teardown instance (cargo-tests-ntt-successful)
+    name: cargo_test_ntt/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [setup-instance, cargo-tests-ntt-successful]
     runs-on: ubuntu-latest

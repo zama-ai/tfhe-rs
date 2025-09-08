@@ -1,5 +1,5 @@
 # Run all integer benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Integer benchmarks
+name: benchmark_integer
 
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ permissions: {}
 
 jobs:
   prepare-matrix:
-    name: Prepare operations matrix
+    name: benchmark_integer/prepare-matrix
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -87,7 +87,7 @@ jobs:
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
-    name: Setup instance (integer-benchmarks)
+    name: benchmark_integer/setup-instance
     needs: prepare-matrix
     runs-on: ubuntu-latest
     outputs:
@@ -105,7 +105,7 @@ jobs:
           profile: bench
 
   integer-benchmarks:
-    name: Execute integer benchmarks for all operations flavor
+    name: benchmark_integer/integer-benchmarks
     needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
@@ -211,7 +211,7 @@ jobs:
           SLACK_MESSAGE: "Integer full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (integer-benchmarks)
+    name: benchmark_integer/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, integer-benchmarks ]
     runs-on: ubuntu-latest

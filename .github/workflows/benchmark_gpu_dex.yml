@@ -1,5 +1,5 @@
 # Run CUDA DEX benchmarks on a Hyperstack VM and return parsed results to Slab CI bot.
-name: Cuda DEX benchmarks
+name: benchmark_gpu_dex/
 
 on:
   workflow_dispatch:
@@ -23,6 +23,7 @@ permissions: {}
 
 jobs:
   parse-inputs:
+    name: benchmark_gpu_dex/parse-inputs
     runs-on: ubuntu-latest
     outputs:
       profile: ${{ steps.parse_profile.outputs.profile }}
@@ -47,7 +48,7 @@ jobs:
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks:
-    name: Run benchmarks
+    name: benchmark_gpu_dex/run-benchmarks
     needs: parse-inputs
     uses: ./.github/workflows/benchmark_gpu_dex_common.yml
     with:

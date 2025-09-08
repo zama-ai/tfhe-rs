@@ -1,5 +1,5 @@
 # Run core crypto benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Core crypto benchmarks
+name: benchmark_core_crypto
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (core-crypto-benchmarks)
+    name: benchmark_core_crypto/setup-instance
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -42,7 +42,7 @@ jobs:
           profile: bench
 
   core-crypto-benchmarks:
-    name: Execute core crypto benchmarks in EC2
+    name: benchmark_core_crypto/core-crypto-benchmarks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
@@ -125,7 +125,7 @@ jobs:
           SLACK_MESSAGE: "PBS benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (core-crypto-benchmarks)
+    name: benchmark_core_crypto/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, core-crypto-benchmarks ]
     runs-on: ubuntu-latest

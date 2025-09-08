@@ -1,5 +1,5 @@
 # Perform a security check on all the cryptographic parameters set
-name: Parameters curves security check
+name: parameters_check
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,6 +16,7 @@ permissions: {}
 
 jobs:
   params-curves-security-check:
+    name: parameters_check/params-curves-security-check
     runs-on: large_ubuntu_16-22.04
     steps:
       - name: Checkout tfhe-rs

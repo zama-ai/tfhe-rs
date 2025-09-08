@@ -1,4 +1,4 @@
-name: Publish tfhe-csprng release
+name: make_release_tfhe_csprng
 
 on:
   workflow_dispatch:
@@ -18,13 +18,15 @@ env:
 permissions: {}
 
 jobs:
-  verify_tag:
+  verify-tag:
+    name: make_release_tfhe_csprng/verify-tag
     uses: ./.github/workflows/verify_tagged_commit.yml
     secrets:
       RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package:
+    name: make_release_tfhe_csprng/package
     runs-on: ubuntu-latest
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
@@ -48,6 +50,7 @@ jobs:
 
 
   provenance:
+    name: make_release_tfhe_csprng/provenance
     if: ${{ !inputs.dry_run  }}
     needs: [package]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
@@ -64,8 +67,8 @@ jobs:
 
 
   publish_release:
-    name: Publish tfhe-csprng Release
-    needs: [verify_tag, package]
+    name: make_release_tfhe_csprng/publish-release
+    needs: [verify-tag, package]
     runs-on: ubuntu-latest
     permissions:
       # Needed for OIDC token exchange on crates.io

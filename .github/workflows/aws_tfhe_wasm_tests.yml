@@ -1,4 +1,4 @@
-name: AWS WASM Tests on CPU
+name: aws_tfhe_wasm_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (wasm-tests)
+    name: aws_tfhe_wasm_tests/setup-instance
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
     runs-on: ubuntu-latest
     outputs:
@@ -54,7 +54,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   wasm-tests:
-    name: WASM tests
+    name: aws_tfhe_wasm_tests/wasm-tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -137,7 +137,7 @@ jobs:
           SLACK_MESSAGE: "WASM tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (wasm-tests)
+    name: aws_tfhe_wasm_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, wasm-tests ]
     runs-on: ubuntu-latest

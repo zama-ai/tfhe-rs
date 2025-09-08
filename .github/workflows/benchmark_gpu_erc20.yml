@@ -1,5 +1,5 @@
 # Run CUDA ERC20 benchmarks on a Hyperstack VM and return parsed results to Slab CI bot.
-name: Cuda ERC20 benchmarks
+name: benchmark_gpu_erc20
 
 on:
   workflow_dispatch:
@@ -24,6 +24,7 @@ permissions: {}
 
 jobs:
   parse-inputs:
+    name: benchmark_gpu_erc20/parse-inputs
     runs-on: ubuntu-latest
     outputs:
       profile: ${{ steps.parse_profile.outputs.profile }}
@@ -48,7 +49,7 @@ jobs:
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks:
-    name: Run benchmarks
+    name: benchmark_gpu_erc20/run-benchmarks
     needs: parse-inputs
     uses: ./.github/workflows/benchmark_gpu_erc20_common.yml
     with:
