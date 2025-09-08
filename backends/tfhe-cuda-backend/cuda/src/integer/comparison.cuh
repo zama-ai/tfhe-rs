@@ -130,12 +130,13 @@ __host__ void are_all_comparisons_block_true(
         auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
           return x == chunk_length;
         };
-        generate_device_accumulator<Torus>(
+        generate_device_accumulator_with_cpu_prealloc<Torus>(
             streams[0], gpu_indexes[0], is_max_value_lut->get_lut(0, 1),
             is_max_value_lut->get_degree(1),
             is_max_value_lut->get_max_degree(1), glwe_dimension,
             polynomial_size, message_modulus, carry_modulus,
-            is_equal_to_num_blocks_lut_f, true);
+            is_equal_to_num_blocks_lut_f, true,
+            are_all_block_true_buffer->preallocated_h_lut);
 
         Torus *h_lut_indexes = is_max_value_lut->h_lut_indexes;
         for (int index = 0; index < num_chunks; index++) {
@@ -499,10 +500,11 @@ __host__ void tree_sign_reduction(
     y = x;
     f = sign_handler_f;
   }
-  generate_device_accumulator<Torus>(
+  generate_device_accumulator_with_cpu_prealloc<Torus>(
       streams[0], gpu_indexes[0], last_lut->get_lut(0, 0),
       last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
-      polynomial_size, message_modulus, carry_modulus, f, true);
+      polynomial_size, message_modulus, carry_modulus, f, true,
+      tree_buffer->preallocated_h_lut);
 
   auto active_gpu_count = get_active_gpu_count(1, gpu_count);
   last_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
