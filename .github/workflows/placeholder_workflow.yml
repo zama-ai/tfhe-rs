@@ -203,7 +203,7 @@ jobs:
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
           echo "CUDA_MODULE_LOADER=EAGER" >> "${GITHUB_ENV}"
         env:
-          CUDA_PATH: /usr/local/cuda-12.2
+          CUDA_PATH: /usr/local/cuda-12.8
 
       - name: Export gcc and g++ variables
         if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
@@ -268,23 +268,11 @@ jobs:
           JOB_SECRET: ${{ secrets.JOB_SECRET }}
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
-      - name: Slack Notification
-        if: ${{ needs.prepare-benchmarks.outputs.slab-backend != 'hyperstack' &&
-          (failure() || (cancelled() && github.event_name != 'pull_request')) }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-
   slack-notify-hyperstack:
     name: benchmark_perf_regression/slack-notify-hyperstack
     needs: [ prepare-benchmarks, setup-instance, regression-benchmarks ]
     runs-on: ubuntu-latest
-    if: ${{ always() &&
-      needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack' &&
-      needs.regression-benchmarks.result != 'skipped' &&
-      failure() }}
+    if: ${{ failure() }}
     continue-on-error: true
     steps:
       - name: Send message
