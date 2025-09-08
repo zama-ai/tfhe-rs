@@ -2,6 +2,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
 pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
@@ -30,6 +31,13 @@ pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
     ) -> Self::Output {
         self.if_then_else_parallelized(condition, true_ct, false_ct)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: TrueCt,
+        false_ct: FalseCt,
+    ) -> (Self::Output, Self::Output);
 }
 
 impl<T> ServerKeyDefaultCMux<&T, &T> for ServerKey
@@ -100,6 +108,110 @@ where
         let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        a: &T,
+        b: &T,
+    ) -> (Self::Output, Self::Output) {
+        assert_eq!(
+            a.blocks().len(),
+            b.blocks().len(),
+            "Inputs must have the same number of blocks"
+        );
+
+        // To make use if many_lut, we require 1 bit, 1 more bit is required to pack
+        // the condition. Thus 2 bits of carry are required.
+        //
+        // Otherwise we call if_then_else twice, which is less efficient.
+        if self.carry_modulus().0 < (1 << 2) {
+            return rayon::join(
+                || self.if_then_else_parallelized(condition, b, a),
+                || self.if_then_else_parallelized(condition, a, b),
+            );
+        }
+
+        let (a, b) = rayon::join(
+            || self.clean_for_default_op(a),
+            || self.clean_for_default_op(b),
+        );
+
+        let zero_out_if_true_fn = |packed| {
+            let condition = (packed / self.message_modulus().0) & 1;
+            let value = packed % self.message_modulus().0;
+            (1 - condition) * value
+        };
+
+        let zero_out_if_false_fn = |packed| {
+            let condition = (packed / self.message_modulus().0) & 1;
+            let value = packed % self.message_modulus().0;
+            condition * value
+        };
+
+        let lut = self
+            .key
+            .generate_many_lookup_table(&[&zero_out_if_true_fn, &zero_out_if_false_fn]);
+
+        let scaled_condition = self
+            .key
+            .unchecked_scalar_mul(&condition.0, self.message_modulus().0 as u8);
+
+        let map_condition_lut_on_blocks =
+            |blocks: &[Ciphertext]| -> (Vec<Ciphertext>, Vec<Ciphertext>) {
+                let mut left = Vec::with_capacity(blocks.len());
+                let mut right = Vec::with_capacity(blocks.len());
+                blocks
+                    .par_iter()
+                    .map(|block| {
+                        let block = self.key.unchecked_add(block, &scaled_condition);
+                        let mut resulting_blocks = self.key.apply_many_lookup_table(&block, &lut);
+
+                        let second_result = resulting_blocks.pop().unwrap();
+                        let first_result = resulting_blocks.pop().unwrap();
+
+                        (first_result, second_result)
+                    })
+                    .unzip_into_vecs(&mut left, &mut right);
+                (left, right)
+            };
+
+        let (
+            (mut a_blocks_if_cond, mut a_blocks_if_not_cond),
+            (b_blocks_if_cond, b_blocks_if_not_cond),
+        ) = rayon::join(
+            || map_condition_lut_on_blocks(a.blocks()),
+            || map_condition_lut_on_blocks(b.blocks()),
+        );
+
+        let clean_lut = self
+            .key
+            .generate_lookup_table(|x| x % self.message_modulus().0);
+
+        let inplace_add_then_clean_blocks =
+            |lhs_blocks: &mut [Ciphertext], rhs_blocks: &[Ciphertext]| {
+                lhs_blocks
+                    .par_iter_mut()
+                    .zip(rhs_blocks.par_iter())
+                    .for_each(|(lhs, rhs)| {
+                        self.key.unchecked_add_assign(lhs, rhs);
+                        self.key.apply_lookup_table_assign(lhs, &clean_lut);
+                    });
+            };
+        rayon::join(
+            || {
+                inplace_add_then_clean_blocks(&mut a_blocks_if_cond, &b_blocks_if_not_cond);
+            },
+            || {
+                inplace_add_then_clean_blocks(&mut a_blocks_if_not_cond, &b_blocks_if_cond);
+            },
+        );
+
+        (
+            T::from_blocks(a_blocks_if_cond),
+            T::from_blocks(a_blocks_if_not_cond),
+        )
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<&RadixCiphertext, Scalar> for ServerKey
@@ -163,6 +275,15 @@ where
 
         self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &RadixCiphertext,
+        false_ct: Scalar,
+    ) -> (Self::Output, Self::Output) {
+        self.scalar_flip_parallelized(condition, true_ct, false_ct)
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<Scalar, &RadixCiphertext> for ServerKey
@@ -217,6 +338,16 @@ where
         let inverted_condition = self.boolean_bitnot(condition);
         self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
     }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &RadixCiphertext,
+    ) -> (Self::Output, Self::Output) {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.flip_parallelized(&inverted_condition, false_ct, true_value)
+    }
 }
 
 impl<Scalar> ServerKeyDefaultCMux<&SignedRadixCiphertext, Scalar> for ServerKey
@@ -242,6 +373,15 @@ where
         };
 
         self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &SignedRadixCiphertext,
+        false_ct: Scalar,
+    ) -> (Self::Output, Self::Output) {
+        self.scalar_flip_parallelized(condition, true_ct, false_ct)
     }
 }
 
@@ -296,6 +436,16 @@ where
     ) -> Self::Output {
         let inverted_condition = self.boolean_bitnot(condition);
         self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &SignedRadixCiphertext,
+    ) -> (Self::Output, Self::Output) {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.flip_parallelized(&inverted_condition, false_ct, true_value)
     }
 }
 
@@ -387,6 +537,67 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
         self.key.apply_lookup_table_assign(&mut lhs, &clean_lut);
 
         BooleanBlock::new_unchecked(lhs)
+    }
+
+    fn flip_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &BooleanBlock,
+        false_ct: &BooleanBlock,
+    ) -> (Self::Output, Self::Output) {
+        let flip_if_false_fn = |packed| {
+            let condition = (packed / 2) & 1;
+            let value = packed % 2;
+            value * condition
+        };
+
+        let flip_if_true_fn = |packed| {
+            let condition = (packed / 2) & 1;
+            let value = packed % 2;
+            (1 - condition) * value
+        };
+
+        let lut = self
+            .key
+            .generate_many_lookup_table(&[&flip_if_false_fn, &flip_if_true_fn]);
+
+        let scaled_condition = self.key.unchecked_scalar_mul(&condition.0, 2);
+
+        let (vec_a, vec_b) = rayon::join(
+            || {
+                let block = self.key.unchecked_add(&true_ct.0, &scaled_condition);
+                self.key.apply_many_lookup_table(&block, &lut)
+            },
+            || {
+                let block = self.key.unchecked_add(&false_ct.0, &scaled_condition);
+                self.key.apply_many_lookup_table(&block, &lut)
+            },
+        );
+
+        let [mut a_if_cond, mut a_if_not_cond] = vec_a.try_into().unwrap();
+        let [b_if_cond, b_if_not_cond] = vec_b.try_into().unwrap();
+
+        self.key
+            .unchecked_add_assign(&mut a_if_cond, &b_if_not_cond);
+        self.key
+            .unchecked_add_assign(&mut a_if_not_cond, &b_if_cond);
+
+        let clean_lut = self.key.generate_lookup_table(|x| x % 2);
+        rayon::join(
+            || {
+                self.key
+                    .apply_lookup_table_assign(&mut a_if_cond, &clean_lut)
+            },
+            || {
+                self.key
+                    .apply_lookup_table_assign(&mut a_if_not_cond, &clean_lut)
+            },
+        );
+
+        (
+            BooleanBlock::new_unchecked(a_if_cond),
+            BooleanBlock::new_unchecked(a_if_not_cond),
+        )
     }
 }
 
@@ -774,5 +985,83 @@ impl ServerKey {
                     &lut,
                 );
             });
+    }
+
+    fn scalar_flip_parallelized<T, Scalar>(
+        &self,
+        condition: &BooleanBlock,
+        a: &T,
+        b: Scalar,
+    ) -> (T, T)
+    where
+        Scalar: DecomposableInto<u64>,
+        T: IntegerRadixCiphertext,
+    {
+        let a = self.clean_for_default_op(a);
+
+        // To make use of many_lut, we require 1 bit, 1 more bit is required to pack
+        // the condition. Thus 2 bits of carry are required.
+        //
+        // Otherwise we call if_then_else twice, which is less efficient.
+        if self.carry_modulus().0 < (1 << 2) {
+            let inverted_condition = self.boolean_bitnot(condition);
+            return rayon::join(
+                || self.unchecked_scalar_if_then_else_parallelized(&inverted_condition, &*a, b),
+                || self.unchecked_scalar_if_then_else_parallelized(condition, &*a, b),
+            );
+        }
+
+        let n_blocks = a.blocks().len();
+
+        // One of the input is a clear, so we can embed its decomposed value into the LUTs
+        // and by using many_lut we can compute both results at once.
+        let luts = BlockDecomposer::with_block_count(b, self.message_modulus().0.ilog2(), n_blocks)
+            .iter_as::<u64>()
+            .map(|scalar_block| {
+                self.key.generate_many_lookup_table(&[
+                    &|packed| {
+                        let condition = (packed / self.message_modulus().0) & 1;
+                        let value = packed % self.message_modulus().0;
+                        if condition == 1 {
+                            scalar_block
+                        } else {
+                            value
+                        }
+                    },
+                    &|packed| {
+                        let condition = (packed / self.message_modulus().0) & 1;
+                        let value = packed % self.message_modulus().0;
+                        if condition == 1 {
+                            value
+                        } else {
+                            scalar_block
+                        }
+                    },
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let scaled_condition = self
+            .key
+            .unchecked_scalar_mul(&condition.0, self.message_modulus().0 as u8);
+
+        let mut a_blocks = Vec::with_capacity(n_blocks);
+        let mut b_blocks = Vec::with_capacity(n_blocks);
+
+        a.blocks()
+            .par_iter()
+            .zip(luts.par_iter())
+            .map(|(block, lut)| {
+                let block = self.key.unchecked_add(block, &scaled_condition);
+                let mut results = self.key.apply_many_lookup_table(&block, lut);
+
+                let second = results.pop().unwrap();
+                let first = results.pop().unwrap();
+
+                (first, second)
+            })
+            .unzip_into_vecs(&mut a_blocks, &mut b_blocks);
+
+        (T::from_blocks(a_blocks), T::from_blocks(b_blocks))
     }
 }
