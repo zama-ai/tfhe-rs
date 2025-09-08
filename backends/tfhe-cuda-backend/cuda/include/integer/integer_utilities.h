@@ -756,18 +756,20 @@ template <typename Torus> struct int_radix_lut {
       CudaStreams streams, uint64_t max_num_radix_blocks,
       uint64_t &size_tracker, bool allocate_gpu_memory) {
     // We need to create the auxiliary array only in GPU 0
-    lwe_aligned_vec.resize(active_streams.count());
-    for (uint i = 0; i < active_streams.count(); i++) {
-      uint64_t size_tracker_on_array_i = 0;
-      auto inputs_on_gpu = std::max(
-          THRESHOLD_MULTI_GPU, get_num_inputs_on_gpu(max_num_radix_blocks, i,
-                                                     active_streams.count()));
-      Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
-          inputs_on_gpu * (params.big_lwe_dimension + 1) * sizeof(Torus),
-          streams.stream(0), streams.gpu_index(0), size_tracker_on_array_i,
-          allocate_gpu_memory);
-      lwe_aligned_vec[i] = d_array;
-      size_tracker += size_tracker_on_array_i;
+    if (active_streams.count() > 1) {
+      lwe_aligned_vec.resize(active_streams.count());
+      for (uint i = 0; i < active_streams.count(); i++) {
+        uint64_t size_tracker_on_array_i = 0;
+        auto inputs_on_gpu = std::max(
+            THRESHOLD_MULTI_GPU, get_num_inputs_on_gpu(max_num_radix_blocks, i,
+                                                       active_streams.count()));
+        Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
+            inputs_on_gpu * (params.big_lwe_dimension + 1) * sizeof(Torus),
+            streams.stream(0), streams.gpu_index(0), size_tracker_on_array_i,
+            allocate_gpu_memory);
+        lwe_aligned_vec[i] = d_array;
+        size_tracker += size_tracker_on_array_i;
+      }
     }
   }
 
@@ -1632,8 +1634,19 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         luts_message_carry = new int_radix_lut<Torus>(
             streams, params, 2, pbs_count, true, size_tracker);
         allocated_luts_message_carry = true;
+        uint64_t message_modulus_bits =
+            (uint64_t)std::log2(params.message_modulus);
+        uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
+        uint64_t total_bits_per_block =
+            message_modulus_bits + carry_modulus_bits;
+        uint64_t denominator =
+            (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
+                                (pow(2, message_modulus_bits) - 1));
+
+        uint64_t upper_bound_num_blocks =
+            max_total_blocks_in_vec * 2 / denominator;
         luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
-            streams, this->max_total_blocks_in_vec, size_tracker, true);
+            streams, upper_bound_num_blocks, size_tracker, true);
       }
     }
     if (allocated_luts_message_carry) {
@@ -1731,9 +1744,17 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
     this->luts_message_carry = reused_lut;
+
+    uint64_t message_modulus_bits = (uint64_t)std::log2(params.message_modulus);
+    uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
+    uint64_t total_bits_per_block = message_modulus_bits + carry_modulus_bits;
+    uint64_t denominator =
+        (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
+                            (pow(2, message_modulus_bits) - 1));
+
+    uint64_t upper_bound_num_blocks = max_total_blocks_in_vec * 2 / denominator;
     this->luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
-        streams, this->max_total_blocks_in_vec, size_tracker,
-        allocate_gpu_memory);
+        streams, upper_bound_num_blocks, size_tracker, allocate_gpu_memory);
     setup_index_buffers(streams, size_tracker);
   }
 
