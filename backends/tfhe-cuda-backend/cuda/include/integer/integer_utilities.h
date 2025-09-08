@@ -1681,8 +1681,19 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
             new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
                                      pbs_count, true, size_tracker);
         allocated_luts_message_carry = true;
+        uint64_t message_modulus_bits =
+            (uint64_t)std::log2(params.message_modulus);
+        uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
+        uint64_t total_bits_per_block =
+            message_modulus_bits + carry_modulus_bits;
+        uint64_t denominator =
+            (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
+                                (pow(2, message_modulus_bits) - 1));
+
+        uint64_t upper_bound_num_blocks =
+            num_blocks_in_radix * num_blocks_in_radix * 2 / denominator;
         luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
-            streams, gpu_indexes, gpu_count, this->max_total_blocks_in_vec,
+            streams, gpu_indexes, gpu_count, upper_bound_num_blocks,
             size_tracker, true);
       }
     }
@@ -1781,9 +1792,19 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
     this->luts_message_carry = reused_lut;
+
+    uint64_t message_modulus_bits = (uint64_t)std::log2(params.message_modulus);
+    uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
+    uint64_t total_bits_per_block = message_modulus_bits + carry_modulus_bits;
+    uint64_t denominator =
+        (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
+                            (pow(2, message_modulus_bits) - 1));
+
+    uint64_t upper_bound_num_blocks =
+        num_blocks_in_radix * num_blocks_in_radix * 2 / denominator;
     this->luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
-        streams, gpu_indexes, gpu_count, this->max_total_blocks_in_vec,
-        size_tracker, allocate_gpu_memory);
+        streams, gpu_indexes, gpu_count, upper_bound_num_blocks, size_tracker,
+        allocate_gpu_memory);
     setup_index_buffers(streams, gpu_indexes, size_tracker);
   }
 
