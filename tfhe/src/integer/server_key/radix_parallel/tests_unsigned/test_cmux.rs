@@ -17,6 +17,8 @@ create_parameterized_test!(integer_unchecked_left_scalar_if_then_else);
 create_parameterized_test!(integer_smart_if_then_else);
 create_parameterized_test!(integer_default_if_then_else);
 create_parameterized_test!(integer_default_scalar_if_then_else);
+create_parameterized_test!(integer_default_flip);
+create_parameterized_test!(integer_default_left_scalar_flip);
 
 fn integer_unchecked_left_scalar_if_then_else<P>(param: P)
 where
@@ -63,6 +65,29 @@ where
     };
     let executor = CpuFunctionExecutor::new(&func);
     default_scalar_if_then_else_test(param, executor);
+}
+
+fn integer_default_flip<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let func = |sks: &ServerKey,
+                cond: &BooleanBlock,
+                lhs: &RadixCiphertext,
+                rhs: &RadixCiphertext| { sks.flip_parallelized(cond, lhs, rhs) };
+    let executor = CpuFunctionExecutor::new(&func);
+    default_flip_test(param, executor);
+}
+
+fn integer_default_left_scalar_flip<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let func = |sks: &ServerKey, cond: &BooleanBlock, lhs: u64, rhs: &RadixCiphertext| {
+        sks.flip_parallelized(cond, lhs, rhs)
+    };
+    let executor = CpuFunctionExecutor::new(&func);
+    default_left_scalar_flip_test(param, executor);
 }
 
 pub(crate) fn smart_if_then_else_test<P, T>(param: P, mut executor: T)
@@ -329,5 +354,163 @@ where
             "Invalid result for cmux({clear_condition}, {clear_0}, {clear_1})\n\
             Expected {expected_result} got {dec_res}"
         );
+    }
+}
+
+pub(crate) fn default_flip_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, RadixCiphertext),
+    >,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    executor.setup(&cks, sks.clone());
+
+    fn clear_flip(clear_condition: bool, clear_0: u64, clear_1: u64) -> (u64, u64) {
+        if clear_condition {
+            (clear_1, clear_0)
+        } else {
+            (clear_0, clear_1)
+        }
+    }
+
+    for _ in 0..nb_tests {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_bool(0.5);
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+        let ctxt_condition = cks.encrypt_bool(clear_condition);
+
+        let (a, b) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert!(a.block_carries_are_empty());
+        assert!(b.block_carries_are_empty());
+
+        let dec_a: u64 = cks.decrypt(&a);
+        let dec_b: u64 = cks.decrypt(&b);
+        let expected = clear_flip(clear_condition, clear_0, clear_1);
+        assert_eq!(
+            (dec_a, dec_b),
+            expected,
+            "Invalid result for flip({clear_condition}, {clear_0}, {clear_1})\n\
+             Expected {expected:?} got ({dec_a}, {dec_b})",
+        );
+
+        let (a2, b2) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert_eq!(a, a2, "Operation is not deterministic");
+        assert_eq!(b, b2, "Operation is not deterministic");
+
+        let clear_2 = rng.gen::<u64>() % modulus;
+        let clear_3 = rng.gen::<u64>() % modulus;
+
+        let ctxt_2 = cks.encrypt(clear_2);
+        let ctxt_3 = cks.encrypt(clear_3);
+
+        // Add to have non empty carries
+        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
+        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
+        assert!(!ctxt_0.block_carries_are_empty());
+        assert!(!ctxt_1.block_carries_are_empty());
+        let clear_0 = (clear_0 + clear_2) % modulus;
+        let clear_1 = (clear_1 + clear_3) % modulus;
+
+        let (a, b) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert!(a.block_carries_are_empty());
+        assert!(b.block_carries_are_empty());
+
+        let dec_a: u64 = cks.decrypt(&a);
+        let dec_b: u64 = cks.decrypt(&b);
+        let expected = clear_flip(clear_condition, clear_0, clear_1);
+        assert_eq!(
+            (dec_a, dec_b),
+            expected,
+            "Invalid result for flip({clear_condition}, {clear_0}, {clear_1})\n\
+             Expected {expected:?} got ({dec_a}, {dec_b})",
+        );
+    }
+}
+
+pub(crate) fn default_left_scalar_flip_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a BooleanBlock, u64, &'a RadixCiphertext),
+        (RadixCiphertext, RadixCiphertext),
+    >,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    executor.setup(&cks, sks);
+
+    fn clear_flip(clear_condition: bool, clear_0: u64, clear_1: u64) -> (u64, u64) {
+        if clear_condition {
+            (clear_1, clear_0)
+        } else {
+            (clear_0, clear_1)
+        }
+    }
+
+    for _ in 0..nb_tests {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_bool(0.5);
+
+        let ctxt_condition = cks.encrypt_bool(clear_condition);
+        let ctxt_rhs = cks.encrypt(clear_1);
+
+        let (a, b) = executor.execute((&ctxt_condition, clear_0, &ctxt_rhs));
+        assert_eq!(a.blocks.len(), NB_CTXT);
+        assert_eq!(b.blocks.len(), NB_CTXT);
+        assert!(a.block_carries_are_empty());
+        assert!(b.block_carries_are_empty());
+        assert!(a
+            .blocks
+            .iter()
+            .all(|b| b.noise_level() == NoiseLevel::NOMINAL));
+        assert!(b
+            .blocks
+            .iter()
+            .all(|b| b.noise_level() == NoiseLevel::NOMINAL));
+
+        let dec_a: u64 = cks.decrypt(&a);
+        let dec_b: u64 = cks.decrypt(&b);
+        let expected = clear_flip(clear_condition, clear_0, clear_1);
+        assert_eq!(
+            (dec_a, dec_b),
+            expected,
+            "Invalid result for flip({clear_condition}, {clear_0}, {clear_1})\n\
+             Expected {expected:?} got ({dec_a}, {dec_b})",
+        );
+
+        let (a2, b2) = executor.execute((&ctxt_condition, clear_0, &ctxt_rhs));
+        assert_eq!(a, a2, "Operation is not deterministic");
+        assert_eq!(b, b2, "Operation is not deterministic");
     }
 }
