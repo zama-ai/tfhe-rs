@@ -18,10 +18,16 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-
 permissions: { }
 
 jobs:
+  verify-actor:
+    name: benchmark_perf_regression/verify-actor
+    uses: ./.github/workflows/verify_commit_actor.yml
+    secrets:
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
   prepare-benchmarks:
     name: benchmark_perf_regression/prepare-benchmarks
     runs-on: ubuntu-latest
@@ -122,7 +128,7 @@ jobs:
       matrix:
         # explicit include-based build matrix, of known valid options
         include:
-          - cuda: "12.2"
+          - cuda: "12.8"
             gcc: 11
     steps:
       - name: Checkout tfhe-rs repo
@@ -144,7 +150,7 @@ jobs:
     # When benchmarks are launched on AWS, `install-cuda-dependencies` job would be skipped.
     # The benchmarks still need to be run hence the following condition.
     if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack' || 
-      (needs.prepare-benchmarks.outputs.slab-backend == 'aws' && needs.install-cuda-dependencies.result == 'skipped')
+      (needs.prepare-benchmarks.outputs.slab-backend == 'aws' && !cancelled() && needs.install-cuda-dependencies.result == 'skipped')
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -194,7 +200,7 @@ jobs:
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
           echo "CUDA_MODULE_LOADER=EAGER" >> "${GITHUB_ENV}"
         env:
-          CUDA_PATH: /usr/local/cuda-12.2
+          CUDA_PATH: /usr/local/cuda-12.8
 
       - name: Export gcc and g++ variables
         if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
@@ -259,30 +265,18 @@ jobs:
           JOB_SECRET: ${{ secrets.JOB_SECRET }}
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
-      - name: Slack Notification
-        if: ${{ needs.prepare-benchmarks.outputs.slab-backend != 'hyperstack' && 
-          (failure() || (cancelled() && github.event_name != 'pull_request')) }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-
   slack-notify-hyperstack:
     name: benchmark_perf_regression/slack-notify-hyperstack
     needs: [ prepare-benchmarks, setup-instance, regression-benchmarks ]
     runs-on: ubuntu-latest
-    if: ${{ always() && 
-      needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack' && 
-      needs.regression-benchmarks.result != 'skipped' && 
-      failure() }}
+    if: ${{ failure() }}
     continue-on-error: true
     steps:
       - name: Send message
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ needs.regression-benchmarks.result }}
-          SLACK_MESSAGE: "Cuda performance regression benchmarks finished with status: ${{ needs.regression-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ needs.regression-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
 
   # TODO Add job for regression calculation
 
