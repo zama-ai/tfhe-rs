@@ -1,4 +1,4 @@
-name: AWS Tests on CPU
+name: aws_tfhe_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,6 +32,7 @@ permissions:
 
 jobs:
   should-run:
+    name: aws_tfhe_tests/should-run
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -141,7 +142,7 @@ jobs:
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
   setup-instance:
-    name: Setup instance (cpu-tests)
+    name: aws_tfhe_tests/setup-instance
     if: github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
     needs: should-run
@@ -169,7 +170,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cpu-tests:
-    name: CPU tests
+    name: aws_tfhe_tests/cpu-tests
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     needs: [ should-run, setup-instance ]
@@ -268,7 +269,7 @@ jobs:
           SLACK_MESSAGE: "CPU tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cpu-tests)
+    name: aws_tfhe_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cpu-tests ]
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-name: Publish tfhe-versionable release
+name: make_release_tfhe_versionable
 
 on:
   workflow_dispatch:
@@ -13,14 +13,15 @@ env:
 permissions: {}
 
 jobs:
-  verify_tag:
+  verify-tag:
+    name: make_release_tfhe_versionable/verify-tag
     uses: ./.github/workflows/verify_tagged_commit.yml
     secrets:
       RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package-derive:
-    name: Package tfhe-versionable-derive Release
+    name: make_release_tfhe_versionable/package-derive
     runs-on: ubuntu-latest
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
@@ -43,6 +44,7 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance-derive:
+    name: make_release_tfhe_versionable/provenance-derive
     needs: [package-derive]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
@@ -57,8 +59,8 @@ jobs:
       base64-subjects: ${{ needs.package-derive.outputs.hash }}
 
   publish_release-derive:
-    name: Publish tfhe-versionable-derive Release
-    needs: [ verify_tag, package-derive ] # for comparing hashes
+    name: make_release_tfhe_versionable/publish_release_derive
+    needs: [ verify-tag, package-derive ] # for comparing hashes
     runs-on: ubuntu-latest
     permissions:
       # Needed for OIDC token exchange on crates.io
@@ -102,7 +104,7 @@ jobs:
           SLACK_MESSAGE: "tfhe-versionable-derive release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   package:
-    name: Package tfhe-versionable Release
+    name: make_release_tfhe_versionable/package
     needs: publish_release-derive
     runs-on: ubuntu-latest
     outputs:
@@ -126,6 +128,7 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance:
+    name: make_release_tfhe_versionable/provenance
     needs: package
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
@@ -140,7 +143,7 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish_release:
-    name: Publish tfhe-versionable Release
+    name: make_release_tfhe_versionable/publish-release
     needs: package # for comparing hashes
     runs-on: ubuntu-latest
     steps:

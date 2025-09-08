@@ -1,5 +1,5 @@
 # Run all integer benchmarks on a permanent HPU instance and return parsed results to Slab CI bot.
-name: Hpu Integer Benchmarks
+name: benchmark_hpu_integer
 
 on:
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   integer-benchmarks-hpu:
-    name: Execute integer & erc20 benchmarks for HPU backend
+    name: benchmark_hpu_integer/integer-benchmarks-hpu
     needs: prepare-matrix
     runs-on: v80-desktop
     concurrency:

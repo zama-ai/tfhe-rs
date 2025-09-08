@@ -1,5 +1,5 @@
 # Run all DEX benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: DEX benchmarks
+name: benchmark_dex
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (dex-benchmarks)
+    name: benchmark_dex/setup-instance
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -41,7 +41,7 @@ jobs:
           profile: bench
 
   dex-benchmarks:
-    name: Execute DEX benchmarks
+    name: benchmark_dex/dex-benchmarks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
@@ -146,7 +146,7 @@ jobs:
           SLACK_MESSAGE: "DEX benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (dex-benchmarks)
+    name: benchmark_dex/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, dex-benchmarks ]
     runs-on: ubuntu-latest

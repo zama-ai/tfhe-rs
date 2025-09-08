@@ -1,5 +1,5 @@
 # Run benchmarks on CUDA instance and return parsed results to Slab CI bot.
-name: Cuda benchmarks - common
+name: benchmark_gpu_common
 
 on:
   workflow_call:
@@ -63,7 +63,7 @@ permissions: {}
 
 jobs:
   prepare-matrix:
-    name: Prepare operations matrix
+    name: benchmark_gpu_common/prepare-matrix
     runs-on: ubuntu-latest
     outputs:
       command: ${{ steps.set_command.outputs.command }}
@@ -141,7 +141,7 @@ jobs:
           echo "params_type=${{ toJSON(env.PARAMS_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
-    name: Setup instance (cuda-${{ inputs.profile }}-benchmarks)
+    name: benchmark_gpu_common/setup-instance
     needs: prepare-matrix
     runs-on: ubuntu-latest
     outputs:
@@ -185,7 +185,7 @@ jobs:
 
   # Install dependencies only once since cuda-benchmarks uses a matrix strategy, thus running multiple times.
   install-dependencies:
-    name: Install dependencies
+    name: benchmark_gpu_common/install-dependencies
     needs: [ setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
@@ -210,7 +210,7 @@ jobs:
           gcc-version: ${{ matrix.gcc }}
 
   cuda-benchmarks:
-    name: Cuda benchmarks (${{ inputs.profile }})
+    name: benchmark_gpu_common/cuda-benchmarks
     needs: [ prepare-matrix, setup-instance, install-dependencies ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
@@ -329,7 +329,7 @@ jobs:
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
   slack-notify:
-    name: Slack Notification
+    name: benchmark_gpu_common/slack-notify
     needs: [ setup-instance, cuda-benchmarks ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-benchmarks.result != 'skipped' && failure() }}
@@ -342,7 +342,7 @@ jobs:
           SLACK_MESSAGE: "Cuda benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-${{ inputs.profile }}-benchmarks)
+    name: benchmark_gpu_common/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
     needs: [ setup-instance, cuda-benchmarks, slack-notify ]
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 # Check commit and PR compliance
-name: Check commit and PR compliance
+name: check_commit
 on:
   pull_request:
 
@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   check-commit-pr:
-    name: Check commit and PR
+    name: check_commit/check-commit-pr (bpr)
     runs-on: ubuntu-latest
     permissions:
       contents: read

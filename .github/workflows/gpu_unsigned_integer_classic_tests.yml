@@ -1,5 +1,5 @@
 # Test unsigned integers on an RTXA6000 VM on hyperstack with the classical PBS
-name: Cuda - Unsigned integer tests with classical PBS
+name: gpu_unsigned_integer_classic_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   should-run:
+    name: gpu_unsigned_integer_classic_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -66,7 +67,7 @@ jobs:
               - ci/slab.toml
 
   setup-instance:
-    name: Setup instance (cuda-unsigned-classic-tests)
+    name: gpu_unsigned_integer_classic_tests/setup-instance
     needs: should-run
     if: github.event_name == 'workflow_dispatch' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
@@ -95,7 +96,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: CUDA unsigned integer tests with classical PBS
+    name: gpu_unsigned_integer_classic_tests/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -137,7 +138,7 @@ jobs:
           BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci
 
   slack-notify:
-    name: Slack Notification
+    name: gpu_unsigned_integer_classic_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -159,7 +160,7 @@ jobs:
           SLACK_MESSAGE: "Unsigned integer GPU classic tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cuda-unsigned-classic-tests)
+    name: gpu_unsigned_integer_classic_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest

@@ -1,4 +1,5 @@
-name: 'Close unverified PRs'
+# Close unverified PRs'
+name: unverified_prs
 on:
   schedule:
     - cron: '30 1 * * *'
@@ -7,6 +8,7 @@ permissions: {}
 
 jobs:
   stale:
+    name: unverified_prs/stale
     runs-on: ubuntu-latest
     permissions:
       issues: read

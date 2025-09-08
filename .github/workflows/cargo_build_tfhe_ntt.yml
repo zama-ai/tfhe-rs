@@ -1,5 +1,5 @@
 # Build tfhe-ntt
-name: Cargo Build tfhe-ntt
+name: cargo_build_tfhe_ntt
 
 on:
   pull_request:
@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   cargo-builds-ntt:
+    name: cargo_build_tfhe_ntt/cargo-builds-ntt (bpr)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

@@ -1,5 +1,5 @@
 # Run FFT benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: FFT benchmarks
+name: benchmark_tfhe_fft
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,8 +27,8 @@ on:
 permissions: {}
 
 jobs:
-  setup-ec2:
-    name: Setup EC2 instance (fft-benchmarks)
+  setup-instance:
+    name: benchmark_tfhe_fft/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -45,12 +45,12 @@ jobs:
           profile: bench
 
   fft-benchmarks:
-    name: Execute FFT benchmarks in EC2
-    needs: setup-ec2
+    name: benchmark_tfhe_fft/fft-benchmarks
+    needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: true
-    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -124,10 +124,10 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-fft benchmarks failed. (${{ env.ACTION_RUN_URL }})"
 
-  teardown-ec2:
-    name: Teardown EC2 instance (fft-benchmarks)
-    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
-    needs: [ setup-ec2, fft-benchmarks ]
+  teardown-instance:
+    name: benchmark_tfhe_fft/teardown-instance
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, fft-benchmarks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -138,7 +138,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-ec2.outputs.runner-name }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
 
       - name: Slack Notification
         if: ${{ failure() }}
@@ -146,4 +146,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "EC2 teardown (fft-benchmarks) failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (fft-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

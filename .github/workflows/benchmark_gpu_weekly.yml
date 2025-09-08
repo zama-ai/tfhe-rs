@@ -1,5 +1,5 @@
 # Run CUDA benchmarks on multiple Hyperstack VMs and return parsed results to Slab CI bot.
-name: Cuda weekly benchmarks
+name: benchmark_gpu_weekly
 
 on:
   schedule:
@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   run-benchmarks-8-h100-sxm5-integer:
-    name: Run integer benchmarks (8xH100-SXM5)
+    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -32,7 +32,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-8-h100-sxm5-integer-compression:
-    name: Run integer compression benchmarks (8xH100-SXM5)
+    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-compression
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -53,7 +53,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-8-h100-sxm5-integer-zk:
-    name: Run integer zk benchmarks (8xH100-SXM5)
+    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-zk
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -74,7 +74,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-8-h100-sxm5-noise-squash:
-    name: Run integer zk benchmarks (8xH100-SXM5)
+    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-noise-squash
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -95,7 +95,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-1-h100-core-crypto:
-    name: Run core-crypto benchmarks (1xH100)
+    name: benchmark_gpu_weekly/run-benchmarks-1-h100-core-crypto (1xH100)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:

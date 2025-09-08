@@ -1,5 +1,5 @@
 # Build tfhe-fft
-name: Cargo Build tfhe-fft
+name: cargo_build_tfhe_fft
 
 on:
   pull_request:
@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   cargo-builds-fft:
+    name: cargo_build_tfhe_fft/cargo-builds-fft (bpr)
     runs-on: ${{ matrix.runner_type }}
 
     strategy:

@@ -1,4 +1,4 @@
-name: AWS Long Run Tests on CPU
+name: integer_long_run_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (cpu-tests)
+    name: integer_long_run_tests/setup-instance
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
           profile: cpu-big
 
   cpu-tests:
-    name: Long run CPU tests
+    name: integer_long_run_tests/cpu-tests
     needs: [ setup-instance ]
     concurrency:
       group: ${{ github.workflow_ref }}_${{github.event_name}}
@@ -74,7 +74,7 @@ jobs:
           SLACK_MESSAGE: "CPU long run tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cpu-tests)
+    name: integer_long_run_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cpu-tests ]
     runs-on: ubuntu-latest

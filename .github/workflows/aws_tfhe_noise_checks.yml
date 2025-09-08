@@ -1,4 +1,4 @@
-name: Run noise checks on CPU
+name: aws_tfhe_noise_checks
 
 env:
   CARGO_TERM_COLOR: always
@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (noise-checks)
+    name: aws_tfhe_noise_checks/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -52,7 +52,7 @@ jobs:
           exit 1
 
   noise-checks:
-    name: CPU noise checks
+    name: aws_tfhe_noise_checks/noise-checks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440
@@ -90,7 +90,7 @@ jobs:
           SLACK_MESSAGE: "Noise checks tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (noise-checks)
+    name: aws_tfhe_noise_checks/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, noise-checks ]
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 # Signed integer GPU tests on an H100 VM on hyperstack
-name: Cuda - Signed integer tests on H100
+name: gpu_signed_integer_h100_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   should-run:
+    name: gpu_signed_integer_h100_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -66,7 +67,7 @@ jobs:
               - ci/slab.toml
 
   setup-instance:
-    name: Setup instance (cuda-h100-tests)
+    name: gpu_signed_integer_h100_tests/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
@@ -108,7 +109,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: CUDA H100 signed integer tests
+    name: gpu_signed_integer_h100_tests/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -151,7 +152,7 @@ jobs:
           BIG_TESTS_INSTANCE=TRUE make test_signed_integer_multi_bit_gpu_ci
 
   slack-notify:
-    name: Slack Notification
+    name: gpu_signed_integer_h100_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -173,7 +174,7 @@ jobs:
           SLACK_MESSAGE: "Integer GPU H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (cuda-h100-tests)
+    name: gpu_signed_integer_h100_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest

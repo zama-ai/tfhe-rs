@@ -1,5 +1,5 @@
 # Lint and check CI
-name: CI Lint and Checks
+name: ci_lint
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   lint-check:
-    name: Lint and checks
+    name: ci_lint/lint-check (bpr)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs

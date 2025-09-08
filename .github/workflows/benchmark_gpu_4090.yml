@@ -1,5 +1,5 @@
 # Run benchmarks on an RTX 4090 machine and return parsed results to Slab CI bot.
-name: TFHE Cuda Backend - 4090 benchmarks
+name: benchmark_gpu_4090
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   cuda-integer-benchmarks:
-    name: Cuda integer benchmarks (RTX 4090)
+    name: benchmark_gpu_4090/cuda-integer-benchmarks
     if: ${{ github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs' ||
       contains(github.event.label.name, '4090_bench') }}
@@ -111,7 +111,7 @@ jobs:
           SLACK_MESSAGE: "Integer RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   cuda-core-crypto-benchmarks:
-    name: Cuda core crypto benchmarks  (RTX 4090)
+    name: benchmark_gpu_4090/cuda-core-crypto-benchmarks
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || contains(github.event.label.name, '4090_bench') }}
     needs: cuda-integer-benchmarks
     concurrency:
@@ -195,7 +195,7 @@ jobs:
           SLACK_MESSAGE: "Core crypto RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   remove_github_label:
-    name: Remove 4090 bench label
+    name: benchmark_gpu_4090/remove_github_label
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
     runs-on: ubuntu-latest

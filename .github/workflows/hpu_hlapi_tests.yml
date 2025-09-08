@@ -1,5 +1,5 @@
-# Test tfhe-fft
-name: Cargo Test HLAPI HPU
+# Test HPU backend HLAPI layer
+name: hpu_hlapi_tests
 
 on:
   pull_request:
@@ -21,6 +21,7 @@ permissions: { }
 
 jobs:
   should-run:
+    name: hpu_hlapi_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -46,6 +47,7 @@ jobs:
               - mockups/tfhe-hpu-mockup/**
 
   cargo-tests-hpu:
+    name: hpu_hlapi_tests/cargo-tests-hpu (bpr)
     needs: should-run
     if: needs.should-run.outputs.hpu_test == 'true'
     runs-on: large_ubuntu_16

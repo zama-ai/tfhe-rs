@@ -1,4 +1,4 @@
-name: Tests on M1 CPU
+name: m1_tests
 
 on:
   workflow_dispatch:
@@ -32,6 +32,7 @@ permissions:
 
 jobs:
   cargo-builds-m1:
+    name: m1_tests/cargo-builds-m1
     if: ${{ (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.label.name, 'm1_test') }}
@@ -178,7 +179,7 @@ jobs:
           make test_integer_multi_bit_ci
 
   remove_label:
-    name: Remove m1_test label
+    name: m1_tests/remove_label
     runs-on: ubuntu-latest
     needs:
       - cargo-builds-m1

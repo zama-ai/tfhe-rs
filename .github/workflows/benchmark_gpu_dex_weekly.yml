@@ -1,5 +1,5 @@
 # Run CUDA DEX benchmarks on multiple Hyperstack VMs and return parsed results to Slab CI bot.
-name: Cuda DEX weekly benchmarks
+name: benchmark_gpu_dex_weekly
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions: {}
 
 jobs:
   run-benchmarks-1-h100:
-    name: Run benchmarks (1xH100)
+    name: benchmark_gpu_dex_weekly/run-benchmarks-1-h100
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_dex_common.yml
     with:
@@ -27,7 +27,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-2-h100:
-    name: Run benchmarks (2xH100)
+    name: benchmark_gpu_dex_weekly/run-benchmarks-2-h100
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_dex_common.yml
     with:
@@ -44,7 +44,7 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-8-h100:
-    name: Run benchmarks (8xH100)
+    name: benchmark_gpu_dex_weekly/run-benchmarks-8-h100
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_dex_common.yml
     with:

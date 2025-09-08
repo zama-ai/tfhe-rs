@@ -1,4 +1,4 @@
-name: Cargo Build TFHE-rs
+name: cargo_build
 
 on:
   pull_request:
@@ -19,6 +19,7 @@ permissions:
 
 jobs:
   cargo-builds:
+    name: cargo_build/cargo-builds (bpr)
     runs-on: ${{ matrix.os }}
 
     strategy:

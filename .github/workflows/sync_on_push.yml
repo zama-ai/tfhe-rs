@@ -1,5 +1,5 @@
 # Sync repos
-name: Sync repos
+name: sync_on_push
 
 on:
   push:
@@ -11,6 +11,7 @@ permissions: {}
 
 jobs:
   sync-repo:
+    name: sync_on_push/sync-repo
     if: ${{ github.repository == 'zama-ai/tfhe-rs' }}
     runs-on: ubuntu-latest
     steps:

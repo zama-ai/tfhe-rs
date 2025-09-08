@@ -1,4 +1,4 @@
-name: Code Coverage
+name: code_coverage
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   setup-instance:
-    name: Setup instance (code-coverage)
+    name: code_coverage/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -38,8 +38,8 @@ jobs:
           backend: aws
           profile: cpu-small
 
-  code-coverage:
-    name: Code coverage tests
+  code-coverage-tests:
+    name: code_coverage/code-coverage-tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}_${{ github.event_name }}
@@ -121,9 +121,9 @@ jobs:
           SLACK_MESSAGE: "Code coverage finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (code-coverage)
+    name: code_coverage/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, code-coverage ]
+    needs: [ setup-instance, code-coverage-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -142,4 +142,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (code-coverage) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (code-coverage-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

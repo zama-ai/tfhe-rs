@@ -1,5 +1,5 @@
 # Run PKE Zero-Knowledge benchmarks on an instance and return parsed results to Slab CI bot.
-name: PKE ZK benchmarks
+name: benchmark_zk_pke
 
 on:
   workflow_dispatch:
@@ -36,6 +36,7 @@ permissions: {}
 
 jobs:
   should-run:
+    name: benchmark_zk_pke/should-run
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       ((github.event_name == 'push' || github.event_name == 'schedule') && github.repository == 'zama-ai/tfhe-rs')
@@ -67,7 +68,7 @@ jobs:
               - .github/workflows/zk_pke_benchmark.yml
 
   prepare-matrix:
-    name: Prepare operations matrix
+    name: benchmark_zk_pke/prepare-matrix
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -96,7 +97,7 @@ jobs:
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
-    name: Setup instance (pke-zk-benchmarks)
+    name: benchmark_zk_pke/setup-instance
     runs-on: ubuntu-latest
     needs: [ should-run, prepare-matrix ]
     if: github.event_name == 'workflow_dispatch' ||
@@ -119,7 +120,7 @@ jobs:
           profile: bench
 
   pke-zk-benchmarks:
-    name: Execute PKE ZK benchmarks
+    name: benchmark_zk_pke/pke-zk-benchmarks
     if: needs.setup-instance.result != 'skipped'
     needs: [ prepare-matrix, setup-instance ]
     concurrency:
@@ -223,7 +224,7 @@ jobs:
           SLACK_MESSAGE: "PKE ZK benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (pke-zk-benchmarks)
+    name: benchmark_zk_pke/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, pke-zk-benchmarks ]
     runs-on: ubuntu-latest

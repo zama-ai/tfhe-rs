@@ -1,5 +1,5 @@
 # Run benchmarks of the tfhe-zk-pok crate on an instance and return parsed results to Slab CI bot.
-name: tfhe-zk-pok benchmarks
+name: benchmark_tfhe_zk_pok
 
 on:
   workflow_dispatch:
@@ -35,6 +35,7 @@ permissions: {}
 
 jobs:
   should-run:
+    name: benchmark_tfhe_zk_pok/should-run
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       ((github.event_name == 'push' || github.event_name == 'schedule') && github.repository == 'zama-ai/tfhe-rs')
@@ -58,7 +59,7 @@ jobs:
               - .github/workflows/benchmark_tfhe_zk_pok.yml
 
   setup-instance:
-    name: Setup instance (tfhe-zk-pok-benchmarks)
+    name: benchmark_tfhe_zk_pok/setup-instance
     runs-on: ubuntu-latest
     needs: should-run
     if: github.event_name == 'workflow_dispatch' ||
@@ -81,7 +82,7 @@ jobs:
           profile: bench
 
   tfhe-zk-pok-benchmarks:
-    name: Execute tfhe-zk-pok benchmarks
+    name: benchmark_tfhe_zk_pok/tfhe-zk-pok-benchmarks
     if: needs.setup-instance.result != 'skipped'
     needs: setup-instance
     concurrency:
@@ -173,7 +174,7 @@ jobs:
           SLACK_MESSAGE: "tfhe-zk-pok benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (tfhe-zk-pok-benchmarks)
+    name: benchmark_tfhe_zk_pok/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, tfhe-zk-pok-benchmarks ]
     runs-on: ubuntu-latest

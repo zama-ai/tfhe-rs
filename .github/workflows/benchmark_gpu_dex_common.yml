@@ -1,5 +1,5 @@
 # Run DEX benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
-name: Cuda DEX benchmarks - common
+name: benchmark_gpu_dex_common
 
 on:
   workflow_call:
@@ -47,7 +47,7 @@ permissions: {}
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-dex-benchmarks)
+    name: benchmark_gpu_dex_common/setup-instance
     runs-on: ubuntu-latest
     if:  github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -91,7 +91,7 @@ jobs:
           echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
 
   cuda-dex-benchmarks:
-    name: Cuda DEX benchmarks (${{ inputs.profile }})
+    name: benchmark_gpu_dex_common/cuda-dex-benchmarks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
@@ -177,7 +177,7 @@ jobs:
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
   slack-notify:
-    name: Slack Notification
+    name: benchmark_gpu_dex_common/slack-notify
     needs: [ setup-instance, cuda-dex-benchmarks ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-dex-benchmarks.result != 'skipped' && failure() }}
@@ -190,7 +190,7 @@ jobs:
           SLACK_MESSAGE: "Cuda DEX benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-dex-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-dex-${{ inputs.profile }}-benchmarks)
+    name: benchmark_gpu_dex_common/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
     needs: [ setup-instance, cuda-dex-benchmarks, slack-notify ]
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 # Verify a tagged commit
-name: Verify tagged commit
+name: verify_tagged_commit
 
 on:
   workflow_call:
@@ -13,6 +13,7 @@ permissions: {}
 
 jobs:
   checks:
+    name: verify_tagged_commit/checks
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:

@@ -1,4 +1,4 @@
-name: AWS Unsigned Integer Tests on CPU
+name: aws_tfhe_integer_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -35,6 +35,7 @@ permissions:
 
 jobs:
   should-run:
+    name: aws_tfhe_integer_tests/should-run
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
@@ -69,7 +70,7 @@ jobs:
               - .github/workflows/aws_tfhe_integer_tests.yml
 
   setup-instance:
-    name: Setup instance (unsigned-integer-tests)
+    name: aws_tfhe_integer_tests/setup-instance
     needs: should-run
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.integer_test == 'true') ||
@@ -100,7 +101,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   unsigned-integer-tests:
-    name: Unsigned integer tests
+    name: aws_tfhe_integer_tests/unsigned-integer-tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
@@ -156,7 +157,7 @@ jobs:
           SLACK_MESSAGE: "Unsigned Integer tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: Teardown instance (unsigned-integer-tests)
+    name: aws_tfhe_integer_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [setup-instance, unsigned-integer-tests]
     runs-on: ubuntu-latest
