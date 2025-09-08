@@ -1,3 +1,5 @@
+#![cfg(feature = "shortint")]
+
 //! Tests breaking change in serialized data by trying to load historical data stored with git LFS
 //! inside `utils/tfhe-backward-compat-data`. For each tfhe-rs module, there is a folder with some serialized messages and a [ron](https://github.com/ron-rs/ron)
 //! file. The ron file stores some metadata that are parsed in this test. These metadata tell us
