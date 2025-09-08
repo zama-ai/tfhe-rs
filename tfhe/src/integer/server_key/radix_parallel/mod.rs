@@ -38,6 +38,8 @@ pub(crate) mod tests_unsigned;
 mod vector_comparisons;
 mod vector_find;
 
+use std::borrow::Cow;
+
 use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
@@ -297,5 +299,26 @@ impl ServerKey {
                 });
             }
         })
+    }
+
+    /// Cleans the input ct so that it is ready to be used in a default ops
+    ///
+    /// Returns a Cow::Owned if a clone was necessary for the cleaning,
+    /// Cow::Borrowed otherwise
+    pub(crate) fn clean_for_default_op<'a, T>(&self, ct: &'a T) -> Cow<'a, T>
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if ct
+            .blocks()
+            .iter()
+            .any(|block| !block.carry_is_empty() || block.noise_level() != NoiseLevel::NOMINAL)
+        {
+            let mut cloned = ct.clone();
+            self.full_propagate_parallelized(&mut cloned);
+            Cow::Owned(cloned)
+        } else {
+            Cow::Borrowed(ct)
+        }
     }
 }
