@@ -51,8 +51,8 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t requested_flag, uint32_t uses_carry,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -60,7 +60,7 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
 
   return scratch_cuda_propagate_single_carry_kb_inplace<uint64_t>(
       CudaStreams(streams), (int_sc_prop_memory<uint64_t> **)mem_ptr,
-      num_blocks, params, requested_flag, uses_carry, allocate_gpu_memory);
+      num_blocks, params, requested_flag, allocate_gpu_memory);
 }
 
 uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
@@ -69,8 +69,8 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t requested_flag, uint32_t uses_carry,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -78,7 +78,7 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
 
   return scratch_cuda_propagate_single_carry_kb_inplace<uint64_t>(
       CudaStreams(streams), (int_sc_prop_memory<uint64_t> **)mem_ptr,
-      num_blocks, params, requested_flag, uses_carry, allocate_gpu_memory);
+      num_blocks, params, requested_flag, allocate_gpu_memory);
 }
 
 uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(

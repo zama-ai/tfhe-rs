@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
+use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
@@ -160,7 +160,7 @@ impl CudaServerKey {
         let block = CudaLweCiphertextList::new(
             ct.as_ref().d_blocks.lwe_dimension(),
             LweCiphertextCount(1),
-            CiphertextModulus::new_native(),
+            self.ciphertext_modulus,
             streams,
         );
         let mut block_info = ct.as_ref().info.blocks[0];

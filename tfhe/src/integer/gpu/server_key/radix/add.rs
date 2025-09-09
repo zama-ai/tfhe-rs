@@ -214,7 +214,6 @@ impl CudaServerKey {
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
                     OutputFlag::None,
-                    0u32,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
             }
@@ -234,7 +233,6 @@ impl CudaServerKey {
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
                     OutputFlag::None,
-                    0u32,
                     None,
                 )
             }

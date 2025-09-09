@@ -430,7 +430,6 @@ __host__ void tree_sign_reduction(
           "than the number of blocks to operate on")
 
   auto params = tree_buffer->params;
-  auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto message_modulus = params.message_modulus;
