@@ -607,7 +607,7 @@ fn prove_impl<G: Curve>(
         + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
 
     if sanity_check_mode == ProofSanityCheckMode::Panic {
-        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, big_d, big_d_max);
+        assert_pke_proof_preconditions(a, b, c1, e1, c2, e2, d, k_max, big_d, big_d_max);
     }
 
     // FIXME: div_round
@@ -1092,6 +1092,10 @@ pub fn verify<G: Curve>(
     let PublicCommit { a, b, c1, c2, .. } = public.1;
     let k = c2.len();
     if k > k_max {
+        return Err(());
+    }
+
+    if a.len() != d || b.len() != d {
         return Err(());
     }
 

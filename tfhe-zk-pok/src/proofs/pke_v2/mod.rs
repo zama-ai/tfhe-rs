@@ -893,7 +893,7 @@ fn prove_impl<G: Curve>(
         .sum::<u128>();
 
     if sanity_check_mode == ProofSanityCheckMode::Panic {
-        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, D, D_max);
+        assert_pke_proof_preconditions(a, b, c1, e1, c2, e2, d, k_max, D, D_max);
         assert!(
             B_squared >= e_sqr_norm,
             "squared norm of error ({e_sqr_norm}) exceeds threshold ({B_squared})",
@@ -1076,7 +1076,16 @@ fn prove_impl<G: Curve>(
     let (theta, theta_hash) = t_hash.gen_theta();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
+    compute_a_theta::<G>(
+        &mut a_theta,
+        &theta,
+        a,
+        d,
+        k,
+        b,
+        effective_cleartext_t,
+        delta,
+    );
 
     let t_theta = theta
         .iter()
@@ -1606,6 +1615,7 @@ fn compute_a_theta<G: Curve>(
     a_theta: &mut [G::Zp],
     theta: &[G::Zp],
     a: &[i64],
+    d: usize,
     k: usize,
     b: &[i64],
     t: u64,
@@ -1620,8 +1630,8 @@ fn compute_a_theta<G: Curve>(
     //    ...
     //    delta g[log t].T theta2_k
     //    ]
-
-    let d = a.len();
+    assert_eq!(a.len(), d);
+    assert!(theta.len() >= d);
 
     let theta1 = &theta[..d];
     let theta2 = &theta[d..];
@@ -1770,6 +1780,10 @@ pub fn verify_impl<G: Curve>(
         return Err(());
     }
 
+    if a.len() != d || b.len() != d {
+        return Err(());
+    }
+
     let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
     let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
     let (_, D, _, m_bound) = compute_crs_params(
@@ -1815,7 +1829,16 @@ pub fn verify_impl<G: Curve>(
     let (theta, theta_hash) = t_hash.gen_theta();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
+    compute_a_theta::<G>(
+        &mut a_theta,
+        &theta,
+        a,
+        d,
+        k,
+        b,
+        effective_cleartext_t,
+        delta,
+    );
 
     let t_theta = theta
         .iter()
