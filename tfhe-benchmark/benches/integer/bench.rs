@@ -3164,14 +3164,19 @@ mod hpu {
     );
     define_hpu_bench_default_fn!(
         iop_name: div,
-        display_name: div
+        display_name: div_mod
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: mod,
+        display_name: modulo
     );
     criterion_group!(
         default_hpu_ops,
         default_hpu_add,
         default_hpu_sub,
         default_hpu_mul,
-        default_hpu_div
+        default_hpu_div,
+        default_hpu_mod
     );
 
     // Alu Scalar -----------------------------------------------------------------

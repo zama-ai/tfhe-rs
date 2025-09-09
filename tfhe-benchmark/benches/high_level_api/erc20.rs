@@ -18,8 +18,6 @@ use tfhe::prelude::*;
 use tfhe::GpuIndex;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, FheBool, FheUint64};
 
-pub const HPU_SIMD_N: usize = 9;
-
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
 /// and cmuxes based on the comparison result
@@ -393,9 +391,8 @@ fn bench_transfer_latency_simd<FheType, F>(
     FheType: FheWait,
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
-    #[cfg(feature = "gpu")]
-    configure_gpu(client_key);
-
+    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD.format().unwrap().proto.src.len()/3;
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
@@ -403,7 +400,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         let mut from_amounts: Vec<FheType> = vec![];
         let mut to_amounts: Vec<FheType> = vec![];
         let mut amounts: Vec<FheType> = vec![];
-        for _i in 0..HPU_SIMD_N-1 {
+        for _i in 0..hpu_simd_n {
             let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
             let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
             let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
@@ -648,30 +645,32 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     FheType: FheWait,
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
+    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD.format().unwrap().proto.src.len()/3;
     let mut rng = thread_rng();
-
     for num_elems in [2, 10] {
-        group.throughput(Throughput::Elements(num_elems*(HPU_SIMD_N as u64)));
+        let real_num_elems = num_elems*(hpu_simd_n as u64);
+        group.throughput(Throughput::Elements(real_num_elems));
         let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{real_num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| {
-                    (0..HPU_SIMD_N-1)
+                    (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
             let to_amounts = (0..num_elems)
                 .map(|_| {
-                    (0..HPU_SIMD_N-1)
+                    (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
             let amounts = (0..num_elems)
                 .map(|_| {
-                    (0..HPU_SIMD_N-1)
+                    (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                         .collect()
                 })
