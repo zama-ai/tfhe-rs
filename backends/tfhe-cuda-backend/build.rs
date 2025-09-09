@@ -81,6 +81,7 @@ fn main() {
             "cuda/include/ciphertext.h",
             "cuda/include/integer/compression/compression.h",
             "cuda/include/integer/integer.h",
+            "cuda/include/integer/radix_ciphertext.h",
             "cuda/include/zk/zk.h",
             "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
@@ -104,7 +105,6 @@ fn main() {
                 headers_modified = header_modified;
             }
         }
-
         // Regenerate bindings only if header has been modified
         if headers_modified > bindings_modified {
             let bindings = bindgen::Builder::default()
