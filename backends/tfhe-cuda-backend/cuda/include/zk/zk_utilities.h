@@ -5,6 +5,99 @@
 #include "integer/integer.cuh"
 #include <cstdint>
 
+////////////////////////////////////
+// Helper structures used in expand
+template <typename Torus> struct lwe_mask {
+  Torus *mask;
+
+  lwe_mask(Torus *mask, uint32_t lwe_dimension)
+      : mask{mask} {}
+};
+
+template <typename Torus> struct compact_lwe_body {
+  Torus *body;
+  uint64_t monomial_degree;
+
+  /* Body id is the index of the body in the compact ciphertext list.
+   *  It's used to compute the rotation.
+   */
+  compact_lwe_body(Torus *body, const uint64_t body_id)
+      : body{body}, monomial_degree{body_id} {}
+};
+
+template <typename Torus> struct compact_lwe_list {
+  Torus *ptr;
+  uint32_t lwe_dimension;
+  uint32_t total_num_lwes;
+
+  compact_lwe_list(Torus *ptr, uint32_t lwe_dimension, uint32_t total_num_lwes)
+      : ptr{ptr}, lwe_dimension{lwe_dimension}, total_num_lwes{total_num_lwes} {
+  }
+
+  lwe_mask<Torus> get_mask() { return lwe_mask(ptr, lwe_dimension); }
+
+  // Returns the index-th body
+  compact_lwe_body<Torus> get_body(uint32_t index) {
+    if (index >= total_num_lwes) {
+      PANIC("index out of range in compact_lwe_list::get_body");
+    }
+
+    return compact_lwe_body(&ptr[lwe_dimension + index], uint64_t(index));
+  }
+};
+
+template <typename Torus> struct flattened_compact_lwe_lists {
+  Torus *d_ptr;
+  Torus **d_ptr_to_compact_list;
+  const uint32_t *h_num_lwes_per_compact_list;
+  uint32_t num_compact_lists;
+  uint32_t lwe_dimension;
+  uint32_t total_num_lwes;
+
+  flattened_compact_lwe_lists(Torus *d_ptr,
+                              const uint32_t *h_num_lwes_per_compact_list,
+                              uint32_t num_compact_lists,
+                              uint32_t lwe_dimension)
+      : d_ptr(d_ptr), h_num_lwes_per_compact_list(h_num_lwes_per_compact_list),
+        num_compact_lists(num_compact_lists), lwe_dimension(lwe_dimension) {
+    d_ptr_to_compact_list =
+        static_cast<Torus **>(malloc(num_compact_lists * sizeof(Torus **)));
+    total_num_lwes = 0;
+    d_ptr_to_compact_list[0] = d_ptr;
+    for (auto i = 0; i < num_compact_lists; ++i) {
+      total_num_lwes += h_num_lwes_per_compact_list[i];
+      if (i + 1 < num_compact_lists)
+        d_ptr_to_compact_list[i + 1] = d_ptr_to_compact_list[i] +
+                                       lwe_dimension +
+                                       h_num_lwes_per_compact_list[i];
+    }
+  }
+
+  compact_lwe_list<Torus> get_device_compact_list(uint32_t compact_list_index) {
+    if (compact_list_index >= num_compact_lists) {
+      PANIC("index out of range in flattened_compact_lwe_lists::get");
+    }
+
+    return compact_lwe_list(d_ptr_to_compact_list[compact_list_index],
+                            lwe_dimension,
+                            h_num_lwes_per_compact_list[compact_list_index]);
+  }
+};
+
+/*
+ * A expand_job tells the expand kernel exactly which input mask and body to use
+ * and what rotation to apply
+ */
+template <typename Torus> struct expand_job {
+  lwe_mask<Torus> mask_to_use;
+  compact_lwe_body<Torus> body_to_use;
+
+  expand_job(lwe_mask<Torus> mask_to_use, compact_lwe_body<Torus> body_to_use)
+      : mask_to_use{mask_to_use}, body_to_use{body_to_use} {}
+};
+
+////////////////////////////////////
+
 template <typename Torus> struct zk_expand_mem {
   int_radix_params computing_params;
   int_radix_params casting_params;
@@ -22,6 +115,10 @@ template <typename Torus> struct zk_expand_mem {
   uint32_t *d_body_id_per_compact_list;
   bool gpu_memory_allocated;
 
+  uint32_t *num_lwes_per_compact_list;
+  expand_job<Torus> *d_expand_jobs;
+  std::vector<expand_job<Torus>> h_expand_jobs;
+
   zk_expand_mem(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                 uint32_t gpu_count, int_radix_params computing_params,
                 int_radix_params casting_params, KS_TYPE casting_key_type,
@@ -33,9 +130,17 @@ template <typename Torus> struct zk_expand_mem {
         casting_key_type(casting_key_type) {
 
     gpu_memory_allocated = allocate_gpu_memory;
+
+    // We copy num_lwes_per_compact_list so we get protection against
+    // num_lwes_per_compact_list being freed while this buffer is still in use
+    this->num_lwes_per_compact_list =
+        (uint32_t *)malloc(num_compact_lists * sizeof(uint32_t));
+    memcpy(this->num_lwes_per_compact_list, num_lwes_per_compact_list,
+           num_compact_lists * sizeof(uint32_t));
+
     num_lwes = 0;
     for (int i = 0; i < num_compact_lists; i++) {
-      num_lwes += num_lwes_per_compact_list[i];
+      num_lwes += this->num_lwes_per_compact_list[i];
     }
 
     if (computing_params.carry_modulus != computing_params.message_modulus) {
@@ -145,7 +250,7 @@ template <typename Torus> struct zk_expand_mem {
     for (int i = 0; i < num_lwes; i++) {
       h_lwe_compact_input_indexes[i] = idx;
       count++;
-      if (count == num_lwes_per_compact_list[compact_list_id]) {
+      if (count == this->num_lwes_per_compact_list[compact_list_id]) {
         compact_list_id++;
         idx += casting_params.big_lwe_dimension + count;
         count = 0;
@@ -156,7 +261,7 @@ template <typename Torus> struct zk_expand_mem {
     // the k-th compact list.
     auto offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
-      auto num_lwes_in_kth_compact_list = num_lwes_per_compact_list[k];
+      auto num_lwes_in_kth_compact_list = this->num_lwes_per_compact_list[k];
       uint32_t body_count = 0;
       for (int i = 0; i < num_lwes_in_kth_compact_list; i++) {
         h_body_id_per_compact_list[i + offset] = body_count;
@@ -164,6 +269,13 @@ template <typename Torus> struct zk_expand_mem {
       }
       offset += num_lwes_in_kth_compact_list;
     }
+
+    d_expand_jobs =
+        static_cast<expand_job<Torus> *>(cuda_malloc_with_size_tracking_async(
+            num_lwes * sizeof(expand_job<Torus>), streams[0], gpu_indexes[0],
+            size_tracker, allocate_gpu_memory));
+
+    h_expand_jobs.reserve(num_lwes);
 
     /*
      * Each LWE contains encrypted data in both carry and message spaces
@@ -200,7 +312,7 @@ template <typename Torus> struct zk_expand_mem {
      */
     offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
-      auto num_lwes_in_kth = num_lwes_per_compact_list[k];
+      auto num_lwes_in_kth = this->num_lwes_per_compact_list[k];
       for (int i = 0; i < num_packed_msgs * num_lwes_in_kth; i++) {
         auto lwe_index = i + num_packed_msgs * offset;
         auto lwe_index_in_list = i % num_lwes_in_kth;
@@ -272,6 +384,9 @@ template <typename Torus> struct zk_expand_mem {
     cuda_drop_with_size_tracking_async(tmp_ksed_small_to_big_expanded_lwes,
                                        streams[0], gpu_indexes[0],
                                        gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_expand_jobs, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    free(num_lwes_per_compact_list);
   }
 };
 

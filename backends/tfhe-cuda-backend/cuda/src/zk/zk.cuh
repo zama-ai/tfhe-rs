@@ -35,9 +35,33 @@ __host__ void host_expand_without_verification(
   GPU_ASSERT(sizeof(Torus) == 8,
              "Cuda error: expand is only supported on 64 bits");
 
-  cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
-                     lwe_flattened_compact_array_in, lwe_dimension, num_lwes,
-                     d_lwe_compact_input_indexes, d_body_id_per_compact_list);
+  // Wraps the input into a flattened_compact_lwe_lists type
+  auto compact_lwe_lists = flattened_compact_lwe_lists(
+      const_cast<Torus *>(lwe_flattened_compact_array_in),
+      mem_ptr->num_lwes_per_compact_list, mem_ptr->num_compact_lists,
+      lwe_dimension);
+  auto h_expand_jobs = mem_ptr->h_expand_jobs;
+  auto d_expand_jobs = mem_ptr->d_expand_jobs;
+
+  // Clear destroys the content but doesn't affect allocated memory
+  h_expand_jobs.clear();
+
+  for (auto list_index = 0; list_index < compact_lwe_lists.num_compact_lists;
+       ++list_index) {
+    auto list = compact_lwe_lists.get_device_compact_list(list_index);
+    for (auto lwe_index = 0; lwe_index < list.total_num_lwes; ++lwe_index) {
+      auto job = expand_job(list.get_mask(), list.get_body(lwe_index));
+      h_expand_jobs.push_back(job);
+    }
+  }
+
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_expand_jobs, h_expand_jobs.data(),
+      h_expand_jobs.size() * sizeof(expand_job<Torus>), streams[0],
+      gpu_indexes[0], true);
+
+  cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes, d_expand_jobs,
+                     num_lwes, lwe_dimension);
 
   auto ksks = casting_keys;
   auto lwe_array_input = expanded_lwes;
