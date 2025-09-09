@@ -2034,18 +2034,6 @@ pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
 pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
 pub type KS_TYPE = ffi::c_uint;
 unsafe extern "C" {
-    pub fn cuda_lwe_expand_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_compact_array_in: *const ffi::c_void,
-        lwe_dimension: u32,
-        num_lwe: u32,
-        lwe_compact_input_indexes: *const u32,
-        output_body_id_per_compact_list: *const u32,
-    );
-}
-unsafe extern "C" {
     pub fn scratch_cuda_expand_without_verification_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
