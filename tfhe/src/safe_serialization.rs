@@ -479,28 +479,42 @@ pub fn safe_serialized_size<T: Serialize + Versionize + Named>(object: &T) -> bi
 }
 
 /// Serialize an object with the default configuration (with size limit, header check and
-/// versioning). This is an alias for
+/// versioning).
+///
+/// This is an alias for
 /// `DeserializationConfig::new(serialized_size_limit).disable_conformance().deserialize_from`
+///
+/// # Panics
+/// This function may panic if `serialized_size_limit` is larger than what can be allocated by the
+/// system. This may happen even if the size of the serialized data is short. An attacker could
+/// manipulate the data to create a short serialized message with a huge deserialized size.
 pub fn safe_deserialize<T: DeserializeOwned + Unversionize + Named>(
     reader: impl std::io::Read,
-    serialized_size_limit: u64,
+    deserialized_size_limit: u64,
 ) -> Result<T, String> {
-    DeserializationConfig::new(serialized_size_limit)
+    DeserializationConfig::new(deserialized_size_limit)
         .disable_conformance()
         .deserialize_from(reader)
 }
 
 /// Serialize an object with the default configuration and conformance checks (with size limit,
-/// header check and versioning). This is an alias for
+/// header check and versioning).
+///
+/// This is an alias for
 /// `DeserializationConfig::new(serialized_size_limit).deserialize_from`
+///
+/// # Panics
+/// This function may panic if `serialized_size_limit` is larger than what can be allocated by the
+/// system. This may happen even if the size of the serialized data is short. An attacker could
+/// manipulate the data to create a short serialized message with a huge deserialized size.
 pub fn safe_deserialize_conformant<
     T: DeserializeOwned + Unversionize + Named + ParameterSetConformant,
 >(
     reader: impl std::io::Read,
-    serialized_size_limit: u64,
+    deserialized_size_limit: u64,
     parameter_set: &T::ParameterSet,
 ) -> Result<T, String> {
-    DeserializationConfig::new(serialized_size_limit).deserialize_from(reader, parameter_set)
+    DeserializationConfig::new(deserialized_size_limit).deserialize_from(reader, parameter_set)
 }
 
 #[cfg(all(test, feature = "shortint"))]
