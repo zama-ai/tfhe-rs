@@ -45,6 +45,7 @@ impl_safe_deserialize_on_type!(ClientKey);
 impl_safe_deserialize_on_type!(PublicKey);
 impl_safe_deserialize_on_type!(CompactPublicKey);
 impl_safe_deserialize_on_type!(CompressedCompactPublicKey);
+impl_safe_deserialize_on_type!(ServerKey);
 impl_safe_deserialize_on_type!(CompressedServerKey);
 
 #[no_mangle]
