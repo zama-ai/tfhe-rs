@@ -4,8 +4,9 @@ use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::{
-    unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async,
-    unchecked_aes_sbox_byte_integer_radix_kb_assign_async, PBSType,
+    unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async, unchecked_test_full_adder_async,
+    unchecked_test_mix_columns_async, unchecked_test_mul_by_2_async, unchecked_test_sbox_async,
+    unchecked_test_shift_rows_async, unchecked_test_transpose_async, PBSType,
 };
 
 impl CudaServerKey {
@@ -44,23 +45,20 @@ impl CudaServerKey {
         assert_eq!(
             iv.as_ref().d_blocks.lwe_ciphertext_count().0,
             num_iv_blocks,
-            "AES IV must contain {} encrypted bits, but contains {}",
-            num_iv_blocks,
+            "AES IV must contain {num_iv_blocks} encrypted bits, but contains {}",
             iv.as_ref().d_blocks.lwe_ciphertext_count().0
         );
         assert_eq!(
             round_keys.as_ref().d_blocks.lwe_ciphertext_count().0,
             num_round_key_blocks,
-            "AES round_keys must contain {} encrypted bits, but contains {}",
-            num_round_key_blocks,
+            "AES round_keys must contain {num_round_key_blocks} encrypted bits, but contains {}",
             round_keys.as_ref().d_blocks.lwe_ciphertext_count().0
         );
         assert_eq!(
             result.as_ref().d_blocks.lwe_ciphertext_count().0,
             num_blocks * 128,
-            "AES result must contain {} encrypted bits for {} blocks, but contains {}",
+            "AES result must contain {} encrypted bits for {num_blocks} blocks, but contains {}",
             num_blocks * 128,
-            num_blocks,
             result.as_ref().d_blocks.lwe_ciphertext_count().0
         );
 
@@ -117,31 +115,36 @@ impl CudaServerKey {
         result
     }
 
-    pub fn aes_sbox_byte(&self, byte: &mut CudaUnsignedRadixCiphertext, streams: &CudaStreams) {
-        unsafe { self.aes_sbox_byte_async(byte, streams) }
+    pub fn test_sbox(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_sbox_async(ct, num_blocks, streams) };
         streams.synchronize();
+        result
     }
 
     /// # Safety
     ///
     /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
     ///   synchronization is required
-    pub unsafe fn aes_sbox_byte_async(
+    pub unsafe fn test_sbox_async(
         &self,
-        byte: &mut CudaUnsignedRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
         streams: &CudaStreams,
-    ) {
-        assert_eq!(
-            byte.as_ref().d_blocks.lwe_ciphertext_count().0,
-            8,
-            "S-box attend exactement 8 bits chiffrés (un octet)"
-        );
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_aes_sbox_byte_integer_radix_kb_assign_async(
+                unchecked_test_sbox_async(
                     streams,
-                    byte.as_mut(),
+                    result.as_mut(),
+                    ct.as_ref(),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -155,41 +158,394 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    num_blocks,
                 );
             }
-            CudaBootstrappingKey::MultiBit(d_mb) => {
-                unchecked_aes_sbox_byte_integer_radix_kb_assign_async(
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_sbox_async(
                     streams,
-                    byte.as_mut(),
-                    &d_mb.d_vec,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
                     self.carry_modulus,
-                    d_mb.glwe_dimension,
-                    d_mb.polynomial_size,
-                    d_mb.input_lwe_dimension,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
                     self.key_switching_key.decomposition_level_count(),
                     self.key_switching_key.decomposition_base_log(),
-                    d_mb.decomp_level_count,
-                    d_mb.decomp_base_log,
-                    d_mb.grouping_factor,
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
                     PBSType::MultiBit,
-                    None,
+                    num_blocks,
                 );
             }
         }
+        result
+    }
+
+    pub fn test_shift_rows(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_shift_rows_async(ct, num_blocks, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn test_shift_rows_async(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_test_shift_rows_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
+                    num_blocks,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_shift_rows_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    num_blocks,
+                );
+            }
+        }
+        result
+    }
+
+    pub fn test_mul_by_2(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_mul_by_2_async(ct, num_blocks, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn test_mul_by_2_async(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_test_mul_by_2_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
+                    num_blocks,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_mul_by_2_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    num_blocks,
+                );
+            }
+        }
+        result
+    }
+
+    pub fn test_mix_columns(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_mix_columns_async(ct, num_blocks, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn test_mix_columns_async(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_test_mix_columns_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
+                    num_blocks,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_mix_columns_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    num_blocks,
+                );
+            }
+        }
+        result
+    }
+
+    pub fn test_full_adder(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        start_counter: u128,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_full_adder_async(ct, start_counter, num_blocks, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn test_full_adder_async(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        start_counter: u128,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_test_full_adder_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    start_counter,
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
+                    num_blocks,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_full_adder_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    start_counter,
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    num_blocks,
+                );
+            }
+        }
+        result
+    }
+
+    pub fn test_transpose(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let result = unsafe { self.test_transpose_async(ct, num_blocks, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn test_transpose_async(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        num_blocks: u32,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_test_transpose_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
+                    num_blocks,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_test_transpose_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    num_blocks,
+                );
+            }
+        }
+        result
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::gpu::vec::GpuIndex;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{RadixCiphertext, RadixClientKey};
     use crate::shortint::ciphertext::Ciphertext;
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use rand::Rng;
     use std::time::Instant;
 
     const S_BOX: [u8; 256] = [
@@ -219,13 +575,6 @@ mod test {
 
     fn bits_to_u128(bits: &[u64]) -> u128 {
         bits.iter().fold(0, |acc, &bit| (acc << 1) | (bit as u128))
-    }
-
-    fn u8_to_bits(n: u8) -> Vec<u64> {
-        (0..8).map(|i| ((n >> (7 - i)) & 1) as u64).collect()
-    }
-    fn bits_to_u8(bits: &[u64]) -> u8 {
-        bits.iter().fold(0u8, |acc, &bit| (acc << 1) | (bit as u8))
     }
 
     fn encrypt_bits(cks: &RadixClientKey, bits: &[u64]) -> RadixCiphertext {
@@ -281,41 +630,292 @@ mod test {
             })
             .collect()
     }
+    fn byte_to_bits(byte: u8) -> Vec<u64> {
+        (0..8).map(|i| ((byte >> (7 - i)) & 1) as u64).collect()
+    }
+
+    fn bits_to_byte(bits: &[u64]) -> u8 {
+        bits.iter().fold(0, |acc, &bit| (acc << 1) | (bit as u8))
+    }
 
     #[test]
-    fn test_samples_of_sbox() {
-        let samples: [u8; 12] = [
-            0x00, 0x01, 0x02, 0x0f, 0x10, 0x20, 0x5c, 0x7f, 0x80, 0x9a, 0xfe, 0xff,
-        ];
-
-        let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    fn test_sbox() {
+        let num_blocks = 10;
+        let num_test_iterations = 30;
+        let streams = CudaStreams::new_multi_gpu();
         let (cks, sks) = gen_keys_radix_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             1,
             &streams,
         );
 
-        for &p in &samples {
-            let p_bits = u8_to_bits(p);
-            let ct_radix_cpu = encrypt_bits(&cks, &p_bits);
-            let mut d_byte =
-                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_radix_cpu, &streams);
+        let mut rng = rand::thread_rng();
 
-            sks.aes_sbox_byte(&mut d_byte, &streams);
+        for _ in 0..num_test_iterations {
+            let input_bytes: Vec<u8> = (0..num_blocks).map(|_| rng.gen()).collect();
 
-            let result_radix_cpu = d_byte.to_radix_ciphertext(&streams);
-            let decrypted_result_bits = decrypt_bits(&cks, &result_radix_cpu);
-            let y = bits_to_u8(&decrypted_result_bits);
+            let p_bits: Vec<u64> = input_bytes
+                .iter()
+                .flat_map(|&byte| byte_to_bits(byte))
+                .collect();
 
-            assert_eq!(y, S_BOX[p as usize], "SBox({p:#04x})");
+            let ct_cpu = encrypt_bits(&cks, &p_bits);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+            let d_output = sks.test_sbox(&d_ct, num_blocks as u32, &streams);
+
+            let ct_output_cpu = d_output.to_radix_ciphertext(&streams);
+            let decrypted_bits = decrypt_bits(&cks, &ct_output_cpu);
+            let output_bytes: Vec<u8> = decrypted_bits.chunks_exact(8).map(bits_to_byte).collect();
+
+            for i in 0..num_blocks {
+                let input_byte = input_bytes[i];
+                let output_byte = output_bytes[i];
+                let expected_byte = S_BOX[input_byte as usize];
+                assert_eq!(
+                    output_byte, expected_byte,
+                    "S-box failed for block {i}, input {input_byte:#04x}: expected {expected_byte:#04x}, got {output_byte:#04x}"
+                );
+            }
         }
+        println!("\nS-Box test passed for {num_test_iterations} iterations of {num_blocks} random blocks!");
     }
 
     #[test]
-    fn test_encrypt_aes() {
-        let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    fn test_shift_rows() {
+        let num_blocks = 10;
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let mut rng = rand::thread_rng();
+
+        let input_bytes: Vec<u8> = (0..(num_blocks * 16)).map(|_| rng.gen()).collect();
+
+        let p_bits: Vec<u64> = input_bytes
+            .iter()
+            .flat_map(|&byte| byte_to_bits(byte))
+            .collect();
+
+        let ct_cpu = encrypt_bits(&cks, &p_bits);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+        let d_output = sks.test_shift_rows(&d_ct, num_blocks as u32, &streams);
+
+        let ct_output_cpu = d_output.to_radix_ciphertext(&streams);
+        let decrypted_bits = decrypt_bits(&cks, &ct_output_cpu);
+        let output_bytes: Vec<u8> = decrypted_bits.chunks_exact(8).map(bits_to_byte).collect();
+
+        for block_idx in 0..num_blocks {
+            let input_state: Vec<u8> = input_bytes[block_idx * 16..(block_idx + 1) * 16].to_vec();
+            let mut expected_state = input_state.clone();
+
+            expected_state[1] = input_state[5];
+            expected_state[5] = input_state[9];
+            expected_state[9] = input_state[13];
+            expected_state[13] = input_state[1];
+
+            expected_state[2] = input_state[10];
+            expected_state[6] = input_state[14];
+            expected_state[10] = input_state[2];
+            expected_state[14] = input_state[6];
+
+            expected_state[3] = input_state[15];
+            expected_state[7] = input_state[3];
+            expected_state[11] = input_state[7];
+            expected_state[15] = input_state[11];
+
+            let output_state: Vec<u8> = output_bytes[block_idx * 16..(block_idx + 1) * 16].to_vec();
+
+            assert_eq!(
+                output_state, expected_state,
+                "ShiftRows failed for block {block_idx}"
+            );
+        }
+        println!("\nShiftRows test passed for {num_blocks} random blocks!");
+    }
+
+    #[test]
+    fn test_mul_by_2() {
+        let num_blocks = 10;
+        let num_test_iterations = 30;
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_test_iterations {
+            let input_bytes: Vec<u8> = (0..num_blocks).map(|_| rng.gen()).collect();
+
+            let p_bits: Vec<u64> = input_bytes
+                .iter()
+                .flat_map(|&byte| byte_to_bits(byte))
+                .collect();
+
+            let ct_cpu = encrypt_bits(&cks, &p_bits);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+            let d_output = sks.test_mul_by_2(&d_ct, num_blocks as u32, &streams);
+
+            let ct_output_cpu = d_output.to_radix_ciphertext(&streams);
+            let decrypted_bits = decrypt_bits(&cks, &ct_output_cpu);
+            let output_bytes: Vec<u8> = decrypted_bits.chunks_exact(8).map(bits_to_byte).collect();
+
+            for i in 0..num_blocks {
+                let input_byte = input_bytes[i];
+                let output_byte = output_bytes[i];
+
+                let mut expected_byte = input_byte << 1;
+                if (input_byte & 0x80) != 0 {
+                    expected_byte ^= 0x1B;
+                }
+
+                assert_eq!(
+                    output_byte, expected_byte,
+                    "MulBy2 failed for block {i}, input {input_byte:#04x}: expected {expected_byte:#04x}, got {output_byte:#04x}"
+                );
+            }
+        }
+        println!("\nMulBy2 test passed for {num_test_iterations} iterations of {num_blocks} random blocks!");
+    }
+
+    #[test]
+    fn test_mix_columns() {
+        let num_blocks = 10;
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let mut rng = rand::thread_rng();
+
+        let mul_by_2 = |b: u8| -> u8 {
+            let mut res = b << 1;
+            if (b & 0x80) != 0 {
+                res ^= 0x1b;
+            }
+            res
+        };
+        let mul_by_3 = |b: u8| -> u8 { mul_by_2(b) ^ b };
+
+        let input_bytes: Vec<u8> = (0..(num_blocks * 16)).map(|_| rng.gen()).collect();
+
+        let mut expected_bytes = vec![0u8; num_blocks * 16];
+        for i in 0..num_blocks {
+            let input_state = &input_bytes[i * 16..(i + 1) * 16];
+            let expected_state = &mut expected_bytes[i * 16..(i + 1) * 16];
+            for col in 0..4 {
+                let s0 = input_state[col * 4];
+                let s1 = input_state[col * 4 + 1];
+                let s2 = input_state[col * 4 + 2];
+                let s3 = input_state[col * 4 + 3];
+
+                expected_state[col * 4] = mul_by_2(s0) ^ mul_by_3(s1) ^ s2 ^ s3;
+                expected_state[col * 4 + 1] = s0 ^ mul_by_2(s1) ^ mul_by_3(s2) ^ s3;
+                expected_state[col * 4 + 2] = s0 ^ s1 ^ mul_by_2(s2) ^ mul_by_3(s3);
+                expected_state[col * 4 + 3] = mul_by_3(s0) ^ s1 ^ s2 ^ mul_by_2(s3);
+            }
+        }
+
+        let p_bits: Vec<u64> = input_bytes
+            .iter()
+            .flat_map(|&byte| byte_to_bits(byte))
+            .collect();
+
+        let ct_cpu = encrypt_bits(&cks, &p_bits);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+        let d_output = sks.test_mix_columns(&d_ct, num_blocks as u32, &streams);
+
+        let ct_output_cpu = d_output.to_radix_ciphertext(&streams);
+        let decrypted_bits = decrypt_bits(&cks, &ct_output_cpu);
+        let output_bytes: Vec<u8> = decrypted_bits.chunks_exact(8).map(bits_to_byte).collect();
+
+        assert_eq!(output_bytes, expected_bytes);
+        println!("\nMixColumns test passed for {num_blocks} random blocks!");
+    }
+
+    #[test]
+    fn test_full_adder() {
+        let num_blocks = 10;
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let mut rng = rand::thread_rng();
+        let iv: u128 = rng.gen();
+        let start_counter: u128 = rng.gen();
+
+        let iv_bits = u128_to_bits(iv);
+        let p_bits: Vec<u64> = iv_bits
+            .iter()
+            .cycle()
+            .take(num_blocks * 128)
+            .copied()
+            .collect();
+
+        let ct_cpu = encrypt_bits(&cks, &p_bits);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+        let d_output = sks.test_full_adder(&d_ct, start_counter, num_blocks as u32, &streams);
+
+        let ct_output_cpu = d_output.to_radix_ciphertext(&streams);
+        let decrypted_bits = decrypt_bits(&cks, &ct_output_cpu);
+
+        for i in 0..num_blocks {
+            let expected_val = iv.wrapping_add(start_counter).wrapping_add(i as u128);
+
+            let output_chunk = &decrypted_bits[i * 128..(i + 1) * 128];
+            let output_val = bits_to_u128(output_chunk);
+
+            assert_eq!(output_val, expected_val, "Full adder failed for block {i}");
+        }
+        println!("\nFull Adder test passed for {num_blocks} blocks!");
+    }
+
+    #[test]
+    fn test_transpose() {
+        let num_blocks = 10;
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let mut rng = rand::thread_rng();
+        let p_bits: Vec<u64> = (0..(num_blocks * 128))
+            .map(|_| rng.gen_range(0..=1))
+            .collect();
+
+        let ct_cpu = encrypt_bits(&cks, &p_bits);
+        let d_input = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cpu, &streams);
+
+        let ct_cpu_before = d_input.to_radix_ciphertext(&streams);
+
+        let d_output = sks.test_transpose(&d_input, num_blocks as u32, &streams);
+
+        let ct_cpu_after = d_output.to_radix_ciphertext(&streams);
+
+        assert_eq!(ct_cpu_before.blocks, ct_cpu_after.blocks);
+        println!("\nTranspose test passed for {num_blocks} random blocks!");
+    }
+
+    #[test]
+    fn test_bench_aes_192_blocks() {
+        let streams = CudaStreams::new_multi_gpu();
         let (cks, sks) = gen_keys_radix_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             1,
@@ -325,11 +925,15 @@ mod test {
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
 
-        let nist_expected_outputs: [u128; 4] = [
-            0xec8cdf7398607cb0f2d21675ea9ea1e4,
-            0x362b7c3c6773516318a077d7fc5073ae,
-            0x6a2cc3787889374fbeb4c81b17ba6c44,
-            0xe89c399ff0f198c6d40a31db156cabfe,
+        let nist_expected_outputs: [u128; 8] = [
+            0xec8cdf7398607cb0f2d21675ea9ea1e4u128,
+            0x362b7c3c6773516318a077d7fc5073aeu128,
+            0x6a2cc3787889374fbeb4c81b17ba6c44u128,
+            0xe89c399ff0f198c6d40a31db156cabfeu128,
+            0xb00d47f8148a910ef0683097904ba502u128,
+            0x5899445a4de101f513cad1987d89e91bu128,
+            0x3bd9ac7949de2bf96569ac3843f87242u128,
+            0x7d9ace8047c35309155ab8a8f08597b1u128,
         ];
 
         let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
@@ -340,41 +944,235 @@ mod test {
         let p_iv_bits = u128_to_bits(iv);
         let ct_iv_radix_cpu = encrypt_bits(&cks, &p_iv_bits);
 
-        let number_of_outputs = nist_expected_outputs.len();
+        let d_round_keys =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
+        let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
+
+        // Warm-up and correctness test
+        //
+        let num_warmup_blocks = nist_expected_outputs.len();
+        println!("[Warm-up] Encrypting {num_warmup_blocks} blocks for correctness check...");
+        let d_warmup_states = sks.aes_encrypt(&d_iv, &d_round_keys, 0, num_warmup_blocks, &streams);
+
+        let warmup_result_cpu = d_warmup_states.to_radix_ciphertext(&streams);
+        for (i, &expected_output) in nist_expected_outputs.iter().enumerate() {
+            let start = i * 128;
+            let end = (i + 1) * 128;
+            let block_slice = &warmup_result_cpu.blocks[start..end];
+            let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
+            let decrypted_bits = decrypt_bits(&cks, &block_radix_ct);
+            let y = bits_to_u128(&decrypted_bits);
+            assert_eq!(y, expected_output, "Warm-up block {i} failed!");
+        }
+        println!("[Warm-up] Correctness check passed for {num_warmup_blocks} blocks.");
+
+        // Benchmark
+        //
+        let num_bench_blocks = 192;
+        let start_counter = 0u128;
+        println!("\n[Benchmark] Encrypting {num_bench_blocks} blocks...");
+
+        let t0 = Instant::now();
+        let _d_bench_states = sks.aes_encrypt(
+            &d_iv,
+            &d_round_keys,
+            start_counter,
+            num_bench_blocks,
+            &streams,
+        );
+        let t_elapsed = t0.elapsed();
+
+        println!(
+            "[Benchmark] aes_encrypt() time for {num_bench_blocks} blocks: {:.3} ms",
+            t_elapsed.as_secs_f64() * 1000.0,
+        );
+        println!(
+            "[Benchmark] Average time per block: {:.3} ms",
+            t_elapsed.as_secs_f64() * 1000.0 / num_bench_blocks as f64
+        );
+        println!("\nAES benchmark test finished!");
+    }
+
+    fn sub_bytes(state: &mut [u8; 16]) {
+        for byte in state.iter_mut() {
+            *byte = S_BOX[*byte as usize];
+        }
+    }
+
+    fn shift_rows(state: &mut [u8; 16]) {
+        let original = *state;
+        state[1] = original[5];
+        state[5] = original[9];
+        state[9] = original[13];
+        state[13] = original[1];
+
+        state[2] = original[10];
+        state[6] = original[14];
+        state[10] = original[2];
+        state[14] = original[6];
+
+        state[3] = original[15];
+        state[7] = original[3];
+        state[11] = original[7];
+        state[15] = original[11];
+    }
+
+    fn gmul(mut a: u8, mut b: u8) -> u8 {
+        let mut p = 0;
+        for _ in 0..8 {
+            if (b & 1) != 0 {
+                p ^= a;
+            }
+            let hi_bit_set = (a & 0x80) != 0;
+            a <<= 1;
+            if hi_bit_set {
+                a ^= 0x1B;
+            }
+            b >>= 1;
+        }
+        p
+    }
+
+    fn mix_columns(state: &mut [u8; 16]) {
+        let original = *state;
+        for i in 0..4 {
+            let col = i * 4;
+            state[col] = gmul(original[col], 2)
+                ^ gmul(original[col + 1], 3)
+                ^ original[col + 2]
+                ^ original[col + 3];
+            state[col + 1] = original[col]
+                ^ gmul(original[col + 1], 2)
+                ^ gmul(original[col + 2], 3)
+                ^ original[col + 3];
+            state[col + 2] = original[col]
+                ^ original[col + 1]
+                ^ gmul(original[col + 2], 2)
+                ^ gmul(original[col + 3], 3);
+            state[col + 3] = gmul(original[col], 3)
+                ^ original[col + 1]
+                ^ original[col + 2]
+                ^ gmul(original[col + 3], 2);
+        }
+    }
+
+    fn add_round_key(state: &mut [u8; 16], round_key: u128) {
+        let key_bytes = round_key.to_be_bytes();
+        for i in 0..16 {
+            state[i] ^= key_bytes[i];
+        }
+    }
+
+    fn plain_aes_encrypt_block(block_bytes: &mut [u8; 16], expanded_keys: &[u128]) {
+        add_round_key(block_bytes, expanded_keys[0]);
+
+        for round_key in expanded_keys.iter().take(10).skip(1) {
+            sub_bytes(block_bytes);
+            shift_rows(block_bytes);
+            mix_columns(block_bytes);
+            add_round_key(block_bytes, *round_key);
+        }
+
+        sub_bytes(block_bytes);
+        shift_rows(block_bytes);
+        add_round_key(block_bytes, expanded_keys[10]);
+    }
+
+    fn plain_aes_ctr(num_blocks: usize, iv: u128, key: u128) -> Vec<u128> {
+        let expanded_keys = plain_key_expansion(key);
+        let mut results = Vec::with_capacity(num_blocks);
+
+        for i in 0..num_blocks {
+            let counter_value = iv.wrapping_add(i as u128);
+            let mut block = counter_value.to_be_bytes();
+            plain_aes_encrypt_block(&mut block, &expanded_keys);
+            results.push(u128::from_be_bytes(block));
+        }
+
+        results
+    }
+
+    #[test]
+    fn test_aes_192_blocks() {
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
+        let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
+        let num_blocks: usize = 192;
+        let start_counter: u128 = 0;
+
+        println!("\n[Test] Starting FHE AES-CTR test for {num_blocks} blocks...");
+
+        println!("[FHE] Preparing encrypted data...");
+        let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
+            .iter()
+            .flat_map(|&k| u128_to_bits(k))
+            .collect();
+        let ct_round_keys_radix_cpu = encrypt_bits(&cks, &p_round_keys_bits);
+        let p_iv_bits = u128_to_bits(iv);
+        let ct_iv_radix_cpu = encrypt_bits(&cks, &p_iv_bits);
 
         let d_round_keys =
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
 
+        println!("[FHE] Executing homomorphic encryption on GPU...");
         let t0 = Instant::now();
         let d_encrypted_states =
-            sks.aes_encrypt(&d_iv, &d_round_keys, 0, number_of_outputs, &streams);
-        let t_elapsed = t0.elapsed();
-
+            sks.aes_encrypt(&d_iv, &d_round_keys, start_counter, num_blocks, &streams);
+        let fhe_duration = t0.elapsed();
         println!(
-            "[Benchmark] aes_encrypt() time for {} blocks: {:.3} ms",
-            number_of_outputs,
-            t_elapsed.as_secs_f64() * 1000.0,
-        );
-        println!(
-            "[Benchmark] Average time per block: {:.3} ms",
-            t_elapsed.as_secs_f64() * 1000.0 / number_of_outputs as f64
+            "[FHE] Encryption of {num_blocks} blocks finished in {:.3} ms.",
+            fhe_duration.as_secs_f64() * 1000.0
         );
 
         let result_radix_cpu = d_encrypted_states.to_radix_ciphertext(&streams);
-
-        for (i, &expected_output) in nist_expected_outputs.iter().enumerate() {
+        let mut fhe_results = Vec::with_capacity(num_blocks);
+        for i in 0..num_blocks {
             let start = i * 128;
             let end = (i + 1) * 128;
-
             let block_slice = &result_radix_cpu.blocks[start..end];
             let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
-
             let decrypted_bits = decrypt_bits(&cks, &block_radix_ct);
-            let y = bits_to_u128(&decrypted_bits);
-
-            assert_eq!(y, expected_output, "block {i}");
+            fhe_results.push(bits_to_u128(&decrypted_bits));
         }
-        println!("\nAES test passed!");
+
+        println!("[CPU] Executing plaintext encryption for validation...");
+        let t0 = Instant::now();
+        let plain_results = plain_aes_ctr(num_blocks, iv, key);
+        let plain_duration = t0.elapsed();
+        println!(
+            "[CPU] Encryption of {num_blocks} blocks finished in {:.3} ms.",
+            plain_duration.as_secs_f64() * 1000.0
+        );
+
+        println!("[Validation] Comparing FHE and plaintext results...");
+        assert_eq!(fhe_results.len(), num_blocks);
+        assert_eq!(plain_results.len(), num_blocks);
+
+        let mut failures = Vec::new();
+        for i in 0..num_blocks {
+            if fhe_results[i] != plain_results[i] {
+                let error_message = format!(
+                    "  [FAILURE] Block {i}: Expected (plain): {:#034x}, Got (FHE): {:#034x}",
+                    plain_results[i], fhe_results[i]
+                );
+                failures.push(error_message);
+            }
+        }
+
+        assert!(
+            failures.is_empty(),
+            "\nFHE AES test failed with {} errors over {num_blocks} blocks:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+
+        println!("\n[SUCCESS] AES-CTR test for {num_blocks} blocks passed!");
     }
 }
