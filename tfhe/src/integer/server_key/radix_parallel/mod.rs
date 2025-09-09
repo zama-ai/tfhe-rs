@@ -24,6 +24,7 @@ mod sum;
 
 mod count_zeros_ones;
 pub(crate) mod ilog2;
+pub(crate) mod kv_store;
 mod reverse_bits;
 mod scalar_dot_prod;
 mod slice;
