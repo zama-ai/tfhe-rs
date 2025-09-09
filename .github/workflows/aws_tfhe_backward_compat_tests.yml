@@ -86,6 +86,8 @@ jobs:
             utils/tfhe-backward-compat-data/**/*.cbor
             utils/tfhe-backward-compat-data/**/*.bcode
           key: ${{ steps.hash-lfs-data.outputs.sha }}
+          restore-keys: |
+            ${{ steps.hash-lfs-data.outputs.sha }}
 
       - name: Pull test data
         if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
