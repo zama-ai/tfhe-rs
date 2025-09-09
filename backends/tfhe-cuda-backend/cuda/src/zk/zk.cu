@@ -47,13 +47,71 @@ void cuda_expand_without_verification_64(
     void *const *casting_keys,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  host_expand_without_verification<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array_out),
-      static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-      reinterpret_cast<zk_expand_mem<uint64_t> *>(mem_ptr),
-      (uint64_t **)casting_keys, bsks, (uint64_t **)(computing_ksks),
-      ms_noise_reduction_key);
+  auto expand_buffer = reinterpret_cast<zk_expand_mem<uint64_t> *>(mem_ptr);
+
+  switch (expand_buffer->casting_params.big_lwe_dimension) {
+  case 256:
+    host_expand_without_verification<uint64_t, AmortizedDegree<256>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 512:
+    host_expand_without_verification<uint64_t, AmortizedDegree<512>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 1024:
+    host_expand_without_verification<uint64_t, AmortizedDegree<1024>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 2048:
+    host_expand_without_verification<uint64_t, AmortizedDegree<2048>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 4096:
+    host_expand_without_verification<uint64_t, AmortizedDegree<4096>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 8192:
+    host_expand_without_verification<uint64_t, AmortizedDegree<8192>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  case 16384:
+    host_expand_without_verification<uint64_t, AmortizedDegree<16384>>(
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+        expand_buffer, (uint64_t **)casting_keys, bsks,
+        (uint64_t **)(computing_ksks), ms_noise_reduction_key);
+    break;
+  default:
+    PANIC("CUDA error: lwe_dimension not supported."
+          "Supported n's are powers of two"
+          " in the interval [256..16384].");
+    break;
+  }
 }
 
 void cleanup_expand_without_verification_64(void *const *streams,
