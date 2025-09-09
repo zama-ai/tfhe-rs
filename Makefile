@@ -693,7 +693,7 @@ test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=2
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key::
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
 
 .PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_integer_gpu_debug: install_rs_build_toolchain
