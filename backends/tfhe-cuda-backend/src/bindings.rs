@@ -2049,6 +2049,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
+        num_blocks: u32,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2076,15 +2077,78 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_integer_aes_sbox_byte_64(
+    pub fn cuda_test_sbox_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        byte: *mut CudaRadixCiphertextFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_test_shift_rows_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_test_mul_by_2_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_test_mix_columns_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_test_full_adder_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        counter_bits_le: *const u64,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_test_transpose_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        num_blocks: u32,
     );
 }
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
