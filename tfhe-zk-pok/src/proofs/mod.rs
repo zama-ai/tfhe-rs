@@ -154,6 +154,8 @@ pub(crate) enum ProofSanityCheckMode {
 /// does not hold.
 #[allow(clippy::too_many_arguments)]
 fn assert_pke_proof_preconditions(
+    a: &[i64],
+    b: &[i64],
     c1: &[i64],
     e1: &[i64],
     c2: &[i64],
@@ -164,6 +166,8 @@ fn assert_pke_proof_preconditions(
     big_d_max: usize,
 ) {
     assert!(k_max <= d);
+    assert_eq!(a.len(), d);
+    assert_eq!(b.len(), d);
     assert_eq!(c1.len(), d);
     assert_eq!(e1.len(), d);
 
@@ -440,6 +444,13 @@ mod test {
     pub(super) enum Compress {
         Yes,
         No,
+    }
+
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    pub(super) enum InputSizeVariation {
+        Oversized,
+        Undersized,
+        Nominal,
     }
 
     pub(super) fn serialize_then_deserialize<

@@ -607,7 +607,7 @@ fn prove_impl<G: Curve>(
         + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
 
     if sanity_check_mode == ProofSanityCheckMode::Panic {
-        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, big_d, big_d_max);
+        assert_pke_proof_preconditions(a, b, c1, e1, c2, e2, d, k_max, big_d, big_d_max);
     }
 
     // FIXME: div_round
@@ -1092,6 +1092,10 @@ pub fn verify<G: Curve>(
     let PublicCommit { a, b, c1, c2, .. } = public.1;
     let k = c2.len();
     if k > k_max {
+        return Err(());
+    }
+
+    if a.len() != d || b.len() != d {
         return Err(());
     }
 
@@ -1784,6 +1788,89 @@ mod tests {
                 ProofSanityCheckMode::Panic,
                 VerificationResult::Reject,
             );
+        }
+    }
+
+    /// Test that the proof is rejected without panic if the public key elements are not of the correct size
+    #[test]
+    fn test_pke_wrong_pk_size() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV1_TEST_PARAMS;
+
+        let seed = thread_rng().gen();
+        println!("pke_wront_pk_size seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
+
+        let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
+
+        let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let crs = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        for (load, a_size_kind, b_size_kind) in itertools::iproduct!(
+            [ComputeLoad::Proof, ComputeLoad::Verify],
+            [
+                InputSizeVariation::Oversized,
+                InputSizeVariation::Undersized,
+                InputSizeVariation::Nominal,
+            ],
+            [
+                InputSizeVariation::Oversized,
+                InputSizeVariation::Undersized,
+                InputSizeVariation::Nominal,
+            ]
+        ) {
+            if a_size_kind == InputSizeVariation::Nominal
+                && b_size_kind == InputSizeVariation::Nominal
+            {
+                // This is the nominal case that is already tested
+                continue;
+            }
+            let (mut public_commit, private_commit) = commit(
+                testcase.a.clone(),
+                testcase.b.clone(),
+                ct.c1.clone(),
+                ct.c2.clone(),
+                testcase.r.clone(),
+                testcase.e1.clone(),
+                testcase.m.clone(),
+                testcase.e2.clone(),
+                &crs,
+            );
+
+            let proof = prove(
+                (&crs, &public_commit),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                &seed.to_le_bytes(),
+            );
+
+            match a_size_kind {
+                InputSizeVariation::Oversized => public_commit.a.push(rng.gen()),
+                InputSizeVariation::Undersized => {
+                    public_commit.a.pop();
+                }
+                InputSizeVariation::Nominal => {}
+            };
+
+            match b_size_kind {
+                InputSizeVariation::Oversized => public_commit.b.push(rng.gen()),
+                InputSizeVariation::Undersized => {
+                    public_commit.b.pop();
+                }
+                InputSizeVariation::Nominal => {}
+            };
+
+            // Should not panic but return an error
+            assert!(verify(&proof, (&crs, &public_commit), &testcase.metadata).is_err())
         }
     }
 
