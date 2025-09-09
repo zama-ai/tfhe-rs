@@ -156,7 +156,7 @@ pub struct SerializationConfig {
 impl SerializationConfig {
     /// Creates a new serialization config. The default configuration will serialize the object
     /// with versioning information for backward compatibility.
-    /// `serialized_size_limit` is the size limit (in number of byte) of the serialized object
+    /// `serialized_size_limit` is the size limit (in number of bytes) of the serialized object
     /// (including the header).
     pub fn new(serialized_size_limit: u64) -> Self {
         Self {
@@ -389,15 +389,16 @@ impl DeserializationConfig {
     ///
     /// By default, it will check that the serialization version and the name of the
     /// deserialized type are correct.
-    /// `serialized_size_limit` is the size limit (in number of byte) of the serialized object
-    /// (include the safe serialization header).
+    /// `deserialized_size_limit` is the size limit (in number of bytes) of the deserialized object.
+    /// It should be set according to the expected size of the object and the maximum allocatable
+    /// size on your system.
     ///
     /// It will also check that the object is conformant with the parameter set given in
     /// `conformance_params`. Finally, it will check the compatibility of the loaded data with
     /// the current *TFHE-rs* version.
-    pub fn new(serialized_size_limit: u64) -> Self {
+    pub fn new(deserialized_size_limit: u64) -> Self {
         Self {
-            serialized_size_limit: Some(serialized_size_limit),
+            serialized_size_limit: Some(deserialized_size_limit),
             validate_header: true,
         }
     }
@@ -446,6 +447,12 @@ impl DeserializationConfig {
 
     /// Deserializes an object serialized by [`SerializationConfig::serialize_into`] from a
     /// [reader](std::io::Read). Performs various sanity checks based on the deserialization config.
+    ///
+    /// # Panics
+    /// This function may panic if `serialized_size_limit` is larger than what can be allocated by
+    /// the system. This may happen even if the size of the serialized data is short. An
+    /// attacker could manipulate the data to create a short serialized message with a huge
+    /// deserialized size.
     pub fn deserialize_from<T: DeserializeOwned + Unversionize + Named + ParameterSetConformant>(
         self,
         reader: impl std::io::Read,
@@ -479,28 +486,50 @@ pub fn safe_serialized_size<T: Serialize + Versionize + Named>(object: &T) -> bi
 }
 
 /// Serialize an object with the default configuration (with size limit, header check and
-/// versioning). This is an alias for
+/// versioning).
+///
+/// `deserialized_size_limit` is the size limit (in number of bytes) of the deserialized object.
+/// It should be set according to the expected size of the object and the maximum allocatable size
+/// on your system.
+///
+/// This is an alias for
 /// `DeserializationConfig::new(serialized_size_limit).disable_conformance().deserialize_from`
+///
+/// # Panics
+/// This function may panic if `serialized_size_limit` is larger than what can be allocated by the
+/// system. This may happen even if the size of the serialized data is short. An attacker could
+/// manipulate the data to create a short serialized message with a huge deserialized size.
 pub fn safe_deserialize<T: DeserializeOwned + Unversionize + Named>(
     reader: impl std::io::Read,
-    serialized_size_limit: u64,
+    deserialized_size_limit: u64,
 ) -> Result<T, String> {
-    DeserializationConfig::new(serialized_size_limit)
+    DeserializationConfig::new(deserialized_size_limit)
         .disable_conformance()
         .deserialize_from(reader)
 }
 
 /// Serialize an object with the default configuration and conformance checks (with size limit,
-/// header check and versioning). This is an alias for
+/// header check and versioning).
+///
+/// `deserialized_size_limit` is the size limit (in number of bytes) of the deserialized object.
+/// It should be set according to the expected size of the object and the maximum allocatable size
+/// on your system.
+///
+/// This is an alias for
 /// `DeserializationConfig::new(serialized_size_limit).deserialize_from`
+///
+/// # Panics
+/// This function may panic if `serialized_size_limit` is larger than what can be allocated by the
+/// system. This may happen even if the size of the serialized data is short. An attacker could
+/// manipulate the data to create a short serialized message with a huge deserialized size.
 pub fn safe_deserialize_conformant<
     T: DeserializeOwned + Unversionize + Named + ParameterSetConformant,
 >(
     reader: impl std::io::Read,
-    serialized_size_limit: u64,
+    deserialized_size_limit: u64,
     parameter_set: &T::ParameterSet,
 ) -> Result<T, String> {
-    DeserializationConfig::new(serialized_size_limit).deserialize_from(reader, parameter_set)
+    DeserializationConfig::new(deserialized_size_limit).deserialize_from(reader, parameter_set)
 }
 
 #[cfg(all(test, feature = "shortint"))]
