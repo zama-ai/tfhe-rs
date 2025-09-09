@@ -808,7 +808,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         requested_flag: u32,
-        uses_carry: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
@@ -831,7 +830,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         requested_flag: u32,
-        uses_carry: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;

@@ -242,8 +242,8 @@ __host__ void host_radix_cumulative_sum_in_groups(cudaStream_t stream,
   auto lwe_size = dest->lwe_dimension + 1;
   cuda_set_device(gpu_index);
   // Each CUDA block is responsible for a single group
-  int num_blocks = (num_radix_blocks + group_size - 1) / group_size,
-      num_threads = 512;
+  int num_blocks = CEIL_DIV(num_radix_blocks, group_size);
+  int num_threads = 512;
   device_radix_cumulative_sum_in_groups<Torus>
       <<<num_blocks, num_threads, 0, stream>>>(
           (Torus *)dest->ptr, (Torus *)src->ptr, num_radix_blocks, lwe_size,
@@ -1566,9 +1566,6 @@ void host_full_propagate_inplace(
     void *const *bsks, uint32_t num_blocks) {
   auto params = mem_ptr->lut->params;
 
-  int big_lwe_size = (params.glwe_dimension * params.polynomial_size + 1);
-  int small_lwe_size = (params.small_lwe_dimension + 1);
-
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -1969,12 +1966,12 @@ template <typename Torus>
 uint64_t scratch_cuda_propagate_single_carry_kb_inplace(
     CudaStreams streams, int_sc_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
-    uint32_t uses_carry, bool allocate_gpu_memory) {
+    bool allocate_gpu_memory) {
   PUSH_RANGE("scratch add & propagate sc")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_sc_prop_memory<Torus>(streams, params, num_radix_blocks,
-                                           requested_flag, uses_carry,
-                                           allocate_gpu_memory, size_tracker);
+                                           requested_flag, allocate_gpu_memory,
+                                           size_tracker);
   POP_RANGE()
   return size_tracker;
 }
@@ -2116,9 +2113,6 @@ void host_add_and_propagate_single_carry(
 
   auto num_radix_blocks = lhs_array->num_radix_blocks;
   auto params = mem->params;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
-  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
   CudaRadixCiphertextFFI output_flag;
@@ -2390,7 +2384,6 @@ __host__ void integer_radix_apply_noise_squashing_kb(
 
   PUSH_RANGE("apply noise squashing")
   auto params = lut->params;
-  auto pbs_type = params.pbs_type;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto small_lwe_dimension = params.small_lwe_dimension;
   auto ks_level = params.ks_level;
