@@ -45,6 +45,60 @@ For convenience, aliases are provided for the most used sets of parameters and s
 
 
 ## How to choose the parameter sets
+
+Since tfhe-rs 1.4, there is a `MetaParameterFinder` which enables to search for suitable parameters given some choice of constraints.
+
+```rust
+use tfhe::shortint::parameters::{MetaParameterFinder, Log2PFail, Constraint, Version, Backend, NoiseDistributionChoice, NoiseDistributionKind};
+use tfhe::{FheUint32, CompressedCiphertextListBuilder, generate_keys, set_server_key};
+use tfhe::prelude::*;
+
+fn main() {
+    // Create a finder with minimal constraints
+    let mut finder = MetaParameterFinder::new(
+        // We want parameters that have a failure probability `pfal` that is: pfail <= 2^-64
+        Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+        // We want parameters from the version 1.4
+        Version(1, 4, 0),
+        // We want parameters meant for CPU execution
+        Backend::Cpu
+    );
+
+    let parameters = finder
+        .find()
+        .expect("Could not find suitable parameters");
+
+    let (client_key, server_key) = generate_keys(parameters);
+
+
+    // We can add other constaints:
+    let finder = finder
+        // We want to use compression (CompressedCiphertextList)
+        // So we require parameters that support it
+        .with_compression(true) 
+        .with_noise_distribution(
+            // Allow any noise distribution that is not TUniform
+            NoiseDistributionChoice::allow_all()
+            .deny(NoiseDistributionKind::TUniform)
+        );
+
+
+    let parameters = finder
+        .find()
+        .expect("Could not find suitable parameters");
+
+    let (client_key, server_key) = generate_keys(parameters);
+
+    let a = FheUint32::encrypt(1337u32, &client_key);
+    set_server_key(server_key);
+    let compressed_list = CompressedCiphertextListBuilder::new()
+        .push(a)
+        .build()
+        .unwrap();
+}
+```
+
+
 You can override the default parameters with the `with_custom_parameters(block_parameters)` method of the `Config` object. For example, to use a Gaussian distribution instead of the TUniform one, you can modify your configuration as follows:
 
 ```rust
