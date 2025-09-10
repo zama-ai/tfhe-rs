@@ -437,12 +437,18 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         let total_num_sm = total_blocks_per_sm * total_num_sm;
         let min_num_waves = 4u64; //Enforce at least 4 waves in the GPU
         let elements_per_wave = total_num_sm as u64 / (num_block as u64);
-
+        // This should ensure that operations with PBS count more than the number of blocks
+        // squared will default to 100 elements.
+        let min_elements = if op_pbs_count > num_block as u64 * num_block as u64 {
+            100u64
+        } else {
+            elements_per_wave * min_num_waves
+        };
         let operation_loading = ((total_num_sm as u64 / op_pbs_count) as f64).max(minimum_loading);
         let elements = (total_num_sm as f64 * block_multiplicator * operation_loading) as u64;
-        elements.min(elements_per_wave * min_num_waves) // This threshold is useful for operation
-                                                        // with both a small number of
-                                                        // block and low PBs count.
+        elements.min(min_elements) // This threshold is useful for operation
+                                   // with both a small number of
+                                   // block and low PBs count.
     }
     #[cfg(feature = "hpu")]
     {
