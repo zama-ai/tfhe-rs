@@ -255,7 +255,10 @@ where
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
     let src = HpuHandle {
-        native: vec![from_amount, to_amount, amount].into_iter().flatten().collect(),
+        native: vec![from_amount, to_amount, amount]
+            .into_iter()
+            .flatten()
+            .collect(),
         boolean: vec![],
         imm: vec![],
     };
@@ -392,7 +395,13 @@ fn bench_transfer_latency_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD.format().unwrap().proto.src.len()/3;
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD
+        .format()
+        .unwrap()
+        .proto
+        .src
+        .len()
+        / 3;
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
@@ -646,10 +655,16 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD.format().unwrap().proto.src.len()/3;
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD
+        .format()
+        .unwrap()
+        .proto
+        .src
+        .len()
+        / 3;
     let mut rng = thread_rng();
     for num_elems in [2, 10] {
-        let real_num_elems = num_elems*(hpu_simd_n as u64);
+        let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{real_num_elems}_elems");

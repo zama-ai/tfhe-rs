@@ -4,6 +4,9 @@ name: benchmark_hpu_integer
 on:
   workflow_dispatch:
     inputs:
+      all_precisions:
+        description: "Run all precisions"
+        type: boolean
       bench_type:
         description: "Benchmarks type"
         type: choice
@@ -19,6 +22,7 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  FAST_BENCH: TRUE
 
 permissions: {}
 
@@ -101,6 +105,11 @@ jobs:
           path: slab
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
+        run: |
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
 
       - name: Run benchmarks
         run: |
