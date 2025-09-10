@@ -364,8 +364,7 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
-    uint32_t uses_carry, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -374,8 +373,7 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
-    uint32_t uses_carry, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

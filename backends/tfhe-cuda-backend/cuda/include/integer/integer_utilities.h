@@ -244,8 +244,6 @@ struct int_radix_params {
   uint32_t carry_modulus;
   PBS_MS_REDUCTION_T noise_reduction_type;
 
-  int_radix_params(){};
-
   int_radix_params(PBS_TYPE pbs_type, uint32_t glwe_dimension,
                    uint32_t polynomial_size, uint32_t big_lwe_dimension,
                    uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -261,6 +259,8 @@ struct int_radix_params {
         pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
         message_modulus(message_modulus), carry_modulus(carry_modulus),
         noise_reduction_type(noise_reduction_type){};
+
+  int_radix_params() = default;
 
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
@@ -2458,8 +2458,7 @@ template <typename Torus> struct int_sc_prop_memory {
   int_sc_prop_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_radix_blocks, uint32_t requested_flag_in,
-                     uint32_t uses_carry, bool allocate_gpu_memory,
-                     uint64_t &size_tracker) {
+                     bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -3211,11 +3210,10 @@ template <typename Torus> struct int_mul_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         2 * num_radix_blocks, vector_result_sb, small_lwe_vector, luts_array,
         true, allocate_gpu_memory, size_tracker);
-    uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag, uses_carry, allocate_gpu_memory, size_tracker);
+        requested_flag, allocate_gpu_memory, size_tracker);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3831,36 +3829,56 @@ template <typename Torus> struct int_comparison_eq_buffer {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
+    Torus total_modulus = params.message_modulus * params.carry_modulus;
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
 
     are_all_block_true_buffer = new int_are_all_block_true_buffer<Torus>(
         streams, gpu_indexes, gpu_count, op, params, num_radix_blocks,
         allocate_gpu_memory, size_tracker);
 
-    // Operator LUT
-    auto operator_f = [op](Torus lhs, Torus rhs) -> Torus {
-      if (op == COMPARISON_TYPE::EQ) {
-        // EQ
-        return (lhs == rhs);
-      } else {
-        // NE
-        return (lhs != rhs);
+    if (op == COMPARISON_TYPE::EQ || COMPARISON_TYPE::NE) {
+      // Operator LUT
+      auto operator_f = [op](Torus lhs, Torus rhs) -> Torus {
+        if (op == COMPARISON_TYPE::EQ) {
+          return (lhs == rhs);
+        } else if (op == COMPARISON_TYPE::NE) {
+          return (lhs != rhs);
+          PANIC("Cuda error (eq/ne): invalid comparison type")
+        }
+      };
+      operator_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, num_radix_blocks,
+          allocate_gpu_memory, size_tracker);
+
+      generate_device_accumulator_bivariate<Torus>(
+          streams[0], gpu_indexes[0], operator_lut->get_lut(0, 0),
+          operator_lut->get_degree(0), operator_lut->get_max_degree(0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, operator_f, gpu_memory_allocated);
+
+      operator_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
+      // Scalar may have up to num_radix_blocks blocks
+      scalar_comparison_luts = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, total_modulus,
+          num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+      for (int i = 0; i < total_modulus; i++) {
+        auto lut_f = [i, operator_f](Torus x) -> Torus {
+          return operator_f(i, x);
+        };
+
+        generate_device_accumulator<Torus>(
+            streams[0], gpu_indexes[0], scalar_comparison_luts->get_lut(0, i),
+            scalar_comparison_luts->get_degree(i),
+            scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, lut_f, gpu_memory_allocated);
       }
-    };
-    operator_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
-                                            params, 1, num_radix_blocks,
-                                            allocate_gpu_memory, size_tracker);
-
-    generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], operator_lut->get_lut(0, 0),
-        operator_lut->get_degree(0), operator_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, operator_f, gpu_memory_allocated);
-
-    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-    operator_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
+      scalar_comparison_luts->broadcast_lut(streams, gpu_indexes,
+                                            active_gpu_count);
+    }
 
     // f(x) -> x == 0
-    Torus total_modulus = params.message_modulus * params.carry_modulus;
     auto is_non_zero_lut_f = [total_modulus](Torus x) -> Torus {
       return (x % total_modulus) != 0;
     };
@@ -3876,38 +3894,20 @@ template <typename Torus> struct int_comparison_eq_buffer {
         params.carry_modulus, is_non_zero_lut_f, gpu_memory_allocated);
 
     is_non_zero_lut->broadcast_lut(streams, gpu_indexes, active_gpu_count);
-
-    // Scalar may have up to num_radix_blocks blocks
-    scalar_comparison_luts = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, total_modulus,
-        num_radix_blocks, allocate_gpu_memory, size_tracker);
-
-    for (int i = 0; i < total_modulus; i++) {
-      auto lut_f = [i, operator_f](Torus x) -> Torus {
-        return operator_f(i, x);
-      };
-
-      generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], scalar_comparison_luts->get_lut(0, i),
-          scalar_comparison_luts->get_degree(i),
-          scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f, gpu_memory_allocated);
-    }
-    scalar_comparison_luts->broadcast_lut(streams, gpu_indexes,
-                                          active_gpu_count);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    operator_lut->release(streams, gpu_indexes, gpu_count);
-    delete operator_lut;
-    is_non_zero_lut->release(streams, gpu_indexes, gpu_count);
-    delete is_non_zero_lut;
-    scalar_comparison_luts->release(streams, gpu_indexes, gpu_count);
-    delete scalar_comparison_luts;
+    if (op == COMPARISON_TYPE::EQ || COMPARISON_TYPE::NE) {
+      operator_lut->release(streams, gpu_indexes, gpu_count);
+      delete operator_lut;
+      scalar_comparison_luts->release(streams, gpu_indexes, gpu_count);
+      delete scalar_comparison_luts;
+    }
     are_all_block_true_buffer->release(streams, gpu_indexes, gpu_count);
     delete are_all_block_true_buffer;
+    is_non_zero_lut->release(streams, gpu_indexes, gpu_count);
+    delete is_non_zero_lut;
   }
 };
 
@@ -4028,8 +4028,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
       case LE:
         return (x == IS_INFERIOR) || (x == IS_EQUAL);
       default:
-        // We don't need a default case but we need to return something
-        return 42;
+        PANIC("Cuda error (comparisons): unknown comparison type")
       }
     };
 
@@ -5077,11 +5076,10 @@ template <typename Torus> struct int_scalar_mul_buffer {
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
           num_ciphertext_bits, true, allocate_gpu_memory, last_step_mem);
     }
-    uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag, uses_carry, allocate_gpu_memory, last_step_mem);
+        requested_flag, allocate_gpu_memory, last_step_mem);
     if (anticipated_buffer_drop) {
       size_tracker += std::max(anticipated_drop_mem, last_step_mem);
     } else {
@@ -5140,10 +5138,9 @@ template <typename Torus> struct int_abs_buffer {
         streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::RIGHT_SHIFT,
         params, num_radix_blocks, allocate_gpu_memory, size_tracker);
     uint32_t requested_flag = outputFlag::FLAG_NONE;
-    uint32_t uses_carry = 0;
     scp_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag, uses_carry, allocate_gpu_memory, size_tracker);
+        requested_flag, allocate_gpu_memory, size_tracker);
     bitxor_mem = new int_bitop_buffer<Torus>(
         streams, gpu_indexes, gpu_count, BITOP_TYPE::BITXOR, params,
         num_radix_blocks, allocate_gpu_memory, size_tracker);
@@ -5224,13 +5221,12 @@ template <typename Torus> struct int_div_rem_memory {
                                             params, num_blocks,
                                             allocate_gpu_memory, size_tracker);
       uint32_t requested_flag = outputFlag::FLAG_NONE;
-      uint32_t uses_carry = 0;
       scp_mem_1 = new int_sc_prop_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_blocks, requested_flag,
-          uses_carry, allocate_gpu_memory, size_tracker);
+          allocate_gpu_memory, size_tracker);
       scp_mem_2 = new int_sc_prop_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_blocks, requested_flag,
-          uses_carry, allocate_gpu_memory, size_tracker);
+          allocate_gpu_memory, size_tracker);
 
       std::function<uint64_t(uint64_t)> quotient_predicate_lut_f =
           [](uint64_t x) -> uint64_t { return x == 1; };
@@ -5428,7 +5424,7 @@ template <typename Torus> struct int_sub_and_propagate {
 
     this->sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag_in, (uint32_t)0, allocate_gpu_memory, size_tracker);
+        requested_flag_in, allocate_gpu_memory, size_tracker);
 
     this->neg_rhs_array = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -5569,7 +5565,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
             scalar_divisor_ffi->active_bits, allocate_gpu_memory, size_tracker);
         scp_mem = new int_sc_prop_memory<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+            FLAG_NONE, allocate_gpu_memory, size_tracker);
         sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
             FLAG_NONE, allocate_gpu_memory, size_tracker);
@@ -5726,7 +5722,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
               num_radix_blocks, allocate_gpu_memory, size_tracker);
           scp_mem = new int_sc_prop_memory<Torus>(
               streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-              FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+              FLAG_NONE, allocate_gpu_memory, size_tracker);
 
         } else {
 
@@ -5747,7 +5743,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
           if (scalar_divisor_ffi->is_chosen_multiplier_geq_two_pow_numerator) {
             scp_mem = new int_sc_prop_memory<Torus>(
                 streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-                FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+                FLAG_NONE, allocate_gpu_memory, size_tracker);
           }
         }
       }
@@ -5895,7 +5891,7 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
 
     this->scp_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks, FLAG_NONE,
-        (uint32_t)0, allocate_gpu_memory, size_tracker);
+        allocate_gpu_memory, size_tracker);
 
     bool is_divisor_one = scalar_divisor_ffi->is_abs_divisor_one &&
                           !scalar_divisor_ffi->is_divisor_negative;
@@ -6091,7 +6087,7 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
         num_radix_blocks, true, allocate_gpu_memory, size_tracker);
 
     this->propagate_mem = new int_sc_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, counter_num_blocks, 0, 0,
+        streams, gpu_indexes, gpu_count, params, counter_num_blocks, 0,
         allocate_gpu_memory, size_tracker);
   }
 

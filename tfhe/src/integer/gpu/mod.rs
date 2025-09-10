@@ -2472,7 +2472,6 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         carry_modulus.0 as u32,
         pbs_type as u32,
         requested_flag as u32,
-        uses_carry,
         true,
         noise_reduction_type as u32,
     );
@@ -2516,7 +2515,6 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
-    uses_carry: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
@@ -2543,7 +2541,6 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
             carry_modulus.0 as u32,
             pbs_type as u32,
             requested_flag as u32,
-            uses_carry,
             false,
             noise_reduction_type as u32,
         )
@@ -2575,7 +2572,6 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
-    uses_carry: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
@@ -2602,7 +2598,6 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
             carry_modulus.0 as u32,
             pbs_type as u32,
             requested_flag as u32,
-            uses_carry,
             false,
             noise_reduction_type as u32,
         )
@@ -2940,7 +2935,6 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         carry_modulus.0 as u32,
         pbs_type as u32,
         requested_flag as u32,
-        uses_carry,
         true,
         noise_reduction_type as u32,
     );
