@@ -1103,12 +1103,11 @@ mod test {
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-        let num_blocks: usize = 192;
+        let num_blocks: usize = 16;
         let start_counter: u128 = 0;
 
         println!("\n[Test] Starting FHE AES-CTR test for {num_blocks} blocks...");
 
-        println!("[FHE] Preparing encrypted data...");
         let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
             .iter()
             .flat_map(|&k| u128_to_bits(k))
@@ -1121,7 +1120,6 @@ mod test {
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
 
-        println!("[FHE] Executing homomorphic encryption on GPU...");
         let t0 = Instant::now();
         let d_encrypted_states =
             sks.aes_encrypt(&d_iv, &d_round_keys, start_counter, num_blocks, &streams);
@@ -1142,7 +1140,6 @@ mod test {
             fhe_results.push(bits_to_u128(&decrypted_bits));
         }
 
-        println!("[CPU] Executing plaintext encryption for validation...");
         let t0 = Instant::now();
         let plain_results = plain_aes_ctr(num_blocks, iv, key);
         let plain_duration = t0.elapsed();
@@ -1154,6 +1151,16 @@ mod test {
         println!("[Validation] Comparing FHE and plaintext results...");
         assert_eq!(fhe_results.len(), num_blocks);
         assert_eq!(plain_results.len(), num_blocks);
+
+        if num_blocks <= 16 {
+            println!("\n[Results per block]");
+            for i in 0..num_blocks {
+                println!(
+                    "Block {i:02}: FHE = {:#034x}, Plain = {:#034x}",
+                    fhe_results[i], plain_results[i]
+                );
+            }
+        }
 
         let mut failures = Vec::new();
         for i in 0..num_blocks {

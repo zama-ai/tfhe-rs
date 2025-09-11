@@ -6452,8 +6452,8 @@ template <typename Torus> struct int_aes_encrypt_buffer {
   Torus *d_trivial_scalars_zero;
   Torus *h_trivial_scalars_zero;
 
-  CudaRadixCiphertextFFI *tmp_byte_buffer_1;
-  CudaRadixCiphertextFFI *tmp_byte_buffer_2;
+  CudaRadixCiphertextFFI *mix_columns_col_copy_buffer;
+  CudaRadixCiphertextFFI *mix_columns_mul_workspace_buffer;
   CudaRadixCiphertextFFI *tmp_bit_buffer;
   CudaRadixCiphertextFFI *vec_tmp_bit_buffer;
   CudaRadixCiphertextFFI *tmp_carry_buffer;
@@ -6465,11 +6465,10 @@ template <typename Torus> struct int_aes_encrypt_buffer {
   Torus *h_counter_bits_buffer;
   Torus *d_counter_bits_buffer;
 
-  CudaRadixCiphertextFFI *sbox_vars_buffer;
-  CudaRadixCiphertextFFI *tmp_initial_states_buffer;
-  CudaRadixCiphertextFFI *tmp_transposed_states_buffer;
+  CudaRadixCiphertextFFI *sbox_internal_workspace;
+  CudaRadixCiphertextFFI *initial_states_and_jit_key_workspace;
+  CudaRadixCiphertextFFI *main_bitsliced_states_buffer;
   CudaRadixCiphertextFFI *tmp_tiled_key_buffer;
-  CudaRadixCiphertextFFI *tmp_transposed_keys_buffer;
 
   int_aes_encrypt_buffer(cudaStream_t const *streams,
                          uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -6560,13 +6559,9 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     cuda_memset_async(d_trivial_scalars_zero, 0, sizeof(Torus), streams[0],
                       gpu_indexes[0]);
 
-    uint32_t mul_by_2_workspace_size = 32;
-    uint32_t mix_columns_workspace_size = 40;
-
-    this->tmp_byte_buffer_1 =
-        create_buffer(mul_by_2_workspace_size * this->num_blocks);
-    this->tmp_byte_buffer_2 =
-        create_buffer(mix_columns_workspace_size * this->num_blocks);
+    this->mix_columns_col_copy_buffer = create_buffer(32 * this->num_blocks);
+    this->mix_columns_mul_workspace_buffer =
+        create_buffer(40 * this->num_blocks);
 
     this->tmp_bit_buffer = create_buffer(1);
     this->vec_tmp_bit_buffer = create_buffer(this->num_blocks);
@@ -6585,13 +6580,12 @@ template <typename Torus> struct int_aes_encrypt_buffer {
         size_tracker, allocate_gpu_memory);
 
     uint32_t sbox_workspace_size = 128;
-    this->sbox_vars_buffer =
+    this->sbox_internal_workspace =
         create_buffer(this->num_blocks * sbox_workspace_size);
-    this->tmp_initial_states_buffer = create_buffer(this->num_blocks * 128);
-    this->tmp_transposed_states_buffer = create_buffer(this->num_blocks * 128);
+    this->initial_states_and_jit_key_workspace =
+        create_buffer(this->num_blocks * 128);
+    this->main_bitsliced_states_buffer = create_buffer(this->num_blocks * 128);
     this->tmp_tiled_key_buffer = create_buffer(this->num_blocks * 128);
-    this->tmp_transposed_keys_buffer =
-        create_buffer(this->num_blocks * 128 * 11);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -6618,8 +6612,8 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     free(this->h_trivial_scalars_zero);
 
     release_buffer(this->trivial_1_bit);
-    release_buffer(this->tmp_byte_buffer_1);
-    release_buffer(this->tmp_byte_buffer_2);
+    release_buffer(this->mix_columns_col_copy_buffer);
+    release_buffer(this->mix_columns_mul_workspace_buffer);
     release_buffer(this->tmp_bit_buffer);
     release_buffer(this->vec_tmp_bit_buffer);
     release_buffer(this->tmp_carry_buffer);
@@ -6631,11 +6625,10 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     free(this->h_counter_bits_buffer);
     cuda_drop_async(this->d_counter_bits_buffer, streams[0], gpu_indexes[0]);
 
-    release_buffer(this->sbox_vars_buffer);
-    release_buffer(this->tmp_initial_states_buffer);
-    release_buffer(this->tmp_transposed_states_buffer);
+    release_buffer(this->sbox_internal_workspace);
+    release_buffer(this->initial_states_and_jit_key_workspace);
+    release_buffer(this->main_bitsliced_states_buffer);
     release_buffer(this->tmp_tiled_key_buffer);
-    release_buffer(this->tmp_transposed_keys_buffer);
   }
 };
 

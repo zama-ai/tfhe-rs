@@ -58,7 +58,9 @@ void cuda_test_sbox_64(void *const *streams, uint32_t const *gpu_indexes,
   uint32_t gpu_index = gpu_indexes[0];
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
 
-  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->tmp_transposed_states_buffer;
+  // NEW
+  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(stream, gpu_index, tmp_bitsliced,
                                           input, num_blocks, 8);
@@ -85,7 +87,9 @@ void cuda_test_shift_rows_64(void *const *streams, uint32_t const *gpu_indexes,
   uint32_t gpu_index = gpu_indexes[0];
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
 
-  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->tmp_transposed_states_buffer;
+  // NEW
+  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(stream, gpu_index, tmp_bitsliced,
                                           input, num_blocks, 128);
@@ -106,10 +110,12 @@ void cuda_test_mul_by_2_64(void *const *streams, uint32_t const *gpu_indexes,
   uint32_t gpu_index = gpu_indexes[0];
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
 
+  // NEW
   CudaRadixCiphertextFFI *tmp_bitsliced_input =
-      buffer->tmp_initial_states_buffer;
+      buffer->initial_states_and_jit_key_workspace;
   CudaRadixCiphertextFFI *tmp_bitsliced_output =
-      buffer->tmp_transposed_states_buffer;
+      buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(
       stream, gpu_index, tmp_bitsliced_input, input, num_blocks, 8);
@@ -148,7 +154,9 @@ void cuda_test_mix_columns_64(void *const *streams, uint32_t const *gpu_indexes,
   uint32_t gpu_index = gpu_indexes[0];
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
 
-  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->tmp_transposed_states_buffer;
+  // NEW
+  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(stream, gpu_index, tmp_bitsliced,
                                           input, num_blocks, 128);
@@ -180,7 +188,9 @@ void cuda_test_full_adder_64(void *const *streams, uint32_t const *gpu_indexes,
   uint32_t gpu_index = gpu_indexes[0];
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
 
-  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->tmp_transposed_states_buffer;
+  // NEW
+  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(stream, gpu_index, tmp_bitsliced,
                                           input, num_blocks, 128);
@@ -202,7 +212,9 @@ void cuda_test_transpose_64(void *const *streams, uint32_t const *gpu_indexes,
   auto buffer = (int_aes_encrypt_buffer<uint64_t> *)mem_ptr;
   const uint32_t block_size = 128;
 
-  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->tmp_transposed_states_buffer;
+  // NEW
+  CudaRadixCiphertextFFI *tmp_bitsliced = buffer->main_bitsliced_states_buffer;
+  // end NEW
 
   transpose_blocks_to_bitsliced<uint64_t>(stream, gpu_index, tmp_bitsliced,
                                           input, num_blocks, block_size);
