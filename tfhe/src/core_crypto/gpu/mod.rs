@@ -37,14 +37,15 @@ pub enum PBSMSNoiseReductionType {
 impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
     pub fn new_multi_gpu() -> Self {
-        let gpu_count = setup_multi_gpu(GpuIndex::new(0));
+        let gpu_count = setup_multi_gpu(GpuIndex::new(0)) + 1;
         let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
         let mut ptr_array = Vec::with_capacity(gpu_count as usize);
 
         for i in 0..gpu_count {
-            ptr_array.push(unsafe { cuda_create_stream(i) });
-            gpu_indexes.push(GpuIndex::new(i));
+            ptr_array.push(unsafe { cuda_create_stream(0) });
+            gpu_indexes.push(GpuIndex::new(0));
         }
+        println!("FAKE MULTI");
         Self {
             ptr: ptr_array,
             gpu_indexes,
@@ -1227,9 +1228,9 @@ pub fn synchronize_device(gpu_index: u32) {
 }
 
 /// Synchronize all devices
-pub fn synchronize_devices(gpu_count: u32) {
-    for i in 0..gpu_count {
-        unsafe { cuda_synchronize_device(i) }
+pub fn synchronize_devices(streams: &CudaStreams) {
+    for i in 0..streams.gpu_indexes.len() {
+        unsafe { cuda_synchronize_device(streams.gpu_indexes.get(i).unwrap().get()) }
     }
 }
 
