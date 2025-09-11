@@ -68,6 +68,10 @@
 ///
 /// Chinese remainder theorem solution:
 /// The art of computer programming (Donald E. Knuth), section 4.3.2
+///
+/// Implementation notes on the single Barrett reduction code can be found at
+/// <https://github.com/zama-ai/tfhe-rs/blob/main/implementation_notes/tfhe-ntt/gh_issue_2037_barrett_range.md>
+/// Or from the repo root at: implementation_notes/tfhe-ntt/gh_issue_2037_barrett_range.md
 #[allow(dead_code)]
 fn implementation_notes() {}
 
