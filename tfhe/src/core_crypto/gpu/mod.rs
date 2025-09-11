@@ -36,8 +36,31 @@ pub enum PBSMSNoiseReductionType {
 
 impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
+    #[cfg(feature = "gpu-debug-fake-multi-gpu")]
+    pub fn new_multi_gpu() -> Self {
+        let gpu_count = setup_multi_gpu(GpuIndex::new(0)) + 3;
+        assert_eq!(
+            gpu_count, 4,
+            "The fake multi-gpu debug target can only be used on single GPU machines"
+        );
+
+        let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
+        let mut ptr_array = Vec::with_capacity(gpu_count as usize);
+
+        for _ in 0..gpu_count {
+            ptr_array.push(unsafe { cuda_create_stream(0) });
+            gpu_indexes.push(GpuIndex::new(0));
+        }
+        Self {
+            ptr: ptr_array,
+            gpu_indexes,
+        }
+    }
+
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     pub fn new_multi_gpu() -> Self {
         let gpu_count = setup_multi_gpu(GpuIndex::new(0));
+
         let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
         let mut ptr_array = Vec::with_capacity(gpu_count as usize);
 
@@ -50,6 +73,7 @@ impl CudaStreams {
             gpu_indexes,
         }
     }
+
     /// Create a new `CudaStreams` structure with the GPUs with id provided in a list
     pub fn new_multi_gpu_with_indexes(indexes: &[GpuIndex]) -> Self {
         let _gpu_count = setup_multi_gpu(indexes[0]);
@@ -1235,9 +1259,9 @@ pub fn synchronize_device(gpu_index: u32) {
 }
 
 /// Synchronize all devices
-pub fn synchronize_devices(gpu_count: u32) {
-    for i in 0..gpu_count {
-        unsafe { cuda_synchronize_device(i) }
+pub fn synchronize_devices(streams: &CudaStreams) {
+    for i in 0..streams.gpu_indexes.len() {
+        unsafe { cuda_synchronize_device(streams.gpu_indexes.get(i).unwrap().get()) }
     }
 }
 

@@ -745,6 +745,16 @@ test_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
 
+.PHONY: build_debug_integer_short_run_gpu # Run the long run integer tests on the gpu backend
+build_debug_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test -vv --no-run --profile debug_lto_off \
+		--features=integer,gpu-debug-fake-multi-gpu -p tfhe
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile debug_lto_off \
+		--features=integer,gpu-debug-fake-multi-gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random --list
+	@echo "To debug fake-multi-gpu short run tests run:"
+	@echo "TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE <executable> integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random_op_sequence_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128 --nocapture"
+	@echo "Where <executable> = the one printed in the () in the 'Running unittests src/lib.rs ()' line above"
+
 .PHONY: test_integer_compression
 test_integer_compression: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -1008,6 +1018,11 @@ test_list_gpu: install_rs_build_toolchain install_cargo_nextest
 build_one_hl_api_test_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		   --features=integer,gpu-debug -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
+
+.PHONY: build_one_hl_api_test_fake_multi_gpu
+build_one_hl_api_test_fake_multi_gpu: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+		   --features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
 ifeq ($(HPU_CONFIG), v80)

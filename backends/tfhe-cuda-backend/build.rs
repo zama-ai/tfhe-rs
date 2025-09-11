@@ -54,6 +54,10 @@ fn main() {
 
         if cfg!(feature = "debug") {
             cmake_config.define("CMAKE_BUILD_TYPE", "Debug");
+        } else if cfg!(feature = "debug-fake-multi-gpu") {
+            cmake_config.define("CMAKE_BUILD_TYPE", "DebugOnlyCpu");
+            cmake_config.define("CMAKE_VERBOSE_MAKEFILE", "ON");
+            cmake_config.define("FAKE_MULTI_GPU", "ON");
         }
 
         // Build the CMake project

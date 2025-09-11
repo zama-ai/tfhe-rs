@@ -20,3 +20,4 @@ bindgen = "0.71"
 experimental-multi-arch = []
 profile = []
 debug = []
+debug-fake-multi-gpu = []

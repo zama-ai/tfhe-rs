@@ -106,6 +106,7 @@ gpu-experimental-multi-arch = [
 ]
 gpu-profile = ["gpu", "tfhe-cuda-backend/profile"]
 gpu-debug = ["gpu", "tfhe-cuda-backend/debug"]
+gpu-debug-fake-multi-gpu = ["gpu", "tfhe-cuda-backend/debug-fake-multi-gpu"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]

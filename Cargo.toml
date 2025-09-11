@@ -54,3 +54,10 @@ debug-assertions = false
 
 [workspace.metadata.dylint]
 libraries = [{ path = "utils/tfhe-lints" }]
+
+[profile.debug_lto_off]
+inherits = "dev"
+debug = true
+lto = "off"
+debug-assertions = false
+overflow-checks = false
