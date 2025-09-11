@@ -266,6 +266,11 @@ void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
     uint32_t gpu_index, bool gpu_memory_allocated) {
   if (size == 0 || !gpu_memory_allocated)
     return;
+  GPU_ASSERT(dest != nullptr,
+             "Cuda error: trying to copy gpu->gpu to null ptr");
+  GPU_ASSERT(src != nullptr,
+             "Cuda error: trying to copy gpu->gpu from null ptr");
+
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   PANIC_IF_FALSE(

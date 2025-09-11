@@ -45,12 +45,8 @@ void host_integer_grouped_oprf(CudaStreams streams,
     std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
     std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-    cuda_event_record(lut->event_scatter_in, streams.stream(0),
-                      streams.gpu_index(0));
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(j), lut->event_scatter_in,
-                             streams.gpu_index(j));
-    }
+    lut->multi_gpu_scatter_barrier.local_streams_wait_for_stream_0(
+        active_streams);
 
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
@@ -76,16 +72,8 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lut->lwe_aligned_vec, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
     POP_RANGE()
-    // other gpus record their events
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_event_record(lut->event_scatter_out[j], streams.stream(j),
-                        streams.gpu_index(j));
-    }
-    // GPU 0 waits for all
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(0), lut->event_scatter_out[j],
-                             streams.gpu_index(0));
-    }
+    lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
+        active_streams);
   }
 
   for (uint32_t i = 0; i < num_blocks_to_process; i++) {
