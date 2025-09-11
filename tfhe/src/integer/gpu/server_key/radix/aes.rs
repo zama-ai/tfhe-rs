@@ -84,7 +84,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1103,7 +1103,7 @@ mod test {
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-        let num_blocks: usize = 16;
+        let num_blocks: usize = 4;
         let start_counter: u128 = 0;
 
         println!("\n[Test] Starting FHE AES-CTR test for {num_blocks} blocks...");

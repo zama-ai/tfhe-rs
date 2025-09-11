@@ -7633,7 +7633,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     pbs_type: PBSType,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
@@ -7658,9 +7658,9 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     );
 
     let ct_modulus = output.d_blocks.ciphertext_modulus().raw_modulus_float();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    let (noise_reduction_type, ms_noise_reduction_key_ffi) =
+        resolve_ms_noise_reduction_config(ms_noise_reduction_configuration, ct_modulus);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_aes_encrypt_64(
@@ -7680,7 +7680,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
         num_blocks,
     );
 
@@ -7767,7 +7767,7 @@ pub unsafe fn unchecked_test_sbox_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
@@ -7842,7 +7842,7 @@ pub unsafe fn unchecked_test_shift_rows_async(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
@@ -7917,7 +7917,7 @@ pub unsafe fn unchecked_test_mul_by_2_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
@@ -7994,7 +7994,7 @@ pub unsafe fn unchecked_test_mix_columns_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
@@ -8072,7 +8072,7 @@ pub unsafe fn unchecked_test_full_adder_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
@@ -8155,7 +8155,7 @@ pub unsafe fn unchecked_test_transpose_async(
         carry_modulus.0 as u32,
         pbs_type as u32,
         true,
-        false,
+        0u32,
         num_blocks,
     );
 
