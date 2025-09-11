@@ -109,12 +109,6 @@ pub struct CompressedNoiseSquashingKey {
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
-impl CompressedNoiseSquashingKey {
-    pub fn bootstrapping_key(&self) -> &CompressedShortint128BootstrappingKey {
-        &self.bootstrapping_key
-    }
-}
-
 impl ClientKey {
     pub fn new_compressed_noise_squashing_key(
         &self,
@@ -241,6 +235,10 @@ impl CompressedNoiseSquashingKey {
             self.carry_modulus,
             self.output_ciphertext_modulus,
         )
+    }
+
+    pub fn bootstrapping_key(&self) -> &CompressedShortint128BootstrappingKey {
+        &self.bootstrapping_key
     }
 
     pub fn message_modulus(&self) -> MessageModulus {
