@@ -183,4 +183,122 @@ public:
   }
 };
 
+struct CudaStreamsWorkersWaitFirstBarrier {
+private:
+  cudaEvent_t _event;
+  CudaStreams _streams;
+
+  CudaStreamsWorkersWaitFirstBarrier(
+      const CudaStreamsWorkersWaitFirstBarrier &) {
+  } // Prevent copy-construction
+  CudaStreamsWorkersWaitFirstBarrier &
+  operator=(const CudaStreamsWorkersWaitFirstBarrier &) {
+    return *this;
+  } // Prevent assignment
+public:
+  void create_on(const CudaStreams &streams) {
+    _streams = streams;
+    _event = cuda_create_event(streams.gpu_index(0));
+  }
+
+  CudaStreamsWorkersWaitFirstBarrier() { _event = nullptr; };
+
+  void workers_wait_for_gpu_0() {
+    GPU_ASSERT(
+        _event != nullptr,
+        "CudaStreamsWorkersWaitFirstBarrier: must call create_on before use");
+
+    if (_streams.count() > 1) {
+      cuda_event_record(_event, _streams.stream(0), _streams.gpu_index(0));
+      for (int j = 1; j < _streams.count(); j++) {
+        cuda_stream_wait_event(_streams.stream(j), _event,
+                               _streams.gpu_index(j));
+      }
+    }
+  }
+
+  void user_streams_wait_for_gpu_0(const CudaStreams &user_streams) {
+    GPU_ASSERT(
+        _event != nullptr,
+        "CudaStreamsWorkersWaitFirstBarrier: must call create_on before use");
+
+    cuda_event_record(_event, _streams.stream(0), _streams.gpu_index(0));
+    for (int j = 0; j < user_streams.count(); j++) {
+      cuda_stream_wait_event(user_streams.stream(j), _event,
+                             user_streams.gpu_index(j));
+    }
+  }
+
+  void release() {
+    cuda_event_destroy(_event, _streams.gpu_index(0));
+    _event = nullptr;
+  }
+
+  ~CudaStreamsWorkersWaitFirstBarrier() {
+    GPU_ASSERT(_event == nullptr, "CudaStreamsWorkersWaitFirstBarrier: must "
+                                  "call release before destruction");
+  }
+};
+
+struct CudaStreamsFirstWaitsWorkersBarrier {
+private:
+  std::vector<cudaEvent_t> _events;
+  CudaStreams _streams;
+
+  CudaStreamsFirstWaitsWorkersBarrier(
+      const CudaStreamsFirstWaitsWorkersBarrier &) {
+  } // Prevent copy-construction
+  CudaStreamsFirstWaitsWorkersBarrier &
+  operator=(const CudaStreamsFirstWaitsWorkersBarrier &) {
+    return *this;
+  } // Prevent assignment
+public:
+  void create_on(const CudaStreams &streams) {
+    GPU_ASSERT(streams.count() > 1, "CudaStreamsFirstWaitsWorkersBarrier: "
+                                    "Attempted to create on single GPU");
+    _streams = streams;
+    _events.resize(streams.count());
+    for (int i = 0; i < streams.count(); i++) {
+      _events[i] = cuda_create_event(streams.gpu_index(i));
+    }
+  }
+
+  CudaStreamsFirstWaitsWorkersBarrier(){};
+
+  void gpu_0_wait_for_workers() {
+    GPU_ASSERT(
+        !_events.empty(),
+        "CudaStreamsFirstWaitsWorkersBarrier: must call create_on before use");
+
+    if (_streams.count() > 1) {
+      // Worker GPUs record their events
+      for (int j = 1; j < _streams.count(); j++) {
+        cuda_event_record(_events[j], _streams.stream(j),
+                          _streams.gpu_index(j));
+      }
+
+      // GPU 0 waits for all workers
+      for (int j = 1; j < _streams.count(); j++) {
+        cuda_stream_wait_event(_streams.stream(0), _events[j],
+                               _streams.gpu_index(0));
+      }
+    }
+  }
+
+  void release() {
+    for (int j = 0; j < _streams.count(); j++) {
+      cuda_event_destroy(_events[j], _streams.gpu_index(j));
+    }
+
+    _events.clear();
+  }
+
+  ~CudaStreamsFirstWaitsWorkersBarrier() {
+    GPU_ASSERT(_events.empty(),
+               "CudaStreamsFirstWaitsWorkersBarrier: must "
+               "call release before destruction: events size = %lu",
+               _events.size());
+  }
+};
+
 #endif

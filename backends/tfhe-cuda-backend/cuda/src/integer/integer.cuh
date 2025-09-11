@@ -560,12 +560,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    cuda_event_record(lut->event_scatter_in, streams.stream(0),
-                      streams.gpu_index(0));
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(j), lut->event_scatter_in,
-                             streams.gpu_index(j));
-    }
+    lut->multi_gpu_scatter_barrier.user_streams_wait_for_gpu_0(active_streams);
 
     /// With multiple GPUs we push to the vectors on each GPU then when we
     /// gather data to GPU 0 we can copy back to the original indexing
@@ -598,16 +593,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
-    // other gpus record their events
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_event_record(lut->event_scatter_out[j], streams.stream(j),
-                        streams.gpu_index(j));
-    }
-    // GPU 0 waits for all
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(0), lut->event_scatter_out[j],
-                             streams.gpu_index(0));
-    }
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -674,12 +660,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
-    cuda_event_record(lut->event_scatter_in, streams.stream(0),
-                      streams.gpu_index(0));
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(j), lut->event_scatter_in,
-                             streams.gpu_index(j));
-    }
+    lut->multi_gpu_scatter_barrier.user_streams_wait_for_gpu_0(active_streams);
+
     /// With multiple GPUs we push to the vectors on each GPU then when we
     /// gather data to GPU 0 we can copy back to the original indexing
     PUSH_RANGE("scatter")
@@ -712,16 +694,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         num_radix_blocks, big_lwe_dimension + 1, num_many_lut);
     POP_RANGE()
 
-    // other gpus record their events
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_event_record(lut->event_scatter_out[j], streams.stream(j),
-                        streams.gpu_index(j));
-    }
-    // GPU 0 waits for all
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(0), lut->event_scatter_out[j],
-                             streams.gpu_index(0));
-    }
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
   }
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
@@ -802,12 +775,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
         grouping_factor, num_radix_blocks, pbs_type, num_many_lut, lut_stride);
   } else {
-    cuda_event_record(lut->event_scatter_in, streams.stream(0),
-                      streams.gpu_index(0));
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(j), lut->event_scatter_in,
-                             streams.gpu_index(j));
-    }
+    lut->multi_gpu_scatter_barrier.user_streams_wait_for_gpu_0(active_streams);
+
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_pbs_in->ptr,
@@ -837,16 +806,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
-    // other gpus record their events
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_event_record(lut->event_scatter_out[j], streams.stream(j),
-                        streams.gpu_index(j));
-    }
-    // GPU 0 waits for all
-    for (int j = 1; j < active_streams.count(); j++) {
-      cuda_stream_wait_event(streams.stream(0), lut->event_scatter_out[j],
-                             streams.gpu_index(0));
-    }
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
