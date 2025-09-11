@@ -816,7 +816,8 @@ uint64_t scratch_cuda_integer_aes_encrypt_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array, uint32_t num_blocks);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
+    uint32_t num_blocks);
 
 void cuda_integer_aes_ctr_encrypt_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

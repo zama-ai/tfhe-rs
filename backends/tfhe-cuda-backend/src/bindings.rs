@@ -2048,7 +2048,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_blocks: u32,
     ) -> u64;
 }
