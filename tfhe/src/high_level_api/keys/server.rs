@@ -407,7 +407,7 @@ impl CompressedServerKey {
                 noise_squashing_compression_key.decompress_to_cuda(&streams)
             });
 
-        synchronize_devices(streams.len() as u32);
+        synchronize_devices(&streams);
         CudaServerKey {
             key: Arc::new(IntegerCudaServerKey {
                 key,

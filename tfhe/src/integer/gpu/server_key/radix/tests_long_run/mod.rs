@@ -25,9 +25,23 @@ fn seeded_shuffle(v: &mut [u32], datagen: &mut DeterministicSeeder<DefaultRandom
 fn make_random_gpu_set(datagen: &mut DeterministicSeeder<DefaultRandomGenerator>) -> CudaGpuChoice {
     // Sample a random subset of 1-N gpus, where N is the number of available GPUs
     // A GPU index should not appear twice in the subset
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     let num_gpus = get_number_of_gpus();
-    //let mut rng = rand::thread_rng();
-    let num_gpus_to_use = (1 + datagen.seed().0 as u32 % (num_gpus - 1)) as usize;
+
+    #[cfg(feature = "gpu-debug-fake-multi-gpu")]
+    let num_gpus_to_use = 2;
+
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
+    let num_gpus_to_use = if num_gpus > 1 {
+        (1 + datagen.seed().0 as u32 % (num_gpus - 1)) as usize
+    } else {
+        1usize
+    };
+
+    #[cfg(feature = "gpu-debug-fake-multi-gpu")]
+    let mut all_gpu_indexes: Vec<u32> = vec![0; num_gpus_to_use];
+
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     let mut all_gpu_indexes: Vec<u32> = (0..num_gpus).collect();
     seeded_shuffle(&mut all_gpu_indexes, datagen);
 

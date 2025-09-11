@@ -728,23 +728,25 @@ template <typename Torus> struct int_radix_lut {
             "Broadcasting LUTs can only be done to the LUT streams or to new "
             "streams that reside on the same GPUs as the source LUTs");
 
-        if (new_active_streams.gpu_index(i) !=
-            new_active_streams.gpu_index(0)) {
-          cuda_stream_wait_event(new_active_streams.stream(i), event_broadcast,
-                                 new_active_streams.gpu_index(i));
-          if (broadcast_lut_values) {
-            auto dst_lut = lut_vec[i];
-            cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-                dst_lut, src_lut, num_luts * lut_size * sizeof(Torus),
-                new_active_streams.stream(i), new_active_streams.gpu_index(i),
-                gpu_memory_allocated);
-          }
-          auto dst_lut_indexes = lut_indexes_vec[i];
+#ifndef DEBUG_FAKE_MULTI_GPU
+        if (new_active_streams.gpu_index(i) == new_active_streams.gpu_index(0))
+          continue;
+#endif
+
+        cuda_stream_wait_event(new_active_streams.stream(i), event_broadcast,
+                               new_active_streams.gpu_index(i));
+        if (broadcast_lut_values) {
+          auto dst_lut = lut_vec[i];
           cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-              dst_lut_indexes, src_lut_indexes, num_blocks * sizeof(Torus),
+              dst_lut, src_lut, num_luts * lut_size * sizeof(Torus),
               new_active_streams.stream(i), new_active_streams.gpu_index(i),
               gpu_memory_allocated);
         }
+        auto dst_lut_indexes = lut_indexes_vec[i];
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            dst_lut_indexes, src_lut_indexes, num_blocks * sizeof(Torus),
+            new_active_streams.stream(i), new_active_streams.gpu_index(i),
+            gpu_memory_allocated);
       }
       // Ensure the device set at the end of this method is the same as it was
       // set at the beginning

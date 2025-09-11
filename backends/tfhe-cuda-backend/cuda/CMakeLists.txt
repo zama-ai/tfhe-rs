@@ -87,6 +87,9 @@ if(CMAKE_BUILD_TYPE_LOWERCASE STREQUAL "debug")
   add_definitions(-DDEBUG)
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O0 -G -g")
   set(USE_NVTOOLS 1)
+elseif(CMAKE_BUILD_TYPE_LOWERCASE STREQUAL "debugonlycpu")
+  message("Compiling GPU kernels in Release and CPU code in Debug")
+  set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O0 -g")
 else()
   # Release mode
   message("Compiling in Release mode")
@@ -97,6 +100,11 @@ endif()
 if(${USE_NVTOOLS})
   message(STATUS "USE_NVTOOLS is enabled")
   add_definitions(-DUSE_NVTOOLS)
+endif()
+
+if(${FAKE_MULTI_GPU})
+  message(STATUS "Fake multi-gpu debugging is enabled")
+  add_definitions(-DDEBUG_FAKE_MULTI_GPU)
 endif()
 
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use

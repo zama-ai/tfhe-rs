@@ -1,3 +1,4 @@
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::CudaServerKey;
@@ -13,10 +14,14 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Tag};
-use std::cmp::{max, min};
 use std::sync::Arc;
 
 create_gpu_parameterized_test!(random_op_sequence {
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
+
+#[cfg(feature = "gpu-debug-fake-multi-gpu")]
+create_gpu_parameterized_test!(short_random_op_sequence {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
@@ -132,10 +137,206 @@ where
     (cks, sks, datagen)
 }
 
+mod clear_functions {
+    #![allow(non_upper_case_globals)]
+
+    // Overflowing Ops Clear functions
+    pub(crate) const clear_add: fn(u64, u64) -> u64 = |x, y| x.wrapping_add(y);
+    pub(crate) const clear_sub: fn(u64, u64) -> u64 = |x, y| x.wrapping_sub(y);
+    pub(crate) const clear_bitwise_and: fn(u64, u64) -> u64 = |x, y| x & y;
+    pub(crate) const clear_bitwise_or: fn(u64, u64) -> u64 = |x, y| x | y;
+    pub(crate) const clear_bitwise_xor: fn(u64, u64) -> u64 = |x, y| x ^ y;
+    pub(crate) const clear_mul: fn(u64, u64) -> u64 = |x, y| x.wrapping_mul(y);
+    // Warning this rotate definition only works with 64-bit ciphertexts
+    pub(crate) const clear_rotate_left: fn(u64, u64) -> u64 =
+        |x: u64, y: u64| x.rotate_left(y as u32);
+    pub(crate) const clear_left_shift: fn(u64, u64) -> u64 = |x, y| x.wrapping_shl(y as u32);
+    // Warning this rotate definition only works with 64-bit ciphertexts
+    pub(crate) const clear_rotate_right: fn(u64, u64) -> u64 =
+        |x: u64, y: u64| x.rotate_right(y as u32);
+    pub(crate) const clear_right_shift: fn(u64, u64) -> u64 = |x, y| x.wrapping_shr(y as u32);
+    pub(crate) const clear_max: fn(u64, u64) -> u64 = |x: u64, y: u64| std::cmp::max(x, y);
+    pub(crate) const clear_min: fn(u64, u64) -> u64 = |x: u64, y: u64| std::cmp::min(x, y);
+    pub(crate) const clear_neg: fn(u64) -> u64 = |x: u64| x.wrapping_neg();
+    pub(crate) const clear_bitnot: fn(u64) -> u64 = |x: u64| !x;
+    //pub(crate) const clear_reverse_bits = |x: u64| x.reverse_bits();
+    pub(crate) const clear_overflowing_add: fn(u64, u64) -> (u64, bool) =
+        |x: u64, y: u64| -> (u64, bool) { x.overflowing_add(y) };
+    pub(crate) const clear_overflowing_sub: fn(u64, u64) -> (u64, bool) =
+        |x: u64, y: u64| -> (u64, bool) { x.overflowing_sub(y) };
+    //pub(crate) const clear_overflowing_mul: fn(u64, u64) -> u64 = |x: u64, y: u64| -> (u64, bool)
+    // { x.overflowing_mul(y) }; Comparison Ops Clear functions
+    pub(crate) const clear_gt: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x > y };
+    pub(crate) const clear_ge: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x >= y };
+    pub(crate) const clear_lt: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x < y };
+    pub(crate) const clear_le: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x <= y };
+    pub(crate) const clear_eq: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x == y };
+    pub(crate) const clear_ne: fn(u64, u64) -> bool = |x: u64, y: u64| -> bool { x != y };
+    // Select
+    pub(crate) const clear_select: fn(bool, u64, u64) -> u64 =
+        |b: bool, x: u64, y: u64| if b { x } else { y };
+    // Div Rem Clear functions
+    pub(crate) const clear_div_rem: fn(u64, u64) -> (u64, u64) =
+        |x: u64, y: u64| -> (u64, u64) { (x.wrapping_div(y), x.wrapping_rem(y)) };
+    pub(crate) const clear_ilog2: fn(u64) -> u64 = |x: u64| x.ilog2() as u64;
+}
+
+#[cfg(feature = "gpu-debug-fake-multi-gpu")]
+fn short_random_op_sequence<P>(param: P)
+where
+    P: Into<TestParameters> + Clone,
+{
+    use clear_functions;
+    println!("Running short random op sequence test");
+
+    // Binary Ops Executors
+    let add_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    let sub_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
+    let bitwise_and_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitand);
+    let bitwise_or_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
+    let bitwise_xor_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
+    let mul_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
+
+    // Binary Ops Clear functions
+    #[allow(clippy::type_complexity)]
+    let mut binary_ops: Vec<(BinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
+        (
+            Box::new(add_executor),
+            &clear_functions::clear_add,
+            "add".to_string(),
+        ),
+        (
+            Box::new(sub_executor),
+            &clear_functions::clear_sub,
+            "sub".to_string(),
+        ),
+        (
+            Box::new(bitwise_and_executor),
+            &clear_functions::clear_bitwise_and,
+            "bitand".to_string(),
+        ),
+        (
+            Box::new(bitwise_or_executor),
+            &clear_functions::clear_bitwise_or,
+            "bitor".to_string(),
+        ),
+        (
+            Box::new(bitwise_xor_executor),
+            &clear_functions::clear_bitwise_xor,
+            "bitxor".to_string(),
+        ),
+        (
+            Box::new(mul_executor),
+            &clear_functions::clear_mul,
+            "mul".to_string(),
+        ),
+    ];
+
+    let mut unary_ops: Vec<(UnaryOpExecutor, &dyn Fn(u64) -> u64, String)> = vec![];
+    let mut scalar_binary_ops: Vec<(ScalarBinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> =
+        vec![];
+    let mut overflowing_ops: Vec<(
+        OverflowingOpExecutor,
+        &dyn Fn(u64, u64) -> (u64, bool),
+        String,
+    )> = vec![];
+    let mut scalar_overflowing_ops: Vec<(
+        ScalarOverflowingOpExecutor,
+        &dyn Fn(u64, u64) -> (u64, bool),
+        String,
+    )> = vec![];
+    let mut comparison_ops: Vec<(ComparisonOpExecutor, &dyn Fn(u64, u64) -> bool, String)> = vec![];
+    let mut scalar_comparison_ops: Vec<(
+        ScalarComparisonOpExecutor,
+        &dyn Fn(u64, u64) -> bool,
+        String,
+    )> = vec![];
+
+    // Select Executor
+    let select_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
+
+    #[allow(clippy::type_complexity)]
+    let mut select_op: Vec<(SelectOpExecutor, &dyn Fn(bool, u64, u64) -> u64, String)> = vec![(
+        Box::new(select_executor),
+        &clear_functions::clear_select,
+        "select".to_string(),
+    )];
+
+    // Div executor
+    let div_rem_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
+    #[allow(clippy::type_complexity)]
+    let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![(
+        Box::new(div_rem_executor),
+        &clear_functions::clear_div_rem,
+        "div rem".to_string(),
+    )];
+
+    // Scalar Div executor
+    let scalar_div_rem_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_div_rem);
+    #[allow(clippy::type_complexity)]
+    let mut scalar_div_rem_op: Vec<(
+        ScalarDivRemOpExecutor,
+        &dyn Fn(u64, u64) -> (u64, u64),
+        String,
+    )> = vec![(
+        Box::new(scalar_div_rem_executor),
+        &clear_functions::clear_div_rem,
+        "scalar div rem".to_string(),
+    )];
+
+    // Log2/Hamming weight ops
+    let ilog2_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ilog2);
+
+    #[allow(clippy::type_complexity)]
+    let mut log2_ops: Vec<(Log2OpExecutor, &dyn Fn(u64) -> u64, String)> = vec![(
+        Box::new(ilog2_executor),
+        &clear_functions::clear_ilog2,
+        "ilog2".to_string(),
+    )];
+
+    let (cks, sks, mut datagen) = random_op_sequence_test_init_gpu(
+        param,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+    );
+
+    random_op_sequence_test(
+        &mut datagen,
+        &cks,
+        &sks,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+    );
+}
+
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
 {
+    use clear_functions;
+
     println!("Running random op sequence test");
 
     // Binary Ops Executors
@@ -159,80 +360,91 @@ where
     let min_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::min);
 
     // Binary Ops Clear functions
-    let clear_add = |x, y| x + y;
-    let clear_sub = |x, y| x - y;
-    let clear_bitwise_and = |x, y| x & y;
-    let clear_bitwise_or = |x, y| x | y;
-    let clear_bitwise_xor = |x, y| x ^ y;
-    let clear_mul = |x, y| x * y;
-    // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
-    let clear_left_shift = |x, y| x << y;
-    // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_right = |x: u64, y: u64| x.rotate_right(y as u32);
-    let clear_right_shift = |x, y| x >> y;
-    let clear_max = |x: u64, y: u64| max(x, y);
-    let clear_min = |x: u64, y: u64| min(x, y);
-
     #[allow(clippy::type_complexity)]
     let mut binary_ops: Vec<(BinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
-        (Box::new(add_executor), &clear_add, "add".to_string()),
-        (Box::new(sub_executor), &clear_sub, "sub".to_string()),
+        (
+            Box::new(add_executor),
+            &clear_functions::clear_add,
+            "add".to_string(),
+        ),
+        (
+            Box::new(sub_executor),
+            &clear_functions::clear_sub,
+            "sub".to_string(),
+        ),
         (
             Box::new(bitwise_and_executor),
-            &clear_bitwise_and,
+            &clear_functions::clear_bitwise_and,
             "bitand".to_string(),
         ),
         (
             Box::new(bitwise_or_executor),
-            &clear_bitwise_or,
+            &clear_functions::clear_bitwise_or,
             "bitor".to_string(),
         ),
         (
             Box::new(bitwise_xor_executor),
-            &clear_bitwise_xor,
+            &clear_functions::clear_bitwise_xor,
             "bitxor".to_string(),
         ),
-        (Box::new(mul_executor), &clear_mul, "mul".to_string()),
+        (
+            Box::new(mul_executor),
+            &clear_functions::clear_mul,
+            "mul".to_string(),
+        ),
         (
             Box::new(rotate_left_executor),
-            &clear_rotate_left,
+            &clear_functions::clear_rotate_left,
             "rotate left".to_string(),
         ),
         (
             Box::new(left_shift_executor),
-            &clear_left_shift,
+            &clear_functions::clear_left_shift,
             "left shift".to_string(),
         ),
         (
             Box::new(rotate_right_executor),
-            &clear_rotate_right,
+            &clear_functions::clear_rotate_right,
             "rotate right".to_string(),
         ),
         (
             Box::new(right_shift_executor),
-            &clear_right_shift,
+            &clear_functions::clear_right_shift,
             "right shift".to_string(),
         ),
-        (Box::new(max_executor), &clear_max, "max".to_string()),
-        (Box::new(min_executor), &clear_min, "min".to_string()),
+        (
+            Box::new(max_executor),
+            &clear_functions::clear_max,
+            "max".to_string(),
+        ),
+        (
+            Box::new(min_executor),
+            &clear_functions::clear_min,
+            "min".to_string(),
+        ),
     ];
 
     // Unary Ops Executors
-    let neg_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::neg);
-    let bitnot_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitnot);
+    let neg_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::neg::<CudaUnsignedRadixCiphertext>,
+    );
+    let bitnot_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::bitnot::<CudaUnsignedRadixCiphertext>,
+    );
     //let reverse_bits_executor =
     // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::reverse_bits); Unary Ops Clear
     // functions
-    let clear_neg = |x: u64| x.wrapping_neg();
-    let clear_bitnot = |x: u64| !x;
-    //let clear_reverse_bits = |x: u64| x.reverse_bits();
+
     #[allow(clippy::type_complexity)]
     let mut unary_ops: Vec<(UnaryOpExecutor, &dyn Fn(u64) -> u64, String)> = vec![
-        (Box::new(neg_executor), &clear_neg, "neg".to_string()),
+        (
+            Box::new(neg_executor),
+            &clear_functions::clear_neg,
+            "neg".to_string(),
+        ),
         (
             Box::new(bitnot_executor),
-            &clear_bitnot,
+            &clear_functions::clear_bitnot,
             "bitnot".to_string(),
         ),
         //(
@@ -268,52 +480,52 @@ where
     let mut scalar_binary_ops: Vec<(ScalarBinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
         (
             Box::new(scalar_add_executor),
-            &clear_add,
+            &clear_functions::clear_add,
             "scalar add".to_string(),
         ),
         (
             Box::new(scalar_sub_executor),
-            &clear_sub,
+            &clear_functions::clear_sub,
             "scalar sub".to_string(),
         ),
         (
             Box::new(scalar_bitwise_and_executor),
-            &clear_bitwise_and,
+            &clear_functions::clear_bitwise_and,
             "scalar bitand".to_string(),
         ),
         (
             Box::new(scalar_bitwise_or_executor),
-            &clear_bitwise_or,
+            &clear_functions::clear_bitwise_or,
             "scalar bitor".to_string(),
         ),
         (
             Box::new(scalar_bitwise_xor_executor),
-            &clear_bitwise_xor,
+            &clear_functions::clear_bitwise_xor,
             "scalar bitxor".to_string(),
         ),
         (
             Box::new(scalar_mul_executor),
-            &clear_mul,
+            &clear_functions::clear_mul,
             "scalar mul".to_string(),
         ),
         (
             Box::new(scalar_rotate_left_executor),
-            &clear_rotate_left,
+            &clear_functions::clear_rotate_left,
             "scalar rotate left".to_string(),
         ),
         (
             Box::new(scalar_left_shift_executor),
-            &clear_left_shift,
+            &clear_functions::clear_left_shift,
             "scalar left shift".to_string(),
         ),
         (
             Box::new(scalar_rotate_right_executor),
-            &clear_rotate_right,
+            &clear_functions::clear_rotate_right,
             "scalar rotate right".to_string(),
         ),
         (
             Box::new(scalar_right_shift_executor),
-            &clear_right_shift,
+            &clear_functions::clear_right_shift,
             "scalar right shift".to_string(),
         ),
     ];
@@ -326,11 +538,6 @@ where
     //let overflowing_mul_executor =
     //    OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_mul);
 
-    // Overflowing Ops Clear functions
-    let clear_overflowing_add = |x: u64, y: u64| -> (u64, bool) { x.overflowing_add(y) };
-    let clear_overflowing_sub = |x: u64, y: u64| -> (u64, bool) { x.overflowing_sub(y) };
-    //let clear_overflowing_mul = |x: u64, y: u64| -> (u64, bool) { x.overflowing_mul(y) };
-
     #[allow(clippy::type_complexity)]
     let mut overflowing_ops: Vec<(
         OverflowingOpExecutor,
@@ -339,12 +546,12 @@ where
     )> = vec![
         (
             Box::new(overflowing_add_executor),
-            &clear_overflowing_add,
+            &clear_functions::clear_overflowing_add,
             "overflowing add".to_string(),
         ),
         (
             Box::new(overflowing_sub_executor),
-            &clear_overflowing_sub,
+            &clear_functions::clear_overflowing_sub,
             "overflowing sub".to_string(),
         ),
         //(
@@ -370,7 +577,7 @@ where
     )> = vec![
         (
             Box::new(overflowing_scalar_add_executor),
-            &clear_overflowing_add,
+            &clear_functions::clear_overflowing_add,
             "overflowing scalar add".to_string(),
         ),
         //(
@@ -388,22 +595,38 @@ where
     let eq_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::eq);
     let ne_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ne);
 
-    // Comparison Ops Clear functions
-    let clear_gt = |x: u64, y: u64| -> bool { x > y };
-    let clear_ge = |x: u64, y: u64| -> bool { x >= y };
-    let clear_lt = |x: u64, y: u64| -> bool { x < y };
-    let clear_le = |x: u64, y: u64| -> bool { x <= y };
-    let clear_eq = |x: u64, y: u64| -> bool { x == y };
-    let clear_ne = |x: u64, y: u64| -> bool { x != y };
-
     #[allow(clippy::type_complexity)]
     let mut comparison_ops: Vec<(ComparisonOpExecutor, &dyn Fn(u64, u64) -> bool, String)> = vec![
-        (Box::new(gt_executor), &clear_gt, "gt".to_string()),
-        (Box::new(ge_executor), &clear_ge, "ge".to_string()),
-        (Box::new(lt_executor), &clear_lt, "lt".to_string()),
-        (Box::new(le_executor), &clear_le, "le".to_string()),
-        (Box::new(eq_executor), &clear_eq, "eq".to_string()),
-        (Box::new(ne_executor), &clear_ne, "ne".to_string()),
+        (
+            Box::new(gt_executor),
+            &clear_functions::clear_gt,
+            "gt".to_string(),
+        ),
+        (
+            Box::new(ge_executor),
+            &clear_functions::clear_ge,
+            "ge".to_string(),
+        ),
+        (
+            Box::new(lt_executor),
+            &clear_functions::clear_lt,
+            "lt".to_string(),
+        ),
+        (
+            Box::new(le_executor),
+            &clear_functions::clear_le,
+            "le".to_string(),
+        ),
+        (
+            Box::new(eq_executor),
+            &clear_functions::clear_eq,
+            "eq".to_string(),
+        ),
+        (
+            Box::new(ne_executor),
+            &clear_functions::clear_ne,
+            "ne".to_string(),
+        ),
     ];
 
     // Scalar Comparison Ops Executors
@@ -428,32 +651,32 @@ where
     )> = vec![
         (
             Box::new(scalar_gt_executor),
-            &clear_gt,
+            &clear_functions::clear_gt,
             "scalar gt".to_string(),
         ),
         (
             Box::new(scalar_ge_executor),
-            &clear_ge,
+            &clear_functions::clear_ge,
             "scalar ge".to_string(),
         ),
         (
             Box::new(scalar_lt_executor),
-            &clear_lt,
+            &clear_functions::clear_lt,
             "scalar lt".to_string(),
         ),
         (
             Box::new(scalar_le_executor),
-            &clear_le,
+            &clear_functions::clear_le,
             "scalar le".to_string(),
         ),
         (
             Box::new(scalar_eq_executor),
-            &clear_eq,
+            &clear_functions::clear_eq,
             "scalar eq".to_string(),
         ),
         (
             Box::new(scalar_ne_executor),
-            &clear_ne,
+            &clear_functions::clear_ne,
             "scalar ne".to_string(),
         ),
     ];
@@ -462,24 +685,19 @@ where
     let select_executor =
         OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
 
-    // Select
-    let clear_select = |b: bool, x: u64, y: u64| if b { x } else { y };
-
     #[allow(clippy::type_complexity)]
     let mut select_op: Vec<(SelectOpExecutor, &dyn Fn(bool, u64, u64) -> u64, String)> = vec![(
         Box::new(select_executor),
-        &clear_select,
+        &clear_functions::clear_select,
         "select".to_string(),
     )];
 
     // Div executor
     let div_rem_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
-    // Div Rem Clear functions
-    let clear_div_rem = |x: u64, y: u64| -> (u64, u64) { (x.wrapping_div(y), x.wrapping_rem(y)) };
     #[allow(clippy::type_complexity)]
     let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![(
         Box::new(div_rem_executor),
-        &clear_div_rem,
+        &clear_functions::clear_div_rem,
         "div rem".to_string(),
     )];
 
@@ -493,7 +711,7 @@ where
         String,
     )> = vec![(
         Box::new(scalar_div_rem_executor),
-        &clear_div_rem,
+        &clear_functions::clear_div_rem,
         "scalar div rem".to_string(),
     )];
 
@@ -503,13 +721,16 @@ where
     // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_zeros);
     // let count_ones_executor =
     // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_ones);
-    let clear_ilog2 = |x: u64| x.ilog2() as u64;
     //let clear_count_zeros = |x: u64| x.count_zeros() as u64;
     //let clear_count_ones = |x: u64| x.count_ones() as u64;
 
     #[allow(clippy::type_complexity)]
     let mut log2_ops: Vec<(Log2OpExecutor, &dyn Fn(u64) -> u64, String)> = vec![
-        (Box::new(ilog2_executor), &clear_ilog2, "ilog2".to_string()),
+        (
+            Box::new(ilog2_executor),
+            &clear_functions::clear_ilog2,
+            "ilog2".to_string(),
+        ),
         //(
         //    Box::new(count_zeros_executor),
         //    &clear_count_zeros,
