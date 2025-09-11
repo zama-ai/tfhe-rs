@@ -3297,11 +3297,11 @@ mod hpu {
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_lt,
-        display_name: lower_than
+        display_name: less_than
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_lte,
-        display_name: lower_or_equal
+        display_name: less_or_equal
     );
     criterion_group!(
         default_hpu_cmp,
