@@ -110,6 +110,14 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         }
     }
 
+    #[cfg(feature = "integer")]
+    pub(crate) fn from_raw_parts(
+        mask: MaskRandomGenerator<G>,
+        noise: NoiseRandomGenerator<G>,
+    ) -> Self {
+        Self { mask, noise }
+    }
+
     /// Return the number of remaining bytes for the mask generator, if the generator is bounded.
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.mask.remaining_bytes()
