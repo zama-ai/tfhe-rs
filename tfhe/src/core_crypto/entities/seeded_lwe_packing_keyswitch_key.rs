@@ -3,6 +3,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -300,6 +301,35 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             &mut decompressed_pksk,
             &self,
         );
+        decompressed_pksk
+    }
+
+    /// Decompress the [`SeededLwePackingKeyswitchKey`] into [`LwePackingKeyswitchKey`]
+    /// without consuming `self`
+    pub fn decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> LwePackingKeyswitchKeyOwned<Scalar>
+    where
+        Scalar: UnsignedTorus,
+        Gen: ByteRandomGenerator,
+    {
+        let mut decompressed_pksk = LwePackingKeyswitchKeyOwned::new(
+            Scalar::ZERO,
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.input_key_lwe_dimension(),
+            self.output_key_glwe_dimension(),
+            self.output_key_polynomial_size(),
+            self.ciphertext_modulus(),
+        );
+
+        decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
+            &mut decompressed_pksk,
+            self,
+            generator,
+        );
+
         decompressed_pksk
     }
 

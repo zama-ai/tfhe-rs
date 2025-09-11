@@ -205,6 +205,92 @@ where
     new_lwe_packing_keyswitch_key
 }
 
+pub fn generate_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
+    input_lwe_sk: &LweSecretKey<InputKeyCont>,
+    output_glwe_sk: &GlweSecretKey<OutputKeyCont>,
+    lwe_packing_keyswitch_key: &mut SeededLwePackingKeyswitchKey<KSKeyCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    KSKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        lwe_packing_keyswitch_key.input_key_lwe_dimension() == input_lwe_sk.lwe_dimension(),
+        "The destination LwePackingKeyswitchKey input LweDimension is not equal \
+    to the input LweSecretKey LweDimension. Destination: {:?}, input: {:?}",
+        lwe_packing_keyswitch_key.input_key_lwe_dimension(),
+        input_lwe_sk.lwe_dimension()
+    );
+    assert!(
+        lwe_packing_keyswitch_key.output_key_glwe_dimension() == output_glwe_sk.glwe_dimension(),
+        "The destination LwePackingKeyswitchKey output LweDimension is not equal \
+    to the output GlweSecretKey GlweDimension. Destination: {:?}, output: {:?}",
+        lwe_packing_keyswitch_key.output_key_glwe_dimension(),
+        output_glwe_sk.glwe_dimension()
+    );
+    assert!(
+        lwe_packing_keyswitch_key.output_key_polynomial_size() == output_glwe_sk.polynomial_size(),
+        "The destination LwePackingKeyswitchKey output PolynomialSize is not equal \
+        to the output GlweSecretKey PolynomialSize. Destination: {:?}, output: {:?}",
+        lwe_packing_keyswitch_key.output_key_polynomial_size(),
+        output_glwe_sk.polynomial_size()
+    );
+
+    let decomp_base_log = lwe_packing_keyswitch_key.decomposition_base_log();
+    let decomp_level_count = lwe_packing_keyswitch_key.decomposition_level_count();
+    let polynomial_size = lwe_packing_keyswitch_key.output_polynomial_size();
+    let ciphertext_modulus = lwe_packing_keyswitch_key.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
+    // The plaintexts used to encrypt a key element will be stored in this buffer
+    let mut decomposition_plaintexts_buffer = PlaintextListOwned::new(
+        Scalar::ZERO,
+        PlaintextCount(decomp_level_count.0 * polynomial_size.0),
+    );
+
+    // Iterate over the input key elements and the destination lwe_packing_keyswitch_key memory
+    for (input_key_element, mut packing_keyswitch_key_block) in input_lwe_sk
+        .as_ref()
+        .iter()
+        .zip(lwe_packing_keyswitch_key.iter_mut())
+    {
+        // We fill the buffer with the powers of the key elements
+        for (level, mut messages) in (1..=decomp_level_count.0)
+            .map(DecompositionLevel)
+            .rev()
+            .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
+        {
+            // Here  we take the decomposition term from the native torus, bring it to the torus we
+            // are working with by dividing by the scaling factor and the encryption will take care
+            // of mapping that back to the native torus
+            *messages.get_mut(0).0 =
+                DecompositionTerm::new(level, decomp_base_log, *input_key_element)
+                    .to_recomposition_summand()
+                    .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+        }
+
+        encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator(
+            output_glwe_sk,
+            &mut packing_keyswitch_key_block,
+            &decomposition_plaintexts_buffer,
+            noise_distribution,
+            generator,
+        );
+    }
+}
+
 /// Fill an [`LWE keyswitch key`](`SeededLwePackingKeyswitchKey`) with an actual keyswitching key
 /// constructed from an input [`LWE secret key`](`LweSecretKey`) and an output
 /// [`GLWE secret key`](`GlweSecretKey`).
@@ -281,74 +367,18 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
-    assert!(
-        lwe_packing_keyswitch_key.input_key_lwe_dimension() == input_lwe_sk.lwe_dimension(),
-        "The destination LwePackingKeyswitchKey input LweDimension is not equal \
-    to the input LweSecretKey LweDimension. Destination: {:?}, input: {:?}",
-        lwe_packing_keyswitch_key.input_key_lwe_dimension(),
-        input_lwe_sk.lwe_dimension()
-    );
-    assert!(
-        lwe_packing_keyswitch_key.output_key_glwe_dimension() == output_glwe_sk.glwe_dimension(),
-        "The destination LwePackingKeyswitchKey output LweDimension is not equal \
-    to the output GlweSecretKey GlweDimension. Destination: {:?}, output: {:?}",
-        lwe_packing_keyswitch_key.output_key_glwe_dimension(),
-        output_glwe_sk.glwe_dimension()
-    );
-    assert!(
-        lwe_packing_keyswitch_key.output_key_polynomial_size() == output_glwe_sk.polynomial_size(),
-        "The destination LwePackingKeyswitchKey output PolynomialSize is not equal \
-        to the output GlweSecretKey PolynomialSize. Destination: {:?}, output: {:?}",
-        lwe_packing_keyswitch_key.output_key_polynomial_size(),
-        output_glwe_sk.polynomial_size()
-    );
-
-    let decomp_base_log = lwe_packing_keyswitch_key.decomposition_base_log();
-    let decomp_level_count = lwe_packing_keyswitch_key.decomposition_level_count();
-    let polynomial_size = lwe_packing_keyswitch_key.output_polynomial_size();
-    let ciphertext_modulus = lwe_packing_keyswitch_key.ciphertext_modulus();
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
-    // The plaintexts used to encrypt a key element will be stored in this buffer
-    let mut decomposition_plaintexts_buffer = PlaintextListOwned::new(
-        Scalar::ZERO,
-        PlaintextCount(decomp_level_count.0 * polynomial_size.0),
-    );
-
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         lwe_packing_keyswitch_key.compression_seed().seed,
         noise_seeder,
     );
 
-    // Iterate over the input key elements and the destination lwe_packing_keyswitch_key memory
-    for (input_key_element, mut packing_keyswitch_key_block) in input_lwe_sk
-        .as_ref()
-        .iter()
-        .zip(lwe_packing_keyswitch_key.iter_mut())
-    {
-        // We fill the buffer with the powers of the key elements
-        for (level, mut messages) in (1..=decomp_level_count.0)
-            .map(DecompositionLevel)
-            .rev()
-            .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
-        {
-            // Here  we take the decomposition term from the native torus, bring it to the torus we
-            // are working with by dividing by the scaling factor and the encryption will take care
-            // of mapping that back to the native torus
-            *messages.get_mut(0).0 =
-                DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                    .to_recomposition_summand()
-                    .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
-        }
-
-        encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator(
-            output_glwe_sk,
-            &mut packing_keyswitch_key_block,
-            &decomposition_plaintexts_buffer,
-            noise_distribution,
-            &mut generator,
-        );
-    }
+    generate_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
+        input_lwe_sk,
+        output_glwe_sk,
+        lwe_packing_keyswitch_key,
+        noise_distribution,
+        &mut generator,
+    )
 }
 
 /// Allocate a new [`seeded LWE keyswitch key`](`SeededLwePackingKeyswitchKey`) and fill it with an
