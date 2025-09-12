@@ -2,7 +2,7 @@
 hardware_finder
 ---------------
 
-This script parseq ci/slab.toml file to find the hardware name associated with a given pair of backend and a profile name.
+This script parses ci/slab.toml file to find the hardware name associated with a given pair of backend and a profile name.
 """
 
 import argparse

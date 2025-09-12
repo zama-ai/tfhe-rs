@@ -37,9 +37,8 @@ COMMENT_IDENTIFIER = "/bench"
 PROFILE_DEFINITION_PATH = pathlib.Path("ci/regression.toml")
 BENCH_TARGETS_PATH = pathlib.Path("tfhe-benchmark/Cargo.toml")
 # Files generated after parsing an issue comment
-FILE_PREFIX = "perf_regression_"
-GENERATED_COMMANDS_PATH = pathlib.Path(f"ci/{FILE_PREFIX}generated_commands.json")
-CUSTOM_ENV_PATH = pathlib.Path(f"ci/{FILE_PREFIX}custom_env.sh")
+GENERATED_COMMANDS_PATH = pathlib.Path("ci/perf_regression_generated_commands.json")
+CUSTOM_ENV_PATH = pathlib.Path("ci/perf_regression_custom_env.sh")
 
 
 class ProfileOption(enum.Enum):
@@ -84,80 +83,32 @@ class TfheBackend(enum.StrEnum):
                 raise NotImplementedError
 
 
-class TargetOption(enum.StrEnum):
-    Boolean = "boolean-bench"
-    Shortint = "shortint-bench"
-    Oprf = "oprf-shortint-bench"
-    CompShortint = "glwe_packing_compression-shortint-bench"
-    CompInteger = "glwe_packing_compression-integer-bench"
-    HLApi = "hlapi"
-    Erc20 = "hlapi-erc20"
-    Dex = "hlapi-dex"
-    Integer = "integer-bench"
-    IntegerSigned = "integer-signed-bench"
-    ZK = "zk-pke-bench"
-    KS = "ks-bench"
-    PBS = "pbs-bench"
-    KSPBS = "ks-pbs-bench"
-    MsNoiseReduction = "modulus_switch_noise_reduction"
-    Pbs128 = "pbs128-bench"
+def parse_toml_file(path):
+    """
+    Parse TOML file.
 
-    @staticmethod
-    def from_str(label):
-        match label.lower():
-            case "boolean":
-                return TargetOption.Boolean
-            case "shortint":
-                return TargetOption.Shortint
-            case "oprf":
-                return TargetOption.Oprf
-            case "comp-shortint":
-                return TargetOption.CompShortint
-            case "comp-integer":
-                return TargetOption.CompInteger
-            case "hlapi":
-                return TargetOption.HLApi
-            case "erc20":
-                return TargetOption.Erc20
-            case "dex":
-                return TargetOption.Dex
-            case "integer":
-                return TargetOption.Integer
-            case "integer-signed":
-                return TargetOption.IntegerSigned
-            case "zk":
-                return TargetOption.ZK
-            case "ks":
-                return TargetOption.KS
-            case "pbs":
-                return TargetOption.PBS
-            case "ks-pbs":
-                return TargetOption.KSPBS
-            case "ms-noise-reduc":
-                return TargetOption.MsNoiseReduction
-            case "pbs128":
-                return TargetOption.Pbs128
-            case _:
-                raise NotImplementedError
+    :param path: path to TOML file
+    :return: file content as :class:`dict`
+    """
+    try:
+        return tomllib.loads(pathlib.Path(path).read_text())
+    except tomllib.TOMLDecodeError as err:
+        raise RuntimeError(f"failed to parse definition file (error: {err})")
 
-    @staticmethod
-    def check_targets_consistency(bench_targets: list[dict]):
-        missing_targets = []
 
-        print("Checking targets consistency...")
-        tfhe_rs_target_names = [item["name"] for item in bench_targets]
-        for trgt in TargetOption:
-            target_value = trgt.value
-            if target_value not in tfhe_rs_target_names:
-                missing_targets.append(target_value)
+def _parse_bench_targets():
+    parsed = {}
 
-        if missing_targets:
-            print("Inconsistent targets:")
-            for missing_target in missing_targets:
-                print(
-                    f"tfhe-benchmark target `{missing_target}` not found in {BENCH_TARGETS_PATH}"
-                )
-            raise KeyError("tfhe-benchmark targets inconsistent")
+    for item in parse_toml_file(BENCH_TARGETS_PATH)["bench"]:
+        bench_name = item["name"]
+        key = bench_name.title().replace("-", "").replace("_", "")
+        parsed[key] = bench_name
+
+    return enum.Enum("TargetOption", parsed)
+
+
+# This Enum is built at runtime to ensure we have the most up-to-date benchmark targets.
+TargetOption = _parse_bench_targets()
 
 
 class SlabOption(enum.Enum):
@@ -169,7 +120,7 @@ class SlabOption(enum.Enum):
         match label.lower():
             case "backend":
                 return SlabOption.Backend
-            case "profiler":
+            case "profile":
                 return SlabOption.Profile
             case _:
                 raise NotImplementedError
@@ -226,7 +177,7 @@ class ProfileDefinition:
             EnvOption.BenchParamsSet: "default",
         }
 
-        TargetOption.check_targets_consistency(tfhe_rs_targets)
+        # TargetOption.check_targets_consistency(tfhe_rs_targets)
 
         self.tfhe_rs_targets = self._build_tfhe_rs_targets(tfhe_rs_targets)
 
@@ -247,12 +198,17 @@ class ProfileDefinition:
                 self.regression_profile = value
             case ProfileOption.BenchmarkTarget:
                 key, value = _parse_option_content(value)
-                trgt = TargetOption.from_str(key)
-                operations = value.replace(" ", "").split(",")
-                try:
-                    self.targets[trgt].extend(operations)
-                except KeyError:
-                    self.targets[trgt] = operations
+                for target_option in TargetOption:
+                    if target_option.value == key:
+                        trgt = TargetOption
+                        operations = value.replace(" ", "").split(",")
+                        try:
+                            self.targets[trgt].extend(operations)
+                        except KeyError:
+                            self.targets[trgt] = operations
+                        break
+                else:
+                    raise KeyError(f"unknown benchmark target `{key}`")
             case ProfileOption.Slab:
                 key, value = _parse_option_content(value)
                 if key == "backend":
@@ -302,9 +258,14 @@ class ProfileDefinition:
             match option:
                 case ProfileOption.BenchmarkTarget:
                     for target_key, ops in value.items():
-                        trgt = TargetOption.from_str(target_key)
-                        if trgt not in self.targets:
-                            self.targets[trgt] = ops
+                        for target_option in TargetOption:
+                            if target_option.value == target_key:
+                                trgt = target_option
+                                if trgt not in self.targets:
+                                    self.targets[trgt] = ops
+                                break
+                        else:
+                            raise KeyError(f"unknown benchmark target `{target_key}`")
                 case ProfileOption.Slab:
                     for slab_key, val in value.items():
                         if slab_key == "backend":
@@ -391,19 +352,6 @@ def parse_issue_comment(comment):
     return arguments_pairs
 
 
-def parse_toml_file(path):
-    """
-    Parse TOML file.
-
-    :param path: path to TOML file
-    :return: file content as :class:`dict`
-    """
-    try:
-        return tomllib.loads(pathlib.Path(path).read_text())
-    except tomllib.TOMLDecodeError as err:
-        raise RuntimeError(f"failed to parse definition file (error: {err})")
-
-
 def build_definition(profile_args_pairs, profile_defintions):
     """
     Build regression profile definition form user inputs and definitions file.
@@ -448,14 +396,11 @@ def write_env_to_file(env_vars: dict[EnvOption, str]):
     """
     with CUSTOM_ENV_PATH.open("w") as f:
         if not env_vars:
-            f.write("#!/usr/bin/env bash\n\n")
             f.write("echo 'no env vars to set';\n")
             return
 
-        f.write("#!/usr/bin/env bash\n\n{\n")
         for key, v in env_vars.items():
-            f.write(f'\techo "{key.value}={v}";\n')
-        f.write('} >> "$GITHUB_ENV"\n')
+            f.write(f'echo "{key.value}={v}";')
 
 
 def write_backend_config_to_file(backend, profile):
@@ -467,7 +412,7 @@ def write_backend_config_to_file(backend, profile):
     :return:
     """
     for filepart, content in [("backend", backend), ("profile", profile)]:
-        pathlib.Path(f"ci/{FILE_PREFIX}slab_{filepart}_config.txt").write_text(
+        pathlib.Path(f"ci/perf_regression_slab_{filepart}_config.txt").write_text(
             f"{content}\n"
         )
 
@@ -492,7 +437,7 @@ if __name__ == "__main__":
             definition = build_definition(profile_args_pairs, profile_definitions)
             commands = definition.generate_cargo_commands()
         except Exception as err:
-            print(f"failed to generate commands (error:{err}")
+            print(f"failed to generate commands (error:{err})")
             sys.exit(2)
 
         try:

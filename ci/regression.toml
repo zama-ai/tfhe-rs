@@ -22,23 +22,8 @@
 #
 # > target.<target_name>: list of operations to benchmark on the given tfhe-rs benchmark target
 #   A profile can have multiple targets.
-#   Possible values for target_name are:
-#       * boolean
-#       * shortint
-#       * oprf
-#       * comp-shortint
-#       * comp-integer
-#       * hlapi
-#       * erc20
-#       * dex
-#       * integer
-#       * integer-signed
-#       * zk
-#       * ks
-#       * pbs
-#       * ks-pbs
-#       * ms-noise-reduc
-#       * pbs128
+#   Possible values for target_name are listed in tfhe-benchmark/Cargo.toml file under `[[bench]]` section in the
+#   `name` field.
 #
 # > env.<variable_name>: environment variable that will be used to alter benchmark execution enviroment
 #   Possible values for variable_name are (case-insensitive):
@@ -57,20 +42,21 @@
 #   See ci/slab.toml file to have the list of all supported profiles.
 
 [gpu.default]
-target.integer = ["mul", "div"]
-target.dex = ["dex_swap"]
+target.integer-bench = ["mul", "div"]
+target.hlapi-dex = ["dex_swap"]
 slab.backend = "hyperstack"
 slab.profile = "single-h100"
 env.fast_bench = "TRUE"
 
 [gpu.multi-h100]
-target.integer = ["mul", "div"]
-target.dex = ["dex_swap"]
+target.integer-bench = ["mul", "div"]
+target.hlapi-dex = ["dex_swap"]
 slab.backend = "hyperstack"
 slab.profile = "multi-h100"
 
 [cpu.default]
-target.integer = ["add_parallelized", "mul_parallelized", "div_parallelized"]
+target.integer-bench = ["add_parallelized", "mul_parallelized", "div_parallelized"]
 slab.backend = "aws"
-slab.profile = "bench"
+slab.profile = "cpu-small"
+#slab.profile = "bench"
 env.fast_bench = "TRUE"
