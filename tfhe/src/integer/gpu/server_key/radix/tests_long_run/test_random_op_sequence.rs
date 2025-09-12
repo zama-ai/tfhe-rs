@@ -41,10 +41,10 @@ where
     let clear_mul = |x, y| x * y;
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
-    let clear_left_shift = |x, y| x << y;
+    let clear_left_shift = |x: u64, y: u64| x.overflowing_shl(y as u32).0;
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_right = |x: u64, y: u64| x.rotate_right(y as u32);
-    let clear_right_shift = |x, y| x >> y;
+    let clear_right_shift = |x: u64, y: u64| x.overflowing_shr(y as u32).0;
     let clear_max = |x: u64, y: u64| max(x, y);
     let clear_min = |x: u64, y: u64| min(x, y);
 
