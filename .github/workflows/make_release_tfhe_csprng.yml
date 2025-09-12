@@ -20,9 +20,10 @@ permissions: {}
 jobs:
   verify-tag:
     name: make_release_tfhe_csprng/verify-tag
-    uses: ./.github/workflows/verify_tagged_commit.yml
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/verify_commit_actor.yml
     secrets:
-      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package:
