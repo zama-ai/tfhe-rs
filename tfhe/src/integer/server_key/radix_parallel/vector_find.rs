@@ -119,7 +119,7 @@ impl ServerKey {
             rayon::join(
                 || {
                     let result: RadixCiphertext =
-                        self.aggregate_one_hot_vector(possible_results_to_be_aggregated);
+                        self.aggregate_and_unpack_one_hot_vector(possible_results_to_be_aggregated);
                     self.cast_to_unsigned(result, num_blocks_to_represent_values)
                 },
                 || {
@@ -572,7 +572,7 @@ impl ServerKey {
                         .into_par_iter()
                         .zip(unique_clears.into_par_iter().map(|(index, _)| index as u64)),
                 );
-                self.aggregate_one_hot_vector(possible_values)
+                self.aggregate_and_unpack_one_hot_vector(possible_values)
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors2)),
         )
@@ -858,7 +858,7 @@ impl ServerKey {
                         .enumerate()
                         .map(|(i, v)| (v, i as u64)),
                 );
-                self.aggregate_one_hot_vector(possible_values)
+                self.aggregate_and_unpack_one_hot_vector(possible_values)
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors)),
         )
@@ -966,7 +966,7 @@ impl ServerKey {
                         .enumerate()
                         .map(|(i, v)| (v, i as u64)),
                 );
-                self.aggregate_one_hot_vector(possible_values)
+                self.aggregate_and_unpack_one_hot_vector(possible_values)
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors)),
         )
@@ -1056,7 +1056,7 @@ impl ServerKey {
                         .enumerate()
                         .map(|(i, v)| (v, i as u64)),
                 );
-                self.aggregate_one_hot_vector(possible_values)
+                self.aggregate_and_unpack_one_hot_vector(possible_values)
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors2)),
         )
@@ -1214,17 +1214,61 @@ impl ServerKey {
     /// The elements in the one hot vector may have their block packed or not
     ///
     /// The returned result has non packed blocks
-    pub(super) fn aggregate_one_hot_vector<T>(&self, mut one_hot_vector: Vec<T>) -> T
+    pub(super) fn aggregate_and_unpack_one_hot_vector<T>(&self, one_hot_vector: Vec<T>) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let blocks_are_packed = one_hot_vector.iter().any(|radix| {
-            radix
-                .blocks()
-                .iter()
-                .any(|block| block.degree.get() >= self.message_modulus().0)
-        });
+        let result = self.partial_aggregate_one_hot_vector(one_hot_vector);
 
+        let unpacked_blocks = result
+            .blocks()
+            .par_iter()
+            .flat_map(|block| -> [Ciphertext; 2] {
+                rayon::join(
+                    || self.key.message_extract(block),
+                    || self.key.carry_extract(block),
+                )
+                .into()
+            })
+            .collect::<Vec<_>>();
+
+        T::from_blocks(unpacked_blocks)
+    }
+
+    /// Aggregate/combines a vec of one-hot vector of radix ciphertexts
+    /// (i.e. at most one of the vector element is non-zero) into single ciphertext
+    /// containing the non-zero value.
+    ///
+    /// * The returned result has block still packed if the input blocks where packed.
+    pub(super) fn aggregate_one_hot_vector<T>(&self, one_hot_vector: Vec<T>) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut result = self.partial_aggregate_one_hot_vector(one_hot_vector);
+
+        result
+            .blocks_mut()
+            .par_iter_mut()
+            .for_each(|block| self.key.message_extract_assign(block));
+
+        result
+    }
+
+    /// Aggregate/combines a vec of one-hot vector of radix ciphertexts
+    /// (i.e. at most one of the vector element is non-zero) into single ciphertext
+    /// containing the non-zero value.
+    ///
+    /// * The elements in the one hot vector may have their block packed or not
+    /// * The returned result has block still packed if the input blocks where packed.
+    ///
+    /// # Warning
+    ///
+    /// The returned value will need to be unpacked if the inputs where packed or
+    /// if they were not, noise cleaning may still need to be done.
+    fn partial_aggregate_one_hot_vector<T>(&self, mut one_hot_vector: Vec<T>) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // Used to clean the noise
         let identity_lut = self.key.generate_lookup_table(|x| x);
 
@@ -1267,27 +1311,7 @@ impl ServerKey {
             }
         }
 
-        if blocks_are_packed {
-            let unpacked_blocks = result
-                .blocks()
-                .par_iter()
-                .flat_map(|block| -> [Ciphertext; 2] {
-                    rayon::join(
-                        || self.key.message_extract(block),
-                        || self.key.carry_extract(block),
-                    )
-                    .into()
-                })
-                .collect::<Vec<_>>();
-            T::from_blocks(unpacked_blocks)
-        } else {
-            result
-                .blocks_mut()
-                .par_iter_mut()
-                .for_each(|block| self.key.message_extract_assign(block));
-
-            result
-        }
+        result
     }
 
     /// Only keeps at most one Ciphertext that encrypts 1
