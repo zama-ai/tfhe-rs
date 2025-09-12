@@ -7,6 +7,92 @@
 #include "linearalgebra/addition.cuh"
 #include "radix_ciphertext.cuh"
 
+//
+
+struct CopyTask {
+  uint32_t src_start_index;
+  uint32_t dest_start_index;
+  uint32_t num_blocks;
+};
+
+template <typename Torus>
+__global__ void batch_copy_ptr_kernel(Torus *__restrict__ dest_ptr,
+                                      const Torus *__restrict__ src_ptr,
+                                      const CopyTask *__restrict__ tasks,
+                                      uint32_t lwe_size) {
+
+  uint32_t task_id = blockIdx.x;
+  const CopyTask task = tasks[task_id];
+
+  uint64_t global_src_start = (uint64_t)task.src_start_index * lwe_size;
+  uint64_t global_dest_start = (uint64_t)task.dest_start_index * lwe_size;
+  uint64_t total_elements_in_task = (uint64_t)task.num_blocks * lwe_size;
+
+  for (uint64_t i = threadIdx.x; i < total_elements_in_task; i += blockDim.x) {
+    dest_ptr[global_dest_start + i] = src_ptr[global_src_start + i];
+  }
+}
+
+template <typename Torus>
+__host__ void batch_copy_radix_ciphertext_slices_async(
+    cudaStream_t const stream, uint32_t const gpu_index,
+    CudaRadixCiphertextFFI *dest_radix, const CudaRadixCiphertextFFI *src_radix,
+    const std::vector<CopyTask> &host_tasks) {
+
+  if (host_tasks.empty()) {
+    return;
+  }
+
+  assert(dest_radix != nullptr && "Destination ciphertext cannot be null.");
+  assert(src_radix != nullptr && "Source ciphertext cannot be null.");
+  assert(dest_radix->ptr != nullptr &&
+         "Destination data pointer cannot be null.");
+  assert(src_radix->ptr != nullptr && "Source data pointer cannot be null.");
+  if (dest_radix->lwe_dimension != src_radix->lwe_dimension) {
+    PANIC("Cuda error: Source and destination LWE dimensions must be equal.");
+  }
+  for (const auto &task : host_tasks) {
+    if (task.src_start_index + task.num_blocks > src_radix->num_radix_blocks) {
+      PANIC("Cuda error: A source copy task is out of bounds.");
+    }
+    if (task.dest_start_index + task.num_blocks >
+        dest_radix->num_radix_blocks) {
+      PANIC("Cuda error: A destination copy task is out of bounds.");
+    }
+  }
+
+  cuda_set_device(gpu_index);
+
+  CopyTask *device_tasks = nullptr;
+  check_cuda_error(cudaMallocAsync(
+      &device_tasks, host_tasks.size() * sizeof(CopyTask), stream));
+  check_cuda_error(cudaMemcpyAsync(device_tasks, host_tasks.data(),
+                                   host_tasks.size() * sizeof(CopyTask),
+                                   cudaMemcpyHostToDevice, stream));
+
+  dim3 gridDim(host_tasks.size(), 1, 1);
+  dim3 blockDim(256, 1, 1);
+
+  batch_copy_ptr_kernel<Torus><<<gridDim, blockDim, 0, stream>>>(
+      (Torus *)dest_radix->ptr, (const Torus *)src_radix->ptr, device_tasks,
+      dest_radix->lwe_dimension + 1);
+  check_cuda_error(cudaGetLastError());
+
+  check_cuda_error(cudaLaunchHostFunc(
+      stream, [](void *p) { cudaFree(p); }, device_tasks));
+
+  for (const auto &task : host_tasks) {
+    for (uint32_t i = 0; i < task.num_blocks; ++i) {
+      dest_radix->degrees[task.dest_start_index + i] =
+          src_radix->degrees[task.src_start_index + i];
+      dest_radix->noise_levels[task.dest_start_index + i] =
+          src_radix->noise_levels[task.src_start_index + i];
+    }
+  }
+}
+
+//
+
 template <typename Torus>
 uint64_t scratch_cuda_integer_aes_encrypt(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -19,21 +105,62 @@ uint64_t scratch_cuda_integer_aes_encrypt(
   return size_tracker;
 }
 
+// template <typename Torus>
+// __host__ void
+// transpose_blocks_to_bitsliced(cudaStream_t stream, uint32_t gpu_index,
+//                               CudaRadixCiphertextFFI *dest_bitsliced,
+//                               const CudaRadixCiphertextFFI *source_blocks,
+//                               uint32_t num_blocks, uint32_t block_size_bits)
+//                               {
+//   for (uint32_t i = 0; i < block_size_bits; ++i) {
+//     for (uint32_t j = 0; j < num_blocks; ++j) {
+//       uint32_t src_idx = j * block_size_bits + i;
+//       uint32_t dest_idx = i * num_blocks + j;
+//       copy_radix_ciphertext_slice_async<Torus>(
+//           stream, gpu_index, dest_bitsliced, dest_idx, dest_idx + 1,
+//           source_blocks, src_idx, src_idx + 1);
+//     }
+//   }
+// }
+//
+// template <typename Torus>
+// __host__ void
+// transpose_bitsliced_to_blocks(cudaStream_t stream, uint32_t gpu_index,
+//                               CudaRadixCiphertextFFI *dest_blocks,
+//                               const CudaRadixCiphertextFFI *source_bitsliced,
+//                               uint32_t num_blocks, uint32_t block_size_bits)
+//                               {
+//   for (uint32_t i = 0; i < block_size_bits; ++i) {
+//     for (uint32_t j = 0; j < num_blocks; ++j) {
+//       uint32_t src_idx = i * num_blocks + j;
+//       uint32_t dest_idx = j * block_size_bits + i;
+//       copy_radix_ciphertext_slice_async<Torus>(
+//           stream, gpu_index, dest_blocks, dest_idx, dest_idx + 1,
+//           source_bitsliced, src_idx, src_idx + 1);
+//     }
+//   }
+// }
+
 template <typename Torus>
 __host__ void
 transpose_blocks_to_bitsliced(cudaStream_t stream, uint32_t gpu_index,
                               CudaRadixCiphertextFFI *dest_bitsliced,
                               const CudaRadixCiphertextFFI *source_blocks,
                               uint32_t num_blocks, uint32_t block_size_bits) {
+
+  std::vector<CopyTask> tasks;
+  tasks.reserve(block_size_bits * num_blocks);
+
   for (uint32_t i = 0; i < block_size_bits; ++i) {
     for (uint32_t j = 0; j < num_blocks; ++j) {
       uint32_t src_idx = j * block_size_bits + i;
       uint32_t dest_idx = i * num_blocks + j;
-      copy_radix_ciphertext_slice_async<Torus>(
-          stream, gpu_index, dest_bitsliced, dest_idx, dest_idx + 1,
-          source_blocks, src_idx, src_idx + 1);
+      tasks.push_back({src_idx, dest_idx, 1});
     }
   }
+
+  batch_copy_radix_ciphertext_slices_async<Torus>(
+      stream, gpu_index, dest_bitsliced, source_blocks, tasks);
 }
 
 template <typename Torus>
@@ -42,15 +169,20 @@ transpose_bitsliced_to_blocks(cudaStream_t stream, uint32_t gpu_index,
                               CudaRadixCiphertextFFI *dest_blocks,
                               const CudaRadixCiphertextFFI *source_bitsliced,
                               uint32_t num_blocks, uint32_t block_size_bits) {
+
+  std::vector<CopyTask> tasks;
+  tasks.reserve(block_size_bits * num_blocks);
+
   for (uint32_t i = 0; i < block_size_bits; ++i) {
     for (uint32_t j = 0; j < num_blocks; ++j) {
       uint32_t src_idx = i * num_blocks + j;
       uint32_t dest_idx = j * block_size_bits + i;
-      copy_radix_ciphertext_slice_async<Torus>(
-          stream, gpu_index, dest_blocks, dest_idx, dest_idx + 1,
-          source_bitsliced, src_idx, src_idx + 1);
+      tasks.push_back({src_idx, dest_idx, 1});
     }
   }
+
+  batch_copy_radix_ciphertext_slices_async<Torus>(
+      stream, gpu_index, dest_blocks, source_bitsliced, tasks);
 }
 
 template <typename Torus>
