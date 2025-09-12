@@ -1,11 +1,9 @@
 use crate::shortint::parameters::{
     current_params, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
-    CompressionParameters, MultiBitPBSParameters, NoiseSquashingParameters,
-    ShortintKeySwitchingParameters,
+    CompressionParameters, MultiBitPBSParameters, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 
-use crate::shortint::parameters::current_params::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::parameters::v1_4::V1_4_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_4_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -18,6 +16,7 @@ use current_params::key_switching::p_fail_2_minus_128::ks_pbs::{
     V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
+use current_params::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::list_compression::p_fail_2_minus_128::{
     V1_4_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -47,13 +46,12 @@ use current_params::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::{
     V1_4_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     V1_4_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
 };
-use current_params::noise_squashing::p_fail_2_minus_128::V1_4_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-use super::current_params::{
+use current_params::noise_squashing::p_fail_2_minus_128::{
     V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_4_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_4_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_4_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use super::NoiseSquashingCompressionParameters;
 
 // Aliases
 
