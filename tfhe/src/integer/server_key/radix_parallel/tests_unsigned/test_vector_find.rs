@@ -460,7 +460,38 @@ where
 
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
+        assert_eq!(
+            result, expected_result,
+            "Invalid match output: for input {clear} and match values: {lut:?}"
+        );
+        assert_eq!(is_ok, expected_is_ok);
+    }
 
+    // Test that the data is properly unpacked
+    {
+        let msg_mod = cks.parameters().message_modulus().0;
+        let clear = rng.gen_range(0..modulus);
+        // The output value is such that it is on the message part of the second packed block
+        // [msg4|msg3] [msg1|msg0], so in msg3, if the result is not properly unpacked then its
+        // going to be wrong
+        let lut = vec![(clear, msg_mod * msg_mod)];
+
+        let ct = cks.encrypt(clear);
+
+        let (expected_result, expected_is_ok) = lut
+            .iter()
+            .find(|(input, _)| *input == clear)
+            .map_or((0, false), |(_, output)| (*output, true));
+
+        let lut = MatchValues::new(lut).unwrap();
+        let (result, is_ok) = executor.execute((&ct, &lut));
+
+        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        assert_eq!(is_ok.0.degree, Degree::new(1));
+        assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
+
+        let result = cks.decrypt::<u64>(&result);
+        let is_ok = cks.decrypt_bool(&is_ok);
         assert_eq!(
             result, expected_result,
             "Invalid match output: for input {clear} and match values: {lut:?}"
