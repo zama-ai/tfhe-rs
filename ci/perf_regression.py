@@ -169,7 +169,7 @@ class SlabOption(enum.Enum):
         match label.lower():
             case "backend":
                 return SlabOption.Backend
-            case "profiler":
+            case "profile":
                 return SlabOption.Profile
             case _:
                 raise NotImplementedError
@@ -448,14 +448,11 @@ def write_env_to_file(env_vars: dict[EnvOption, str]):
     """
     with CUSTOM_ENV_PATH.open("w") as f:
         if not env_vars:
-            f.write("#!/usr/bin/env bash\n\n")
             f.write("echo 'no env vars to set';\n")
             return
 
-        f.write("#!/usr/bin/env bash\n\n{\n")
         for key, v in env_vars.items():
-            f.write(f'\techo "{key.value}={v}";\n')
-        f.write('} >> "$GITHUB_ENV"\n')
+            f.write(f'echo "{key.value}={v}";')
 
 
 def write_backend_config_to_file(backend, profile):

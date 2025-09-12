@@ -72,5 +72,6 @@ slab.profile = "multi-h100"
 [cpu.default]
 target.integer = ["add_parallelized", "mul_parallelized", "div_parallelized"]
 slab.backend = "aws"
-slab.profile = "bench"
+slab.profile = "cpu-small"
+#slab.profile = "bench"
 env.fast_bench = "TRUE"

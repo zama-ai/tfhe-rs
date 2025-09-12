@@ -38,7 +38,7 @@ jobs:
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
       slab-profile: ${{ steps.set_slab_details.outputs.profile }}
       hardware-name: ${{ steps.get_hardware_name.outputs.name }}
-      env-script: ${{ steps.set_env_script.outputs.script }}
+      custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -96,17 +96,10 @@ jobs:
           HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
-      - name: Set custom env script output
-        id: set_env_script
+      - name: Get custom env vars
+        id: get_custom_env
         run: |
-          echo "script=$(cat ci/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
-
-#      - name: Upload custom env artifact
-#        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-#        with:
-#          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
-#          path: ci/perf_regression_custom_env.sh
-#          retention-days: 1
+          echo "custom_env=$(cat ci/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: benchmark_perf_regression/setup-instance
@@ -182,17 +175,11 @@ jobs:
         env:
           SHA: ${{ github.sha }}
 
-#      - name: Download custom env artifact
-#        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-#        with:
-#          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
-#          path: ci
-
       - name: Export custom env variables
-        run: |
-          cp /dev/stdin ci/perf_regression_custom_env.sh <<< '${{ needs.prepare-benchmarks.outputs.env-script }}'
-          chmod +x ci/perf_regression_custom_env.sh
-          source ci/perf_regression_custom_env.sh
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          { 
+              ${{ needs.prepare-benchmarks.outputs.custom-env }} 
+          } >> "$GITHUB_ENV"
 
       # Re-export environment variables as dependencies setup perform this task in the previous job.
       # Local env variables are cleaned at the end of each job.
