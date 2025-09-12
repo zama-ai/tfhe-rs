@@ -33,16 +33,35 @@ pub const V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M
 
 /// Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
 /// arriving under the big key, requires a KS + PBS to get to the big key
-pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    ShortintKeySwitchingParameters =
+    V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
 
-pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(24),
+    destination_key: EncryptionKeyChoice::Big,
+};
 
-pub const V1_4_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::V1_3_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+pub const V1_4_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    ShortintKeySwitchingParameters =
+    V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
 
 /// Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
 /// arriving under the small key, requires a PBS to get to the big key
-pub const V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+pub const V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(4),
+    ks_base_log: DecompositionBaseLog(4),
+    destination_key: EncryptionKeyChoice::Small,
+};
 
 /// Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
 /// arriving under the big key, requires a KS + PBS to get to the big key
-pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1: ShortintKeySwitchingParameters = crate::shortint::parameters::v1_3::V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+pub const V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(24),
+    destination_key: EncryptionKeyChoice::Big,
+};
