@@ -1,4 +1,4 @@
-//! FHE Parameters as they were defined in TFHE-rs 1.3.
+//! FHE Parameters as they were defined in TFHE-rs 1.4.
 //!
 //! These parameters may be used for backward compatibility.
 
@@ -10,7 +10,6 @@ pub mod list_compression;
 pub mod meta;
 pub mod multi_bit;
 pub mod noise_squashing;
-
 pub use classic::compact_pk::gaussian::p_fail_2_minus_128::ks_pbs::*;
 pub use classic::compact_pk::gaussian::p_fail_2_minus_128::pbs_ks::*;
 pub use classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
@@ -42,9 +41,6 @@ pub use multi_bit::tuniform::p_fail_2_minus_40::ks_pbs_gpu::*;
 pub use multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
 pub use noise_squashing::p_fail_2_minus_128::*;
-
-#[cfg(feature = "hpu")]
-pub use hpu::*;
 
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
@@ -1580,6 +1576,12 @@ pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 240
     ),
 ];
 
+/// All [`KeySwitch32PBSParameters`] in this module.
+pub const VEC_ALL_KEY_SWITCH32_PBS_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
+    &V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    "V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
+)];
+
 /// All [`CompressionParameters`] in this module.
 pub const VEC_ALL_COMPRESSION_PARAMETERS: [(&CompressionParameters, &str); 8] = [
     (
@@ -1725,6 +1727,8 @@ pub const VEC_ALL_KS32_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
 
 #[cfg(feature = "hpu")]
 pub mod hpu;
+#[cfg(feature = "hpu")]
+pub use hpu::*;
 
 #[cfg(feature = "hpu")]
 pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
