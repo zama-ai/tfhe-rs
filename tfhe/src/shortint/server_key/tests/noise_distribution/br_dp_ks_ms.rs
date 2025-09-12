@@ -1,7 +1,7 @@
 use super::dp_ks_ms::dp_ks_ms;
 use super::utils::noise_simulation::{
     NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKsk,
+    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -62,27 +62,27 @@ pub fn br_dp_ks_ms<
 )
 where
     // We need to be able to allocate the result and bootstrap the Input
-    Accumulator: AllocateBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    PBSKey: StandardFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
+    Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
+    PBSKey: LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
     // Result of the PBS/Blind rotate needs to be multipliable by the scalar
     PBSResult: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
             AfterMsOutput = MsResult,
             SideResources = Resources,
-        > + DrifTechniqueStandardModSwitch<
+        > + DriftTechniqueStandardModSwitch<
             KsResult,
             DriftTechniqueResult,
             MsResult,
             SideResources = Resources,
         >,
 {
-    let mut pbs_result = accumulator.allocate_bootstrap_result(side_resources);
-    bsk.standard_fft_pbs(&input, &mut pbs_result, accumulator, side_resources);
+    let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
+    bsk.lwe_classic_fft_pbs(&input, &mut pbs_result, accumulator, side_resources);
     let (pbs_result, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_ms(
         pbs_result,
         scalar,
@@ -138,20 +138,20 @@ pub fn br_dp_ks_pbs<
 )
 where
     // We need to be able to allocate the result and bootstrap the Input and the mod switch output
-    Accumulator: AllocateBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    PBSKey: StandardFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>
-        + StandardFftBootstrap<MsResult, PBSResult, Accumulator, SideResources = Resources>,
+    Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
+    PBSKey: LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>
+        + LweClassicFftBootstrap<MsResult, PBSResult, Accumulator, SideResources = Resources>,
     // Result of the PBS/Blind rotate needs to be multipliable by the scalar
     PBSResult: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
             AfterMsOutput = MsResult,
             SideResources = Resources,
-        > + DrifTechniqueStandardModSwitch<
+        > + DriftTechniqueStandardModSwitch<
             KsResult,
             DriftTechniqueResult,
             MsResult,
@@ -170,8 +170,8 @@ where
             side_resources,
         );
 
-    let mut output_pbs_result = accumulator.allocate_bootstrap_result(side_resources);
-    bsk.standard_fft_pbs(
+    let mut output_pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
+    bsk.lwe_classic_fft_pbs(
         &ms_result,
         &mut output_pbs_result,
         accumulator,
@@ -511,7 +511,8 @@ where
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
-    let noise_simulation_ksk = NoiseSimulationLweKsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_ksk =
+        NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk =

@@ -73,3 +73,28 @@ where
         ciphertext_modulus,
     )
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::AllocateLweBootstrapResult;
+
+impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateLweBootstrapResult
+    for GlweCiphertext<AccCont>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_lwe_bootstrap_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let glwe_dim = self.glwe_size().to_glwe_dimension();
+        let poly_size = self.polynomial_size();
+        let equivalent_lwe_dim = glwe_dim.to_equivalent_lwe_dimension(poly_size);
+
+        LweCiphertext::new(
+            Scalar::ZERO,
+            equivalent_lwe_dim.to_lwe_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+}
