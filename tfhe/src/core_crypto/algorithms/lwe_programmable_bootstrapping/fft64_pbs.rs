@@ -1144,7 +1144,7 @@ pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Out
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweStandardFftBootstrap;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweClassicFftBootstrap;
 
 impl<
         InputScalar: UnsignedTorus + CastInto<usize>,
@@ -1154,7 +1154,7 @@ impl<
         OutputCont: ContainerMut<Element = OutputScalar>,
         AccCont: Container<Element = OutputScalar>,
     >
-    LweStandardFftBootstrap<
+    LweClassicFftBootstrap<
         LweCiphertext<InputCont>,
         LweCiphertext<OutputCont>,
         GlweCiphertext<AccCont>,
@@ -1162,7 +1162,7 @@ impl<
 {
     type SideResources = ();
 
-    fn lwe_standard_fft_pbs(
+    fn lwe_classic_fft_pbs(
         &self,
         input: &LweCiphertext<InputCont>,
         output: &mut LweCiphertext<OutputCont>,
