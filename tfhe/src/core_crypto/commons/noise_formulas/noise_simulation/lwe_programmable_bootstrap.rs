@@ -8,7 +8,7 @@ use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap_128:
     pbs_128_variance_132_bits_security_tuniform_fft_mul,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    LweStandardFft128Bootstrap, LweStandardFftBootstrap,
+    LweClassicFft128Bootstrap, LweClassicFftBootstrap,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus,
@@ -110,12 +110,12 @@ impl NoiseSimulationLweFourierBsk {
     }
 }
 
-impl LweStandardFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+impl LweClassicFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
     for NoiseSimulationLweFourierBsk
 {
     type SideResources = ();
 
-    fn lwe_standard_fft_pbs(
+    fn lwe_classic_fft_pbs(
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
@@ -249,12 +249,12 @@ impl NoiseSimulationLweFourier128Bsk {
     }
 }
 
-impl LweStandardFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
     for NoiseSimulationLweFourier128Bsk
 {
     type SideResources = ();
 
-    fn lwe_standard_fft_128_pbs(
+    fn lwe_classic_fft_128_pbs(
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,

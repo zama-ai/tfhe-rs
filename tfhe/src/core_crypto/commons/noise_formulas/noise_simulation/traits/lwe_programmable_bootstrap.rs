@@ -8,10 +8,10 @@ pub trait AllocateLweBootstrapResult {
     ) -> Self::Output;
 }
 
-pub trait LweStandardFftBootstrap<Input, Output, Accumulator> {
+pub trait LweClassicFftBootstrap<Input, Output, Accumulator> {
     type SideResources;
 
-    fn lwe_standard_fft_pbs(
+    fn lwe_classic_fft_pbs(
         &self,
         input: &Input,
         output: &mut Output,
@@ -20,10 +20,10 @@ pub trait LweStandardFftBootstrap<Input, Output, Accumulator> {
     );
 }
 
-pub trait LweStandardFft128Bootstrap<Input, Output, Accumulator> {
+pub trait LweClassicFft128Bootstrap<Input, Output, Accumulator> {
     type SideResources;
 
-    fn lwe_standard_fft_128_pbs(
+    fn lwe_classic_fft_128_pbs(
         &self,
         input: &Input,
         output: &mut Output,
