@@ -38,6 +38,7 @@ jobs:
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
       slab-profile: ${{ steps.set_slab_details.outputs.profile }}
       hardware-name: ${{ steps.get_hardware_name.outputs.name }}
+      env-script: ${{ steps.set_env_script.outputs.script }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -85,7 +86,7 @@ jobs:
 
       - name: Set Slab details outputs
         id: set_slab_details
-        run: | 
+        run: |
           echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
           echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
 
@@ -95,12 +96,17 @@ jobs:
           HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
-      - name: Upload custom env artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
-          path: ci/perf_regression_custom_env.sh
-          retention-days: 1
+      - name: Set custom env script output
+        id: set_env_script
+        run: |
+          echo "script=$(cat ci/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
+
+#      - name: Upload custom env artifact
+#        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+#        with:
+#          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
+#          path: ci/perf_regression_custom_env.sh
+#          retention-days: 1
 
   setup-instance:
     name: benchmark_perf_regression/setup-instance
@@ -120,10 +126,9 @@ jobs:
           backend: ${{ needs.prepare-benchmarks.outputs.slab-backend }}
           profile: ${{ needs.prepare-benchmarks.outputs.slab-profile }}
 
-  install-cuda-dependencies:
-    name: benchmark_perf_regression/install-cuda-dependencies
+  install-cuda-dependencies-if-required:
+    name: benchmark_perf_regression/install-cuda-dependencies-if-required
     needs: [ prepare-benchmarks, setup-instance ]
-    if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       matrix:
@@ -140,6 +145,7 @@ jobs:
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
@@ -147,16 +153,12 @@ jobs:
 
   regression-benchmarks:
     name: benchmark_perf_regression/regression-benchmarks
-    needs: [ prepare-benchmarks, setup-instance, install-cuda-dependencies ]
-    # When benchmarks are launched on AWS, `install-cuda-dependencies` job would be skipped.
-    # The benchmarks still need to be run hence the following condition.
-    if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack' || 
-      (needs.prepare-benchmarks.outputs.slab-backend == 'aws' && !cancelled() && needs.install-cuda-dependencies.result == 'skipped')
+    needs: [ prepare-benchmarks, setup-instance, install-cuda-dependencies-if-required ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
-      group: ${{ github.workflow_ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    timeout-minutes: 1440  # 24 hours
+      group: ${{ github.workflow_ref }}_${{ needs.prepare-benchmarks.outputs.slab-backend }}_${{ needs.prepare-benchmarks.outputs.slab-profile }}
+      cancel-in-progress: true
+    timeout-minutes: 720  # 12 hours
     strategy:
       max-parallel: 1
       matrix:
@@ -180,14 +182,16 @@ jobs:
         env:
           SHA: ${{ github.sha }}
 
-      - name: Download custom env artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
-          path: ci
+#      - name: Download custom env artifact
+#        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+#        with:
+#          name: custom_env_pr${{ github.event.issue.number }}_${{ github.sha }}
+#          path: ci
 
       - name: Export custom env variables
         run: |
+          cp /dev/stdin ci/perf_regression_custom_env.sh <<< '${{ needs.prepare-benchmarks.outputs.env-script }}'
+          chmod +x ci/perf_regression_custom_env.sh
           source ci/perf_regression_custom_env.sh
 
       # Re-export environment variables as dependencies setup perform this task in the previous job.
@@ -266,8 +270,8 @@ jobs:
           JOB_SECRET: ${{ secrets.JOB_SECRET }}
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
-  slack-notify-hyperstack:
-    name: benchmark_perf_regression/slack-notify-hyperstack
+  slack-notify:
+    name: benchmark_perf_regression/slack-notify
     needs: [ prepare-benchmarks, setup-instance, regression-benchmarks ]
     runs-on: ubuntu-latest
     if: ${{ failure() }}
