@@ -913,86 +913,6 @@ mod test {
         println!("\nTranspose test passed for {num_blocks} random blocks!");
     }
 
-    #[test]
-    fn test_bench_aes_192_blocks() {
-        let streams = CudaStreams::new_multi_gpu();
-        let (cks, sks) = gen_keys_radix_gpu(
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            1,
-            &streams,
-        );
-
-        let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
-        let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-
-        let nist_expected_outputs: [u128; 8] = [
-            0xec8cdf7398607cb0f2d21675ea9ea1e4u128,
-            0x362b7c3c6773516318a077d7fc5073aeu128,
-            0x6a2cc3787889374fbeb4c81b17ba6c44u128,
-            0xe89c399ff0f198c6d40a31db156cabfeu128,
-            0xb00d47f8148a910ef0683097904ba502u128,
-            0x5899445a4de101f513cad1987d89e91bu128,
-            0x3bd9ac7949de2bf96569ac3843f87242u128,
-            0x7d9ace8047c35309155ab8a8f08597b1u128,
-        ];
-
-        let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
-            .iter()
-            .flat_map(|&k| u128_to_bits(k))
-            .collect();
-        let ct_round_keys_radix_cpu = encrypt_bits(&cks, &p_round_keys_bits);
-        let p_iv_bits = u128_to_bits(iv);
-        let ct_iv_radix_cpu = encrypt_bits(&cks, &p_iv_bits);
-
-        let d_round_keys =
-            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
-        let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
-
-        // Warm-up and correctness test
-        //
-        let num_warmup_blocks = nist_expected_outputs.len();
-        println!("[Warm-up] Encrypting {num_warmup_blocks} blocks for correctness check...");
-        let d_warmup_states = sks.aes_encrypt(&d_iv, &d_round_keys, 0, num_warmup_blocks, &streams);
-
-        let warmup_result_cpu = d_warmup_states.to_radix_ciphertext(&streams);
-        for (i, &expected_output) in nist_expected_outputs.iter().enumerate() {
-            let start = i * 128;
-            let end = (i + 1) * 128;
-            let block_slice = &warmup_result_cpu.blocks[start..end];
-            let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
-            let decrypted_bits = decrypt_bits(&cks, &block_radix_ct);
-            let y = bits_to_u128(&decrypted_bits);
-            assert_eq!(y, expected_output, "Warm-up block {i} failed!");
-        }
-        println!("[Warm-up] Correctness check passed for {num_warmup_blocks} blocks.");
-
-        // Benchmark
-        //
-        let num_bench_blocks = 192;
-        let start_counter = 0u128;
-        println!("\n[Benchmark] Encrypting {num_bench_blocks} blocks...");
-
-        let t0 = Instant::now();
-        let _d_bench_states = sks.aes_encrypt(
-            &d_iv,
-            &d_round_keys,
-            start_counter,
-            num_bench_blocks,
-            &streams,
-        );
-        let t_elapsed = t0.elapsed();
-
-        println!(
-            "[Benchmark] aes_encrypt() time for {num_bench_blocks} blocks: {:.3} ms",
-            t_elapsed.as_secs_f64() * 1000.0,
-        );
-        println!(
-            "[Benchmark] Average time per block: {:.3} ms",
-            t_elapsed.as_secs_f64() * 1000.0 / num_bench_blocks as f64
-        );
-        println!("\nAES benchmark test finished!");
-    }
-
     fn sub_bytes(state: &mut [u8; 16]) {
         for byte in state.iter_mut() {
             *byte = S_BOX[*byte as usize];
@@ -1093,7 +1013,7 @@ mod test {
     }
 
     #[test]
-    fn test_aes_192_blocks() {
+    fn test_aes_1000_blocks() {
         let streams = CudaStreams::new_multi_gpu();
         let (cks, sks) = gen_keys_radix_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1103,7 +1023,7 @@ mod test {
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-        let num_blocks: usize = 4;
+        let num_blocks: usize = 1000;
         let start_counter: u128 = 0;
 
         println!("\n[Test] Starting FHE AES-CTR test for {num_blocks} blocks...");
