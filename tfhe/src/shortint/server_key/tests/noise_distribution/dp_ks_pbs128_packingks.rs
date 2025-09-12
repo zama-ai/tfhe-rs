@@ -78,7 +78,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: LweStandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
@@ -94,7 +94,7 @@ where
     );
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk_128.lwe_standard_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    bsk_128.lwe_classic_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
@@ -165,7 +165,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
     // We need to be able to apply the PBS
-    Bsk: LweStandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>
+    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>
         + Sync,
     PackingKey: AllocateLwePackingKeyswitchResult<Output = PackingResult, SideResources = Resources>
         + for<'a> LwePackingKeyswitch<[&'a PbsResult], PackingResult, SideResources = Resources>,

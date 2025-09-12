@@ -136,7 +136,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: LweStandardFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweClassicFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_ms(
         input,
@@ -148,7 +148,7 @@ where
     );
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk.lwe_standard_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    bsk.lwe_classic_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
