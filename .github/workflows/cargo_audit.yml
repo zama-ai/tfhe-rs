@@ -1,0 +1,40 @@
+# Run cargo audit
+on:
+  workflow_dispatch:
+  schedule:
+    # runs every day at 4am UTC
+    - cron: '0 4 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+
+permissions: {}
+
+jobs:
+  audit:
+    name: cargo_audit/audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Audit dependencies
+        run: |
+          make audit_dependencies
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "cargo-audit finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
