@@ -28,6 +28,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -38,6 +39,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -48,6 +50,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -58,6 +61,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -68,6 +72,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -78,6 +83,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: Some(V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64),
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -88,6 +94,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -98,6 +105,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -108,6 +116,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -118,6 +127,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: Some(V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128),
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -128,6 +138,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -138,6 +149,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -148,6 +160,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -158,6 +171,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -168,6 +182,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -178,6 +193,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -188,6 +204,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -198,6 +215,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: Some(V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -208,6 +226,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -218,6 +237,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -228,6 +248,7 @@ pub const V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -238,6 +259,7 @@ pub const V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -248,6 +270,7 @@ pub const V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -259,6 +282,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -270,6 +294,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -281,6 +306,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -292,6 +318,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -303,6 +330,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -314,6 +342,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -325,6 +354,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -336,6 +366,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -347,6 +378,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -358,6 +390,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -369,6 +402,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -380,6 +414,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -391,6 +426,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -402,6 +438,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -413,6 +450,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -424,6 +462,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -435,6 +474,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -446,6 +486,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -457,6 +498,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -468,6 +510,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -479,6 +522,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -490,6 +534,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -501,6 +546,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
@@ -512,6 +558,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -523,6 +570,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -534,6 +582,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -545,6 +594,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -556,6 +606,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -567,6 +618,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -578,6 +630,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -589,6 +642,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -600,6 +654,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -611,6 +666,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -622,6 +678,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -633,6 +690,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
@@ -644,6 +702,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -655,6 +714,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -666,6 +726,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -677,6 +738,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -688,6 +750,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -699,6 +762,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -710,6 +774,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -721,6 +786,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -732,6 +798,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -743,6 +810,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -754,6 +822,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -765,6 +834,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
@@ -776,6 +846,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -787,6 +858,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -798,6 +870,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -809,6 +882,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -820,6 +894,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -831,6 +906,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -842,6 +918,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -853,6 +930,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -864,6 +942,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -875,6 +954,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -886,6 +966,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -897,6 +978,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
@@ -908,6 +990,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -919,6 +1002,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -930,6 +1014,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -941,6 +1026,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -952,6 +1038,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -963,6 +1050,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -974,6 +1062,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -985,6 +1074,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -996,6 +1086,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -1007,6 +1098,7 @@ pub const V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -1018,6 +1110,7 @@ pub const V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -1029,6 +1122,7 @@ pub const V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -1040,6 +1134,7 @@ pub const V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
+        re_randomization_parameters: None,
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -1050,6 +1145,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128: MetaParameters = Meta
     dedicated_compact_public_key_parameters: None,
     compression_parameters: None,
     noise_squashing_parameters: None,
+    re_randomization_parameters: None,
 };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
@@ -1070,6 +1166,9 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaP
                 V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        ),
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaParameters =
@@ -1090,6 +1189,9 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaPar
                 V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        ),
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128: MetaParameters =
@@ -1110,6 +1212,9 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128: MetaP
                 V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        ),
     };
 
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128: MetaParameters =
@@ -1130,4 +1235,7 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128: MetaPar
                 V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        ),
     };

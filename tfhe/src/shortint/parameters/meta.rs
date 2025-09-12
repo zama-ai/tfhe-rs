@@ -25,4 +25,6 @@ pub struct MetaParameters {
     pub compression_parameters: Option<CompressionParameters>,
     /// Parameters for noise squashing
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
+    /// Parameters for ciphertext re-randomization
+    pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
 }
