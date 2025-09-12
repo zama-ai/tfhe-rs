@@ -142,8 +142,7 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void execute_keyswitch_async(cudaStream_t const *streams,
-                             uint32_t const *gpu_indexes, uint32_t gpu_count,
+void execute_keyswitch_async(CudaStreams streams,
                              const LweArrayVariant<Torus> &lwe_array_out,
                              const LweArrayVariant<Torus> &lwe_output_indexes,
                              const LweArrayVariant<Torus> &lwe_array_in,
@@ -154,8 +153,9 @@ void execute_keyswitch_async(cudaStream_t const *streams,
 
   /// If the number of radix blocks is lower than the number of GPUs, not all
   /// GPUs will be active and there will be 1 input per GPU
-  for (uint i = 0; i < gpu_count; i++) {
-    int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
+  for (uint i = 0; i < streams.count(); i++) {
+    int num_samples_on_gpu =
+        get_num_inputs_on_gpu(num_samples, i, streams.count());
 
     Torus *current_lwe_array_out = get_variant_element(lwe_array_out, i);
     Torus *current_lwe_output_indexes =
@@ -166,7 +166,7 @@ void execute_keyswitch_async(cudaStream_t const *streams,
 
     // Compute Keyswitch
     host_keyswitch_lwe_ciphertext_vector<Torus>(
-        streams[i], gpu_indexes[i], current_lwe_array_out,
+        streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
         current_lwe_output_indexes, current_lwe_array_in,
         current_lwe_input_indexes, ksks[i], lwe_dimension_in, lwe_dimension_out,
         base_log, level_count, num_samples_on_gpu);

@@ -128,13 +128,6 @@ void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index) {
   check_cuda_error(cudaStreamSynchronize(stream));
 }
 
-void synchronize_streams(cudaStream_t const *streams,
-                         uint32_t const *gpu_indexes, uint32_t gpu_count) {
-  for (uint i = 0; i < gpu_count; i++) {
-    cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-  }
-}
-
 // Determine if a CUDA device is available at runtime
 uint32_t cuda_is_available() { return cudaSetDevice(0) == cudaSuccess; }
 

@@ -4,9 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <cuda_runtime.h>
-#include <vector>
 
 extern "C" {
 
@@ -141,4 +139,5 @@ bool cuda_check_support_thread_block_clusters();
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n);
+
 #endif

@@ -80,8 +80,7 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename Torus>
 __host__ void
-host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                      uint32_t gpu_count,
+host_integer_compress(CudaStreams streams,
                       CudaPackedGlweCiphertextListFFI *glwe_array_out,
                       CudaLweCiphertextListFFI const *lwe_array_in,
                       Torus *const *fp_ksk, int_compression<Torus> *mem_ptr) {
@@ -98,7 +97,7 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   if constexpr (std::is_same_v<Torus, uint64_t>) {
     lwe_pksk_input = mem_ptr->tmp_lwe;
     host_cleartext_multiplication<Torus>(
-        streams[0], gpu_indexes[0], lwe_pksk_input, lwe_array_in,
+        streams.stream(0), streams.gpu_index(0), lwe_pksk_input, lwe_array_in,
         (uint64_t)compression_params.message_modulus);
   }
 
@@ -115,7 +114,7 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   cuda_memset_async(tmp_glwe_array_out, 0,
                     num_glwes * (compression_params.glwe_dimension + 1) *
                         compression_params.polynomial_size * sizeof(Torus),
-                    streams[0], gpu_indexes[0]);
+                    streams.stream(0), streams.gpu_index(0));
   auto fp_ks_buffer = mem_ptr->fp_ks_buffer;
   auto rem_lwes = glwe_array_out->total_lwe_bodies_count;
 
@@ -125,8 +124,8 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
     auto chunk_size = min(rem_lwes, glwe_array_out->lwe_per_glwe);
 
     host_packing_keyswitch_lwe_list_to_glwe<Torus>(
-        streams[0], gpu_indexes[0], glwe_out, lwe_pksk_input, fp_ksk[0],
-        fp_ks_buffer, compression_params.small_lwe_dimension,
+        streams.stream(0), streams.gpu_index(0), glwe_out, lwe_pksk_input,
+        fp_ksk[0], fp_ks_buffer, compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
         compression_params.ks_base_log, compression_params.ks_level,
         chunk_size);
@@ -141,11 +140,11 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                  compression_params.polynomial_size +
              glwe_array_out->total_lwe_bodies_count;
 
-  host_modulus_switch_inplace<Torus>(streams[0], gpu_indexes[0],
+  host_modulus_switch_inplace<Torus>(streams.stream(0), streams.gpu_index(0),
                                      tmp_glwe_array_out, size,
                                      glwe_array_out->storage_log_modulus);
 
-  host_pack<Torus>(streams[0], gpu_indexes[0], glwe_array_out,
+  host_pack<Torus>(streams.stream(0), streams.gpu_index(0), glwe_array_out,
                    tmp_glwe_array_out, num_glwes, compression_params);
 }
 
@@ -247,8 +246,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename Torus>
 __host__ void
-host_integer_decompress(cudaStream_t const *streams,
-                        uint32_t const *gpu_indexes, uint32_t gpu_count,
+host_integer_decompress(CudaStreams streams,
                         CudaLweCiphertextListFFI *d_lwe_array_out,
                         CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
                         uint32_t const *h_indexes_array, void *const *d_bsks,
@@ -262,7 +260,7 @@ host_integer_decompress(cudaStream_t const *streams,
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
   cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
                            num_blocks_to_decompress * sizeof(uint32_t),
-                           streams[0], gpu_indexes[0]);
+                           streams.stream(0), streams.gpu_index(0));
 
   auto compression_params = h_mem_ptr->compression_params;
   auto lwe_per_glwe = compression_params.polynomial_size;
@@ -276,7 +274,7 @@ host_integer_decompress(cudaStream_t const *streams,
 
   auto current_glwe_index = h_indexes_array[0] / lwe_per_glwe;
   auto extracted_glwe = h_mem_ptr->tmp_extracted_glwe;
-  host_extract<Torus>(streams[0], gpu_indexes[0], extracted_glwe,
+  host_extract<Torus>(streams.stream(0), streams.gpu_index(0), extracted_glwe,
                       d_packed_glwe_in, current_glwe_index);
   glwe_vec.push_back(std::make_pair(1, extracted_glwe));
   for (int i = 1; i < num_blocks_to_decompress; i++) {
@@ -285,8 +283,8 @@ host_integer_decompress(cudaStream_t const *streams,
       extracted_glwe += glwe_accumulator_size;
       current_glwe_index = glwe_index;
       // Extracts a new GLWE
-      host_extract<Torus>(streams[0], gpu_indexes[0], extracted_glwe,
-                          d_packed_glwe_in, glwe_index);
+      host_extract<Torus>(streams.stream(0), streams.gpu_index(0),
+                          extracted_glwe, d_packed_glwe_in, glwe_index);
       glwe_vec.push_back(std::make_pair(1, extracted_glwe));
     } else {
       // Updates the quantity
@@ -312,18 +310,18 @@ host_integer_decompress(cudaStream_t const *streams,
     extracted_glwe = max_idx_and_glwe.second;
 
     if constexpr (std::is_same_v<Torus, uint64_t>)
-      cuda_glwe_sample_extract_64(streams[0], gpu_indexes[0], extracted_lwe,
-                                  extracted_glwe, d_indexes_array_chunk,
-                                  num_lwes, compression_params.polynomial_size,
-                                  compression_params.glwe_dimension,
-                                  compression_params.polynomial_size);
+      cuda_glwe_sample_extract_64(
+          streams.stream(0), streams.gpu_index(0), extracted_lwe,
+          extracted_glwe, d_indexes_array_chunk, num_lwes,
+          compression_params.polynomial_size, compression_params.glwe_dimension,
+          compression_params.polynomial_size);
     else
       // 128 bits
-      cuda_glwe_sample_extract_128(streams[0], gpu_indexes[0], extracted_lwe,
-                                   extracted_glwe, d_indexes_array_chunk,
-                                   num_lwes, compression_params.polynomial_size,
-                                   compression_params.glwe_dimension,
-                                   compression_params.polynomial_size);
+      cuda_glwe_sample_extract_128(
+          streams.stream(0), streams.gpu_index(0), extracted_lwe,
+          extracted_glwe, d_indexes_array_chunk, num_lwes,
+          compression_params.polynomial_size, compression_params.glwe_dimension,
+          compression_params.polynomial_size);
 
     d_indexes_array_chunk += num_lwes;
     extracted_lwe += num_lwes * lwe_size;
@@ -341,13 +339,12 @@ host_integer_decompress(cudaStream_t const *streams,
     /// dimension to a big LWE dimension
     auto encryption_params = h_mem_ptr->encryption_params;
     auto lut = h_mem_ptr->decompression_rescale_lut;
-    auto active_gpu_count =
-        get_active_gpu_count(num_blocks_to_decompress, gpu_count);
-    if (active_gpu_count == 1) {
+    auto active_gpus = streams.active_gpu_subset(num_blocks_to_decompress);
+    if (active_gpus.count() == 1) {
       execute_pbs_async<Torus, Torus>(
-          streams, gpu_indexes, active_gpu_count, (Torus *)d_lwe_array_out->ptr,
-          lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
-          extracted_lwe, lut->lwe_indexes_in, d_bsks, nullptr, lut->buffer,
+          active_gpus, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,
+          lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
+          lut->lwe_indexes_in, d_bsks, nullptr, lut->buffer,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
@@ -363,25 +360,25 @@ host_integer_decompress(cudaStream_t const *streams,
           lut->lwe_trivial_indexes_vec;
 
       /// Make sure all data that should be on GPU 0 is indeed there
-      cuda_event_record(lut->event_scatter_in, streams[0], gpu_indexes[0]);
-      for (int j = 1; j < active_gpu_count; j++) {
-        cuda_stream_wait_event(streams[j], lut->event_scatter_in,
-                               gpu_indexes[j]);
+      cuda_event_record(lut->event_scatter_in, streams.stream(0),
+                        streams.gpu_index(0));
+      for (int j = 1; j < active_gpus.count(); j++) {
+        cuda_stream_wait_event(streams.stream(j), lut->event_scatter_in,
+                               streams.gpu_index(j));
       }
       /// With multiple GPUs we push to the vectors on each GPU then when we
       /// gather data to GPU 0 we can copy back to the original indexing
       multi_gpu_scatter_lwe_async<Torus>(
-          streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-          extracted_lwe, lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
-          lut->lwe_aligned_vec, lut->active_gpu_count, num_blocks_to_decompress,
+          active_gpus, lwe_array_in_vec, extracted_lwe, lut->lwe_indexes_in,
+          lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
+          lut->active_gpus.count(), num_blocks_to_decompress,
           compression_params.small_lwe_dimension + 1);
 
       /// Apply PBS
       execute_pbs_async<Torus, Torus>(
-          streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
-          lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
-          lwe_array_in_vec, lwe_trivial_indexes_vec, d_bsks, nullptr,
-          lut->buffer, encryption_params.glwe_dimension,
+          active_gpus, lwe_after_pbs_vec, lwe_trivial_indexes_vec, lut->lut_vec,
+          lut->lut_indexes_vec, lwe_array_in_vec, lwe_trivial_indexes_vec,
+          d_bsks, nullptr, lut->buffer, encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
           encryption_params.pbs_level, encryption_params.grouping_factor,
@@ -390,21 +387,21 @@ host_integer_decompress(cudaStream_t const *streams,
 
       /// Copy data back to GPU 0 and release vecs
       multi_gpu_gather_lwe_async<Torus>(
-          streams, gpu_indexes, active_gpu_count, (Torus *)d_lwe_array_out->ptr,
-          lwe_after_pbs_vec, lut->lwe_indexes_out,
-          lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
-          num_blocks_to_decompress, encryption_params.big_lwe_dimension + 1);
+          active_gpus, (Torus *)d_lwe_array_out->ptr, lwe_after_pbs_vec,
+          lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+          lut->lwe_aligned_vec, num_blocks_to_decompress,
+          encryption_params.big_lwe_dimension + 1);
 
       /// Synchronize all GPUs
       // other gpus record their events
-      for (int j = 1; j < active_gpu_count; j++) {
-        cuda_event_record(lut->event_scatter_out[j], streams[j],
-                          gpu_indexes[j]);
+      for (int j = 1; j < active_gpus.count(); j++) {
+        cuda_event_record(lut->event_scatter_out[j], active_gpus.stream(j),
+                          active_gpus.gpu_index(j));
       }
       // GPU 0 waits for all
-      for (int j = 1; j < active_gpu_count; j++) {
-        cuda_stream_wait_event(streams[0], lut->event_scatter_out[j],
-                               gpu_indexes[0]);
+      for (int j = 1; j < active_gpus.count(); j++) {
+        cuda_stream_wait_event(streams.stream(0), lut->event_scatter_out[j],
+                               streams.gpu_index(0));
       }
     }
   } else {
@@ -415,29 +412,27 @@ host_integer_decompress(cudaStream_t const *streams,
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_compress_integer_radix_ciphertext(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_compression<Torus> **mem_ptr,
+    CudaStreams streams, int_compression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params compression_params,
     uint32_t lwe_per_glwe, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_compression<Torus>(
-      streams, gpu_indexes, gpu_count, compression_params, num_radix_blocks,
-      lwe_per_glwe, allocate_gpu_memory, size_tracker);
+  *mem_ptr = new int_compression<Torus>(streams, compression_params,
+                                        num_radix_blocks, lwe_per_glwe,
+                                        allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_decompress_radix_ciphertext(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_decompression<Torus> **mem_ptr,
+    CudaStreams streams, int_decompression<Torus> **mem_ptr,
     uint32_t num_blocks_to_decompress, int_radix_params encryption_params,
     int_radix_params compression_params, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_decompression<Torus>(
-      streams, gpu_indexes, gpu_count, encryption_params, compression_params,
-      num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
+      streams, encryption_params, compression_params, num_blocks_to_decompress,
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 #endif

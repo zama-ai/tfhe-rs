@@ -55,11 +55,10 @@ device_integer_radix_negation(Torus *output, Torus const *input,
 
 template <typename Torus>
 __host__ void host_integer_radix_negation(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, uint64_t message_modulus,
     uint64_t carry_modulus, uint32_t num_radix_blocks) {
-  cuda_set_device(gpu_indexes[0]);
+  cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
       lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -86,7 +85,7 @@ __host__ void host_integer_radix_negation(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_negation<Torus><<<grid, thds, 0, streams[0]>>>(
+  device_integer_radix_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       static_cast<Torus *>(lwe_array_out->ptr),
       static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
       message_modulus, delta);
@@ -114,24 +113,22 @@ __host__ void host_integer_radix_negation(
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_overflowing_sub_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_overflowing_sub_memory<Torus> **mem_ptr,
+    CudaStreams streams, int_overflowing_sub_memory<Torus> **mem_ptr,
     uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch overflowing sub")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
-      streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      streams, params, num_blocks, allocate_gpu_memory, noise_reduction_type,
+      size_tracker);
   POP_RANGE()
   return size_tracker;
 }
 
 template <typename Torus>
 __host__ void host_integer_overflowing_sub(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *output,
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input_left,
     const CudaRadixCiphertextFFI *input_right,
     CudaRadixCiphertextFFI *overflow_block,
@@ -162,13 +159,12 @@ __host__ void host_integer_overflowing_sub(
   uint32_t grouping_size = num_bits_in_block;
   uint32_t num_groups = (num_blocks + grouping_size - 1) / grouping_size;
 
-  auto stream = (cudaStream_t *)streams;
   host_unchecked_sub_with_correcting_term<Torus>(
-      stream[0], gpu_indexes[0], output, input_left, input_right, num_blocks,
-      radix_params.message_modulus, radix_params.carry_modulus);
+      streams.stream(0), streams.gpu_index(0), output, input_left, input_right,
+      num_blocks, radix_params.message_modulus, radix_params.carry_modulus);
 
   host_single_borrow_propagate<Torus>(
-      streams, gpu_indexes, gpu_count, output, overflow_block, input_borrow,
+      streams, output, overflow_block, input_borrow,
       (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
       ms_noise_reduction_key, num_groups, compute_overflow, uses_input_borrow);
   POP_RANGE()

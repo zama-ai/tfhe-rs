@@ -995,6 +995,11 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/)"
 
+test_high_level_api_gpu_debug: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test \
+		--features=integer,gpu-debug -vv -p tfhe -- integer::gpu::server_key::radix::tests_unsigned::test_scalar_comparison::test_gpu_integer_unchecked_scalar_ne_u256_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128 --test-threads=1 --nocapture
+
+
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
 ifeq ($(HPU_CONFIG), v80)
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
