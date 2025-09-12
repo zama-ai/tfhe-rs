@@ -1,0 +1,12 @@
+[advisories]
+ignore = [
+    # Ignoring unmaintained 'paste' advisory as it is a widely used, low-risk build dependency.
+    "RUSTSEC-2024-0436",
+]
+
+[output]
+# Deny advisories that are warnings by default.
+# At the moment this works if we allow paste, we might want to disable this in the future if it
+# becomes too tedious
+deny = ["warnings"]
+quiet = false

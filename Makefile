@@ -160,8 +160,12 @@ install_tarpaulin: install_rs_build_toolchain
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
-install_cargo_dylint:
+install_cargo_dylint: install_rs_build_toolchain
 	cargo install --locked cargo-dylint dylint-link
+
+.PHONY: install_cargo_audit # Check dependencies
+install_cargo_audit: install_rs_build_toolchain
+	cargo install --locked cargo-audit
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker: install_rs_build_toolchain
@@ -544,6 +548,10 @@ tfhe_lints: install_cargo_dylint
 		--features=boolean,shortint,integer,strings,zk-pok
 	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
 		--features=experimental
+
+.PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
+audit_dependencies: install_rs_build_toolchain install_cargo_audit
+	cargo audit
 
 
 .PHONY: build_core # Build core_crypto without experimental features
