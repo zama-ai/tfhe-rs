@@ -163,6 +163,10 @@ install_tarpaulin: install_rs_build_toolchain
 install_cargo_dylint:
 	cargo install --locked cargo-dylint dylint-link
 
+.PHONY: install_cargo_audit # Check dependencies
+install_cargo_audit:
+	cargo install --locked cargo-audit
+
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker: install_rs_build_toolchain
 	@typos --version > /dev/null 2>&1 || \
@@ -544,6 +548,10 @@ tfhe_lints: install_cargo_dylint
 		--features=boolean,shortint,integer,strings,zk-pok
 	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
 		--features=experimental
+
+.PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
+audit_dependencies: install_rs_check_toolchain install_cargo_audit
+	cargo audit
 
 
 .PHONY: build_core # Build core_crypto without experimental features
@@ -1647,7 +1655,7 @@ sha256_bool: install_rs_check_toolchain
 pcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
 check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash \
 clippy_all check_compile_tests test_tfhe_lints \
-tfhe_lints
+tfhe_lints audit_dependencies
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
