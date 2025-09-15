@@ -21,6 +21,7 @@ BENCH_OP_FLAVOR?=DEFAULT
 BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
+BENCH_CUSTOM_COMMAND:=
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 WASM_PACK_VERSION="0.13.1"
@@ -1563,6 +1564,11 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+
+
+.PHONY: bench_custom # Run benchmarks with a user-defined command
+bench_custom: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-benchmark $(BENCH_CUSTOM_COMMAND)
 
 #
 # Utility tools
