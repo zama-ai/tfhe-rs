@@ -10,12 +10,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "334fb906aef13d20050987b13448f37391bb97a2" }
-dylint_linting = "4.0.0"
+dylint_linting = "4.1.0"
 
 [dev-dependencies]
-dylint_testing = "4.0.0"
+dylint_testing = "4.1.0"
 serde = { version = "1.0", features = ["derive"] }
-tfhe-versionable = "0.4.0"
+tfhe-versionable = "0.6.1"
 
 [package.metadata.rust-analyzer]
 rustc_private = true

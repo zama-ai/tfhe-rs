@@ -12,7 +12,9 @@ pub struct SerializeWithoutVersionizeInner {
 }
 
 const VERSIONIZE_TRAIT: [&str; 2] = ["tfhe_versionable", "Versionize"];
-const SERIALIZE_TRAIT: [&str; 3] = ["serde", "ser", "Serialize"];
+const SERIALIZE_TRAIT: [&str; 3] = ["serde_core", "ser", "Serialize"];
+// Serialize trait root definition has been moved from the serde crate to serde_core
+const SERIALIZE_TRAIT_LEGACY: [&str; 3] = ["serde", "ser", "Serialize"];
 const LINT_NAME: &str = "serialize_without_versionize";
 
 impl SerializeWithoutVersionizeInner {
@@ -86,7 +88,9 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                 // Check if the implemented trait is `Serialize`
                 if let Some(def_id) = trait_ref.trait_def_id() {
                     let path = cx.get_def_path(def_id);
-                    if path == symbols_list_from_str(&SERIALIZE_TRAIT) {
+                    if path == symbols_list_from_str(&SERIALIZE_TRAIT)
+                        || path == symbols_list_from_str(&SERIALIZE_TRAIT_LEGACY)
+                    {
                         // Try to find an implementation of versionize for this type
                         let mut found_impl = false;
                         if let Some(versionize_trait) = self.0.versionize_trait(cx) {
