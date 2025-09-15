@@ -6489,13 +6489,11 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_blocks = num_blocks > 0 ? num_blocks : 1;
 
-    uint32_t num_sbox_parallel_instances = 16;
     uint32_t single_block_state_size = 128;
 
-    this->and_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 1,
-        18 * this->num_blocks * num_sbox_parallel_instances,
-        allocate_gpu_memory, size_tracker);
+    this->and_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
+                                             params, 1, 18 * this->num_blocks,
+                                             allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus a, Torus b) -> Torus { return a & b; };
     generate_device_accumulator_bivariate<Torus>(
@@ -6520,9 +6518,8 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     this->flush_lut->broadcast_lut(streams, gpu_indexes);
 
     this->sbox_flush_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 1,
-        8 * this->num_blocks * num_sbox_parallel_instances, allocate_gpu_memory,
-        size_tracker);
+        streams, gpu_indexes, gpu_count, params, 1, 8 * this->num_blocks,
+        allocate_gpu_memory, size_tracker);
     generate_device_accumulator(
         streams[0], gpu_indexes[0], this->sbox_flush_lut->get_lut(0, 0),
         this->sbox_flush_lut->get_degree(0),
@@ -6582,16 +6579,15 @@ template <typename Torus> struct int_aes_encrypt_buffer {
         size_tracker, allocate_gpu_memory);
 
     uint32_t sbox_workspace_size = 128;
-    this->sbox_internal_workspace = create_buffer(
-        this->num_blocks * sbox_workspace_size * num_sbox_parallel_instances);
+    this->sbox_internal_workspace =
+        create_buffer(this->num_blocks * sbox_workspace_size);
     this->initial_states_and_jit_key_workspace =
         create_buffer(this->num_blocks * 128);
     this->main_bitsliced_states_buffer = create_buffer(this->num_blocks * 128);
     this->tmp_tiled_key_buffer = create_buffer(this->num_blocks * 128);
-
-    uint32_t max_and_count = 18;
-    this->batch_processing_buffer = create_buffer(
-        this->num_blocks * max_and_count * 3 * num_sbox_parallel_instances);
+    uint32_t max_batch_size = 18 * 3;
+    this->batch_processing_buffer =
+        create_buffer(this->num_blocks * max_batch_size);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
