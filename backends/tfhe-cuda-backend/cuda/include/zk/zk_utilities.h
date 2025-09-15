@@ -209,9 +209,12 @@ template <typename Torus> struct zk_expand_mem {
         params.carry_modulus, carry_extract_and_sanitize_bool_lut_f,
         gpu_memory_allocated);
 
-    // Hint for future readers: if message_modulus == 4 then
-    // packed_messages_per_lwe becomes 2
-    auto num_packed_msgs = log2_int(params.message_modulus);
+    // We are always packing two LWEs. We just need to be sure we have enough
+    // space in the carry part to store a message of the same size as is in the
+    // message part.
+    if (params.carry_modulus < params.message_modulus)
+      PANIC("Carry modulus must be at least as large as message modulus");
+    auto num_packed_msgs = 2;
 
     // Adjust indexes to permute the output and access the correct LUT
     auto h_indexes_in = static_cast<Torus *>(
