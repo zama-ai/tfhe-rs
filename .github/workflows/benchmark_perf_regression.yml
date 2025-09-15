@@ -1,0 +1,297 @@
+# Run performance regression benchmarks and return parsed results to associated pull-request.
+name: benchmark_perf_regression
+
+on:
+  issue_comment:
+    types: created
+  pull_request:
+    types: [ labeled ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+permissions: { }
+
+jobs:
+  verify-actor:
+    name: benchmark_perf_regression/verify-actor
+    uses: ./.github/workflows/verify_commit_actor.yml
+    secrets:
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
+  prepare-benchmarks:
+    name: benchmark_perf_regression/prepare-benchmarks
+    needs: verify-actor
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event.issue.pull_request
+    outputs:
+      commands: ${{ steps.set_commands.outputs.commands }}
+      slab-backend: ${{ steps.set_slab_details.outputs.backend }}
+      slab-profile: ${{ steps.set_slab_details.outputs.profile }}
+      hardware-name: ${{ steps.get_hardware_name.outputs.name }}
+      custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Generate cpu benchmarks command from label
+        if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-cpu'))
+        run: |
+          echo "DEFAULT_BENCH_OPTIONS=--backend cpu" >> "${GITHUB_ENV}"
+
+      - name: Generate cpu benchmarks command from label
+        if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-gpu'))
+        run: |
+          echo "DEFAULT_BENCH_OPTIONS=--backend gpu" >> "${GITHUB_ENV}"
+
+      # TODO add support for HPU backend
+
+      - name: Generate cargo commands and env from label
+        if: (github.event_name == 'pull_request' &&
+          (contains(github.event.label.name, 'bench-perfs-cpu') ||
+          contains(github.event.label.name, 'bench-perfs-gpu')))
+        run: |
+          python3 ci/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
+          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+
+      - name: Dump issue comment into file # To avoid possible code-injection
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "${COMMENT_BODY}" >> dumped_comment.txt
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+
+      - name: Generate cargo commands and env
+        if: github.event_name == 'issue_comment'
+        run: |
+          python3 ci/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+
+      - name: Set commands output
+        id: set_commands
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "commands=${{ toJSON(env.COMMANDS) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set Slab details outputs
+        id: set_slab_details
+        run: |
+          echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
+
+      - name: Get hardware name
+        id: get_hardware_name
+        run: | # zizmor: ignore[template-injection] these interpolations are safe
+          HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
+          echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Get custom env vars
+        id: get_custom_env
+        run: |
+          echo "custom_env=$(cat ci/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
+
+  setup-instance:
+    name: benchmark_perf_regression/setup-instance
+    needs: prepare-benchmarks
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: ${{ needs.prepare-benchmarks.outputs.slab-backend }}
+          profile: ${{ needs.prepare-benchmarks.outputs.slab-profile }}
+
+  install-cuda-dependencies-if-required:
+    name: benchmark_perf_regression/install-cuda-dependencies-if-required
+    needs: [ prepare-benchmarks, setup-instance ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      matrix:
+        # explicit include-based build matrix, of known valid options
+        include:
+          - cuda: "12.8"
+            gcc: 11
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Hyperstack dependencies
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+
+  regression-benchmarks:
+    name: benchmark_perf_regression/regression-benchmarks
+    needs: [ prepare-benchmarks, setup-instance, install-cuda-dependencies-if-required ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    concurrency:
+      group: ${{ github.workflow_ref }}_${{ needs.prepare-benchmarks.outputs.slab-backend }}_${{ needs.prepare-benchmarks.outputs.slab-profile }}
+      cancel-in-progress: true
+    timeout-minutes: 720  # 12 hours
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: ${{ fromJson(needs.prepare-benchmarks.outputs.commands) }}
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Get benchmark details
+        run: |
+          COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict "${SHA}");
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=${COMMIT_DATE}";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+        env:
+          SHA: ${{ github.sha }}
+
+      - name: Export custom env variables
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          { 
+              ${{ needs.prepare-benchmarks.outputs.custom-env }} 
+          } >> "$GITHUB_ENV"
+
+      # Re-export environment variables as dependencies setup perform this task in the previous job.
+      # Local env variables are cleaned at the end of each job.
+      - name: Export CUDA variables
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+        shell: bash
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "PATH=$PATH:$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDA_MODULE_LOADER=EAGER" >> "${GITHUB_ENV}"
+        env:
+          CUDA_PATH: /usr/local/cuda-12.8
+
+      - name: Export gcc and g++ variables
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+        shell: bash
+        run: |
+          {
+          echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+          echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+          echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
+          } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: 11
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: nightly
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: zama-ai/slab
+          path: slab
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Run regression benchmarks
+        run: |
+          make  BENCH_CUSTOM_COMMAND="${BENCH_COMMAND}" bench_custom
+        env:
+          BENCH_COMMAND: ${{ matrix.command }}
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          --database tfhe_rs \
+          --hardware "${HARDWARE_NAME}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
+          --walk-subdirs \
+          --name-suffix regression \
+          --bench-type "${BENCH_TYPE}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
+          HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ github.sha }}_regression
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
+          --slab-url "${SLAB_URL}"
+        env:
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLAB_URL: ${{ secrets.SLAB_URL }}
+
+  slack-notify:
+    name: benchmark_perf_regression/slack-notify
+    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks ]
+    runs-on: ubuntu-latest
+    if: ${{ failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ needs.regression-benchmarks.result }}
+          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ needs.regression-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  # TODO Add job for regression calculation
+
+  teardown-instance:
+    name: benchmark_perf_regression/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [ setup-instance, regression-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (regression-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
