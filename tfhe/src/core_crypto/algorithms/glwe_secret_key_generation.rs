@@ -1,7 +1,7 @@
 //! Module containing primitives pertaining to the generation of
 //! [`GLWE secret keys`](`GlweSecretKey`).
 
-use crate::core_crypto::commons::generators::SecretRandomGenerator;
+use crate::core_crypto::commons::generators::SecretBinaryRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -15,11 +15,11 @@ use crate::core_crypto::entities::*;
 pub fn allocate_and_generate_new_binary_glwe_secret_key<Scalar, Gen>(
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
-    generator: &mut SecretRandomGenerator<Gen>,
+    generator: Gen,
 ) -> GlweSecretKeyOwned<Scalar>
 where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
-    Gen: ByteRandomGenerator,
+    Gen: SecretBinaryRandomGenerator<Scalar>,
 {
     let mut glwe_secret_key =
         GlweSecretKeyOwned::new_empty_key(Scalar::ZERO, glwe_dimension, polynomial_size);
@@ -59,11 +59,11 @@ where
 /// ```
 pub fn generate_binary_glwe_secret_key<Scalar, InCont, Gen>(
     glwe_secret_key: &mut GlweSecretKey<InCont>,
-    generator: &mut SecretRandomGenerator<Gen>,
+    mut generator: Gen,
 ) where
     Scalar: RandomGenerable<UniformBinary>,
     InCont: ContainerMut<Element = Scalar>,
-    Gen: ByteRandomGenerator,
+    Gen: SecretBinaryRandomGenerator<Scalar>,
 {
     generator.fill_slice_with_random_uniform_binary(glwe_secret_key.as_mut());
 }

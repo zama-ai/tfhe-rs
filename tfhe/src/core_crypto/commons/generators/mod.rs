@@ -8,7 +8,7 @@ pub use encryption::EncryptionRandomGenerator;
 pub(crate) use encryption::EncryptionRandomGeneratorForkConfig;
 
 mod secret;
-pub use secret::SecretRandomGenerator;
+pub use secret::{SecretBinaryRandomGenerator, SecretRandomGenerator};
 
 mod seeder;
 pub use seeder::DeterministicSeeder;

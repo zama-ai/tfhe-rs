@@ -5,6 +5,19 @@ use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, RandomGenerator, Seed, UniformBinary,
 };
 
+pub trait SecretBinaryRandomGenerator<Scalar> {
+    fn fill_slice_with_random_uniform_binary(&mut self, slice: &mut [Scalar]);
+}
+
+impl<T, Scalar> SecretBinaryRandomGenerator<Scalar> for &mut T
+where
+    T: SecretBinaryRandomGenerator<Scalar>,
+{
+    fn fill_slice_with_random_uniform_binary(&mut self, slice: &mut [Scalar]) {
+        (**self).fill_slice_with_random_uniform_binary(slice)
+    }
+}
+
 /// A random number generator which can be used to generate secret keys.
 pub struct SecretRandomGenerator<G: ByteRandomGenerator>(RandomGenerator<G>);
 
@@ -31,5 +44,15 @@ impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
         Scalar: RandomGenerable<UniformBinary>,
     {
         self.0.random_uniform_binary()
+    }
+}
+
+impl<Scalar, G> SecretBinaryRandomGenerator<Scalar> for SecretRandomGenerator<G>
+where
+    Scalar: RandomGenerable<UniformBinary>,
+    G: ByteRandomGenerator,
+{
+    fn fill_slice_with_random_uniform_binary(&mut self, slice: &mut [Scalar]) {
+        Self::fill_slice_with_random_uniform_binary(self, slice)
     }
 }

@@ -112,6 +112,11 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         Self { gen }
     }
 
+    #[cfg(feature = "integer")]
+    pub(crate) fn into_raw_parts(self) -> RandomGenerator<G> {
+        self.gen
+    }
+
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.gen.remaining_bytes()
     }
