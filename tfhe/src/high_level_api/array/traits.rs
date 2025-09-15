@@ -28,6 +28,12 @@ impl<'a, T> TensorSlice<'a, &'a [T]> {
     pub fn par_iter(self) -> ParStridedIter<'a, T> {
         ParStridedIter::new(self.slice, self.dims.clone())
     }
+    pub fn len(&self) -> usize {
+        self.dims.flattened_len()
+    }
+    pub fn as_slice(&self) -> &'a [T] {
+        self.slice
+    }
 }
 
 impl<'a, T> TensorSlice<'a, &'a mut [T]> {

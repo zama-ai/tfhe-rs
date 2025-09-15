@@ -24,33 +24,43 @@ __host__ void host_integer_radix_bitop_kb(
           lwe_array_out->num_radix_blocks == lwe_array_2->num_radix_blocks,
       "Cuda error: input and output num radix blocks must be equal");
 
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_ciphertexts ==
+              lwe_array_1->num_radix_ciphertexts &&
+          lwe_array_out->num_radix_ciphertexts ==
+              lwe_array_2->num_radix_ciphertexts,
+      "Cuda error: input and output num radix ciphertexts must be equal");
+
   PANIC_IF_FALSE(lwe_array_out->lwe_dimension == lwe_array_1->lwe_dimension &&
                      lwe_array_out->lwe_dimension == lwe_array_2->lwe_dimension,
                  "Cuda error: input and output lwe dimension must be equal");
 
   auto lut = mem_ptr->lut;
-  uint64_t degrees[lwe_array_1->num_radix_blocks];
+  uint64_t degrees[lwe_array_1->num_radix_blocks *
+                   lwe_array_1->num_radix_ciphertexts];
   if (mem_ptr->op == BITOP_TYPE::BITAND) {
-    update_degrees_after_bitand(degrees, lwe_array_1->degrees,
-                                lwe_array_2->degrees,
-                                lwe_array_1->num_radix_blocks);
+    update_degrees_after_bitand(
+        degrees, lwe_array_1->degrees, lwe_array_2->degrees,
+        lwe_array_1->num_radix_blocks * lwe_array_1->num_radix_ciphertexts);
   } else if (mem_ptr->op == BITOP_TYPE::BITOR) {
-    update_degrees_after_bitor(degrees, lwe_array_1->degrees,
-                               lwe_array_2->degrees,
-                               lwe_array_1->num_radix_blocks);
+    update_degrees_after_bitor(
+        degrees, lwe_array_1->degrees, lwe_array_2->degrees,
+        lwe_array_1->num_radix_blocks * lwe_array_1->num_radix_ciphertexts);
   } else if (mem_ptr->op == BITOP_TYPE::BITXOR) {
-    update_degrees_after_bitxor(degrees, lwe_array_1->degrees,
-                                lwe_array_2->degrees,
-                                lwe_array_1->num_radix_blocks);
+    update_degrees_after_bitxor(
+        degrees, lwe_array_1->degrees, lwe_array_2->degrees,
+        lwe_array_1->num_radix_blocks * lwe_array_1->num_radix_ciphertexts);
   }
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, lwe_array_out, lwe_array_1, lwe_array_2, bsks, ksks,
-      ms_noise_reduction_key, lut, lwe_array_out->num_radix_blocks,
+      ms_noise_reduction_key, lut,
+      lwe_array_out->num_radix_blocks * lwe_array_out->num_radix_ciphertexts,
       lut->params.message_modulus);
 
   memcpy(lwe_array_out->degrees, degrees,
-         lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+         lwe_array_out->num_radix_blocks *
+             lwe_array_out->num_radix_ciphertexts * sizeof(uint64_t));
 }
 
 template <typename Torus>

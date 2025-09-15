@@ -19,6 +19,7 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
+  radix->num_radix_ciphertexts = 1;
   uint64_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
   radix->ptr = (void *)cuda_malloc_with_size_tracking_async(
       size, stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -63,6 +64,7 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   output_radix->num_radix_blocks = end_input_lwe_index - start_input_lwe_index;
+  output_radix->num_radix_ciphertexts = input_radix->num_radix_ciphertexts;
   output_radix->max_num_radix_blocks = input_radix->max_num_radix_blocks;
   output_radix->lwe_dimension = input_radix->lwe_dimension;
   Torus *in_ptr = (Torus *)input_radix->ptr;

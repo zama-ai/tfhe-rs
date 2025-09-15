@@ -25,6 +25,7 @@ void into_radix_ciphertext(CudaRadixCiphertextFFI *radix, void *lwe_array,
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
   radix->ptr = lwe_array;
+  radix->num_radix_ciphertexts = 1;
 
   radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   radix->noise_levels =

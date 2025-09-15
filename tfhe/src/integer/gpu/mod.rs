@@ -183,6 +183,25 @@ fn prepare_cuda_radix_ffi(
         num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
         max_num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
         lwe_dimension: input.d_blocks.0.lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
+    }
+}
+
+fn prepare_cuda_radix_vec_ffi(
+    input: &CudaRadixCiphertext,
+    degrees_vec: &mut Vec<u64>,
+    noise_levels_vec: &mut Vec<u64>,
+    num_radix_ciphertexts: u32,
+) -> CudaRadixCiphertextFFI {
+    CudaRadixCiphertextFFI {
+        ptr: input.d_blocks.0.d_vec.get_mut_c_ptr(0),
+        degrees: degrees_vec.as_mut_ptr(),
+        noise_levels: noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32 / num_radix_ciphertexts,
+        max_num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32
+            / num_radix_ciphertexts,
+        lwe_dimension: input.d_blocks.0.lwe_dimension.0 as u32,
+        num_radix_ciphertexts,
     }
 }
 
@@ -200,6 +219,7 @@ fn prepare_cuda_radix_ffi_from_slice<T: UnsignedInteger>(
         num_radix_blocks,
         max_num_radix_blocks: num_radix_blocks,
         lwe_dimension,
+        num_radix_ciphertexts: 1u32,
     }
 }
 
@@ -217,6 +237,7 @@ fn prepare_cuda_radix_ffi_from_slice_mut<T: UnsignedInteger>(
         num_radix_blocks,
         max_num_radix_blocks: num_radix_blocks,
         lwe_dimension,
+        num_radix_ciphertexts: 1u32,
     }
 }
 
@@ -7603,4 +7624,144 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         &raw const ms_noise_reduction_key_ffi,
     );
     cleanup_expand_without_verification_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// This operation modifies raw GPU pointers on the GPU
+pub unsafe fn unchecked_bitop_vec_radix_kb_assign<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_lwe_right: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    op: BitOpType,
+    num_blocks: u32,
+    num_radix_ciphertexts: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+    let ct_modulus = radix_lwe_left
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let (noise_reduction_type, ms_noise_reduction_key_ffi) =
+        resolve_ms_noise_reduction_config(ms_noise_reduction_configuration, ct_modulus);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_vec_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+        num_radix_ciphertexts,
+    );
+    // Here even though the input is not modified, data is passed as mutable.
+    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
+    // one const and the other mutable.
+    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
+    // Const structure as input instead of the mutable structure, which leads to complicated
+    // data manipulation on the C++ side to change mutability of data.
+    let mut radix_lwe_right_degrees = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_right_noise_levels = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_right = prepare_cuda_radix_vec_ffi(
+        radix_lwe_right,
+        &mut radix_lwe_right_degrees,
+        &mut radix_lwe_right_noise_levels,
+        num_radix_ciphertexts,
+    );
+    scratch_cuda_integer_radix_bitop_kb_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks * num_radix_ciphertexts,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        op as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+    cuda_bitop_integer_radix_ciphertext_kb_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_radix_lwe_left,
+        &raw const cuda_ffi_radix_lwe_left,
+        &raw const cuda_ffi_radix_lwe_right,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+    );
+    cleanup_cuda_integer_bitop(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    streams.synchronize();
 }

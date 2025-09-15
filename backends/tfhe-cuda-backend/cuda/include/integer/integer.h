@@ -56,6 +56,7 @@ typedef struct {
   uint32_t num_radix_blocks;
   uint32_t max_num_radix_blocks;
   uint32_t lwe_dimension;
+  uint32_t num_radix_ciphertexts;
 } CudaRadixCiphertextFFI;
 
 typedef struct {

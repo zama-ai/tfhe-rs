@@ -183,6 +183,7 @@ pub struct CudaRadixCiphertextFFI {
     pub num_radix_blocks: u32,
     pub max_num_radix_blocks: u32,
     pub lwe_dimension: u32,
+    pub num_radix_ciphertexts: u32,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
@@ -201,6 +202,8 @@ const _: () = {
         [::std::mem::offset_of!(CudaRadixCiphertextFFI, max_num_radix_blocks) - 28usize];
     ["Offset of field: CudaRadixCiphertextFFI::lwe_dimension"]
         [::std::mem::offset_of!(CudaRadixCiphertextFFI, lwe_dimension) - 32usize];
+    ["Offset of field: CudaRadixCiphertextFFI::num_radix_ciphertexts"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, num_radix_ciphertexts) - 36usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

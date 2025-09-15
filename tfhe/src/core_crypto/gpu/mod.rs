@@ -840,6 +840,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
         lwe_dimension: lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
     };
     let lwe_array_in_1_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in_1.get_mut_c_ptr(0),
@@ -848,6 +849,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
         lwe_dimension: lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
     };
     let lwe_array_in_2_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in_2.get_mut_c_ptr(0),
@@ -856,6 +858,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
         lwe_dimension: lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
     };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
@@ -890,6 +893,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
         lwe_dimension: lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
     };
     let lwe_array_in_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in.get_mut_c_ptr(0),
@@ -898,6 +902,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
         lwe_dimension: lwe_dimension.0 as u32,
+        num_radix_ciphertexts: 1u32,
     };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
