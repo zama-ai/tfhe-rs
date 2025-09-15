@@ -6254,197 +6254,371 @@ template <typename Torus> struct int_ilog2_buffer {
 };
 
 template <typename Torus> struct int_aes_encrypt_buffer {
+  // ------------------
+  // Configuration
+  // ------------------
   int_radix_params params;
   bool allocate_gpu_memory;
+  // The number of keystreams to be processed in parallel.
   uint32_t num_blocks;
 
+  // ------------------
+  // Look-Up Tables (LUTs) for homomorphic operations
+  // ------------------
+  // LUT for the homomorphic bitwise AND (a & b) operation.
   int_radix_lut<Torus> *and_lut;
+  // LUT for the homomorphic flush operation (x -> x & 1).
+  // This is used to normalize ciphertexts to a single bit after additions.
   int_radix_lut<Torus> *flush_lut;
-  int_radix_lut<Torus> *sbox_flush_lut;
+  // LUT for the homomorphic carry operation (x -> (x >> 1) & 1).
+  // This is used in the full adder to extract the carry-out bit.
   int_radix_lut<Torus> *carry_lut;
 
+  // ------------------
+  // Trivial Ciphertexts & Scalars
+  // ------------------
+  // A trivial ciphertext encrypting the value 1.
   CudaRadixCiphertextFFI *trivial_1_bit;
+  // Device (GPU) pointer to a scalar zero, for creating trivial encryptions of
+  // 0.
   Torus *d_trivial_scalars_zero;
+  // Host (CPU) pointer to a scalar zero.
   Torus *h_trivial_scalars_zero;
 
+  // ------------------
+  // Workspaces for AES Rounds
+  // ------------------
+  // A temporary buffer to hold copies of the state columns during the
+  // MixColumns step.
   CudaRadixCiphertextFFI *mix_columns_col_copy_buffer;
+  // A workspace buffer for the multiplication operations within the MixColumns
+  // step.
   CudaRadixCiphertextFFI *mix_columns_mul_workspace_buffer;
+  // A general-purpose temporary buffer for a single bit's worth of
+  // ciphertexts.
   CudaRadixCiphertextFFI *tmp_bit_buffer;
+  // A general-purpose temporary buffer for a vector of bits.
   CudaRadixCiphertextFFI *vec_tmp_bit_buffer;
+  // A temporary buffer for a single carry bit.
   CudaRadixCiphertextFFI *tmp_carry_buffer;
+  // A temporary buffer for a single sum result.
   CudaRadixCiphertextFFI *tmp_sum_buffer;
 
+  // ------------------
+  // Workspaces for Vectorized & Counter Operations
+  // ------------------
+  // A temporary buffer for a vector of carry bits.
   CudaRadixCiphertextFFI *vec_tmp_carry_buffer;
+  // A temporary buffer for a vector of sum results.
   CudaRadixCiphertextFFI *vec_tmp_sum_buffer;
+  // A buffer to hold the trivial encryption of the counter bits for the
+  // homomorphic full adder.
   CudaRadixCiphertextFFI *vec_trivial_b_bits_buffer;
+  // Host (CPU) buffer for the plaintext counter bits before being uploaded to
+  // the GPU.
   Torus *h_counter_bits_buffer;
+  // Device (GPU) buffer for the plaintext counter bits.
   Torus *d_counter_bits_buffer;
 
+  // ------------------
+  // Main and Large Workspaces
+  // ------------------
+  // A large workspace dedicated to the complex, bitsliced S-Box computation.
   CudaRadixCiphertextFFI *sbox_internal_workspace;
+  // A buffer used to store the initial states (IVs) and later reused for the
+  // "just-in-time" transposed round keys.
   CudaRadixCiphertextFFI *initial_states_and_jit_key_workspace;
+  // The main buffer holding the AES states in a bitsliced layout.
+  // This layout is optimal for parallel bitwise FHE operations.
   CudaRadixCiphertextFFI *main_bitsliced_states_buffer;
+  // A temporary buffer used to tile the round key for each
+  // block before it is transposed to the bitsliced layout.
   CudaRadixCiphertextFFI *tmp_tiled_key_buffer;
+  // A very large buffer used to batch many small FHE operations (like
+  // AND) into a single one.
   CudaRadixCiphertextFFI *batch_processing_buffer;
 
-  int_aes_encrypt_buffer(cudaStream_t const *streams,
-                         uint32_t const *gpu_indexes, uint32_t gpu_count,
-                         const int_radix_params params,
+  int_aes_encrypt_buffer(CudaStreams streams, const int_radix_params params,
                          const bool allocate_gpu_memory, uint32_t num_blocks,
                          uint64_t &size_tracker) {
 
-    auto create_buffer = [&](uint32_t num_radix_blocks_to_create) {
-      auto *buffer = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[0], gpu_indexes[0], buffer, num_radix_blocks_to_create,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-      return buffer;
-    };
-
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-    this->num_blocks = num_blocks > 0 ? num_blocks : 1;
+    this->num_blocks = num_blocks;
 
+    uint32_t sbox_parallel_instances = 2;
     uint32_t single_block_state_size = 128;
 
-    this->and_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
-                                             params, 1, 18 * this->num_blocks,
-                                             allocate_gpu_memory, size_tracker);
+    this->and_lut = new int_radix_lut<Torus>(
+        streams, params, 1, 18 * this->num_blocks * sbox_parallel_instances,
+        allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus a, Torus b) -> Torus { return a & b; };
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], this->and_lut->get_lut(0, 0),
+        streams.stream(0), streams.gpu_index(0), this->and_lut->get_lut(0, 0),
         this->and_lut->get_degree(0), this->and_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, and_lambda, allocate_gpu_memory);
-    this->and_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_streams_and_lut = streams.active_gpu_subset(
+        18 * this->num_blocks * sbox_parallel_instances);
+    this->and_lut->broadcast_lut(active_streams_and_lut);
 
-    this->flush_lut =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 single_block_state_size * this->num_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    this->flush_lut = new int_radix_lut<Torus>(
+        streams, params, 1, single_block_state_size * this->num_blocks,
+        allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
       return x & 1;
     };
     generate_device_accumulator(
-        streams[0], gpu_indexes[0], this->flush_lut->get_lut(0, 0),
+        streams.stream(0), streams.gpu_index(0), this->flush_lut->get_lut(0, 0),
         this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, flush_lambda, allocate_gpu_memory);
-    this->flush_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_streams_flush_lut =
+        streams.active_gpu_subset(single_block_state_size * this->num_blocks);
+    this->flush_lut->broadcast_lut(active_streams_flush_lut);
 
-    this->sbox_flush_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 1, 8 * this->num_blocks,
-        allocate_gpu_memory, size_tracker);
-    generate_device_accumulator(
-        streams[0], gpu_indexes[0], this->sbox_flush_lut->get_lut(0, 0),
-        this->sbox_flush_lut->get_degree(0),
-        this->sbox_flush_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        flush_lambda, allocate_gpu_memory);
-    this->sbox_flush_lut->broadcast_lut(streams, gpu_indexes);
-
-    this->carry_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 1, this->num_blocks,
-        allocate_gpu_memory, size_tracker);
+    this->carry_lut =
+        new int_radix_lut<Torus>(streams, params, 1, this->num_blocks,
+                                 allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> carry_lambda = [](Torus x) -> Torus {
       return (x >> 1) & 1;
     };
     generate_device_accumulator(
-        streams[0], gpu_indexes[0], this->carry_lut->get_lut(0, 0),
+        streams.stream(0), streams.gpu_index(0), this->carry_lut->get_lut(0, 0),
         this->carry_lut->get_degree(0), this->carry_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, carry_lambda, allocate_gpu_memory);
-    this->carry_lut->broadcast_lut(streams, gpu_indexes);
+    auto active_streams_carry_lut = streams.active_gpu_subset(this->num_blocks);
+    this->carry_lut->broadcast_lut(active_streams_carry_lut);
 
     Torus h_trivial_one[] = {1};
     Torus *d_trivial_scalars = (Torus *)cuda_malloc_with_size_tracking_async(
-        sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
+        sizeof(Torus), streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
     cuda_memcpy_async_to_gpu(d_trivial_scalars, h_trivial_one, sizeof(Torus),
-                             streams[0], gpu_indexes[0]);
-    this->trivial_1_bit = create_buffer(1);
+                             streams.stream(0), streams.gpu_index(0));
+
+    this->trivial_1_bit = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->trivial_1_bit, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
     set_trivial_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], this->trivial_1_bit, d_trivial_scalars,
-        h_trivial_one, 1, params.message_modulus, params.carry_modulus);
-    cuda_drop_async(d_trivial_scalars, streams[0], gpu_indexes[0]);
+        streams.stream(0), streams.gpu_index(0), this->trivial_1_bit,
+        d_trivial_scalars, h_trivial_one, 1, params.message_modulus,
+        params.carry_modulus);
+    cuda_drop_async(d_trivial_scalars, streams.stream(0), streams.gpu_index(0));
 
     h_trivial_scalars_zero = (Torus *)calloc(1, sizeof(Torus));
     d_trivial_scalars_zero = (Torus *)cuda_malloc_with_size_tracking_async(
-        sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
+        sizeof(Torus), streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
-    cuda_memset_async(d_trivial_scalars_zero, 0, sizeof(Torus), streams[0],
-                      gpu_indexes[0]);
+    cuda_memset_async(d_trivial_scalars_zero, 0, sizeof(Torus),
+                      streams.stream(0), streams.gpu_index(0));
 
-    this->mix_columns_col_copy_buffer = create_buffer(32 * this->num_blocks);
-    this->mix_columns_mul_workspace_buffer =
-        create_buffer(40 * this->num_blocks);
+    this->mix_columns_col_copy_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->mix_columns_col_copy_buffer, 32 * this->num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->tmp_bit_buffer = create_buffer(1);
-    this->vec_tmp_bit_buffer = create_buffer(this->num_blocks);
-    this->tmp_carry_buffer = create_buffer(1);
-    this->tmp_sum_buffer = create_buffer(1);
-    this->vec_tmp_carry_buffer = create_buffer(this->num_blocks);
-    this->vec_tmp_sum_buffer = create_buffer(this->num_blocks);
-    this->vec_trivial_b_bits_buffer = create_buffer(this->num_blocks);
+    this->mix_columns_mul_workspace_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->mix_columns_mul_workspace_buffer, 40 * this->num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->tmp_bit_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_bit_buffer, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->vec_tmp_bit_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->vec_tmp_bit_buffer,
+        this->num_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->tmp_carry_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_carry_buffer, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->tmp_sum_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_sum_buffer, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->vec_tmp_carry_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->vec_tmp_carry_buffer,
+        this->num_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->vec_tmp_sum_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->vec_tmp_sum_buffer,
+        this->num_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->vec_trivial_b_bits_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->vec_trivial_b_bits_buffer, this->num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
     this->h_counter_bits_buffer =
         (Torus *)malloc(this->num_blocks * sizeof(Torus));
     size_tracker += this->num_blocks * sizeof(Torus);
     this->d_counter_bits_buffer = (Torus *)cuda_malloc_with_size_tracking_async(
-        this->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
+        this->num_blocks * sizeof(Torus), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     uint32_t sbox_workspace_size = 128;
-    this->sbox_internal_workspace =
-        create_buffer(this->num_blocks * sbox_workspace_size);
-    this->initial_states_and_jit_key_workspace =
-        create_buffer(this->num_blocks * 128);
-    this->main_bitsliced_states_buffer = create_buffer(this->num_blocks * 128);
-    this->tmp_tiled_key_buffer = create_buffer(this->num_blocks * 128);
+    this->sbox_internal_workspace = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->sbox_internal_workspace,
+        this->num_blocks * sbox_workspace_size * sbox_parallel_instances,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->initial_states_and_jit_key_workspace = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->initial_states_and_jit_key_workspace, this->num_blocks * 128,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->main_bitsliced_states_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->main_bitsliced_states_buffer, this->num_blocks * 128,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->tmp_tiled_key_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_tiled_key_buffer,
+        this->num_blocks * 128, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
     uint32_t max_batch_size = 18 * 3;
-    this->batch_processing_buffer =
-        create_buffer(this->num_blocks * max_batch_size);
+    this->batch_processing_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->batch_processing_buffer,
+        this->num_blocks * max_batch_size * sbox_parallel_instances,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
   }
 
-  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-               uint32_t gpu_count) {
-    auto release_buffer = [&](CudaRadixCiphertextFFI *&buffer) {
-      if (buffer) {
-        release_radix_ciphertext_async(streams[0], gpu_indexes[0], buffer,
-                                       allocate_gpu_memory);
-        delete buffer;
-        buffer = nullptr;
-      }
-    };
+  void release(CudaStreams streams) {
 
-    this->and_lut->release(streams, gpu_indexes, gpu_count);
+    this->and_lut->release(streams);
     delete this->and_lut;
-    this->flush_lut->release(streams, gpu_indexes, gpu_count);
-    delete this->flush_lut;
-    this->sbox_flush_lut->release(streams, gpu_indexes, gpu_count);
-    delete this->sbox_flush_lut;
-    this->carry_lut->release(streams, gpu_indexes, gpu_count);
-    delete this->carry_lut;
+    this->and_lut = nullptr;
 
-    cuda_drop_async(this->d_trivial_scalars_zero, streams[0], gpu_indexes[0]);
+    this->flush_lut->release(streams);
+    delete this->flush_lut;
+    this->flush_lut = nullptr;
+
+    this->carry_lut->release(streams);
+    delete this->carry_lut;
+    this->carry_lut = nullptr;
+
+    cuda_drop_async(this->d_trivial_scalars_zero, streams.stream(0),
+                    streams.gpu_index(0));
     free(this->h_trivial_scalars_zero);
 
-    release_buffer(this->trivial_1_bit);
-    release_buffer(this->mix_columns_col_copy_buffer);
-    release_buffer(this->mix_columns_mul_workspace_buffer);
-    release_buffer(this->tmp_bit_buffer);
-    release_buffer(this->vec_tmp_bit_buffer);
-    release_buffer(this->tmp_carry_buffer);
-    release_buffer(this->tmp_sum_buffer);
-    release_buffer(this->vec_tmp_carry_buffer);
-    release_buffer(this->vec_tmp_sum_buffer);
-    release_buffer(this->vec_trivial_b_bits_buffer);
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->trivial_1_bit,
+                                   this->allocate_gpu_memory);
+    delete this->trivial_1_bit;
+    this->trivial_1_bit = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->mix_columns_col_copy_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->mix_columns_col_copy_buffer;
+    this->mix_columns_col_copy_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->mix_columns_mul_workspace_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->mix_columns_mul_workspace_buffer;
+    this->mix_columns_mul_workspace_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_bit_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_bit_buffer;
+    this->tmp_bit_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->vec_tmp_bit_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->vec_tmp_bit_buffer;
+    this->vec_tmp_bit_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_carry_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_carry_buffer;
+    this->tmp_carry_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_sum_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_sum_buffer;
+    this->tmp_sum_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->vec_tmp_carry_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->vec_tmp_carry_buffer;
+    this->vec_tmp_carry_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->vec_tmp_sum_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->vec_tmp_sum_buffer;
+    this->vec_tmp_sum_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->vec_trivial_b_bits_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->vec_trivial_b_bits_buffer;
+    this->vec_trivial_b_bits_buffer = nullptr;
+
     free(this->h_counter_bits_buffer);
-    cuda_drop_async(this->d_counter_bits_buffer, streams[0], gpu_indexes[0]);
-    release_buffer(this->sbox_internal_workspace);
-    release_buffer(this->initial_states_and_jit_key_workspace);
-    release_buffer(this->main_bitsliced_states_buffer);
-    release_buffer(this->tmp_tiled_key_buffer);
-    release_buffer(this->batch_processing_buffer);
+    cuda_drop_async(this->d_counter_bits_buffer, streams.stream(0),
+                    streams.gpu_index(0));
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->sbox_internal_workspace,
+                                   this->allocate_gpu_memory);
+    delete this->sbox_internal_workspace;
+    this->sbox_internal_workspace = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->initial_states_and_jit_key_workspace,
+                                   this->allocate_gpu_memory);
+    delete this->initial_states_and_jit_key_workspace;
+    this->initial_states_and_jit_key_workspace = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->main_bitsliced_states_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->main_bitsliced_states_buffer;
+    this->main_bitsliced_states_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_tiled_key_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_tiled_key_buffer;
+    this->tmp_tiled_key_buffer = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->batch_processing_buffer,
+                                   this->allocate_gpu_memory);
+    delete this->batch_processing_buffer;
+    this->batch_processing_buffer = nullptr;
   }
 };
 

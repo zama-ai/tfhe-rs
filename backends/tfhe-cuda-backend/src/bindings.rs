@@ -1619,6 +1619,43 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_kb_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_aes_encrypt_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_blocks: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_aes_ctr_encrypt_64(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        iv: *const CudaRadixCiphertextFFI,
+        round_keys: *const CudaRadixCiphertextFFI,
+        counter_bits_le_all_blocks: *const u64,
+        num_blocks: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_aes_encrypt_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaLweCiphertextListFFI {
@@ -1793,127 +1830,6 @@ unsafe extern "C" {
     pub fn cleanup_cuda_integer_decompress_radix_ciphertext_128(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_integer_aes_encrypt_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-        num_blocks: u32,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_integer_aes_ctr_encrypt_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        iv: *const CudaRadixCiphertextFFI,
-        round_keys: *const CudaRadixCiphertextFFI,
-        counter_bits_le_all_blocks: *const u64,
-        num_blocks: u32,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_integer_aes_encrypt_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_sbox_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_shift_rows_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        num_blocks: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_mul_by_2_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_mix_columns_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_full_adder_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        counter_bits_le: *const u64,
-        num_blocks: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_test_transpose_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        num_blocks: u32,
     );
 }
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;

@@ -9,22 +9,34 @@
 
 template <typename Torus>
 uint64_t scratch_cuda_integer_aes_encrypt(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, int_aes_encrypt_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_aes_encrypt_buffer<Torus> **mem_ptr,
     int_radix_params params, bool allocate_gpu_memory, uint32_t num_blocks) {
+
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_aes_encrypt_buffer<Torus>(streams, gpu_indexes, gpu_count,
-                                               params, allocate_gpu_memory,
-                                               num_blocks, size_tracker);
+  *mem_ptr = new int_aes_encrypt_buffer<Torus>(
+      streams, params, allocate_gpu_memory, num_blocks, size_tracker);
   return size_tracker;
 }
 
+/**
+ * Transposes a collection of AES states from a block-oriented layout to a
+ * bit-sliced layout. This is a crucial data restructuring step for efficient
+ * homomorphic bitwise operations.
+ *
+ * Source (Block-oriented)             Destination (Bitsliced)
+ * Block 0: [b0, b1, b2, ...]          Slice 0: [B0b0, B1b0, B2b0, ...]
+ * Block 1: [b0, b1, b2, ...]  ----->  Slice 1: [B0b1, B1b1, B2b1, ...]
+ * Block 2: [b0, b1, b2, ...]          Slice 2: [B0b2, B1b2, B2b2, ...]
+ * ...                                 ...
+ *
+ */
 template <typename Torus>
 __host__ void
 transpose_blocks_to_bitsliced(cudaStream_t stream, uint32_t gpu_index,
                               CudaRadixCiphertextFFI *dest_bitsliced,
                               const CudaRadixCiphertextFFI *source_blocks,
                               uint32_t num_blocks, uint32_t block_size_bits) {
+
   for (uint32_t i = 0; i < block_size_bits; ++i) {
     for (uint32_t j = 0; j < num_blocks; ++j) {
       uint32_t src_idx = j * block_size_bits + i;
@@ -36,12 +48,19 @@ transpose_blocks_to_bitsliced(cudaStream_t stream, uint32_t gpu_index,
   }
 }
 
+/**
+ * Transposes a collection of AES states from a bit-sliced layout back to a
+ * block-oriented layout. This is the inverse of
+ * `transpose_blocks_to_bitsliced`.
+ *
+ */
 template <typename Torus>
 __host__ void
 transpose_bitsliced_to_blocks(cudaStream_t stream, uint32_t gpu_index,
                               CudaRadixCiphertextFFI *dest_blocks,
                               const CudaRadixCiphertextFFI *source_bitsliced,
                               uint32_t num_blocks, uint32_t block_size_bits) {
+
   for (uint32_t i = 0; i < block_size_bits; ++i) {
     for (uint32_t j = 0; j < num_blocks; ++j) {
       uint32_t src_idx = i * num_blocks + j;
@@ -53,77 +72,76 @@ transpose_bitsliced_to_blocks(cudaStream_t stream, uint32_t gpu_index,
   }
 }
 
+/**
+ * Performs a vectorized homomorphic XOR operation on two sets of ciphertexts.
+ *
+ */
 template <typename Torus>
 __host__ __forceinline__ void
-vectorized_aes_xor(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                   uint32_t gpu_count, int_aes_encrypt_buffer<Torus> *mem,
+vectorized_aes_xor(CudaStreams streams, int_aes_encrypt_buffer<Torus> *mem,
                    CudaRadixCiphertextFFI *out,
                    const CudaRadixCiphertextFFI *lhs,
                    const CudaRadixCiphertextFFI *rhs) {
-  host_addition<Torus>(streams[0], gpu_indexes[0], out, lhs, rhs,
+
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), out, lhs, rhs,
                        out->num_radix_blocks, mem->params.message_modulus,
                        mem->params.carry_modulus);
 }
 
-template <typename Torus>
-__host__ __forceinline__ void vectorized_aes_and(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *out,
-    const CudaRadixCiphertextFFI *lhs, const CudaRadixCiphertextFFI *rhs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, out, lhs, rhs, bsks, ksks,
-      ms_noise_reduction_key, mem->and_lut, out->num_radix_blocks,
-      mem->params.message_modulus);
-}
-
+/**
+ * Applies a "flush" Look-Up Table (LUT) to a vector of ciphertexts.
+ * This operation isolates the first message bit (the LSB) by applying the
+ * identity function to it, while discarding any higher-order bits
+ * that may have resulted from previous additions. This effectively cleans the
+ * result.
+ *
+ */
 template <typename Torus>
 __host__ __forceinline__ void vectorized_aes_flush(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *data,
+    CudaStreams streams, CudaRadixCiphertextFFI *data,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, data, data, bsks, ksks,
-      ms_noise_reduction_key, mem->flush_lut, data->num_radix_blocks);
-}
-
-template <typename Torus>
-__host__ __forceinline__ void vectorized_sbox_flush(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *out,
-    const CudaRadixCiphertextFFI *in, int_aes_encrypt_buffer<Torus> *mem,
-    void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, out, in, bsks, ksks,
-      ms_noise_reduction_key, mem->sbox_flush_lut, out->num_radix_blocks);
+      streams, data, data, bsks, ksks, ms_noise_reduction_key, mem->flush_lut,
+      data->num_radix_blocks);
 }
 
+/**
+ * Performs an operation: homomorphically adds a plaintext 1 to a
+ * ciphertext, then flushes the result to ensure it's a valid bit.
+ *
+ */
 template <typename Torus>
 __host__ __forceinline__ void vectorized_scalar_add_one_flush(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *data,
+    CudaStreams streams, CudaRadixCiphertextFFI *data,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
   host_integer_radix_add_scalar_one_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, data, mem->params.message_modulus,
-      mem->params.carry_modulus);
-  vectorized_sbox_flush<Torus>(streams, gpu_indexes, gpu_count, data, data, mem,
-                               bsks, ksks, ms_noise_reduction_key);
+      streams, data, mem->params.message_modulus, mem->params.carry_modulus);
+
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, data, data, bsks, ksks, ms_noise_reduction_key, mem->flush_lut,
+      data->num_radix_blocks);
 }
 
+/**
+ * Batches multiple "flush" operations into a single operation.
+ * This is done in three steps:
+ * 1. GATHER: All target ciphertexts are copied into one large, contiguous
+ * buffer.
+ * 2. PROCESS: A single flush operation is executed on the entire buffer.
+ * 3. SCATTER: The results are copied from the buffer back to the original
+ * ciphertext locations.
+ *
+ */
 template <typename Torus>
 __host__ void batch_vec_flush(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI **targets, size_t count,
+    CudaStreams streams, CudaRadixCiphertextFFI **targets, size_t count,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  if (count == 0)
-    return;
   uint32_t num_blocks = targets[0]->num_radix_blocks;
 
   CudaRadixCiphertextFFI batch_in, batch_out;
@@ -137,33 +155,36 @@ __host__ void batch_vec_flush(
     CudaRadixCiphertextFFI dest_slice;
     as_radix_ciphertext_slice<Torus>(&dest_slice, &batch_in, i * num_blocks,
                                      (i + 1) * num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &dest_slice,
-                                       targets[i]);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &dest_slice, targets[i]);
   }
 
-  vectorized_sbox_flush<Torus>(streams, gpu_indexes, gpu_count, &batch_out,
-                               &batch_in, mem, bsks, ksks,
-                               ms_noise_reduction_key);
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, &batch_out, &batch_in, bsks, ksks, ms_noise_reduction_key,
+      mem->flush_lut, batch_out.num_radix_blocks);
 
   for (size_t i = 0; i < count; ++i) {
     CudaRadixCiphertextFFI src_slice;
     as_radix_ciphertext_slice<Torus>(&src_slice, &batch_out, i * num_blocks,
                                      (i + 1) * num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], targets[i],
-                                       &src_slice);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       targets[i], &src_slice);
   }
 }
 
+/**
+ * Batches multiple "and" operations into a single, large kernel
+ * launch. This is a critical optimization due to the high computational cost
+ * of the homomorphic AND operation.
+ *
+ */
 template <typename Torus>
 __host__ void batch_vec_and(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI **outs,
+    CudaStreams streams, CudaRadixCiphertextFFI **outs,
     CudaRadixCiphertextFFI **lhs, CudaRadixCiphertextFFI **rhs, size_t count,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  if (count == 0)
-    return;
   uint32_t num_blocks = outs[0]->num_radix_blocks;
 
   CudaRadixCiphertextFFI batch_lhs, batch_rhs, batch_out;
@@ -182,54 +203,84 @@ __host__ void batch_vec_and(
                                      i * num_blocks, (i + 1) * num_blocks);
     as_radix_ciphertext_slice<Torus>(&dest_rhs_slice, &batch_rhs,
                                      i * num_blocks, (i + 1) * num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        &dest_lhs_slice, lhs[i]);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        &dest_rhs_slice, rhs[i]);
   }
 
-  vectorized_aes_and<Torus>(streams, gpu_indexes, gpu_count, &batch_out,
-                            &batch_lhs, &batch_rhs, mem, bsks, ksks,
-                            ms_noise_reduction_key);
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      streams, &batch_out, &batch_lhs, &batch_rhs, bsks, ksks,
+      ms_noise_reduction_key, mem->and_lut, batch_out.num_radix_blocks,
+      mem->params.message_modulus);
 
   for (size_t i = 0; i < count; ++i) {
     CudaRadixCiphertextFFI src_slice;
     as_radix_ciphertext_slice<Torus>(&src_slice, &batch_out, i * num_blocks,
                                      (i + 1) * num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], outs[i],
-                                       &src_slice);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       outs[i], &src_slice);
   }
 }
 
+/**
+ * Implements the AES S-Box substitution for two bytes in parallel using a
+ * bitsliced hardware circuit design.
+ *
+ */
 template <typename Torus>
-__host__ void vectorized_sbox_byte(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *x, uint32_t num_blocks,
+__host__ void vectorized_sbox_2_bytes(
+    CudaStreams streams, CudaRadixCiphertextFFI *byte1_x,
+    CudaRadixCiphertextFFI *byte2_x, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
+  uint32_t num_sbox_blocks = 2 * num_blocks;
 
   CudaRadixCiphertextFFI y[22], t[68], z[18];
   for (int i = 0; i < 22; ++i)
     as_radix_ciphertext_slice<Torus>(&y[i], mem->sbox_internal_workspace,
-                                     i * num_blocks, (i + 1) * num_blocks);
+                                     i * num_sbox_blocks,
+                                     (i + 1) * num_sbox_blocks);
   for (int i = 0; i < 68; ++i)
     as_radix_ciphertext_slice<Torus>(&t[i], mem->sbox_internal_workspace,
-                                     (22 + i) * num_blocks,
-                                     (22 + i + 1) * num_blocks);
+                                     (22 + i) * num_sbox_blocks,
+                                     (22 + i + 1) * num_sbox_blocks);
   for (int i = 0; i < 18; ++i)
     as_radix_ciphertext_slice<Torus>(&z[i], mem->sbox_internal_workspace,
-                                     (22 + 68 + i) * num_blocks,
-                                     (22 + 68 + i + 1) * num_blocks);
+                                     (22 + 68 + i) * num_sbox_blocks,
+                                     (22 + 68 + i + 1) * num_sbox_blocks);
+
+  CudaRadixCiphertextFFI x[8];
+  CudaRadixCiphertextFFI *x_reordered_buffer = mem->tmp_tiled_key_buffer;
+
+  for (int i = 0; i < 8; ++i) {
+    as_radix_ciphertext_slice<Torus>(&x[i], x_reordered_buffer,
+                                     i * num_sbox_blocks,
+                                     (i + 1) * num_sbox_blocks);
+
+    CudaRadixCiphertextFFI dest_slice_1;
+    as_radix_ciphertext_slice<Torus>(&dest_slice_1, &x[i], 0, num_blocks);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &dest_slice_1, &byte1_x[i]);
+
+    CudaRadixCiphertextFFI dest_slice_2;
+    as_radix_ciphertext_slice<Torus>(&dest_slice_2, &x[i], num_blocks,
+                                     num_sbox_blocks);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &dest_slice_2, &byte2_x[i]);
+  }
 
 #define VEC_XOR(out, a, b)                                                     \
-  vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem, out, a, b)
+  do {                                                                         \
+    vectorized_aes_xor<Torus>(streams, mem, out, a, b);                        \
+  } while (0)
 
 #define BATCH_VEC_FLUSH(...)                                                   \
   do {                                                                         \
     CudaRadixCiphertextFFI *targets[] = {__VA_ARGS__};                         \
-    batch_vec_flush(streams, gpu_indexes, gpu_count, targets,                  \
-                    sizeof(targets) / sizeof(targets[0]), mem, bsks, ksks,     \
-                    ms_noise_reduction_key);                                   \
+    batch_vec_flush(streams, targets, sizeof(targets) / sizeof(targets[0]),    \
+                    mem, bsks, ksks, ms_noise_reduction_key);                  \
   } while (0)
 
   VEC_XOR(&y[14], &x[3], &x[5]);
@@ -278,8 +329,8 @@ __host__ void vectorized_sbox_byte(
                                          &y[2],  &y[9], &y[14], &y[8]};
   CudaRadixCiphertextFFI *and_rhs_1[] = {&y[12], &y[6],  &y[4],  &y[16], &y[5],
                                          &y[7],  &y[11], &y[17], &y[10]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_1, and_lhs_1,
-                and_rhs_1, 9, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_1, and_lhs_1, and_rhs_1, 9, mem, bsks, ksks,
+                ms_noise_reduction_key);
   BATCH_VEC_FLUSH(&y[21], &y[18]);
 
   VEC_XOR(&t[4], &t[3], &t[2]);
@@ -306,8 +357,8 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI *and_outs_2[] = {&t[26]};
   CudaRadixCiphertextFFI *and_lhs_2[] = {&t[21]};
   CudaRadixCiphertextFFI *and_rhs_2[] = {&t[23]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_2, and_lhs_2,
-                and_rhs_2, 1, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_2, and_lhs_2, and_rhs_2, 1, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   VEC_XOR(&t[27], &t[24], &t[26]);
   VEC_XOR(&t[30], &t[23], &t[24]);
@@ -317,15 +368,15 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI *and_outs_3[] = {&t[28]};
   CudaRadixCiphertextFFI *and_lhs_3[] = {&t[25]};
   CudaRadixCiphertextFFI *and_rhs_3[] = {&t[27]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_3, and_lhs_3,
-                and_rhs_3, 1, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_3, and_lhs_3, and_rhs_3, 1, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   VEC_XOR(&t[29], &t[28], &t[22]);
   CudaRadixCiphertextFFI *and_outs_4[] = {&t[32]};
   CudaRadixCiphertextFFI *and_lhs_4[] = {&t[30]};
   CudaRadixCiphertextFFI *and_rhs_4[] = {&t[31]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_4, and_lhs_4,
-                and_rhs_4, 1, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_4, and_lhs_4, and_rhs_4, 1, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   BATCH_VEC_FLUSH(&t[29]);
   VEC_XOR(&t[33], &t[32], &t[24]);
@@ -341,8 +392,8 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI *and_outs_5[] = {&t[36]};
   CudaRadixCiphertextFFI *and_lhs_5[] = {&t[24]};
   CudaRadixCiphertextFFI *and_rhs_5[] = {&t[35]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_5, and_lhs_5,
-                and_rhs_5, 1, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_5, and_lhs_5, and_rhs_5, 1, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   VEC_XOR(&t[37], &t[36], &t[34]);
   VEC_XOR(&t[38], &t[27], &t[36]);
@@ -353,8 +404,8 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI *and_outs_6[] = {&t[39]};
   CudaRadixCiphertextFFI *and_lhs_6[] = {&t[38]};
   CudaRadixCiphertextFFI *and_rhs_6[] = {&t[29]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_6, and_lhs_6,
-                and_rhs_6, 1, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_6, and_lhs_6, and_rhs_6, 1, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   VEC_XOR(&t[40], &t[25], &t[39]);
 
@@ -374,8 +425,8 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI *and_rhs_7[] = {
       &t[44], &t[37], &x[7], &t[43], &t[40], &y[7], &y[11], &t[45], &t[41],
       &t[44], &t[37], &y[4], &t[43], &t[40], &y[2], &y[9],  &y[14], &y[8]};
-  batch_vec_and(streams, gpu_indexes, gpu_count, and_outs_7, and_lhs_7,
-                and_rhs_7, 18, mem, bsks, ksks, ms_noise_reduction_key);
+  batch_vec_and(streams, and_outs_7, and_lhs_7, and_rhs_7, 18, mem, bsks, ksks,
+                ms_noise_reduction_key);
 
   VEC_XOR(&t[46], &z[15], &z[16]);
   VEC_XOR(&t[47], &z[10], &z[11]);
@@ -410,11 +461,12 @@ __host__ void vectorized_sbox_byte(
   CudaRadixCiphertextFFI s[8];
   for (int i = 0; i < 8; i++)
     as_radix_ciphertext_slice<Torus>(&s[i], mem->sbox_internal_workspace,
-                                     i * num_blocks, (i + 1) * num_blocks);
+                                     i * num_sbox_blocks,
+                                     (i + 1) * num_sbox_blocks);
   CudaRadixCiphertextFFI tmp_bit;
   as_radix_ciphertext_slice<Torus>(&tmp_bit, mem->sbox_internal_workspace,
-                                   (8 * num_blocks),
-                                   (8 * num_blocks) + num_blocks);
+                                   (8 * num_sbox_blocks),
+                                   (8 * num_sbox_blocks) + num_sbox_blocks);
 
   VEC_XOR(&s[0], &t[59], &t[63]);
   VEC_XOR(&t[67], &t[64], &t[65]);
@@ -422,56 +474,91 @@ __host__ void vectorized_sbox_byte(
   VEC_XOR(&s[4], &t[51], &t[66]);
   VEC_XOR(&s[5], &t[47], &t[65]);
 
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &tmp_bit,
-                                     &t[62]);
-  vectorized_scalar_add_one_flush<Torus>(streams, gpu_indexes, gpu_count,
-                                         &tmp_bit, mem, bsks, ksks,
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &tmp_bit, &t[62]);
+  vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[6], &t[56], &tmp_bit);
 
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &tmp_bit,
-                                     &t[60]);
-  vectorized_scalar_add_one_flush<Torus>(streams, gpu_indexes, gpu_count,
-                                         &tmp_bit, mem, bsks, ksks,
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &tmp_bit, &t[60]);
+  vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[7], &t[48], &tmp_bit);
 
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &tmp_bit,
-                                     &s[3]);
-  host_integer_radix_add_scalar_one_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, &tmp_bit, mem->params.message_modulus,
-      mem->params.carry_modulus);
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &tmp_bit, &s[3]);
+  host_integer_radix_add_scalar_one_inplace<Torus>(streams, &tmp_bit,
+                                                   mem->params.message_modulus,
+                                                   mem->params.carry_modulus);
   VEC_XOR(&s[1], &t[64], &tmp_bit);
 
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &tmp_bit,
-                                     &t[67]);
-  vectorized_scalar_add_one_flush<Torus>(streams, gpu_indexes, gpu_count,
-                                         &tmp_bit, mem, bsks, ksks,
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &tmp_bit, &t[67]);
+  vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[2], &t[55], &tmp_bit);
 
   BATCH_VEC_FLUSH(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
 
   for (int i = 0; i < 8; ++i) {
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &x[i],
-                                       &s[i]);
+    CudaRadixCiphertextFFI src_slice_1;
+    as_radix_ciphertext_slice<Torus>(&src_slice_1, &s[i], 0, num_blocks);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &byte1_x[i], &src_slice_1);
+
+    CudaRadixCiphertextFFI src_slice_2;
+    as_radix_ciphertext_slice<Torus>(&src_slice_2, &s[i], num_blocks,
+                                     num_sbox_blocks);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &byte2_x[i], &src_slice_2);
   }
 
 #undef VEC_XOR
 #undef BATCH_VEC_FLUSH
 }
 
+/**
+ * Implements the ShiftRows step of AES on bitsliced data.
+ *
+ * Before ShiftRows (Input State):
+ * +----+----+----+----+
+ * | D4 | E0 | B8 | 1E |
+ * +----+----+----+----+
+ * | F7 | EA | DD | CE |
+ * +----+----+----+----+
+ * | 2F | E2 | 8D | B5 |
+ * +----+----+----+----+
+ * | 39 | 2B | 90 | BA |
+ * +----+----+----+----+
+ *
+ * After ShiftRows (Output State):
+ * +----+----+----+----+
+ * | D4 | E0 | B8 | 1E |  <- No shift
+ * +----+----+----+----+
+ * | EA | DD | CE | F7 |  <- 1 byte left shift
+ * +----+----+----+----+
+ * | 8D | B5 | 2F | E2 |  <- 2 bytes left shift
+ * +----+----+----+----+
+ * | BA | 39 | 2B | 90 |  <- 3 bytes left shift
+ * +----+----+----+----+
+ *
+ *
+ */
 template <typename Torus>
-__host__ void
-vectorized_shift_rows(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                      uint32_t gpu_count,
-                      CudaRadixCiphertextFFI *state_bitsliced,
-                      uint32_t num_blocks, int_aes_encrypt_buffer<Torus> *mem) {
+__host__ void vectorized_shift_rows(CudaStreams streams,
+                                    CudaRadixCiphertextFFI *state_bitsliced,
+                                    uint32_t num_blocks,
+                                    int_aes_encrypt_buffer<Torus> *mem) {
 
-  CudaRadixCiphertextFFI *tmp_full_state_bitsliced =
-      mem->sbox_internal_workspace;
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                     tmp_full_state_bitsliced, state_bitsliced);
+  CudaRadixCiphertextFFI tmp_full_state_bitsliced_slice;
+  as_radix_ciphertext_slice<Torus>(&tmp_full_state_bitsliced_slice,
+                                   mem->sbox_internal_workspace, 0,
+                                   state_bitsliced->num_radix_blocks);
+
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &tmp_full_state_bitsliced_slice,
+                                     state_bitsliced);
 
   CudaRadixCiphertextFFI s_bits[128];
   for (int i = 0; i < 128; i++) {
@@ -482,8 +569,8 @@ vectorized_shift_rows(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   CudaRadixCiphertextFFI tmp_s_bits_slices[128];
   for (int i = 0; i < 128; i++) {
     as_radix_ciphertext_slice<Torus>(&tmp_s_bits_slices[i],
-                                     tmp_full_state_bitsliced, i * num_blocks,
-                                     (i + 1) * num_blocks);
+                                     &tmp_full_state_bitsliced_slice,
+                                     i * num_blocks, (i + 1) * num_blocks);
   }
 
   const int shift_rows_map[] = {0, 5,  10, 15, 4,  9, 14, 3,
@@ -494,16 +581,19 @@ vectorized_shift_rows(cudaStream_t const *streams, uint32_t const *gpu_indexes,
       CudaRadixCiphertextFFI *dest_slice = &s_bits[i * 8 + bit];
       CudaRadixCiphertextFFI *src_slice =
           &tmp_s_bits_slices[shift_rows_map[i] * 8 + bit];
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], dest_slice,
-                                         src_slice);
+      copy_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), dest_slice, src_slice);
     }
   }
 }
 
+/**
+ * Helper for MixColumns. Homomorphically multiplies an 8-bit byte by 2.
+ *
+ */
 template <typename Torus>
 __host__ void vectorized_mul_by_2(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *res_byte,
+    CudaStreams streams, CudaRadixCiphertextFFI *res_byte,
     CudaRadixCiphertextFFI *in_byte, int_aes_encrypt_buffer<Torus> *mem,
     void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
@@ -511,25 +601,34 @@ __host__ void vectorized_mul_by_2(
   CudaRadixCiphertextFFI *msb = &in_byte[0];
 
   for (int i = 0; i < 7; ++i) {
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &res_byte[i],
-                                       &in_byte[i + 1]);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &res_byte[i], &in_byte[i + 1]);
   }
 
-  set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                               &res_byte[7], 0,
-                                               res_byte[7].num_radix_blocks);
+  set_zero_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), &res_byte[7], 0,
+      res_byte[7].num_radix_blocks);
 
   const int indices_to_xor[] = {3, 4, 6, 7};
   for (int index : indices_to_xor) {
-    vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem,
-                              &res_byte[index], &res_byte[index], msb);
+    vectorized_aes_xor<Torus>(streams, mem, &res_byte[index], &res_byte[index],
+                              msb);
   }
 }
 
+/**
+ * Implements the MixColumns step of AES. It performs a matrix multiplication
+ * on each column of the AES state.
+ *
+ * [ s'_0 ]   [ 02 03 01 01 ]   [ s_0 ]
+ * [ s'_1 ] = [ 01 02 03 01 ] * [ s_1 ]
+ * [ s'_2 ]   [ 01 01 02 03 ]   [ s_2 ]
+ * [ s'_3 ]   [ 03 01 01 02 ]   [ s_3 ]
+ *
+ */
 template <typename Torus>
 __host__ void vectorized_mix_columns(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *s_bits, uint32_t num_blocks,
+    CudaStreams streams, CudaRadixCiphertextFFI *s_bits, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
@@ -542,8 +641,8 @@ __host__ void vectorized_mix_columns(
       as_radix_ciphertext_slice<Torus>(&src_slice, s_bits,
                                        (col * 32 + i) * num_blocks,
                                        (col * 32 + i + 1) * num_blocks);
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                         &dest_slice, &src_slice);
+      copy_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), &dest_slice, &src_slice);
     }
 
     CudaRadixCiphertextFFI b_orig[4][8];
@@ -570,12 +669,11 @@ __host__ void vectorized_mix_columns(
     }
 
     for (int i = 0; i < 4; ++i) {
-      vectorized_mul_by_2<Torus>(streams, gpu_indexes, gpu_count, b_mul2[i],
-                                 b_orig[i], mem, bsks, ksks,
+      vectorized_mul_by_2<Torus>(streams, b_mul2[i], b_orig[i], mem, bsks, ksks,
                                  ms_noise_reduction_key);
     }
-    vectorized_aes_flush<Torus>(streams, gpu_indexes, gpu_count, mul_workspace,
-                                mem, bsks, ksks, ms_noise_reduction_key);
+    vectorized_aes_flush<Torus>(streams, mul_workspace, mem, bsks, ksks,
+                                ms_noise_reduction_key);
 
     CudaRadixCiphertextFFI b0_mul2_copy_buffer;
     as_radix_ciphertext_slice<Torus>(&b0_mul2_copy_buffer, mul_workspace,
@@ -585,8 +683,9 @@ __host__ void vectorized_mix_columns(
     for (int j = 0; j < 8; j++) {
       as_radix_ciphertext_slice<Torus>(&b0_mul2_copy[j], &b0_mul2_copy_buffer,
                                        j * num_blocks, (j + 1) * num_blocks);
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                         &b0_mul2_copy[j], &b_mul2[0][j]);
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0), &b0_mul2_copy[j],
+                                         &b_mul2[0][j]);
     }
 
     for (int bit = 0; bit < 8; bit++) {
@@ -596,31 +695,31 @@ __host__ void vectorized_mix_columns(
       CudaRadixCiphertextFFI *dest_bit_3 = &s_bits[(col * 4 + 3) * 8 + bit];
 
 #define VEC_XOR_INPLACE(DEST, SRC)                                             \
-  vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem, DEST, DEST,  \
-                            SRC)
+  vectorized_aes_xor<Torus>(streams, mem, DEST, DEST, SRC)
 
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], dest_bit_0,
-                                         &b_mul2[0][bit]);
+      copy_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), dest_bit_0, &b_mul2[0][bit]);
       VEC_XOR_INPLACE(dest_bit_0, &b_mul2[1][bit]);
       VEC_XOR_INPLACE(dest_bit_0, &b_orig[1][bit]);
       VEC_XOR_INPLACE(dest_bit_0, &b_orig[2][bit]);
       VEC_XOR_INPLACE(dest_bit_0, &b_orig[3][bit]);
 
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], dest_bit_1,
-                                         &b_orig[0][bit]);
+      copy_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), dest_bit_1, &b_orig[0][bit]);
       VEC_XOR_INPLACE(dest_bit_1, &b_mul2[1][bit]);
       VEC_XOR_INPLACE(dest_bit_1, &b_mul2[2][bit]);
       VEC_XOR_INPLACE(dest_bit_1, &b_orig[2][bit]);
       VEC_XOR_INPLACE(dest_bit_1, &b_orig[3][bit]);
 
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], dest_bit_2,
-                                         &b_orig[0][bit]);
+      copy_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), dest_bit_2, &b_orig[0][bit]);
       VEC_XOR_INPLACE(dest_bit_2, &b_orig[1][bit]);
       VEC_XOR_INPLACE(dest_bit_2, &b_mul2[2][bit]);
       VEC_XOR_INPLACE(dest_bit_2, &b_orig[3][bit]);
       VEC_XOR_INPLACE(dest_bit_2, &b_mul2[3][bit]);
 
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], dest_bit_3,
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0), dest_bit_3,
                                          &b0_mul2_copy[bit]);
       VEC_XOR_INPLACE(dest_bit_3, &b_orig[0][bit]);
       VEC_XOR_INPLACE(dest_bit_3, &b_orig[1][bit]);
@@ -631,10 +730,31 @@ __host__ void vectorized_mix_columns(
   }
 }
 
+/**
+ * The main AES encryption function. It orchestrates the full 10-round AES-128
+ * encryption process on the bitsliced state.
+ *
+ * The process is broken down into three phases:
+ *
+ * 1. Initial Round (Round 0):
+ * - AddRoundKey, which is a XOR
+ *
+ * 2. Main Rounds (Rounds 1-9):
+ * This sequence is repeated 9 times.
+ * - SubBytes
+ * - ShiftRows
+ * - MixColumns
+ * - AddRoundKey
+ *
+ * 3. Final Round (Round 10):
+ * - SubBytes
+ * - ShiftRows
+ * - AddRoundKey
+ *
+ */
 template <typename Torus>
 __host__ void vectorized_aes_encrypt_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *all_states_bitsliced,
+    CudaStreams streams, CudaRadixCiphertextFFI *all_states_bitsliced,
     CudaRadixCiphertextFFI const *round_keys, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
@@ -649,19 +769,17 @@ __host__ void vectorized_aes_encrypt_inplace(
     CudaRadixCiphertextFFI tile_slice;
     as_radix_ciphertext_slice<Torus>(&tile_slice, mem->tmp_tiled_key_buffer,
                                      block * 128, (block + 1) * 128);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], &tile_slice,
-                                       &round_0_key_slice);
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       &tile_slice, &round_0_key_slice);
   }
   transpose_blocks_to_bitsliced<Torus>(
-      streams[0], gpu_indexes[0], jit_transposed_key, mem->tmp_tiled_key_buffer,
-      num_blocks, 128);
+      streams.stream(0), streams.gpu_index(0), jit_transposed_key,
+      mem->tmp_tiled_key_buffer, num_blocks, 128);
 
-  vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem,
-                            all_states_bitsliced, all_states_bitsliced,
-                            jit_transposed_key);
+  vectorized_aes_xor<Torus>(streams, mem, all_states_bitsliced,
+                            all_states_bitsliced, jit_transposed_key);
 
-  vectorized_aes_flush<Torus>(streams, gpu_indexes, gpu_count,
-                              all_states_bitsliced, mem, bsks, ksks,
+  vectorized_aes_flush<Torus>(streams, all_states_bitsliced, mem, bsks, ksks,
                               ms_noise_reduction_key);
 
   for (int round = 1; round <= 10; ++round) {
@@ -671,22 +789,20 @@ __host__ void vectorized_aes_encrypt_inplace(
                                        i * num_blocks, (i + 1) * num_blocks);
     }
 
-    for (int i = 0; i < 16; ++i) {
-      vectorized_sbox_byte<Torus>(streams, gpu_indexes, gpu_count,
-                                  &s_bits[i * 8], num_blocks, mem, bsks, ksks,
-                                  ms_noise_reduction_key);
+    for (int i = 0; i < 16; i += 2) {
+      vectorized_sbox_2_bytes<Torus>(streams, &s_bits[i * 8],
+                                     &s_bits[(i + 1) * 8], num_blocks, mem,
+                                     bsks, ksks, ms_noise_reduction_key);
     }
 
-    vectorized_shift_rows<Torus>(streams, gpu_indexes, gpu_count,
-                                 all_states_bitsliced, num_blocks, mem);
+    vectorized_shift_rows<Torus>(streams, all_states_bitsliced, num_blocks,
+                                 mem);
 
     if (round != 10) {
-      vectorized_mix_columns<Torus>(streams, gpu_indexes, gpu_count, s_bits,
-                                    num_blocks, mem, bsks, ksks,
-                                    ms_noise_reduction_key);
-      vectorized_aes_flush<Torus>(streams, gpu_indexes, gpu_count,
-                                  all_states_bitsliced, mem, bsks, ksks,
-                                  ms_noise_reduction_key);
+      vectorized_mix_columns<Torus>(streams, s_bits, num_blocks, mem, bsks,
+                                    ksks, ms_noise_reduction_key);
+      vectorized_aes_flush<Torus>(streams, all_states_bitsliced, mem, bsks,
+                                  ksks, ms_noise_reduction_key);
     }
 
     CudaRadixCiphertextFFI round_key_slice;
@@ -697,82 +813,139 @@ __host__ void vectorized_aes_encrypt_inplace(
       CudaRadixCiphertextFFI tile_slice;
       as_radix_ciphertext_slice<Torus>(&tile_slice, mem->tmp_tiled_key_buffer,
                                        block * 128, (block + 1) * 128);
-      copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                         &tile_slice, &round_key_slice);
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0), &tile_slice,
+                                         &round_key_slice);
     }
     transpose_blocks_to_bitsliced<Torus>(
-        streams[0], gpu_indexes[0], jit_transposed_key,
+        streams.stream(0), streams.gpu_index(0), jit_transposed_key,
         mem->tmp_tiled_key_buffer, num_blocks, 128);
 
-    vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem,
-                              all_states_bitsliced, all_states_bitsliced,
-                              jit_transposed_key);
+    vectorized_aes_xor<Torus>(streams, mem, all_states_bitsliced,
+                              all_states_bitsliced, jit_transposed_key);
 
-    vectorized_aes_flush<Torus>(streams, gpu_indexes, gpu_count,
-                                all_states_bitsliced, mem, bsks, ksks,
+    vectorized_aes_flush<Torus>(streams, all_states_bitsliced, mem, bsks, ksks,
                                 ms_noise_reduction_key);
   }
 }
 
+/**
+ * Performs the homomorphic addition of the plaintext counter to the encrypted
+ * IV.
+ *
+ * It functions as a 128-bit ripple-carry adder. For each bit $i$ from LSB to
+ * MSB, it computes the sum $S_i$ and the output carry $C_i$ based on the state
+ * bit ($IV_i$), the counter bit ($Counter_i$), and the incoming carry
+ * ($C_{i-1}$). The logical formulas are:
+ *
+ * $S_i = IV_i + Counter_i + C_{i-1}$
+ * $C_i = (IV_i * Counter_i) + (IV_i * C_{i-1}) + (Counter_i * C_{i-1})$
+ *
+ * The "transposed_states" buffer is updated in-place with the sum bits $S_i$.
+ *
+ */
 template <typename Torus>
 __host__ void vectorized_aes_full_adder_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *transposed_states,
+    CudaStreams streams, CudaRadixCiphertextFFI *transposed_states,
     const Torus *counter_bits_le_all_blocks, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
+  // --- Initialization ---
   CudaRadixCiphertextFFI *carry_vec = mem->vec_tmp_carry_buffer;
   CudaRadixCiphertextFFI *trivial_b_bits_vec = mem->vec_trivial_b_bits_buffer;
   CudaRadixCiphertextFFI *sum_plus_carry_vec = mem->vec_tmp_sum_buffer;
 
-  set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                               carry_vec, 0, num_blocks);
+  // Initialize the carry vector to 0.
+  set_zero_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), carry_vec, 0, num_blocks);
 
+  // Main loop iterating over the 128 bits, from LSB (i=0) to MSB (i=127).
+  // Each iteration implements one stage of the full adder.
   for (int i = 0; i < 128; ++i) {
+    // The index in the state buffer is reversed (127-i),
+    // because of the LSB -> MSB logic.
     int state_bit_index = 127 - i;
 
+    // --- Step 1: Prepare the adder inputs ---
+
+    // a_i_vec: The first operand (ciphertext). This is the i-th bit of the IV.
     CudaRadixCiphertextFFI a_i_vec;
     as_radix_ciphertext_slice<Torus>(&a_i_vec, transposed_states,
                                      state_bit_index * num_blocks,
                                      (state_bit_index + 1) * num_blocks);
 
+    // Prepare the second operand (plaintext, then trivially encrypted).
+    // This is the i-th bit of the counter.
     for (uint32_t block = 0; block < num_blocks; ++block) {
       mem->h_counter_bits_buffer[block] =
           counter_bits_le_all_blocks[block * 128 + i];
     }
     cuda_memcpy_async_to_gpu(
         mem->d_counter_bits_buffer, mem->h_counter_bits_buffer,
-        num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+        num_blocks * sizeof(Torus), streams.stream(0), streams.gpu_index(0));
     set_trivial_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], trivial_b_bits_vec,
+        streams.stream(0), streams.gpu_index(0), trivial_b_bits_vec,
         mem->d_counter_bits_buffer, mem->h_counter_bits_buffer, num_blocks,
         mem->params.message_modulus, mem->params.carry_modulus);
 
+    // carry_vec: The third operand (ciphertext).
+    // This is the carry from the previous stage (C_{i-1}).
+
+    // --- Step 2: Compute the sum and carry ---
+
+    // Compute the temporary sum of the first two operands: IV_i + Counter_i
     CudaRadixCiphertextFFI tmp_sum_vec;
     as_radix_ciphertext_slice<Torus>(&tmp_sum_vec, mem->vec_tmp_bit_buffer, 0,
                                      num_blocks);
+    vectorized_aes_xor<Torus>(streams, mem, &tmp_sum_vec, &a_i_vec,
+                              trivial_b_bits_vec);
 
-    vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem,
-                              &tmp_sum_vec, &a_i_vec, trivial_b_bits_vec);
+    // Compute the sum of all three operands: (IV_i + Counter_i) + C_{i-1}
+    vectorized_aes_xor<Torus>(streams, mem, sum_plus_carry_vec, &tmp_sum_vec,
+                              carry_vec);
 
-    vectorized_aes_xor<Torus>(streams, gpu_indexes, gpu_count, mem,
-                              sum_plus_carry_vec, &tmp_sum_vec, carry_vec);
-
+    // Compute the new carry (C_i) for the next iteration.
+    // The carry_lut applies the function f(x) = (x >> 1) & 1, which
+    // extracts the carry bit from the previous sum. The result is stored
+    // in carry_vec for the next iteration (i+1).
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, carry_vec, sum_plus_carry_vec, bsks,
-        ksks, ms_noise_reduction_key, mem->carry_lut, num_blocks);
+        streams, carry_vec, sum_plus_carry_vec, bsks, ksks,
+        ms_noise_reduction_key, mem->carry_lut, num_blocks);
 
+    // Compute the final sum bit (S_i).
+    // The flush_lut applies the function f(x) = x & 1, which extracts
+    // the least significant bit of the sum. The result is written
+    // directly into the state buffer, updating the IV in-place.
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, &a_i_vec, sum_plus_carry_vec, bsks,
-        ksks, ms_noise_reduction_key, mem->flush_lut, num_blocks);
+        streams, &a_i_vec, sum_plus_carry_vec, bsks, ksks,
+        ms_noise_reduction_key, mem->flush_lut, num_blocks);
   }
 }
 
+/**
+ * Top-level function to perform a full AES-128-CTR encryption homomorphically.
+ *
+ * +----------+     +-------------------+
+ * |   IV_CT  |     | Plaintext Counter |
+ * +----------+     +-------------------+
+ * |                  |
+ * V                  V
+ * +---------------------------------+
+ * |   Homomorphic Full Adder        |
+ * |   (IV_CT + Counter)             |
+ * +---------------------------------+
+ * |
+ * V
+ * +---------------------------------+
+ * |   Homomorphic AES Encryption    | -> Final Output Ciphertext
+ * |   (10 Rounds)                   |
+ * +---------------------------------+
+ *
+ */
 template <typename Torus>
 __host__ void host_integer_aes_ctr_encrypt(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, CudaRadixCiphertextFFI *output,
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
@@ -787,26 +960,25 @@ __host__ void host_integer_aes_ctr_encrypt(
     as_radix_ciphertext_slice<Torus>(&output_slice, initial_states,
                                      block * block_size,
                                      (block + 1) * block_size);
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        &output_slice, iv);
   }
 
   CudaRadixCiphertextFFI *transposed_states = mem->main_bitsliced_states_buffer;
-  transpose_blocks_to_bitsliced<Torus>(streams[0], gpu_indexes[0],
+  transpose_blocks_to_bitsliced<Torus>(streams.stream(0), streams.gpu_index(0),
                                        transposed_states, initial_states,
                                        num_blocks, block_size);
 
   vectorized_aes_full_adder_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, transposed_states,
-      counter_bits_le_all_blocks, num_blocks, mem, bsks, ksks,
-      ms_noise_reduction_key);
+      streams, transposed_states, counter_bits_le_all_blocks, num_blocks, mem,
+      bsks, ksks, ms_noise_reduction_key);
 
-  vectorized_aes_encrypt_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, transposed_states, round_keys,
-      num_blocks, mem, bsks, ksks, ms_noise_reduction_key);
+  vectorized_aes_encrypt_inplace<Torus>(streams, transposed_states, round_keys,
+                                        num_blocks, mem, bsks, ksks,
+                                        ms_noise_reduction_key);
 
-  transpose_bitsliced_to_blocks<Torus>(streams[0], gpu_indexes[0], output,
-                                       transposed_states, num_blocks,
+  transpose_bitsliced_to_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
+                                       output, transposed_states, num_blocks,
                                        block_size);
 }
 
