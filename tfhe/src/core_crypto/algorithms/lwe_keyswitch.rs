@@ -291,10 +291,9 @@ pub fn keyswitch_lwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCont
     *output_lwe_ciphertext.get_mut_body().data = *input_lwe_ciphertext.get_body().data;
 
     // We instantiate a decomposer
-    let decomposer = SignedDecomposerNonNative::new(
+    let decomposer = SignedDecomposer::new(
         lwe_keyswitch_key.decomposition_base_log(),
         lwe_keyswitch_key.decomposition_level_count(),
-        ciphertext_modulus,
     );
 
     for (keyswitch_key_block, &input_mask_element) in lwe_keyswitch_key
@@ -305,13 +304,18 @@ pub fn keyswitch_lwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCont
         // Loop over the levels
         for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
         {
-            slice_wrapping_sub_scalar_mul_assign_custom_modulus(
+            slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
                 level_key_ciphertext.as_ref(),
-                decomposed.modular_value(),
-                ciphertext_modulus.get_custom_modulus().cast_into(),
+                decomposed.value(),
             );
         }
+    }
+
+    let custom_mod = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    for val in output_lwe_ciphertext.as_mut() {
+        *val = *val % custom_mod;
     }
 }
 

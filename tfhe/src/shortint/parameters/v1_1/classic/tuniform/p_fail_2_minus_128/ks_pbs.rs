@@ -54,14 +54,15 @@ pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParamete
         log2_p_fail: -129.358,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: ModulusSwitchType::DriftTechniqueNoiseReduction(
-            ModulusSwitchNoiseReductionParams {
-                modulus_switch_zeros_count: LweCiphertextCount(1449),
-                ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-                ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
-                ms_input_variance: Variance(2.63039184094559E-7f64),
-            },
-        ),
+        // modulus_switch_noise_reduction_params: ModulusSwitchType::DriftTechniqueNoiseReduction(
+        //     ModulusSwitchNoiseReductionParams {
+        //         modulus_switch_zeros_count: LweCiphertextCount(1449),
+        //         ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
+        //         ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
+        //         ms_input_variance: Variance(2.63039184094559E-7f64),
+        //     },
+        // ),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
     };
 
 /// p-fail = 2^-128.771, algorithmic cost ~ 900, 2-norm = 9

@@ -77,18 +77,25 @@ pub mod shortint_params {
 
         pub fn benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
             match get_parameters_set() {
-                ParametersSet::Default => SHORTINT_BENCH_PARAMS_TUNIFORM
-                    .iter()
-                    .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
-                    .map(|params| {
-                        (
-                            params.name(),
-                            <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(*params)
-                                .to_owned()
-                                .into(),
-                        )
-                    })
-                    .collect(),
+                // ParametersSet::Default => SHORTINT_BENCH_PARAMS_TUNIFORM
+                //     .iter()
+                //     .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
+                //     .map(|params| {
+                //         (
+                //             params.name(),
+                //             <ClassicPBSParameters as
+                // Into<AtomicPatternParameters>>::into(*params)
+                // .to_owned()                 .into(),
+                //         )
+                //     })
+                //     .collect(),
+                ParametersSet::Default => vec![(
+                    "2_2".to_string(),
+                    <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(
+                        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                    .into(),
+                )],
                 ParametersSet::All => {
                     filter_parameters(
                         &BENCH_ALL_CLASSIC_PBS_PARAMETERS,

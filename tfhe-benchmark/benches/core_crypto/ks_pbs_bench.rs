@@ -111,15 +111,11 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     .unaligned_bytes_required(),
                 );
 
+                keyswitch_lwe_ciphertext(&ksk_big_to_small, &input_ks_ct, &mut output_ks_ct);
                 bench_id = format!("{bench_name}::{name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
-                            keyswitch_lwe_ciphertext(
-                                &ksk_big_to_small,
-                                &input_ks_ct,
-                                &mut output_ks_ct,
-                            );
                             programmable_bootstrap_lwe_ciphertext_mem_optimized(
                                 &output_ks_ct,
                                 &mut output_pbs_ct,
