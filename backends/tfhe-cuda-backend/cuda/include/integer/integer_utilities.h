@@ -4275,12 +4275,11 @@ template <typename Torus> struct int_bitop_buffer {
   }
 };
 
+// used only when 4 gpus are available
 template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   bool gpu_memory_allocated;
 
   int_radix_params params;
-  uint32_t active_gpu_count;
-  uint32_t used_gpu_count;
 
   // memory objects for other operations
   int_borrow_prop_memory<Torus> *overflow_sub_mem_1;
@@ -4316,9 +4315,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   cudaStream_t *sub_streams_7;
 
   // temporary device buffers
-  CudaRadixCiphertextFFI *d1;                  // num_blocks + 1
-  CudaRadixCiphertextFFI *d2;                  // num_blocks + 1
-  CudaRadixCiphertextFFI *d3;                  // num_blocks + 1
+  CudaRadixCiphertextFFI *d1;        // num_blocks + 1
+  CudaRadixCiphertextFFI *d2;        // num_blocks + 1
+  CudaRadixCiphertextFFI *d3;        // num_blocks + 1
+  CudaRadixCiphertextFFI *tmp_gpu_0; // num_blocks + 1
+
   CudaRadixCiphertextFFI *divisor_gpu_1;       // num_blocks
   CudaRadixCiphertextFFI *divisor_gpu_2;       // num_blocks
   CudaRadixCiphertextFFI *remainder_gpu_1;     // num_blocks
@@ -4326,7 +4327,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *low1;                // num_blocks
   CudaRadixCiphertextFFI *low2;                // num_blocks
   CudaRadixCiphertextFFI *low3;                // num_blocks
-  CudaRadixCiphertextFFI *rem;                 // num_blocks
+  CudaRadixCiphertextFFI *rem1;                // num_blocks
+  CudaRadixCiphertextFFI *rem2;                // num_blocks
+  CudaRadixCiphertextFFI *rem3;                // num_blocks
   CudaRadixCiphertextFFI *sub_result_1;        // num_blocks
   CudaRadixCiphertextFFI *sub_result_2;        // num_blocks
   CudaRadixCiphertextFFI *sub_result_3;        // num_blocks
@@ -4347,7 +4350,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *q2;                  // single block
   CudaRadixCiphertextFFI *q3;                  // single block
 
-  Torus *h_buffer;                             // used for memory copies
+  Torus *h_buffer; // used for memory copies
   Torus **first_indexes_for_overflow_sub;
   Torus **second_indexes_for_overflow_sub;
   Torus **scalars_for_overflow_sub;
@@ -4356,190 +4359,161 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   // allocate and initialize if needed, temporary arrays used to calculate
   // cuda integer div_rem_2_2 operation
   void init_temporary_buffers(cudaStream_t const *streams,
-                              uint32_t const *gpu_indexes, uint32_t gpu_count,
-                              uint32_t num_blocks, bool allocate_gpu_memory,
+                              uint32_t const *gpu_indexes, uint32_t num_blocks,
+                              bool allocate_gpu_memory,
                               uint64_t &size_tracker) {
 
-    used_gpu_count = (gpu_count >= 4) ? 4 : (gpu_count >= 1) ? 1 : 0;
-    if (!used_gpu_count) {
-      PANIC("GPU count should be greater than 0");
-    }
-
     // more than one block temporary arrays
-    uint32_t current_gpu_id = 0;
     d3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], d3, num_blocks + 1,
+        streams[0], gpu_indexes[0], d3, num_blocks + 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     low3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], low3, num_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+        streams[0], gpu_indexes[0], low3, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
     rem3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], rem3, num_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+        streams[0], gpu_indexes[0], rem3, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
     sub_result_3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_result_3, num_blocks,
+        streams[0], gpu_indexes[0], sub_result_3, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     sub_3_overflowed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_3_overflowed, 1,
+        streams[0], gpu_indexes[0], sub_3_overflowed, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    ++current_gpu_id;
+    tmp_gpu_0 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], tmp_gpu_0, num_blocks + 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     d2 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], d2, num_blocks + 1,
+        streams[1], gpu_indexes[1], d2, num_blocks + 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     low2 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], low2, num_blocks,
+        streams[1], gpu_indexes[1], low2, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    rem2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[1], gpu_indexes[1], rem2, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    divisor_gpu_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[1], gpu_indexes[1], divisor_gpu_1, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    if (used_gpu_count == 1) {
-      rem2 = nullptr;
-      divisor_gpu_1 = nullptr;
-      remainder_gpu_1 = nullptr;
-    } else {
-      rem2 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], rem2, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-      divisor_gpu_1 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], divisor_gpu_1, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-      remainder_gpu_1 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], remainder_gpu_1, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    }
+    remainder_gpu_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[1], gpu_indexes[1], remainder_gpu_1, num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     sub_result_2 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_result_2, num_blocks,
+        streams[1], gpu_indexes[1], sub_result_2, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     sub_2_overflowed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_2_overflowed, 1,
+        streams[1], gpu_indexes[1], sub_2_overflowed, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    ++current_gpu_id;
 
     d1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], d1, num_blocks + 1,
+        streams[2], gpu_indexes[2], d1, num_blocks + 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     low1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count],
-        gpu_indexes[current_gpu_id % used_gpu_count], low1, num_blocks,
+        streams[2], gpu_indexes[2], low1, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    rem1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[2], gpu_indexes[2], rem1, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    divisor_gpu_2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[2], gpu_indexes[2], divisor_gpu_2, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    if (used_gpu_count == 1) {
-      rem1 = nullptr;
-      divisor_gpu_2 = nullptr;
-      remainder_gpu_2 = nullptr;
-    } else {
-      rem1 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], rem1, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-      divisor_gpu_2 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], divisor_gpu_2, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-      remainder_gpu_2 = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[current_gpu_id % used_gpu_count],
-          gpu_indexes[current_gpu_id % used_gpu_count], remainder_gpu_2, num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    }
-    sub_result_1 = new CudaRadixCiphertextFFI;
+    remainder_gpu_2 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_result_1, num_blocks,
+        streams[2], gpu_indexes[2], remainder_gpu_2, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    sub_1_overflowed = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[current_gpu_id % used_gpu_count], gpu_indexes[current_gpu_id % used_gpu_count], sub_1_overflowed, 1,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    // sub_result_1 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[2],
+    //     gpu_indexes[2], sub_result_1, num_blocks,
+    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    // sub_1_overflowed = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[2],
+    //     gpu_indexes[2], sub_1_overflowed, 1,
+    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
+    // comparison_blocks_1 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], comparison_blocks_1, num_blocks,
+    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
+    // comparison_blocks_2 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], comparison_blocks_2, num_blocks,
+    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    comparison_blocks_1 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], comparison_blocks_1, num_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    // comparison_blocks_3 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], comparison_blocks_3, num_blocks,
+    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    comparison_blocks_2 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], comparison_blocks_2, num_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    // // boolean blocks or single block temporary arrays
+    // cmp_1 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], cmp_1, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    comparison_blocks_3 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], comparison_blocks_3, num_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    // cmp_2 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], cmp_2, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    // boolean blocks or single block temporary arrays
-    cmp_1 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], cmp_1, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // cmp_3 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], cmp_3, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    cmp_2 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], cmp_2, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // c0 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], c0, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    cmp_3 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], cmp_3, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // c1 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], c1, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    c0 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], c0, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // c2 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], c2, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    c1 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], c1, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // c3 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], c3, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    c2 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], c2, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // q1 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], q1, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    c3 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], c3, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // q2 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], q2, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
 
-    q1 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], q1, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
-
-    q2 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], q2, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
-
-    q3 = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], q3, 1, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
+    // q3 = new CudaRadixCiphertextFFI;
+    // create_zero_radix_ciphertext_async<Torus>(
+    //     streams[0], gpu_indexes[0], q3, 1, params.big_lwe_dimension,
+    //     size_tracker, allocate_gpu_memory);
   }
 
   // initialize lookup tables for div_rem_2_2 operation
@@ -4547,109 +4521,124 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                           uint32_t const *gpu_indexes, uint32_t gpu_count,
                           uint32_t num_blocks, bool allocate_gpu_memory,
                           uint64_t &size_tracker) {
-    message_extract_lut_1 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    message_extract_lut_2 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_not_1_lut_1 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_not_1_lut_2 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_not_2_lut_1 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_not_2_lut_2 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
-    quotient_lut_1 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
-                                 allocate_gpu_memory, size_tracker);
-    quotient_lut_2 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
-                                 allocate_gpu_memory, size_tracker);
-    quotient_lut_3 =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1, 1,
-                                 allocate_gpu_memory, size_tracker);
+    // message_extract_lut_1 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // message_extract_lut_2 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // zero_out_if_not_1_lut_1 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // zero_out_if_not_1_lut_2 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // zero_out_if_not_2_lut_1 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // zero_out_if_not_2_lut_2 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //                              num_blocks, allocate_gpu_memory,
+    //                              size_tracker);
+    // quotient_lut_1 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //     1,
+    //                              allocate_gpu_memory, size_tracker);
+    // quotient_lut_2 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //     1,
+    //                              allocate_gpu_memory, size_tracker);
+    // quotient_lut_3 =
+    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+    //     1,
+    //                              allocate_gpu_memory, size_tracker);
 
-    auto message_modulus = params.message_modulus;
-    auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
+    // auto message_modulus = params.message_modulus;
+    // auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
+    //   return x % message_modulus;
+    // };
 
-    auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
-      Torus block = x / 2;
-      bool condition = (x & 1) == 1;
-      return block * (Torus)condition;
-    };
-    auto zero_out_if_not_2_lut_f = [](Torus x) -> Torus {
-      Torus block = x / 3;
-      bool condition = (x % 3) == 2;
-      return block * (Torus)condition;
-    };
-    auto quotient_lut_1_f = [](Torus cond) -> Torus {
-      return (Torus)(cond == 2);
-    };
-    auto quotient_lut_2_f = [](Torus cond) -> Torus {
-      return (Torus)((cond == 2) * 2);
-    };
-    auto quotient_lut_3_f = [](Torus cond) -> Torus { return cond * 3; };
-    int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
-                                     message_extract_lut_2};
-    for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
-      luts[j]->broadcast_lut(streams, gpu_indexes);
-    }
+    // auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
+    //   Torus block = x / 2;
+    //   bool condition = (x & 1) == 1;
+    //   return block * (Torus)condition;
+    // };
+    // auto zero_out_if_not_2_lut_f = [](Torus x) -> Torus {
+    //   Torus block = x / 3;
+    //   bool condition = (x % 3) == 2;
+    //   return block * (Torus)condition;
+    // };
+    // auto quotient_lut_1_f = [](Torus cond) -> Torus {
+    //   return (Torus)(cond == 2);
+    // };
+    // auto quotient_lut_2_f = [](Torus cond) -> Torus {
+    //   return (Torus)((cond == 2) * 2);
+    // };
+    // auto quotient_lut_3_f = [](Torus cond) -> Torus { return cond * 3; };
+    // int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
+    //                                  message_extract_lut_2};
+    // for (int j = 0; j < 2; j++) {
+    //   generate_device_accumulator<Torus>(
+    //       streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
+    //       luts[j]->get_degree(0), luts[j]->get_max_degree(0),
+    //       params.glwe_dimension, params.polynomial_size,
+    //       params.message_modulus, params.carry_modulus,
+    //       lut_f_message_extract, gpu_memory_allocated);
+    //   luts[j]->broadcast_lut(streams, gpu_indexes);
+    // }
 
-    luts[0] = zero_out_if_not_1_lut_1;
-    luts[1] = zero_out_if_not_1_lut_2;
-    for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_1_lut_f, gpu_memory_allocated);
-      luts[j]->broadcast_lut(streams, gpu_indexes);
-    }
+    // luts[0] = zero_out_if_not_1_lut_1;
+    // luts[1] = zero_out_if_not_1_lut_2;
+    // for (int j = 0; j < 2; j++) {
+    //   generate_device_accumulator<Torus>(
+    //       streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
+    //       luts[j]->get_degree(0), luts[j]->get_max_degree(0),
+    //       params.glwe_dimension, params.polynomial_size,
+    //       params.message_modulus, params.carry_modulus,
+    //       zero_out_if_not_1_lut_f, gpu_memory_allocated);
+    //   luts[j]->broadcast_lut(streams, gpu_indexes);
+    // }
 
-    luts[0] = zero_out_if_not_2_lut_1;
-    luts[1] = zero_out_if_not_2_lut_2;
-    for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_2_lut_f, gpu_memory_allocated);
-      luts[j]->broadcast_lut(streams, gpu_indexes);
-    }
+    // luts[0] = zero_out_if_not_2_lut_1;
+    // luts[1] = zero_out_if_not_2_lut_2;
+    // for (int j = 0; j < 2; j++) {
+    //   generate_device_accumulator<Torus>(
+    //       streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
+    //       luts[j]->get_degree(0), luts[j]->get_max_degree(0),
+    //       params.glwe_dimension, params.polynomial_size,
+    //       params.message_modulus, params.carry_modulus,
+    //       zero_out_if_not_2_lut_f, gpu_memory_allocated);
+    //   luts[j]->broadcast_lut(streams, gpu_indexes);
+    // }
 
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], quotient_lut_1->get_lut(0, 0),
-        quotient_lut_1->get_degree(0), quotient_lut_1->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_1_f, gpu_memory_allocated);
-    quotient_lut_1->broadcast_lut(streams, gpu_indexes);
+    // generate_device_accumulator<Torus>(
+    //     streams[0], gpu_indexes[0], quotient_lut_1->get_lut(0, 0),
+    //     quotient_lut_1->get_degree(0), quotient_lut_1->get_max_degree(0),
+    //     params.glwe_dimension, params.polynomial_size,
+    //     params.message_modulus, params.carry_modulus, quotient_lut_1_f,
+    //     gpu_memory_allocated);
+    // quotient_lut_1->broadcast_lut(streams, gpu_indexes);
 
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], quotient_lut_2->get_lut(0, 0),
-        quotient_lut_2->get_degree(0), quotient_lut_2->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_2_f, gpu_memory_allocated);
-    quotient_lut_2->broadcast_lut(streams, gpu_indexes);
+    // generate_device_accumulator<Torus>(
+    //     streams[0], gpu_indexes[0], quotient_lut_2->get_lut(0, 0),
+    //     quotient_lut_2->get_degree(0), quotient_lut_2->get_max_degree(0),
+    //     params.glwe_dimension, params.polynomial_size,
+    //     params.message_modulus, params.carry_modulus, quotient_lut_2_f,
+    //     gpu_memory_allocated);
+    // quotient_lut_2->broadcast_lut(streams, gpu_indexes);
 
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], quotient_lut_3->get_lut(0, 0),
-        quotient_lut_3->get_degree(0), quotient_lut_3->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_3_f, gpu_memory_allocated);
-    quotient_lut_3->broadcast_lut(streams, gpu_indexes);
+    // generate_device_accumulator<Torus>(
+    //     streams[0], gpu_indexes[0], quotient_lut_3->get_lut(0, 0),
+    //     quotient_lut_3->get_degree(0), quotient_lut_3->get_max_degree(0),
+    //     params.glwe_dimension, params.polynomial_size,
+    //     params.message_modulus, params.carry_modulus, quotient_lut_3_f,
+    //     gpu_memory_allocated);
+    // quotient_lut_3->broadcast_lut(streams, gpu_indexes);
   }
 
   unsigned_int_div_rem_2_2_memory(cudaStream_t const *streams,
@@ -4658,77 +4647,87 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                   uint32_t num_blocks, bool allocate_gpu_memory,
                                   uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
-    active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
+
+    printf("gpu_count: %d\n", gpu_count);
+    if (gpu_count < 4) {
+      PANIC("GPU count should be greater than 4m when using div_rem_2_2");
+    }
+
     this->params = params;
 
-    uint32_t compute_overflow = 1;
-    overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
-        allocate_gpu_memory, size_tracker);
-    overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
-        allocate_gpu_memory, size_tracker);
-    overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
-        allocate_gpu_memory, size_tracker);
-    uint32_t group_size = overflow_sub_mem_1->group_size;
-    bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
-                       ->use_sequential_algorithm_to_resolve_group_carries;
-    create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
-                                    group_size, use_seq, allocate_gpu_memory,
-                                    size_tracker);
-    comparison_buffer_1 = new int_comparison_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
-        num_blocks, false, allocate_gpu_memory, size_tracker);
-    comparison_buffer_2 = new int_comparison_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
-        num_blocks, false, allocate_gpu_memory, size_tracker);
-    comparison_buffer_3 = new int_comparison_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
-        num_blocks, false, allocate_gpu_memory, size_tracker);
     sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks + 1,
+        &streams[0], &gpu_indexes[0], 1, params, num_blocks + 1,
         outputFlag::FLAG_NONE, allocate_gpu_memory, size_tracker);
-    bitor_mem_1 = new int_bitop_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params, num_blocks,
-        allocate_gpu_memory, size_tracker);
-    bitor_mem_2 = new int_bitop_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params, num_blocks,
-        allocate_gpu_memory, size_tracker);
-    bitor_mem_3 = new int_bitop_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params, num_blocks,
-        allocate_gpu_memory, size_tracker);
+
     shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
+        &streams[1], &gpu_indexes[1], 1, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
 
-    init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
-                       allocate_gpu_memory, size_tracker);
-    init_temporary_buffers(streams, gpu_indexes, gpu_count, num_blocks,
+    // uint32_t compute_overflow = 1;
+    // overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
+    //     streams, gpu_indexes, gpu_count, params, num_blocks,
+    //     compute_overflow, allocate_gpu_memory, size_tracker);
+    // overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
+    //     streams, gpu_indexes, gpu_count, params, num_blocks,
+    //     compute_overflow, allocate_gpu_memory, size_tracker);
+    // overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
+    //     streams, gpu_indexes, gpu_count, params, num_blocks,
+    //     compute_overflow, allocate_gpu_memory, size_tracker);
+    // uint32_t group_size = overflow_sub_mem_1->group_size;
+    // bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
+    //                    ->use_sequential_algorithm_to_resolve_group_carries;
+    // create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
+    //                                 group_size, use_seq, allocate_gpu_memory,
+    //                                 size_tracker);
+    // comparison_buffer_1 = new int_comparison_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
+    //     num_blocks, false, allocate_gpu_memory, size_tracker);
+    // comparison_buffer_2 = new int_comparison_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
+    //     num_blocks, false, allocate_gpu_memory, size_tracker);
+    // comparison_buffer_3 = new int_comparison_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
+    //     num_blocks, false, allocate_gpu_memory, size_tracker);
+    // bitor_mem_1 = new int_bitop_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
+    //     num_blocks, allocate_gpu_memory, size_tracker);
+    // bitor_mem_2 = new int_bitop_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
+    //     num_blocks, allocate_gpu_memory, size_tracker);
+    // bitor_mem_3 = new int_bitop_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
+    //     num_blocks, allocate_gpu_memory, size_tracker);
+    // shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+    //     streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
+    //     params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
+
+    // init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
+    //                    allocate_gpu_memory, size_tracker);
+    init_temporary_buffers(streams, gpu_indexes, num_blocks,
                            allocate_gpu_memory, size_tracker);
 
     sub_streams_1 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+        (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
     sub_streams_2 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_3 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_4 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_5 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_6 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_7 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    for (uint j = 0; j < active_gpu_count; j++) {
+        (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
+    // sub_streams_3 =
+    //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    // sub_streams_4 =
+    //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    // sub_streams_5 =
+    //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    // sub_streams_6 =
+    //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    // sub_streams_7 =
+    //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < 4; j++) {
       sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
       sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_3[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_4[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_5[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_6[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_7[j] = cuda_create_stream(gpu_indexes[j]);
+      // sub_streams_3[j] = cuda_create_stream(gpu_indexes[j]);
+      // sub_streams_4[j] = cuda_create_stream(gpu_indexes[j]);
+      // sub_streams_5[j] = cuda_create_stream(gpu_indexes[j]);
+      // sub_streams_6[j] = cuda_create_stream(gpu_indexes[j]);
+      // sub_streams_7[j] = cuda_create_stream(gpu_indexes[j]);
     }
   }
 
@@ -4830,105 +4829,128 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    // release and delete integer ops memory objects
-    overflow_sub_mem_1->release(streams, gpu_indexes, gpu_count);
-    overflow_sub_mem_2->release(streams, gpu_indexes, gpu_count);
-    overflow_sub_mem_3->release(streams, gpu_indexes, gpu_count);
-    comparison_buffer_1->release(streams, gpu_indexes, gpu_count);
-    comparison_buffer_2->release(streams, gpu_indexes, gpu_count);
-    comparison_buffer_3->release(streams, gpu_indexes, gpu_count);
-    sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
-    bitor_mem_1->release(streams, gpu_indexes, gpu_count);
-    bitor_mem_2->release(streams, gpu_indexes, gpu_count);
-    bitor_mem_3->release(streams, gpu_indexes, gpu_count);
-    shift_mem->release(streams, gpu_indexes, gpu_count);
 
-    delete overflow_sub_mem_1;
-    delete overflow_sub_mem_2;
-    delete overflow_sub_mem_3;
-    delete comparison_buffer_1;
-    delete comparison_buffer_2;
-    delete comparison_buffer_3;
+    if (gpu_count < 4) {
+      PANIC("GPU count should be greater than 4 when using div_rem_2_2");
+    }
+
+    // release and delete integer ops memory objects
+    sub_and_propagate_mem->release(&streams[0], &gpu_indexes[0], 1);
+    shift_mem->release(&streams[1], &gpu_indexes[1], 1);
+    // overflow_sub_mem_1->release(streams, gpu_indexes, gpu_count);
+    // overflow_sub_mem_2->release(streams, gpu_indexes, gpu_count);
+    // overflow_sub_mem_3->release(streams, gpu_indexes, gpu_count);
+    // comparison_buffer_1->release(streams, gpu_indexes, gpu_count);
+    // comparison_buffer_2->release(streams, gpu_indexes, gpu_count);
+    // comparison_buffer_3->release(streams, gpu_indexes, gpu_count);
+    // bitor_mem_1->release(streams, gpu_indexes, gpu_count);
+    // bitor_mem_2->release(streams, gpu_indexes, gpu_count);
+    // bitor_mem_3->release(streams, gpu_indexes, gpu_count);
+
     delete sub_and_propagate_mem;
-    delete bitor_mem_1;
-    delete bitor_mem_2;
-    delete bitor_mem_3;
     delete shift_mem;
+    // delete overflow_sub_mem_1;
+    // delete overflow_sub_mem_2;
+    // delete overflow_sub_mem_3;
+    // delete comparison_buffer_1;
+    // delete comparison_buffer_2;
+    // delete comparison_buffer_3;
+    // delete bitor_mem_1;
+    // delete bitor_mem_2;
+    // delete bitor_mem_3;
 
     // release and delete lut objects
-    message_extract_lut_1->release(streams, gpu_indexes, gpu_count);
-    message_extract_lut_2->release(streams, gpu_indexes, gpu_count);
-    zero_out_if_not_1_lut_1->release(streams, gpu_indexes, gpu_count);
-    zero_out_if_not_1_lut_2->release(streams, gpu_indexes, gpu_count);
-    zero_out_if_not_2_lut_1->release(streams, gpu_indexes, gpu_count);
-    zero_out_if_not_2_lut_2->release(streams, gpu_indexes, gpu_count);
-    quotient_lut_1->release(streams, gpu_indexes, gpu_count);
-    quotient_lut_2->release(streams, gpu_indexes, gpu_count);
-    quotient_lut_3->release(streams, gpu_indexes, gpu_count);
+    // message_extract_lut_1->release(streams, gpu_indexes, gpu_count);
+    // message_extract_lut_2->release(streams, gpu_indexes, gpu_count);
+    // zero_out_if_not_1_lut_1->release(streams, gpu_indexes, gpu_count);
+    // zero_out_if_not_1_lut_2->release(streams, gpu_indexes, gpu_count);
+    // zero_out_if_not_2_lut_1->release(streams, gpu_indexes, gpu_count);
+    // zero_out_if_not_2_lut_2->release(streams, gpu_indexes, gpu_count);
+    // quotient_lut_1->release(streams, gpu_indexes, gpu_count);
+    // quotient_lut_2->release(streams, gpu_indexes, gpu_count);
+    // quotient_lut_3->release(streams, gpu_indexes, gpu_count);
 
-    delete message_extract_lut_1;
-    delete message_extract_lut_2;
-    delete zero_out_if_not_1_lut_1;
-    delete zero_out_if_not_1_lut_2;
-    delete zero_out_if_not_2_lut_1;
-    delete zero_out_if_not_2_lut_2;
-    delete quotient_lut_1;
-    delete quotient_lut_2;
-    delete quotient_lut_3;
+    // delete message_extract_lut_1;
+    // delete message_extract_lut_2;
+    // delete zero_out_if_not_1_lut_1;
+    // delete zero_out_if_not_1_lut_2;
+    // delete zero_out_if_not_2_lut_1;
+    // delete zero_out_if_not_2_lut_2;
+    // delete quotient_lut_1;
+    // delete quotient_lut_2;
+    // delete quotient_lut_3;
 
     // release and delete temporary buffers
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], d1,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], d1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], d2,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], d2,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], d3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], low1,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], low1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], low2,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], low2,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], low3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], rem,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], rem1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_result_1,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], rem2,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_result_2,
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], rem3,
+                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_result_1,
+                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], sub_result_2,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_result_3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_1_overflowed,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_1_overflowed,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_2_overflowed,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], sub_2_overflowed,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_3_overflowed,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
-                                   comparison_blocks_1, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
-                                   comparison_blocks_2, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
-                                   comparison_blocks_3, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_1,
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_gpu_0,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_2,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], divisor_gpu_1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_3,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], divisor_gpu_2,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], c0,
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], remainder_gpu_1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], c1,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], remainder_gpu_2,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], c2,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], c3,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], q1,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], q2,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], q3,
-                                   gpu_memory_allocated);
+
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+    //                                comparison_blocks_1,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+    //                                comparison_blocks_2,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+    //                                comparison_blocks_3,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_1,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_2,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_3,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], c0,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], c1,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], c2,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], c3,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], q1,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], q2,
+    //                                gpu_memory_allocated);
+    // release_radix_ciphertext_async(streams[0], gpu_indexes[0], q3,
+    //                                gpu_memory_allocated);
 
     delete d1;
     delete d2;
@@ -4936,41 +4958,48 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete low1;
     delete low2;
     delete low3;
-    delete rem;
+    delete rem1;
+    delete rem2;
+    delete rem3;
     delete sub_result_1;
     delete sub_result_2;
     delete sub_result_3;
     delete sub_1_overflowed;
     delete sub_2_overflowed;
     delete sub_3_overflowed;
-    delete comparison_blocks_1;
-    delete comparison_blocks_2;
-    delete comparison_blocks_3;
-    delete cmp_1;
-    delete cmp_2;
-    delete cmp_3;
-    delete c0;
-    delete c1;
-    delete c2;
-    delete c3;
-    delete q1;
-    delete q2;
-    delete q3;
+    delete tmp_gpu_0;
+    delete divisor_gpu_1;
+    delete divisor_gpu_2;
+    delete remainder_gpu_1;
+    delete remainder_gpu_2;
+    // delete comparison_blocks_1;
+    // delete comparison_blocks_2;
+    // delete comparison_blocks_3;
+    // delete cmp_1;
+    // delete cmp_2;
+    // delete cmp_3;
+    // delete c0;
+    // delete c1;
+    // delete c2;
+    // delete c3;
+    // delete q1;
+    // delete q2;
+    // delete q3;
 
-    for (int i = 0; i < max_indexes_to_erase; i++) {
-      cuda_drop_with_size_tracking_async(first_indexes_for_overflow_sub[i],
-                                         streams[0], gpu_indexes[0],
-                                         gpu_memory_allocated);
-      cuda_drop_with_size_tracking_async(second_indexes_for_overflow_sub[i],
-                                         streams[0], gpu_indexes[0],
-                                         gpu_memory_allocated);
-      cuda_drop_with_size_tracking_async(scalars_for_overflow_sub[i],
-                                         streams[0], gpu_indexes[0],
-                                         gpu_memory_allocated);
-    }
-    free(first_indexes_for_overflow_sub);
-    free(second_indexes_for_overflow_sub);
-    free(scalars_for_overflow_sub);
+    // for (int i = 0; i < max_indexes_to_erase; i++) {
+    //   cuda_drop_with_size_tracking_async(first_indexes_for_overflow_sub[i],
+    //                                      streams[0], gpu_indexes[0],
+    //                                      gpu_memory_allocated);
+    //   cuda_drop_with_size_tracking_async(second_indexes_for_overflow_sub[i],
+    //                                      streams[0], gpu_indexes[0],
+    //                                      gpu_memory_allocated);
+    //   cuda_drop_with_size_tracking_async(scalars_for_overflow_sub[i],
+    //                                      streams[0], gpu_indexes[0],
+    //                                      gpu_memory_allocated);
+    // }
+    // free(first_indexes_for_overflow_sub);
+    // free(second_indexes_for_overflow_sub);
+    // free(scalars_for_overflow_sub);
   }
 };
 
