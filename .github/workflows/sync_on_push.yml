@@ -7,7 +7,7 @@ on:
       - 'main'
   workflow_dispatch:
 
-permissions: {}
+permissions: { }
 
 jobs:
   sync-repo:
@@ -15,23 +15,54 @@ jobs:
     if: ${{ github.repository == 'zama-ai/tfhe-rs' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          fetch-depth: 0
-          persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       - name: git-sync
-        uses: valtech-sd/git-sync@e734cfe9485a92e720eac5af8a4555dde5fecf88
-        with:
-          source_repo: "zama-ai/tfhe-rs"
-          source_branch: "main"
-          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.FHE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
-          destination_branch: "main"
-      - name: git-sync tags
-        uses: wei/git-sync@55c6b63b4f21607da0e9877ca9b4d11a29fc6d83
-        with:
-          source_repo: "zama-ai/tfhe-rs"
-          source_branch: "refs/tags/*"
-          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.FHE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
-          destination_branch: "refs/tags/*"
+        env:
+          SOURCE_REPO: "zama-ai/tfhe-rs"
+          SOURCE_BRANCH: "main"
+          DESTINATION_BRANCH: "main"
+          USERNAME: ${{ secrets.BOT_USERNAME }}
+          TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
+        run: |
+          echo ">>> Cloning source repo..."
+          git lfs install
+          git clone "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs --origin source && cd ./tfhe-rs
+          git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
+
+          echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
+          git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
+
+          echo ">>> Print out all branches"
+          git --no-pager branch -a -vv
+
+          echo ">>> Fetching all LFS items from source..."
+          git lfs fetch --all source "${SOURCE_BRANCH}"
+
+          echo ">>> Pushing git changes..."
+          git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
+
+          echo ">>> Pushing all LFS items..."
+          git lfs push --all destination "${DESTINATION_BRANCH}"
+
+      - name: git-sync-tags
+        env:
+          SOURCE_REPO: "zama-ai/tfhe-rs"
+          SOURCE_BRANCH: "refs/tags/*"
+          DESTINATION_BRANCH: "refs/tags/*"
+          USERNAME: ${{ secrets.BOT_USERNAME }}
+          TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
+        run: |
+          echo ">>> Cloning source repo..."
+          git lfs install
+          git clone "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs-tag --origin source && cd ./tfhe-rs-tag
+          git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
+
+          echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
+          git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
+
+          echo ">>> Print out all branches"
+          git --no-pager branch -a -vv
+
+          echo ">>> Pushing git changes..."
+          git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
