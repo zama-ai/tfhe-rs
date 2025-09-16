@@ -119,7 +119,7 @@ impl AllocateLwePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey
         Self::Output {
             glwe_dimension: self.output_glwe_size().to_glwe_dimension(),
             polynomial_size: self.output_polynomial_size(),
-            variance_per_occupied_slot: Variance(f64::INFINITY),
+            variance_per_occupied_slot: Variance(f64::NEG_INFINITY),
             modulus: self.modulus,
         }
     }
