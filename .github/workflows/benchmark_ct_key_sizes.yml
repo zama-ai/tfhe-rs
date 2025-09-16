@@ -1,15 +1,11 @@
-# Run all shortint benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: benchmark_shortint
+# Run sizes benchmarks on an instance and return parsed results to Slab CI bot.
+name: Ciphertext and Keys sizes benchmarks
 
 on:
   workflow_dispatch:
   schedule:
-    # Weekly benchmarks will be triggered each Saturday at 1a.m.
-    - cron: '0 1 * * 6'
-    # Quarterly benchmarks will be triggered right before end of quarter, the 25th of the current month at 4a.m.
-    # These benchmarks are far longer to execute hence the reason to run them only four time a year.
-    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
-
+    # Monthly benchmarks will be triggered each 24th of the month at 1a.m.
+    - cron: '0 1 24 * 6'
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,37 +18,13 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-
 permissions: {}
 
 jobs:
-  prepare-matrix:
-    name: benchmark_shortint/prepare-matrix
-    runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' ||
-      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
-    outputs:
-      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
-    steps:
-      - name: Weekly benchmarks
-        if: github.event_name == 'workflow_dispatch' ||
-          github.event.schedule == '0 1 * * 6'
-        run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
-
-      - name: Quarterly benchmarks
-        if: github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *'
-        run: |
-          echo "OP_FLAVOR=[\"default\", \"smart\", \"unchecked\"]" >> "${GITHUB_ENV}"
-
-      - name: Set operation flavor output
-        id: set_op_flavor
-        run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
-
   setup-instance:
-    name: benchmark_shortint/setup-instance
-    needs: prepare-matrix
+    name: Setup instance (sizes-benchmarks)
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -66,19 +38,13 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
-          profile: bench
+          profile: cpu-big
 
-  shortint-benchmarks:
-    name: benchmark_shortint/shortint-benchmarks
-    needs: [ prepare-matrix, setup-instance ]
+  sizes-benchmarks:
+    name: Execute sizes client benchmarks
+    needs: setup-instance
+    if: needs.setup-instance.result != 'skipped'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    concurrency:
-      group: ${{ github.workflow_ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    strategy:
-      max-parallel: 1
-      matrix:
-        op_flavor: ${{ fromJson(needs.prepare-matrix.outputs.op_flavor) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -99,9 +65,42 @@ jobs:
           SHA: ${{ github.sha }}
 
       - name: Install rust
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: nightly
+
+      - name: Measure public key and ciphertext sizes in HL Api
+        run: |
+          make measure_hlapi_compact_pk_ct_sizes
+
+      - name: Parse key and ciphertext sizes results
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/hlapi_ct_key_sizes.csv "${RESULTS_FILENAME}" \
+          --database tfhe_rs \
+          --hardware "m6i.32xlarge" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
+          --object-sizes
+        env:
+          REF_NAME: ${{ github.ref_name }}
+
+      - name: Measure key sizes in shortint
+        run: |
+          make measure_shortint_key_sizes
+
+      - name: Parse key sizes results
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
+          --object-sizes \
+          --append-results
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ github.sha }}_ct_key_sizes
+          path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -110,32 +109,6 @@ jobs:
           path: slab
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Run benchmarks with AVX512
-        run: |
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" bench_shortint
-        env:
-          OP_FLAVOR: ${{ matrix.op_flavor }}
-
-      - name: Parse results
-        run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
-          --database tfhe_rs \
-          --hardware "hpc7a.96xlarge" \
-          --project-version "${COMMIT_HASH}" \
-          --branch "${REF_NAME}" \
-          --commit-date "${COMMIT_DATE}" \
-          --bench-date "${BENCH_DATE}" \
-          --walk-subdirs \
-          --name-suffix avx512
-        env:
-          REF_NAME: ${{ github.ref_name }}
-
-      - name: Upload parsed results artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ${{ github.sha }}_shortint_${{ matrix.op_flavor }}
-          path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab
         shell: bash
@@ -147,17 +120,17 @@ jobs:
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
-        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Shortint full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Sizes benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: benchmark_shortint/teardown-instance
+    name: Teardown instance (sizes-benchmarks)
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, shortint-benchmarks ]
+    needs: [ setup-instance, sizes-benchmarks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -176,4 +149,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (shortint-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (sizes-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
