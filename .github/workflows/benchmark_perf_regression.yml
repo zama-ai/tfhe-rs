@@ -3,7 +3,7 @@ name: benchmark_perf_regression
 
 on:
   issue_comment:
-    types: created
+    types: [ created ]
   pull_request:
     types: [ labeled ]
 
@@ -23,6 +23,11 @@ permissions: { }
 jobs:
   verify-actor:
     name: benchmark_perf_regression/verify-actor
+    if: (github.event_name == 'pull_request' &&
+      (contains(github.event.label.name, 'bench-perfs-cpu') ||
+      contains(github.event.label.name, 'bench-perfs-gpu'))) ||
+      (github.event.issue_comment.pull_request &&
+      startsWith(github.event.comment.body, '/bench'))
     uses: ./.github/workflows/verify_commit_actor.yml
     secrets:
       ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
@@ -32,12 +37,6 @@ jobs:
     name: benchmark_perf_regression/prepare-benchmarks
     needs: verify-actor
     runs-on: ubuntu-latest
-    if: (github.event_name == 'pull_request' &&
-            (contains(github.event.label.name, 'bench-perfs-cpu') ||
-            contains(github.event.label.name, 'bench-perfs-gpu'))) ||
-        (github.event.issue.pull_request &&
-            github.event_name == 'issue_comment' &&
-            startsWith(github.event.comment.body, '/bench'))
     outputs:
       commands: ${{ steps.set_commands.outputs.commands }}
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
