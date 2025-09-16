@@ -1,10 +1,13 @@
 use crate::generate::{
-    store_versioned_test_tfhe_1_4, TfhersVersion,
-    INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT, INSECURE_SMALL_TEST_PARAMS_MULTI_BIT,
+    store_versioned_auxiliary_tfhe_1_4, store_versioned_test_tfhe_1_4, TfhersVersion,
+    INSECURE_DEDICATED_CPK_TEST_PARAMS, INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT,
+    INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION, INSECURE_SMALL_TEST_PARAMS_MULTI_BIT,
+    KS_TO_BIG_TEST_PARAMS, KS_TO_SMALL_TEST_PARAMS,
 };
 use crate::{
     HlClientKeyTest, HlServerKeyTest, HlSquashedNoiseUnsignedCiphertextTest,
-    TestClassicParameterSet, TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams,
+    TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters, TestDistribution,
+    TestKeySwitchingParams, TestMetadata, TestModulusSwitchNoiseReductionParams,
     TestModulusSwitchType, TestMultiBitParameterSet, TestNoiseSquashingParamsMultiBit,
     TestParameterSet, HL_MODULE_NAME,
 };
@@ -19,18 +22,29 @@ use tfhe_1_4::prelude::*;
 use tfhe_1_4::shortint::engine::ShortintEngine;
 use tfhe_1_4::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 use tfhe_1_4::shortint::parameters::{
-    CarryModulus, CiphertextModulus, CoreCiphertextModulus, DecompositionBaseLog,
+    CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, CoreCiphertextModulus, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
     LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
     ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseEstimationMeasureBound,
-    NoiseSquashingParameters, PolynomialSize, RSigmaFactor, StandardDev, Variance,
+    NoiseSquashingParameters, PolynomialSize, RSigmaFactor, ShortintKeySwitchingParameters,
+    StandardDev, SupportedCompactPkeZkScheme, Variance,
 };
 use tfhe_1_4::shortint::{AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters};
-use tfhe_1_4::{set_server_key, ClientKey, FheUint32, Seed, ServerKey};
+use tfhe_1_4::{
+    set_server_key, ClientKey, CompressedCompactPublicKey, ConfigBuilder, FheUint32, Seed,
+    ServerKey,
+};
 
 macro_rules! store_versioned_test {
     ($msg:expr, $dir:expr, $test_filename:expr $(,)? ) => {
         store_versioned_test_tfhe_1_4($msg, $dir, $test_filename)
+    };
+}
+
+macro_rules! store_versioned_auxiliary {
+    ($msg:expr, $dir:expr, $test_filename:expr $(,)? ) => {
+        store_versioned_auxiliary_tfhe_1_4($msg, $dir, $test_filename)
     };
 }
 
@@ -220,6 +234,41 @@ impl From<TestNoiseSquashingParamsMultiBit> for NoiseSquashingParameters {
     }
 }
 
+impl From<TestKeySwitchingParams> for ShortintKeySwitchingParameters {
+    fn from(value: TestKeySwitchingParams) -> Self {
+        Self {
+            ks_level: DecompositionLevelCount(value.ks_level),
+            ks_base_log: DecompositionBaseLog(value.ks_base_log),
+            destination_key: match &*value.destination_key {
+                "big" => EncryptionKeyChoice::Big,
+                "small" => EncryptionKeyChoice::Small,
+                _ => panic!("Invalid encryption key choice"),
+            },
+        }
+    }
+}
+
+impl From<TestCompactPublicKeyEncryptionParameters> for CompactPublicKeyEncryptionParameters {
+    fn from(value: TestCompactPublicKeyEncryptionParameters) -> Self {
+        Self {
+            encryption_lwe_dimension: LweDimension(value.encryption_lwe_dimension),
+            encryption_noise_distribution: value.encryption_noise_distribution.into(),
+            message_modulus: MessageModulus(value.message_modulus as u64),
+            carry_modulus: CarryModulus(value.carry_modulus as u64),
+            ciphertext_modulus: CoreCiphertextModulus::try_new(value.ciphertext_modulus).unwrap(),
+            expansion_kind: match &*value.expansion_kind {
+                "requires_casting" => CompactCiphertextListExpansionKind::RequiresCasting,
+                _ => panic!("Invalid expansion kind"),
+            },
+            zk_scheme: match &*value.zk_scheme {
+                "zkv1" => SupportedCompactPkeZkScheme::V1,
+                "zkv2" => SupportedCompactPkeZkScheme::V2,
+                _ => panic!("Invalid zk scheme"),
+            },
+        }
+    }
+}
+
 const TEST_FILENAME: Cow<'static, str> = Cow::Borrowed("client_key_with_noise_squashing");
 
 const HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST: HlClientKeyTest = HlClientKeyTest {
@@ -230,6 +279,7 @@ const HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST: HlClientKeyTest = HlClientKeyTest 
 const HL_SERVERKEY_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_with_noise_squashing"),
     client_key_filename: TEST_FILENAME,
+    rerand_cpk_filename: None,
     compressed: false,
 };
 
@@ -239,6 +289,13 @@ const HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST: HlSquashedNoiseUnsignedCiphert
         key_filename: TEST_FILENAME,
         clear_value: 42,
     };
+
+const HL_SERVERKEY_RERAND_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("server_key_for_rerand"),
+    client_key_filename: Cow::Borrowed("client_key_for_rerand"),
+    rerand_cpk_filename: Some(Cow::Borrowed("cpk_for_rerand")),
+    compressed: false,
+};
 
 pub struct V1_4;
 
@@ -264,34 +321,74 @@ impl TfhersVersion for V1_4 {
         let dir = Self::data_dir().join(HL_MODULE_NAME);
         create_dir_all(&dir).unwrap();
 
-        let config = tfhe_1_4::ConfigBuilder::with_custom_parameters(
-            HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.parameters,
-        )
-        .enable_noise_squashing(INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT.into())
-        .build();
-        let hl_client_key = ClientKey::generate(config);
-        let hl_server_key = ServerKey::new(&hl_client_key);
-        set_server_key(hl_server_key.clone());
+        // Test noise squahsing multibit
+        {
+            let config = ConfigBuilder::with_custom_parameters(
+                HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.parameters,
+            )
+            .enable_noise_squashing(INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT.into())
+            .build();
+            let hl_client_key = ClientKey::generate(config);
+            let hl_server_key = ServerKey::new(&hl_client_key);
+            set_server_key(hl_server_key.clone());
 
-        let input = FheUint32::encrypt(
-            HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST.clear_value as u32,
-            &hl_client_key,
-        );
+            let input = FheUint32::encrypt(
+                HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST.clear_value as u32,
+                &hl_client_key,
+            );
 
-        let ns = input.squash_noise().unwrap();
+            let ns = input.squash_noise().unwrap();
 
-        store_versioned_test!(
-            &hl_client_key,
-            &dir,
-            &HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.test_filename
-        );
-        store_versioned_test!(&hl_server_key, &dir, &HL_SERVERKEY_TEST.test_filename,);
+            store_versioned_test!(
+                &hl_client_key,
+                &dir,
+                &HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.test_filename
+            );
+            store_versioned_test!(&hl_server_key, &dir, &HL_SERVERKEY_TEST.test_filename,);
 
-        store_versioned_test!(
-            &ns,
-            &dir,
-            &HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST.test_filename,
-        );
+            store_versioned_test!(
+                &ns,
+                &dir,
+                &HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST.test_filename,
+            );
+        }
+
+        // Test re-randomization
+        {
+            let params = INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION;
+            let cpk_params = (
+                INSECURE_DEDICATED_CPK_TEST_PARAMS.into(),
+                KS_TO_SMALL_TEST_PARAMS.into(),
+            );
+            let re_rand_ks_params = KS_TO_BIG_TEST_PARAMS;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters(cpk_params)
+                .enable_ciphertext_re_randomization(re_rand_ks_params.into())
+                .build();
+
+            let hl_client_key = ClientKey::generate(config);
+            let hl_server_key = ServerKey::new(&hl_client_key);
+            let hl_public_key = CompressedCompactPublicKey::new(&hl_client_key);
+
+            store_versioned_auxiliary!(
+                &hl_client_key,
+                &dir,
+                &HL_SERVERKEY_RERAND_TEST.client_key_filename
+            );
+
+            store_versioned_auxiliary!(
+                &hl_public_key,
+                &dir,
+                &HL_SERVERKEY_RERAND_TEST.rerand_cpk_filename.unwrap()
+            );
+
+            store_versioned_test!(
+                &hl_server_key,
+                &dir,
+                &HL_SERVERKEY_RERAND_TEST.test_filename,
+            );
+        }
 
         vec![
             TestMetadata::HlClientKey(HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST),
@@ -299,6 +396,7 @@ impl TfhersVersion for V1_4 {
             TestMetadata::HlSquashedNoiseUnsignedCiphertext(
                 HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST,
             ),
+            TestMetadata::HlServerKey(HL_SERVERKEY_RERAND_TEST),
         ]
     }
 }

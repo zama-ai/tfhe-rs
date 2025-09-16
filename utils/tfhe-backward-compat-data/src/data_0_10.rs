@@ -165,12 +165,14 @@ const HL_CLIENTKEY_TEST: HlClientKeyTest = HlClientKeyTest {
 const HL_COMPRESSED_SERVERKEY_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("compressed_server_key"),
     client_key_filename: Cow::Borrowed("client_key.cbor"),
+    rerand_cpk_filename: None,
     compressed: true,
 };
 
 const HL_SERVERKEY_WITH_COMPRESSION_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_with_compression"),
     client_key_filename: Cow::Borrowed("client_key.cbor"),
+    rerand_cpk_filename: None,
     compressed: false,
 };
 
