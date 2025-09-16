@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "comlink": "^4.4.1",
+    "npm-check": "^6.0.1",
     "wasm-feature-detect": "^1.6.2"
   }
 }
