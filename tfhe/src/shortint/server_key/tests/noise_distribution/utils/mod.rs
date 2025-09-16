@@ -1,5 +1,6 @@
 pub mod noise_simulation;
 pub use noise_simulation::traits;
+use noise_simulation::DynLwe;
 
 use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_encryption::{
@@ -27,13 +28,14 @@ use crate::core_crypto::commons::traits::container::Container;
 use crate::core_crypto::commons::traits::Encryptable;
 use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
-use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
+use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
+use std::any::TypeId;
 
 pub fn normality_check(
     noise_samples: &[f64],
@@ -135,7 +137,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
                 );
             }
         } else {
-            println!("FAIL:measured_variance_{suffix} is NOT secure.")
+            println!("FAIL: measured_variance_{suffix} is NOT secure.")
         }
 
         variance_is_secure
@@ -160,7 +162,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     mean_is_in_interval && variance_is_ok
 }
 
-pub fn encrypt_new_noiseless_lwe<
+pub fn encrypt_new_noiseless_lwe_impl<
     Scalar: UnsignedInteger + Encryptable<Uniform, Gaussian<f64>> + CastFrom<u64>,
     InputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -170,7 +172,7 @@ pub fn encrypt_new_noiseless_lwe<
     msg: Scalar,
     encoding: &ShortintEncoding<Scalar>,
     encryption_random_generation: &mut EncryptionRandomGenerator<Gen>,
-) -> LweCiphertext<Vec<Scalar>> {
+) -> LweCiphertextOwned<Scalar> {
     let noiseless_distribution = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
 
     let plaintext = encoding.encode(Cleartext(msg));
@@ -182,6 +184,64 @@ pub fn encrypt_new_noiseless_lwe<
         ciphertext_modulus,
         encryption_random_generation,
     )
+}
+
+pub fn encrypt_new_noiseless_lwe<
+    Scalar: UnsignedInteger + Encryptable<Uniform, Gaussian<f64>> + CastFrom<u64>,
+    InputKeyCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+>(
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    msg: Scalar,
+    encoding: &ShortintEncoding<Scalar>,
+    encryption_random_generation: &mut EncryptionRandomGenerator<Gen>,
+) -> DynLwe {
+    if TypeId::of::<Scalar>() == TypeId::of::<u32>() {
+        let lwe: LweCiphertextOwned<Scalar> = encrypt_new_noiseless_lwe_impl(
+            lwe_secret_key,
+            ciphertext_modulus,
+            msg,
+            encoding,
+            encryption_random_generation,
+        );
+
+        // Safety: lwe above is an LweCiphertextOwned<Scalar>, we verified Scalar == u32
+        // so we can transmute
+        DynLwe::U32(unsafe {
+            core::mem::transmute::<LweCiphertextOwned<Scalar>, LweCiphertextOwned<u32>>(lwe)
+        })
+    } else if TypeId::of::<Scalar>() == TypeId::of::<u64>() {
+        let lwe: LweCiphertextOwned<Scalar> = encrypt_new_noiseless_lwe_impl(
+            lwe_secret_key,
+            ciphertext_modulus,
+            msg,
+            encoding,
+            encryption_random_generation,
+        );
+
+        // Safety: lwe above is an LweCiphertextOwned<Scalar>, we verified Scalar == u64
+        // so we can transmute
+        DynLwe::U64(unsafe {
+            core::mem::transmute::<LweCiphertextOwned<Scalar>, LweCiphertextOwned<u64>>(lwe)
+        })
+    } else if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+        let lwe: LweCiphertextOwned<Scalar> = encrypt_new_noiseless_lwe_impl(
+            lwe_secret_key,
+            ciphertext_modulus,
+            msg,
+            encoding,
+            encryption_random_generation,
+        );
+
+        // Safety: lwe above is an LweCiphertextOwned<Scalar>, we verified Scalar == u128
+        // so we can transmute
+        DynLwe::U128(unsafe {
+            core::mem::transmute::<LweCiphertextOwned<Scalar>, LweCiphertextOwned<u128>>(lwe)
+        })
+    } else {
+        panic!("Unsupported scalar to encrypt noiseless LWE")
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -394,7 +454,7 @@ pub enum DecryptionAndNoiseResult {
 }
 
 impl DecryptionAndNoiseResult {
-    pub fn new<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
+    pub fn new_from_lwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &LweCiphertext<CtCont>,
         secret_key: &LweSecretKey<KeyCont>,
         expected_msg: Scalar,
@@ -414,9 +474,14 @@ impl DecryptionAndNoiseResult {
 
         let expected_plaintext = expected_msg * delta;
 
+        // decrypted_plaintext = expected_plaintext + error
+        // The order below computes:
+        // decrypted_plaintext - expected_plaintext in a modular way, which is what we want
+        // It only changes the average value sign, so that it is more intuitive when comparing to
+        // theory
         let noise = torus_modular_diff(
-            expected_plaintext,
             decrypted_plaintext,
+            expected_plaintext,
             ct.ciphertext_modulus(),
         );
 

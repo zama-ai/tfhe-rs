@@ -13,11 +13,13 @@ pub fn centered_binary_shifted_modulus_switch_additive_variance(
     modulus: f64,
     new_modulus: f64,
 ) -> Variance {
-    Variance(centered_binary_shifted_modulus_switch_additive_variance_impl(
-        input_lwe_dimension.0 as f64,
-        modulus,
-        new_modulus,
-    ))
+    Variance(
+        centered_binary_shifted_modulus_switch_additive_variance_impl(
+            input_lwe_dimension.0 as f64,
+            modulus,
+            new_modulus,
+        ),
+    )
 }
 
 /// This formula is only valid when going from a larger to a smaller modulus
