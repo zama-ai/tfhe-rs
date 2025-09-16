@@ -40,12 +40,10 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     use tfhe::shortint::parameters::{
-        NoiseSquashingCompressionParameters, ShortintKeySwitchingParameters,
+        NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+        ShortintKeySwitchingParameters,
     };
-    use tfhe::shortint::{
-        AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters, PBSParameters,
-        ShortintParameterSet,
-    };
+    use tfhe::shortint::{AtomicPatternParameters, PBSParameters};
 
     impl From<PBSParameters> for CryptoParametersRecord<u64> {
         fn from(params: PBSParameters) -> Self {
@@ -100,30 +98,12 @@ pub mod shortint_utils {
         }
     }
 
-    impl From<(CompressionParameters, ClassicPBSParameters)> for CryptoParametersRecord<u64> {
-        fn from((comp_params, pbs_params): (CompressionParameters, ClassicPBSParameters)) -> Self {
-            (comp_params, PBSParameters::PBS(pbs_params)).into()
-        }
-    }
-
-    impl From<(CompressionParameters, MultiBitPBSParameters)> for CryptoParametersRecord<u64> {
+    impl From<(CompressionParameters, AtomicPatternParameters)> for CryptoParametersRecord<u64> {
         fn from(
-            (comp_params, multi_bit_pbs_params): (CompressionParameters, MultiBitPBSParameters),
+            (comp_params, pbs_params): (CompressionParameters, AtomicPatternParameters),
         ) -> Self {
-            (
-                comp_params,
-                PBSParameters::MultiBitPBS(multi_bit_pbs_params),
-            )
-                .into()
-        }
-    }
-
-    impl From<(CompressionParameters, PBSParameters)> for CryptoParametersRecord<u64> {
-        fn from((comp_params, pbs_params): (CompressionParameters, PBSParameters)) -> Self {
-            let pbs_params = ShortintParameterSet::new_pbs_param_set(pbs_params);
-            let lwe_dimension = pbs_params.encryption_lwe_dimension();
             CryptoParametersRecord {
-                lwe_dimension: Some(lwe_dimension),
+                lwe_dimension: Some(pbs_params.lwe_dimension()),
                 br_level: Some(comp_params.br_level),
                 br_base_log: Some(comp_params.br_base_log),
                 packing_ks_level: Some(comp_params.packing_ks_level),
@@ -137,25 +117,42 @@ pub mod shortint_utils {
                     comp_params.packing_ks_key_noise_distribution,
                 ),
                 ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
-                error_probability: pbs_params
-                    .log2_p_fail()
-                    .map(|log2_pfail| 2f64.powf(log2_pfail)),
+                error_probability: Some(2f64.powf(pbs_params.log2_p_fail())),
                 ..Default::default()
             }
         }
     }
 
-    impl From<(NoiseSquashingCompressionParameters, ClassicPBSParameters)>
+    impl From<(NoiseSquashingParameters, AtomicPatternParameters)> for CryptoParametersRecord<u64> {
+        fn from(
+            (noise_squash_params, pbs_params): (NoiseSquashingParameters, AtomicPatternParameters),
+        ) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(pbs_params.lwe_dimension()),
+                glwe_dimension: Some(noise_squash_params.glwe_dimension()),
+                polynomial_size: Some(noise_squash_params.polynomial_size()),
+                pbs_level: Some(noise_squash_params.decomp_level_count()),
+                pbs_base_log: Some(noise_squash_params.decomp_base_log()),
+                lwe_noise_distribution: Some(pbs_params.encryption_noise_distribution()),
+                message_modulus: Some(noise_squash_params.message_modulus().0),
+                carry_modulus: Some(noise_squash_params.carry_modulus().0),
+                error_probability: Some(2f64.powf(pbs_params.log2_p_fail())),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<(NoiseSquashingCompressionParameters, AtomicPatternParameters)>
         for CryptoParametersRecord<u64>
     {
         fn from(
-            (comp_params, pbs_params): (NoiseSquashingCompressionParameters, ClassicPBSParameters),
+            (comp_params, pbs_params): (
+                NoiseSquashingCompressionParameters,
+                AtomicPatternParameters,
+            ),
         ) -> Self {
-            let pbs_params =
-                ShortintParameterSet::new_pbs_param_set(PBSParameters::PBS(pbs_params));
-            let lwe_dimension = pbs_params.encryption_lwe_dimension();
             CryptoParametersRecord {
-                lwe_dimension: Some(lwe_dimension),
+                lwe_dimension: Some(pbs_params.lwe_dimension()),
                 br_level: None,
                 br_base_log: None,
                 packing_ks_level: Some(comp_params.packing_ks_level),
@@ -167,9 +164,7 @@ pub mod shortint_utils {
                 lwe_noise_distribution: Some(pbs_params.encryption_noise_distribution()),
                 packing_ks_key_noise_distribution: None,
                 ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
-                error_probability: pbs_params
-                    .log2_p_fail()
-                    .map(|log2_pfail| 2f64.powf(log2_pfail)),
+                error_probability: Some(2f64.powf(pbs_params.log2_p_fail())),
                 ..Default::default()
             }
         }

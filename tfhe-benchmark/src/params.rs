@@ -115,7 +115,7 @@ pub mod shortint_params {
                 BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
                 (
                     BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 )
                     .into(),
             )]
@@ -206,6 +206,9 @@ pub mod shortint_params {
 
     #[cfg(feature = "internal-keycache")]
     pub use shortint_params_keycache::*;
+    use tfhe::shortint::parameters::current_params::meta::cpu::*;
+    use tfhe::shortint::parameters::current_params::meta::gpu::*;
+    use tfhe::shortint::parameters::MetaParameters;
 
     pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
@@ -392,6 +395,56 @@ pub mod shortint_params {
                 Some((*p, *name))
             })
             .collect()
+    }
+
+    pub fn get_classical_tuniform_groups() -> Vec<MetaParameters> {
+        vec![
+            // Most complete 2_2 parameters set
+            V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128,
+        ]
+    }
+
+    pub fn get_multi_bit_tuniform_groups() -> Vec<MetaParameters> {
+        // TODO Complete parameters groups once corresponding parameters set are available.
+        vec![
+            // Group 2
+            // CPU ---
+            V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128,
+            // GPU ---
+            V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128,
+            // Group 3
+            // CPU ---
+            V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128,
+            // GPU ---
+            V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128,
+            // Group 4
+            // CPU ---
+            V1_4_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
+            // GPU ---
+            V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128,
+            V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128,
+        ]
     }
 }
 
