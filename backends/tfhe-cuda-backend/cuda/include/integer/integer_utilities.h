@@ -4351,10 +4351,23 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *q3;                  // single block
 
   Torus *h_buffer; // used for memory copies
-  Torus **first_indexes_for_overflow_sub;
-  Torus **second_indexes_for_overflow_sub;
-  Torus **scalars_for_overflow_sub;
+
+  Torus **first_indexes_for_overflow_sub_gpu_0;
+  Torus **second_indexes_for_overflow_sub_gpu_0;
+  Torus **scalars_for_overflow_sub_gpu_0;
+
+  Torus **first_indexes_for_overflow_sub_gpu_1;
+  Torus **second_indexes_for_overflow_sub_gpu_1;
+  Torus **scalars_for_overflow_sub_gpu_1;
+
+  Torus **first_indexes_for_overflow_sub_gpu_2;
+  Torus **second_indexes_for_overflow_sub_gpu_2;
+  Torus **scalars_for_overflow_sub_gpu_2;
+
+  cudaEvent_t create_indexes_done;
+
   uint32_t max_indexes_to_erase;
+  uint64_t tmp_size_tracker = 0;
 
   // allocate and initialize if needed, temporary arrays used to calculate
   // cuda integer div_rem_2_2 operation
@@ -4376,13 +4389,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[0], gpu_indexes[0], rem3, num_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    sub_result_3 = new CudaRadixCiphertextFFI;
+    sub_result_1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], sub_result_3, num_blocks,
+        streams[0], gpu_indexes[0], sub_result_1, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    sub_3_overflowed = new CudaRadixCiphertextFFI;
+    sub_1_overflowed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], sub_3_overflowed, 1,
+        streams[0], gpu_indexes[0], sub_1_overflowed, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     tmp_gpu_0 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -4438,13 +4451,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[2], gpu_indexes[2], remainder_gpu_2, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    sub_result_1 = new CudaRadixCiphertextFFI;
+    sub_result_3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[2], gpu_indexes[2], sub_result_1, num_blocks,
+        streams[2], gpu_indexes[2], sub_result_3, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    sub_1_overflowed = new CudaRadixCiphertextFFI;
+    sub_3_overflowed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[2], gpu_indexes[2], sub_1_overflowed, 1,
+        streams[2], gpu_indexes[2], sub_3_overflowed, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     // comparison_blocks_1 = new CudaRadixCiphertextFFI;
@@ -4661,22 +4674,39 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         &streams[1], &gpu_indexes[1], 1, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
 
-    // uint32_t compute_overflow = 1;
-    // overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
-    //     streams, gpu_indexes, gpu_count, params, num_blocks,
-    //     compute_overflow, allocate_gpu_memory, size_tracker);
-    // overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
-    //     streams, gpu_indexes, gpu_count, params, num_blocks,
-    //     compute_overflow, allocate_gpu_memory, size_tracker);
-    // overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
-    //     streams, gpu_indexes, gpu_count, params, num_blocks,
-    //     compute_overflow, allocate_gpu_memory, size_tracker);
-    // uint32_t group_size = overflow_sub_mem_1->group_size;
-    // bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
-    //                    ->use_sequential_algorithm_to_resolve_group_carries;
-    // create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
-    //                                 group_size, use_seq, allocate_gpu_memory,
-    //                                 size_tracker);
+    uint32_t compute_overflow = 1;
+    overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
+        &streams[0], &gpu_indexes[0], 1, params, num_blocks, compute_overflow,
+        allocate_gpu_memory, size_tracker);
+    overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
+        &streams[1], &gpu_indexes[1], 1, params, num_blocks, compute_overflow,
+        allocate_gpu_memory, size_tracker);
+    overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
+        &streams[2], &gpu_indexes[2], 1, params, num_blocks, compute_overflow,
+        allocate_gpu_memory, size_tracker);
+    uint32_t group_size = overflow_sub_mem_1->group_size;
+    bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
+                       ->use_sequential_algorithm_to_resolve_group_carries;
+
+    cuda_set_device(0);
+    cudaEventCreateWithFlags(&create_indexes_done, cudaEventDisableTiming);
+    create_indexes_for_overflow_sub(&streams[0], &gpu_indexes[0], num_blocks,
+                                    group_size, use_seq, allocate_gpu_memory,
+                                    size_tracker);
+    cudaEventRecord(create_indexes_done, streams[0]);
+    cuda_set_device(1);
+    cudaStreamWaitEvent(streams[1], create_indexes_done, 0);
+    cuda_set_device(2);
+    cudaStreamWaitEvent(streams[2], create_indexes_done, 0);
+
+    scatter_indexes_for_overflowing_sub(
+        streams, gpu_indexes, 1, first_indexes_for_overflow_sub_gpu_1,
+        second_indexes_for_overflow_sub_gpu_1, scalars_for_overflow_sub_gpu_1,
+        num_blocks, allocate_gpu_memory, tmp_size_tracker);
+    scatter_indexes_for_overflowing_sub(
+        streams, gpu_indexes, 2, first_indexes_for_overflow_sub_gpu_2,
+        second_indexes_for_overflow_sub_gpu_2, scalars_for_overflow_sub_gpu_2,
+        num_blocks, allocate_gpu_memory, tmp_size_tracker);
     // comparison_buffer_1 = new int_comparison_buffer<Torus>(
     //     streams, gpu_indexes, gpu_count, COMPARISON_TYPE::EQ, params,
     //     num_blocks, false, allocate_gpu_memory, size_tracker);
@@ -4727,6 +4757,41 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     }
   }
 
+  void scatter_indexes_for_overflowing_sub(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      size_t gpu_index, Torus **first_indexes, Torus **second_indexes,
+      Torus **scalars, uint32_t num_blocks, bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
+    first_indexes = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    second_indexes = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    scalars = (Torus **)malloc(num_blocks * sizeof(Torus *));
+
+    for (int nb = 1; nb <= num_blocks; nb++) {
+      first_indexes[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          size_tracker, allocate_gpu_memory);
+      second_indexes[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          size_tracker, allocate_gpu_memory);
+      scalars[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          size_tracker, allocate_gpu_memory);
+
+      cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+          first_indexes[nb - 1], first_indexes_for_overflow_sub_gpu_0[nb - 1],
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+          second_indexes[nb - 1], second_indexes_for_overflow_sub_gpu_0[nb - 1],
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+          scalars[nb - 1], scalars_for_overflow_sub_gpu_0[nb - 1],
+          nb * sizeof(Torus), streams[gpu_index], gpu_indexes[gpu_index],
+          allocate_gpu_memory);
+    }
+  }
+
   void create_indexes_for_overflow_sub(cudaStream_t const *streams,
                                        uint32_t const *gpu_indexes,
                                        uint32_t num_blocks, uint32_t group_size,
@@ -4734,18 +4799,19 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                        uint64_t &size_tracker) {
     max_indexes_to_erase = num_blocks;
 
-    first_indexes_for_overflow_sub =
+    first_indexes_for_overflow_sub_gpu_0 =
         (Torus **)malloc(num_blocks * sizeof(Torus *));
-    second_indexes_for_overflow_sub =
+    second_indexes_for_overflow_sub_gpu_0 =
         (Torus **)malloc(num_blocks * sizeof(Torus *));
-    scalars_for_overflow_sub = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    scalars_for_overflow_sub_gpu_0 =
+        (Torus **)malloc(num_blocks * sizeof(Torus *));
 
     Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
     Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
-      first_indexes_for_overflow_sub[nb - 1] =
+      first_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
               allocate_gpu_memory);
@@ -4767,16 +4833,16 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         }
       }
       cuda_memcpy_with_size_tracking_async_to_gpu(
-          first_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
+          first_indexes_for_overflow_sub_gpu_0[nb - 1], h_lut_indexes,
           nb * sizeof(Torus), streams[0], gpu_indexes[0], allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
     for (int nb = 1; nb <= num_blocks; nb++) {
-      second_indexes_for_overflow_sub[nb - 1] =
+      second_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
               allocate_gpu_memory);
-      scalars_for_overflow_sub[nb - 1] =
+      scalars_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
               allocate_gpu_memory);
@@ -4813,10 +4879,10 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         }
       }
       cuda_memcpy_with_size_tracking_async_to_gpu(
-          second_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
+          second_indexes_for_overflow_sub_gpu_0[nb - 1], h_lut_indexes,
           nb * sizeof(Torus), streams[0], gpu_indexes[0], allocate_gpu_memory);
       cuda_memcpy_with_size_tracking_async_to_gpu(
-          scalars_for_overflow_sub[nb - 1], h_scalar, nb * sizeof(Torus),
+          scalars_for_overflow_sub_gpu_0[nb - 1], h_scalar, nb * sizeof(Torus),
           streams[0], gpu_indexes[0], allocate_gpu_memory);
     }
     free(h_lut_indexes);
@@ -4895,17 +4961,17 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], rem3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_result_1,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_result_3,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], sub_result_2,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_result_3,
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_result_1,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_1_overflowed,
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], sub_3_overflowed,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], sub_2_overflowed,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_3_overflowed,
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_1_overflowed,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_gpu_0,
                                    gpu_memory_allocated);
@@ -4983,20 +5049,46 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     // delete q2;
     // delete q3;
 
-    // for (int i = 0; i < max_indexes_to_erase; i++) {
-    //   cuda_drop_with_size_tracking_async(first_indexes_for_overflow_sub[i],
-    //                                      streams[0], gpu_indexes[0],
-    //                                      gpu_memory_allocated);
-    //   cuda_drop_with_size_tracking_async(second_indexes_for_overflow_sub[i],
-    //                                      streams[0], gpu_indexes[0],
-    //                                      gpu_memory_allocated);
-    //   cuda_drop_with_size_tracking_async(scalars_for_overflow_sub[i],
-    //                                      streams[0], gpu_indexes[0],
-    //                                      gpu_memory_allocated);
-    // }
-    // free(first_indexes_for_overflow_sub);
-    // free(second_indexes_for_overflow_sub);
-    // free(scalars_for_overflow_sub);
+    for (int i = 0; i < max_indexes_to_erase; i++) {
+      cuda_drop_with_size_tracking_async(
+          first_indexes_for_overflow_sub_gpu_0[i], streams[0], gpu_indexes[0],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(
+          second_indexes_for_overflow_sub_gpu_0[i], streams[0], gpu_indexes[0],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(scalars_for_overflow_sub_gpu_0[i],
+                                         streams[0], gpu_indexes[0],
+                                         gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(
+          first_indexes_for_overflow_sub_gpu_1[i], streams[1], gpu_indexes[1],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(
+          second_indexes_for_overflow_sub_gpu_1[i], streams[1], gpu_indexes[1],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(scalars_for_overflow_sub_gpu_1[i],
+                                         streams[1], gpu_indexes[1],
+                                         gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(
+          first_indexes_for_overflow_sub_gpu_2[i], streams[2], gpu_indexes[2],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(
+          second_indexes_for_overflow_sub_gpu_2[i], streams[2], gpu_indexes[2],
+          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(scalars_for_overflow_sub_gpu_2[i],
+                                         streams[2], gpu_indexes[2],
+                                         gpu_memory_allocated);
+    }
+    free(first_indexes_for_overflow_sub_gpu_0);
+    free(second_indexes_for_overflow_sub_gpu_0);
+    free(scalars_for_overflow_sub_gpu_0);
+    free(first_indexes_for_overflow_sub_gpu_1);
+    free(second_indexes_for_overflow_sub_gpu_1);
+    free(scalars_for_overflow_sub_gpu_1);
+    free(first_indexes_for_overflow_sub_gpu_2);
+    free(second_indexes_for_overflow_sub_gpu_2);
+    free(scalars_for_overflow_sub_gpu_2);
+
+    cudaEventDestroy(create_indexes_done);
   }
 };
 

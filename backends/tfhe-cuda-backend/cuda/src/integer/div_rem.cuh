@@ -126,19 +126,20 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   for (int block_index = num_blocks - 1; block_index >= 0; block_index--) {
     uint32_t slice_len = num_blocks - block_index;
 
-    auto init_low_rem_f =
-        [&](CudaRadixCiphertextFFI *low, CudaRadixCiphertextFFI *xd,
-            CudaRadixCiphertextFFI *rem, CudaRadixCiphertextFFI *cur_remainder,
-            size_t gpu_index) {
-          low->num_radix_blocks = slice_len;
-          rem->num_radix_blocks = slice_len;
-          copy_radix_ciphertext_slice_async<Torus>(
-              streams[gpu_index], gpu_indexes[gpu_index], low, 0, slice_len, xd,
-              0, slice_len);
-          copy_radix_ciphertext_slice_async<Torus>(
-              streams[gpu_index], gpu_indexes[gpu_index], rem, 0, slice_len,
-              cur_remainder, block_index, num_blocks);
-        };
+    auto init_low_rem_f = [&](CudaRadixCiphertextFFI *low,
+                              CudaRadixCiphertextFFI *xd,
+                              CudaRadixCiphertextFFI *rem,
+                              CudaRadixCiphertextFFI *cur_remainder,
+                              size_t gpu_index) {
+      low->num_radix_blocks = slice_len;
+      rem->num_radix_blocks = slice_len;
+      copy_radix_ciphertext_slice_async<Torus>(streams[gpu_index],
+                                               gpu_indexes[gpu_index], low, 0,
+                                               slice_len, xd, 0, slice_len);
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams[gpu_index], gpu_indexes[gpu_index], rem, 0, slice_len,
+          cur_remainder, block_index, num_blocks);
+    };
 
     init_low_rem_f(mem_ptr->low1, mem_ptr->d1, mem_ptr->rem1, remainder_gpu_2,
                    2);
