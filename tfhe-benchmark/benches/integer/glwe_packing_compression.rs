@@ -133,7 +133,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
         write_to_json::<u64, _>(
             &bench_id_pack,
-            (comp_param, param),
+            (comp_param, param.into()),
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
@@ -143,7 +143,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
         write_to_json::<u64, _>(
             &bench_id_unpack,
-            (comp_param, param),
+            (comp_param, param.into()),
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
@@ -362,7 +362,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id_pack,
-                (comp_param, param),
+                (comp_param, param.into()),
                 comp_param.name(),
                 "pack",
                 &OperatorType::Atomic,
@@ -372,7 +372,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id_unpack,
-                (comp_param, param),
+                (comp_param, param.into()),
                 comp_param.name(),
                 "unpack",
                 &OperatorType::Atomic,
@@ -557,7 +557,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id_pack,
-                (noise_squashing_compression_parameters, param),
+                (noise_squashing_compression_parameters, param.into()),
                 noise_squashing_compression_parameters.name(),
                 "pack",
                 &OperatorType::Atomic,
@@ -567,7 +567,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id_unpack,
-                (noise_squashing_compression_parameters, param),
+                (noise_squashing_compression_parameters, param.into()),
                 noise_squashing_compression_parameters.name(),
                 "unpack",
                 &OperatorType::Atomic,
