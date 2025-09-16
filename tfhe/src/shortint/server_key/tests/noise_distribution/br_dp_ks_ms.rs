@@ -5,9 +5,9 @@ use super::utils::noise_simulation::{
 };
 use super::utils::traits::*;
 use super::utils::{
-    encrypt_new_noiseless_lwe, mean_and_variance_check, normality_check, pfail_check,
-    update_ap_params_for_pfail, DecryptionAndNoiseResult, NoiseSample, PfailTestMeta,
-    PfailTestResult,
+    encrypt_new_noiseless_lwe, encrypt_new_noiseless_lwe_impl, mean_and_variance_check,
+    normality_check, pfail_check, update_ap_params_for_pfail, DecryptionAndNoiseResult,
+    NoiseSample, PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::dispersion::Variance;
@@ -240,7 +240,7 @@ where
 
             for _ in 0..10 {
                 let input_zero_as_lwe = ShortintEngine::with_thread_local_mut(|engine| {
-                    encrypt_new_noiseless_lwe(
+                    encrypt_new_noiseless_lwe_impl(
                         &small_lwe_sk,
                         ms_ciphertext_modulus,
                         0,
@@ -368,7 +368,7 @@ fn encrypt_br_dp_ks_ms_inner_helper(
     let ct = match &cks.atomic_pattern {
         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
             ShortintEngine::with_thread_local_mut(|engine| {
-                encrypt_new_noiseless_lwe(
+                encrypt_new_noiseless_lwe_impl(
                     &standard_atomic_pattern_client_key.lwe_secret_key,
                     CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
                     0,
@@ -593,96 +593,47 @@ where
     };
 
     let id_lut = sks.generate_lookup_table(|x| x);
-    let small_lwe_sk = match &cks.atomic_pattern {
+    let sample_input = match &cks.atomic_pattern {
         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            standard_atomic_pattern_client_key.lwe_secret_key.clone()
+            ShortintEngine::with_thread_local_mut(|engine| {
+                encrypt_new_noiseless_lwe(
+                    &standard_atomic_pattern_client_key.lwe_secret_key,
+                    CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
+                    0,
+                    &sks.encoding(PaddingBit::Yes),
+                    &mut engine.encryption_generator,
+                )
+            })
         }
-        AtomicPatternClientKey::KeySwitch32(_ks32_atomic_pattern_client_key) => todo!(),
+        AtomicPatternClientKey::KeySwitch32(_ks32_atomic_pattern_client_key) => {
+            // ShortintEngine::with_thread_local_mut(|engine| {
+            //     encrypt_new_noiseless_lwe(
+            //         &ks32_atomic_pattern_client_key.lwe_secret_key,
+            //         CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
+            //         0,
+            //         &sks.encoding(PaddingBit::Yes),
+            //         &mut engine.encryption_generator,
+            //     )
+            // })
+            todo!("Manage generation of DynLwe as an additional impl on the ClientKey")
+        }
     };
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
-    let (expected_lwe_dimension_out, expected_modulus_f64_out) = match &sks.atomic_pattern {
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            let drift_key = standard_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_configuration()
-                .unwrap()
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+    let (expected_lwe_dimension_out, expected_modulus_f64_out) = {
+        let (_input, _after_br, _after_dp, _after_ks, _after_drift, after_ms) = br_dp_ks_ms(
+            sample_input,
+            &sks,
+            max_scalar_mul,
+            &sks,
+            &sks,
+            &id_lut,
+            br_input_modulus_log,
+            &mut (),
+        );
 
-            let fbsk = match &standard_atomic_pattern_server_key.bootstrapping_key {
-                ShortintBootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key: _,
-                } => bsk,
-                ShortintBootstrappingKey::MultiBit { .. } => todo!(),
-            };
-
-            let (_input, _after_br, _after_dp, _after_ks, _after_drift, after_ms) = br_dp_ks_ms(
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    encrypt_new_noiseless_lwe(
-                        &small_lwe_sk,
-                        CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
-                        0,
-                        &sks.encoding(PaddingBit::Yes),
-                        &mut engine.encryption_generator,
-                    )
-                }),
-                fbsk,
-                max_scalar_mul,
-                &standard_atomic_pattern_server_key.key_switching_key,
-                drift_key,
-                &id_lut.acc,
-                br_input_modulus_log,
-                &mut (),
-            );
-
-            (
-                after_ms.lwe_size().to_lwe_dimension(),
-                after_ms.ciphertext_modulus().raw_modulus_float(),
-            )
-        }
-        AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
-            let drift_key = ks32_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_configuration()
-                .unwrap()
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
-
-            let fbsk = match &ks32_atomic_pattern_server_key.bootstrapping_key {
-                ShortintBootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key: _,
-                } => bsk,
-                ShortintBootstrappingKey::MultiBit { .. } => todo!(),
-            };
-
-            let (_input, _after_br, _after_dp, _after_ks, _after_drift, after_ms) = br_dp_ks_ms(
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    encrypt_new_noiseless_lwe(
-                        &small_lwe_sk,
-                        CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
-                        0,
-                        &sks.encoding(PaddingBit::Yes),
-                        &mut engine.encryption_generator,
-                    )
-                }),
-                fbsk,
-                max_scalar_mul,
-                &ks32_atomic_pattern_server_key.key_switching_key,
-                drift_key,
-                &id_lut.acc,
-                br_input_modulus_log,
-                &mut (),
-            );
-            (
-                after_ms.lwe_size().to_lwe_dimension(),
-                after_ms.ciphertext_modulus().raw_modulus_float(),
-            )
-        }
-        AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
+        (after_ms.lwe_dimension(), after_ms.raw_modulus_float())
     };
 
     assert_eq!(after_ms_sim.lwe_dimension(), expected_lwe_dimension_out);
