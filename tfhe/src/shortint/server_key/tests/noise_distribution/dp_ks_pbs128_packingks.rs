@@ -23,11 +23,11 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, NoiseSquashingCompressionParameters};
-use crate::shortint::server_key::{ModulusSwitchConfiguration, ServerKey};
+use crate::shortint::server_key::ServerKey;
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
-fn dp_ks_standard_pbs128<
+fn dp_ks_any_ms_standard_pbs128<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -44,7 +44,8 @@ fn dp_ks_standard_pbs128<
     input: InputCt,
     scalar: DPScalar,
     ksk: &KsKey,
-    mod_switch_noise_reduction_key_128: &DriftKey,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
+    mod_switch_noise_reduction_key_128: Option<&DriftKey>,
     bsk_128: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
@@ -53,7 +54,7 @@ fn dp_ks_standard_pbs128<
     InputCt,
     ScalarMulResult,
     KsResult,
-    DriftTechniqueResult,
+    Option<DriftTechniqueResult>,
     MsResult,
     PbsResult,
 )
@@ -63,6 +64,12 @@ where
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
     KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
         + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsResult: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
+        + StandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
+            Output = MsResult,
+            SideResources = Resources,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -83,15 +90,46 @@ where
     let after_dp = input.scalar_mul(scalar, side_resources);
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
     ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
-    let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key_128
-        .allocate_drift_technique_standard_mod_switch_result(side_resources);
-    mod_switch_noise_reduction_key_128.drift_technique_and_standard_mod_switch(
-        br_input_modulus_log,
-        &ks_result,
-        &mut drift_technique_result,
-        &mut ms_result,
-        side_resources,
-    );
+
+    let (drift_technique_result, ms_result) = match (
+        modulus_switch_configuration,
+        mod_switch_noise_reduction_key_128,
+    ) {
+        (
+            NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
+            Some(mod_switch_noise_reduction_key_128),
+        ) => {
+            let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key_128
+                .allocate_drift_technique_standard_mod_switch_result(side_resources);
+            mod_switch_noise_reduction_key_128.drift_technique_and_standard_mod_switch(
+                br_input_modulus_log,
+                &ks_result,
+                &mut drift_technique_result,
+                &mut ms_result,
+                side_resources,
+            );
+
+            (Some(drift_technique_result), ms_result)
+        }
+        (NoiseSimulationModulusSwitchConfig::Standard, None) => {
+            let mut ms_result = ks_result.allocate_standard_mod_switch_result(side_resources);
+            ks_result.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
+
+            (None, ms_result)
+        }
+        (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
+            let mut ms_result = ks_result
+                .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
+            ks_result.centered_binary_shifted_and_standard_mod_switch(
+                br_input_modulus_log,
+                &mut ms_result,
+                side_resources,
+            );
+
+            (None, ms_result)
+        }
+        _ => panic!("Inconsistent modulus switch and drift key configuration"),
+    };
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
     bsk_128.lwe_classic_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
@@ -107,7 +145,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn dp_ks_standard_pbs128_packing_ks<
+fn dp_ks_any_ms_standard_pbs128_packing_ks<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -126,7 +164,8 @@ fn dp_ks_standard_pbs128_packing_ks<
     input: Vec<InputCt>,
     scalar: DPScalar,
     ksk: &KsKey,
-    mod_switch_noise_reduction_key_128: &DriftKey,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
+    mod_switch_noise_reduction_key_128: Option<&DriftKey>,
     bsk_128: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
@@ -137,7 +176,7 @@ fn dp_ks_standard_pbs128_packing_ks<
         InputCt,
         ScalarMulResult,
         KsResult,
-        DriftTechniqueResult,
+        Option<DriftTechniqueResult>,
         MsResult,
         PbsResult,
     )>,
@@ -150,6 +189,12 @@ where
     KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
         + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>
         + Sync,
+    KsResult: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
+        + StandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
+            Output = MsResult,
+            SideResources = Resources,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -182,10 +227,11 @@ where
         .zip(side_resources.par_iter_mut())
         .map(|(input, side_resources)| {
             let (input, after_dp, ks_result, drift_technique_result, ms_result, pbs_result) =
-                dp_ks_standard_pbs128(
+                dp_ks_any_ms_standard_pbs128(
                     input,
                     scalar,
                     ksk,
+                    modulus_switch_configuration,
                     mod_switch_noise_reduction_key_128,
                     bsk_128,
                     br_input_modulus_log,
@@ -247,6 +293,20 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
 
     let lwe_per_glwe = noise_squashing_compression_key.lwe_per_glwe();
 
+    let noise_simulation_modulus_switch_config =
+        noise_squashing_key.noise_simulation_modulus_switch_config();
+    let drift_key = match noise_simulation_modulus_switch_config {
+        NoiseSimulationModulusSwitchConfig::Standard => None,
+        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => {
+            Some(&noise_squashing_key)
+        }
+        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
+    };
+    let br_input_modulus_log = noise_squashing_key
+        .bootstrapping_key()
+        .polynomial_size()
+        .to_blind_rotation_input_modulus_log();
+
     let u128_encoding = ShortintEncoding {
         ciphertext_modulus: noise_squashing_params.ciphertext_modulus(),
         message_modulus: noise_squashing_params.message_modulus(),
@@ -256,86 +316,59 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
 
     let max_scalar_mul = sks.max_noise_level.get();
 
-    match &sks.atomic_pattern {
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            let ksk = &standard_atomic_pattern_server_key.key_switching_key;
-            let bsk = noise_squashing_key.bootstrapping_key();
-            let (fbsk, drift_key) = match bsk {
-                Shortint128BootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key,
-                } => (bsk, modulus_switch_noise_reduction_key),
-                Shortint128BootstrappingKey::MultiBit { .. } => todo!(),
-            };
-            let drift_key = {
-                match drift_key {
-                    ModulusSwitchConfiguration::Standard => None,
-                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
-                        modulus_switch_noise_reduction_key,
-                    ) => Some(modulus_switch_noise_reduction_key),
-                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
-                }
-                .unwrap()
-            };
-            let pksk = noise_squashing_compression_key.packing_key_switching_key();
+    let id_lut = generate_programmable_bootstrap_glwe_lut(
+        noise_squashing_key.bootstrapping_key().polynomial_size(),
+        noise_squashing_key.bootstrapping_key().glwe_size(),
+        u128_encoding
+            .cleartext_space_without_padding()
+            .try_into()
+            .unwrap(),
+        u128_encoding.ciphertext_modulus,
+        u128_encoding.delta(),
+        |x| x,
+    );
 
-            let id_lut = generate_programmable_bootstrap_glwe_lut(
-                fbsk.polynomial_size(),
-                fbsk.glwe_size(),
-                u128_encoding
-                    .cleartext_space_without_padding()
-                    .try_into()
-                    .unwrap(),
-                u128_encoding.ciphertext_modulus,
-                u128_encoding.delta(),
-                |x| x,
-            );
+    let input_zeros: Vec<_> = (0..lwe_per_glwe.0).map(|_| cks.encrypt(0)).collect();
+    let mut side_resources = vec![(); input_zeros.len()];
+    let input_zero_as_lwe: Vec<_> = input_zeros
+        .iter()
+        .map(|ct| DynLwe::U64(ct.ct.clone()))
+        .collect();
 
-            let br_input_modulus_log = fbsk.polynomial_size().to_blind_rotation_input_modulus_log();
+    let (_before_packing, mut after_packing) = dp_ks_any_ms_standard_pbs128_packing_ks(
+        input_zero_as_lwe,
+        max_scalar_mul,
+        &sks,
+        noise_simulation_modulus_switch_config,
+        drift_key,
+        &noise_squashing_key,
+        br_input_modulus_log,
+        &id_lut,
+        &noise_squashing_compression_key,
+        &mut side_resources,
+    );
 
-            let input_zeros: Vec<_> = (0..lwe_per_glwe.0).map(|_| cks.encrypt(0)).collect();
-            let mut side_resources = vec![(); input_zeros.len()];
-            let input_zero_as_lwe: Vec<_> = input_zeros.iter().map(|ct| ct.ct.clone()).collect();
+    let noise_squashed: Vec<_> = input_zeros
+        .into_par_iter()
+        .map(|mut ct| {
+            sks.unchecked_scalar_mul_assign(&mut ct, max_scalar_mul.try_into().unwrap());
+            noise_squashing_key.squash_ciphertext_noise(&ct, &sks)
+        })
+        .collect();
 
-            let (_before_packing, mut after_packing) = dp_ks_standard_pbs128_packing_ks(
-                input_zero_as_lwe,
-                max_scalar_mul,
-                ksk,
-                drift_key,
-                fbsk,
-                br_input_modulus_log,
-                &id_lut,
-                pksk,
-                &mut side_resources,
-            );
+    let compressed = noise_squashing_compression_key
+        .compress_noise_squashed_ciphertexts_into_list(&noise_squashed);
 
-            let noise_squashed: Vec<_> = input_zeros
-                .into_par_iter()
-                .map(|mut ct| {
-                    sks.unchecked_scalar_mul_assign(&mut ct, max_scalar_mul.try_into().unwrap());
-                    noise_squashing_key.squash_ciphertext_noise(&ct, &sks)
-                })
-                .collect();
+    let underlying_glwes = compressed.glwe_ciphertext_list;
 
-            let compressed = noise_squashing_compression_key
-                .compress_noise_squashed_ciphertexts_into_list(&noise_squashed);
+    assert_eq!(underlying_glwes.len(), 1);
 
-            let underlying_glwes = compressed.glwe_ciphertext_list;
+    let extracted = underlying_glwes[0].extract();
 
-            assert_eq!(underlying_glwes.len(), 1);
+    // Bodies that were not filled are discarded
+    after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
-            let extracted = underlying_glwes[0].extract();
-
-            // Bodies that were not filled are discarded
-            after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
-
-            assert_eq!(after_packing.as_view(), extracted.as_view());
-        }
-        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => {
-            todo!();
-        }
-        AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
-    }
+    assert_eq!(after_packing.as_view(), extracted.as_view());
 }
 
 #[test]
@@ -419,44 +452,18 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         )
     };
 
-    let ksk = match &sks.atomic_pattern {
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            &standard_atomic_pattern_server_key.key_switching_key
+    let noise_simulation_modulus_switch_config =
+        noise_squashing_key.noise_simulation_modulus_switch_config();
+    let drift_key = match noise_simulation_modulus_switch_config {
+        NoiseSimulationModulusSwitchConfig::Standard => None,
+        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => {
+            Some(noise_squashing_key)
         }
-        AtomicPatternServerKey::KeySwitch32(_) => {
-            todo!()
-        }
-        AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
+        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
-
-    let (bsk_128, drift_key) = {
-        let (bsk, drift_key) = match noise_squashing_key.bootstrapping_key() {
-            Shortint128BootstrappingKey::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => (bsk, modulus_switch_noise_reduction_key),
-            Shortint128BootstrappingKey::MultiBit { .. } => todo!(),
-        };
-
-        let drift_key = match drift_key {
-            ModulusSwitchConfiguration::Standard => None,
-            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
-                modulus_switch_noise_reduction_key,
-            ) => Some(modulus_switch_noise_reduction_key),
-            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
-        }
-        .unwrap();
-
-        (bsk, drift_key)
-    };
-
-    let bsk_polynomial_size = bsk_128.polynomial_size();
-    let bsk_glwe_size = bsk_128.glwe_size();
-    let br_input_modulus_log = bsk_128
-        .polynomial_size()
-        .to_blind_rotation_input_modulus_log();
-
-    let compression_pksk = noise_squashing_compression_key.packing_key_switching_key();
+    let bsk_polynomial_size = noise_squashing_key.bootstrapping_key().polynomial_size();
+    let bsk_glwe_size = noise_squashing_key.bootstrapping_key().glwe_size();
+    let br_input_modulus_log = bsk_polynomial_size.to_blind_rotation_input_modulus_log();
 
     let u128_encoding = ShortintEncoding {
         ciphertext_modulus: noise_squashing_params.ciphertext_modulus(),
@@ -479,18 +486,21 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
 
     let lwe_per_glwe = noise_squashing_compression_key.lwe_per_glwe();
 
-    let inputs: Vec<_> = (0..lwe_per_glwe.0).map(|_| cks.encrypt(msg).ct).collect();
+    let inputs: Vec<_> = (0..lwe_per_glwe.0)
+        .map(|_| DynLwe::U64(cks.encrypt(msg).ct))
+        .collect();
     let mut side_resources = vec![(); inputs.len()];
 
-    let (before_packing, after_packing) = dp_ks_standard_pbs128_packing_ks(
+    let (before_packing, after_packing) = dp_ks_any_ms_standard_pbs128_packing_ks(
         inputs,
         scalar_for_multiplication,
-        ksk,
+        sks,
+        noise_simulation_modulus_switch_config,
         drift_key,
-        bsk_128,
+        noise_squashing_key,
         br_input_modulus_log,
         &id_lut,
-        compression_pksk,
+        noise_squashing_compression_key,
         side_resources.as_mut_slice(),
     );
 
@@ -499,48 +509,49 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
     let before_packing: Vec<_> = before_packing
         .into_iter()
         .map(
-            |(input, after_dp, after_ks, after_drift, after_ms, after_pbs128)| match &cks
-                .atomic_pattern
-            {
-                AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-                    DecryptionAndNoiseResult::new(
-                        &input,
-                        &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                        msg,
-                        &u64_encoding,
+            |(input, after_dp, after_ks, after_drift, after_ms, after_pbs128)| {
+                let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
+                match &cks.atomic_pattern {
+                    AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &input.as_lwe_64(),
+                            &standard_atomic_pattern_client_key.large_lwe_secret_key(),
+                            msg,
+                            &u64_encoding,
+                        ),
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &after_dp.as_lwe_64(),
+                            &standard_atomic_pattern_client_key.large_lwe_secret_key(),
+                            msg,
+                            &u64_encoding,
+                        ),
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &after_ks.as_lwe_64(),
+                            &standard_atomic_pattern_client_key.small_lwe_secret_key(),
+                            msg,
+                            &u64_encoding,
+                        ),
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &before_ms.as_lwe_64(),
+                            &standard_atomic_pattern_client_key.small_lwe_secret_key(),
+                            msg,
+                            &u64_encoding,
+                        ),
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &after_ms.as_lwe_64(),
+                            &standard_atomic_pattern_client_key.small_lwe_secret_key(),
+                            msg,
+                            &u64_encoding,
+                        ),
+                        DecryptionAndNoiseResult::new_from_lwe(
+                            &after_pbs128,
+                            &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
+                            msg.into(),
+                            &u128_encoding,
+                        ),
                     ),
-                    DecryptionAndNoiseResult::new(
-                        &after_dp,
-                        &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                        msg,
-                        &u64_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new(
-                        &after_ks,
-                        &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                        msg,
-                        &u64_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new(
-                        &after_drift,
-                        &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                        msg,
-                        &u64_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new(
-                        &after_ms,
-                        &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                        msg,
-                        &u64_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new(
-                        &after_pbs128,
-                        &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
-                        msg.into(),
-                        &u128_encoding,
-                    ),
-                ),
-                AtomicPatternClientKey::KeySwitch32(_) => todo!(),
+                    AtomicPatternClientKey::KeySwitch32(_) => todo!(),
+                }
             },
         )
         .collect();
@@ -667,6 +678,9 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         noise_squashing_compression_params,
     );
 
+    let noise_simulation_modulus_switch_config =
+        noise_squashing_key.noise_simulation_modulus_switch_config();
+
     let fbsk_128 = match noise_squashing_key.bootstrapping_key() {
         Shortint128BootstrappingKey::Classic {
             bsk,
@@ -709,11 +723,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
 
     let (_before_packing_sim, after_packing_sim) = {
         let noise_simulation = NoiseSimulationLwe::encrypt(&cks, 0);
-        dp_ks_standard_pbs128_packing_ks(
+        dp_ks_any_ms_standard_pbs128_packing_ks(
             vec![noise_simulation; noise_squashing_compression_key.lwe_per_glwe().0],
             max_scalar_mul,
             &noise_simulation_ksk,
-            &noise_simulation_drift_key,
+            noise_simulation_modulus_switch_config,
+            noise_simulation_drift_key.as_ref(),
             &noise_simulation_bsk128,
             br_input_modulus_log,
             &noise_simulation_accumulator,

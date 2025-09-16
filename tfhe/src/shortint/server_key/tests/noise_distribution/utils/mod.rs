@@ -27,7 +27,7 @@ use crate::core_crypto::commons::traits::container::Container;
 use crate::core_crypto::commons::traits::Encryptable;
 use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
-use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
+use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
@@ -135,7 +135,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
                 );
             }
         } else {
-            println!("FAIL:measured_variance_{suffix} is NOT secure.")
+            println!("FAIL: measured_variance_{suffix} is NOT secure.")
         }
 
         variance_is_secure
@@ -170,7 +170,7 @@ pub fn encrypt_new_noiseless_lwe<
     msg: Scalar,
     encoding: &ShortintEncoding<Scalar>,
     encryption_random_generation: &mut EncryptionRandomGenerator<Gen>,
-) -> LweCiphertext<Vec<Scalar>> {
+) -> LweCiphertextOwned<Scalar> {
     let noiseless_distribution = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
 
     let plaintext = encoding.encode(Cleartext(msg));
@@ -394,7 +394,7 @@ pub enum DecryptionAndNoiseResult {
 }
 
 impl DecryptionAndNoiseResult {
-    pub fn new<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
+    pub fn new_from_lwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &LweCiphertext<CtCont>,
         secret_key: &LweSecretKey<KeyCont>,
         expected_msg: Scalar,
@@ -414,9 +414,14 @@ impl DecryptionAndNoiseResult {
 
         let expected_plaintext = expected_msg * delta;
 
+        // decrypted_plaintext = expected_plaintext + error
+        // The order below computes:
+        // decrypted_plaintext - expected_plaintext in a modular way, which is what we want
+        // It only changes the average value sign, so that it is more intuitive when comparing to
+        // theory
         let noise = torus_modular_diff(
-            expected_plaintext,
             decrypted_plaintext,
+            expected_plaintext,
             ct.ciphertext_modulus(),
         );
 

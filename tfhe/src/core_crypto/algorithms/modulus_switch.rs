@@ -100,7 +100,8 @@ where
 
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateStandardModSwitchResult, StandardModSwitch,
+    AllocateCenteredBinaryShiftedStandardModSwitchResult, AllocateStandardModSwitchResult,
+    CenteredBinaryShiftedStandardModSwitch, StandardModSwitch,
 };
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardModSwitchResult
@@ -138,7 +139,7 @@ impl<
             .is_compatible_with_native_modulus());
         assert_eq!(self.lwe_size(), output.lwe_size());
         // Mod switched but the noise is to be interpreted with respect to the input modulus, as
-        // strictly the operation adding the noise is the rounding under the original rounding
+        // strictly the operation adding the noise is the rounding under the original modulus
         assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
 
         for (inp, out) in self.as_ref().iter().zip(output.as_mut().iter_mut()) {
@@ -146,6 +147,59 @@ impl<
             // Shift in MSBs to match the power of 2 encoding in core
             *out = msed << (Scalar::BITS - output_modulus_log.0);
         }
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
+    AllocateCenteredBinaryShiftedStandardModSwitchResult for LweCiphertext<C>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_centered_binary_shifted_standard_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // We will mod switch but we keep the current modulus as the noise is interesting in the
+        // context of the input modulus
+        Self::Output::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus())
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        OutputCont: ContainerMut<Element = Scalar>,
+    > CenteredBinaryShiftedStandardModSwitch<LweCiphertext<OutputCont>>
+    for LweCiphertext<InputCont>
+{
+    type SideResources = ();
+
+    fn centered_binary_shifted_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut LweCiphertext<OutputCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert!(self
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus());
+        assert_eq!(self.lwe_size(), output.lwe_size());
+        // Mod switched but the noise is to be interpreted with respect to the input modulus, as
+        // strictly the operation adding the noise is the rounding under the original rounding
+        assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
+
+        let lwe_mod_switched = lwe_ciphertext_centered_binary_modulus_switch::<Scalar, Scalar, _>(
+            self.as_view(),
+            output_modulus_log,
+        );
+
+        let (mut out_mask, out_body) = output.get_mut_mask_and_body();
+
+        for (inp, out) in lwe_mod_switched.mask().zip(out_mask.as_mut().iter_mut()) {
+            *out = inp << (Scalar::BITS - output_modulus_log.0);
+        }
+        *out_body.data = lwe_mod_switched.body() << (Scalar::BITS - output_modulus_log.0);
     }
 }
 

@@ -66,3 +66,24 @@ pub trait MultiBitModSwitch<Output> {
         side_resources: &mut Self::SideResources,
     );
 }
+
+pub trait AllocateCenteredBinaryShiftedStandardModSwitchResult {
+    type Output;
+    type SideResources;
+
+    fn allocate_centered_binary_shifted_standard_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
+}
+
+pub trait CenteredBinaryShiftedStandardModSwitch<Output> {
+    type SideResources;
+
+    fn centered_binary_shifted_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut Output,
+        side_resources: &mut Self::SideResources,
+    );
+}
