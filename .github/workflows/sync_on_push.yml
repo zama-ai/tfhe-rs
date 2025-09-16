@@ -21,7 +21,7 @@ jobs:
           SOURCE_BRANCH: "main"
           DESTINATION_BRANCH: "main"
           USERNAME: ${{ secrets.BOT_USERNAME }}
-          TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          TOKEN: ${{ secrets.SYNC_REPO_TOKEN }}
           DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
         run: |
           echo ">>> Cloning source repo..."
@@ -50,7 +50,7 @@ jobs:
           SOURCE_BRANCH: "refs/tags/*"
           DESTINATION_BRANCH: "refs/tags/*"
           USERNAME: ${{ secrets.BOT_USERNAME }}
-          TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          TOKEN: ${{ secrets.SYNC_REPO_TOKEN }}
           DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
         run: |
           echo ">>> Cloning source repo..."
