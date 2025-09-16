@@ -12,9 +12,10 @@ use tfhe_1_4_versionable::Versionize as VersionizeTfhe_1_4;
 use tfhe_versionable::{Versionize as VersionizeTfhe_0_10, Versionize as VersionizeTfhe_0_8};
 
 use crate::{
-    data_dir, dir_for_version, TestClassicParameterSet, TestCompressionParameterSet,
-    TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
-    TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
+    data_dir, dir_for_version, TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters,
+    TestCompressionParameterSet, TestDistribution, TestKeySwitchingParams, TestMetadata,
+    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
+    TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
     TestNoiseSquashingParamsMultiBit, TestParameterSet,
 };
 
@@ -181,7 +182,7 @@ pub const INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION: TestNoi
         ciphertext_modulus: 0,
     };
 
-pub const TEST_PRAMS_NOISE_SQUASHING_COMPRESSION: TestNoiseSquashingCompressionParameters =
+pub const TEST_PARAMS_NOISE_SQUASHING_COMPRESSION: TestNoiseSquashingCompressionParameters =
     TestNoiseSquashingCompressionParameters {
         packing_ks_level: 1,
         packing_ks_base_log: 61,
@@ -241,6 +242,30 @@ pub const INVALID_TEST_PARAMS: TestClassicParameterSet = TestClassicParameterSet
     encryption_key_choice: Cow::Borrowed("big"),
     modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
 };
+
+pub const KS_TO_SMALL_TEST_PARAMS: TestKeySwitchingParams = TestKeySwitchingParams {
+    ks_level: 5,
+    ks_base_log: 3,
+    destination_key: Cow::Borrowed("small"),
+};
+
+/// Parameters used to create a rerand key
+pub const KS_TO_BIG_TEST_PARAMS: TestKeySwitchingParams = TestKeySwitchingParams {
+    ks_level: 1,
+    ks_base_log: 27,
+    destination_key: Cow::Borrowed("big"),
+};
+
+pub const INSECURE_DEDICATED_CPK_TEST_PARAMS: TestCompactPublicKeyEncryptionParameters =
+    TestCompactPublicKeyEncryptionParameters {
+        encryption_lwe_dimension: 32,
+        encryption_noise_distribution: TestDistribution::TUniform { bound_log2: 42 },
+        message_modulus: 4,
+        carry_modulus: 4,
+        ciphertext_modulus: 1 << 64,
+        expansion_kind: Cow::Borrowed("requires_casting"),
+        zk_scheme: Cow::Borrowed("zkv1"),
+    };
 
 pub fn save_cbor<Data: Serialize, P: AsRef<Path>>(msg: &Data, path: P) {
     let path = path.as_ref();
