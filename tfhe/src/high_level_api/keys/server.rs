@@ -141,10 +141,18 @@ impl ServerKey {
         self.key.re_randomization_cpk_casting_key()
     }
 
+    pub fn supports_ciphertext_re_randomization(&self) -> bool {
+        self.re_randomization_cpk_casting_key().is_some()
+    }
+
     pub fn noise_squashing_key(
         &self,
     ) -> Option<&crate::integer::noise_squashing::NoiseSquashingKey> {
         self.key.noise_squashing_key.as_ref()
+    }
+
+    pub fn supports_noise_squashing(&self) -> bool {
+        self.noise_squashing_key().is_some()
     }
 
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {

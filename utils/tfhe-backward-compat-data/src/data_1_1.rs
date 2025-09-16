@@ -207,12 +207,14 @@ const HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST: HlClientKeyTest = HlClientKeyTest 
 const HL_SERVERKEY_MS_NOISE_REDUCTION_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_with_noise_squashing"),
     client_key_filename: HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.test_filename,
+    rerand_cpk_filename: None,
     compressed: false,
 };
 
 const HL_SERVERKEY_MS_NOISE_REDUCTION_COMPRESSED_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_with_noise_squashing_compressed"),
     client_key_filename: HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST.test_filename,
+    rerand_cpk_filename: None,
     compressed: true,
 };
 
