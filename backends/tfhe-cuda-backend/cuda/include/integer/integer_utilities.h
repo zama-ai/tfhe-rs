@@ -4438,16 +4438,14 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[2], gpu_indexes[2], remainder_gpu_2, num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    // sub_result_1 = new CudaRadixCiphertextFFI;
-    // create_zero_radix_ciphertext_async<Torus>(
-    //     streams[2],
-    //     gpu_indexes[2], sub_result_1, num_blocks,
-    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    // sub_1_overflowed = new CudaRadixCiphertextFFI;
-    // create_zero_radix_ciphertext_async<Torus>(
-    //     streams[2],
-    //     gpu_indexes[2], sub_1_overflowed, 1,
-    //     params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    sub_result_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[2], gpu_indexes[2], sub_result_1, num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    sub_1_overflowed = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[2], gpu_indexes[2], sub_1_overflowed, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     // comparison_blocks_1 = new CudaRadixCiphertextFFI;
     // create_zero_radix_ciphertext_async<Torus>(
@@ -4706,10 +4704,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     init_temporary_buffers(streams, gpu_indexes, num_blocks,
                            allocate_gpu_memory, size_tracker);
 
-    sub_streams_1 =
-        (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
-    sub_streams_2 =
-        (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
+    sub_streams_1 = (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
+    sub_streams_2 = (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
     // sub_streams_3 =
     //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
     // sub_streams_4 =
@@ -4972,6 +4968,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete divisor_gpu_2;
     delete remainder_gpu_1;
     delete remainder_gpu_2;
+
     // delete comparison_blocks_1;
     // delete comparison_blocks_2;
     // delete comparison_blocks_3;
