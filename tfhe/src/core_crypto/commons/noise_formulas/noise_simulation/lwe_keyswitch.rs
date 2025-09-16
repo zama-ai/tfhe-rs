@@ -83,7 +83,7 @@ impl AllocateLweKeyswitchResult for NoiseSimulationLweKeyswitchKey {
     ) -> Self::Output {
         Self::Output {
             lwe_dimension: self.output_lwe_dimension,
-            variance: Variance(f64::INFINITY),
+            variance: Variance(f64::NEG_INFINITY),
             modulus: self.output_modulus,
         }
     }

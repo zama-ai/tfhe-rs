@@ -14,8 +14,9 @@ pub use lwe_programmable_bootstrap::{
     AllocateLweBootstrapResult, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
 };
 pub use modulus_switch::{
+    AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateMultiBitModSwitchResult,
-    AllocateStandardModSwitchResult, DriftTechniqueStandardModSwitch, MultiBitModSwitch,
-    StandardModSwitch,
+    AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
+    DriftTechniqueStandardModSwitch, MultiBitModSwitch, StandardModSwitch,
 };
 pub use scalar_mul::{ScalarMul, ScalarMulAssign};
