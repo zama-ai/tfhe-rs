@@ -9,9 +9,14 @@ use crate::core_crypto::entities::{LweCompactPublicKey, LweKeyswitchKey};
 use crate::core_crypto::prelude::*;
 #[cfg(test)]
 use crate::high_level_api::keys::CompactPrivateKey;
+use crate::integer::ciphertext::{
+    CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
+};
 #[cfg(test)]
 use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
+#[cfg(test)]
+use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
 #[cfg(test)]
 use crate::shortint::atomic_pattern::compressed::{
     CompressedAtomicPatternServerKey, CompressedStandardAtomicPatternServerKey,
@@ -343,8 +348,17 @@ impl CompressedXofKeySet {
             }
         }
 
-        // TODO
-        let noise_squashing_compression_key = None;
+        let noise_squashing_compression_key =
+            ck.key.noise_squashing_compression_private_key.as_ref().map(
+                |ns_compression_priv_key| {
+                    CompressedNoiseSquashingCompressionKey::generate_with_pre_seeded_generator(
+                        ns_compression_priv_key,
+                        ck.key.noise_squashing_private_key.as_ref().unwrap(),
+                        &mut encryption_rand_gen,
+                    )
+                },
+            );
+
         let compressed_server_key = CompressedServerKey::from_raw_parts(
             integer_compressed_server_key,
             Some(integer_ksk_material),
@@ -544,7 +558,14 @@ impl CompressedXofKeySet {
                 }
             }
 
-            let noise_squashing_compression_key = None;
+            let noise_squashing_compression_key = self
+                .compressed_server_key
+                .integer_key
+                .noise_squashing_compression_key
+                .map(|ns_comp_key| {
+                    ns_comp_key.decompress_with_pre_seeded_generator(&mut mask_generator)
+                });
+
             ServerKey::from_raw_parts(
                 integer_sk,
                 integer_cpk_ksk,
@@ -904,6 +925,72 @@ impl CompressedNoiseSquashingKey {
     }
 }
 
+impl CompressedNoiseSquashingCompressionKey {
+    #[cfg(test)]
+    fn generate_with_pre_seeded_generator<Gen>(
+        private_compression_noise_squashing_key: &integer::ciphertext::NoiseSquashingCompressionPrivateKey,
+        private_noise_squashing_key: &NoiseSquashingPrivateKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let compression_params = private_compression_noise_squashing_key.key.params;
+        let mut packing_key_switching_key = SeededLwePackingKeyswitchKey::new(
+            0u128,
+            compression_params.packing_ks_base_log,
+            compression_params.packing_ks_level,
+            private_noise_squashing_key
+                .key
+                .post_noise_squashing_lwe_secret_key()
+                .lwe_dimension(),
+            compression_params.packing_ks_glwe_dimension,
+            compression_params.packing_ks_polynomial_size,
+            CompressionSeed::from(Seed(0)),
+            compression_params.ciphertext_modulus,
+        );
+
+        generate_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
+            &private_noise_squashing_key
+                .key
+                .post_noise_squashing_lwe_secret_key(),
+            &private_compression_noise_squashing_key
+                .key
+                .post_packing_ks_key,
+            &mut packing_key_switching_key,
+            compression_params.packing_ks_key_noise_distribution,
+            generator,
+        );
+
+        let key =
+            shortint::list_compression::CompressedNoiseSquashingCompressionKey::from_raw_parts(
+                packing_key_switching_key,
+                compression_params.lwe_per_glwe,
+            );
+
+        Self { key }
+    }
+
+    fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> NoiseSquashingCompressionKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let packing_key_switching_key = self
+            .key
+            .packing_key_switching_key
+            .decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(generator);
+
+        NoiseSquashingCompressionKey {
+            key: shortint::list_compression::NoiseSquashingCompressionKey::from_raw_parts(
+                packing_key_switching_key,
+                self.key.lwe_per_glwe,
+            ),
+        }
+    }
+}
 impl CompressedKeySwitchingKeyMaterial {
     fn decompress_with_pre_seeded_generator<Gen>(
         &self,
@@ -1179,10 +1266,12 @@ mod test {
         let compression_params =
             shortint::parameters::test_params::TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let re_rand_ksk_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
             .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
             .enable_compression(compression_params)
             .enable_ciphertext_re_randomization(re_rand_ksk_params)
             .build();
@@ -1204,6 +1293,8 @@ mod test {
         let key_set = compressed_key_set.decompress();
 
         let (pk, sk) = key_set.into_raw_parts();
+
+        assert!(sk.is_conformant(&config.into()));
 
         set_server_key(sk);
 
