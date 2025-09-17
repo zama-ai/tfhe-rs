@@ -26,8 +26,7 @@ jobs:
     if: (github.event_name == 'pull_request' &&
       (contains(github.event.label.name, 'bench-perfs-cpu') ||
       contains(github.event.label.name, 'bench-perfs-gpu'))) ||
-      (github.event.issue_comment.pull_request &&
-      startsWith(github.event.comment.body, '/bench'))
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/bench'))
     uses: ./.github/workflows/verify_commit_actor.yml
     secrets:
       ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
