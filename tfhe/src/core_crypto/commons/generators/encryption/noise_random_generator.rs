@@ -169,6 +169,15 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
             );
     }
 
+    pub(crate) fn fill_slice_with_random_uniform_binary_bits<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+    ) where
+        Scalar: UnsignedInteger,
+    {
+        self.gen.fill_slice_with_random_uniform_binary_bits(output)
+    }
+
     // Adds noise on top of existing data for in place encryption
     pub(crate) fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign<
         D,
