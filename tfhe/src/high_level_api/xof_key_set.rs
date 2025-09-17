@@ -36,7 +36,7 @@ use crate::shortint::{PBSParameters, ShortintParameterSet};
 use crate::ClientKey;
 use crate::{
     integer, shortint, CompactPublicKey, CompressedCompactPublicKey, CompressedServerKey,
-    ServerKey, Tag,
+    ReRandomizationKeySwitchingKey, ServerKey, Tag,
 };
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
@@ -78,6 +78,8 @@ pub struct CompressedXofKeySet {
 impl CompressedXofKeySet {
     #[cfg(test)]
     fn with_seed(pub_seed: XofSeed, priv_seed: XofSeed, ck: &ClientKey) -> crate::Result<Self> {
+        use crate::high_level_api::keys::ReRandomizationKeyGenerationInfo;
+
         let Some(dedicated_pk_key) = ck.key.dedicated_compact_private_key.as_ref() else {
             return Err(crate::error!("Dedicated compact private key is required"));
         };
@@ -228,7 +230,7 @@ impl CompressedXofKeySet {
                     )
                 });
 
-        // Lastly, generate the key switching material that will allow going from
+        // Generate the key switching material that will allow going from
         // the public key's dedicated parameters to the computation parameters
         let pk_to_sk_ksk_params = dedicated_pk_key.1;
         let (target_private_key, noise_distrib) = match pk_to_sk_ksk_params.destination_key {
@@ -263,6 +265,52 @@ impl CompressedXofKeySet {
             }
         };
 
+        // Generate the key switching material that will allow going from
+        // the public key's dedicated parameters to the re-rand
+
+        let cpk_re_randomization_key_switching_key_material = ck
+            .key
+            .re_randomization_ksk_gen_info()?
+            .map(|key_gen_info| match key_gen_info {
+                ReRandomizationKeyGenerationInfo::UseCPKEncryptionKSK => {
+                    use crate::CompressedReRandomizationKeySwitchingKey;
+
+                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                }
+                ReRandomizationKeyGenerationInfo::DedicatedKSK((
+                    input_cpk,
+                    cpk_re_randomization_ksk_params,
+                )) => {
+                    use crate::CompressedReRandomizationKeySwitchingKey;
+
+                    let (target_private_key, noise_distrib) = (
+                        glwe_secret_key.as_lwe_secret_key(),
+                        computation_parameters.glwe_noise_distribution(),
+                    );
+
+                    let key_switching_key =
+                        allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
+                            &input_cpk.key.key(),
+                            &target_private_key,
+                            cpk_re_randomization_ksk_params.ks_base_log,
+                            cpk_re_randomization_ksk_params.ks_level,
+                            noise_distrib,
+                            computation_parameters.ciphertext_modulus(),
+                            &mut encryption_rand_gen,
+                        );
+
+                    let key = CompressedKeySwitchingKeyMaterial {
+                        material: shortint::key_switching_key::CompressedKeySwitchingKeyMaterial {
+                            key_switching_key,
+                            cast_rshift: 0,
+                            destination_key: EncryptionKeyChoice::Big,
+                        },
+                    };
+
+                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key)
+                }
+            });
+
         if let PBSParameters::PBS(pbs_params) = computation_parameters.pbs_parameters().unwrap() {
             let mod_switch_noise_key =
                 CompressedModulusSwitchConfiguration::generate_from_existing_generator(
@@ -295,6 +343,7 @@ impl CompressedXofKeySet {
             }
         }
 
+        // TODO
         let noise_squashing_compression_key = None;
         let compressed_server_key = CompressedServerKey::from_raw_parts(
             integer_compressed_server_key,
@@ -303,7 +352,7 @@ impl CompressedXofKeySet {
             decompression_key,
             noise_squashing_bs_key,
             noise_squashing_compression_key,
-            None,
+            cpk_re_randomization_key_switching_key_material,
             Tag::default(),
         );
 
@@ -438,6 +487,21 @@ impl CompressedXofKeySet {
                 .cpk_key_switching_key_material
                 .map(|k| k.decompress_with_pre_seeded_generator(&mut mask_generator));
 
+            let integer_cpk_re_rand_ksk = self
+                .compressed_server_key
+                .integer_key
+                .cpk_re_randomization_key_switching_key_material
+                .map(|k| match k {
+                    super::CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                    }
+                    super::CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                            key.decompress_with_pre_seeded_generator(&mut mask_generator),
+                        )
+                    }
+                });
+
             match &mut integer_sk.key.atomic_pattern {
                 AtomicPatternServerKey::Standard(ap) => {
                     match &mut ap.bootstrapping_key {
@@ -488,7 +552,7 @@ impl CompressedXofKeySet {
                 decompression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
-                None,
+                integer_cpk_re_rand_ksk,
                 Tag::default(),
             )
         };
@@ -1114,11 +1178,13 @@ mod test {
         let noise_squashing_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let compression_params =
             shortint::parameters::test_params::TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let re_rand_ksk_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
             .enable_noise_squashing(noise_squashing_params)
             .enable_compression(compression_params)
+            .enable_ciphertext_re_randomization(re_rand_ksk_params)
             .build();
 
         let cks = ClientKey::generate(config);
@@ -1149,8 +1215,32 @@ mod test {
             .push(clear_b)
             .build();
         let expander = list.expand().unwrap();
-        let a = expander.get::<FheUint32>(0).unwrap().unwrap();
-        let b = expander.get::<FheUint32>(1).unwrap().unwrap();
+        let mut a = expander.get::<FheUint32>(0).unwrap().unwrap();
+        let mut b = expander.get::<FheUint32>(1).unwrap().unwrap();
+
+        // Test re-randomization
+        {
+            // Simulate a 256 bits nonce
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+            let compact_public_encryption_domain_separator = *b"TFHE.Enc";
+            let rerand_domain_separator = *b"TFHE.Rrd";
+
+            let mut re_rand_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                // First is the function description, second is a nonce
+                [b"FheUint32 bin ops".as_slice(), nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+
+            re_rand_context.add_ciphertext(&a);
+            re_rand_context.add_ciphertext(&b);
+
+            let mut seed_gen = re_rand_context.finalize();
+
+            a.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
+
+            b.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
+        }
 
         let c = &a * &b;
         let d = &a & &b;
