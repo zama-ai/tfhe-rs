@@ -10,7 +10,8 @@ void multi_gpu_alloc_array_async(CudaStreams streams,
                                  uint32_t elements_per_gpu,
                                  uint64_t &size_tracker_on_gpu_0,
                                  bool allocate_gpu_memory) {
-
+  PANIC_IF_FALSE(dest.empty(),
+                 "Cuda error: Requested multi-GPU vector is already allocated");
   dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker_on_gpu_i = 0;
@@ -25,10 +26,10 @@ void multi_gpu_alloc_array_async(CudaStreams streams,
 }
 /// Copy an array residing on one GPU to all active gpus
 template <typename Torus>
-void multi_gpu_copy_array_async(CudaStreams streams, std::vector<Torus *> &dest,
+void multi_gpu_copy_array_async(CudaStreams streams,
+                                const std::vector<Torus *> &dest,
                                 Torus const *src, uint32_t elements_per_gpu,
                                 bool gpu_memory_allocated) {
-  dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         dest[i], src, elements_per_gpu * sizeof(Torus), streams.stream(i),
@@ -38,10 +39,13 @@ void multi_gpu_copy_array_async(CudaStreams streams, std::vector<Torus *> &dest,
 /// Copy an array residing on one CPU to all active gpus
 template <typename Torus>
 void multi_gpu_copy_array_from_cpu_async(CudaStreams streams,
-                                         std::vector<Torus *> &dest,
+                                         const std::vector<Torus *> &dest,
                                          Torus const *h_src,
                                          uint32_t elements_per_gpu,
                                          bool gpu_memory_allocated) {
+  PANIC_IF_FALSE(dest.size() >= streams.count(),
+                 "Cuda error: requested multi-gpu copy from CPU with "
+                 "insufficient destination buffers");
   for (uint i = 0; i < streams.count(); i++) {
     cuda_memcpy_with_size_tracking_async_to_gpu(
         dest[i], h_src, elements_per_gpu * sizeof(Torus), streams.stream(i),
@@ -56,6 +60,8 @@ void multi_gpu_alloc_lwe_async(CudaStreams streams, std::vector<Torus *> &dest,
                                uint32_t num_inputs, uint32_t lwe_size,
                                uint64_t &size_tracker_on_gpu_0,
                                bool allocate_gpu_memory) {
+  PANIC_IF_FALSE(dest.empty(),
+                 "Cuda error: Requested multi-GPU vector is already allocated");
   dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker_on_gpu_i = 0;
@@ -86,6 +92,8 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
     uint32_t num_many_lut, uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0,
     bool allocate_gpu_memory) {
 
+  PANIC_IF_FALSE(dest.empty(),
+                 "Cuda error: Requested multi-GPU vector is already allocated");
   dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker = 0;
@@ -139,16 +147,19 @@ __global__ void realign_with_indexes(Torus *d_vector,
 /// num_inputs: total num of lwe in src
 template <typename Torus>
 void multi_gpu_scatter_lwe_async(CudaStreams streams,
-                                 std::vector<Torus *> &dest, Torus const *src,
-                                 Torus const *d_src_indexes,
+                                 const std::vector<Torus *> &dest,
+                                 Torus const *src, Torus const *d_src_indexes,
                                  bool is_trivial_index,
                                  std::vector<Torus *> &aligned_vec,
                                  uint32_t max_active_gpu_count,
                                  uint32_t num_inputs, uint32_t lwe_size) {
 
-  if (max_active_gpu_count < streams.count())
-    PANIC("Cuda error: number of gpus in scatter should be <= number of gpus "
-          "used to create the lut")
+  PANIC_IF_FALSE(
+      max_active_gpu_count >= streams.count(),
+      "Cuda error: number of gpus in scatter should be <= number of gpus "
+      "used to create the lut");
+  PANIC_IF_FALSE(dest.size() >= streams.count(),
+                 "Cuda error: dest vector was not allocated for enough GPUs");
   for (uint i = 0; i < streams.count(); i++) {
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, streams.count());
     auto gpu_offset = 0;
@@ -202,6 +213,8 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
                                 std::vector<Torus *> &aligned_vec,
                                 uint32_t num_inputs, uint32_t lwe_size) {
 
+  PANIC_IF_FALSE(src.size() >= streams.count(),
+                 "Cuda error: src vector was not allocated for enough GPUs");
   for (uint i = 0; i < streams.count(); i++) {
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, streams.count());
     auto gpu_offset = 0;
@@ -257,6 +270,8 @@ void multi_gpu_gather_many_lut_lwe_async(CudaStreams streams, Torus *dest,
                                          uint32_t num_inputs, uint32_t lwe_size,
                                          uint32_t num_many_lut) {
 
+  PANIC_IF_FALSE(src.size() >= streams.count(),
+                 "Cuda error: src vector was not allocated for enough GPUs");
   for (uint lut_id = 0; lut_id < num_many_lut; lut_id++) {
     for (uint i = 0; i < streams.count(); i++) {
       auto inputs_on_gpu =
