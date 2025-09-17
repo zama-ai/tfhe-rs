@@ -17,9 +17,12 @@ It works by providing a result file containing the baseline values and the resul
 
 import argparse
 import enum
+import json
 import pathlib
+import statistics
 import sys
 import tomllib
+from dataclasses import dataclass
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -31,6 +34,18 @@ parser.add_argument(
     "--issue-comment",
     dest="issue_comment",
     help="GitHub issue comment defining the regression benchmark profile to use",
+)
+parser.add_argument(
+    "--results-file",
+    dest="results_file",
+    help="Path to the results file containing the baseline and last run results",
+)
+parser.add_argument(
+    "--generate-report",
+    dest="generate_report",
+    action="store_true",
+    default=False,
+    help="Generate markdown report of the regression check",
 )
 
 COMMENT_IDENTIFIER = "/bench"
@@ -420,7 +435,151 @@ def write_backend_config_to_file(backend, profile):
         )
 
 
-# TODO Perform regression computing by providing a file containing results from database that would be parsed
+# Scale factor to improve the signal/noise ratio in anomaly detection.
+REGRESSION_SCALE_FACTOR = 4
+REGRESSION_REPORT_FILE = pathlib.Path("ci/regression_report.md")
+
+
+@dataclass
+class RegressedOperation:
+    name: str
+    baseline: float
+    head_branch_value: float
+    regression_percentage: float
+
+    def __init__(self, name: str, baseline_mean: float, head_branch_value: float):
+        self.name = name
+        self.baseline = round(baseline_mean, 2)
+        self.head_branch_value = head_branch_value
+
+    def compute_regression_percentage(self):
+        self.regression_percentage = round(
+            (self.head_branch_value - self.baseline) / self.baseline * 100, 2
+        )
+        return self.regression_percentage
+
+
+def check_regression(results_file: pathlib.Path):
+    """
+    Check if any operation has regressed compared to the base branch.
+    Results file must be in JSON format with the following structure:
+    ```json
+    {
+      "operation": {
+        "name": "<operation_name>",
+        "results": {
+          "base": {
+            "name": "<base_branche_name>",
+            "data": [
+              <float>,
+              <float>,
+              ...,
+            ]
+          },
+          "head": {
+            "name": "<dev_branch_name>",
+            "value": <float>
+          }
+        }
+      }
+    }
+    ```
+
+    :param results_file: path to the result file
+
+    :return: :class:`list` of :class:`RegressedOperation` if any operation has regressed, else an empty list.
+    """
+    regressed = []
+
+    results = json.loads(results_file.read_text())
+    for operation in results.values():
+        op_name = operation["name"]
+        try:
+            baseline_data = operation["results"]["base"]["data"]
+        except KeyError:
+            raise KeyError(
+                f"no base branch data found in results file for '{op_name}' operation"
+            )
+
+        try:
+            head_branch_value = operation["results"]["head"]["value"]
+        except KeyError:
+            raise KeyError(
+                f"no head branch value found in results file for '{op_name}' operation"
+            )
+
+        baseline_mean = statistics.mean(baseline_data)
+        baseline_stdev = statistics.stdev(baseline_data)
+        anomaly_threshold = baseline_mean + REGRESSION_SCALE_FACTOR * baseline_stdev
+        if head_branch_value > anomaly_threshold:
+            regressed_op = RegressedOperation(op_name, baseline_mean, head_branch_value)
+            percentage = regressed_op.compute_regression_percentage()
+            print(
+                f"Regression detected for: '{op_name}' (change: +{percentage}%)"
+            )
+            regressed.append(regressed_op)
+
+    if not regressed:
+        print("No regression detected.")
+
+    return regressed
+
+
+def generate_regression_report(regressed_ops: list[RegressedOperation]):
+    """
+    Generate a regression report in Markdown format.
+    The report will be written to a file @ `REGRESSION_REPORT_FILE`.
+
+    :param regressed_ops: :class:`list` of :class:`RegressedOperation`
+    """
+    array_headers = ("Operation", "Current (ms)", "Base (ms)", "Regression (%)")
+    markdown_array = [array_headers]
+    markdown_array.extend(
+        [
+            (
+                op.name,
+                str(op.head_branch_value),
+                str(op.baseline),
+                str(op.regression_percentage),
+            )
+            for op in regressed_ops
+        ]
+    )
+    column_max_len = 0
+    for item in markdown_array:
+        column_max_len = max(column_max_len, len(item[0]))
+
+    separation_line = (
+        "-" * column_max_len,
+        *list("-" * len(header) for header in array_headers[1:]),
+    )
+
+    formatted_array = []
+    for n, item in enumerate(markdown_array):
+        if n == 0:
+            formatted_array.append(
+                f"| {item[0]:<{column_max_len}} | {' | '.join(item[1:])} |"
+            )
+            formatted_array.append(f'| {" | ".join(separation_line)} |')
+        else:
+            formatted_array.append(
+                f"| {item[0]:<{column_max_len}} | {item[1]:<{len(array_headers[1])}} | {item[2]:<{len(array_headers[2])}} | +{item[3]:<{len(array_headers[3])}}|"
+            )
+
+    comment_body = [
+        "> [!CAUTION]",
+        "> Performances for some operations have regressed compared to the base branch.",
+        "",  # Add a newline since tables cannot be rendered in markdown note.
+    ]
+    comment_body.extend(formatted_array)
+
+    formatted_text = "\n".join(comment_body)
+
+    try:
+        REGRESSION_REPORT_FILE.write_text(formatted_text)
+    except Exception as err:
+        print(f"failed to write regression report (error: {err})")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -453,4 +612,18 @@ if __name__ == "__main__":
             print(f"failed to write commands/env to file (error:{err})")
             sys.exit(3)
     elif args.command == "check_regression":
-        pass
+        results_file = args.results_file
+        if not results_file:
+            print(
+                f"cannot run `{args.command}` command: please specify the results file path with `--results-file` argument"
+            )
+            sys.exit(1)
+
+        results_file_path = pathlib.Path(results_file)
+        regressed_ops = check_regression(results_file_path)
+
+        if regressed_ops:
+            if args.generate_report:
+                generate_regression_report(regressed_ops)
+
+            sys.exit(4)
