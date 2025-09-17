@@ -1,33 +1,31 @@
-# Publish new release of tfhe-rs on various platform.
-name: make_release
+# Common workflow to make crate release
+name: make_release_common
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      dry_run:
-        description: "Dry-run"
+      package-name:
+        type: string
+        required: true
+      dry-run:
         type: boolean
         default: true
-      push_to_crates:
-        description: "Push to crate"
-        type: boolean
-        default: true
-      push_web_package:
-        description: "Push web js package"
-        type: boolean
-        default: true
-      push_node_package:
-        description: "Push node js package"
-        type: boolean
-        default: true
-      npm_latest_tag:
-        description: "Set NPM tag as latest"
-        type: boolean
-        default: false
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+      ALLOWED_TEAM:
+        required: true
+      READ_ORG_TOKEN:
+        required: true
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  NPM_TAG: ""
   SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -36,18 +34,18 @@ env:
 permissions: {}
 
 jobs:
-  verify-tag:
-    name: make_release/verify-tag
+  verify-triggering-actor:
+    name: make_release_common/verify-triggering-actor
     if: startsWith(github.ref, 'refs/tags/')
-    uses: ./.github/workflows/verify_commit_actor.yml
+    uses: ./.github/workflows/verify_triggering_actor.yml
     secrets:
-      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      ALLOWED_TEAM: ${{ secrets.ALLOWED_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package:
-    name: make_release/package
+    name: make_release_common/package
     runs-on: ubuntu-latest
-    needs: verify-tag
+    needs: verify-triggering-actor
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
     steps:
@@ -58,20 +56,23 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       - name: Prepare package
+        env:
+          PACKAGE: ${{ inputs.package-name }}
         run: |
-          cargo package -p tfhe
+          cargo package -p "${PACKAGE}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: crate
+          name: crate-${{ inputs.package-name }}
           path: target/package/*.crate
       - name: generate hash
         id: hash
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
+
   provenance:
-    name: make_release/provenance
-    if: ${{ !inputs.dry_run  }}
-    needs: [package]
+    name: make_release_common/provenance
+    if: ${{ !inputs.dry-run  }}
+    needs: package
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       # Needed to detect the GitHub Actions environment
@@ -84,14 +85,14 @@ jobs:
       # SHA-256 hashes of the Crate package.
       base64-subjects: ${{ needs.package.outputs.hash }}
 
+
   publish_release:
-    name: make_release/publish_release
-    needs: [package] # for comparing hashes
+    name: make_release_common/publish-release
+    needs: package
     runs-on: ubuntu-latest
-    # For provenance of npmjs publish
     permissions:
-      contents: read
-      id-token: write # also needed for OIDC token exchange on crates.io
+      # Needed for OIDC token exchange on crates.io
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -99,28 +100,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      - name: Create NPM version tag
-        if: ${{ inputs.npm_latest_tag }}
-        run: |
-          echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
+
       - name: Download artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
-          name: crate
+          name: crate-${{ inputs.package-name }}
           path: target/package
+
       - name: Authenticate on registry
         uses: rust-lang/crates-io-auth-action@e919bc7605cde86df457cf5b93c5e103838bd879 # v1.0.1
         id: auth
+
       - name: Publish crate.io package
-        if: ${{ inputs.push_to_crates }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          PACKAGE: ${{ inputs.package-name }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
         run: |
-          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish 
+          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish
           # would fail. This is safe since DRY_RUN is handled in the env section above.
           # shellcheck disable=SC2086
-          cargo publish -p tfhe ${DRY_RUN}
+          cargo publish -p "${PACKAGE}" ${DRY_RUN}
 
       - name: Generate hash
         id: published_hash
@@ -132,45 +132,12 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: failure
-          SLACK_MESSAGE: "SLSA tfhe crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
-
-      - name: Build web package
-        if: ${{ inputs.push_web_package }}
-        run: |
-          make build_web_js_api_parallel
-
-      - name: Publish web package
-        if: ${{ inputs.push_web_package }}
-        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: tfhe/pkg/package.json
-          dry-run: ${{ inputs.dry_run }}
-          tag: ${{ env.NPM_TAG }}
-          provenance: true
-
-      - name: Build Node package
-        if: ${{ inputs.push_node_package }}
-        run: |
-          rm -rf tfhe/pkg
-
-          make build_node_js_api
-          sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
-
-      - name: Publish Node package
-        if: ${{ inputs.push_node_package }}
-        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: tfhe/pkg/package.json
-          dry-run: ${{ inputs.dry_run }}
-          tag: ${{ env.NPM_TAG }}
-          provenance: true
+          SLACK_MESSAGE: "SLSA ${{ inputs.package-name }} - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
 
       - name: Slack Notification
-        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "tfhe release failed: (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "${{ inputs.package-name }} release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

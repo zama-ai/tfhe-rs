@@ -1,5 +1,5 @@
-# Verify a commit actor
-name: verify_commit_actor
+# Verify a triggering actor
+name: verify_triggering_actor
 
 on:
   workflow_call:
@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   check-actor:
-    name: verify_commit_actor/check-actor
+    name: verify_triggering_actor/check-actor
     runs-on: ubuntu-latest
     steps:
       # Check triggering actor membership
