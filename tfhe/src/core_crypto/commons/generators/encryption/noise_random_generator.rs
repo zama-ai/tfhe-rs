@@ -11,6 +11,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use rayon::prelude::*;
 use tfhe_csprng::generators::ForkError;
+use tfhe_csprng::seeders::SeedKind;
 
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseRandomGeneratorForkConfig {
@@ -107,6 +108,13 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         }
     }
 
+    /// Create a new [`NoiseRandomGenerator`], using the provided seed
+    pub fn new_from_seed(seed: impl Into<SeedKind>) -> Self {
+        Self {
+            gen: RandomGenerator::new(seed),
+        }
+    }
+
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.gen.remaining_bytes()
     }
@@ -167,6 +175,15 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
                 distribution,
                 custom_modulus,
             );
+    }
+
+    pub(crate) fn fill_slice_with_random_uniform_binary_bits<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+    ) where
+        Scalar: UnsignedInteger,
+    {
+        self.gen.fill_slice_with_random_uniform_binary_bits(output)
     }
 
     // Adds noise on top of existing data for in place encryption

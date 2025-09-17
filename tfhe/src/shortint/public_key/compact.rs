@@ -325,8 +325,7 @@ impl CompactPublicKey {
                     &plaintext_list,
                     encryption_noise_distribution,
                     encryption_noise_distribution,
-                    &mut engine.secret_generator,
-                    &mut engine.encryption_generator,
+                    engine.encryption_generator.noise_generator_mut(),
                 );
             });
         }
@@ -342,8 +341,7 @@ impl CompactPublicKey {
                     &plaintext_list,
                     encryption_noise_distribution,
                     encryption_noise_distribution,
-                    &mut engine.secret_generator,
-                    &mut engine.encryption_generator,
+                    engine.encryption_generator.noise_generator_mut(),
                 );
             });
         }
@@ -425,8 +423,7 @@ impl CompactPublicKey {
                         delta,
                         encryption_noise_distribution,
                         encryption_noise_distribution,
-                        &mut engine.secret_generator,
-                        &mut engine.encryption_generator,
+                        engine.encryption_generator.noise_generator_mut(),
                         &mut engine.random_generator,
                         crs,
                         metadata,
