@@ -18,17 +18,17 @@ env:
 permissions: {}
 
 jobs:
-  verify-tag:
-    name: make_release_cuda/verify-tag
+  verify-triggering-actor:
+    name: make_release_cuda/verify-triggering-actor
     if: startsWith(github.ref, 'refs/tags/')
-    uses: ./.github/workflows/verify_commit_actor.yml
+    uses: ./.github/workflows/verify_triggering_actor.yml
     secrets:
       ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   setup-instance:
     name: make_release_cuda/setup-instance
-    needs: verify-tag
+    needs: verify-triggering-actor
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
