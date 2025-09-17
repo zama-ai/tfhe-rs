@@ -7,10 +7,8 @@ use crate::core_crypto::algorithms::{
     encrypt_lwe_compact_ciphertext_list_with_compact_public_key, keyswitch_lwe_ciphertext,
     lwe_ciphertext_add_assign,
 };
-use crate::core_crypto::commons::generators::{
-    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-};
-use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder, XofSeed};
+use crate::core_crypto::commons::generators::NoiseRandomGenerator;
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, XofSeed};
 use crate::core_crypto::commons::parameters::{LweCiphertextCount, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::{LweCiphertext, LweCompactCiphertextList, PlaintextList};
@@ -306,14 +304,8 @@ impl CompactPublicKey {
             ));
         }
 
-        // TODO: what do we do about this ?
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed.0);
-        let mut secret_generator =
-            SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
-        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-            deterministic_seeder.seed(),
-            &mut deterministic_seeder,
-        );
+        let mut encryption_generator =
+            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
 
         let zero_container: Vec<_> = cts
             .chunks(self.parameters().encryption_lwe_dimension.0)
@@ -339,7 +331,6 @@ impl CompactPublicKey {
                     &plaintext_list,
                     cpk_encryption_noise_distribution,
                     cpk_encryption_noise_distribution,
-                    &mut secret_generator,
                     &mut encryption_generator,
                 );
 
