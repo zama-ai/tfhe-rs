@@ -25,8 +25,7 @@ NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 TFHE_SPEC:=tfhe
 WASM_PACK_VERSION="0.13.1"
-# We are kind of hacking the cut here, the version cannot contain a quote '"'
-WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '"' -f 2 | xargs)
+WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -115,10 +114,6 @@ install_cargo_nextest: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
 	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
 
-# The installation should use the ^ symbol if the specified version in the root Cargo.toml is of the
-# form "0.2.96" then we get ^0.2.96 e.g., as we don't lock those dependencies
-# this allows to get the matching CLI
-# If a version range is specified no need to add the leading ^
 .PHONY: install_wasm_bindgen_cli # Install wasm-bindgen-cli to get access to the test runner
 install_wasm_bindgen_cli: install_rs_build_toolchain
 	cargo +$(RS_BUILD_TOOLCHAIN) install --locked wasm-bindgen-cli --version "$(WASM_BINDGEN_VERSION)"
