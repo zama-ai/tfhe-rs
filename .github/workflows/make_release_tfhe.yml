@@ -1,0 +1,113 @@
+# Publish new release of tfhe-rs on various platform.
+name: make_release_tfhe
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+      push_to_crates:
+        description: "Push to crate"
+        type: boolean
+        default: true
+      push_web_package:
+        description: "Push web js package"
+        type: boolean
+        default: true
+      push_node_package:
+        description: "Push node js package"
+        type: boolean
+        default: true
+      npm_latest_tag:
+        description: "Set NPM tag as latest"
+        type: boolean
+        default: false
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  NPM_TAG: ""
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+permissions: {}
+
+jobs:
+  make-release:
+    name: make_release_tfhe/make-release
+    uses: ./.github/workflows/make_release_common.yml
+    with:
+      package-name: "tfhe"
+      dry-run: ${{ inputs.dry_run }}
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
+  make-release-js:
+    name: make_release_tfhe/make-release-js
+    needs: make-release
+    runs-on: ubuntu-latest
+    # For provenance of npmjs publish
+    permissions:
+      contents: read
+      id-token: write # also needed for OIDC token exchange on crates.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Create NPM version tag
+        if: ${{ inputs.npm_latest_tag }}
+        run: |
+          echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
+
+      - name: Build web package
+        if: ${{ inputs.push_web_package }}
+        run: |
+          make build_web_js_api_parallel
+
+      - name: Publish web package
+        if: ${{ inputs.push_web_package }}
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
+          tag: ${{ env.NPM_TAG }}
+          provenance: true
+
+      - name: Build Node package
+        if: ${{ inputs.push_node_package }}
+        run: |
+          rm -rf tfhe/pkg
+
+          make build_node_js_api
+          sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
+
+      - name: Publish Node package
+        if: ${{ inputs.push_node_package }}
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
+          tag: ${{ env.NPM_TAG }}
+          provenance: true
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "tfhe release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

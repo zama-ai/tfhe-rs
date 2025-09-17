@@ -21,20 +21,20 @@ env:
 permissions: { }
 
 jobs:
-  verify-actor:
+  verify-triggering-actor:
     name: benchmark_perf_regression/verify-actor
     if: (github.event_name == 'pull_request' &&
       (contains(github.event.label.name, 'bench-perfs-cpu') ||
       contains(github.event.label.name, 'bench-perfs-gpu'))) ||
       (github.event.issue.pull_request && startsWith(github.event.comment.body, '/bench'))
-    uses: ./.github/workflows/verify_commit_actor.yml
+    uses: ./.github/workflows/verify_triggering_actor.yml
     secrets:
       ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   prepare-benchmarks:
     name: benchmark_perf_regression/prepare-benchmarks
-    needs: verify-actor
+    needs: verify-triggering-actor
     runs-on: ubuntu-latest
     outputs:
       commands: ${{ steps.set_commands.outputs.commands }}
