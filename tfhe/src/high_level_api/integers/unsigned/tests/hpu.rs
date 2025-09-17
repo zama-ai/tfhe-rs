@@ -88,6 +88,13 @@ fn test_case_if_then_else_hpu() {
     let client_key = setup_default_hpu();
     super::test_case_if_then_else(&client_key);
 }
+
+#[test]
+fn test_case_flip_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_flip(&client_key);
+}
+
 #[test]
 fn test_case_uint32_div_rem_hpu() {
     let client_key = setup_default_hpu();
