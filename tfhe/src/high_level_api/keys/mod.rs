@@ -8,6 +8,7 @@ mod key_switching_key;
 
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
+pub(crate) use cpk_re_randomization::ReRandomizationKeyGenerationInfo;
 pub use cpk_re_randomization::{
     CompressedReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
 };

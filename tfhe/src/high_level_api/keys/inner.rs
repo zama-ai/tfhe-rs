@@ -2,9 +2,11 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::{DefaultRandomGenerator, LweKeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
+use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::keys::cpk_re_randomization::{
     CompressedReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
 };
+use crate::high_level_api::keys::ReRandomizationKeyGenerationInfo;
 use crate::integer::ciphertext::{
     CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
     NoiseSquashingCompressionPrivateKey,
@@ -267,6 +269,36 @@ impl IntegerClientKey {
     pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::AtomicPatternParameters {
         self.key.parameters()
     }
+
+    pub(crate) fn re_randomization_ksk_gen_info(
+        &self,
+    ) -> Result<Option<ReRandomizationKeyGenerationInfo<'_>>, crate::Error> {
+        let maybe_cpk = self.dedicated_compact_private_key.as_ref();
+        let maybe_re_rand_ksk_params = self.cpk_re_randomization_ksk_params.as_ref();
+        match (maybe_cpk, maybe_re_rand_ksk_params) {
+            (Some((cpk, cpke_ksk_params)), Some(re_rand_ksk_params)) => {
+                if re_rand_ksk_params.destination_key != EncryptionKeyChoice::Big {
+                    return Err(crate::error!(
+                        "CompactPublicKey re-randomization can only be enabled \
+                        targeting the large secret key."
+                    ));
+                }
+
+                if cpke_ksk_params == re_rand_ksk_params {
+                    Ok(Some(ReRandomizationKeyGenerationInfo::UseCPKEncryptionKSK))
+                } else {
+                    Ok(Some(ReRandomizationKeyGenerationInfo::DedicatedKSK((
+                        cpk,
+                        *re_rand_ksk_params,
+                    ))))
+                }
+            }
+            (_, None) => Ok(None),
+            _ => Err(crate::error!(
+                "Inconsistent ClientKey set-up for CompactPublicKey re-randomization."
+            )),
+        }
+    }
 }
 
 impl From<IntegerConfig> for IntegerClientKey {
@@ -372,38 +404,27 @@ impl IntegerServerKey {
                 },
             );
 
-        let cpk_re_randomization_key_switching_key_material = match (
-            &client_key.dedicated_compact_private_key,
-            client_key.cpk_re_randomization_ksk_params,
-        ) {
-            (Some(compact_private_key), Some(cpk_re_randomization_ksk_params)) => {
-                assert!(
-                    matches!(
-                        cpk_re_randomization_ksk_params.destination_key,
-                        EncryptionKeyChoice::Big
-                    ),
-                    "CompactPublicKey re-randomization can only be enabled \
-                    targeting the large secret key."
-                );
-
-                if cpk_re_randomization_ksk_params == compact_private_key.1 {
-                    Some(ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK)
-                } else {
+        let cpk_re_randomization_key_switching_key_material = client_key
+            .re_randomization_ksk_gen_info()
+            .unwrap_display()
+            .map(|key_gen_info| match key_gen_info {
+                ReRandomizationKeyGenerationInfo::UseCPKEncryptionKSK => {
+                    ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                }
+                ReRandomizationKeyGenerationInfo::DedicatedKSK((
+                    input_cpk,
+                    cpk_re_randomization_ksk_params,
+                )) => {
                     let build_helper =
                         crate::integer::key_switching_key::KeySwitchingKeyBuildHelper::new(
-                            (&compact_private_key.0, None),
+                            (input_cpk, None),
                             (cks, &base_integer_key),
                             cpk_re_randomization_ksk_params,
                         );
 
-                    Some(ReRandomizationKeySwitchingKey::DedicatedKSK(
-                        build_helper.into(),
-                    ))
+                    ReRandomizationKeySwitchingKey::DedicatedKSK(build_helper.into())
                 }
-            }
-            (_, None) => None,
-            _ => panic!("Inconsistent ClientKey set-up for CompactPublicKey re-randomization."),
-        };
+            });
 
         Self {
             key: base_integer_key,
@@ -534,38 +555,27 @@ impl IntegerCompressedServerKey {
                 (Some(noise_squashing_key), noise_squashing_compression_key)
             });
 
-        let cpk_re_randomization_key_switching_key_material = match (
-            &client_key.dedicated_compact_private_key,
-            client_key.cpk_re_randomization_ksk_params,
-        ) {
-            (Some(compact_private_key), Some(cpk_re_randomization_ksk_params)) => {
-                assert!(
-                    matches!(
-                        cpk_re_randomization_ksk_params.destination_key,
-                        EncryptionKeyChoice::Big
-                    ),
-                    "CompactPublicKey re-randomization can only be enabled \
-                    targeting the large secret key."
-                );
-
-                if cpk_re_randomization_ksk_params == compact_private_key.1 {
-                    Some(CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK)
-                } else {
+        let cpk_re_randomization_key_switching_key_material = client_key
+            .re_randomization_ksk_gen_info()
+            .unwrap_display()
+            .map(|key_gen_info| match key_gen_info {
+                ReRandomizationKeyGenerationInfo::UseCPKEncryptionKSK => {
+                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                }
+                ReRandomizationKeyGenerationInfo::DedicatedKSK((
+                    input_cpk,
+                    cpk_re_randomization_ksk_params,
+                )) => {
                     let build_helper =
                     crate::integer::key_switching_key::CompressedKeySwitchingKeyBuildHelper::new(
-                            (&compact_private_key.0, None),
+                            (input_cpk, None),
                             (cks, &key),
                             cpk_re_randomization_ksk_params,
                         );
 
-                    Some(CompressedReRandomizationKeySwitchingKey::DedicatedKSK(
-                        build_helper.into(),
-                    ))
+                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(build_helper.into())
                 }
-            }
-            (_, None) => None,
-            _ => panic!("Inconsistent ClientKey set-up for CompactPublicKey re-randomization."),
-        };
+            });
 
         Self {
             key,

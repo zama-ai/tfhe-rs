@@ -1,7 +1,19 @@
 use crate::high_level_api::backward_compatibility::keys::{
     CompressedReRandomizationKeySwitchingKeyVersions, ReRandomizationKeySwitchingKeyVersions,
 };
+use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use tfhe_versionable::Versionize;
+
+#[derive(Debug, Clone)]
+pub(crate) enum ReRandomizationKeyGenerationInfo<'a> {
+    UseCPKEncryptionKSK,
+    DedicatedKSK(
+        (
+            &'a crate::integer::CompactPrivateKey<Vec<u64>>,
+            ShortintKeySwitchingParameters,
+        ),
+    ),
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(ReRandomizationKeySwitchingKeyVersions)]
