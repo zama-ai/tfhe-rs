@@ -91,10 +91,12 @@ impl ConfigBuilder {
     /// Enable the re-randomization of ciphertexts after compression using a
     /// [crate::CompactPublicKey].
     ///
-    /// # Note
+    /// # Panics
     ///
     /// This requires dedicated [crate::CompactPublicKey] parameters to be enabled via
     /// [Self::use_dedicated_compact_public_key_parameters].
+    ///
+    /// The given parameters must target the `EncryptionKeyChoice::Big`
     pub fn enable_ciphertext_re_randomization(
         mut self,
         cpk_re_randomization_ksk_params: ShortintKeySwitchingParameters,
