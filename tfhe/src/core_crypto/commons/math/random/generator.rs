@@ -548,6 +548,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     }
 
     /// Generate a random uniform binary value.
+    /// This will draw one full byte from the underlying csprng.
     ///
     /// # Example
     ///
@@ -566,6 +567,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     }
 
     /// Fill a slice with random uniform binary values.
+    /// This will draw one full byte from the underlying csprng for every element of the slice.
     ///
     /// # Example
     ///
@@ -585,7 +587,36 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_slice(self, UniformBinary, output);
     }
 
+    /// Fill a slice with random uniform binary values.
+    /// This will only draw as many bytes needed from the underlying csprng to fill the slice with
+    /// random bits. If the slice len is n, it will draw ceil(n/8) bytes from the csprng.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![0u32; 1000];
+    /// generator.fill_slice_with_random_uniform_binary_bits(&mut vec);
+    /// assert!(vec.iter().any(|&x| x != 0));
+    /// ```
+    pub fn fill_slice_with_random_uniform_binary_bits<Scalar>(&mut self, output: &mut [Scalar])
+    where
+        Scalar: UnsignedInteger,
+    {
+        for chunk in output.chunks_mut(8) {
+            let mut random_byte = self.generate_next();
+            for elem in chunk {
+                *elem = Scalar::from((random_byte & 1) == 1);
+                random_byte >>= 1;
+            }
+        }
+    }
+
     /// Generate a random uniform ternary value.
+    /// This will draw one full byte from the underlying csprng for every element of the slice.
     ///
     /// # Example
     ///

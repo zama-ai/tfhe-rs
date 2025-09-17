@@ -18,13 +18,9 @@ impl ReRandomizationContext {
     /// - First the context is hashed with the `rerand_root_seed_domain_separator` and the
     ///   `nonce_metadata` to derive a "re-rand root seed".
     /// - Then the "re-rand root seed" is used with the `public_encryption_domain_separator` to
-    ///   create a [`DeterministicSeeder`](crate::core_crypto::commons::generators::DeterministicSeeder)
-    /// - Finally the
-    ///   [`DeterministicSeeder`](crate::core_crypto::commons::generators::DeterministicSeeder) is
-    ///   used to generates seeds for the
-    ///   [`SecretRandomGenerator`](crate::core_crypto::prelude::SecretRandomGenerator) and the
-    ///   [`EncryptionRandomGenerator`](crate::core_crypto::prelude::EncryptionRandomGenerator) used
-    ///   to generate the encryptions of zero
+    ///   create an encryption seed
+    /// - Finally this seed is used with the encryption generator to generate the encryptions of
+    ///   zero
     ///
     /// (See [`XofSeed`] for more information)
     ///
