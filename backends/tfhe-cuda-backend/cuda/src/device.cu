@@ -1,4 +1,6 @@
 #include "device.h"
+
+#include <atomic>
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <mutex>
@@ -18,8 +20,8 @@ uint32_t cuda_get_device() {
   check_cuda_error(cudaGetDevice(&device));
   return static_cast<uint32_t>(device);
 }
-std::mutex pool_mutex;
-bool mem_pools_enabled = false;
+
+std::atomic<bool> mem_pools_enabled = false;
 
 // We use memory pools to reduce some overhead of memory allocations due
 // to our scratch/release pattern. This function is the simplest way of using
@@ -36,13 +38,13 @@ bool mem_pools_enabled = false;
 // We tested more complex configurations of mempools, but they did not yield
 // better results.
 void cuda_setup_mempool(uint32_t caller_gpu_index) {
-  if (!mem_pools_enabled) {
-    pool_mutex.lock();
-    if (mem_pools_enabled)
-      return; // If mem pools are already enabled, we don't need to do anything
 
-    // We do it only once for all GPUs
-    mem_pools_enabled = true;
+  bool pools_not_initialized = false;
+  bool pools_initialized = true;
+
+  // if pools_not_initialized is found, mem_pools_enabled is set to pools_initialized
+  // and the if body runs
+  if (mem_pools_enabled.compare_exchange_strong(pools_not_initialized, pools_initialized)) {
     uint32_t num_gpus = cuda_get_number_of_gpus();
     for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
       cuda_set_device(gpu_index);
@@ -85,7 +87,6 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
     }
     // We return to the original gpu_index
     cuda_set_device(caller_gpu_index);
-    pool_mutex.unlock();
   }
 }
 
@@ -188,6 +189,7 @@ CudaMultiStreamPool gCudaStreamPool;
 /// Unsafe function to create a CUDA stream, must check first that GPU exists
 cudaStream_t cuda_create_stream(uint32_t gpu_index) {
 #ifdef CUDA_STREAM_POOL
+  cuda_set_device(gpu_index); // this will initialize the mempool
   return gCudaStreamPool.get(gpu_index).create_stream(gpu_index);
 #else
   cuda_set_device(gpu_index);
