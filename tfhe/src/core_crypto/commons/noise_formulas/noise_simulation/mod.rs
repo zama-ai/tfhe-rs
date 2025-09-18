@@ -1,4 +1,5 @@
 pub mod lwe_keyswitch;
+pub mod lwe_multi_bit_programmable_bootstrap;
 pub mod lwe_packing_keyswitch;
 pub mod lwe_programmable_bootstrap;
 pub mod modulus_switch;
@@ -13,7 +14,7 @@ pub use lwe_programmable_bootstrap::{
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateLweBootstrapResult, ScalarMul, ScalarMulAssign,
+    AllocateLweBootstrapResult, AllocateLweMultiBitBlindRotateResult, ScalarMul, ScalarMulAssign,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
@@ -178,6 +179,26 @@ impl AllocateLweBootstrapResult for NoiseSimulationGlwe {
     type SideResources = ();
 
     fn allocate_lwe_bootstrap_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let lwe_dimension = self
+            .glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size());
+
+        Self::Output {
+            lwe_dimension,
+            variance: self.variance_per_occupied_slot(),
+            modulus: self.modulus(),
+        }
+    }
+}
+
+impl AllocateLweMultiBitBlindRotateResult for NoiseSimulationGlwe {
+    type Output = NoiseSimulationLwe;
+    type SideResources = ();
+
+    fn allocate_lwe_multi_bit_blind_rotate_result(
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
