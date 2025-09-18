@@ -194,25 +194,117 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           compute_overflow, uses_input_borrow);
     };
 
+    auto cmp_f = [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                     size_t gpu_index,
+                     CudaRadixCiphertextFFI *out_boolean_block,
+                     CudaRadixCiphertextFFI *comparison_blocks,
+                     CudaRadixCiphertextFFI *d,
+                     int_comparison_buffer<Torus> *comparison_buffer)
+    {
+      CudaRadixCiphertextFFI *d_msb = new CudaRadixCiphertextFFI;
+      uint32_t slice_start = num_blocks - block_index;
+      uint32_t slice_end = d->num_radix_blocks;
+      as_radix_ciphertext_slice<Torus>(d_msb, d, slice_start, slice_end);
+      comparison_blocks->num_radix_blocks = d_msb->num_radix_blocks;
+      if (d_msb->num_radix_blocks == 0)
+      {
+        cuda_memset_async((Torus *)out_boolean_block->ptr, 0,
+                          sizeof(Torus) *
+                              (out_boolean_block->lwe_dimension + 1),
+                          streams[gpu_index], gpu_indexes[gpu_index]);
+      }
+      else
+      {
+        host_compare_blocks_with_zero<Torus>(
+            &streams[gpu_index], &gpu_indexes[gpu_index], 1, comparison_blocks, d_msb,
+            comparison_buffer, &bsks[gpu_index], &ksks[gpu_index], ms_noise_reduction_key,
+            d_msb->num_radix_blocks, comparison_buffer->is_zero_lut);
+        are_all_comparisons_block_true(
+            &streams[gpu_index], &gpu_indexes[gpu_index], 1, out_boolean_block,
+            comparison_blocks, comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
+            ms_noise_reduction_key, comparison_blocks->num_radix_blocks);
+
+        host_negation<Torus>(
+            streams[gpu_index], gpu_indexes[gpu_index], (Torus *)out_boolean_block->ptr,
+            (Torus *)out_boolean_block->ptr,
+            radix_params.big_lwe_dimension, 1);
+        // we calculate encoding because this block works only for
+        // message_modulus = 4 and carry_modulus = 4.
+        const Torus encoded_scalar = 1ULL << (sizeof(Torus) * 8 - 5);
+        host_addition_plaintext_scalar<Torus>(
+            streams[gpu_index], gpu_indexes[gpu_index], (Torus *)out_boolean_block->ptr,
+            (Torus *)out_boolean_block->ptr, encoded_scalar,
+            radix_params.big_lwe_dimension, 1);
+      }
+      delete d_msb;
+    };
+
+
+    for (uint j = 0; j < 3; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+    }
     size_t indexes_id = mem_ptr->rem3->num_radix_blocks - 1;
     sub_result_f(streams, gpu_indexes, 0,
-                  mem_ptr->sub_result_1, mem_ptr->sub_1_overflowed,
-                  mem_ptr->overflow_sub_mem_1, mem_ptr->low3, mem_ptr->rem3, 
-                  mem_ptr->first_indexes_for_overflow_sub_gpu_0[indexes_id],
-                  mem_ptr->second_indexes_for_overflow_sub_gpu_0[indexes_id],
-                  mem_ptr->scalars_for_overflow_sub_gpu_0[indexes_id]);
+                 mem_ptr->sub_result_1, mem_ptr->sub_1_overflowed,
+                 mem_ptr->overflow_sub_mem_1, mem_ptr->low3, mem_ptr->rem3,
+                 mem_ptr->first_indexes_for_overflow_sub_gpu_0[indexes_id],
+                 mem_ptr->second_indexes_for_overflow_sub_gpu_0[indexes_id],
+                 mem_ptr->scalars_for_overflow_sub_gpu_0[indexes_id]);
     sub_result_f(streams, gpu_indexes, 1,
-                  mem_ptr->sub_result_2, mem_ptr->sub_2_overflowed,
-                  mem_ptr->overflow_sub_mem_2, mem_ptr->low2, mem_ptr->rem2, 
-                  mem_ptr->first_indexes_for_overflow_sub_gpu_1[indexes_id],
-                  mem_ptr->second_indexes_for_overflow_sub_gpu_1[indexes_id],
-                  mem_ptr->scalars_for_overflow_sub_gpu_1[indexes_id]);
+                 mem_ptr->sub_result_2, mem_ptr->sub_2_overflowed,
+                 mem_ptr->overflow_sub_mem_2, mem_ptr->low2, mem_ptr->rem2,
+                 mem_ptr->first_indexes_for_overflow_sub_gpu_1[indexes_id],
+                 mem_ptr->second_indexes_for_overflow_sub_gpu_1[indexes_id],
+                 mem_ptr->scalars_for_overflow_sub_gpu_1[indexes_id]);
     sub_result_f(streams, gpu_indexes, 2,
-                  mem_ptr->sub_result_3, mem_ptr->sub_3_overflowed,
-                  mem_ptr->overflow_sub_mem_3, mem_ptr->low1, mem_ptr->rem1, 
-                  mem_ptr->first_indexes_for_overflow_sub_gpu_2[indexes_id],
-                  mem_ptr->second_indexes_for_overflow_sub_gpu_2[indexes_id],
-                  mem_ptr->scalars_for_overflow_sub_gpu_2[indexes_id]);
+                 mem_ptr->sub_result_3, mem_ptr->sub_3_overflowed,
+                 mem_ptr->overflow_sub_mem_3, mem_ptr->low1, mem_ptr->rem1,
+                 mem_ptr->first_indexes_for_overflow_sub_gpu_2[indexes_id],
+                 mem_ptr->second_indexes_for_overflow_sub_gpu_2[indexes_id],
+                 mem_ptr->scalars_for_overflow_sub_gpu_2[indexes_id]);
+
+    cmp_f(mem_ptr->sub_streams_1, gpu_indexes, 0, mem_ptr->cmp_1,
+          mem_ptr->comparison_blocks_1, mem_ptr->d3,
+          mem_ptr->comparison_buffer_1);
+    cmp_f(mem_ptr->sub_streams_1, gpu_indexes, 1,
+          mem_ptr->cmp_2,
+          mem_ptr->comparison_blocks_2, mem_ptr->d2,
+          mem_ptr->comparison_buffer_2);
+    cmp_f(mem_ptr->sub_streams_1, gpu_indexes, 2,
+          mem_ptr->cmp_3,
+          mem_ptr->comparison_blocks_3, mem_ptr->d1,
+          mem_ptr->comparison_buffer_3);
+
+    cuda_set_device(2);
+    print_body<Torus>("sub_result_3", (Torus *)mem_ptr->sub_result_3->ptr,
+                      mem_ptr->sub_result_3->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("sub_3_overflowed", (Torus *)mem_ptr->sub_3_overflowed->ptr,
+                      mem_ptr->sub_3_overflowed->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("cmp_3", (Torus *)mem_ptr->cmp_3->ptr,
+                      mem_ptr->cmp_3->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(1);
+    print_body<Torus>("sub_result_2", (Torus *)mem_ptr->sub_result_2->ptr,
+                      mem_ptr->sub_result_2->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("sub_2_overflowed", (Torus *)mem_ptr->sub_2_overflowed->ptr, 
+                      mem_ptr->sub_2_overflowed->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("cmp_2", (Torus *)mem_ptr->cmp_2->ptr, 
+                      mem_ptr->cmp_2->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(0);
+    print_body<Torus>("sub_result_1", (Torus *)mem_ptr->sub_result_1->ptr,
+                      mem_ptr->sub_result_1->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("sub_1_overflowed", (Torus *)mem_ptr->sub_1_overflowed->ptr, 
+                      mem_ptr->sub_1_overflowed->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    print_body<Torus>("cmp_1", (Torus *)mem_ptr->cmp_1->ptr, 
+                      mem_ptr->cmp_1->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
     break;
 
     //   auto cmp_f = [&](cudaStream_t const *streams, uint32_t const
