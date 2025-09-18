@@ -9,6 +9,7 @@
 #ifdef CUDA_STREAM_POOL
 #include <deque>
 #include <mutex>
+#include <vector>
 #include <unordered_map>
 #endif
 
