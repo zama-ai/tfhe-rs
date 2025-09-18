@@ -305,80 +305,60 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     print_body<Torus>("cmp_1", (Torus *)mem_ptr->cmp_1->ptr, 
                       mem_ptr->cmp_1->num_radix_blocks,
                       radix_params.big_lwe_dimension, 576460752303423488ULL);
+
+    for (uint j = 0; j < 3; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+    }
+
+    auto r1 = mem_ptr->sub_result_3;
+    auto r2 = mem_ptr->sub_result_2;
+    auto r3 = mem_ptr->sub_result_1;
+    auto o1 = mem_ptr->sub_3_overflowed;
+    auto o2 = mem_ptr->sub_2_overflowed;
+    auto o3 = mem_ptr->sub_1_overflowed;
+
+    // +----------+----------+----------+
+    // |  gpu[0]  |  gpu[1]  |  gpu[2]  |
+    // +----------+----------+----------+
+    // |    r3    |    r2    |    r1    |
+    // |    o3    |    o2    |    o1    |
+    // |  cmp_1   |  cmp_2   |  cmp_3   |
+    // +----------+----------+----------+
+
+    // used as a bitor
+    host_integer_radix_bitop_kb(&streams[0], &gpu_indexes[0],
+                                1,
+                                o3, o3, mem_ptr->cmp_1,
+                                mem_ptr->bitor_mem_1, &bsks[0], &ksks[0],
+                                ms_noise_reduction_key);
+    // used as a bitor
+    host_integer_radix_bitop_kb(&streams[1], &gpu_indexes[1],
+                                1,
+                                o2, o2, mem_ptr->cmp_2,
+                                mem_ptr->bitor_mem_2, &bsks[1], &ksks[1],
+                                ms_noise_reduction_key);
+    // used as a bitor
+    host_integer_radix_bitop_kb(&streams[2], &gpu_indexes[2],
+                                1,
+                                o1, o1, mem_ptr->cmp_3,
+                                mem_ptr->bitor_mem_3, &bsks[2], &ksks[2],
+                                ms_noise_reduction_key);
+
+    cuda_set_device(2);
+    print_body<Torus>("o1 after bitor", (Torus *)o1->ptr,
+                      o1->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(1);
+    print_body<Torus>("o2 after bitor", (Torus *)o2->ptr,
+                      o2->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(0);
+    print_body<Torus>("o3 after bitor", (Torus *)o3->ptr,
+                      o3->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
     break;
 
-    //   auto cmp_f = [&](cudaStream_t const *streams, uint32_t const
-    //   *gpu_indexes,
-    //                    uint32_t gpu_count,
-    //                    CudaRadixCiphertextFFI *out_boolean_block,
-    //                    CudaRadixCiphertextFFI *comparison_blocks,
-    //                    CudaRadixCiphertextFFI *d,
-    //                    int_comparison_buffer<Torus> *comparison_buffer) {
-    //     CudaRadixCiphertextFFI *d_msb = new CudaRadixCiphertextFFI;
-    //     uint32_t slice_start = num_blocks - block_index;
-    //     uint32_t slice_end = d->num_radix_blocks;
-    //     as_radix_ciphertext_slice<Torus>(d_msb, d, slice_start, slice_end);
-    //     comparison_blocks->num_radix_blocks = d_msb->num_radix_blocks;
-    //     if (d_msb->num_radix_blocks == 0) {
-    //       cuda_memset_async((Torus *)out_boolean_block->ptr, 0,
-    //                         sizeof(Torus) *
-    //                             (out_boolean_block->lwe_dimension + 1),
-    //                         streams[0], gpu_indexes[0]);
-    //     } else {
-    //       host_compare_blocks_with_zero<Torus>(
-    //           streams, gpu_indexes, gpu_count, comparison_blocks, d_msb,
-    //           comparison_buffer, bsks, ksks, ms_noise_reduction_key,
-    //           d_msb->num_radix_blocks, comparison_buffer->is_zero_lut);
-    //       are_all_comparisons_block_true(
-    //           streams, gpu_indexes, gpu_count, out_boolean_block,
-    //           comparison_blocks, comparison_buffer, bsks, ksks,
-    //           ms_noise_reduction_key, comparison_blocks->num_radix_blocks);
-
-    //       host_negation<Torus>(
-    //           streams[0], gpu_indexes[0], (Torus *)out_boolean_block->ptr,
-    //           (Torus *)out_boolean_block->ptr,
-    //           radix_params.big_lwe_dimension, 1);
-    //       // we calculate encoding because this block works only for
-    //       // message_modulus = 4 and carry_modulus = 4.
-    //       const Torus encoded_scalar = 1ULL << (sizeof(Torus) * 8 - 5);
-    //       host_addition_plaintext_scalar<Torus>(
-    //           streams[0], gpu_indexes[0], (Torus *)out_boolean_block->ptr,
-    //           (Torus *)out_boolean_block->ptr, encoded_scalar,
-    //           radix_params.big_lwe_dimension, 1);
-    //     }
-    //     delete d_msb;
-    //   };
-
-    //   for (uint j = 0; j < gpu_count; j++) {
-    //     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-    //   }
-    //   cmp_f(mem_ptr->sub_streams_4, gpu_indexes, gpu_count, mem_ptr->cmp_1,
-    //         mem_ptr->comparison_blocks_1, mem_ptr->d3,
-    //         mem_ptr->comparison_buffer_1);
-    //   // cmp_f(mem_ptr->sub_streams_5, gpu_indexes, gpu_count,
-    //   mem_ptr->cmp_2,
-    //   //       mem_ptr->comparison_blocks_2, mem_ptr->d2,
-    //   //       mem_ptr->comparison_buffer_2);
-    //   // cmp_f(mem_ptr->sub_streams_6, gpu_indexes, gpu_count,
-    //   mem_ptr->cmp_3,
-    //   //       mem_ptr->comparison_blocks_3, mem_ptr->d1,
-    //   //       mem_ptr->comparison_buffer_3);
-    //   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_4[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_5[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_6[j], gpu_indexes[j]);
-    //   }
-
-    //   auto r1 = mem_ptr->sub_result_3;
-    //   auto r2 = mem_ptr->sub_result_2;
-    //   auto r3 = mem_ptr->sub_result_1;
-
-    //   auto o1 = mem_ptr->sub_3_overflowed;
-    //   auto o2 = mem_ptr->sub_2_overflowed;
-    //   auto o3 = mem_ptr->sub_1_overflowed;
 
     //   // used as a bitor
     //   host_integer_radix_bitop_kb(mem_ptr->sub_streams_1, gpu_indexes,

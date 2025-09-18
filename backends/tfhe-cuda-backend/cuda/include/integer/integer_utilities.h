@@ -4741,6 +4741,15 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     comparison_buffer_3 = new int_comparison_buffer<Torus>(
         &streams[2], &gpu_indexes[2], 1, COMPARISON_TYPE::EQ, params,
         num_blocks, false, allocate_gpu_memory, size_tracker);
+    bitor_mem_1 = new int_bitop_buffer<Torus>(
+        &streams[0], &gpu_indexes[0], 1, BITOP_TYPE::BITOR, params, num_blocks,
+        allocate_gpu_memory, size_tracker);
+    bitor_mem_2 = new int_bitop_buffer<Torus>(
+        &streams[1], &gpu_indexes[1], 1, BITOP_TYPE::BITOR, params, num_blocks,
+        allocate_gpu_memory, size_tracker);
+    bitor_mem_3 = new int_bitop_buffer<Torus>(
+        &streams[2], &gpu_indexes[2], 1, BITOP_TYPE::BITOR, params, num_blocks,
+        allocate_gpu_memory, size_tracker);
     // bitor_mem_1 = new int_bitop_buffer<Torus>(
     //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
     //     num_blocks, allocate_gpu_memory, size_tracker);
@@ -4934,9 +4943,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     comparison_buffer_1->release(&streams[0], &gpu_indexes[0], 1);
     comparison_buffer_2->release(&streams[1], &gpu_indexes[1], 1);
     comparison_buffer_3->release(&streams[2], &gpu_indexes[2], 1);
-    // bitor_mem_1->release(streams, gpu_indexes, gpu_count);
-    // bitor_mem_2->release(streams, gpu_indexes, gpu_count);
-    // bitor_mem_3->release(streams, gpu_indexes, gpu_count);
+    bitor_mem_1->release(&streams[0], &gpu_indexes[0], 1);
+    bitor_mem_2->release(&streams[1], &gpu_indexes[1], 1);
+    bitor_mem_3->release(&streams[2], &gpu_indexes[2], 1);
 
     delete sub_and_propagate_mem;
     delete shift_mem;
@@ -4946,9 +4955,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete comparison_buffer_1;
     delete comparison_buffer_2;
     delete comparison_buffer_3;
-    // delete bitor_mem_1;
-    // delete bitor_mem_2;
-    // delete bitor_mem_3;
+    delete bitor_mem_1;
+    delete bitor_mem_2;
+    delete bitor_mem_3;
 
     // release and delete lut objects
     // message_extract_lut_1->release(streams, gpu_indexes, gpu_count);
