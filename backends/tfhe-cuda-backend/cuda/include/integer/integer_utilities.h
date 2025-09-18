@@ -6261,6 +6261,7 @@ template <typename Torus> struct int_aes_encrypt_buffer {
   bool allocate_gpu_memory;
   // The number of keystreams to be processed in parallel.
   uint32_t num_blocks;
+  uint32_t sbox_parallel_instances;
 
   // ------------------
   // Look-Up Tables (LUTs) for homomorphic operations
@@ -6340,13 +6341,13 @@ template <typename Torus> struct int_aes_encrypt_buffer {
 
   int_aes_encrypt_buffer(CudaStreams streams, const int_radix_params params,
                          const bool allocate_gpu_memory, uint32_t num_blocks,
-                         uint64_t &size_tracker) {
+                         uint32_t sbox_parallelism, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_blocks = num_blocks;
+    this->sbox_parallel_instances = sbox_parallelism;
 
-    uint32_t sbox_parallel_instances = 2;
     uint32_t single_block_state_size = 128;
 
     this->and_lut = new int_radix_lut<Torus>(
@@ -6396,26 +6397,35 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     Torus *d_trivial_scalars = (Torus *)cuda_malloc_with_size_tracking_async(
         sizeof(Torus), streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(d_trivial_scalars, h_trivial_one, sizeof(Torus),
-                             streams.stream(0), streams.gpu_index(0));
+    if (allocate_gpu_memory) {
+      cuda_memcpy_async_to_gpu(d_trivial_scalars, h_trivial_one, sizeof(Torus),
+                               streams.stream(0), streams.gpu_index(0));
+    }
 
     this->trivial_1_bit = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->trivial_1_bit, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    set_trivial_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->trivial_1_bit,
-        d_trivial_scalars, h_trivial_one, 1, params.message_modulus,
-        params.carry_modulus);
-    cuda_drop_async(d_trivial_scalars, streams.stream(0), streams.gpu_index(0));
+    if (allocate_gpu_memory) {
+      set_trivial_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), this->trivial_1_bit,
+          d_trivial_scalars, h_trivial_one, 1, params.message_modulus,
+          params.carry_modulus);
+    }
+    if (allocate_gpu_memory) {
+      cuda_drop_async(d_trivial_scalars, streams.stream(0),
+                      streams.gpu_index(0));
+    }
 
     h_trivial_scalars_zero = (Torus *)calloc(1, sizeof(Torus));
     d_trivial_scalars_zero = (Torus *)cuda_malloc_with_size_tracking_async(
         sizeof(Torus), streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
-    cuda_memset_async(d_trivial_scalars_zero, 0, sizeof(Torus),
-                      streams.stream(0), streams.gpu_index(0));
+    if (allocate_gpu_memory) {
+      cuda_memset_async(d_trivial_scalars_zero, 0, sizeof(Torus),
+                        streams.stream(0), streams.gpu_index(0));
+    }
 
     this->mix_columns_col_copy_buffer = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -6522,8 +6532,10 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     delete this->carry_lut;
     this->carry_lut = nullptr;
 
-    cuda_drop_async(this->d_trivial_scalars_zero, streams.stream(0),
-                    streams.gpu_index(0));
+    if (allocate_gpu_memory) {
+      cuda_drop_async(this->d_trivial_scalars_zero, streams.stream(0),
+                      streams.gpu_index(0));
+    }
     free(this->h_trivial_scalars_zero);
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -6587,8 +6599,10 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     this->vec_trivial_b_bits_buffer = nullptr;
 
     free(this->h_counter_bits_buffer);
-    cuda_drop_async(this->d_counter_bits_buffer, streams.stream(0),
-                    streams.gpu_index(0));
+    if (allocate_gpu_memory) {
+      cuda_drop_async(this->d_counter_bits_buffer, streams.stream(0),
+                      streams.gpu_index(0));
+    }
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->sbox_internal_workspace,

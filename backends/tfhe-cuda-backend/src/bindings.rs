@@ -1637,6 +1637,7 @@ unsafe extern "C" {
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
         num_blocks: u32,
+        sbox_parallelism: u32,
     ) -> u64;
 }
 unsafe extern "C" {

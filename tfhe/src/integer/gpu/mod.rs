@@ -7620,6 +7620,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     round_keys: &CudaRadixCiphertext,
     start_counter: u128,
     num_blocks: u32,
+    sbox_parallelism: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -7687,6 +7688,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
         num_blocks,
+        sbox_parallelism,
     );
 
     cuda_integer_aes_ctr_encrypt_64(
@@ -7705,4 +7707,56 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
     cleanup_cuda_integer_aes_encrypt_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(output, &cuda_ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+    streams: &CudaStreams,
+    num_blocks: u32,
+    sbox_parallelism: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_aes_encrypt_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            false,
+            noise_reduction_type as u32,
+            num_blocks,
+            sbox_parallelism,
+        )
+    };
+
+    unsafe { cleanup_cuda_integer_aes_encrypt_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+
+    size
 }

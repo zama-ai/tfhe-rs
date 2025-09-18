@@ -6,7 +6,8 @@ uint64_t scratch_cuda_integer_aes_encrypt_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_blocks) {
+    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_blocks,
+    uint32_t sbox_parallelism) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -16,7 +17,7 @@ uint64_t scratch_cuda_integer_aes_encrypt_64(
 
   return scratch_cuda_integer_aes_encrypt<uint64_t>(
       CudaStreams(streams), (int_aes_encrypt_buffer<uint64_t> **)mem_ptr,
-      params, allocate_gpu_memory, num_blocks);
+      params, allocate_gpu_memory, num_blocks, sbox_parallelism);
 }
 
 void cuda_integer_aes_ctr_encrypt_64(

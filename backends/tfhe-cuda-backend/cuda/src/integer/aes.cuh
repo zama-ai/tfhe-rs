@@ -10,11 +10,13 @@
 template <typename Torus>
 uint64_t scratch_cuda_integer_aes_encrypt(
     CudaStreams streams, int_aes_encrypt_buffer<Torus> **mem_ptr,
-    int_radix_params params, bool allocate_gpu_memory, uint32_t num_blocks) {
+    int_radix_params params, bool allocate_gpu_memory, uint32_t num_blocks,
+    uint32_t sbox_parallelism) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_aes_encrypt_buffer<Torus>(
-      streams, params, allocate_gpu_memory, num_blocks, size_tracker);
+  *mem_ptr = new int_aes_encrypt_buffer<Torus>(streams, params,
+                                               allocate_gpu_memory, num_blocks,
+                                               sbox_parallelism, size_tracker);
   return size_tracker;
 }
 
@@ -229,13 +231,13 @@ __host__ void batch_vec_and(
  *
  */
 template <typename Torus>
-__host__ void vectorized_sbox_2_bytes(
-    CudaStreams streams, CudaRadixCiphertextFFI *byte1_x,
-    CudaRadixCiphertextFFI *byte2_x, uint32_t num_blocks,
+__host__ void vectorized_sbox_n_bytes(
+    CudaStreams streams, CudaRadixCiphertextFFI **all_bytes_x,
+    uint32_t num_bytes_parallel, uint32_t num_blocks,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
-  uint32_t num_sbox_blocks = 2 * num_blocks;
+  uint32_t num_sbox_blocks = num_bytes_parallel * num_blocks;
 
   CudaRadixCiphertextFFI y[22], t[68], z[18];
   for (int i = 0; i < 22; ++i)
@@ -254,21 +256,21 @@ __host__ void vectorized_sbox_2_bytes(
   CudaRadixCiphertextFFI x[8];
   CudaRadixCiphertextFFI *x_reordered_buffer = mem->tmp_tiled_key_buffer;
 
-  for (int i = 0; i < 8; ++i) {
-    as_radix_ciphertext_slice<Torus>(&x[i], x_reordered_buffer,
-                                     i * num_sbox_blocks,
-                                     (i + 1) * num_sbox_blocks);
+  for (int bit = 0; bit < 8; ++bit) {
+    as_radix_ciphertext_slice<Torus>(&x[bit], x_reordered_buffer,
+                                     bit * num_sbox_blocks,
+                                     (bit + 1) * num_sbox_blocks);
 
-    CudaRadixCiphertextFFI dest_slice_1;
-    as_radix_ciphertext_slice<Torus>(&dest_slice_1, &x[i], 0, num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                       &dest_slice_1, &byte1_x[i]);
-
-    CudaRadixCiphertextFFI dest_slice_2;
-    as_radix_ciphertext_slice<Torus>(&dest_slice_2, &x[i], num_blocks,
-                                     num_sbox_blocks);
-    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                       &dest_slice_2, &byte2_x[i]);
+    for (uint32_t byte_idx = 0; byte_idx < num_bytes_parallel; ++byte_idx) {
+      CudaRadixCiphertextFFI *current_source_byte = all_bytes_x[byte_idx];
+      CudaRadixCiphertextFFI dest_slice;
+      as_radix_ciphertext_slice<Torus>(&dest_slice, &x[bit],
+                                       byte_idx * num_blocks,
+                                       (byte_idx + 1) * num_blocks);
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0), &dest_slice,
+                                         &current_source_byte[bit]);
+    }
   }
 
 #define VEC_XOR(out, a, b)                                                     \
@@ -288,41 +290,32 @@ __host__ void vectorized_sbox_2_bytes(
   VEC_XOR(&y[9], &x[0], &x[3]);
   VEC_XOR(&y[8], &x[0], &x[5]);
   VEC_XOR(&t[0], &x[1], &x[2]);
-
   BATCH_VEC_FLUSH(&y[14], &y[13], &y[9], &y[8]);
   VEC_XOR(&y[1], &t[0], &x[7]);
-
   BATCH_VEC_FLUSH(&y[1]);
   VEC_XOR(&y[12], &y[13], &y[14]);
   VEC_XOR(&y[4], &y[1], &x[3]);
   VEC_XOR(&y[2], &y[1], &x[0]);
   VEC_XOR(&y[5], &y[1], &x[6]);
-
   BATCH_VEC_FLUSH(&y[12], &y[4], &y[2], &y[5]);
   VEC_XOR(&y[3], &y[5], &y[8]);
   VEC_XOR(&t[1], &x[4], &y[12]);
-
   BATCH_VEC_FLUSH(&y[3]);
   VEC_XOR(&y[15], &t[1], &x[5]);
   VEC_XOR(&y[20], &t[1], &x[1]);
-
   BATCH_VEC_FLUSH(&y[15], &y[20]);
   VEC_XOR(&y[6], &y[15], &x[7]);
   VEC_XOR(&y[10], &y[15], &t[0]);
   VEC_XOR(&y[11], &y[20], &y[9]);
-
   BATCH_VEC_FLUSH(&y[6], &y[10]);
   VEC_XOR(&y[7], &x[7], &y[11]);
-
   BATCH_VEC_FLUSH(&y[7]);
   VEC_XOR(&y[17], &y[10], &y[11]);
   VEC_XOR(&y[19], &y[10], &y[8]);
   VEC_XOR(&y[16], &t[0], &y[11]);
-
   BATCH_VEC_FLUSH(&y[17], &y[19], &y[16]);
   VEC_XOR(&y[21], &y[13], &y[16]);
   VEC_XOR(&y[18], &x[0], &y[16]);
-
   CudaRadixCiphertextFFI *and_outs_1[] = {&t[2],  &t[3],  &t[5],  &t[7], &t[8],
                                           &t[10], &t[12], &t[13], &t[15]};
   CudaRadixCiphertextFFI *and_lhs_1[] = {&y[15], &y[3], &x[7],  &y[13], &y[1],
@@ -332,89 +325,70 @@ __host__ void vectorized_sbox_2_bytes(
   batch_vec_and(streams, and_outs_1, and_lhs_1, and_rhs_1, 9, mem, bsks, ksks,
                 ms_noise_reduction_key);
   BATCH_VEC_FLUSH(&y[21], &y[18]);
-
   VEC_XOR(&t[4], &t[3], &t[2]);
   VEC_XOR(&t[6], &t[5], &t[2]);
   VEC_XOR(&t[9], &t[8], &t[7]);
   VEC_XOR(&t[11], &t[10], &t[7]);
   VEC_XOR(&t[14], &t[13], &t[12]);
   VEC_XOR(&t[16], &t[15], &t[12]);
-
   VEC_XOR(&t[17], &t[4], &t[14]);
   VEC_XOR(&t[18], &t[6], &t[16]);
   VEC_XOR(&t[19], &t[9], &t[14]);
   VEC_XOR(&t[20], &t[11], &t[16]);
-
   VEC_XOR(&t[21], &t[17], &y[20]);
   VEC_XOR(&t[22], &t[18], &y[19]);
   VEC_XOR(&t[23], &t[19], &y[21]);
   VEC_XOR(&t[24], &t[20], &y[18]);
-
   BATCH_VEC_FLUSH(&t[21], &t[23], &t[24]);
   VEC_XOR(&t[25], &t[21], &t[22]);
-
   BATCH_VEC_FLUSH(&t[25]);
   CudaRadixCiphertextFFI *and_outs_2[] = {&t[26]};
   CudaRadixCiphertextFFI *and_lhs_2[] = {&t[21]};
   CudaRadixCiphertextFFI *and_rhs_2[] = {&t[23]};
   batch_vec_and(streams, and_outs_2, and_lhs_2, and_rhs_2, 1, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   VEC_XOR(&t[27], &t[24], &t[26]);
   VEC_XOR(&t[30], &t[23], &t[24]);
   VEC_XOR(&t[31], &t[22], &t[26]);
-
   BATCH_VEC_FLUSH(&t[27], &t[30], &t[31]);
   CudaRadixCiphertextFFI *and_outs_3[] = {&t[28]};
   CudaRadixCiphertextFFI *and_lhs_3[] = {&t[25]};
   CudaRadixCiphertextFFI *and_rhs_3[] = {&t[27]};
   batch_vec_and(streams, and_outs_3, and_lhs_3, and_rhs_3, 1, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   VEC_XOR(&t[29], &t[28], &t[22]);
   CudaRadixCiphertextFFI *and_outs_4[] = {&t[32]};
   CudaRadixCiphertextFFI *and_lhs_4[] = {&t[30]};
   CudaRadixCiphertextFFI *and_rhs_4[] = {&t[31]};
   batch_vec_and(streams, and_outs_4, and_lhs_4, and_rhs_4, 1, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   BATCH_VEC_FLUSH(&t[29]);
   VEC_XOR(&t[33], &t[32], &t[24]);
-
   BATCH_VEC_FLUSH(&t[33]);
   VEC_XOR(&t[42], &t[29], &t[33]);
-
   BATCH_VEC_FLUSH(&t[42]);
   VEC_XOR(&t[34], &t[23], &t[33]);
   VEC_XOR(&t[35], &t[27], &t[33]);
-
   BATCH_VEC_FLUSH(&t[34], &t[35]);
   CudaRadixCiphertextFFI *and_outs_5[] = {&t[36]};
   CudaRadixCiphertextFFI *and_lhs_5[] = {&t[24]};
   CudaRadixCiphertextFFI *and_rhs_5[] = {&t[35]};
   batch_vec_and(streams, and_outs_5, and_lhs_5, and_rhs_5, 1, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   VEC_XOR(&t[37], &t[36], &t[34]);
   VEC_XOR(&t[38], &t[27], &t[36]);
-
   BATCH_VEC_FLUSH(&t[38]);
   VEC_XOR(&t[44], &t[33], &t[37]);
-
   CudaRadixCiphertextFFI *and_outs_6[] = {&t[39]};
   CudaRadixCiphertextFFI *and_lhs_6[] = {&t[38]};
   CudaRadixCiphertextFFI *and_rhs_6[] = {&t[29]};
   batch_vec_and(streams, and_outs_6, and_lhs_6, and_rhs_6, 1, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   VEC_XOR(&t[40], &t[25], &t[39]);
-
   VEC_XOR(&t[41], &t[40], &t[37]);
   VEC_XOR(&t[43], &t[29], &t[40]);
-
   BATCH_VEC_FLUSH(&t[41]);
   VEC_XOR(&t[45], &t[42], &t[41]);
-
   BATCH_VEC_FLUSH(&t[45]);
   CudaRadixCiphertextFFI *and_outs_7[] = {
       &z[0], &z[1],  &z[2],  &z[3],  &z[4],  &z[5],  &z[6],  &z[7],  &z[8],
@@ -427,7 +401,6 @@ __host__ void vectorized_sbox_2_bytes(
       &t[44], &t[37], &y[4], &t[43], &t[40], &y[2], &y[9],  &y[14], &y[8]};
   batch_vec_and(streams, and_outs_7, and_lhs_7, and_rhs_7, 18, mem, bsks, ksks,
                 ms_noise_reduction_key);
-
   VEC_XOR(&t[46], &z[15], &z[16]);
   VEC_XOR(&t[47], &z[10], &z[11]);
   VEC_XOR(&t[48], &z[5], &z[13]);
@@ -438,24 +411,19 @@ __host__ void vectorized_sbox_2_bytes(
   VEC_XOR(&t[53], &z[0], &z[3]);
   VEC_XOR(&t[54], &z[6], &z[7]);
   VEC_XOR(&t[55], &z[16], &z[17]);
-
   VEC_XOR(&t[56], &z[12], &t[48]);
   VEC_XOR(&t[57], &t[50], &t[53]);
   VEC_XOR(&t[58], &z[4], &t[46]);
   VEC_XOR(&t[59], &z[3], &t[54]);
-
   VEC_XOR(&t[60], &t[46], &t[57]);
   VEC_XOR(&t[61], &z[14], &t[57]);
   VEC_XOR(&t[62], &t[52], &t[58]);
   VEC_XOR(&t[63], &t[49], &t[58]);
   VEC_XOR(&t[64], &z[4], &t[59]);
-
   BATCH_VEC_FLUSH(&t[61], &t[63], &t[64]);
   VEC_XOR(&t[65], &t[61], &t[62]);
-
   BATCH_VEC_FLUSH(&t[65]);
   VEC_XOR(&t[66], &z[1], &t[63]);
-
   BATCH_VEC_FLUSH(&t[66]);
 
   CudaRadixCiphertextFFI s[8];
@@ -473,45 +441,40 @@ __host__ void vectorized_sbox_2_bytes(
   VEC_XOR(&s[3], &t[53], &t[66]);
   VEC_XOR(&s[4], &t[51], &t[66]);
   VEC_XOR(&s[5], &t[47], &t[65]);
-
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &tmp_bit, &t[62]);
   vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[6], &t[56], &tmp_bit);
-
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &tmp_bit, &t[60]);
   vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[7], &t[48], &tmp_bit);
-
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &tmp_bit, &s[3]);
   host_integer_radix_add_scalar_one_inplace<Torus>(streams, &tmp_bit,
                                                    mem->params.message_modulus,
                                                    mem->params.carry_modulus);
   VEC_XOR(&s[1], &t[64], &tmp_bit);
-
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &tmp_bit, &t[67]);
   vectorized_scalar_add_one_flush<Torus>(streams, &tmp_bit, mem, bsks, ksks,
                                          ms_noise_reduction_key);
   VEC_XOR(&s[2], &t[55], &tmp_bit);
-
   BATCH_VEC_FLUSH(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
 
-  for (int i = 0; i < 8; ++i) {
-    CudaRadixCiphertextFFI src_slice_1;
-    as_radix_ciphertext_slice<Torus>(&src_slice_1, &s[i], 0, num_blocks);
-    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                       &byte1_x[i], &src_slice_1);
-
-    CudaRadixCiphertextFFI src_slice_2;
-    as_radix_ciphertext_slice<Torus>(&src_slice_2, &s[i], num_blocks,
-                                     num_sbox_blocks);
-    copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                       &byte2_x[i], &src_slice_2);
+  for (int bit = 0; bit < 8; ++bit) {
+    for (uint32_t byte_idx = 0; byte_idx < num_bytes_parallel; ++byte_idx) {
+      CudaRadixCiphertextFFI *current_dest_byte = all_bytes_x[byte_idx];
+      CudaRadixCiphertextFFI src_slice;
+      as_radix_ciphertext_slice<Torus>(&src_slice, &s[bit],
+                                       byte_idx * num_blocks,
+                                       (byte_idx + 1) * num_blocks);
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0),
+                                         &current_dest_byte[bit], &src_slice);
+    }
   }
 
 #undef VEC_XOR
@@ -789,10 +752,54 @@ __host__ void vectorized_aes_encrypt_inplace(
                                        i * num_blocks, (i + 1) * num_blocks);
     }
 
-    for (int i = 0; i < 16; i += 2) {
-      vectorized_sbox_2_bytes<Torus>(streams, &s_bits[i * 8],
-                                     &s_bits[(i + 1) * 8], num_blocks, mem,
+    uint32_t sbox_parallelism = mem->sbox_parallel_instances;
+    switch (sbox_parallelism) {
+    case 1:
+      for (int i = 0; i < 16; ++i) {
+        CudaRadixCiphertextFFI *sbox_inputs[] = {&s_bits[i * 8]};
+        vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 1, num_blocks, mem,
+                                       bsks, ksks, ms_noise_reduction_key);
+      }
+      break;
+    case 2:
+      for (int i = 0; i < 16; i += 2) {
+        CudaRadixCiphertextFFI *sbox_inputs[] = {&s_bits[i * 8],
+                                                 &s_bits[(i + 1) * 8]};
+        vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 2, num_blocks, mem,
+                                       bsks, ksks, ms_noise_reduction_key);
+      }
+      break;
+    case 4:
+      for (int i = 0; i < 16; i += 4) {
+        CudaRadixCiphertextFFI *sbox_inputs[] = {
+            &s_bits[i * 8], &s_bits[(i + 1) * 8], &s_bits[(i + 2) * 8],
+            &s_bits[(i + 3) * 8]};
+        vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 4, num_blocks, mem,
+                                       bsks, ksks, ms_noise_reduction_key);
+      }
+      break;
+    case 8:
+      for (int i = 0; i < 16; i += 8) {
+        CudaRadixCiphertextFFI *sbox_inputs[] = {
+            &s_bits[i * 8],       &s_bits[(i + 1) * 8], &s_bits[(i + 2) * 8],
+            &s_bits[(i + 3) * 8], &s_bits[(i + 4) * 8], &s_bits[(i + 5) * 8],
+            &s_bits[(i + 6) * 8], &s_bits[(i + 7) * 8]};
+        vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 8, num_blocks, mem,
+                                       bsks, ksks, ms_noise_reduction_key);
+      }
+      break;
+    case 16: {
+      CudaRadixCiphertextFFI *sbox_inputs[] = {
+          &s_bits[0 * 8],  &s_bits[1 * 8],  &s_bits[2 * 8],  &s_bits[3 * 8],
+          &s_bits[4 * 8],  &s_bits[5 * 8],  &s_bits[6 * 8],  &s_bits[7 * 8],
+          &s_bits[8 * 8],  &s_bits[9 * 8],  &s_bits[10 * 8], &s_bits[11 * 8],
+          &s_bits[12 * 8], &s_bits[13 * 8], &s_bits[14 * 8], &s_bits[15 * 8]};
+      vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 16, num_blocks, mem,
                                      bsks, ksks, ms_noise_reduction_key);
+    } break;
+    default:
+      PANIC("Unsupported S-Box parallelism level selected: %u",
+            sbox_parallelism);
     }
 
     vectorized_shift_rows<Torus>(streams, all_states_bitsliced, num_blocks,

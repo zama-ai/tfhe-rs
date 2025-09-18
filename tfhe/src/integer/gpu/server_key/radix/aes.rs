@@ -3,7 +3,10 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRa
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 use crate::core_crypto::prelude::LweBskGroupingFactor;
-use crate::integer::gpu::{unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async, PBSType};
+use crate::integer::gpu::{
+    get_aes_ctr_encrypt_integer_radix_size_on_gpu,
+    unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async, PBSType,
+};
 
 impl CudaServerKey {
     pub fn aes_encrypt(
@@ -12,10 +15,19 @@ impl CudaServerKey {
         round_keys: &CudaUnsignedRadixCiphertext,
         start_counter: u128,
         num_blocks: usize,
+        sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let result =
-            unsafe { self.aes_encrypt_async(iv, round_keys, start_counter, num_blocks, streams) };
+        let result = unsafe {
+            self.aes_encrypt_async(
+                iv,
+                round_keys,
+                start_counter,
+                num_blocks,
+                sbox_parallelism,
+                streams,
+            )
+        };
         streams.synchronize();
         result
     }
@@ -30,6 +42,7 @@ impl CudaServerKey {
         round_keys: &CudaUnsignedRadixCiphertext,
         start_counter: u128,
         num_blocks: usize,
+        sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
         let mut result: CudaUnsignedRadixCiphertext =
@@ -67,6 +80,7 @@ impl CudaServerKey {
                     round_keys.as_ref(),
                     start_counter,
                     num_blocks as u32,
+                    sbox_parallelism as u32,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -91,6 +105,7 @@ impl CudaServerKey {
                     round_keys.as_ref(),
                     start_counter,
                     num_blocks as u32,
+                    sbox_parallelism as u32,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -110,11 +125,75 @@ impl CudaServerKey {
         }
         result
     }
+
+    pub fn get_aes_encrypt_size_on_gpu(
+        &self,
+        num_blocks: usize,
+        sbox_parallelism: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let result = unsafe {
+            self.get_aes_encrypt_size_on_gpu_async(num_blocks, sbox_parallelism, streams)
+        };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub unsafe fn get_aes_encrypt_size_on_gpu_async(
+        &self,
+        num_blocks: usize,
+        sbox_parallelism: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+                streams,
+                num_blocks as u32,
+                sbox_parallelism as u32,
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                d_bsk.input_lwe_dimension,
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                LweBskGroupingFactor(0),
+                PBSType::Classical,
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+                    streams,
+                    num_blocks as u32,
+                    sbox_parallelism as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    None,
+                )
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::core_crypto::gpu::check_valid_cuda_malloc;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{RadixCiphertext, RadixClientKey};
     use crate::shortint::ciphertext::Ciphertext;
@@ -304,7 +383,9 @@ mod test {
     }
 
     #[test]
-    fn test_aes_1000_blocks() {
+    fn test_aes_with_1_keystream() {
+        println!();
+
         let streams = CudaStreams::new_multi_gpu();
         let (cks, sks) = gen_keys_radix_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -314,10 +395,9 @@ mod test {
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-        let num_blocks: usize = 1000;
+        let num_blocks: usize = 1;
         let start_counter: u128 = 0;
-
-        println!("\n[Test] Starting FHE AES-CTR test for {num_blocks} blocks...");
+        let sbox_parallelism: usize = 16;
 
         let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
             .iter()
@@ -331,12 +411,24 @@ mod test {
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
 
+        let occupied_size_bytes =
+            sks.get_aes_encrypt_size_on_gpu(num_blocks, sbox_parallelism, &streams);
+        let alloc = check_valid_cuda_malloc(occupied_size_bytes, streams.gpu_indexes[0]);
+
+        assert!(alloc, "Failed to allocate memory on GPU");
+
         let t0 = Instant::now();
-        let d_encrypted_states =
-            sks.aes_encrypt(&d_iv, &d_round_keys, start_counter, num_blocks, &streams);
+        let d_encrypted_states = sks.aes_encrypt(
+            &d_iv,
+            &d_round_keys,
+            start_counter,
+            num_blocks,
+            sbox_parallelism,
+            &streams,
+        );
         let fhe_duration = t0.elapsed();
         println!(
-            "[FHE] Encryption of {num_blocks} blocks finished in {:.3} ms.",
+            "Encryption of {num_blocks} blocks finished in {:.3} ms.",
             fhe_duration.as_secs_f64() * 1000.0
         );
 
@@ -351,27 +443,10 @@ mod test {
             fhe_results.push(bits_to_u128(&decrypted_bits));
         }
 
-        let t0 = Instant::now();
         let plain_results = plain_aes_ctr(num_blocks, iv, key);
-        let plain_duration = t0.elapsed();
-        println!(
-            "[CPU] Encryption of {num_blocks} blocks finished in {:.3} ms.",
-            plain_duration.as_secs_f64() * 1000.0
-        );
 
-        println!("[Validation] Comparing FHE and plaintext results...");
         assert_eq!(fhe_results.len(), num_blocks);
         assert_eq!(plain_results.len(), num_blocks);
-
-        if num_blocks <= 16 {
-            println!("\n[Results per block]");
-            for i in 0..num_blocks {
-                println!(
-                    "Block {i:02}: FHE = {:#034x}, Plain = {:#034x}",
-                    fhe_results[i], plain_results[i]
-                );
-            }
-        }
 
         let mut failures = Vec::new();
         for i in 0..num_blocks {
@@ -390,7 +465,108 @@ mod test {
             failures.len(),
             failures.join("\n")
         );
+    }
 
-        println!("\n[SUCCESS] AES-CTR test for {num_blocks} blocks passed!");
+    #[test]
+    fn test_aes_with_1000_keystreams() {
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+
+        let num_blocks: usize = 1000;
+
+        let gpu_index = streams.gpu_indexes[0];
+        println!("\nFinding maximum S-Box parallelism for {num_blocks} blocks on {gpu_index:?}...");
+
+        let possible_parallelisms = vec![16, 8, 4, 2, 1];
+
+        let mut max_workable_parallelism = 0;
+
+        for parallelism in possible_parallelisms {
+            let required_size = sks.get_aes_encrypt_size_on_gpu(num_blocks, parallelism, &streams);
+            if check_valid_cuda_malloc(required_size, gpu_index) {
+                max_workable_parallelism = parallelism;
+                break;
+            }
+        }
+
+        assert_ne!(
+            max_workable_parallelism, 0,
+            "Failed to allocate memory for even a single block."
+        );
+
+        println!(" -> Maximum workable S-Box parallelism: {max_workable_parallelism:?}");
+        let final_size =
+            sks.get_aes_encrypt_size_on_gpu(num_blocks, max_workable_parallelism, &streams);
+        let final_size_gb = final_size as f64 / (1024.0 * 1024.0 * 1024.0);
+        println!(" -> This corresponds to an estimated allocation of {final_size_gb:.2} GB.");
+
+        let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
+        let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
+        let start_counter: u128 = 0;
+
+        let p_round_keys_bits: Vec<u64> = plain_key_expansion(key)
+            .iter()
+            .flat_map(|&k| u128_to_bits(k))
+            .collect();
+        let ct_round_keys_radix_cpu = encrypt_bits(&cks, &p_round_keys_bits);
+        let p_iv_bits = u128_to_bits(iv);
+        let ct_iv_radix_cpu = encrypt_bits(&cks, &p_iv_bits);
+
+        let d_round_keys =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_round_keys_radix_cpu, &streams);
+        let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv_radix_cpu, &streams);
+
+        let t0 = Instant::now();
+        let d_encrypted_states = sks.aes_encrypt(
+            &d_iv,
+            &d_round_keys,
+            start_counter,
+            num_blocks,
+            max_workable_parallelism,
+            &streams,
+        );
+        let fhe_duration = t0.elapsed();
+        println!(
+            "Encryption finished in {:.3} ms.",
+            fhe_duration.as_secs_f64() * 1000.0
+        );
+
+        let result_radix_cpu = d_encrypted_states.to_radix_ciphertext(&streams);
+        let mut fhe_results = Vec::with_capacity(num_blocks);
+        for i in 0..num_blocks {
+            let start = i * 128;
+            let end = (i + 1) * 128;
+            let block_slice = &result_radix_cpu.blocks[start..end];
+            let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
+            let decrypted_bits = decrypt_bits(&cks, &block_radix_ct);
+            fhe_results.push(bits_to_u128(&decrypted_bits));
+        }
+
+        let plain_results = plain_aes_ctr(num_blocks, iv, key);
+
+        assert_eq!(fhe_results.len(), num_blocks);
+        assert_eq!(plain_results.len(), num_blocks);
+
+        let mut failures = Vec::new();
+        for i in 0..num_blocks {
+            if fhe_results[i] != plain_results[i] {
+                let error_message = format!(
+                    "  [FAILURE] Block {i}: Expected (plain): {:#034x}, Got (FHE): {:#034x}",
+                    plain_results[i], fhe_results[i]
+                );
+                failures.push(error_message);
+            }
+        }
+
+        assert!(
+            failures.is_empty(),
+            "\nFHE AES test failed with {} errors over {num_blocks} blocks:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
     }
 }
