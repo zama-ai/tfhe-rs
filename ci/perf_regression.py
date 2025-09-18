@@ -465,23 +465,27 @@ def check_regression(results_file: pathlib.Path):
     Results file must be in JSON format with the following structure:
     ```json
     {
-      "operation": {
-        "name": "<operation_name>",
-        "results": {
-          "base": {
-            "name": "<base_branche_name>",
-            "data": [
-              <float>,
-              <float>,
-              ...,
-            ]
-          },
-          "head": {
-            "name": "<dev_branch_name>",
-            "value": <float>
+      "operation": [
+        {
+          "name": "<operation_name>",
+          "bit_size": <int>,
+          "params: "<parameters_alias>",
+          "results": {
+            "base": {
+              "name": "<base_branche_name>",
+              "data": [
+                <float>,
+                <float>,
+                ...,
+              ]
+            },
+            "head": {
+              "name": "<dev_branch_name>",
+              "value": <float>
+            }
           }
         }
-      }
+      ]
     }
     ```
 
@@ -627,3 +631,5 @@ if __name__ == "__main__":
                 generate_regression_report(regressed_ops)
 
             sys.exit(4)
+
+# TODO Add unittests primarly to check if commands and env generated are correct.
