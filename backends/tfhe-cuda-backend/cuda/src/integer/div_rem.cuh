@@ -318,13 +318,16 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     auto o2 = mem_ptr->sub_2_overflowed;
     auto o3 = mem_ptr->sub_1_overflowed;
 
-    // +----------+----------+----------+
-    // |  gpu[0]  |  gpu[1]  |  gpu[2]  |
-    // +----------+----------+----------+
-    // |    r3    |    r2    |    r1    |
-    // |    o3    |    o2    |    o1    |
-    // |  cmp_1   |  cmp_2   |  cmp_3   |
-    // +----------+----------+----------+
+    // +----------+---------------+---------------+---------+
+    // | gpu[0]   | gpu[1]        | gpu[2]        | gpu[3]  |
+    // +----------+---------------+---------------+---------+
+    // | cmp_1    | cmp_2         | cmp_3         |         |
+    // | r3       | r2            | r1            |         |
+    // | o3       | o2            | o1            |         |
+    // | c3 = !o3 | c2 = !o2 + o3 | c1 = !o1 + o2 | c0 = o1 |
+    // |          |               |               |         |
+    // |          |               |               |         |
+    // +----------+---------------+---------------+---------+
 
     // used as a bitor
     host_integer_radix_bitop_kb(&streams[0], &gpu_indexes[0],
@@ -357,8 +360,20 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     print_body<Torus>("o3 after bitor", (Torus *)o3->ptr,
                       o3->num_radix_blocks,
                       radix_params.big_lwe_dimension, 576460752303423488ULL);
-    break;
 
+    // cmp_1, cmp_2, cmp_3 are not needed anymore, we can reuse them as c3,
+    // c2, c1. c0 is allocated on gpu[3], we take it from mem_ptr.
+    auto c3 = mem_ptr->cmp_1;
+    auto c2 = mem_ptr->cmp_2;
+    auto c1 = mem_ptr->cmp_3;
+    auto c0 = mem_ptr->c0;
+
+    // move all `o` so that each gpu has required `o` for calculating `c`
+    auto o3_gpu_1 = mem_ptr->tmp_gpu_1;
+    auto o2_gpu_2 = mem_ptr->tmp_gpu_2;
+    auto o1_gpu_3 = mem_ptr->tmp_gpu_3;
+
+    break;
 
     //   // used as a bitor
     //   host_integer_radix_bitop_kb(mem_ptr->sub_streams_1, gpu_indexes,

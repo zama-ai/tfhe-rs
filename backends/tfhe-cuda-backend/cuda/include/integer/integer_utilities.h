@@ -4319,6 +4319,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *d2;                  // num_blocks + 1
   CudaRadixCiphertextFFI *d3;                  // num_blocks + 1
   CudaRadixCiphertextFFI *tmp_gpu_0;           // num_blocks + 1
+  CudaRadixCiphertextFFI *tmp_gpu_1;           // num_blocks + 1
+  CudaRadixCiphertextFFI *tmp_gpu_2;           // num_blocks + 1
+  CudaRadixCiphertextFFI *tmp_gpu_3;           // num_blocks + 1
   CudaRadixCiphertextFFI *divisor_gpu_1;       // num_blocks
   CudaRadixCiphertextFFI *divisor_gpu_2;       // num_blocks
   CudaRadixCiphertextFFI *remainder_gpu_1;     // num_blocks
@@ -4410,6 +4413,10 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         size_tracker, allocate_gpu_memory);
 
 
+    tmp_gpu_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[1], gpu_indexes[1], tmp_gpu_1, num_blocks + 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     d2 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams[1], gpu_indexes[1], d2, num_blocks + 1,
@@ -4447,6 +4454,10 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         streams[1], gpu_indexes[1], cmp_2, 1, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
+    tmp_gpu_2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[2], gpu_indexes[2], tmp_gpu_2, num_blocks + 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     d1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams[2], gpu_indexes[2], d1, num_blocks + 1,
@@ -4482,6 +4493,15 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     cmp_3 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams[2], gpu_indexes[2], cmp_3, 1, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+
+    tmp_gpu_3 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[3], gpu_indexes[3], tmp_gpu_3, num_blocks + 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    c0 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[3], gpu_indexes[3], c0, 1, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
     // comparison_blocks_1 = new CudaRadixCiphertextFFI;
@@ -4750,18 +4770,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     bitor_mem_3 = new int_bitop_buffer<Torus>(
         &streams[2], &gpu_indexes[2], 1, BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
-    // bitor_mem_1 = new int_bitop_buffer<Torus>(
-    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
-    //     num_blocks, allocate_gpu_memory, size_tracker);
-    // bitor_mem_2 = new int_bitop_buffer<Torus>(
-    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
-    //     num_blocks, allocate_gpu_memory, size_tracker);
-    // bitor_mem_3 = new int_bitop_buffer<Torus>(
-    //     streams, gpu_indexes, gpu_count, BITOP_TYPE::BITOR, params,
-    //     num_blocks, allocate_gpu_memory, size_tracker);
-    // shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-    //     streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
-    //     params, 2 * num_blocks, allocate_gpu_memory, size_tracker);
 
     // init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
     //                    allocate_gpu_memory, size_tracker);
@@ -5011,6 +5019,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], sub_1_overflowed,
                                    gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[3], gpu_indexes[3], tmp_gpu_3,
+                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2], tmp_gpu_2,
+                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], tmp_gpu_1,
+                                   gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_gpu_0,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], divisor_gpu_1,
@@ -5021,20 +5035,20 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], remainder_gpu_2,
                                    gpu_memory_allocated);
-
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], comparison_blocks_3,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], comparison_blocks_2,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], comparison_blocks_1,
                                    gpu_memory_allocated);
-
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], cmp_3,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], cmp_2, 
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_1,
                                     gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[3], gpu_indexes[3], c0,
+                                   gpu_memory_allocated);
 
 
     // release_radix_ciphertext_async(streams[0], gpu_indexes[0],
@@ -5083,6 +5097,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete sub_2_overflowed;
     delete sub_3_overflowed;
     delete tmp_gpu_0;
+    delete tmp_gpu_1;
+    delete tmp_gpu_2;
+    delete tmp_gpu_3;
     delete divisor_gpu_1;
     delete divisor_gpu_2;
     delete remainder_gpu_1;
@@ -5093,6 +5110,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete cmp_1;
     delete cmp_2;
     delete cmp_3;
+    delete c0;
 
     // delete comparison_blocks_1;
     // delete comparison_blocks_2;
