@@ -139,7 +139,7 @@ class CudaStreamPool
 
   size_t nextStream = 0;
 
-  const size_t MAX_STREAMS = 16;
+  const size_t MAX_STREAMS = 8;
 
 public:
   cudaStream_t create_stream(uint32_t gpu_index)
