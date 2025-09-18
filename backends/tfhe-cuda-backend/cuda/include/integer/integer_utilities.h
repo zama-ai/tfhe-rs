@@ -378,22 +378,7 @@ template <typename Torus> struct int_radix_lut {
     // Allocate LUT
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
-    for (uint i = 0; i < active_streams.count(); i++) {
-      auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
-          num_luts * lut_buffer_size, active_streams.stream(i), active_streams.gpu_index(i),
-          size_tracker, allocate_gpu_memory);
-      auto lut_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
-          lut_indexes_size, active_streams.stream(i), active_streams.gpu_index(i),
-          size_tracker, allocate_gpu_memory);
-      // lut_indexes is initialized to 0 by default
-      // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_with_size_tracking_async(
-          lut_indexes, 0, lut_indexes_size, active_streams.stream(i),
-          active_streams.gpu_index(i), allocate_gpu_memory);
-
-      lut_vec.push_back(lut);
-      lut_indexes_vec.push_back(lut_indexes);
-    }
+      allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
@@ -447,7 +432,7 @@ template <typename Torus> struct int_radix_lut {
     // Keyswitch
     tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_lwe_before_ks,
+        active_streams.stream(0), active_streams.gpu_index(0), tmp_lwe_before_ks,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
     h_lut_indexes = (Torus *)(calloc(num_radix_blocks, sizeof(Torus)));
@@ -458,7 +443,8 @@ template <typename Torus> struct int_radix_lut {
   // constructor to reuse memory
   int_radix_lut(CudaStreams streams, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, int_radix_lut *base_lut_object,
-                bool allocate_gpu_memory, uint64_t &size_tracker) {
+                bool allocate_gpu_memory, uint64_t &size_tracker) :
+        active_streams(streams.active_gpu_subset(num_radix_blocks)) {
 
     this->params = params;
     this->num_blocks = num_radix_blocks;
@@ -489,22 +475,8 @@ template <typename Torus> struct int_radix_lut {
     // Allocate LUT
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
-    active_streams = streams.active_gpu_subset(num_radix_blocks);
-    for (uint i = 0; i < active_streams.count(); i++) {
-      auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
-          num_luts * lut_buffer_size, streams.stream(i), streams.gpu_index(i),
-          size_tracker, allocate_gpu_memory);
-      auto lut_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
-          lut_indexes_size, streams.stream(i), streams.gpu_index(i),
-          size_tracker, allocate_gpu_memory);
-      // lut_indexes is initialized to 0 by default
-      // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_with_size_tracking_async(
-          lut_indexes, 0, lut_indexes_size, streams.stream(i),
-          streams.gpu_index(i), allocate_gpu_memory);
-      lut_vec.push_back(lut);
-      lut_indexes_vec.push_back(lut_indexes);
-    }
+
+    allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
