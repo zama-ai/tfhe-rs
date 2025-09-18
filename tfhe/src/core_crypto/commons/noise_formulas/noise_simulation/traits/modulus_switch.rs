@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::parameters::CiphertextModulusLog;
+use crate::core_crypto::commons::parameters::{CiphertextModulusLog, LweBskGroupingFactor};
 
 pub trait AllocateStandardModSwitchResult {
     type Output;
@@ -41,6 +41,28 @@ pub trait DriftTechniqueStandardModSwitch<Input, OutputAfterDriftTechnique, Outp
         input: &Input,
         after_drift_technique: &mut OutputAfterDriftTechnique,
         after_mod_switch: &mut OutputAfterMs,
+        side_resources: &mut Self::SideResources,
+    );
+}
+
+pub trait AllocateMultiBitModSwitchResult {
+    type Output;
+    type SideResources;
+
+    fn allocate_multi_bit_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
+}
+
+pub trait MultiBitModSwitch<Output> {
+    type SideResources;
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut Output,
         side_resources: &mut Self::SideResources,
     );
 }
