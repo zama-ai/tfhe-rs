@@ -159,6 +159,26 @@ pub enum TestDistribution {
     TUniform { bound_log2: u32 },
 }
 
+/// Re-definition of keyswitch parameters
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestKeySwitchingParams {
+    pub ks_level: usize,
+    pub ks_base_log: usize,
+    pub destination_key: Cow<'static, str>,
+}
+
+/// Re-definition of cpk parameters
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestCompactPublicKeyEncryptionParameters {
+    pub encryption_lwe_dimension: usize,
+    pub encryption_noise_distribution: TestDistribution,
+    pub message_modulus: usize,
+    pub carry_modulus: usize,
+    pub ciphertext_modulus: u128,
+    pub expansion_kind: Cow<'static, str>,
+    pub zk_scheme: Cow<'static, str>,
+}
+
 pub fn dir_for_version<P: AsRef<Path>>(data_dir: P, version: &str) -> PathBuf {
     let mut path = data_dir.as_ref().to_path_buf();
     path.push(version.replace('.', "_"));
@@ -349,6 +369,7 @@ impl TestType for HlClientKeyTest {
 pub struct HlServerKeyTest {
     pub test_filename: Cow<'static, str>,
     pub client_key_filename: Cow<'static, str>,
+    pub rerand_cpk_filename: Option<Cow<'static, str>>,
     pub compressed: bool,
 }
 

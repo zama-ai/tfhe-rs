@@ -2,6 +2,7 @@ use super::base::FheBool;
 use crate::high_level_api::booleans::inner::InnerBoolean;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -14,7 +15,11 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
-        let mut ciphertext = Self::new(integer_client_key.encrypt_bool(value), key.tag.clone());
+        let mut ciphertext = Self::new(
+            integer_client_key.encrypt_bool(value),
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -55,7 +60,11 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for FheBool {
     type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
-        let mut ciphertext = Self::new(key.key.encrypt_bool(value), key.tag.clone());
+        let mut ciphertext = Self::new(
+            key.key.encrypt_bool(value),
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -65,7 +74,11 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
     type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
-        let mut ciphertext = Self::new(key.key.encrypt_bool(value), key.tag.clone());
+        let mut ciphertext = Self::new(
+            key.key.encrypt_bool(value),
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -105,6 +118,10 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                 panic!("Hpu does not support trivial encryption")
             }
         });
-        Ok(Self::new(ciphertext, tag))
+        Ok(Self::new(
+            ciphertext,
+            tag,
+            ReRandomizationMetadata::default(),
+        ))
     }
 }

@@ -3,6 +3,7 @@ use crate::backward_compatibility::booleans::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
@@ -76,7 +77,11 @@ impl CompressedFheBool {
                 with_cpu_internal_keys(|sk| sk.pbs_key().key.decompress(modulus_switched))
             }
         });
-        let mut ciphertext = FheBool::new(ciphertext, self.tag.clone());
+        let mut ciphertext = FheBool::new(
+            ciphertext,
+            self.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
 
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
 

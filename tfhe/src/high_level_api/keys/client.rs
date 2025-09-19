@@ -12,6 +12,7 @@ use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::{NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView};
 use crate::named::Named;
 use crate::prelude::Tagged;
+use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::MessageModulus;
 use crate::Tag;
 use tfhe_csprng::seeders::Seed;
@@ -77,6 +78,7 @@ impl ClientKey {
         self.key.block_parameters()
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -85,10 +87,11 @@ impl ClientKey {
         Option<CompressionPrivateKeys>,
         Option<NoiseSquashingPrivateKey>,
         Option<NoiseSquashingCompressionPrivateKey>,
+        Option<ShortintKeySwitchingParameters>,
         Tag,
     ) {
-        let (cks, cpk, cppk, nsk, nscpk) = self.key.into_raw_parts();
-        (cks, cpk, cppk, nsk, nscpk, self.tag)
+        let (cks, cpk, cppk, nsk, nscpk, cpkrndp) = self.key.into_raw_parts();
+        (cks, cpk, cppk, nsk, nscpk, cpkrndp, self.tag)
     }
 
     pub fn from_raw_parts(
@@ -100,6 +103,7 @@ impl ClientKey {
         compression_key: Option<CompressionPrivateKeys>,
         noise_squashing_key: Option<NoiseSquashingPrivateKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionPrivateKey>,
+        cpk_re_randomization_ksk_params: Option<ShortintKeySwitchingParameters>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -109,6 +113,7 @@ impl ClientKey {
                 compression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
+                cpk_re_randomization_ksk_params,
             ),
             tag,
         }

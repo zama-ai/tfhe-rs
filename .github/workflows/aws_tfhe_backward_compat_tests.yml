@@ -66,13 +66,8 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          persist-credentials: 'false'
+          persist-credentials: 'true' # Needed to pull lfs data
           token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
 
       # Cache key is an aggregated hash of lfs files hashes
       - name: Get LFS data sha
@@ -94,6 +89,16 @@ jobs:
         if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
         run: |
           make pull_backward_compat_data
+
+      # Pull token was stored by action/checkout to be used by lfs, we don't need it anymore
+      - name: Remove git credentials
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
 
       - name: Run backward compatibility tests
         run: |

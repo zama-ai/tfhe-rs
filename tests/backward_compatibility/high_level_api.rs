@@ -3,7 +3,9 @@ use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
 #[cfg(feature = "zk-pok")]
 use tfhe::integer::parameters::DynamicDistribution;
-use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant, SquashNoise};
+use tfhe::prelude::{
+    CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant, ReRandomize, SquashNoise,
+};
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::parameters::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
@@ -17,7 +19,8 @@ use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedPublicKey, CompressedServerKey, CompressedSquashedNoiseCiphertextList, FheBool,
-    FheInt8, FheUint8, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
+    FheInt8, FheUint8, ReRandomizationContext, SquashedNoiseFheBool, SquashedNoiseFheInt,
+    SquashedNoiseFheUint,
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
@@ -347,6 +350,7 @@ pub fn test_hl_pubkey(
         };
         FheUint8::encrypt(value, &public_key)
     };
+
     let decrypted: u8 = encrypted.decrypt(&client_key);
 
     if decrypted != value {
@@ -375,7 +379,7 @@ pub fn test_hl_serverkey(
     .map_err(|e| test.failure(e, format))?;
 
     let v1 = 73u8;
-    let ct1 = FheUint8::encrypt(v1, &client_key);
+    let mut ct1 = FheUint8::encrypt(v1, &client_key);
     let v2 = 102u8;
     let ct2 = FheUint8::encrypt(v2, &client_key);
 
@@ -386,7 +390,8 @@ pub fn test_hl_serverkey(
         load_and_unversionize(dir, test, format)?
     };
 
-    let has_noise_squashing = key.noise_squashing_key().is_some();
+    let has_noise_squashing = key.supports_noise_squashing();
+    let has_rerand = key.supports_ciphertext_re_randomization();
     set_server_key(key);
 
     if has_noise_squashing {
@@ -397,6 +402,47 @@ pub fn test_hl_serverkey(
                 format!(
                     "Invalid result for noise squashing using loaded server key, expected {v1} got {res}",
                 ),
+                format,
+            ));
+        }
+    }
+
+    if let Some(rerand_cpk_filename) = test.rerand_cpk_filename.as_ref() {
+        if has_rerand {
+            let rerand_cpk_file = dir.join(rerand_cpk_filename.to_string());
+            let public_key = CompressedCompactPublicKey::unversionize(
+                load_versioned_auxiliary(rerand_cpk_file).map_err(|e| test.failure(e, format))?,
+            )
+            .map_err(|e| test.failure(e, format))?
+            .decompress();
+
+            let nonce: [u8; 256 / 8] = rand::random();
+            let mut re_rand_context = ReRandomizationContext::new(
+                *b"TFHE_Rrd",
+                [b"FheUint8".as_slice(), nonce.as_slice()],
+                *b"TFHE_Enc",
+            );
+
+            re_rand_context.add_ciphertext(&ct1);
+            let mut seed_gen = re_rand_context.finalize();
+
+            ct1.re_randomize(&public_key, seed_gen.next_seed().unwrap())
+                .unwrap();
+
+            #[allow(clippy::eq_op)]
+            let rrd = &ct1 & &ct1;
+            let res: u8 = rrd.decrypt(&client_key);
+            if res != v1 {
+                return Err(test.failure(
+                    format!(
+                    "Invalid result for rerand using loaded server key, expected {v1} got {res}",
+                ),
+                    format,
+                ));
+            }
+        } else {
+            return Err(test.failure(
+                "Test requires rerand key but server key does not have it".to_string(),
                 format,
             ));
         }

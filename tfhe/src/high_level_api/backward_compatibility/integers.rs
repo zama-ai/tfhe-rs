@@ -9,6 +9,7 @@ use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::signed::InnerSquashedNoiseSignedRadixCiphertext;
 use crate::high_level_api::integers::unsigned::InnerSquashedNoiseRadixCiphertext;
 use crate::high_level_api::integers::*;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedRadixCiphertextTFHE06,
@@ -131,11 +132,11 @@ pub struct FheIntV0<Id: FheIntId> {
     pub(in crate::high_level_api) id: Id,
 }
 
-impl<Id: FheIntId> Upgrade<FheInt<Id>> for FheIntV0<Id> {
+impl<Id: FheIntId> Upgrade<FheIntV1<Id>> for FheIntV0<Id> {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<FheInt<Id>, Self::Error> {
-        Ok(FheInt {
+    fn upgrade(self) -> Result<FheIntV1<Id>, Self::Error> {
+        Ok(FheIntV1 {
             ciphertext: self.ciphertext,
             id: self.id,
             tag: Tag::default(),
@@ -143,10 +144,37 @@ impl<Id: FheIntId> Upgrade<FheInt<Id>> for FheIntV0<Id> {
     }
 }
 
+#[derive(Version)]
+pub struct FheIntV1<Id: FheIntId> {
+    pub(in crate::high_level_api) ciphertext: SignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+    pub(crate) tag: Tag,
+}
+
+impl<Id: FheIntId> Upgrade<FheInt<Id>> for FheIntV1<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheInt<Id>, Self::Error> {
+        let Self {
+            ciphertext,
+            id,
+            tag,
+        } = self;
+
+        Ok(FheInt {
+            ciphertext,
+            id,
+            tag,
+            re_randomization_metadata: ReRandomizationMetadata::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheIntVersions<Id: FheIntId> {
     V0(FheIntV0<Id>),
-    V1(FheInt<Id>),
+    V1(FheIntV1<Id>),
+    V2(FheInt<Id>),
 }
 
 #[derive(Version)]
@@ -182,11 +210,11 @@ pub struct FheUintV0<Id: FheUintId> {
     pub(in crate::high_level_api) id: Id,
 }
 
-impl<Id: FheUintId> Upgrade<FheUint<Id>> for FheUintV0<Id> {
+impl<Id: FheUintId> Upgrade<FheUintV1<Id>> for FheUintV0<Id> {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<FheUint<Id>, Self::Error> {
-        Ok(FheUint {
+    fn upgrade(self) -> Result<FheUintV1<Id>, Self::Error> {
+        Ok(FheUintV1 {
             ciphertext: self.ciphertext,
             id: self.id,
             tag: Tag::default(),
@@ -194,10 +222,37 @@ impl<Id: FheUintId> Upgrade<FheUint<Id>> for FheUintV0<Id> {
     }
 }
 
+#[derive(Version)]
+pub struct FheUintV1<Id: FheUintId> {
+    pub(in crate::high_level_api) ciphertext: UnsignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+    pub(crate) tag: Tag,
+}
+
+impl<Id: FheUintId> Upgrade<FheUint<Id>> for FheUintV1<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheUint<Id>, Self::Error> {
+        let Self {
+            ciphertext,
+            id,
+            tag,
+        } = self;
+
+        Ok(FheUint {
+            ciphertext,
+            id,
+            tag,
+            re_randomization_metadata: ReRandomizationMetadata::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheUintVersions<Id: FheUintId> {
     V0(FheUintV0<Id>),
-    V1(FheUint<Id>),
+    V1(FheUintV1<Id>),
+    V2(FheUint<Id>),
 }
 
 #[derive(Version)]

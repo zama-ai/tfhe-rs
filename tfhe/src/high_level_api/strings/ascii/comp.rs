@@ -1,5 +1,6 @@
 use crate::high_level_api::global_state::with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::strings::ascii::FheAsciiString;
 use crate::prelude::{FheEq, FheEqIgnoreCase, FheOrd};
 use crate::strings::ciphertext::ClearString;
@@ -12,7 +13,11 @@ impl FheEq<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .eq(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -31,7 +36,11 @@ impl FheEq<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .ne(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -50,7 +59,11 @@ impl FheEq<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().eq(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -67,7 +80,11 @@ impl FheEq<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().ne(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -88,7 +105,11 @@ impl FheOrd<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .lt(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -107,7 +128,11 @@ impl FheOrd<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .le(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -126,7 +151,11 @@ impl FheOrd<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .gt(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -145,7 +174,11 @@ impl FheOrd<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .ge(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -164,7 +197,11 @@ impl FheOrd<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().lt(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -181,7 +218,11 @@ impl FheOrd<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().le(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -198,7 +239,11 @@ impl FheOrd<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().gt(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -215,7 +260,11 @@ impl FheOrd<&ClearString> for FheAsciiString {
         with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let inner = cpu_key.string_key().ge(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -255,7 +304,11 @@ impl FheEqIgnoreCase for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .eq_ignore_case(&self.inner.on_cpu(), (&*rhs.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -295,7 +348,11 @@ impl FheEqIgnoreCase<ClearString> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .eq_ignore_case(&self.inner.on_cpu(), rhs.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {

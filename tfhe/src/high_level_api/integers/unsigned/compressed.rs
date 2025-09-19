@@ -9,6 +9,7 @@ use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::unsigned::base::{
     FheUint, FheUintConformanceParams, FheUintId,
 };
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{FheTryEncrypt, Tagged};
 use crate::high_level_api::ClientKey;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -111,7 +112,8 @@ where
             }
         };
 
-        let mut ciphertext = FheUint::new(inner, self.tag.clone());
+        let mut ciphertext =
+            FheUint::new(inner, self.tag.clone(), ReRandomizationMetadata::default());
 
         ciphertext.move_to_device_of_server_key_if_set();
         ciphertext

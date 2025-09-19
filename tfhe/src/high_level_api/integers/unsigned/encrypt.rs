@@ -2,6 +2,7 @@ use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -52,7 +53,11 @@ where
             .key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
+        let mut ciphertext = Self::new(
+            cpu_ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
 
         ciphertext.move_to_device_of_server_key_if_set();
 
@@ -71,7 +76,11 @@ where
         let cpu_ciphertext = key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
+        let mut ciphertext = Self::new(
+            cpu_ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
 
         ciphertext.move_to_device_of_server_key_if_set();
 
@@ -90,7 +99,11 @@ where
         let cpu_ciphertext = key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
+        let mut ciphertext = Self::new(
+            cpu_ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        );
 
         ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
@@ -110,7 +123,11 @@ where
                 let ciphertext: crate::integer::RadixCiphertext = key
                     .pbs_key()
                     .create_trivial_radix(value, Id::num_blocks(key.message_modulus()));
-                Ok(Self::new(ciphertext, key.tag.clone()))
+                Ok(Self::new(
+                    ciphertext,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -120,7 +137,11 @@ where
                     Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                Ok(Self::new(inner, cuda_key.tag.clone()))
+                Ok(Self::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {

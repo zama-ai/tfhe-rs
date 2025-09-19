@@ -2,11 +2,15 @@ mod client;
 mod public;
 mod server;
 
+mod cpk_re_randomization;
 mod inner;
 mod key_switching_key;
 
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
+pub use cpk_re_randomization::{
+    CompressedReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
+};
 pub(crate) use inner::CompactPrivateKey;
 pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};

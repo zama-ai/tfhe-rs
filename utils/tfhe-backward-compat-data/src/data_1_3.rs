@@ -14,7 +14,7 @@ use std::fs::create_dir_all;
 
 use crate::generate::{
     INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION,
-    INSECURE_SMALL_TEST_PARAMS_MS_NOISE_REDUCTION, TEST_PRAMS_NOISE_SQUASHING_COMPRESSION,
+    INSECURE_SMALL_TEST_PARAMS_MS_NOISE_REDUCTION, TEST_PARAMS_NOISE_SQUASHING_COMPRESSION,
 };
 
 use tfhe_1_3::boolean::engine::BooleanEngine;
@@ -310,6 +310,7 @@ const HL_CLIENTKEY_MS_MEAN_COMPENSATION: HlClientKeyTest = HlClientKeyTest {
 const HL_SERVERKEY_MS_MEAN_COMPENSATION: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_ms_mean_compensation"),
     client_key_filename: Cow::Borrowed("client_key_ms_mean_compensation.cbor"),
+    rerand_cpk_filename: None,
     compressed: false,
 };
 
@@ -449,7 +450,7 @@ impl TfhersVersion for V1_3 {
             .enable_noise_squashing(
                 INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION.into(),
             )
-            .enable_noise_squashing_compression(TEST_PRAMS_NOISE_SQUASHING_COMPRESSION.into())
+            .enable_noise_squashing_compression(TEST_PARAMS_NOISE_SQUASHING_COMPRESSION.into())
             .build();
             let hl_client_key = ClientKey::generate(config);
             let hl_server_key = ServerKey::new(&hl_client_key);

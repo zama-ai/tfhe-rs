@@ -2,6 +2,7 @@ use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
@@ -52,7 +53,11 @@ where
             .key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext, key.tag.clone()))
+        Ok(Self::new(
+            ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        ))
     }
 }
 
@@ -67,7 +72,11 @@ where
         let ciphertext = key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext, key.tag.clone()))
+        Ok(Self::new(
+            ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        ))
     }
 }
 
@@ -82,7 +91,11 @@ where
         let ciphertext = key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext, key.tag.clone()))
+        Ok(Self::new(
+            ciphertext,
+            key.tag.clone(),
+            ReRandomizationMetadata::default(),
+        ))
     }
 }
 
@@ -108,7 +121,11 @@ where
                 let ciphertext: crate::integer::SignedRadixCiphertext = key
                     .pbs_key()
                     .create_trivial_radix(value, Id::num_blocks(key.message_modulus()));
-                Ok(Self::new(ciphertext, key.tag.clone()))
+                Ok(Self::new(
+                    ciphertext,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -118,7 +135,11 @@ where
                     Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                Ok(Self::new(inner, cuda_key.tag.clone()))
+                Ok(Self::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => panic!("Hpu does not currently support signed operation"),

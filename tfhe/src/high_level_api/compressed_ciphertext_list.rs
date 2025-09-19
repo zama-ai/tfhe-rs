@@ -19,6 +19,7 @@ use crate::high_level_api::global_state::device_of_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::ciphertext::{DataKind, Expandable};
 use crate::integer::compression_keys::DecompressionKey;
 #[cfg(feature = "gpu")]
@@ -27,6 +28,8 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
 #[cfg(feature = "gpu")]
 use crate::integer::parameters::LweDimension;
 use crate::named::Named;
@@ -60,6 +63,10 @@ impl<Id: FheUintId> HlCompressible for FheUint<Id> {
             }
         }
     }
+
+    fn get_re_randomization_metadata(&self) -> ReRandomizationMetadata {
+        self.re_randomization_metadata.clone()
+    }
 }
 impl<Id: FheIntId> HlCompressible for FheInt<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
@@ -81,6 +88,10 @@ impl<Id: FheIntId> HlCompressible for FheInt<Id> {
             }
         }
     }
+
+    fn get_re_randomization_metadata(&self) -> ReRandomizationMetadata {
+        self.re_randomization_metadata.clone()
+    }
 }
 impl HlCompressible for FheBool {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
@@ -98,19 +109,47 @@ impl HlCompressible for FheBool {
             InnerBoolean::Hpu(_) => panic!("HPU does not support compression"),
         }
     }
+
+    fn get_re_randomization_metadata(&self) -> ReRandomizationMetadata {
+        self.re_randomization_metadata.clone()
+    }
 }
 
-impl<Id: FheUintId> HlExpandable for FheUint<Id> {}
-impl<Id: FheIntId> HlExpandable for FheInt<Id> {}
-impl HlExpandable for FheBool {}
+impl<Id: FheUintId> HlExpandable for FheUint<Id> {
+    fn set_re_randomization_metadata(&mut self, meta: ReRandomizationMetadata) {
+        self.re_randomization_metadata = meta;
+    }
+}
+impl<Id: FheIntId> HlExpandable for FheInt<Id> {
+    fn set_re_randomization_metadata(&mut self, meta: ReRandomizationMetadata) {
+        self.re_randomization_metadata = meta;
+    }
+}
+impl HlExpandable for FheBool {
+    fn set_re_randomization_metadata(&mut self, meta: ReRandomizationMetadata) {
+        self.re_randomization_metadata = meta;
+    }
+}
 
 #[cfg(not(feature = "gpu"))]
-pub trait HlExpandable: Expandable {}
+pub trait HlExpandable: Expandable {
+    /// Sets the metadata of the ciphertext from the ones in the compressed list
+    // Defined as an empty default method for backward compatibility
+    fn set_re_randomization_metadata(&mut self, _meta: ReRandomizationMetadata) {}
+}
 #[cfg(feature = "gpu")]
-pub trait HlExpandable: Expandable + CudaExpandable {}
+pub trait HlExpandable: Expandable + CudaExpandable {
+    fn set_re_randomization_metadata(&mut self, _meta: ReRandomizationMetadata) {}
+}
 
 pub trait HlCompressible {
+    /// Adds a ciphertext to be compressed.
+    ///
+    /// This should push at most one single element at the end of the `messages` vec
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>);
+    fn get_re_randomization_metadata(&self) -> ReRandomizationMetadata {
+        ReRandomizationMetadata::default()
+    }
 }
 
 pub enum ToBeCompressed {
@@ -121,19 +160,34 @@ pub enum ToBeCompressed {
 
 pub struct CompressedCiphertextListBuilder {
     inner: Vec<(ToBeCompressed, DataKind)>,
+    rerandomization_metadata: Vec<ReRandomizationMetadata>,
 }
 
 impl CompressedCiphertextListBuilder {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self { inner: vec![] }
+        Self {
+            inner: vec![],
+            rerandomization_metadata: vec![],
+        }
     }
 
     pub fn push<T>(&mut self, value: T) -> &mut Self
     where
         T: HlCompressible,
     {
+        let size_before = self.inner.len();
+        let meta = value.get_re_randomization_metadata();
         value.compress_into(&mut self.inner);
+
+        let size_after = self.inner.len();
+
+        // `compress_into` should only push a single element at the end of the builder
+        assert!(size_before <= size_after);
+        assert!(size_after - size_before <= 1);
+        if size_after - size_before == 1 {
+            self.rerandomization_metadata.push(meta)
+        }
         self
     }
 
@@ -148,6 +202,10 @@ impl CompressedCiphertextListBuilder {
     }
 
     pub fn build(&self) -> crate::Result<CompressedCiphertextList> {
+        if self.inner.len() != self.rerandomization_metadata.len() {
+            return Err(crate::Error::new("Invalid CompressedCiphertextListBuilder, ct and metadata lists should have the same length".to_owned()));
+        }
+
         crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => {
                 let mut flat_cpu_blocks = vec![];
@@ -188,6 +246,7 @@ impl CompressedCiphertextListBuilder {
                                 },
                             ),
                             tag: cpu_key.tag.clone(),
+                            re_randomization_metadata: self.rerandomization_metadata.clone(),
                         }
                     })
             }
@@ -231,6 +290,7 @@ impl CompressedCiphertextListBuilder {
                         CompressedCiphertextList {
                             inner: InnerCompressedCiphertextList::Cuda(compressed_list),
                             tag: cuda_key.tag.clone(),
+                            re_randomization_metadata: self.rerandomization_metadata.clone(),
                         }
                     })
             }
@@ -402,6 +462,14 @@ impl InnerCompressedCiphertextList {
             }
         }
     }
+
+    pub(crate) fn info(&self) -> &[DataKind] {
+        match self {
+            Self::Cpu(compressed_ciphertext_list) => &compressed_ciphertext_list.info,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(compressed_ciphertext_list) => &compressed_ciphertext_list.info,
+        }
+    }
 }
 
 impl Versionize for InnerCompressedCiphertextList {
@@ -455,6 +523,7 @@ impl Unversionize for InnerCompressedCiphertextList {
 pub struct CompressedCiphertextList {
     pub(in crate::high_level_api) inner: InnerCompressedCiphertextList,
     pub(in crate::high_level_api) tag: Tag,
+    pub(in crate::high_level_api) re_randomization_metadata: Vec<ReRandomizationMetadata>,
 }
 
 impl Named for CompressedCiphertextList {
@@ -533,16 +602,12 @@ impl CiphertextList for CompressedCiphertextList {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
                 .and_then(|decompression_key| {
-                    let mut ct = {
-                        let streams = &cuda_key.streams;
-                        self.inner
-                            .on_gpu(streams)
-                            .get::<T>(index, decompression_key, streams)
-                    };
-                    if let Ok(Some(ct_ref)) = &mut ct {
-                        ct_ref.tag_mut().set_data(cuda_key.tag.data())
-                    }
-                    ct
+                    self.get_using_cuda_key(
+                        index,
+                        decompression_key,
+                        &cuda_key.streams,
+                        &cuda_key.tag,
+                    )
                 }),
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_)) => {
@@ -579,10 +644,20 @@ impl CiphertextList for CompressedCiphertextList {
 }
 
 impl CompressedCiphertextList {
-    pub fn into_raw_parts(self) -> (crate::integer::ciphertext::CompressedCiphertextList, Tag) {
-        let Self { inner, tag } = self;
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::ciphertext::CompressedCiphertextList,
+        Tag,
+        Vec<ReRandomizationMetadata>,
+    ) {
+        let Self {
+            inner,
+            tag,
+            re_randomization_metadata,
+        } = self;
         match inner {
-            InnerCompressedCiphertextList::Cpu(inner) => (inner, tag),
+            InnerCompressedCiphertextList::Cpu(inner) => (inner, tag, re_randomization_metadata),
             #[cfg(feature = "gpu")]
             InnerCompressedCiphertextList::Cuda(inner) => (
                 with_cuda_internal_keys(|keys| {
@@ -590,6 +665,7 @@ impl CompressedCiphertextList {
                     inner.to_compressed_ciphertext_list(streams)
                 }),
                 tag,
+                re_randomization_metadata,
             ),
         }
     }
@@ -597,10 +673,12 @@ impl CompressedCiphertextList {
     pub fn from_raw_parts(
         inner: crate::integer::ciphertext::CompressedCiphertextList,
         tag: Tag,
+        re_randomization_metadata: Vec<ReRandomizationMetadata>,
     ) -> Self {
         Self {
             inner: InnerCompressedCiphertextList::Cpu(inner),
             tag,
+            re_randomization_metadata,
         }
     }
 
@@ -612,6 +690,19 @@ impl CompressedCiphertextList {
         if let Some(device) = device_of_internal_keys() {
             self.inner.move_to_device(device);
         }
+    }
+
+    fn get_re_randomization_metadata(
+        &self,
+        index: usize,
+    ) -> crate::Result<ReRandomizationMetadata> {
+        Ok(self
+            .re_randomization_metadata
+            .get(index)
+            .ok_or_else(|| {
+                crate::error!("Unable to retrieve metadata for ciphertext at index {index}.")
+            })?
+            .clone())
     }
 
     pub(crate) fn get_using_key<T>(
@@ -626,6 +717,31 @@ impl CompressedCiphertextList {
         let mut ct = self.inner.on_cpu().get::<T>(index, decompression_key);
         if let Ok(Some(ct_ref)) = &mut ct {
             ct_ref.tag_mut().set_data(tag.data());
+
+            ct_ref.set_re_randomization_metadata(self.get_re_randomization_metadata(index)?);
+        }
+        ct
+    }
+
+    #[cfg(feature = "gpu")]
+    pub(crate) fn get_using_cuda_key<T>(
+        &self,
+        index: usize,
+        decompression_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+        tag: &Tag,
+    ) -> crate::Result<Option<T>>
+    where
+        T: HlExpandable + Tagged,
+    {
+        let mut ct = self
+            .inner
+            .on_gpu(streams)
+            .get::<T>(index, decompression_key, streams);
+        if let Ok(Some(ct_ref)) = &mut ct {
+            ct_ref.tag_mut().set_data(tag.data());
+
+            ct_ref.set_re_randomization_metadata(self.get_re_randomization_metadata(index)?);
         }
         ct
     }
@@ -649,7 +765,7 @@ pub mod gpu {
         CudaCompressible, CudaExpandable,
     };
     use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
-    use crate::{FheBool, FheInt, FheUint, Tag};
+    use crate::{FheBool, FheInt, FheUint, ReRandomizationMetadata, Tag};
 
     impl<Id: FheUintId> CudaCompressible for FheUint<Id> {
         fn compress_into(
@@ -711,6 +827,7 @@ pub mod gpu {
                                 ciphertext: blocks,
                             },
                             Tag::default(),
+                            ReRandomizationMetadata::default(),
                         ))
                     } else {
                         Err(crate::error!(
@@ -763,6 +880,7 @@ pub mod gpu {
                                 ciphertext: blocks,
                             },
                             Tag::default(),
+                            ReRandomizationMetadata::default(),
                         ))
                     } else {
                         Err(crate::error!(
@@ -809,7 +927,11 @@ pub mod gpu {
                         crate::shortint::ciphertext::Degree::new(1);
 
                     // The expander will be responsible for setting the correct tag
-                    Ok(Self::new(boolean_block, Tag::default()))
+                    Ok(Self::new(
+                        boolean_block,
+                        Tag::default(),
+                        ReRandomizationMetadata::default(),
+                    ))
                 }
                 DataKind::String { .. } => Err(crate::error!(
                     "Tried to expand a FheBool while a FheString is stored in this slot"

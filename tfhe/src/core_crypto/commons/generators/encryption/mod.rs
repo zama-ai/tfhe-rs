@@ -115,6 +115,14 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.mask.remaining_bytes()
     }
 
+    pub fn noise_generator_mut(&mut self) -> &mut NoiseRandomGenerator<G> {
+        &mut self.noise
+    }
+
+    pub fn mask_generator_mut(&mut self) -> &mut MaskRandomGenerator<G> {
+        &mut self.mask
+    }
+
     pub fn try_fork_from_config(
         &mut self,
         fork_config: EncryptionRandomGeneratorForkConfig,

@@ -357,6 +357,7 @@
         metadata: HlServerKey((
             test_filename: "compressed_server_key",
             client_key_filename: "client_key.cbor",
+            rerand_cpk_filename: None,
             compressed: true,
         )),
     ),
@@ -366,6 +367,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_with_compression",
             client_key_filename: "client_key.cbor",
+            rerand_cpk_filename: None,
             compressed: false,
         )),
     ),
@@ -448,6 +450,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_ms_noise_reduction",
             client_key_filename: "client_key_ms_noise_reduction.cbor",
+            rerand_cpk_filename: None,
             compressed: false,
         )),
     ),
@@ -504,6 +507,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_with_noise_squashing",
             client_key_filename: "client_key_with_noise_squashing",
+            rerand_cpk_filename: None,
             compressed: false,
         )),
     ),
@@ -513,6 +517,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_with_noise_squashing_compressed",
             client_key_filename: "client_key_with_noise_squashing",
+            rerand_cpk_filename: None,
             compressed: true,
         )),
     ),
@@ -613,6 +618,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_ms_mean_compensation",
             client_key_filename: "client_key_ms_mean_compensation.cbor",
+            rerand_cpk_filename: None,
             compressed: false,
         )),
     ),
@@ -673,6 +679,7 @@
         metadata: HlServerKey((
             test_filename: "server_key_with_noise_squashing",
             client_key_filename: "client_key_with_noise_squashing",
+            rerand_cpk_filename: None,
             compressed: false,
         )),
     ),
@@ -683,6 +690,16 @@
             test_filename: "squashed_noise_unsigned_ciphertext",
             key_filename: "client_key_with_noise_squashing",
             clear_value: 42,
+        )),
+    ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "server_key_for_rerand",
+            client_key_filename: "client_key_for_rerand",
+            rerand_cpk_filename: Some("cpk_for_rerand"),
+            compressed: false,
         )),
     ),
 ]

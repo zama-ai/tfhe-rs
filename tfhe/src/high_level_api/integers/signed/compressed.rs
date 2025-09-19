@@ -8,6 +8,7 @@ use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{
@@ -113,7 +114,11 @@ where
                 with_cpu_internal_keys(|sk| sk.pbs_key().decompress_signed_parallelized(ct))
             }
         };
-        FheInt::new(ciphertext, self.tag.clone())
+        FheInt::new(
+            ciphertext,
+            self.tag.clone(),
+            ReRandomizationMetadata::default(),
+        )
     }
 }
 

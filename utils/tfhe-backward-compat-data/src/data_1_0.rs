@@ -171,6 +171,7 @@ const HL_CLIENTKEY_MS_NOISE_REDUCTION_TEST: HlClientKeyTest = HlClientKeyTest {
 const HL_SERVERKEY_MS_NOISE_REDUCTION_TEST: HlServerKeyTest = HlServerKeyTest {
     test_filename: Cow::Borrowed("server_key_ms_noise_reduction"),
     client_key_filename: Cow::Borrowed("client_key_ms_noise_reduction.cbor"),
+    rerand_cpk_filename: None,
     compressed: false,
 };
 

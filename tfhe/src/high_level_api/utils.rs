@@ -1,5 +1,6 @@
 use crate::high_level_api::integers::signed::FheIntId;
 use crate::high_level_api::integers::unsigned::FheUintId;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::ciphertext::{DataKind, Expandable};
 use crate::integer::BooleanBlock;
 use crate::shortint::Ciphertext;
@@ -18,10 +19,11 @@ impl<Id: FheUintId> Expandable for FheUint<Id> {
             DataKind::Unsigned(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
                 if stored_num_bits == Id::num_bits() {
-                    // The expander will be responsible for setting the correct tag
+                    // The expander will be responsible for setting the correct tag and metadata
                     Ok(Self::new(
                         crate::integer::RadixCiphertext::from(blocks),
                         Tag::default(),
+                        ReRandomizationMetadata::default(),
                     ))
                 } else {
                     Err(crate::error!(
@@ -69,6 +71,7 @@ impl<Id: FheIntId> Expandable for FheInt<Id> {
                     Ok(Self::new(
                         crate::integer::SignedRadixCiphertext::from(blocks),
                         Tag::default(),
+                        ReRandomizationMetadata::default(),
                     ))
                 } else {
                     Err(crate::error!(
@@ -110,8 +113,12 @@ impl Expandable for FheBool {
                 // We know the value is a boolean one (via the data kind)
                 boolean_block.0.degree = crate::shortint::ciphertext::Degree::new(1);
 
-                // The expander will be responsible for setting the correct tag
-                Ok(Self::new(boolean_block, Tag::default()))
+                // The expander will be responsible for setting the correct tag and metadata
+                Ok(Self::new(
+                    boolean_block,
+                    Tag::default(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             DataKind::String { .. } => Err(crate::Error::new(
                 "Tried to expand a FheBool while a string is stored in this slot".to_string(),

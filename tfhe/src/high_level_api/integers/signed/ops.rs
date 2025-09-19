@@ -3,6 +3,7 @@ use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
@@ -69,9 +70,13 @@ where
                                 cpu_key.pbs_key().create_trivial_zero_radix(Id::num_blocks(
                                     cpu_key.message_modulus(),
                                 ));
-                            Self::new(radix, cpu_key.tag.clone())
+                            Self::new(
+                                radix,
+                                cpu_key.tag.clone(),
+                                ReRandomizationMetadata::default(),
+                            )
                         },
-                        |ct| Self::new(ct, cpu_key.tag.clone()),
+                        |ct| Self::new(ct, cpu_key.tag.clone(), ReRandomizationMetadata::default()),
                     )
             }
             #[cfg(feature = "gpu")]
@@ -106,7 +111,11 @@ where
                                 streams,
                             )
                         });
-                    Self::new(inner, cuda_key.tag.clone())
+                    Self::new(
+                        inner,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    )
                 }
             }
             #[cfg(feature = "hpu")]
@@ -148,7 +157,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .max_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                Self::new(inner_result, cpu_key.tag.clone())
+                Self::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -158,7 +171,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                Self::new(inner_result, cuda_key.tag.clone())
+                Self::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -209,7 +226,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .min_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                Self::new(inner_result, cpu_key.tag.clone())
+                Self::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -219,7 +240,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                Self::new(inner_result, cuda_key.tag.clone())
+                Self::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -281,7 +306,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .eq_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -291,7 +320,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -325,7 +358,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .ne_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -335,7 +372,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -395,7 +436,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .lt_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -405,7 +450,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -439,7 +488,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .le_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -449,7 +502,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -483,7 +540,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .gt_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -493,7 +554,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -527,7 +592,11 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .ge_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                FheBool::new(inner_result, cpu_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -537,7 +606,11 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-                FheBool::new(inner_result, cuda_key.tag.clone())
+                FheBool::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -612,8 +685,8 @@ where
                     .pbs_key()
                     .div_rem_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 (
-                    FheInt::<Id>::new(q, cpu_key.tag.clone()),
-                    FheInt::<Id>::new(r, cpu_key.tag.clone()),
+                    FheInt::<Id>::new(q, cpu_key.tag.clone(), ReRandomizationMetadata::default()),
+                    FheInt::<Id>::new(r, cpu_key.tag.clone(), ReRandomizationMetadata::default()),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -625,8 +698,8 @@ where
                     streams,
                 );
                 (
-                    FheInt::<Id>::new(q, cuda_key.tag.clone()),
-                    FheInt::<Id>::new(r, cuda_key.tag.clone()),
+                    FheInt::<Id>::new(q, cuda_key.tag.clone(), ReRandomizationMetadata::default()),
+                    FheInt::<Id>::new(r, cuda_key.tag.clone(), ReRandomizationMetadata::default()),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -702,14 +775,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .add_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .add(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -749,14 +822,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .sub_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .sub(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -796,14 +869,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .mul_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                      {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .mul(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -841,14 +914,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .bitand_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                      {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitand(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -886,14 +959,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .bitor_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                      {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitor(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -931,14 +1004,14 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .bitxor_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                      {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitxor(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                        FheInt::new(inner_result, cuda_key.tag.clone())
+                        FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
                 #[cfg(feature = "hpu")]
@@ -984,7 +1057,7 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .div_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
@@ -993,7 +1066,7 @@ generic_integer_impl_operation!(
                             .key
                             .key
                             .div(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                    FheInt::new(inner_result, cuda_key.tag.clone())
+                    FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -1039,7 +1112,7 @@ generic_integer_impl_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .rem_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
-                    FheInt::new(inner_result, cpu_key.tag.clone())
+                    FheInt::new(inner_result, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
@@ -1048,7 +1121,7 @@ generic_integer_impl_operation!(
                             .key
                             .key
                             .rem(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
-                    FheInt::new(inner_result, cuda_key.tag.clone())
+                    FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -1157,14 +1230,14 @@ generic_integer_impl_shift_rotate!(
                         let ciphertext = cpu_key
                             .pbs_key()
                             .left_shift_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
-                        FheInt::new(ciphertext, cpu_key.tag.clone())
+                        FheInt::new(ciphertext, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
                          {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .left_shift(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
-                            FheInt::new(inner_result, cuda_key.tag.clone())
+                            FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                         }
                     }
                     #[cfg(feature = "hpu")]
@@ -1205,14 +1278,14 @@ generic_integer_impl_shift_rotate!(
                         let ciphertext = cpu_key
                             .pbs_key()
                             .right_shift_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
-                        FheInt::new(ciphertext, cpu_key.tag.clone())
+                        FheInt::new(ciphertext, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
                          {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .right_shift(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
-                            FheInt::new(inner_result, cuda_key.tag.clone())
+                            FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                         }
                     }
                     #[cfg(feature = "hpu")]
@@ -1253,14 +1326,14 @@ generic_integer_impl_shift_rotate!(
                         let ciphertext = cpu_key
                             .pbs_key()
                             .rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
-                        FheInt::new(ciphertext, cpu_key.tag.clone())
+                        FheInt::new(ciphertext, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
                          {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .rotate_left(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
-                            FheInt::new(inner_result, cuda_key.tag.clone())
+                            FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                         }
                     }
                     #[cfg(feature = "hpu")]
@@ -1301,14 +1374,14 @@ generic_integer_impl_shift_rotate!(
                         let ciphertext = cpu_key
                             .pbs_key()
                             .rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
-                        FheInt::new(ciphertext, cpu_key.tag.clone())
+                        FheInt::new(ciphertext, cpu_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
                          {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .rotate_right(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
-                            FheInt::new(inner_result, cuda_key.tag.clone())
+                            FheInt::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                         }
                     }
                     #[cfg(feature = "hpu")]
@@ -2017,7 +2090,11 @@ where
                 let ciphertext = cpu_key
                     .pbs_key()
                     .neg_parallelized(&*self.ciphertext.on_cpu());
-                FheInt::new(ciphertext, cpu_key.tag.clone())
+                FheInt::new(
+                    ciphertext,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -2026,7 +2103,11 @@ where
                     .key
                     .key
                     .neg(&*self.ciphertext.on_gpu(streams), streams);
-                FheInt::new(inner_result, cuda_key.tag.clone())
+                FheInt::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -2091,7 +2172,11 @@ where
         global_state::with_internal_keys(|keys| match keys {
             InternalServerKey::Cpu(cpu_key) => {
                 let ciphertext = cpu_key.pbs_key().bitnot(&*self.ciphertext.on_cpu());
-                FheInt::new(ciphertext, cpu_key.tag.clone())
+                FheInt::new(
+                    ciphertext,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -2100,7 +2185,11 @@ where
                     .key
                     .key
                     .bitnot(&*self.ciphertext.on_gpu(streams), streams);
-                FheInt::new(inner_result, cuda_key.tag.clone())
+                FheInt::new(
+                    inner_result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {

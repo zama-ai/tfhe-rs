@@ -1,5 +1,6 @@
 use crate::high_level_api::global_state::with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::strings::ascii::FheAsciiString;
 use crate::high_level_api::strings::traits::FheStringMatching;
 use crate::strings::ciphertext::ClearString;
@@ -31,7 +32,11 @@ impl FheStringMatching<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .contains(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -69,7 +74,11 @@ impl FheStringMatching<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .starts_with(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -107,7 +116,11 @@ impl FheStringMatching<&Self> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .ends_with(&self.inner.on_cpu(), (&*other.inner.on_cpu()).into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -128,7 +141,11 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .contains(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -147,7 +164,11 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .starts_with(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -166,7 +187,11 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
                 let inner = cpu_key
                     .string_key()
                     .ends_with(&self.inner.on_cpu(), other.into());
-                FheBool::new(inner, cpu_key.tag.clone())
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
