@@ -80,8 +80,8 @@ impl HpuHw {
             allocator: None,
         };
 
-        let current_uuid = hw.ami.uuid();
-        if pdi.metadata.bitstream.uuid == current_uuid {
+        let current_uuid = hw.ami.uuid().to_lowercase();
+        if pdi.metadata.bitstream.uuid.to_lowercase() == current_uuid {
             let uuid = pdi::V80Uuid::from_str(&pdi.metadata.bitstream.uuid)
                 .expect("Invalid UUID format in pdi");
             tracing::info!("Current pdi -> [\n{uuid}]");
@@ -89,7 +89,7 @@ impl HpuHw {
         } else {
             Err(format!(
                 "UUID mismatch loaded {:?} expected {:?}",
-                current_uuid, pdi.metadata.bitstream.uuid
+                current_uuid, pdi.metadata.bitstream.uuid.to_lowercase()
             )
             .into())
         }
