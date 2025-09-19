@@ -5,6 +5,7 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::server_key::CompressedKVStore;
 use crate::integer::BooleanBlock;
 #[cfg(feature = "zk-pok")]
 use crate::integer::ProvenCompactCiphertextList;
@@ -147,4 +148,9 @@ pub enum SquashedNoiseSignedRadixCiphertextVersions {
 #[derive(VersionsDispatch)]
 pub enum SquashedNoiseBooleanBlockVersions {
     V0(SquashedNoiseBooleanBlock),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedKVStoreVersions<K> {
+    V0(CompressedKVStore<K>),
 }
