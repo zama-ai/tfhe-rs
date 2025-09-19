@@ -67,6 +67,8 @@ jobs:
           python3 ci/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
           echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
+      # TODO acknowledge reception of command by reacting with a :+1: to the issue message
+
       - name: Dump issue comment into file # To avoid possible code-injection
         if: github.event_name == 'issue_comment'
         run: |
@@ -154,6 +156,7 @@ jobs:
       cancel-in-progress: true
     timeout-minutes: 720  # 12 hours
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         command: ${{ fromJson(needs.prepare-benchmarks.outputs.commands) }}
@@ -238,15 +241,17 @@ jobs:
           --walk-subdirs \
           --name-suffix regression \
           --bench-type "${BENCH_TYPE}"
+          
+          echo "RESULTS_FILE_SHA=$(sha256sum "${RESULTS_FILENAME}" | cut -d " " -f1)" >> "${GITHUB_ENV}"
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
           BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
           HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_regression
+          name: ${{ github.sha }}_regression_${{ env.RESULTS_FILE_SHA }} # RESULT_FILE_SHA is needed to avoid collision between matrix.command runs
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab
@@ -257,6 +262,8 @@ jobs:
         env:
           JOB_SECRET: ${{ secrets.JOB_SECRET }}
           SLAB_URL: ${{ secrets.SLAB_URL }}
+
+      # TODO if the event is an issue_comment and if this job fails then publish a comment in the PR with the reason of the failure and the link toward the workflow run
 
   slack-notify:
     name: benchmark_perf_regression/slack-notify
