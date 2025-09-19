@@ -2322,53 +2322,27 @@ void host_single_borrow_propagate(
                          params.carry_modulus);
   }
 
-  cuda_event_record(mem->incoming_events[0], streams.stream(0),
-                    streams.gpu_index(0));
-  for (int j = 0; j < mem->active_streams.count(); j++) {
-    cuda_stream_wait_event(mem->sub_streams_1.stream(j),
-                           mem->incoming_events[0],
-                           mem->sub_streams_1.gpu_index(j));
-    cuda_stream_wait_event(mem->sub_streams_2.stream(j),
-                           mem->incoming_events[0],
-                           mem->sub_streams_1.gpu_index(j));
-  }
-
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     auto borrow_flag = mem->lut_borrow_flag;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        mem->sub_streams_1, overflow_block, mem->overflow_block, bsks, ksks,
+        streams, overflow_block, mem->overflow_block, bsks, ksks,
         ms_noise_reduction_key, borrow_flag, 1);
-  }
-  for (int j = 0; j < mem->active_streams.count(); j++) {
-    cuda_event_record(mem->outgoing_events1[j], mem->sub_streams_1.stream(j),
-                      mem->sub_streams_1.gpu_index(j));
   }
 
   // subtract borrow and cleanup prepared blocks
   auto resolved_carries = mem->prop_simu_group_carries_mem->resolved_carries;
   host_negation<Torus>(
-      mem->sub_streams_2.stream(0), mem->sub_streams_2.gpu_index(0),
-      (Torus *)resolved_carries->ptr, (Torus *)resolved_carries->ptr,
-      big_lwe_dimension, num_groups);
+      streams.stream(0), streams.gpu_index(0), (Torus *)resolved_carries->ptr,
+      (Torus *)resolved_carries->ptr, big_lwe_dimension, num_groups);
 
   host_radix_sum_in_groups<Torus>(
-      mem->sub_streams_2.stream(0), mem->sub_streams_2.gpu_index(0),
-      prepared_blocks, prepared_blocks, resolved_carries, num_radix_blocks,
-      mem->group_size);
+      streams.stream(0), streams.gpu_index(0), prepared_blocks, prepared_blocks,
+      resolved_carries, num_radix_blocks, mem->group_size);
 
   auto message_extract = mem->lut_message_extract;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      mem->sub_streams_2, lwe_array, prepared_blocks, bsks, ksks,
-      ms_noise_reduction_key, message_extract, num_radix_blocks);
-
-  for (int j = 0; j < mem->active_streams.count(); j++) {
-    cuda_event_record(mem->outgoing_events2[j], mem->sub_streams_2.stream(j),
-                      mem->sub_streams_2.gpu_index(j));
-    cuda_stream_wait_event(streams.stream(0), mem->outgoing_events1[j],
-                           streams.gpu_index(0));
-    cuda_stream_wait_event(streams.stream(0), mem->outgoing_events2[j],
-                           streams.gpu_index(0));
-  }
+      streams, lwe_array, prepared_blocks, bsks, ksks, ms_noise_reduction_key,
+      message_extract, num_radix_blocks);
 }
 
 /// num_radix_blocks corresponds to the number of blocks on which to apply the
