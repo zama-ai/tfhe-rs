@@ -5,6 +5,7 @@
 #ifdef USE_NVTOOLS
 #include <cuda_profiler_api.h>
 #endif
+#include <vector>
 
 uint32_t cuda_get_device() {
   int device;
@@ -65,9 +66,28 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
         // Warm up the pool by allocating and freeing a large block
         cudaStream_t stream;
         stream = cuda_create_stream(gpu_index);
-        void *warmup_ptr = nullptr;
-        warmup_ptr = cuda_malloc_async(mem_pool_threshold, stream, gpu_index);
-        cuda_drop_async(warmup_ptr, stream, gpu_index);
+        size_t sizes[] = {72 * 1024 * 1024, 24 * 1024 * 1024, 1 * 1024 * 1024,
+                          16 * 1024};
+        int buckets[] = {16, 24, 128, 256};
+        std::vector<void *> ptrs;
+
+        for (int i = 0; i < 4; ++i) {
+          for (int j = 0; j < buckets[i]; ++j) {
+            void *ptr = nullptr;
+            ptr = cuda_malloc_async(sizes[i], stream, gpu_index);
+            // checkCuda(cudaMalloc(&ptr, sizes[i]), "cudaMalloc failed");
+            ptrs.push_back(ptr);
+          }
+        }
+
+        // Optionally free all allocations to warm up mempool
+        for (auto ptr : ptrs) {
+          cuda_drop_async(ptr, stream, gpu_index);
+          // eckCuda(cudaFree(ptr), "cudaFree failed");
+        }
+        // void *warmup_ptr = nullptr;
+        // warmup_ptr = cuda_malloc_async(mem_pool_threshold, stream,
+        // gpu_index); cuda_drop_async(warmup_ptr, stream, gpu_index);
 
         // Sync to ensure pool is grown
         cuda_synchronize_stream(stream, gpu_index);
@@ -178,13 +198,31 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
 #endif
   return ptr;
 }
+inline size_t round_up(size_t n, size_t bucket) {
+  return ((n + bucket - 1) / bucket) * bucket;
+}
 
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
                         uint32_t gpu_index) {
   uint64_t size_tracker = 0;
-  return cuda_malloc_with_size_tracking_async(size, stream, gpu_index,
+
+  // Example: round to nearest 1 MB
+  size_t bucketed_size; // round_up(size, 1 << 20);
+  if (size < 16 * 1024) {
+    bucketed_size = round_up(size, 16 * 1024);
+  } else if (size < 1024 * 1024) {
+    bucketed_size = round_up(size, 1024 * 1024);
+  } else if (size < 24 * 1024 * 1024) {
+    bucketed_size = round_up(size, 24 * 1024 * 1024);
+  } else if (size < 72 * 1024 * 1024) {
+    bucketed_size = round_up(size, 72 * 1024 * 1024);
+  } else {
+    bucketed_size = round_up(size, 1 << 20);
+  }
+  // printf("original size %lu  bucketed size %lu",size, bucketed_size);
+  return cuda_malloc_with_size_tracking_async(bucketed_size, stream, gpu_index,
                                               size_tracker, true);
 }
 
