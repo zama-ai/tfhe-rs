@@ -27,7 +27,7 @@ use crate::shortint::server_key::{ModulusSwitchConfiguration, ServerKey};
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
-fn dp_ks_standard_pbs128<
+fn dp_ks_drift_standard_pbs128<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -107,7 +107,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn dp_ks_standard_pbs128_packing_ks<
+fn dp_ks_drift_standard_pbs128_packing_ks<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -182,7 +182,7 @@ where
         .zip(side_resources.par_iter_mut())
         .map(|(input, side_resources)| {
             let (input, after_dp, ks_result, drift_technique_result, ms_result, pbs_result) =
-                dp_ks_standard_pbs128(
+                dp_ks_drift_standard_pbs128(
                     input,
                     scalar,
                     ksk,
@@ -297,7 +297,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
             let mut side_resources = vec![(); input_zeros.len()];
             let input_zero_as_lwe: Vec<_> = input_zeros.iter().map(|ct| ct.ct.clone()).collect();
 
-            let (_before_packing, mut after_packing) = dp_ks_standard_pbs128_packing_ks(
+            let (_before_packing, mut after_packing) = dp_ks_drift_standard_pbs128_packing_ks(
                 input_zero_as_lwe,
                 max_scalar_mul,
                 ksk,
@@ -482,7 +482,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
     let inputs: Vec<_> = (0..lwe_per_glwe.0).map(|_| cks.encrypt(msg).ct).collect();
     let mut side_resources = vec![(); inputs.len()];
 
-    let (before_packing, after_packing) = dp_ks_standard_pbs128_packing_ks(
+    let (before_packing, after_packing) = dp_ks_drift_standard_pbs128_packing_ks(
         inputs,
         scalar_for_multiplication,
         ksk,
@@ -503,37 +503,37 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
                 .atomic_pattern
             {
                 AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &input,
                         &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                         msg,
                         &u64_encoding,
                     ),
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &after_dp,
                         &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                         msg,
                         &u64_encoding,
                     ),
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &after_ks,
                         &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                         msg,
                         &u64_encoding,
                     ),
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &after_drift,
                         &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                         msg,
                         &u64_encoding,
                     ),
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &after_ms,
                         &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                         msg,
                         &u64_encoding,
                     ),
-                    DecryptionAndNoiseResult::new(
+                    DecryptionAndNoiseResult::new_from_lwe(
                         &after_pbs128,
                         &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
                         msg.into(),
@@ -709,11 +709,11 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
 
     let (_before_packing_sim, after_packing_sim) = {
         let noise_simulation = NoiseSimulationLwe::encrypt(&cks, 0);
-        dp_ks_standard_pbs128_packing_ks(
+        dp_ks_drift_standard_pbs128_packing_ks(
             vec![noise_simulation; noise_squashing_compression_key.lwe_per_glwe().0],
             max_scalar_mul,
             &noise_simulation_ksk,
-            &noise_simulation_drift_key,
+            &noise_simulation_drift_key.unwrap(),
             &noise_simulation_bsk128,
             br_input_modulus_log,
             &noise_simulation_accumulator,

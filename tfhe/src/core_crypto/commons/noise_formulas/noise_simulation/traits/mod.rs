@@ -10,7 +10,8 @@ pub use lwe_programmable_bootstrap::{
     AllocateLweBootstrapResult, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
 };
 pub use modulus_switch::{
+    AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardModSwitchResult,
-    DriftTechniqueStandardModSwitch, StandardModSwitch,
+    CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch, StandardModSwitch,
 };
 pub use scalar_mul::{ScalarMul, ScalarMulAssign};

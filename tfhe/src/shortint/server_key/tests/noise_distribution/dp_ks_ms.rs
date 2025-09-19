@@ -20,7 +20,7 @@ use crate::shortint::server_key::tests::parameterized_test::create_parameterized
 use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
 use rayon::prelude::*;
 
-pub fn dp_ks_ms<
+pub fn dp_ks_drift_ms<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -85,7 +85,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn dp_ks_classic_pbs<
+fn dp_ks_drift_classic_pbs<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -138,7 +138,7 @@ where
     // We need to be able to apply the PBS
     Bsk: LweClassicFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
-    let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_ms(
+    let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_drift_ms(
         input,
         scalar,
         ksk,
@@ -156,6 +156,106 @@ where
         drift_technique_result,
         ms_result,
         pbs_result,
+    )
+}
+
+pub fn dp_ks_any_ms<
+    InputCt,
+    ScalarMulResult,
+    KsResult,
+    DriftTechniqueResult,
+    MsResult,
+    DPScalar,
+    KsKey,
+    DriftKey,
+    Resources,
+>(
+    input: InputCt,
+    scalar: DPScalar,
+    ksk: &KsKey,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
+    mod_switch_noise_reduction_key: Option<&DriftKey>,
+    br_input_modulus_log: CiphertextModulusLog,
+    side_resources: &mut Resources,
+) -> (
+    InputCt,
+    ScalarMulResult,
+    KsResult,
+    Option<DriftTechniqueResult>,
+    MsResult,
+)
+where
+    // InputCt needs to be multipliable by the given scalar
+    InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
+    // We need to be able to allocate the result and keyswitch the result of the ScalarMul
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsResult: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
+        + StandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
+            Output = MsResult,
+            SideResources = Resources,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+    // We need to be able to allocate the result and apply drift technique + mod switch it
+    DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
+            AfterDriftOutput = DriftTechniqueResult,
+            AfterMsOutput = MsResult,
+            SideResources = Resources,
+        > + DriftTechniqueStandardModSwitch<
+            KsResult,
+            DriftTechniqueResult,
+            MsResult,
+            SideResources = Resources,
+        >,
+{
+    let after_dp = input.scalar_mul(scalar, side_resources);
+    let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
+    ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
+
+    let (drift_technique_result, ms_result) =
+        match (modulus_switch_configuration, mod_switch_noise_reduction_key) {
+            (
+                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
+                Some(mod_switch_noise_reduction_key),
+            ) => {
+                let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key
+                    .allocate_drift_technique_standard_mod_switch_result(side_resources);
+                mod_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
+                    br_input_modulus_log,
+                    &ks_result,
+                    &mut drift_technique_result,
+                    &mut ms_result,
+                    side_resources,
+                );
+
+                (Some(drift_technique_result), ms_result)
+            }
+            (NoiseSimulationModulusSwitchConfig::Standard, None) => {
+                let mut ms_result = ks_result.allocate_standard_mod_switch_result(side_resources);
+                ks_result.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
+
+                (None, ms_result)
+            }
+            (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
+                let mut ms_result = ks_result
+                    .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
+                ks_result.centered_binary_shifted_and_standard_mod_switch(
+                    br_input_modulus_log,
+                    &mut ms_result,
+                    side_resources,
+                );
+
+                (None, ms_result)
+            }
+            _ => panic!("Inconsistent modulus switch and drift key configuration"),
+        };
+
+    (
+        input,
+        after_dp,
+        ks_result,
+        drift_technique_result,
+        ms_result,
     )
 }
 
@@ -197,7 +297,7 @@ where
                 let input_zero_as_lwe = input_zero.ct.clone();
 
                 let (_input, _after_dp, _after_ks, _after_drift, _after_ms, after_pbs) =
-                    dp_ks_classic_pbs(
+                    dp_ks_drift_classic_pbs(
                         input_zero_as_lwe,
                         max_scalar_mul,
                         ksk,
@@ -278,7 +378,7 @@ fn encrypt_dp_ks_ms_inner_helper(
 
     let ct = cks.unchecked_encrypt(msg);
 
-    let (input, after_dp, after_ks, after_drift, after_ms) = dp_ks_ms(
+    let (input, after_dp, after_ks, after_drift, after_ms) = dp_ks_drift_ms(
         ct.ct,
         scalar_for_multiplication,
         ksk,
@@ -291,31 +391,31 @@ fn encrypt_dp_ks_ms_inner_helper(
 
     match &cks.atomic_pattern {
         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-            DecryptionAndNoiseResult::new(
+            DecryptionAndNoiseResult::new_from_lwe(
                 &input,
                 &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                 msg,
                 &output_encoding,
             ),
-            DecryptionAndNoiseResult::new(
+            DecryptionAndNoiseResult::new_from_lwe(
                 &after_dp,
                 &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                 msg,
                 &output_encoding,
             ),
-            DecryptionAndNoiseResult::new(
+            DecryptionAndNoiseResult::new_from_lwe(
                 &after_ks,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
                 &output_encoding,
             ),
-            DecryptionAndNoiseResult::new(
+            DecryptionAndNoiseResult::new_from_lwe(
                 &after_drift,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
                 &output_encoding,
             ),
-            DecryptionAndNoiseResult::new(
+            DecryptionAndNoiseResult::new_from_lwe(
                 &after_ms,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
@@ -406,10 +506,15 @@ where
                 .bootstrapping_key
                 .modulus_switch_configuration()
                 .unwrap()
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+                .modulus_switch_noise_reduction_key();
 
-            assert!(noise_simulation_drift_key.matches_actual_drift_key(drift_key));
+            match (drift_key, noise_simulation_drift_key) {
+                (Some(drift_key), Some(noise_simulation_drift_key)) => {
+                    assert!(noise_simulation_drift_key.matches_actual_drift_key(drift_key))
+                }
+                (None, None) => (),
+                _ => panic!("Inconsistent drift_key configuration"),
+            }
 
             standard_atomic_pattern_server_key
                 .bootstrapping_key
@@ -431,11 +536,11 @@ where
 
     let (_input_sim, _after_dp_sim, _after_ks_sim, _after_drift_sim, after_ms_sim) = {
         let noise_simulation = NoiseSimulationLwe::encrypt(&cks, 0);
-        dp_ks_ms(
+        dp_ks_drift_ms(
             noise_simulation,
             max_scalar_mul,
             &noise_simulation_ksk,
-            &noise_simulation_drift_key,
+            &noise_simulation_drift_key.unwrap(),
             br_input_modulus_log,
             &mut (),
         )
@@ -452,7 +557,7 @@ where
                 .modulus_switch_noise_reduction_key()
                 .unwrap();
 
-            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_ms(
+            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_drift_ms(
                 cks.encrypt(0).ct,
                 max_scalar_mul,
                 &standard_atomic_pattern_server_key.key_switching_key,
@@ -473,7 +578,7 @@ where
                 .modulus_switch_noise_reduction_key()
                 .unwrap();
 
-            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_ms(
+            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_drift_ms(
                 cks.encrypt(0).ct,
                 max_scalar_mul,
                 &ks32_atomic_pattern_server_key.key_switching_key,

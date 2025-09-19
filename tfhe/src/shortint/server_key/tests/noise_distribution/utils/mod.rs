@@ -454,7 +454,7 @@ pub enum DecryptionAndNoiseResult {
 }
 
 impl DecryptionAndNoiseResult {
-    pub fn new<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
+    pub fn new_from_lwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &LweCiphertext<CtCont>,
         secret_key: &LweSecretKey<KeyCont>,
         expected_msg: Scalar,
@@ -488,6 +488,23 @@ impl DecryptionAndNoiseResult {
             Self::DecryptionFailed
         }
     }
+
+    // pub fn new_from_dyn_lwe<Scalar: UnsignedInteger, KeyCont>(
+    //     ct: &DynLwe,
+    //     secret_key: &LweSecretKey<KeyCont>,
+    //     expected_msg: Scalar,
+    //     encoding: &ShortintEncoding<Scalar>,
+    // ) where
+    //     KeyCont: Container<Element = Scalar>,
+    // {
+    //     if TypeId::of::<Scalar>() == TypeId::of::<u32>() {
+    //         let secret_key: &dyn Any = secret_key;
+    //     } else if TypeId::of::<Scalar>() == TypeId::of::<u64>() {
+    //     } else if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+    //     } else {
+    //         panic!("Unsupported Scalar");
+    //     }
+    // }
 
     pub fn new_from_glwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &GlweCiphertext<CtCont>,
