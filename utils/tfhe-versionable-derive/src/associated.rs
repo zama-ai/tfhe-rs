@@ -8,7 +8,7 @@ use syn::{
 use crate::{
     add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
     extend_where_clause, filter_unsized_bounds, parse_const_str, DESERIALIZE_TRAIT_NAME,
-    LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
+    FROM_TRAIT_NAME, LIFETIME_NAME, RESULT_TYPE_NAME, SERIALIZE_TRAIT_NAME, TRY_FROM_TRAIT_NAME,
 };
 
 /// Generates an impl block for the From trait. This will be:
@@ -28,9 +28,11 @@ pub(crate) fn generate_from_trait_impl(
     from_variable_name: &str,
 ) -> syn::Result<ItemImpl> {
     let from_variable = Ident::new(from_variable_name, Span::call_site());
+    let from_trait: Path = parse_const_str(FROM_TRAIT_NAME);
+
     Ok(parse_quote! {
         #[automatically_derived]
-        impl #impl_generics From<#src> for #dest #where_clause {
+        impl #impl_generics #from_trait<#src> for #dest #where_clause {
             fn from(#from_variable: #src) -> Self {
                 #constructor
             }
@@ -57,11 +59,14 @@ pub(crate) fn generate_try_from_trait_impl(
     from_variable_name: &str,
 ) -> syn::Result<ItemImpl> {
     let from_variable = Ident::new(from_variable_name, Span::call_site());
+    let result_type: Path = parse_const_str(RESULT_TYPE_NAME);
+    let try_from_trait: Path = parse_const_str(TRY_FROM_TRAIT_NAME);
+
     Ok(parse_quote! {
         #[automatically_derived]
-        impl #impl_generics TryFrom<#src> for #dest #where_clause {
+        impl #impl_generics #try_from_trait<#src> for #dest #where_clause {
             type Error = #error;
-            fn try_from(#from_variable: #src) -> Result<Self, Self::Error> {
+            fn try_from(#from_variable: #src) -> #result_type<Self, Self::Error> {
                 #constructor
             }
         }
