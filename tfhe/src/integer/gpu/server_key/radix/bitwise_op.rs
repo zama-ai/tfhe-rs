@@ -10,7 +10,8 @@ use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     get_bitop_integer_radix_kb_size_on_gpu, get_full_propagate_assign_size_on_gpu,
-    unchecked_bitop_integer_radix_kb_assign_async, BitOpType, CudaServerKey, PBSType,
+    unchecked_bitop_integer_radix_kb_assign_async, unchecked_bitop_vec_radix_kb_assign, BitOpType,
+    CudaServerKey, PBSType,
 };
 
 impl CudaServerKey {
@@ -976,5 +977,143 @@ impl CudaServerKey {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let bitnot_mem = (lwe_ciphertext_count.0 * size_of::<u64>()) as u64;
         full_prop_mem.max(bitnot_mem)
+    }
+
+    pub fn unchecked_bitop_vec_assign<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &mut T,
+        ct_right: &T,
+        op: BitOpType,
+        num_radix_ciphertexts: u32,
+        streams: &CudaStreams,
+    ) {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
+        );
+
+        let num_blocks =
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32 / num_radix_ciphertexts;
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_bitop_vec_radix_kb_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        op,
+                        num_blocks,
+                        num_radix_ciphertexts,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_bitop_vec_radix_kb_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        op,
+                        num_blocks,
+                        num_radix_ciphertexts,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn unchecked_bitand_vec<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        num_radix_ciphertexts: u32,
+        streams: &CudaStreams,
+    ) -> T {
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.unchecked_bitop_vec_assign(
+            &mut result,
+            ct_right,
+            BitOpType::And,
+            num_radix_ciphertexts,
+            streams,
+        );
+        result
+    }
+    pub fn bitand_vec<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &mut T,
+        ct_right: &T,
+        num_radix_ciphertexts: u32,
+        streams: &CudaStreams,
+    ) -> Vec<T> {
+        let mut tmp_rhs;
+
+        let (lhs, rhs) = unsafe {
+            match (
+                ct_left.block_carries_are_empty(),
+                ct_right.block_carries_are_empty(),
+            ) {
+                (true, true) => (ct_left, ct_right),
+                (true, false) => {
+                    tmp_rhs = ct_right.duplicate_async(streams);
+                    self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                    (ct_left, &tmp_rhs)
+                }
+                (false, true) => {
+                    self.full_propagate_assign_async(ct_left, streams);
+                    (ct_left, ct_right)
+                }
+                (false, false) => {
+                    tmp_rhs = ct_right.duplicate_async(streams);
+
+                    self.full_propagate_assign_async(ct_left, streams);
+                    self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                    (ct_left, &tmp_rhs)
+                }
+            }
+        };
+        let result = self.unchecked_bitand_vec(lhs, rhs, num_radix_ciphertexts, streams);
+        result.to_integer_radix_ciphertext_vec(num_radix_ciphertexts, streams)
     }
 }

@@ -104,11 +104,18 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                 .map(|list| list.0.lwe_ciphertext_count.0)
                 .sum(),
         );
-
         assert_ne!(
             lwe_ciphertext_count.0, 0,
             "Empty iterator of CudaLweCiphertextList"
         );
+
+        let stream_count = lwe_ciphertext_count.0.min(6);
+        let mut new_streams: Vec<CudaStreams> = Vec::with_capacity(stream_count);
+
+        for _ in 0..stream_count {
+            let stream = CudaStreams::new_single_gpu(streams.gpu_indexes[0]);
+            new_streams.push(stream);
+        }
 
         let first_item = cuda_ciphertexts_list_vec.next().unwrap();
         let lwe_dimension = first_item.lwe_dimension();
@@ -123,24 +130,19 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             * std::mem::size_of::<T>();
         // Concatenate gpu_index memory
         unsafe {
-            cuda_memcpy_async_gpu_to_gpu(
-                ptr,
-                first_item.0.d_vec.as_c_ptr(0),
-                size as u64,
-                streams.ptr[0],
-                streams.gpu_indexes[0].get(),
-            );
-            ptr = ptr.wrapping_byte_add(size);
-            for list in cuda_ciphertexts_list_vec {
+            for (i, list) in cuda_ciphertexts_list_vec.enumerate() {
                 cuda_memcpy_async_gpu_to_gpu(
                     ptr,
                     list.0.d_vec.as_c_ptr(0),
                     size as u64,
-                    streams.ptr[0],
-                    streams.gpu_indexes[0].get(),
+                    new_streams[i % stream_count].ptr[0],
+                    new_streams[i % stream_count].gpu_indexes[0].get(),
                 );
                 ptr = ptr.wrapping_byte_add(size);
             }
+        }
+        for s in new_streams.iter() {
+            s.synchronize();
         }
 
         let cuda_lwe_list = CudaLweList {
