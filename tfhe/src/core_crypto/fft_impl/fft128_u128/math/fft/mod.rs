@@ -1354,7 +1354,7 @@ mod tests {
         const CLEAR_SIGN_MASK: u64 = 0x7fff_ffff_ffff_ffff;
 
         let bits = this.to_bits();
-        if this.is_nan() || bits == f64::INFINITY.to_bits() {
+        if this.is_nan() || bits == f64::NEG_INFINITY.to_bits() {
             return this;
         }
 

@@ -618,7 +618,7 @@ where
 
     let max_scalar_mul = sks.max_noise_level.get();
 
-    let (_input_sim, _after_br_sim, _after_dp_sim, _after_ks_sim, _after_drift_sim, after_ms_sim) = {
+    let (input_sim, after_br_sim, after_dp_sim, after_ks_sim, after_drift_sim, after_ms_sim) = {
         // Noiseless LWE already mod switched is the input of the AP for testing
         let noise_simulation = NoiseSimulationLwe::new(
             noise_simulation_bsk.input_lwe_dimension(),
@@ -643,6 +643,14 @@ where
             &mut (),
         )
     };
+
+    dbg!(input_sim.variance());
+    dbg!(after_br_sim.variance());
+    dbg!(after_dp_sim.variance());
+    dbg!(after_ks_sim.variance());
+    dbg!(after_ms_sim.variance());
+
+    let before_ms_sim = after_drift_sim.unwrap_or(after_ks_sim);
 
     let id_lut = sks.generate_lookup_table(|x| x);
     let sample_input = match &cks.atomic_pattern {
@@ -706,6 +714,8 @@ where
 
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
+    dbg!(before_ms_sim.variance());
+
     let after_ms_is_ok = mean_and_variance_check(
         &noise_samples_after_ms,
         "after_ms",
@@ -713,7 +723,7 @@ where
         after_ms_sim.variance(),
         params.lwe_noise_distribution(),
         after_ms_sim.lwe_dimension(),
-        after_ms_sim.modulus().as_f64(),
+        before_ms_sim.modulus().as_f64(),
     );
 
     assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);

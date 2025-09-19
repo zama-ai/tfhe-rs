@@ -20,7 +20,7 @@ impl AllocateStandardModSwitchResult for NoiseSimulationLwe {
     ) -> Self::Output {
         Self {
             lwe_dimension: self.lwe_dimension,
-            variance: Variance(f64::INFINITY),
+            variance: Variance(f64::NEG_INFINITY),
             modulus: self.modulus(),
         }
     }
@@ -70,7 +70,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for NoiseSimulationLwe
     ) -> Self::Output {
         Self::new(
             self.lwe_dimension(),
-            Variance(f64::INFINITY),
+            Variance(f64::NEG_INFINITY),
             self.modulus(),
         )
     }

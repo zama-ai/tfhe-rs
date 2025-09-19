@@ -689,7 +689,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSimulationDriftTechn
         side_resources: &mut Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let after_drift =
-            NoiseSimulationLwe::new(self.lwe_dimension, Variance(f64::INFINITY), self.modulus);
+            NoiseSimulationLwe::new(self.lwe_dimension, Variance(f64::NEG_INFINITY), self.modulus);
         let after_ms = after_drift.allocate_standard_mod_switch_result(side_resources);
         (after_drift, after_ms)
     }

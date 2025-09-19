@@ -137,7 +137,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
                 );
             }
         } else {
-            println!("FAIL:measured_variance_{suffix} is NOT secure.")
+            println!("FAIL: measured_variance_{suffix} is NOT secure.")
         }
 
         variance_is_secure
