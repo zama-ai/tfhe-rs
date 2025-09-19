@@ -137,7 +137,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
                 );
             }
         } else {
-            println!("FAIL:measured_variance_{suffix} is NOT secure.")
+            println!("FAIL: measured_variance_{suffix} is NOT secure.")
         }
 
         variance_is_secure
@@ -454,7 +454,7 @@ pub enum DecryptionAndNoiseResult {
 }
 
 impl DecryptionAndNoiseResult {
-    pub fn new<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
+    pub fn new_from_lwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &LweCiphertext<CtCont>,
         secret_key: &LweSecretKey<KeyCont>,
         expected_msg: Scalar,
@@ -474,9 +474,14 @@ impl DecryptionAndNoiseResult {
 
         let expected_plaintext = expected_msg * delta;
 
+        // decrypted_plaintext = expected_plaintext + error
+        // The order below computes:
+        // decrypted_plaintext - expected_plaintext in a modular way, which is what we want
+        // It only changes the average value sign, so that it is more intuitive when comparing to
+        // theory
         let noise = torus_modular_diff(
-            expected_plaintext,
             decrypted_plaintext,
+            expected_plaintext,
             ct.ciphertext_modulus(),
         );
 
