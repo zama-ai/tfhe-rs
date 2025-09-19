@@ -127,11 +127,7 @@ where
                     Ok(op) => asm_ops.push(AsmOp::Stmt(op)),
                     Err(err) => {
                         tracing::warn!("ReadAsm failed @{file}:{}", line + 1);
-                        anyhow::bail!(
-                            "ReadAsm failed @{file}:{} with {}",
-                            line + 1,
-                            err.to_string()
-                        );
+                        anyhow::bail!("ReadAsm failed @{file}:{} with {}", line + 1, err);
                     }
                 }
             }
