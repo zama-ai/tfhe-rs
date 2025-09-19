@@ -46,6 +46,7 @@ pub(crate) const UNVERSIONIZE_ERROR_NAME: &str = crate_full_path!("UnversionizeE
 pub(crate) const SERIALIZE_TRAIT_NAME: &str = "::serde::Serialize";
 pub(crate) const DESERIALIZE_TRAIT_NAME: &str = "::serde::Deserialize";
 pub(crate) const DESERIALIZE_OWNED_TRAIT_NAME: &str = "::serde::de::DeserializeOwned";
+pub(crate) const TRY_FROM_TRAIT_NAME: &str = "::core::convert::TryFrom";
 pub(crate) const FROM_TRAIT_NAME: &str = "::core::convert::From";
 pub(crate) const TRY_INTO_TRAIT_NAME: &str = "::core::convert::TryInto";
 pub(crate) const INTO_TRAIT_NAME: &str = "::core::convert::Into";
@@ -53,6 +54,8 @@ pub(crate) const ERROR_TRAIT_NAME: &str = "::core::error::Error";
 pub(crate) const SYNC_TRAIT_NAME: &str = "::core::marker::Sync";
 pub(crate) const SEND_TRAIT_NAME: &str = "::core::marker::Send";
 pub(crate) const DEFAULT_TRAIT_NAME: &str = "::core::default::Default";
+pub(crate) const RESULT_TYPE_NAME: &str = "::core::result::Result";
+pub(crate) const VEC_TYPE_NAME: &str = "::std::vec::Vec";
 pub(crate) const STATIC_LIFETIME_NAME: &str = "'static";
 
 use associated::AssociatingTrait;
@@ -240,6 +243,9 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let unversionize_body = implementor.unversionize_method_body(&unversionize_arg_name);
     let unversionize_error: Path = parse_const_str(UNVERSIONIZE_ERROR_NAME);
 
+    let result_type: Path = parse_const_str(RESULT_TYPE_NAME);
+    let vec_type: Path = parse_const_str(VEC_TYPE_NAME);
+
     quote! {
         #version_trait_impl
 
@@ -269,7 +275,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         impl #trait_impl_generics #unversionize_trait for #input_ident #ty_generics
         #unversionize_trait_where_clause
         {
-            fn unversionize(#unversionize_arg_name: Self::VersionedOwned) -> Result<Self, #unversionize_error>  {
+            fn unversionize(#unversionize_arg_name: Self::VersionedOwned) -> #result_type<Self, #unversionize_error>  {
                 #unversionize_body
             }
         }
@@ -278,7 +284,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         impl #trait_impl_generics #versionize_slice_trait for #input_ident #ty_generics
         #versionize_trait_where_clause
         {
-            type VersionedSlice<#lifetime> = Vec<<Self as #versionize_trait>::Versioned<#lifetime>> #versioned_type_where_clause;
+            type VersionedSlice<#lifetime> = #vec_type<<Self as #versionize_trait>::Versioned<#lifetime>> #versioned_type_where_clause;
 
             fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
                 slice.iter().map(|val| #versionize_trait::versionize(val)).collect()
@@ -290,9 +296,9 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         #versionize_owned_trait_where_clause
         {
 
-            type VersionedVec = Vec<<Self as #versionize_owned_trait>::VersionedOwned> #versioned_owned_type_where_clause;
+            type VersionedVec = #vec_type<<Self as #versionize_owned_trait>::VersionedOwned> #versioned_owned_type_where_clause;
 
-            fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+            fn versionize_vec(vec: #vec_type<Self>) -> Self::VersionedVec {
                 vec.into_iter().map(|val| #versionize_owned_trait::versionize_owned(val)).collect()
             }
         }
@@ -301,7 +307,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         impl #trait_impl_generics #unversionize_vec_trait for #input_ident #ty_generics
         #unversionize_trait_where_clause
         {
-            fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, #unversionize_error> {
+            fn unversionize_vec(versioned: Self::VersionedVec) -> #result_type<#vec_type<Self>, #unversionize_error> {
                 versioned
                 .into_iter()
                 .map(|versioned| <Self as #unversionize_trait>::unversionize(versioned))
@@ -346,6 +352,8 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
     let unversionize_error: Path = parse_const_str(UNVERSIONIZE_ERROR_NAME);
     let lifetime = Lifetime::new(LIFETIME_NAME, Span::call_site());
 
+    let result_type: Path = parse_const_str(RESULT_TYPE_NAME);
+
     quote! {
         #[automatically_derived]
         impl #impl_generics #versionize_trait for #input_ident #ty_generics #versionize_where_clause {
@@ -367,7 +375,7 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
 
         #[automatically_derived]
         impl #impl_generics #unversionize_trait for #input_ident #ty_generics #versionize_owned_where_clause {
-            fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, #unversionize_error> {
+            fn unversionize(versioned: Self::VersionedOwned) -> #result_type<Self, #unversionize_error> {
                 Ok(versioned)
             }
         }
