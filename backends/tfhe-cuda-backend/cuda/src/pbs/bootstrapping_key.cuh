@@ -10,7 +10,7 @@
 #include "polynomial/parameters.cuh"
 #include <atomic>
 #include <cstdint>
-//adding a silly comment and two silly
+
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
                                          int glwe_dimension,
                                          uint32_t level_count) {
