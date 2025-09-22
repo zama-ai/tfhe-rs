@@ -68,6 +68,29 @@ impl XofSeed {
             u128::from_ne_bytes(buf)
         })
     }
+
+    /// Creates a new XofSeed from raw bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided data is smaller than the domain separator length
+    pub fn from_bytes(data: Vec<u8>) -> Self {
+        assert!(
+            data.len() >= Self::DOMAIN_SEP_LEN,
+            "XofSeed must be at least {} bytes long (got {})",
+            Self::DOMAIN_SEP_LEN,
+            data.len()
+        );
+        Self { data }
+    }
+
+    pub fn bytes(&self) -> &Vec<u8> {
+        &self.data
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.data
+    }
 }
 
 pub enum SeedKind {
