@@ -65,10 +65,10 @@ use crate::shortint::noise_squashing::{
 // 3) Decompression key
 // 4) KSK (compute params)
 // 5) BSK (compute params)
-// 6) BSK (SnS params)
-// 7) Mod Switch Key (SnS params)
-// 8) KSK (encryption params to compute params)
-// 9) Mod Switch Key (compute params)
+// 6) Mod Switch Key (compute params)
+// 7) BSK (SnS params)
+// 8) Mod Switch Key (SnS params)
+// 9) KSK (encryption params to compute params)
 
 /// Compressed KeySet which respects the [NIST document]
 /// regarding the random generator used, and the order of key generation
@@ -140,7 +140,7 @@ impl CompressedXofKeySet {
             });
 
         // Now, we generate the server key (ksk, then bsk)
-        let mut integer_compressed_server_key = {
+        let integer_compressed_server_key = {
             let core_ksk = allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
                 &glwe_secret_key.as_lwe_secret_key(),
                 lwe_secret_key,
@@ -152,22 +152,30 @@ impl CompressedXofKeySet {
             );
 
             let shortint_bsk = match computation_parameters.pbs_parameters() {
-                Some(PBSParameters::PBS(_)) => {
+                Some(PBSParameters::PBS(pbs_params)) => {
                     let core_bsk =
                         allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
                             lwe_secret_key,
                             glwe_secret_key,
-                            computation_parameters.pbs_base_log(),
-                            computation_parameters.pbs_level(),
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
                             computation_parameters.encryption_noise_distribution(),
-                            computation_parameters.ciphertext_modulus(),
+                            pbs_params.ciphertext_modulus,
+                            &mut encryption_rand_gen,
+                        );
+
+                    let modulus_switch_noise_reduction_key =
+                        CompressedModulusSwitchConfiguration::generate_from_existing_generator(
+                            &pbs_params.modulus_switch_noise_reduction_params,
+                            lwe_secret_key,
+                            pbs_params.lwe_noise_distribution,
+                            pbs_params.ciphertext_modulus,
                             &mut encryption_rand_gen,
                         );
 
                     ShortintCompressedBootstrappingKey::Classic {
                         bsk: core_bsk,
-                        modulus_switch_noise_reduction_key:
-                            CompressedModulusSwitchConfiguration::Standard,
+                        modulus_switch_noise_reduction_key,
                     }
                 }
                 Some(PBSParameters::MultiBitPBS(multibit_params)) => {
@@ -316,38 +324,6 @@ impl CompressedXofKeySet {
                 }
             });
 
-        if let PBSParameters::PBS(pbs_params) = computation_parameters.pbs_parameters().unwrap() {
-            let mod_switch_noise_key =
-                CompressedModulusSwitchConfiguration::generate_from_existing_generator(
-                    &pbs_params.modulus_switch_noise_reduction_params,
-                    lwe_secret_key,
-                    computation_parameters.lwe_noise_distribution(),
-                    computation_parameters.ciphertext_modulus(),
-                    &mut encryption_rand_gen,
-                );
-
-            match &mut integer_compressed_server_key.key.compressed_ap_server_key {
-                CompressedAtomicPatternServerKey::Standard(ap) => {
-                    match ap.bootstrapping_key_mut() {
-                        ShortintCompressedBootstrappingKey::Classic {
-                            bsk: _,
-                            modulus_switch_noise_reduction_key,
-                        } => {
-                            *modulus_switch_noise_reduction_key = mod_switch_noise_key;
-                        }
-                        ShortintCompressedBootstrappingKey::MultiBit { .. } => {
-                            return Err(crate::error!(
-                                "Multi-bit PBS does not support modulus switch noise reduction"
-                            ))
-                        }
-                    }
-                }
-                CompressedAtomicPatternServerKey::KeySwitch32(_) => {
-                    unreachable!("not supported")
-                }
-            }
-        }
-
         let noise_squashing_compression_key =
             ck.key.noise_squashing_compression_private_key.as_ref().map(
                 |ns_compression_priv_key| {
@@ -426,7 +402,7 @@ impl CompressedXofKeySet {
             {
                 ShortintCompressedBootstrappingKey::Classic {
                     bsk: compressed_bsk,
-                    modulus_switch_noise_reduction_key: _,
+                    modulus_switch_noise_reduction_key,
                 } => {
                     let core_fourier_bsk =
                         par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
@@ -434,9 +410,12 @@ impl CompressedXofKeySet {
                             &mut mask_generator,
                         );
 
+                    let modulus_switch_noise_reduction_key = modulus_switch_noise_reduction_key
+                        .decompress_with_pre_seeded_generator(&mut mask_generator);
+
                     ShortintBootstrappingKey::Classic {
                         bsk: core_fourier_bsk,
-                        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
+                        modulus_switch_noise_reduction_key,
                     }
                 }
                 ShortintCompressedBootstrappingKey::MultiBit {
@@ -484,7 +463,7 @@ impl CompressedXofKeySet {
                 shortint_sk.max_noise_level,
             );
 
-            let mut integer_sk = integer::ServerKey::from_raw_parts(shortint_sk);
+            let integer_sk = integer::ServerKey::from_raw_parts(shortint_sk);
 
             let noise_squashing_key = self
                 .compressed_server_key
@@ -515,48 +494,6 @@ impl CompressedXofKeySet {
                         )
                     }
                 });
-
-            match &mut integer_sk.key.atomic_pattern {
-                AtomicPatternServerKey::Standard(ap) => {
-                    match &mut ap.bootstrapping_key {
-                        ShortintBootstrappingKey::Classic {
-                            bsk: _,
-                            modulus_switch_noise_reduction_key: decomp_ms_nrk,
-                        } => {
-                            *decomp_ms_nrk = match &self
-                                .compressed_server_key
-                                .integer_key
-                                .key
-                                .key
-                                .as_compressed_standard_atomic_pattern_server_key()
-                                .unwrap()
-                                .bootstrapping_key()
-                            {
-                                ShortintCompressedBootstrappingKey::Classic {
-                                    bsk: _,
-                                    modulus_switch_noise_reduction_key,
-                                } => modulus_switch_noise_reduction_key
-                                    .decompress_with_pre_seeded_generator(&mut mask_generator),
-                                ShortintCompressedBootstrappingKey::MultiBit { .. } => {
-                                    // We already created the decompressed bsk matching the
-                                    // compressed one
-                                    // so this cannot happen
-                                    unreachable!("Internal error, somehow got mismatched key type")
-                                }
-                            }
-                        }
-                        ShortintBootstrappingKey::MultiBit { .. } => {}
-                    }
-                }
-                AtomicPatternServerKey::KeySwitch32(_) => {
-                    // The constructor does not allow this
-                    panic!("KeySwitch32 atomic pattern is not supported")
-                }
-                AtomicPatternServerKey::Dynamic(_) => {
-                    // The constructor does not allow this
-                    panic!("Dynamic atomic patterns are not supported")
-                }
-            }
 
             let noise_squashing_compression_key = self
                 .compressed_server_key
