@@ -4783,8 +4783,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         &streams[2], &gpu_indexes[2], 1, BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
 
-    // init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
-    //                    allocate_gpu_memory, size_tracker);
+    init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks,
+                       allocate_gpu_memory, size_tracker);
     init_temporary_buffers(streams, gpu_indexes, num_blocks,
                            allocate_gpu_memory, size_tracker);
 
@@ -4980,12 +4980,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete bitor_mem_3;
 
     // release and delete lut objects
-    // message_extract_lut_1->release(streams, gpu_indexes, gpu_count);
-    // message_extract_lut_2->release(streams, gpu_indexes, gpu_count);
-    // zero_out_if_not_1_lut_1->release(streams, gpu_indexes, gpu_count);
-    // zero_out_if_not_1_lut_2->release(streams, gpu_indexes, gpu_count);
-    // zero_out_if_not_2_lut_1->release(streams, gpu_indexes, gpu_count);
-    // zero_out_if_not_2_lut_2->release(streams, gpu_indexes, gpu_count);
+    // message_extract_lut_1->release(&streams[0], &gpu_indexes[0], 1);
+    // message_extract_lut_2->release(&streams[3], &gpu_indexes[3], 1);
+    zero_out_if_not_1_lut_1->release(&streams[0], &gpu_indexes[0], 1);
+    zero_out_if_not_1_lut_2->release(&streams[3], &gpu_indexes[3], 1);
+    zero_out_if_not_2_lut_1->release(&streams[1], &gpu_indexes[1], 1);
+    zero_out_if_not_2_lut_2->release(&streams[2], &gpu_indexes[2], 1);
     // quotient_lut_1->release(streams, gpu_indexes, gpu_count);
     // quotient_lut_2->release(streams, gpu_indexes, gpu_count);
     // quotient_lut_3->release(streams, gpu_indexes, gpu_count);

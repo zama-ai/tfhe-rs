@@ -147,8 +147,8 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           cur_remainder, block_index, num_blocks);
     };
 
-    init_low_rem_f(nullptr, nullptr, mem_ptr->rem1, remainder_gpu_3,
-                   2, false);
+    init_low_rem_f(nullptr, nullptr, mem_ptr->rem0, remainder_gpu_3,
+                   3, false);
     init_low_rem_f(mem_ptr->low1, mem_ptr->d1, mem_ptr->rem1, remainder_gpu_2,
                    2, true);
     init_low_rem_f(mem_ptr->low2, mem_ptr->d2, mem_ptr->rem2, remainder_gpu_1,
