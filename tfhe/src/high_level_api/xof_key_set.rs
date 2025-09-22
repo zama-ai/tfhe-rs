@@ -17,6 +17,7 @@ use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 #[cfg(test)]
 use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
+use crate::named::Named;
 #[cfg(test)]
 use crate::shortint::atomic_pattern::compressed::{
     CompressedAtomicPatternServerKey, CompressedStandardAtomicPatternServerKey,
@@ -49,7 +50,12 @@ use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
 use tfhe_csprng::seeders::XofSeed;
 use tfhe_fft::c64;
+use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
 
+use crate::core_crypto::commons::math::random::XofSeedSerdeDef;
+use crate::high_level_api::backward_compatibility::xof_key_set::{
+    CompressedXofKeySetVersioned, CompressedXofKeySetVersionedOwned, XofKeySetVersions,
+};
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
@@ -74,10 +80,42 @@ use crate::shortint::noise_squashing::{
 /// regarding the random generator used, and the order of key generation
 ///
 /// [NIST document]: https://eprint.iacr.org/2025/699
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedXofKeySet {
+    #[serde(with = "XofSeedSerdeDef")]
     seed: XofSeed,
     compressed_public_key: CompressedCompactPublicKey,
     compressed_server_key: CompressedServerKey,
+}
+
+impl Versionize for CompressedXofKeySet {
+    type Versioned<'vers> = CompressedXofKeySetVersioned<'vers>;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        CompressedXofKeySetVersioned::V0(self)
+    }
+}
+
+impl VersionizeOwned for CompressedXofKeySet {
+    type VersionedOwned = CompressedXofKeySetVersionedOwned;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        CompressedXofKeySetVersionedOwned::V0(self)
+    }
+}
+
+impl Unversionize for CompressedXofKeySet {
+    fn unversionize(
+        versioned: Self::VersionedOwned,
+    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
+        match versioned {
+            CompressedXofKeySetVersionedOwned::V0(v0) => Ok(v0),
+        }
+    }
+}
+
+impl Named for CompressedXofKeySet {
+    const NAME: &'static str = "CompressedXofKeySet";
 }
 
 impl CompressedXofKeySet {
@@ -550,10 +588,15 @@ impl CompressedXofKeySet {
 /// To create such key set, first create a [CompressedXofKeySet] then decompress it
 ///
 /// [NIST document]: https://eprint.iacr.org/2025/699
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(XofKeySetVersions)]
 pub struct XofKeySet {
     public_key: CompactPublicKey,
     server_key: ServerKey,
+}
+
+impl Named for XofKeySet {
+    const NAME: &'static str = "XofKeySet";
 }
 
 impl XofKeySet {
@@ -1190,7 +1233,7 @@ where
 mod test {
     use crate::core_crypto::prelude::new_seeder;
     use crate::prelude::*;
-    use crate::xof_key_set::CompressedXofKeySet;
+    use crate::xof_key_set::{CompressedXofKeySet, XofKeySet};
     use crate::{XofSeed, *};
 
     #[test]
@@ -1227,7 +1270,25 @@ mod test {
 
         let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
 
+        let compressed_size_limit = 1 << 30;
+        let mut data = vec![];
+        crate::safe_serialization::safe_serialize(
+            &compressed_key_set,
+            &mut data,
+            compressed_size_limit,
+        )
+        .unwrap();
+        let compressed_key_set: CompressedXofKeySet =
+            crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
+                .unwrap();
+
         let key_set = compressed_key_set.decompress();
+
+        let size_limit = 1 << 32;
+        let mut data = vec![];
+        crate::safe_serialization::safe_serialize(&key_set, &mut data, size_limit).unwrap();
+        let key_set: XofKeySet =
+            crate::safe_serialization::safe_deserialize(data.as_slice(), size_limit).unwrap();
 
         let (pk, sk) = key_set.into_raw_parts();
 

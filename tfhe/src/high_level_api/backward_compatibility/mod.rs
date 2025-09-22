@@ -12,3 +12,4 @@ pub mod keys;
 #[cfg(feature = "strings")]
 pub mod strings;
 pub mod tag;
+pub mod xof_key_set;

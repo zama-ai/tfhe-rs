@@ -120,11 +120,6 @@ impl CompressedStandardAtomicPatternServerKey {
         &self.bootstrapping_key
     }
 
-    #[cfg(all(feature = "integer", test))]
-    pub(crate) fn bootstrapping_key_mut(&mut self) -> &mut ShortintCompressedBootstrappingKey<u64> {
-        &mut self.bootstrapping_key
-    }
-
     pub fn pbs_order(&self) -> PBSOrder {
         self.pbs_order
     }
