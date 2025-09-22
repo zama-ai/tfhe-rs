@@ -4345,9 +4345,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *cmp_2;               // boolean block
   CudaRadixCiphertextFFI *cmp_3;               // boolean block
   CudaRadixCiphertextFFI *c0;                  // single block
-  CudaRadixCiphertextFFI *c1;                  // single block
-  CudaRadixCiphertextFFI *c2;                  // single block
-  CudaRadixCiphertextFFI *c3;                  // single block
+  // CudaRadixCiphertextFFI *c1;                  // single block
+  // CudaRadixCiphertextFFI *c2;                  // single block
+  // CudaRadixCiphertextFFI *c3;                  // single block
   CudaRadixCiphertextFFI *q1;                  // single block
   CudaRadixCiphertextFFI *q2;                  // single block
   CudaRadixCiphertextFFI *q3;                  // single block
