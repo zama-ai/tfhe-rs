@@ -532,6 +532,14 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     // Copy rem from GPU[3] to GPU[0]
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, mem_ptr->rem0);
 
+    // We do the same to accumulate quotient bits q1, q2 and q3. q3 is already on GPU[0]. 
+    // To copy q1 and q2 we will reuse buffers allocated on GPU[0]: sub_1_overflowed and cmp_1.
+    auto q3_gpu_0 = mem_ptr->q3;                 // q3 is already on GPU[0]
+    auto q2_gpu_0 = mem_ptr->sub_1_overflowed;   // reuse: destination for q2 on GPU[0]
+    auto q1_gpu_0 = mem_ptr->cmp_1;              // reuse: destination for q1 on GPU[0]
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q2_gpu_0, mem_ptr->q2);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q1_gpu_0, mem_ptr->q1);
+
     cuda_set_device(0);
     print_body<Torus>("r3_gpu_0 after copy", (Torus *)r3_gpu_0->ptr,
                       r3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
@@ -550,10 +558,32 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r2_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r1_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
 
+    host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q2_gpu_0, 1, 4, 4);
+    host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q1_gpu_0, 1, 4, 4);
     cuda_set_device(0);
     print_body<Torus>("rem after final accumulation", (Torus *)rem_gpu_0->ptr,
                       rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
                       576460752303423488ULL);
+    print_body<Torus>("q3 after final accumulation", (Torus *)q3_gpu_0->ptr, 
+                      q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+    }
+
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, rem_gpu_0,
+        rem_gpu_0, bsks, ksks, ms_noise_reduction_key,
+        mem_ptr->message_extract_lut_1, rem_gpu_0->num_radix_blocks);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        mem_ptr->sub_streams_1, gpu_indexes, gpu_count, q3_gpu_0,
+        q3_gpu_0, bsks, ksks, ms_noise_reduction_key,
+        mem_ptr->message_extract_lut_2, 1);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
+    }
 
     break;
 
