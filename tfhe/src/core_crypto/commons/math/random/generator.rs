@@ -19,9 +19,11 @@ pub use tfhe_csprng::seeders::{Seed, Seeder, XofSeed};
 /// Module to proxy the serialization for `tfhe-csprng::Seed` to avoid adding serde as a
 /// dependency to `tfhe-csprng`
 pub mod serialization_proxy {
+    // use crate::core_crypto::backward_compatibility::commons::math::random::{
+    // XofSeedSerdeDefVersioned, XofSeedSerdeDefVersionedOwned,
+    // };
     pub(crate) use serde::{Deserialize, Serialize};
-    pub(crate) use tfhe_csprng::seeders::Seed;
-
+    pub(crate) use tfhe_csprng::seeders::{Seed, XofSeed};
     // See https://serde.rs/remote-derive.html
     // Serde calls this the definition of the remote type. It is just a copy of the remote data
     // structure. The `remote` attribute gives the path to the actual type we intend to derive code
@@ -29,6 +31,16 @@ pub mod serialization_proxy {
     #[derive(Serialize, Deserialize)]
     #[serde(remote = "Seed")]
     pub(crate) struct SeedSerdeDef(pub u128);
+
+    #[derive(Serialize, Deserialize)]
+    #[serde(remote = "XofSeed")]
+    pub(crate) struct XofSeedSerdeDef(#[serde(getter = "XofSeed::bytes")] Vec<u8>);
+
+    impl From<XofSeedSerdeDef> for XofSeed {
+        fn from(value: XofSeedSerdeDef) -> Self {
+            Self::from_bytes(value.0)
+        }
+    }
 }
 
 pub(crate) use serialization_proxy::*;
