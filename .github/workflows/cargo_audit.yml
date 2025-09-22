@@ -1,4 +1,6 @@
 # Run cargo audit
+name: cargo_audit
+
 on:
   workflow_dispatch:
   schedule:
