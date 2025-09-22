@@ -1,13 +1,14 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, sanity_check_op_sequence_result_bool,
-    sanity_check_op_sequence_result_u64, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
+    get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
+    sanity_check_op_sequence_result_u64, OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator,
+    NB_CTXT_LONG_RUN,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::OpSequenceCpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
+use crate::{ClientKey, CompressedServerKey, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
 
@@ -19,59 +20,78 @@ create_parameterized_test!(random_op_sequence_data_generator {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
-pub(crate) type BinaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>>;
+pub(crate) type BinaryOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        RadixCiphertext,
+    >,
+>;
 pub(crate) type UnaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
 
 pub(crate) type ScalarBinaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>>;
 pub(crate) type OverflowingOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
     >,
 >;
-pub(crate) type ScalarOverflowingOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>>;
-pub(crate) type ComparisonOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>>;
+pub(crate) type ScalarOverflowingOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, u64),
+        (RadixCiphertext, BooleanBlock),
+    >,
+>;
+pub(crate) type ComparisonOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        BooleanBlock,
+    >,
+>;
 pub(crate) type ScalarComparisonOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>>;
 pub(crate) type SelectOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
         RadixCiphertext,
     >,
 >;
 pub(crate) type DivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, RadixCiphertext),
     >,
 >;
 pub(crate) type ScalarDivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>,
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, u64),
+        (RadixCiphertext, RadixCiphertext),
+    >,
 >;
 pub(crate) type Log2OpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
 {
     // Binary Ops Executors
-    let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
-    let sub_executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
-    let bitwise_and_executor = CpuFunctionExecutor::new(&ServerKey::bitand_parallelized);
-    let bitwise_or_executor = CpuFunctionExecutor::new(&ServerKey::bitor_parallelized);
-    let bitwise_xor_executor = CpuFunctionExecutor::new(&ServerKey::bitxor_parallelized);
-    let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
-    let rotate_left_executor = CpuFunctionExecutor::new(&ServerKey::rotate_left_parallelized);
-    let left_shift_executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
-    let rotate_right_executor = CpuFunctionExecutor::new(&ServerKey::rotate_right_parallelized);
-    let right_shift_executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
-    let max_executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
-    let min_executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
+    let add_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::add_parallelized);
+    let sub_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::sub_parallelized);
+    let bitwise_and_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::bitand_parallelized);
+    let bitwise_or_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::bitor_parallelized);
+    let bitwise_xor_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::bitxor_parallelized);
+    let mul_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::mul_parallelized);
+    let rotate_left_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::rotate_left_parallelized);
+    let left_shift_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
+    let rotate_right_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::rotate_right_parallelized);
+    let right_shift_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
+    let max_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::max_parallelized);
+    let min_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::min_parallelized);
 
     // Binary Ops Clear functions
     let clear_add = |x: u64, y: u64| x.wrapping_add(y);
@@ -134,9 +154,10 @@ where
     ];
 
     // Unary Ops Executors
-    let neg_executor = CpuFunctionExecutor::new(&ServerKey::neg_parallelized);
-    let bitnot_executor = CpuFunctionExecutor::new(&ServerKey::bitnot);
-    let reverse_bits_executor = CpuFunctionExecutor::new(&ServerKey::reverse_bits_parallelized);
+    let neg_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::neg_parallelized);
+    let bitnot_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::bitnot);
+    let reverse_bits_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::reverse_bits_parallelized);
     // Unary Ops Clear functions
     let clear_neg = |x: u64| x.wrapping_neg();
     let clear_bitnot = |x: u64| !x;
@@ -157,23 +178,26 @@ where
     ];
 
     // Scalar binary Ops Executors
-    let scalar_add_executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
-    let scalar_sub_executor = CpuFunctionExecutor::new(&ServerKey::scalar_sub_parallelized);
+    let scalar_add_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
+    let scalar_sub_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_sub_parallelized);
     let scalar_bitwise_and_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_bitand_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_bitand_parallelized);
     let scalar_bitwise_or_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_bitor_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_bitor_parallelized);
     let scalar_bitwise_xor_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_bitxor_parallelized);
-    let scalar_mul_executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_bitxor_parallelized);
+    let scalar_mul_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
     let scalar_rotate_left_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
     let scalar_left_shift_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_left_shift_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_left_shift_parallelized);
     let scalar_rotate_right_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
     let scalar_right_shift_executor =
-        CpuFunctionExecutor::new(&ServerKey::scalar_right_shift_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_right_shift_parallelized);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_binary_ops: Vec<(ScalarBinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
@@ -231,11 +255,11 @@ where
 
     // Overflowing Ops Executors
     let overflowing_add_executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
     let overflowing_sub_executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     let overflowing_mul_executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_mul_parallelized);
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_mul_parallelized);
 
     // Overflowing Ops Clear functions
     let clear_overflowing_add = |x: u64, y: u64| -> (u64, bool) { x.overflowing_add(y) };
@@ -266,10 +290,12 @@ where
     ];
 
     // Scalar Overflowing Ops Executors
-    let overflowing_scalar_add_executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_add_parallelized);
-    let overflowing_scalar_sub_executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized);
+    let overflowing_scalar_add_executor = OpSequenceCpuFunctionExecutor::new(
+        &ServerKey::unsigned_overflowing_scalar_add_parallelized,
+    );
+    let overflowing_scalar_sub_executor = OpSequenceCpuFunctionExecutor::new(
+        &ServerKey::unsigned_overflowing_scalar_sub_parallelized,
+    );
 
     #[allow(clippy::type_complexity)]
     let mut scalar_overflowing_ops: Vec<(
@@ -290,12 +316,12 @@ where
     ];
 
     // Comparison Ops Executors
-    let gt_executor = CpuFunctionExecutor::new(&ServerKey::gt_parallelized);
-    let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
-    let lt_executor = CpuFunctionExecutor::new(&ServerKey::lt_parallelized);
-    let le_executor = CpuFunctionExecutor::new(&ServerKey::le_parallelized);
-    let eq_executor = CpuFunctionExecutor::new(&ServerKey::eq_parallelized);
-    let ne_executor = CpuFunctionExecutor::new(&ServerKey::ne_parallelized);
+    let gt_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::gt_parallelized);
+    let ge_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::ge_parallelized);
+    let lt_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::lt_parallelized);
+    let le_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::le_parallelized);
+    let eq_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::eq_parallelized);
+    let ne_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::ne_parallelized);
 
     // Comparison Ops Clear functions
     let clear_gt = |x: u64, y: u64| -> bool { x > y };
@@ -316,12 +342,12 @@ where
     ];
 
     // Scalar Comparison Ops Executors
-    let scalar_gt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_gt_parallelized);
-    let scalar_ge_executor = CpuFunctionExecutor::new(&ServerKey::scalar_ge_parallelized);
-    let scalar_lt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);
-    let scalar_le_executor = CpuFunctionExecutor::new(&ServerKey::scalar_le_parallelized);
-    let scalar_eq_executor = CpuFunctionExecutor::new(&ServerKey::scalar_eq_parallelized);
-    let scalar_ne_executor = CpuFunctionExecutor::new(&ServerKey::scalar_ne_parallelized);
+    let scalar_gt_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_gt_parallelized);
+    let scalar_ge_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_ge_parallelized);
+    let scalar_lt_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);
+    let scalar_le_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_le_parallelized);
+    let scalar_eq_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_eq_parallelized);
+    let scalar_ne_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_ne_parallelized);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_comparison_ops: Vec<(
@@ -362,7 +388,7 @@ where
     ];
 
     // Select Executor
-    let select_executor = CpuFunctionExecutor::new(&ServerKey::cmux_parallelized);
+    let select_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::cmux_parallelized);
 
     // Select
     let clear_select = |b: bool, x: u64, y: u64| if b { x } else { y };
@@ -375,7 +401,7 @@ where
     )];
 
     // Div executor
-    let div_rem_executor = CpuFunctionExecutor::new(&ServerKey::div_rem_parallelized);
+    let div_rem_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::div_rem_parallelized);
     // Div Rem Clear functions
     let clear_div_rem = |x: u64, y: u64| -> (u64, u64) { (x.wrapping_div(y), x.wrapping_rem(y)) };
     #[allow(clippy::type_complexity)]
@@ -386,7 +412,8 @@ where
     )];
 
     // Scalar Div executor
-    let scalar_div_rem_executor = CpuFunctionExecutor::new(&ServerKey::scalar_div_rem_parallelized);
+    let scalar_div_rem_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::scalar_div_rem_parallelized);
     #[allow(clippy::type_complexity)]
     let mut scalar_div_rem_op: Vec<(
         ScalarDivRemOpExecutor,
@@ -399,9 +426,11 @@ where
     )];
 
     // Log2/Hamming weight ops
-    let ilog2_executor = CpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
-    let count_zeros_executor = CpuFunctionExecutor::new(&ServerKey::count_zeros_parallelized);
-    let count_ones_executor = CpuFunctionExecutor::new(&ServerKey::count_ones_parallelized);
+    let ilog2_executor = OpSequenceCpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
+    let count_zeros_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::count_zeros_parallelized);
+    let count_ones_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::count_ones_parallelized);
     let clear_ilog2 = |x: u64| x.ilog2() as u64;
     let clear_count_zeros = |x: u64| x.count_zeros() as u64;
     let clear_count_ones = |x: u64| x.count_ones() as u64;
@@ -421,8 +450,25 @@ where
         ),
     ];
 
-    random_op_sequence_test(
+    let (cks, sks, mut datagen) = random_op_sequence_test_init_cpu(
         param,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+    );
+
+    random_op_sequence_test(
+        &mut datagen,
+        &cks,
+        &sks,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,
@@ -438,7 +484,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn random_op_sequence_test<P>(
+pub(crate) fn random_op_sequence_test_init_cpu<P>(
     param: P,
     binary_ops: &mut [(BinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
     unary_ops: &mut [(UnaryOpExecutor, impl Fn(u64) -> u64, String)],
@@ -467,51 +513,21 @@ pub(crate) fn random_op_sequence_test<P>(
         String,
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
-) where
+) -> (
+    RadixClientKey,
+    Arc<ServerKey>,
+    RandomOpSequenceDataGenerator<u64, RadixCiphertext>,
+)
+where
     P: Into<TestParameters>,
 {
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
+    let temp_cks =
+        ClientKey::from_raw_parts(cks.clone(), None, None, None, None, None, Tag::default());
+    let comp_sks = CompressedServerKey::new(&temp_cks);
 
-    println!("Setting up operations");
-
-    for x in binary_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in unary_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in scalar_binary_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in overflowing_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in scalar_overflowing_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in comparison_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in scalar_comparison_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in select_op.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in div_rem_op.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in scalar_div_rem_op.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
-    for x in log2_ops.iter_mut() {
-        x.0.setup(&cks, sks.clone());
-    }
     let total_num_ops = binary_ops.len()
         + unary_ops.len()
         + scalar_binary_ops.len()
@@ -525,6 +541,93 @@ pub(crate) fn random_op_sequence_test<P>(
         + log2_ops.len();
     println!("Total num ops {total_num_ops}");
 
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
+
+    let mut datagen = get_user_defined_seed().map_or_else(
+        || RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(total_num_ops, &cks),
+        |seed| {
+            RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new_with_seed(
+                total_num_ops,
+                seed,
+                &cks,
+            )
+        },
+    );
+    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
+
+    println!("Setting up operations");
+
+    for x in binary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in unary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_binary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in overflowing_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_overflowing_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in comparison_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_comparison_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in select_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in div_rem_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_div_rem_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in log2_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+
+    (cks, sks, datagen)
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn random_op_sequence_test(
+    datagen: &mut RandomOpSequenceDataGenerator<u64, RadixCiphertext>,
+    cks: &RadixClientKey,
+    sks: &Arc<ServerKey>,
+    binary_ops: &mut [(BinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    unary_ops: &mut [(UnaryOpExecutor, impl Fn(u64) -> u64, String)],
+    scalar_binary_ops: &mut [(ScalarBinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    overflowing_ops: &mut [(
+        OverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    scalar_overflowing_ops: &mut [(
+        ScalarOverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    comparison_ops: &mut [(ComparisonOpExecutor, impl Fn(u64, u64) -> bool, String)],
+    scalar_comparison_ops: &mut [(
+        ScalarComparisonOpExecutor,
+        impl Fn(u64, u64) -> bool,
+        String,
+    )],
+    select_op: &mut [(SelectOpExecutor, impl Fn(bool, u64, u64) -> u64, String)],
+    div_rem_op: &mut [(DivRemOpExecutor, impl Fn(u64, u64) -> (u64, u64), String)],
+    scalar_div_rem_op: &mut [(
+        ScalarDivRemOpExecutor,
+        impl Fn(u64, u64) -> (u64, u64),
+        String,
+    )],
+    log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
+) {
     let binary_ops_range = 0..binary_ops.len();
     let unary_ops_range = binary_ops_range.end..binary_ops_range.end + unary_ops.len();
     let scalar_binary_ops_range =
@@ -543,10 +646,6 @@ pub(crate) fn random_op_sequence_test<P>(
     let scalar_div_rem_op_range =
         div_rem_op_range.end..div_rem_op_range.end + scalar_div_rem_op.len();
     let log2_ops_range = scalar_div_rem_op_range.end..scalar_div_rem_op_range.end + log2_ops.len();
-
-    let mut datagen =
-        RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(total_num_ops, &cks);
-    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
 
     for fn_index in 0..get_long_test_iterations() {
         let (i, idx) = datagen.gen_op_index();
@@ -718,7 +817,7 @@ pub(crate) fn random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct = sks.cast_to_unsigned(
-                res.clone().into_radix::<RadixCiphertext>(1, &sks),
+                res.clone().into_radix::<RadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
             datagen.put_op_result_random_side(expected_res as u64, &res_ct, fn_name, idx);
@@ -749,7 +848,7 @@ pub(crate) fn random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct: RadixCiphertext = sks.cast_to_unsigned(
-                res.clone().into_radix::<RadixCiphertext>(1, &sks),
+                res.clone().into_radix::<RadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
             datagen.put_op_result_random_side(expected_res as u64, &res_ct, fn_name, idx);
