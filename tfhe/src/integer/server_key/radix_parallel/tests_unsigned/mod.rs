@@ -42,6 +42,11 @@ use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
 
+#[cfg(feature = "gpu")]
+use crate::{CompressedServerKey, CudaGpuChoice};
+
+use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
+
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
@@ -613,6 +618,106 @@ where
         self.sks = Some(sks);
     }
 
+    fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1, input.2, input.3)
+    }
+}
+
+/// For unary operations
+///
+/// Note, we need to `NotTuple` constraint to avoid conflicts with binary or ternary operations
+impl<F, I1, O> OpSequenceFunctionExecutor<I1, O> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1) -> O,
+    I1: NotTuple,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    #[cfg(feature = "gpu")]
+    fn setup_gpu(
+        &mut self,
+        _cks: &RadixClientKey,
+        _sks: &CompressedServerKey,
+        _gpu_choice: &CudaGpuChoice,
+    ) {
+        panic!("Called setup_gpu on a Cpu function executor");
+    }
+    fn execute(&mut self, input: I1) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
+/// For binary operations
+impl<F, I1, I2, O> OpSequenceFunctionExecutor<(I1, I2), O> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2) -> O,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    #[cfg(feature = "gpu")]
+    fn setup_gpu(
+        &mut self,
+        _cks: &RadixClientKey,
+        _sks: &CompressedServerKey,
+        _gpu_choice: &CudaGpuChoice,
+    ) {
+        panic!("Called setup_gpu on a Cpu function executor");
+    }
+    fn execute(&mut self, input: (I1, I2)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1)
+    }
+}
+
+/// For ternary operations
+impl<F, I1, I2, I3, O> OpSequenceFunctionExecutor<(I1, I2, I3), O> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2, I3) -> O,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    #[cfg(feature = "gpu")]
+    fn setup_gpu(
+        &mut self,
+        _cks: &RadixClientKey,
+        _sks: &CompressedServerKey,
+        _gpu_choice: &CudaGpuChoice,
+    ) {
+        panic!("Called setup_gpu on a Cpu function executor");
+    }
+    fn execute(&mut self, input: (I1, I2, I3)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1, input.2)
+    }
+}
+
+/// For 4-ary operations
+impl<F, I1, I2, I3, I4, O> OpSequenceFunctionExecutor<(I1, I2, I3, I4), O>
+    for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2, I3, I4) -> O,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    #[cfg(feature = "gpu")]
+    fn setup_gpu(
+        &mut self,
+        _cks: &RadixClientKey,
+        _sks: &CompressedServerKey,
+        _gpu_choice: &CudaGpuChoice,
+    ) {
+        panic!("Called setup_gpu on a Cpu function executor");
+    }
     fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input.0, input.1, input.2, input.3)

@@ -1,28 +1,57 @@
-use crate::core_crypto::gpu::vec::GpuIndex;
+use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::{
     BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext, U256,
 };
-use rand::seq::SliceRandom;
-use rand::Rng;
+use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex};
 use std::sync::Arc;
+use tfhe_csprng::generators::DefaultRandomGenerator;
+use tfhe_csprng::seeders::Seeder;
 
 pub(crate) mod test_erc20;
 pub(crate) mod test_random_op_sequence;
 pub(crate) mod test_signed_erc20;
 pub(crate) mod test_signed_random_op_sequence;
 
-pub(crate) struct GpuMultiDeviceFunctionExecutor<F> {
+/// Fisher-Yates shuffle using the seeded random number generator
+fn seeded_shuffle(v: &mut [u32], datagen: &mut DeterministicSeeder<DefaultRandomGenerator>) {
+    for i in (1..v.len()).rev() {
+        let j = datagen.seed().0 as usize % (i + 1);
+        v.swap(i, j);
+    }
+}
+fn make_random_gpu_set(datagen: &mut DeterministicSeeder<DefaultRandomGenerator>) -> CudaGpuChoice {
+    // Sample a random subset of 1-N gpus, where N is the number of available GPUs
+    // A GPU index should not appear twice in the subset
+    let num_gpus = get_number_of_gpus();
+    //let mut rng = rand::thread_rng();
+    let num_gpus_to_use = (1 + datagen.seed().0 as u32 % (num_gpus - 1)) as usize;
+    let mut all_gpu_indexes: Vec<u32> = (0..num_gpus).collect();
+    seeded_shuffle(&mut all_gpu_indexes, datagen);
+
+    let gpu_indexes_to_use = &all_gpu_indexes[..num_gpus_to_use];
+    let gpu_indexes = CustomMultiGpuIndexes::new(
+        gpu_indexes_to_use
+            .iter()
+            .map(|idx| GpuIndex::new(*idx))
+            .collect(),
+    );
+    println!("Setting up server key on GPUs: [{gpu_indexes_to_use:?}]");
+
+    gpu_indexes.into()
+}
+
+pub(crate) struct OpSequenceGpuMultiDeviceFunctionExecutor<F> {
     pub(crate) context: Option<GpuContext>,
     pub(crate) func: F,
 }
 
-impl<F> GpuMultiDeviceFunctionExecutor<F> {
+impl<F> OpSequenceGpuMultiDeviceFunctionExecutor<F> {
     pub(crate) fn new(func: F) -> Self {
         Self {
             context: None,
@@ -31,34 +60,37 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
     }
 }
 
-impl<F> GpuMultiDeviceFunctionExecutor<F> {
-    pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
-        // Sample a random subset of 1-N gpus, where N is the number of available GPUs
-        // A GPU index should not appear twice in the subset
-        let num_gpus = get_number_of_gpus();
-        let mut rng = rand::thread_rng();
-        let num_gpus_to_use = rng.gen_range(1..=num_gpus as usize);
-        let mut all_gpu_indexes: Vec<u32> = (0..num_gpus).collect();
-        all_gpu_indexes.shuffle(&mut rng);
-        let gpu_indexes_to_use = &all_gpu_indexes[..num_gpus_to_use];
-        let gpu_indexes: Vec<GpuIndex> = gpu_indexes_to_use
-            .iter()
-            .map(|idx| GpuIndex::new(*idx))
-            .collect();
-        println!("Setting up server key on GPUs: [{gpu_indexes_to_use:?}]");
-
-        let streams = CudaStreams::new_multi_gpu_with_indexes(&gpu_indexes);
-
+impl<F> OpSequenceGpuMultiDeviceFunctionExecutor<F> {
+    pub(crate) fn setup_from_cpu_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
+        let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();
+
         let context = GpuContext { streams, sks };
+        self.context = Some(context);
+    }
+
+    pub(crate) fn setup_from_gpu_keys(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        let streams = gpu_choice.clone().build_streams();
+
+        let cuda_key = CudaServerKey::decompress_from_cpu(&sks.integer_key.key, &streams);
+
+        let context = GpuContext {
+            streams,
+            sks: cuda_key,
+        };
         self.context = Some(context);
     }
 }
 
 /// For default/unchecked binary functions
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -68,7 +100,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, &'a RadixCiphertext)) -> RadixCiphertext {
@@ -89,8 +130,8 @@ where
 }
 
 /// For unchecked/default assign binary functions
-impl<'a, F> FunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -100,7 +141,16 @@ where
     ),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a mut RadixCiphertext, &'a RadixCiphertext)) {
@@ -121,8 +171,8 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -132,7 +182,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> RadixCiphertext {
@@ -151,8 +210,8 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<F> FunctionExecutor<(RadixCiphertext, u64), RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<F> OpSequenceFunctionExecutor<(RadixCiphertext, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -162,7 +221,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (RadixCiphertext, u64)) -> RadixCiphertext {
@@ -181,8 +249,8 @@ where
 }
 
 // Unary Function
-impl<'a, F> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a RadixCiphertext, RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -191,7 +259,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
@@ -209,12 +286,22 @@ where
 }
 
 // Unary assign Function
-impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, ()> for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a mut RadixCiphertext, ()>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, &CudaStreams),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) {
@@ -232,13 +319,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, Vec<CudaUnsignedRadixCiphertext>) -> Option<CudaUnsignedRadixCiphertext>,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a Vec<RadixCiphertext>) -> Option<RadixCiphertext> {
@@ -259,8 +355,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), (RadixCiphertext, BooleanBlock)>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, BooleanBlock),
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -270,7 +368,16 @@ where
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -297,8 +404,8 @@ where
 }
 
 /// For unchecked/default unsigned overflowing scalar operations
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -308,7 +415,16 @@ where
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> (RadixCiphertext, BooleanBlock) {
@@ -330,8 +446,8 @@ where
 }
 
 /// For ilog operation
-impl<'a, F> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -340,7 +456,16 @@ where
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
@@ -362,8 +487,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), (RadixCiphertext, RadixCiphertext)>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, RadixCiphertext),
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -373,7 +500,16 @@ where
     ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -399,8 +535,9 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F>
+    OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -410,7 +547,16 @@ where
     ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> (RadixCiphertext, RadixCiphertext) {
@@ -431,8 +577,8 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -442,7 +588,16 @@ where
     ) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, &'a RadixCiphertext)) -> BooleanBlock {
@@ -462,13 +617,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, u64, &CudaStreams) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> BooleanBlock {
@@ -486,13 +650,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, U256), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, U256), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, U256, &CudaStreams) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, U256)) -> BooleanBlock {
@@ -510,8 +683,8 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, U256), RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a RadixCiphertext, U256), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -521,7 +694,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, U256)) -> RadixCiphertext {
@@ -540,8 +722,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<(&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
+        RadixCiphertext,
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -552,7 +736,16 @@ where
     ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -585,8 +778,10 @@ where
 
 /// For default/unchecked binary signed functions
 impl<'a, F>
-    FunctionExecutor<(&'a SignedRadixCiphertext, &'a SignedRadixCiphertext), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -596,7 +791,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -620,8 +824,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<(&'a SignedRadixCiphertext, &'a RadixCiphertext), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a RadixCiphertext),
+        SignedRadixCiphertext,
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -631,7 +837,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -655,13 +870,23 @@ where
 }
 
 /// For unchecked/default assign binary functions
-impl<'a, F> FunctionExecutor<(&'a mut SignedRadixCiphertext, &'a SignedRadixCiphertext), ()>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F>
+    OpSequenceFunctionExecutor<(&'a mut SignedRadixCiphertext, &'a SignedRadixCiphertext), ()>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaSignedRadixCiphertext, &CudaStreams),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a mut SignedRadixCiphertext, &'a SignedRadixCiphertext)) {
@@ -682,8 +907,8 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -693,7 +918,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a SignedRadixCiphertext, i64)) -> SignedRadixCiphertext {
@@ -712,8 +946,8 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -723,7 +957,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a SignedRadixCiphertext, u64)) -> SignedRadixCiphertext {
@@ -742,8 +985,8 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<F> FunctionExecutor<(SignedRadixCiphertext, i64), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<F> OpSequenceFunctionExecutor<(SignedRadixCiphertext, i64), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -753,7 +996,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (SignedRadixCiphertext, i64)) -> SignedRadixCiphertext {
@@ -772,13 +1024,22 @@ where
 }
 
 // Unary Function
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, &CudaStreams) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a SignedRadixCiphertext) -> SignedRadixCiphertext {
@@ -796,13 +1057,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, &CudaStreams) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a SignedRadixCiphertext) -> RadixCiphertext {
@@ -821,13 +1091,22 @@ where
 }
 
 // Unary assign Function
-impl<'a, F> FunctionExecutor<&'a mut SignedRadixCiphertext, ()>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<&'a mut SignedRadixCiphertext, ()>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStreams),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a mut SignedRadixCiphertext) {
@@ -845,13 +1124,23 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<&'a Vec<SignedRadixCiphertext>, Option<SignedRadixCiphertext>>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F>
+    OpSequenceFunctionExecutor<&'a Vec<SignedRadixCiphertext>, Option<SignedRadixCiphertext>>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, Vec<CudaSignedRadixCiphertext>) -> Option<CudaSignedRadixCiphertext>,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: &'a Vec<SignedRadixCiphertext>) -> Option<SignedRadixCiphertext> {
@@ -872,10 +1161,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<
+    OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, BooleanBlock),
-    > for GpuMultiDeviceFunctionExecutor<F>
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -885,7 +1174,16 @@ where
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -913,8 +1211,10 @@ where
 
 /// For unchecked/default unsigned overflowing scalar operations
 impl<'a, F>
-    FunctionExecutor<(&'a SignedRadixCiphertext, i64), (SignedRadixCiphertext, BooleanBlock)>
-    for GpuMultiDeviceFunctionExecutor<F>
+    OpSequenceFunctionExecutor<
+        (&'a SignedRadixCiphertext, i64),
+        (SignedRadixCiphertext, BooleanBlock),
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -924,7 +1224,16 @@ where
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -948,8 +1257,9 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (SignedRadixCiphertext, BooleanBlock)>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F>
+    OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, (SignedRadixCiphertext, BooleanBlock)>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -958,7 +1268,16 @@ where
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -983,10 +1302,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<
+    OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, SignedRadixCiphertext),
-    > for GpuMultiDeviceFunctionExecutor<F>
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -996,7 +1315,16 @@ where
     ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -1023,10 +1351,10 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<
+    OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, i64),
         (SignedRadixCiphertext, SignedRadixCiphertext),
-    > for GpuMultiDeviceFunctionExecutor<F>
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -1036,7 +1364,16 @@ where
     ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -1060,8 +1397,9 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, &'a SignedRadixCiphertext), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F>
+    OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, &'a SignedRadixCiphertext), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -1071,7 +1409,16 @@ where
     ) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(
@@ -1094,13 +1441,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, i64), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, i64), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, i64, &CudaStreams) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a SignedRadixCiphertext, i64)) -> BooleanBlock {
@@ -1118,13 +1474,22 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, U256), BooleanBlock>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, U256), BooleanBlock>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, U256, &CudaStreams) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a SignedRadixCiphertext, U256)) -> BooleanBlock {
@@ -1142,8 +1507,8 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, U256), SignedRadixCiphertext>
-    for GpuMultiDeviceFunctionExecutor<F>
+impl<'a, F> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, U256), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -1153,7 +1518,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(&mut self, input: (&'a SignedRadixCiphertext, U256)) -> SignedRadixCiphertext {
@@ -1172,14 +1546,14 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<
+    OpSequenceFunctionExecutor<
         (
             &'a BooleanBlock,
             &'a SignedRadixCiphertext,
             &'a SignedRadixCiphertext,
         ),
         SignedRadixCiphertext,
-    > for GpuMultiDeviceFunctionExecutor<F>
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
@@ -1190,7 +1564,16 @@ where
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, &sks);
+        self.setup_from_cpu_keys(cks, &sks);
+    }
+
+    fn setup_gpu(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        gpu_choice: &CudaGpuChoice,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, gpu_choice);
     }
 
     fn execute(

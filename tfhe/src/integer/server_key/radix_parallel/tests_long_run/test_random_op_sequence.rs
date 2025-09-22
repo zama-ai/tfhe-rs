@@ -1,8 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, sanity_check_op_sequence_result_bool,
-    sanity_check_op_sequence_result_u64, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
+    get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
+    sanity_check_op_sequence_result_u64, OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator,
+    NB_CTXT_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -19,42 +19,57 @@ create_parameterized_test!(random_op_sequence_data_generator {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
-pub(crate) type BinaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>>;
+pub(crate) type BinaryOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        RadixCiphertext,
+    >,
+>;
 pub(crate) type UnaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
 
 pub(crate) type ScalarBinaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>>;
 pub(crate) type OverflowingOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
     >,
 >;
-pub(crate) type ScalarOverflowingOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>>;
-pub(crate) type ComparisonOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>>;
+pub(crate) type ScalarOverflowingOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, u64),
+        (RadixCiphertext, BooleanBlock),
+    >,
+>;
+pub(crate) type ComparisonOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        BooleanBlock,
+    >,
+>;
 pub(crate) type ScalarComparisonOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(&'a RadixCiphertext, u64), BooleanBlock>>;
 pub(crate) type SelectOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
         RadixCiphertext,
     >,
 >;
 pub(crate) type DivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, RadixCiphertext),
     >,
 >;
 pub(crate) type ScalarDivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>,
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, u64),
+        (RadixCiphertext, RadixCiphertext),
+    >,
 >;
 pub(crate) type Log2OpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
@@ -421,8 +436,25 @@ where
         ),
     ];
 
-    random_op_sequence_test(
+    let (cks, sks, mut datagen) = random_op_sequence_test_init_cpu(
         param,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+    );
+
+    random_op_sequence_test(
+        &mut datagen,
+        &cks,
+        &sks,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,
@@ -438,7 +470,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn random_op_sequence_test<P>(
+pub(crate) fn random_op_sequence_test_init_cpu<P>(
     param: P,
     binary_ops: &mut [(BinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
     unary_ops: &mut [(UnaryOpExecutor, impl Fn(u64) -> u64, String)],
@@ -467,15 +499,45 @@ pub(crate) fn random_op_sequence_test<P>(
         String,
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
-) where
+) -> (
+    RadixClientKey,
+    Arc<ServerKey>,
+    RandomOpSequenceDataGenerator<u64, RadixCiphertext>,
+)
+where
     P: Into<TestParameters>,
 {
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
+    let total_num_ops = binary_ops.len()
+        + unary_ops.len()
+        + scalar_binary_ops.len()
+        + overflowing_ops.len()
+        + scalar_overflowing_ops.len()
+        + comparison_ops.len()
+        + scalar_comparison_ops.len()
+        + select_op.len()
+        + div_rem_op.len()
+        + scalar_div_rem_op.len()
+        + log2_ops.len();
+    println!("Total num ops {total_num_ops}");
+
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
+
+    let datagen = get_user_defined_seed().map_or_else(
+        || RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(total_num_ops, &cks),
+        |seed| {
+            RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new_with_seed(
+                total_num_ops,
+                seed,
+                &cks,
+            )
+        },
+    );
+    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
 
     println!("Setting up operations");
 
@@ -512,19 +574,42 @@ pub(crate) fn random_op_sequence_test<P>(
     for x in log2_ops.iter_mut() {
         x.0.setup(&cks, sks.clone());
     }
-    let total_num_ops = binary_ops.len()
-        + unary_ops.len()
-        + scalar_binary_ops.len()
-        + overflowing_ops.len()
-        + scalar_overflowing_ops.len()
-        + comparison_ops.len()
-        + scalar_comparison_ops.len()
-        + select_op.len()
-        + div_rem_op.len()
-        + scalar_div_rem_op.len()
-        + log2_ops.len();
-    println!("Total num ops {total_num_ops}");
 
+    (cks, sks, datagen)
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn random_op_sequence_test(
+    datagen: &mut RandomOpSequenceDataGenerator<u64, RadixCiphertext>,
+    cks: &RadixClientKey,
+    sks: &Arc<ServerKey>,
+    binary_ops: &mut [(BinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    unary_ops: &mut [(UnaryOpExecutor, impl Fn(u64) -> u64, String)],
+    scalar_binary_ops: &mut [(ScalarBinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    overflowing_ops: &mut [(
+        OverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    scalar_overflowing_ops: &mut [(
+        ScalarOverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    comparison_ops: &mut [(ComparisonOpExecutor, impl Fn(u64, u64) -> bool, String)],
+    scalar_comparison_ops: &mut [(
+        ScalarComparisonOpExecutor,
+        impl Fn(u64, u64) -> bool,
+        String,
+    )],
+    select_op: &mut [(SelectOpExecutor, impl Fn(bool, u64, u64) -> u64, String)],
+    div_rem_op: &mut [(DivRemOpExecutor, impl Fn(u64, u64) -> (u64, u64), String)],
+    scalar_div_rem_op: &mut [(
+        ScalarDivRemOpExecutor,
+        impl Fn(u64, u64) -> (u64, u64),
+        String,
+    )],
+    log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
+) {
     let binary_ops_range = 0..binary_ops.len();
     let unary_ops_range = binary_ops_range.end..binary_ops_range.end + unary_ops.len();
     let scalar_binary_ops_range =
@@ -543,10 +628,6 @@ pub(crate) fn random_op_sequence_test<P>(
     let scalar_div_rem_op_range =
         div_rem_op_range.end..div_rem_op_range.end + scalar_div_rem_op.len();
     let log2_ops_range = scalar_div_rem_op_range.end..scalar_div_rem_op_range.end + log2_ops.len();
-
-    let mut datagen =
-        RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(total_num_ops, &cks);
-    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
 
     for fn_index in 0..get_long_test_iterations() {
         let (i, idx) = datagen.gen_op_index();
@@ -718,7 +799,7 @@ pub(crate) fn random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct = sks.cast_to_unsigned(
-                res.clone().into_radix::<RadixCiphertext>(1, &sks),
+                res.clone().into_radix::<RadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
             datagen.put_op_result_random_side(expected_res as u64, &res_ct, fn_name, idx);
@@ -749,7 +830,7 @@ pub(crate) fn random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct: RadixCiphertext = sks.cast_to_unsigned(
-                res.clone().into_radix::<RadixCiphertext>(1, &sks),
+                res.clone().into_radix::<RadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
             datagen.put_op_result_random_side(expected_res as u64, &res_ct, fn_name, idx);

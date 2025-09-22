@@ -1,8 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, sanity_check_op_sequence_result_bool,
-    sanity_check_op_sequence_result_i64, sanity_check_op_sequence_result_u64, NB_CTXT_LONG_RUN,
+    get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
+    sanity_check_op_sequence_result_i64, sanity_check_op_sequence_result_u64,
+    OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -10,7 +10,6 @@ use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
-use rand::Rng;
 use std::cmp::{max, min};
 use std::sync::Arc;
 
@@ -19,46 +18,48 @@ create_parameterized_test!(random_op_sequence {
 });
 
 pub(crate) type SignedBinaryOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,
     >,
 >;
 pub(crate) type SignedShiftRotateExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
     >,
 >;
 pub(crate) type SignedUnaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>>;
 
-pub(crate) type SignedScalarBinaryOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>>;
-pub(crate) type SignedScalarShiftRotateExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>>;
+pub(crate) type SignedScalarBinaryOpExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
+>;
+pub(crate) type SignedScalarShiftRotateExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>,
+>;
 pub(crate) type SignedOverflowingOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, BooleanBlock),
     >,
 >;
 pub(crate) type SignedScalarOverflowingOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, i64),
         (SignedRadixCiphertext, BooleanBlock),
     >,
 >;
 pub(crate) type SignedComparisonOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         BooleanBlock,
     >,
 >;
 pub(crate) type SignedScalarComparisonOpExecutor =
-    Box<dyn for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), BooleanBlock>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(&'a SignedRadixCiphertext, i64), BooleanBlock>>;
 pub(crate) type SignedSelectOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (
             &'a BooleanBlock,
             &'a SignedRadixCiphertext,
@@ -68,19 +69,19 @@ pub(crate) type SignedSelectOpExecutor = Box<
     >,
 >;
 pub(crate) type SignedDivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, SignedRadixCiphertext),
     >,
 >;
 pub(crate) type SignedScalarDivRemOpExecutor = Box<
-    dyn for<'a> FunctionExecutor<
+    dyn for<'a> OpSequenceFunctionExecutor<
         (&'a SignedRadixCiphertext, i64),
         (SignedRadixCiphertext, SignedRadixCiphertext),
     >,
 >;
 pub(crate) type SignedLog2OpExecutor =
-    Box<dyn for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>>;
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
@@ -478,8 +479,27 @@ where
         ),
     ];
 
-    signed_random_op_sequence_test(
+    let (cks, sks, mut datagen) = signed_random_op_sequence_test_init_cpu(
         param,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+        &mut rotate_shift_ops,
+        &mut scalar_shift_rotate_ops,
+    );
+
+    signed_random_op_sequence_test(
+        &mut datagen,
+        &cks,
+        &sks,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,
@@ -497,7 +517,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn signed_random_op_sequence_test<P>(
+pub(crate) fn signed_random_op_sequence_test_init_cpu<P>(
     param: P,
     binary_ops: &mut [(SignedBinaryOpExecutor, impl Fn(i64, i64) -> i64, String)],
     unary_ops: &mut [(SignedUnaryOpExecutor, impl Fn(i64) -> i64, String)],
@@ -548,9 +568,28 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         impl Fn(i64, u64) -> i64,
         String,
     )],
-) where
+) -> (
+    RadixClientKey,
+    Arc<ServerKey>,
+    RandomOpSequenceDataGenerator<i64, SignedRadixCiphertext>,
+)
+where
     P: Into<TestParameters>,
 {
+    let total_num_ops = binary_ops.len()
+        + unary_ops.len()
+        + scalar_binary_ops.len()
+        + overflowing_ops.len()
+        + scalar_overflowing_ops.len()
+        + comparison_ops.len()
+        + scalar_comparison_ops.len()
+        + select_op.len()
+        + div_rem_op.len()
+        + scalar_div_rem_op.len()
+        + log2_ops.len()
+        + rotate_shift_ops.len()
+        + scalar_rotate_shift_ops.len();
+
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -558,7 +597,21 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let datagen = get_user_defined_seed().map_or_else(
+        || RandomOpSequenceDataGenerator::<i64, SignedRadixCiphertext>::new(total_num_ops, &cks),
+        |seed| {
+            RandomOpSequenceDataGenerator::<i64, SignedRadixCiphertext>::new_with_seed(
+                total_num_ops,
+                seed,
+                &cks,
+            )
+        },
+    );
+
+    println!(
+        "signed_random_op_sequence_test::seed = {}",
+        datagen.get_seed().0
+    );
 
     for x in binary_ops.iter_mut() {
         x.0.setup(&cks, sks.clone());
@@ -599,19 +652,65 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     for x in scalar_rotate_shift_ops.iter_mut() {
         x.0.setup(&cks, sks.clone());
     }
-    let total_num_ops = binary_ops.len()
-        + unary_ops.len()
-        + scalar_binary_ops.len()
-        + overflowing_ops.len()
-        + scalar_overflowing_ops.len()
-        + comparison_ops.len()
-        + scalar_comparison_ops.len()
-        + select_op.len()
-        + div_rem_op.len()
-        + scalar_div_rem_op.len()
-        + log2_ops.len()
-        + rotate_shift_ops.len()
-        + scalar_rotate_shift_ops.len();
+
+    (cks, sks, datagen)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn signed_random_op_sequence_test(
+    datagen: &mut RandomOpSequenceDataGenerator<i64, SignedRadixCiphertext>,
+    cks: &RadixClientKey,
+    sks: &Arc<ServerKey>,
+    binary_ops: &mut [(SignedBinaryOpExecutor, impl Fn(i64, i64) -> i64, String)],
+    unary_ops: &mut [(SignedUnaryOpExecutor, impl Fn(i64) -> i64, String)],
+    scalar_binary_ops: &mut [(
+        SignedScalarBinaryOpExecutor,
+        impl Fn(i64, i64) -> i64,
+        String,
+    )],
+    overflowing_ops: &mut [(
+        SignedOverflowingOpExecutor,
+        impl Fn(i64, i64) -> (i64, bool),
+        String,
+    )],
+    scalar_overflowing_ops: &mut [(
+        SignedScalarOverflowingOpExecutor,
+        impl Fn(i64, i64) -> (i64, bool),
+        String,
+    )],
+    comparison_ops: &mut [(
+        SignedComparisonOpExecutor,
+        impl Fn(i64, i64) -> bool,
+        String,
+    )],
+    scalar_comparison_ops: &mut [(
+        SignedScalarComparisonOpExecutor,
+        impl Fn(i64, i64) -> bool,
+        String,
+    )],
+    select_op: &mut [(
+        SignedSelectOpExecutor,
+        impl Fn(bool, i64, i64) -> i64,
+        String,
+    )],
+    div_rem_op: &mut [(
+        SignedDivRemOpExecutor,
+        impl Fn(i64, i64) -> (i64, i64),
+        String,
+    )],
+    scalar_div_rem_op: &mut [(
+        SignedScalarDivRemOpExecutor,
+        impl Fn(i64, i64) -> (i64, i64),
+        String,
+    )],
+    log2_ops: &mut [(SignedLog2OpExecutor, impl Fn(i64) -> u64, String)],
+    rotate_shift_ops: &mut [(SignedShiftRotateExecutor, impl Fn(i64, u64) -> i64, String)],
+    scalar_rotate_shift_ops: &mut [(
+        SignedScalarShiftRotateExecutor,
+        impl Fn(i64, u64) -> i64,
+        String,
+    )],
+) {
     let binary_ops_range = 0..binary_ops.len();
     let unary_ops_range = binary_ops_range.end..binary_ops_range.end + unary_ops.len();
     let scalar_binary_ops_range =
@@ -633,16 +732,6 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     let rotate_shift_ops_range = log2_ops_range.end..log2_ops_range.end + rotate_shift_ops.len();
     let scalar_rotate_shift_ops_range =
         rotate_shift_ops_range.end..rotate_shift_ops_range.end + scalar_rotate_shift_ops.len();
-
-    let mut datagen =
-        crate::integer::server_key::radix_parallel::tests_long_run::RandomOpSequenceDataGenerator::<
-            i64,
-            SignedRadixCiphertext,
-        >::new(total_num_ops, &cks);
-    println!(
-        "signed_random_op_sequence_test::seed = {}",
-        datagen.get_seed().0
-    );
 
     for fn_index in 0..get_long_test_iterations() {
         let (i, idx) = datagen.gen_op_index();
@@ -819,7 +908,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct: SignedRadixCiphertext = sks.cast_to_signed(
-                res.clone().into_radix::<SignedRadixCiphertext>(1, &sks),
+                res.clone().into_radix::<SignedRadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
 
@@ -851,7 +940,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             let expected_res = clear_fn(lhs.p, rhs.p);
 
             let res_ct: SignedRadixCiphertext = sks.cast_to_signed(
-                res.clone().into_radix::<SignedRadixCiphertext>(1, &sks),
+                res.clone().into_radix::<SignedRadixCiphertext>(1, sks),
                 NB_CTXT_LONG_RUN,
             );
 
@@ -875,7 +964,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
 
             let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let clear_bool: bool = rng.gen_bool(0.5);
+            let clear_bool: bool = datagen.gen_bool_uniform();
             let bool_input = cks.encrypt_bool(clear_bool);
 
             let res = select_op_executor.execute((&bool_input, &lhs.c, &rhs.c));

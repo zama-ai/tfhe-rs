@@ -287,7 +287,7 @@ mod gpu {
     }
 
     impl CudaGpuChoice {
-        pub(in crate::high_level_api) fn build_streams(self) -> CudaStreams {
+        pub fn build_streams(self) -> CudaStreams {
             match self {
                 Self::Single(idx) => CudaStreams::new_single_gpu(idx),
                 Self::Multi => CudaStreams::new_multi_gpu(),
