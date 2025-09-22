@@ -4326,9 +4326,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   CudaRadixCiphertextFFI *divisor_gpu_2;       // num_blocks
   CudaRadixCiphertextFFI *remainder_gpu_1;     // num_blocks
   CudaRadixCiphertextFFI *remainder_gpu_2;     // num_blocks
+  CudaRadixCiphertextFFI *remainder_gpu_3;     // num_blocks
   CudaRadixCiphertextFFI *low1;                // num_blocks
   CudaRadixCiphertextFFI *low2;                // num_blocks
   CudaRadixCiphertextFFI *low3;                // num_blocks
+  CudaRadixCiphertextFFI *rem0;                // num_blocks
   CudaRadixCiphertextFFI *rem1;                // num_blocks
   CudaRadixCiphertextFFI *rem2;                // num_blocks
   CudaRadixCiphertextFFI *rem3;                // num_blocks
@@ -4348,9 +4350,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   // CudaRadixCiphertextFFI *c1;                  // single block
   // CudaRadixCiphertextFFI *c2;                  // single block
   // CudaRadixCiphertextFFI *c3;                  // single block
-  CudaRadixCiphertextFFI *q1;                  // single block
-  CudaRadixCiphertextFFI *q2;                  // single block
-  CudaRadixCiphertextFFI *q3;                  // single block
+  CudaRadixCiphertextFFI *q1; // single block
+  CudaRadixCiphertextFFI *q2; // single block
+  CudaRadixCiphertextFFI *q3; // single block
 
   Torus *h_buffer; // used for memory copies
 
@@ -4411,7 +4413,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[0], gpu_indexes[0], cmp_1, 1, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-
 
     tmp_gpu_1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -4499,6 +4500,14 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[3], gpu_indexes[3], tmp_gpu_3, num_blocks + 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    rem0 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[3], gpu_indexes[3], rem0, num_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    remainder_gpu_3 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[3], gpu_indexes[3], remainder_gpu_3, num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     c0 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams[3], gpu_indexes[3], c0, 1, params.big_lwe_dimension,
@@ -4576,27 +4585,64 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                           uint32_t const *gpu_indexes, uint32_t gpu_count,
                           uint32_t num_blocks, bool allocate_gpu_memory,
                           uint64_t &size_tracker) {
+
+    zero_out_if_not_1_lut_1 =
+        new int_radix_lut<Torus>(&streams[0], &gpu_indexes[0], 1, params, 1,
+                                 num_blocks, allocate_gpu_memory, size_tracker);
+
+    zero_out_if_not_2_lut_1 =
+        new int_radix_lut<Torus>(&streams[1], &gpu_indexes[1], 1, params, 1,
+                                 num_blocks, allocate_gpu_memory, size_tracker);
+
+    zero_out_if_not_2_lut_2 =
+        new int_radix_lut<Torus>(&streams[2], &gpu_indexes[2], 1, params, 1,
+                                 num_blocks, allocate_gpu_memory, size_tracker);
+
+    zero_out_if_not_1_lut_2 =
+        new int_radix_lut<Torus>(&streams[3], &gpu_indexes[3], 1, params, 1,
+                                 num_blocks, allocate_gpu_memory, size_tracker);
+
+    auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
+      Torus block = x / 2;
+      bool condition = (x & 1) == 1;
+      return block * (Torus)condition;
+    };
+    auto zero_out_if_not_2_lut_f = [](Torus x) -> Torus {
+      Torus block = x / 3;
+      bool condition = (x % 3) == 2;
+      return block * (Torus)condition;
+    };
+
+    int_radix_lut<Torus> *luts[2] = {zero_out_if_not_1_lut_1,
+                                     zero_out_if_not_1_lut_2};
+    size_t lut_gpu_indexes[2] = {0, 3};
+    for (int j = 0; j < 2; j++) {
+      generate_device_accumulator<Torus>(
+          streams[lut_gpu_indexes[j]], gpu_indexes[lut_gpu_indexes[j]],
+          luts[j]->get_lut(0, 0), luts[j]->get_degree(0),
+          luts[j]->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          zero_out_if_not_1_lut_f, gpu_memory_allocated);
+    }
+
+    luts[0] = zero_out_if_not_2_lut_1;
+    luts[1] = zero_out_if_not_2_lut_2;
+    lut_gpu_indexes[0] = 1;
+    lut_gpu_indexes[1] = 2;
+    for (int j = 0; j < 2; j++) {
+      generate_device_accumulator<Torus>(
+          streams[lut_gpu_indexes[j]], gpu_indexes[lut_gpu_indexes[j]],
+          luts[j]->get_lut(0, 0), luts[j]->get_degree(0),
+          luts[j]->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          zero_out_if_not_2_lut_f, gpu_memory_allocated);
+    }
+
     // message_extract_lut_1 =
     //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
     //                              num_blocks, allocate_gpu_memory,
     //                              size_tracker);
     // message_extract_lut_2 =
-    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-    //                              num_blocks, allocate_gpu_memory,
-    //                              size_tracker);
-    // zero_out_if_not_1_lut_1 =
-    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-    //                              num_blocks, allocate_gpu_memory,
-    //                              size_tracker);
-    // zero_out_if_not_1_lut_2 =
-    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-    //                              num_blocks, allocate_gpu_memory,
-    //                              size_tracker);
-    // zero_out_if_not_2_lut_1 =
-    //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-    //                              num_blocks, allocate_gpu_memory,
-    //                              size_tracker);
-    // zero_out_if_not_2_lut_2 =
     //     new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
     //                              num_blocks, allocate_gpu_memory,
     //                              size_tracker);
@@ -4618,16 +4664,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     //   return x % message_modulus;
     // };
 
-    // auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
-    //   Torus block = x / 2;
-    //   bool condition = (x & 1) == 1;
-    //   return block * (Torus)condition;
-    // };
-    // auto zero_out_if_not_2_lut_f = [](Torus x) -> Torus {
-    //   Torus block = x / 3;
-    //   bool condition = (x % 3) == 2;
-    //   return block * (Torus)condition;
-    // };
     // auto quotient_lut_1_f = [](Torus cond) -> Torus {
     //   return (Torus)(cond == 2);
     // };
@@ -4644,30 +4680,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     //       params.glwe_dimension, params.polynomial_size,
     //       params.message_modulus, params.carry_modulus,
     //       lut_f_message_extract, gpu_memory_allocated);
-    //   luts[j]->broadcast_lut(streams, gpu_indexes);
-    // }
-
-    // luts[0] = zero_out_if_not_1_lut_1;
-    // luts[1] = zero_out_if_not_1_lut_2;
-    // for (int j = 0; j < 2; j++) {
-    //   generate_device_accumulator<Torus>(
-    //       streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
-    //       luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-    //       params.glwe_dimension, params.polynomial_size,
-    //       params.message_modulus, params.carry_modulus,
-    //       zero_out_if_not_1_lut_f, gpu_memory_allocated);
-    //   luts[j]->broadcast_lut(streams, gpu_indexes);
-    // }
-
-    // luts[0] = zero_out_if_not_2_lut_1;
-    // luts[1] = zero_out_if_not_2_lut_2;
-    // for (int j = 0; j < 2; j++) {
-    //   generate_device_accumulator<Torus>(
-    //       streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
-    //       luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-    //       params.glwe_dimension, params.polynomial_size,
-    //       params.message_modulus, params.carry_modulus,
-    //       zero_out_if_not_2_lut_f, gpu_memory_allocated);
     //   luts[j]->broadcast_lut(streams, gpu_indexes);
     // }
 
@@ -5001,6 +5013,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], low3,
                                    gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[3], gpu_indexes[3], rem0,
+                                   gpu_memory_allocated);
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], rem1,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[1], gpu_indexes[1], rem2,
@@ -5035,21 +5049,22 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], remainder_gpu_2,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[2], gpu_indexes[2], comparison_blocks_3,
+    release_radix_ciphertext_async(streams[3], gpu_indexes[3], remainder_gpu_3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[1], gpu_indexes[1], comparison_blocks_2,
-                                   gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], comparison_blocks_1,
-                                   gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[2], gpu_indexes[2],
+                                   comparison_blocks_3, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1],
+                                   comparison_blocks_2, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   comparison_blocks_1, gpu_memory_allocated);
     release_radix_ciphertext_async(streams[2], gpu_indexes[2], cmp_3,
                                    gpu_memory_allocated);
-    release_radix_ciphertext_async(streams[1], gpu_indexes[1], cmp_2, 
+    release_radix_ciphertext_async(streams[1], gpu_indexes[1], cmp_2,
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], cmp_1,
-                                    gpu_memory_allocated);
+                                   gpu_memory_allocated);
     release_radix_ciphertext_async(streams[3], gpu_indexes[3], c0,
                                    gpu_memory_allocated);
-
 
     // release_radix_ciphertext_async(streams[0], gpu_indexes[0],
     //                                comparison_blocks_1,
@@ -5087,6 +5102,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete low1;
     delete low2;
     delete low3;
+    delete rem0;
     delete rem1;
     delete rem2;
     delete rem3;
@@ -5104,6 +5120,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     delete divisor_gpu_2;
     delete remainder_gpu_1;
     delete remainder_gpu_2;
+    delete remainder_gpu_3;
     delete comparison_blocks_1;
     delete comparison_blocks_2;
     delete comparison_blocks_3;
