@@ -139,16 +139,15 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       if (init_low) {
         low->num_radix_blocks = slice_len;
         copy_radix_ciphertext_slice_async<Torus>(streams[gpu_index],
-                                                gpu_indexes[gpu_index], low, 0,
-                                                slice_len, xd, 0, slice_len);
+                                                 gpu_indexes[gpu_index], low, 0,
+                                                 slice_len, xd, 0, slice_len);
       }
       copy_radix_ciphertext_slice_async<Torus>(
           streams[gpu_index], gpu_indexes[gpu_index], rem, 0, slice_len,
           cur_remainder, block_index, num_blocks);
     };
 
-    init_low_rem_f(nullptr, nullptr, mem_ptr->rem0, remainder_gpu_3,
-                   3, false);
+    init_low_rem_f(nullptr, nullptr, mem_ptr->rem0, remainder_gpu_3, 3, false);
     init_low_rem_f(mem_ptr->low1, mem_ptr->d1, mem_ptr->rem1, remainder_gpu_2,
                    2, true);
     init_low_rem_f(mem_ptr->low2, mem_ptr->d2, mem_ptr->rem2, remainder_gpu_1,
@@ -450,6 +449,11 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           rx->num_radix_blocks);
     };
 
+    for (uint j = 0; j < 3; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+    }
+
     conditional_update(streams, gpu_indexes, 0, c3, r3,
                        mem_ptr->zero_out_if_not_1_lut_1, 2);
     conditional_update(streams, gpu_indexes, 1, c2, r2,
@@ -472,21 +476,31 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                       r1->num_radix_blocks, radix_params.big_lwe_dimension,
                       576460752303423488ULL);
     cuda_set_device(3);
-    print_body<Torus>("rem0 after conditional update", (Torus *)mem_ptr->rem0->ptr,
-                      mem_ptr->rem0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
+    print_body<Torus>("rem0 after conditional update",
+                      (Torus *)mem_ptr->rem0->ptr,
+                      mem_ptr->rem0->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-
+    // calculate quotient bits GPU[2]
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        &mem_ptr->sub_streams_1[2], &gpu_indexes[2], 1, mem_ptr->q1, c1,
+        &bsks[2], &ksks[2], ms_noise_reduction_key, mem_ptr->quotient_lut_1,
+        1);
+    // calculate quotient bits GPU[1]
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        &mem_ptr->sub_streams_1[1], &gpu_indexes[1], 1, mem_ptr->q2, c2,
+        &bsks[1], &ksks[1], ms_noise_reduction_key, mem_ptr->quotient_lut_2,
+        1);
+    // calculate quotient bits GPU[0]
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        &mem_ptr->sub_streams_1[0], &gpu_indexes[0], 1, mem_ptr->q3, c3,
+        &bsks[0], &ksks[0], ms_noise_reduction_key, mem_ptr->quotient_lut_3, 1);
+   
+    for (uint j = 0; j < 3; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+    }
     break;
-
-    //   auto calculate_quotient_bits =
-    //       [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    //           uint32_t gpu_count, CudaRadixCiphertextFFI *q,
-    //           CudaRadixCiphertextFFI *c, int_radix_lut<Torus> *lut) {
-    //         integer_radix_apply_univariate_lookup_table_kb<Torus>(
-    //             streams, gpu_indexes, gpu_count, q, c, bsks, ksks,
-    //             ms_noise_reduction_key, lut, 1);
-    //       };
 
     //   for (uint j = 0; j < gpu_count; j++) {
     //     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
