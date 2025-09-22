@@ -112,20 +112,20 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   //   cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   // }
 
-  // cuda_set_device(2);
-  // print_body<Torus>("d1", (Torus *)mem_ptr->d1->ptr,
-  //                   mem_ptr->d1->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  cuda_set_device(2);
+  print_body<Torus>("d1", (Torus *)mem_ptr->d1->ptr,
+                    mem_ptr->d1->num_radix_blocks,
+                    radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-  // cuda_set_device(1);
-  // print_body<Torus>("d2", (Torus *)mem_ptr->d2->ptr,
-  //                   mem_ptr->d2->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  cuda_set_device(1);
+  print_body<Torus>("d2", (Torus *)mem_ptr->d2->ptr,
+                    mem_ptr->d2->num_radix_blocks,
+                    radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-  // cuda_set_device(0);
-  // print_body<Torus>("d3", (Torus *)mem_ptr->d3->ptr,
-  //                   mem_ptr->d3->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  cuda_set_device(0);
+  print_body<Torus>("d3", (Torus *)mem_ptr->d3->ptr,
+                    mem_ptr->d3->num_radix_blocks,
+                    radix_params.big_lwe_dimension, 576460752303423488ULL);
 
   for (int block_index = num_blocks - 1; block_index >= 0; block_index--) {
     uint32_t slice_len = num_blocks - block_index;
@@ -585,7 +585,31 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
     }
 
-    break;
+    cuda_set_device(0);
+    print_body<Torus>("Final rem", (Torus *)rem_gpu_0->ptr,
+                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+    print_body<Torus>("Final quotient", (Torus *)q3_gpu_0->ptr,
+                      q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], remainder_gpu_0, block_index,
+        remainder_gpu_0->num_radix_blocks, rem_gpu_0, 0, rem_gpu_0->num_radix_blocks);
+    insert_block_in_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                  q3_gpu_0, quotient, 0);       
+
+    cuda_set_device(0);
+    print_body<Torus>("Output rem", (Torus *)remainder_gpu_0->ptr,
+                      remainder_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+    print_body<Torus>("Output quotient", (Torus *)quotient->ptr, 
+                      quotient->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+    // Copy remainder_gpu_0 to all other GPUs
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_1, remainder_gpu_0);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_2, remainder_gpu_0);
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_3, remainder_gpu_0);
 
     //   for (uint j = 0; j < gpu_count; j++) {
     //     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
