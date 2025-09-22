@@ -2991,8 +2991,6 @@ template <typename Torus> struct int_zero_out_if_buffer {
 
   CudaRadixCiphertextFFI *tmp;
 
-  CudaStreams true_streams;
-  CudaStreams false_streams;
   bool gpu_memory_allocated;
 
   int_zero_out_if_buffer(CudaStreams streams, int_radix_params params,
@@ -3006,17 +3004,12 @@ template <typename Torus> struct int_zero_out_if_buffer {
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    // We may use a different stream to allow concurrent operation
-    true_streams.create_on_same_gpus(active_streams);
-    false_streams.create_on_same_gpus(active_streams);
   }
   void release(CudaStreams streams) {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
                                    gpu_memory_allocated);
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     delete tmp;
-    true_streams.release();
-    false_streams.release();
+    tmp = nullptr;
   }
 };
 
