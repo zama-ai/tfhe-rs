@@ -29,8 +29,10 @@ pub(crate) mod test_vector_comparisons;
 pub(crate) mod test_vector_find;
 
 use super::tests_cases_unsigned::*;
+use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
@@ -38,9 +40,11 @@ use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
+use crate::CompressedServerKey;
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
+use tfhe_csprng::generators::DefaultRandomGenerator;
 
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
@@ -613,6 +617,111 @@ where
         self.sks = Some(sks);
     }
 
+    fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1, input.2, input.3)
+    }
+}
+
+/// The function executor for cpu server key
+///
+/// It will mainly simply forward call to a server key method
+pub(crate) struct OpSequenceCpuFunctionExecutor<F> {
+    /// The server key is set later, when the test cast calls setup
+    pub(crate) sks: Option<Arc<ServerKey>>,
+    /// The server key function which will be called
+    pub(crate) func: F,
+}
+
+impl<F> OpSequenceCpuFunctionExecutor<F> {
+    pub(crate) fn new(func: F) -> Self {
+        Self { sks: None, func }
+    }
+    pub(crate) fn setup_from_cpu_keys(&mut self, sks: &CompressedServerKey) {
+        let (isks, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        self.sks = Some(Arc::new(isks));
+    }
+}
+
+/// For unary operations
+///
+/// Note, we need to `NotTuple` constraint to avoid conflicts with binary or ternary operations
+impl<F, I1, O> OpSequenceFunctionExecutor<I1, O> for OpSequenceCpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1) -> O,
+    I1: NotTuple,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        let (isks, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        self.sks = Some(Arc::new(isks));
+    }
+
+    fn execute(&mut self, input: I1) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
+/// For binary operations
+impl<F, I1, I2, O> OpSequenceFunctionExecutor<(I1, I2), O> for OpSequenceCpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
+
+    fn execute(&mut self, input: (I1, I2)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1)
+    }
+}
+
+/// For ternary operations
+impl<F, I1, I2, I3, O> OpSequenceFunctionExecutor<(I1, I2, I3), O>
+    for OpSequenceCpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2, I3) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
+
+    fn execute(&mut self, input: (I1, I2, I3)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0, input.1, input.2)
+    }
+}
+
+/// For 4-ary operations
+impl<F, I1, I2, I3, I4, O> OpSequenceFunctionExecutor<(I1, I2, I3, I4), O>
+    for OpSequenceCpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1, I2, I3, I4) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
     fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input.0, input.1, input.2, input.3)
