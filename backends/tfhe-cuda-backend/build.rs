@@ -48,7 +48,6 @@ fn main() {
         // Conditionally pass the "USE_NVTOOLS" variable to CMake if the feature is enabled
         if cfg!(feature = "profile") {
             cmake_config.define("USE_NVTOOLS", "ON");
-            println!("cargo:rustc-link-lib=nvToolsExt");
         } else {
             cmake_config.define("USE_NVTOOLS", "OFF");
         }
