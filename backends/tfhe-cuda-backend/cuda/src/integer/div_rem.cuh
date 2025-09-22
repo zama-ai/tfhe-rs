@@ -496,10 +496,65 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
         &mem_ptr->sub_streams_1[0], &gpu_indexes[0], 1, mem_ptr->q3, c3,
         &bsks[0], &ksks[0], ms_noise_reduction_key, mem_ptr->quotient_lut_3, 1);
    
-    for (uint j = 0; j < 3; j++) {
+    for (uint j = 0; j < 4; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
+
+    cuda_set_device(0);
+    print_body<Torus>("q3", (Torus *)mem_ptr->q3->ptr, mem_ptr->q3->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(1);
+    print_body<Torus>("q2", (Torus *)mem_ptr->q2->ptr, mem_ptr->q2->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    cuda_set_device(2);
+    print_body<Torus>("q1", (Torus *)mem_ptr->q1->ptr, mem_ptr->q1->num_radix_blocks,
+                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+
+    // We need to accumulate rem, r1, r2, and r3, but each buffer currently lives on a different GPU.
+    // To gather them on GPU[0], we’ll **reuse** buffers already allocated on GPU[0]. At this point,
+    // the contents of rem3, tmp_gpu_0, and low3 are no longer needed, so it’s safe to repurpose them.
+    // Aliases for the GPU[0] destinations:
+    auto r3_gpu_0  = r3;                   // reuse: destination for r3 on GPU[0]
+    auto r2_gpu_0  = mem_ptr->tmp_gpu_0;   // reuse: destination for r2 on GPU[0]
+    auto r1_gpu_0  = mem_ptr->low3;        // reuse: destination for r1 on GPU[0]
+    auto rem_gpu_0 = mem_ptr->rem3;        // reuse: destination for rem on GPU[0]
+    
+    r2_gpu_0->num_radix_blocks  = r2->num_radix_blocks;
+    // r3 is already on GPU 0, so no need to copy it.
+
+    // Copy r2 from GPU[1] to GPU[0]
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], r2_gpu_0, r2);
+
+    // Copy r1 from GPU[2] to GPU[0]
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], r1_gpu_0, r1);
+
+    // Copy rem from GPU[3] to GPU[0]
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, mem_ptr->rem0);
+
+    cuda_set_device(0);
+    print_body<Torus>("r3_gpu_0 after copy", (Torus *)r3_gpu_0->ptr,
+                      r3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+    print_body<Torus>("r2_gpu_0 after copy", (Torus *)r2_gpu_0->ptr, 
+                      r2_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+    print_body<Torus>("r1_gpu_0 after copy", (Torus *)r1_gpu_0->ptr, 
+                      r1_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL); 
+    print_body<Torus>("rem_gpu_0 after copy", (Torus *)rem_gpu_0->ptr,
+                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+
+    host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r3_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
+    host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r2_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
+    host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r1_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
+
+    cuda_set_device(0);
+    print_body<Torus>("rem after final accumulation", (Torus *)rem_gpu_0->ptr,
+                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+                      576460752303423488ULL);
+
     break;
 
     //   for (uint j = 0; j < gpu_count; j++) {
