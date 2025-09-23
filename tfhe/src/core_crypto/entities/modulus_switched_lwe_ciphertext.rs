@@ -5,6 +5,9 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::*;
 
+/// A modulus-switched LWE ciphertext
+///
+/// This can be used as an input to the blind rotation.
 #[derive(Clone)]
 pub struct StandardModulusSwitchedLweCiphertext<Scalar> {
     container: Vec<Scalar>,
@@ -59,6 +62,9 @@ impl<Scalar: Copy> ModulusSwitchedLweCiphertext<Scalar>
     }
 }
 
+/// An LWE ciphertext that undergoes a modulus switch when the body and mask elements are read
+///
+/// This can be used as an input for the blind rotation.
 #[derive(Clone, PartialEq, Eq)]
 pub struct LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, C>
 where

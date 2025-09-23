@@ -263,14 +263,11 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
-/// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
-/// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
-/// key`](`LweBootstrapKey`) in the fourier domain using f128 see [`fourier LWE bootstrap
-/// key`](`Fourier128LweBootstrapKey`). The result is written in the provided
-/// output [`LWE ciphertext`](`LweCiphertext`).
-///
-/// If you want to manage the computation memory manually you can use
-/// [`programmable_bootstrap_f128_lwe_ciphertext_mem_optimized`].
+/// Perform a blind rotation given an input [`modulus switched LWE
+/// ciphertext`](`ModulusSwitchedLweCiphertext`), a look-up table passed as a [`GLWE
+/// ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap key`](`LweBootstrapKey`) in the fourier
+/// domain using f128 see [`fourier LWE bootstrap key`](`Fourier128LweBootstrapKey`). The result is
+/// written in the provided output [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// # Example
 ///
