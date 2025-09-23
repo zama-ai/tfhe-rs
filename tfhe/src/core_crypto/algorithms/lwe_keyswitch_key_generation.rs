@@ -563,6 +563,7 @@ where
 pub fn allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator<
     InputLweCont,
     OutputLweCont,
+    Gen,
 >(
     input_lwe_secret_key: &LweSecretKey<InputLweCont>,
     output_lwe_secret_key: &LweSecretKey<OutputLweCont>,
@@ -570,13 +571,14 @@ pub fn allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator<
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: DynamicDistribution<InputLweCont::Element>,
     ciphertext_modulus: CiphertextModulus<InputLweCont::Element>,
-    noise_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> SeededLweKeyswitchKeyOwned<InputLweCont::Element>
 where
     InputLweCont: Container,
     InputLweCont::Element:
         UnsignedInteger + Encryptable<Uniform, DynamicDistribution<InputLweCont::Element>>,
     OutputLweCont: Container<Element = InputLweCont::Element>,
+    Gen: ByteRandomGenerator,
 {
     let mut key_switching_key = SeededLweKeyswitchKeyOwned::new(
         InputLweCont::Element::ZERO,
@@ -592,7 +594,7 @@ where
         output_lwe_secret_key,
         &mut key_switching_key,
         noise_distribution,
-        noise_generator,
+        generator,
     );
 
     key_switching_key

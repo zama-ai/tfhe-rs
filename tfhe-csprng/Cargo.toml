@@ -15,6 +15,8 @@ rust-version = "1.72"
 aes = "0.8.2"
 rayon = { workspace = true, optional = true }
 getrandom = { workspace = true }
+serde = "1.0.226"
+tfhe-versionable = { version = "0.6.2", path = "../utils/tfhe-versionable" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2.133"

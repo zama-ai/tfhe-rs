@@ -534,7 +534,7 @@ pub fn allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator<
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: DynamicDistribution<GlweCont::Element>,
     ciphertext_modulus: CiphertextModulus<GlweCont::Element>,
-    noise_generator: &mut EncryptionRandomGenerator<ByteGen>,
+    generator: &mut EncryptionRandomGenerator<ByteGen>,
 ) -> SeededLweBootstrapKeyOwned<GlweCont::Element>
 where
     LweCont: Container,
@@ -560,7 +560,7 @@ where
         output_glwe_secret_key,
         &mut lwe_bootstrapping_key,
         noise_distribution,
-        noise_generator,
+        generator,
     );
 
     lwe_bootstrapping_key
