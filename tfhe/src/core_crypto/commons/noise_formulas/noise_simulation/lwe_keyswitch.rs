@@ -81,11 +81,11 @@ impl AllocateLweKeyswitchResult for NoiseSimulationLweKeyswitchKey {
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        Self::Output {
-            lwe_dimension: self.output_lwe_dimension,
-            variance: Variance(f64::NEG_INFINITY),
-            modulus: self.output_modulus,
-        }
+        Self::Output::new(
+            self.output_lwe_dimension,
+            Variance(f64::NAN),
+            self.output_modulus,
+        )
     }
 }
 
@@ -98,7 +98,7 @@ impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLwe
         output: &mut NoiseSimulationLwe,
         _side_resources: &mut Self::SideResources,
     ) {
-        assert_eq!(input.lwe_dimension, self.input_lwe_dimension);
+        assert_eq!(input.lwe_dimension(), self.input_lwe_dimension);
 
         let ks_additive_var = match self.noise_distribution {
             DynamicDistribution::Gaussian(_) => {
@@ -107,7 +107,7 @@ impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLwe
                     self.output_lwe_dimension,
                     self.decomposition_base_log,
                     self.decomposition_level_count,
-                    input.modulus.as_f64(),
+                    input.modulus().as_f64(),
                     self.output_modulus.as_f64(),
                 )
             }
@@ -117,7 +117,7 @@ impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLwe
                     self.output_lwe_dimension,
                     self.decomposition_base_log,
                     self.decomposition_level_count,
-                    input.modulus.as_f64(),
+                    input.modulus().as_f64(),
                     self.output_modulus.as_f64(),
                 )
             }
@@ -125,7 +125,7 @@ impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLwe
 
         *output = NoiseSimulationLwe::new(
             self.output_lwe_dimension,
-            Variance(input.variance.0 + ks_additive_var.0),
+            Variance(input.variance().0 + ks_additive_var.0),
             self.output_modulus,
         );
     }
