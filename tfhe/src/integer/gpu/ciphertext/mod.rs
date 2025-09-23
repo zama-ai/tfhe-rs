@@ -10,12 +10,12 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
-use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::parameters::LweDimension;
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext, EncryptionKeyChoice};
 use crate::GpuIndex;
 
+use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 pub use compressed_noise_squashed_ciphertext_list::*;
 
 pub trait CudaIntegerRadixCiphertext: Sized {
