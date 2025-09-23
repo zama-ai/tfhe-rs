@@ -20,10 +20,10 @@ use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
-/// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
-/// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
-/// key`](`LweBootstrapKey`) in the fourier domain see [`fourier LWE bootstrap
-/// key`](`FourierLweBootstrapKey`).
+/// Perform a blind rotation given an input [`modulus switched LWE
+/// ciphertext`](`ModulusSwitchedLweCiphertext`), modifying a look-up table passed as a [`GLWE
+/// ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap key`](`LweBootstrapKey`) in the fourier
+/// domain see [`fourier LWE bootstrap key`](`FourierLweBootstrapKey`).
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`blind_rotate_assign_mem_optimized`].
