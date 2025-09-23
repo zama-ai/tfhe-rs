@@ -154,10 +154,11 @@ impl LweClassicFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulat
             .to_glwe_dimension()
             .to_equivalent_lwe_dimension(self.output_polynomial_size());
 
-        output.lwe_dimension = output_lwe_dimension;
-        output.variance =
-            Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0);
-        output.modulus = accumulator.modulus;
+        *output = NoiseSimulationLwe::new(
+            output_lwe_dimension,
+            Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0),
+            accumulator.modulus(),
+        );
     }
 }
 
@@ -301,9 +302,10 @@ impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
             .to_glwe_dimension()
             .to_equivalent_lwe_dimension(self.output_polynomial_size());
 
-        output.lwe_dimension = output_lwe_dimension;
-        output.variance =
-            Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0);
-        output.modulus = accumulator.modulus;
+        *output = NoiseSimulationLwe::new(
+            output_lwe_dimension,
+            Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0),
+            accumulator.modulus(),
+        );
     }
 }
