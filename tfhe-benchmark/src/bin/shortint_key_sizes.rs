@@ -6,15 +6,16 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
+use tfhe::shortint::atomic_pattern::AtomicPatternServerKey;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::list_compression::{
     NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
 };
 use tfhe::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
-use tfhe::shortint::server_key::{StandardServerKey, StandardServerKeyView};
+use tfhe::shortint::server_key::StandardServerKeyView;
 use tfhe::shortint::{
     ClientKey, CompactPrivateKey, CompressedCompactPublicKey, CompressedKeySwitchingKey,
-    CompressedServerKey, PBSParameters,
+    CompressedServerKey, PBSParameters, ServerKey,
 };
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -189,50 +190,86 @@ fn tuniform_key_set_sizes(results_file: &Path) {
         let param_fhe_name = compute_param.name();
         let cks = ClientKey::new(compute_param);
         let compressed_sks = CompressedServerKey::new(&cks);
-        let sks = StandardServerKey::try_from(compressed_sks.decompress()).unwrap();
+        let sks = ServerKey::try_from(compressed_sks.decompress()).unwrap();
 
-        let std_compressed_ap_key = match &compressed_sks.compressed_ap_server_key {
-            CompressedAtomicPatternServerKey::Standard(
-                compressed_standard_atomic_pattern_server_key,
-            ) => compressed_standard_atomic_pattern_server_key,
-            CompressedAtomicPatternServerKey::KeySwitch32(_) => {
-                panic!("KS32 is unsupported to measure key sizes at the moment")
+        match &sks.atomic_pattern {
+            AtomicPatternServerKey::Standard(ap) => {
+                measure_serialized_size(
+                    &ap.key_switching_key,
+                    compute_param,
+                    &param_fhe_name,
+                    "ksk",
+                    "KSK",
+                    &mut file,
+                );
+                measure_serialized_size(
+                    &ap.bootstrapping_key,
+                    compute_param,
+                    &param_fhe_name,
+                    "bsk",
+                    "BSK",
+                    &mut file,
+                );
             }
-        };
+            AtomicPatternServerKey::KeySwitch32(ap) => {
+                measure_serialized_size(
+                    &ap.key_switching_key,
+                    compute_param,
+                    &param_fhe_name,
+                    "ksk",
+                    "KSK",
+                    &mut file,
+                );
+                measure_serialized_size(
+                    &ap.bootstrapping_key,
+                    compute_param,
+                    &param_fhe_name,
+                    "bsk",
+                    "BSK",
+                    &mut file,
+                );
+            }
+            AtomicPatternServerKey::Dynamic(_) => panic!("Dynamic atomic pattern not supported"),
+        }
 
-        measure_serialized_size(
-            &sks.atomic_pattern.key_switching_key,
-            compute_param,
-            &param_fhe_name,
-            "ksk",
-            "KSK",
-            &mut file,
-        );
-        measure_serialized_size(
-            std_compressed_ap_key.key_switching_key(),
-            compute_param,
-            &param_fhe_name,
-            "ksk_compressed",
-            "KSK",
-            &mut file,
-        );
-
-        measure_serialized_size(
-            &sks.atomic_pattern.bootstrapping_key,
-            compute_param,
-            &param_fhe_name,
-            "bsk",
-            "BSK",
-            &mut file,
-        );
-        measure_serialized_size(
-            &std_compressed_ap_key.bootstrapping_key(),
-            compute_param,
-            &param_fhe_name,
-            "bsk_compressed",
-            "BSK",
-            &mut file,
-        );
+        match &compressed_sks.compressed_ap_server_key {
+            CompressedAtomicPatternServerKey::Standard(comp_ap) => {
+                measure_serialized_size(
+                    comp_ap.key_switching_key(),
+                    compute_param,
+                    &param_fhe_name,
+                    "ksk_compressed",
+                    "KSK",
+                    &mut file,
+                );
+                measure_serialized_size(
+                    &comp_ap.bootstrapping_key(),
+                    compute_param,
+                    &param_fhe_name,
+                    "bsk_compressed",
+                    "BSK",
+                    &mut file,
+                );
+            }
+            CompressedAtomicPatternServerKey::KeySwitch32(comp_ap) => {
+                measure_serialized_size(
+                    comp_ap.key_switching_key(),
+                    compute_param,
+                    &param_fhe_name,
+                    "ksk_compressed",
+                    "KSK",
+                    &mut file,
+                );
+                measure_serialized_size(
+                    &comp_ap.bootstrapping_key(),
+                    compute_param,
+                    &param_fhe_name,
+                    "bsk_compressed",
+                    "BSK",
+                    &mut file,
+                );
+            }
+        }
 
         if let Some(dedicated_pke_params) = meta_params.dedicated_compact_public_key_parameters {
             let pke_param = dedicated_pke_params.pke_params;
