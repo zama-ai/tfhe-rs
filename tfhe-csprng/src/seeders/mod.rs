@@ -9,14 +9,15 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Seed(pub u128);
 
-/// A Seed as described in the [NIST document]
+/// A Seed as described in the [Threshold (Fully) Homomorphic Encryption]
 ///
 /// This seed contains 2 information:
 /// * The domain separator bytes (ASCII string)
 /// * The seed bytes
 ///
-/// [NIST document]: https://eprint.iacr.org/2025/699
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// [Threshold (Fully) Homomorphic Encryption]: https://eprint.iacr.org/2025/699
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(XofSeedVersions)]
 pub struct XofSeed {
     // We store the domain separator concatenated with the seed bytes (str||seed)
     // as it makes it easier to create the iterator of u128 blocks
@@ -97,7 +98,8 @@ pub enum SeedKind {
     /// Initializes the Aes-Ctr with a counter starting at 0
     /// and uses the seed as the Aes key.
     Ctr(Seed),
-    /// Seed that initialized the Aes-Ctr following the NIST document (see [XofSeed]).
+    /// Seed that initialized the Aes-Ctr following the Threshold (Fully) Homomorphic Encryption
+    /// document (see [XofSeed]).
     ///
     /// An Aes-Key and starting counter will be derived from the XofSeed, to
     /// then initialize the Aes-Ctr random generator
@@ -128,11 +130,15 @@ pub trait Seeder {
         Self: Sized;
 }
 
+pub mod backward_compatibility;
 mod implem;
 // This import statement can be empty if seeder features are disabled, rustc's behavior changed to
 // warn of empty modules, we know this can happen, so allow it.
 #[allow(unused_imports)]
 pub use implem::*;
+use tfhe_versionable::Versionize;
+
+use crate::seeders::backward_compatibility::XofSeedVersions;
 
 #[cfg(test)]
 mod generic_tests {
