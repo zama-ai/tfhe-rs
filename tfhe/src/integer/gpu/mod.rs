@@ -10184,3 +10184,42 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     update_noise_degree(index_ct, &ffi_index);
     update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn unchecked_small_scalar_mul_integer_async(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaRadixCiphertext,
+    small_scalar: u64,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lwe_array_noise_levels = lwe_array
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_lwe_array = prepare_cuda_radix_ffi(
+        lwe_array,
+        &mut lwe_array_degrees,
+        &mut lwe_array_noise_levels,
+    );
+
+    cuda_small_scalar_multiplication_integer_64_inplace(
+        streams.ffi(),
+        &raw mut cuda_ffi_lwe_array,
+        small_scalar,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+    );
+}

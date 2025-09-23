@@ -43,6 +43,8 @@ public:
               "parameters");                                                   \
     } else if ((msg_mod) == 0 && (carry_mod) == 0) {                           \
       break;                                                                   \
+    } else if ((msg_mod) == 4 && (carry_mod) == 32) {                          \
+      break;                                                                   \
     } else {                                                                   \
       PANIC("Invalid message modulus or carry modulus")                        \
     }                                                                          \
