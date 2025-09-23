@@ -921,6 +921,10 @@ void cuda_unchecked_first_index_in_clears_64(
     uint32_t num_unique, uint32_t num_blocks, uint32_t num_blocks_index,
     int8_t *mem, void *const *bsks, void *const *ksks);
 
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint64_t scalar,
+    const uint32_t message_modulus, const uint32_t carry_modulus);
+
 void cleanup_cuda_unchecked_first_index_in_clears_64(CudaStreamsFFI streams,
                                                      int8_t **mem_ptr_void);
 
