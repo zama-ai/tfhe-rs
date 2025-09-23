@@ -60,20 +60,11 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         accumulator.polynomial_size(),
         bsk.polynomial_size(),
     );
-
     assert_eq!(
-        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between output ({:?}) and accumulator ({:?})",
+        output.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
     assert_eq!(
