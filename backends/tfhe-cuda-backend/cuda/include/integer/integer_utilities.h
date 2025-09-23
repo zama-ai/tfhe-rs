@@ -43,6 +43,8 @@ public:
               "parameters");                                                   \
     } else if ((msg_mod) == 0 && (carry_mod) == 0) {                           \
       break;                                                                   \
+    } else if ((msg_mod) == 4 && (carry_mod) == 32) {                          \
+      constexpr int max_noise_level = 9;                                       \
     } else {                                                                   \
       PANIC("Invalid message modulus or carry modulus")                        \
     }                                                                          \

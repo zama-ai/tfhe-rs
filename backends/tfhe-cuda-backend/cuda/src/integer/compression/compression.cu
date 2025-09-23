@@ -155,3 +155,14 @@ void cleanup_cuda_integer_decompress_radix_ciphertext_128(
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
+
+void cuda_integer_extract_glwe_128(
+    CudaStreamsFFI streams, void *glwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *glwe_list,
+    uint32_t const glwe_index) {
+
+  CudaStreams _streams = CudaStreams(streams);
+  host_extract<__uint128_t>(_streams.stream(0), _streams.gpu_index(0),
+                            (__uint128_t *)glwe_array_out, glwe_list,
+                            glwe_index);
+}

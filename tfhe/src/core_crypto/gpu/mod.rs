@@ -4,11 +4,30 @@ pub mod slice;
 pub mod vec;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::CudaVec;
+use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
+use crate::GpuIndex;
+
+/// Side resources for CUDA operations in noise simulation
+#[derive(Clone)]
+pub struct CudaSideResources {
+    pub streams: CudaStreams,
+    pub block_info: CudaBlockInfo,
+}
+
+impl CudaSideResources {
+    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        Self {
+            streams: streams.clone(),
+            block_info,
+        }
+    }
+}
 use crate::core_crypto::prelude::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
-    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize,
-    UnsignedInteger,
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter,
+    GlweCiphertextCount, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension,
+    PolynomialSize, UnsignedInteger,
 };
 pub use algorithms::*;
 pub use entities::*;
@@ -831,6 +850,70 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     );
 }
 
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &mut CudaVec<T>,
+    log_modulus: u32,
+    polynomial_size: u32,
+    grouping_factor: u32,
+) {
+    cuda_modulus_switch_multi_bit_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_mut_c_ptr(0),
+        lwe_array_in.len() as u32,
+        log_modulus,
+        polynomial_size,
+        grouping_factor,
+    );
+}
+
+pub fn cuda_modulus_switch_ciphertext<Scalar>(
+    output_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    log_modulus: u32,
+    streams: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_modulus_switch_ciphertext_async(
+            streams,
+            &mut output_lwe_ciphertext.0.d_vec,
+            log_modulus,
+        );
+    }
+    streams.synchronize();
+}
+
+pub fn cuda_modulus_switch_multi_bit_ciphertext<Scalar>(
+    lwe_array_out: &mut CudaVec<Scalar>,
+    input_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    log_modulus: u32,
+    polynomial_size: u32,
+    grouping_factor: u32,
+    streams: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_modulus_switch_multi_bit_ciphertext_async(
+            streams,
+            lwe_array_out,
+            &mut input_lwe_ciphertext.0.d_vec,
+            log_modulus,
+            polynomial_size,
+            grouping_factor,
+        );
+    }
+    streams.synchronize();
+}
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety

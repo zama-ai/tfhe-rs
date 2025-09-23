@@ -144,6 +144,20 @@ __device__ __forceinline__ T modulus_switch(T input, uint32_t log_modulus) {
   return output;
 }
 
+template <typename Torus, class params>
+__device__ uint32_t calculates_monomial_degree(const Torus *lwe_array_group,
+                                               uint32_t ggsw_idx,
+                                               uint32_t grouping_factor) {
+  Torus x = 0;
+  for (int i = 0; i < grouping_factor; i++) {
+    uint32_t mask_position = grouping_factor - (i + 1);
+    int selection_bit = (ggsw_idx >> mask_position) & 1;
+    x += selection_bit * lwe_array_group[i];
+  }
+
+  return modulus_switch(x, params::log2_degree + 1);
+}
+
 template <typename Torus>
 __global__ void modulus_switch_inplace(Torus *array, uint32_t size,
                                        uint32_t log_modulus) {
@@ -424,6 +438,75 @@ __global__ void __launch_bounds__(512)
     if (found)
       return;
   }
+}
+
+template <typename Torus, class params>
+__global__ void
+modulus_switch_multi_bit(Torus *array_out, const Torus *array_in, int size,
+                         uint32_t log_modulus, uint32_t grouping_factor) {
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < size) {
+    int num_monomials = 1 << grouping_factor;
+    int input_offset = tid * grouping_factor;
+    int output_offset = tid * (num_monomials - 1); // First monomial is skipped
+    for (int ggsw_idx = 1; ggsw_idx < num_monomials; ggsw_idx++) {
+      array_out[ggsw_idx - 1 + output_offset] =
+          calculates_monomial_degree<Torus, params>(&array_in[input_offset],
+                                                    ggsw_idx, grouping_factor);
+    }
+  }
+}
+
+template <typename Torus>
+__host__ void host_modulus_switch_multi_bit(
+    cudaStream_t stream, uint32_t gpu_index, Torus *array_out, Torus *array_in,
+    int size, uint32_t log_modulus, uint32_t degree, uint32_t grouping_factor) {
+  cudaSetDevice(gpu_index);
+  int multibit_size = size / grouping_factor;
+  int num_threads = 0, num_blocks = 0;
+  getNumBlocksAndThreads(multibit_size, 1024, num_blocks, num_threads);
+  switch (degree) {
+  case 256:
+    modulus_switch_multi_bit<Torus, Degree<256>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 512:
+    modulus_switch_multi_bit<Torus, Degree<512>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 1024:
+    modulus_switch_multi_bit<Torus, Degree<1024>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 2048:
+    modulus_switch_multi_bit<Torus, Degree<2048>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 4096:
+    modulus_switch_multi_bit<Torus, Degree<4096>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 8192:
+    modulus_switch_multi_bit<Torus, Degree<8192>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  case 16384:
+    modulus_switch_multi_bit<Torus, Degree<16384>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  default:
+    PANIC("Cuda error: unsupported polynomial size. Supported "
+          "N's are powers of two in the interval [256..16384].")
+  };
+
+  check_cuda_error(cudaGetLastError());
 }
 
 #endif // CNCRT_TORUS_H

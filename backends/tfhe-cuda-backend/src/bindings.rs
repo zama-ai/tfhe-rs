@@ -65,23 +65,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_improve_noise_modulus_switch_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_array_indexes: *const ffi::c_void,
-        encrypted_zeros: *const ffi::c_void,
-        lwe_size: u32,
-        num_lwes: u32,
-        num_zeros: u32,
-        input_variance: f64,
-        r_sigma: f64,
-        bound: f64,
-        log_modulus: u32,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_glwe_sample_extract_128(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -92,6 +75,18 @@ unsafe extern "C" {
         lwe_per_glwe: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_modulus_switch_multi_bit_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+        degree: u32,
+        grouping_factor: u32,
     );
 }
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
@@ -2187,6 +2182,15 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        scalar: u64,
+        message_modulus: u32,
+        carry_modulus: u32,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2312,6 +2316,14 @@ unsafe extern "C" {
     pub fn cleanup_cuda_integer_decompress_radix_ciphertext_128(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_extract_glwe_128(
+        streams: CudaStreamsFFI,
+        glwe_array_out: *mut ffi::c_void,
+        glwe_list: *const CudaPackedGlweCiphertextListFFI,
+        glwe_index: u32,
     );
 }
 unsafe extern "C" {
