@@ -4719,7 +4719,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                   uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
 
-    printf("gpu_count: %d\n", gpu_count);
+    // printf("gpu_count: %d\n", gpu_count);
     if (gpu_count < 4) {
       PANIC("GPU count should be greater than 4m when using div_rem_2_2");
     }

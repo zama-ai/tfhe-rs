@@ -77,23 +77,23 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   copy_radix_ciphertext_async<Torus>(streams[2], gpu_indexes[2], divisor_gpu_2,
                                      divisor);
 
-  // print remainders on different gpu
-  cuda_set_device(0);
-  print_body<Torus>("remainder_gpu_0", (Torus *)remainder_gpu_0->ptr,
-                    remainder_gpu_0->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
-  cuda_set_device(1);
-  print_body<Torus>("remainder_gpu_1", (Torus *)remainder_gpu_1->ptr,
-                    remainder_gpu_1->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
-  cuda_set_device(2);
-  print_body<Torus>("remainder_gpu_2", (Torus *)remainder_gpu_2->ptr,
-                    remainder_gpu_2->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
-  cuda_set_device(3);
-  print_body<Torus>("remainder_gpu_3", (Torus *)remainder_gpu_3->ptr,
-                    remainder_gpu_3->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // // print remainders on different gpu
+  // cuda_set_device(0);
+  // print_body<Torus>("remainder_gpu_0", (Torus *)remainder_gpu_0->ptr,
+  //                   remainder_gpu_0->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(1);
+  // print_body<Torus>("remainder_gpu_1", (Torus *)remainder_gpu_1->ptr,
+  //                   remainder_gpu_1->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(2);
+  // print_body<Torus>("remainder_gpu_2", (Torus *)remainder_gpu_2->ptr,
+  //                   remainder_gpu_2->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(3);
+  // print_body<Torus>("remainder_gpu_3", (Torus *)remainder_gpu_3->ptr,
+  //                   remainder_gpu_3->num_radix_blocks,
+  //                  radix_params.big_lwe_dimension, 576460752303423488ULL);
 
   // gpu[0]
   set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
@@ -130,23 +130,23 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   //   cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   // }
 
-  cuda_set_device(2);
-  print_body<Torus>("d1", (Torus *)mem_ptr->d1->ptr,
-                    mem_ptr->d1->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(2);
+  // print_body<Torus>("d1", (Torus *)mem_ptr->d1->ptr,
+  //                   mem_ptr->d1->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-  cuda_set_device(1);
-  print_body<Torus>("d2", (Torus *)mem_ptr->d2->ptr,
-                    mem_ptr->d2->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(1);
+  // print_body<Torus>("d2", (Torus *)mem_ptr->d2->ptr,
+  //                   mem_ptr->d2->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-  cuda_set_device(0);
-  print_body<Torus>("d3", (Torus *)mem_ptr->d3->ptr,
-                    mem_ptr->d3->num_radix_blocks,
-                    radix_params.big_lwe_dimension, 576460752303423488ULL);
+  // cuda_set_device(0);
+  // print_body<Torus>("d3", (Torus *)mem_ptr->d3->ptr,
+  //                   mem_ptr->d3->num_radix_blocks,
+  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
   for (int block_index = num_blocks - 1; block_index >= 0; block_index--) {
-    printf("block_index: %d\n", block_index);
+    // printf("block_index: %d\n", block_index);
 
     uint32_t slice_len = num_blocks - block_index;
 
@@ -175,32 +175,32 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     init_low_rem_f(mem_ptr->low3, mem_ptr->d3, mem_ptr->rem3, remainder_gpu_0,
                    0, true);
 
-    cuda_set_device(3);
-    print_body<Torus>("rem0", (Torus *)mem_ptr->rem0->ptr,
-                      mem_ptr->rem0->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(2);
-    print_body<Torus>("low1", (Torus *)mem_ptr->low1->ptr,
-                      mem_ptr->low1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("rem1", (Torus *)mem_ptr->rem1->ptr,
-                      mem_ptr->rem1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("low2", (Torus *)mem_ptr->low2->ptr,
-                      mem_ptr->low2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("rem2", (Torus *)mem_ptr->rem2->ptr,
-                      mem_ptr->rem2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(3);
+    // print_body<Torus>("rem0", (Torus *)mem_ptr->rem0->ptr,
+    //                   mem_ptr->rem0->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("low1", (Torus *)mem_ptr->low1->ptr,
+    //                   mem_ptr->low1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("rem1", (Torus *)mem_ptr->rem1->ptr,
+    //                   mem_ptr->rem1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("low2", (Torus *)mem_ptr->low2->ptr,
+    //                   mem_ptr->low2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("rem2", (Torus *)mem_ptr->rem2->ptr,
+    //                   mem_ptr->rem2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
-    cuda_set_device(0);
-    print_body<Torus>("low3", (Torus *)mem_ptr->low3->ptr,
-                      mem_ptr->low3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("rem3", (Torus *)mem_ptr->rem3->ptr,
-                      mem_ptr->rem3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("low3", (Torus *)mem_ptr->low3->ptr,
+    //                   mem_ptr->low3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("rem3", (Torus *)mem_ptr->rem3->ptr,
+    //                   mem_ptr->rem3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     auto sub_result_f = [&](cudaStream_t const *streams,
                             uint32_t const *gpu_indexes, size_t gpu_index,
@@ -299,39 +299,39 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           mem_ptr->comparison_blocks_3, mem_ptr->d1,
           mem_ptr->comparison_buffer_3);
 
-    cuda_set_device(2);
-    print_body<Torus>("sub_result_3", (Torus *)mem_ptr->sub_result_3->ptr,
-                      mem_ptr->sub_result_3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("sub_3_overflowed",
-                      (Torus *)mem_ptr->sub_3_overflowed->ptr,
-                      mem_ptr->sub_3_overflowed->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("cmp_3", (Torus *)mem_ptr->cmp_3->ptr,
-                      mem_ptr->cmp_3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("sub_result_2", (Torus *)mem_ptr->sub_result_2->ptr,
-                      mem_ptr->sub_result_2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("sub_2_overflowed",
-                      (Torus *)mem_ptr->sub_2_overflowed->ptr,
-                      mem_ptr->sub_2_overflowed->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("cmp_2", (Torus *)mem_ptr->cmp_2->ptr,
-                      mem_ptr->cmp_2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(0);
-    print_body<Torus>("sub_result_1", (Torus *)mem_ptr->sub_result_1->ptr,
-                      mem_ptr->sub_result_1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("sub_1_overflowed",
-                      (Torus *)mem_ptr->sub_1_overflowed->ptr,
-                      mem_ptr->sub_1_overflowed->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    print_body<Torus>("cmp_1", (Torus *)mem_ptr->cmp_1->ptr,
-                      mem_ptr->cmp_1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("sub_result_3", (Torus *)mem_ptr->sub_result_3->ptr,
+    //                   mem_ptr->sub_result_3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("sub_3_overflowed",
+    //                   (Torus *)mem_ptr->sub_3_overflowed->ptr,
+    //                   mem_ptr->sub_3_overflowed->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("cmp_3", (Torus *)mem_ptr->cmp_3->ptr,
+    //                   mem_ptr->cmp_3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("sub_result_2", (Torus *)mem_ptr->sub_result_2->ptr,
+    //                   mem_ptr->sub_result_2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("sub_2_overflowed",
+    //                   (Torus *)mem_ptr->sub_2_overflowed->ptr,
+    //                   mem_ptr->sub_2_overflowed->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("cmp_2", (Torus *)mem_ptr->cmp_2->ptr,
+    //                   mem_ptr->cmp_2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("sub_result_1", (Torus *)mem_ptr->sub_result_1->ptr,
+    //                   mem_ptr->sub_result_1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("sub_1_overflowed",
+    //                   (Torus *)mem_ptr->sub_1_overflowed->ptr,
+    //                   mem_ptr->sub_1_overflowed->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // print_body<Torus>("cmp_1", (Torus *)mem_ptr->cmp_1->ptr,
+    //                   mem_ptr->cmp_1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     for (uint j = 0; j < 3; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
@@ -359,78 +359,78 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     // | c3 = !o3        | c2 = !o2 + o3   | c1 = !o1 + o2   | c0 = o1         |
     // | z_o_not_1_lut_1 | z_o_not_2_lut_1 | z_o_not_2_lut_2 | z_o_not_1_lut_2 |
     // +-----------------+-----------------+-----------------+-----------------+
-    auto print_degrees = [](CudaRadixCiphertextFFI *radix, const char* name) {
-      printf("%s degrees: ", name);
-      for (int i = 0; i < radix->num_radix_blocks; i++) {
-        printf("%d ", radix->degrees[i]);
-      }
-      printf("\n");
-    };
+    // auto print_degrees = [](CudaRadixCiphertextFFI *radix, const char* name) {
+    //   printf("%s degrees: ", name);
+    //   for (int i = 0; i < radix->num_radix_blocks; i++) {
+    //     printf("%d ", radix->degrees[i]);
+    //   }
+    //   printf("\n");
+    // };
 
-    auto print_noise = [](CudaRadixCiphertextFFI *radix, const char* name) {
-      printf("%s noise: ", name);
-      for (int i = 0; i < radix->num_radix_blocks; i++) {
-        printf("%d ", radix->noise_levels[i]);
-      }
-      printf("\n");
-    };
-    print_degrees(remainder_gpu_0, "remainder_gpu_0");
-    print_degrees(remainder_gpu_1, "remainder_gpu_1");
-    print_degrees(remainder_gpu_2, "remainder_gpu_2");
-    print_degrees(remainder_gpu_3, "remainder_gpu_3");
-    print_degrees(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
-    print_degrees(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
-    print_degrees(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
-    print_degrees(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
-    print_degrees(mem_ptr->low1, "low1");
-    print_degrees(mem_ptr->low2, "low2");
-    print_degrees(mem_ptr->low3, "low3");
-    print_degrees(mem_ptr->rem0, "rem0");
-    print_degrees(mem_ptr->rem1, "rem1");
-    print_degrees(mem_ptr->rem2, "rem2");
-    print_degrees(mem_ptr->rem3, "rem3");
-    print_degrees(mem_ptr->sub_result_1, "sub_result_1");
-    print_degrees(mem_ptr->sub_result_2, "sub_result_2");
-    print_degrees(mem_ptr->sub_result_3, "sub_result_3");
-    print_degrees(mem_ptr->q1, "q1");
-    print_degrees(mem_ptr->q2, "q2");
-    print_degrees(mem_ptr->q3, "q3");
-    print_degrees(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
-    print_degrees(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
-    print_degrees(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
-    print_degrees(mem_ptr->cmp_1, "cmp_1");
-    print_degrees(mem_ptr->cmp_2, "cmp_2");
-    print_degrees(mem_ptr->cmp_3, "cmp_3");
-    print_degrees(mem_ptr->c0, "c0");
+    // auto print_noise = [](CudaRadixCiphertextFFI *radix, const char* name) {
+    //   printf("%s noise: ", name);
+    //   for (int i = 0; i < radix->num_radix_blocks; i++) {
+    //     printf("%d ", radix->noise_levels[i]);
+    //   }
+    //   printf("\n");
+    // };
+    // print_degrees(remainder_gpu_0, "remainder_gpu_0");
+    // print_degrees(remainder_gpu_1, "remainder_gpu_1");
+    // print_degrees(remainder_gpu_2, "remainder_gpu_2");
+    // print_degrees(remainder_gpu_3, "remainder_gpu_3");
+    // print_degrees(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
+    // print_degrees(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
+    // print_degrees(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
+    // print_degrees(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
+    // print_degrees(mem_ptr->low1, "low1");
+    // print_degrees(mem_ptr->low2, "low2");
+    // print_degrees(mem_ptr->low3, "low3");
+    // print_degrees(mem_ptr->rem0, "rem0");
+    // print_degrees(mem_ptr->rem1, "rem1");
+    // print_degrees(mem_ptr->rem2, "rem2");
+    // print_degrees(mem_ptr->rem3, "rem3");
+    // print_degrees(mem_ptr->sub_result_1, "sub_result_1");
+    // print_degrees(mem_ptr->sub_result_2, "sub_result_2");
+    // print_degrees(mem_ptr->sub_result_3, "sub_result_3");
+    // print_degrees(mem_ptr->q1, "q1");
+    // print_degrees(mem_ptr->q2, "q2");
+    // print_degrees(mem_ptr->q3, "q3");
+    // print_degrees(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
+    // print_degrees(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
+    // print_degrees(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
+    // print_degrees(mem_ptr->cmp_1, "cmp_1");
+    // print_degrees(mem_ptr->cmp_2, "cmp_2");
+    // print_degrees(mem_ptr->cmp_3, "cmp_3");
+    // print_degrees(mem_ptr->c0, "c0");
 
-    print_noise(remainder_gpu_0, "remainder_gpu_0");
-    print_noise(remainder_gpu_1, "remainder_gpu_1");
-    print_noise(remainder_gpu_2, "remainder_gpu_2");
-    print_noise(remainder_gpu_3, "remainder_gpu_3");
-    print_noise(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
-    print_noise(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
-    print_noise(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
-    print_noise(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
-    print_noise(mem_ptr->low1, "low1");
-    print_noise(mem_ptr->low2, "low2");
-    print_noise(mem_ptr->low3, "low3");
-    print_noise(mem_ptr->rem0, "rem0");
-    print_noise(mem_ptr->rem1, "rem1");
-    print_noise(mem_ptr->rem2, "rem2");
-    print_noise(mem_ptr->rem3, "rem3");
-    print_noise(mem_ptr->sub_result_1, "sub_result_1");
-    print_noise(mem_ptr->sub_result_2, "sub_result_2");
-    print_noise(mem_ptr->sub_result_3, "sub_result_3");
-    print_noise(mem_ptr->q1, "q1");
-    print_noise(mem_ptr->q2, "q2");
-    print_noise(mem_ptr->q3, "q3");
-    print_noise(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
-    print_noise(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
-    print_noise(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
-    print_noise(mem_ptr->cmp_1, "cmp_1");
-    print_noise(mem_ptr->cmp_2, "cmp_2");
-    print_noise(mem_ptr->cmp_3, "cmp_3");
-    print_noise(mem_ptr->c0, "c0");
+    // print_noise(remainder_gpu_0, "remainder_gpu_0");
+    // print_noise(remainder_gpu_1, "remainder_gpu_1");
+    // print_noise(remainder_gpu_2, "remainder_gpu_2");
+    // print_noise(remainder_gpu_3, "remainder_gpu_3");
+    // print_noise(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
+    // print_noise(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
+    // print_noise(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
+    // print_noise(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
+    // print_noise(mem_ptr->low1, "low1");
+    // print_noise(mem_ptr->low2, "low2");
+    // print_noise(mem_ptr->low3, "low3");
+    // print_noise(mem_ptr->rem0, "rem0");
+    // print_noise(mem_ptr->rem1, "rem1");
+    // print_noise(mem_ptr->rem2, "rem2");
+    // print_noise(mem_ptr->rem3, "rem3");
+    // print_noise(mem_ptr->sub_result_1, "sub_result_1");
+    // print_noise(mem_ptr->sub_result_2, "sub_result_2");
+    // print_noise(mem_ptr->sub_result_3, "sub_result_3");
+    // print_noise(mem_ptr->q1, "q1");
+    // print_noise(mem_ptr->q2, "q2");
+    // print_noise(mem_ptr->q3, "q3");
+    // print_noise(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
+    // print_noise(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
+    // print_noise(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
+    // print_noise(mem_ptr->cmp_1, "cmp_1");
+    // print_noise(mem_ptr->cmp_2, "cmp_2");
+    // print_noise(mem_ptr->cmp_3, "cmp_3");
+    // print_noise(mem_ptr->c0, "c0");
     // used as a bitor
     host_integer_radix_bitop_kb(&streams[0], &gpu_indexes[0], 1, o3, o3,
                                 mem_ptr->cmp_1, mem_ptr->bitor_mem_1, &bsks[0],
@@ -443,15 +443,15 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     host_integer_radix_bitop_kb(&streams[2], &gpu_indexes[2], 1, o1, o1,
                                 mem_ptr->cmp_3, mem_ptr->bitor_mem_3, &bsks[2],
                                 &ksks[2], ms_noise_reduction_key);
-    cuda_set_device(2);
-    print_body<Torus>("o1 after bitor", (Torus *)o1->ptr, o1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("o2 after bitor", (Torus *)o2->ptr, o2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(0);
-    print_body<Torus>("o3 after bitor", (Torus *)o3->ptr, o3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("o1 after bitor", (Torus *)o1->ptr, o1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("o2 after bitor", (Torus *)o2->ptr, o2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("o3 after bitor", (Torus *)o3->ptr, o3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
 
     // cmp_1, cmp_2, cmp_3 are not needed anymore, we can reuse them as c3,
@@ -514,18 +514,18 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     copy_radix_ciphertext_slice_async<Torus>(streams[3], gpu_indexes[3],
                                              mem_ptr->c0, 0, 1, o1_gpu_3, 0, 1);
 
-    cuda_set_device(0);
-    print_body<Torus>("c3", (Torus *)c3->ptr, c3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("c2", (Torus *)c2->ptr, c2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(2);
-    print_body<Torus>("c1", (Torus *)c1->ptr, c1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(3);
-    print_body<Torus>("c0", (Torus *)c0->ptr, c0->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("c3", (Torus *)c3->ptr, c3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("c2", (Torus *)c2->ptr, c2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("c1", (Torus *)c1->ptr, c1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(3);
+    // print_body<Torus>("c0", (Torus *)c0->ptr, c0->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     auto conditional_update = [&](cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes, size_t gpu_index,
@@ -558,23 +558,23 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     conditional_update(streams, gpu_indexes, 3, c0, mem_ptr->rem0,
                        mem_ptr->zero_out_if_not_1_lut_2, 2);
 
-    cuda_set_device(0);
-    print_body<Torus>("r3 after conditional update", (Torus *)r3->ptr,
-                      r3->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("r2 after conditional update", (Torus *)r2->ptr,
-                      r2->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    cuda_set_device(2);
-    print_body<Torus>("r1 after conditional update", (Torus *)r1->ptr,
-                      r1->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    cuda_set_device(3);
-    print_body<Torus>("rem0 after conditional update",
-                      (Torus *)mem_ptr->rem0->ptr,
-                      mem_ptr->rem0->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("r3 after conditional update", (Torus *)r3->ptr,
+    //                   r3->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("r2 after conditional update", (Torus *)r2->ptr,
+    //                   r2->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("r1 after conditional update", (Torus *)r1->ptr,
+    //                   r1->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // cuda_set_device(3);
+    // print_body<Torus>("rem0 after conditional update",
+    //                   (Torus *)mem_ptr->rem0->ptr,
+    //                   mem_ptr->rem0->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     // calculate quotient bits GPU[2]
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -596,15 +596,15 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
 
-    cuda_set_device(0);
-    print_body<Torus>("q3", (Torus *)mem_ptr->q3->ptr, mem_ptr->q3->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(1);
-    print_body<Torus>("q2", (Torus *)mem_ptr->q2->ptr, mem_ptr->q2->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
-    cuda_set_device(2);
-    print_body<Torus>("q1", (Torus *)mem_ptr->q1->ptr, mem_ptr->q1->num_radix_blocks,
-                      radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("q3", (Torus *)mem_ptr->q3->ptr, mem_ptr->q3->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(1);
+    // print_body<Torus>("q2", (Torus *)mem_ptr->q2->ptr, mem_ptr->q2->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
+    // cuda_set_device(2);
+    // print_body<Torus>("q1", (Torus *)mem_ptr->q1->ptr, mem_ptr->q1->num_radix_blocks,
+    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     // We need to accumulate rem, r1, r2, and r3, but each buffer currently lives on a different GPU.
     // To gather them on GPU[0], we’ll **reuse** buffers already allocated on GPU[0]. At this point,
@@ -635,19 +635,19 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q2_gpu_0, mem_ptr->q2);
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q1_gpu_0, mem_ptr->q1);
 
-    cuda_set_device(0);
-    print_body<Torus>("r3_gpu_0 after copy", (Torus *)r3_gpu_0->ptr,
-                      r3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    print_body<Torus>("r2_gpu_0 after copy", (Torus *)r2_gpu_0->ptr, 
-                      r2_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    print_body<Torus>("r1_gpu_0 after copy", (Torus *)r1_gpu_0->ptr, 
-                      r1_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL); 
-    print_body<Torus>("rem_gpu_0 after copy", (Torus *)rem_gpu_0->ptr,
-                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("r3_gpu_0 after copy", (Torus *)r3_gpu_0->ptr,
+    //                   r3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // print_body<Torus>("r2_gpu_0 after copy", (Torus *)r2_gpu_0->ptr, 
+    //                   r2_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // print_body<Torus>("r1_gpu_0 after copy", (Torus *)r1_gpu_0->ptr, 
+    //                   r1_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL); 
+    // print_body<Torus>("rem_gpu_0 after copy", (Torus *)rem_gpu_0->ptr,
+    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
 
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r3_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r2_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
@@ -655,13 +655,13 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
 
     host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q2_gpu_0, 1, 4, 4);
     host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q1_gpu_0, 1, 4, 4);
-    cuda_set_device(0);
-    print_body<Torus>("rem after final accumulation", (Torus *)rem_gpu_0->ptr,
-                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    print_body<Torus>("q3 after final accumulation", (Torus *)q3_gpu_0->ptr, 
-                      q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("rem after final accumulation", (Torus *)rem_gpu_0->ptr,
+    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // print_body<Torus>("q3 after final accumulation", (Torus *)q3_gpu_0->ptr, 
+    //                   q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
 
     for (uint j = 0; j < gpu_count; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
@@ -677,16 +677,16 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
         mem_ptr->message_extract_lut_2, 1);
     for (uint j = 0; j < gpu_count; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
 
-    cuda_set_device(0);
-    print_body<Torus>("Final rem", (Torus *)rem_gpu_0->ptr,
-                      rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    print_body<Torus>("Final quotient", (Torus *)q3_gpu_0->ptr,
-                      q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("Final rem", (Torus *)rem_gpu_0->ptr,
+    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // print_body<Torus>("Final quotient", (Torus *)q3_gpu_0->ptr,
+    //                   q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], remainder_gpu_0, block_index,
@@ -694,13 +694,13 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     insert_block_in_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
                                                   q3_gpu_0, quotient, 0);       
 
-    cuda_set_device(0);
-    print_body<Torus>("Output rem", (Torus *)remainder_gpu_0->ptr,
-                      remainder_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
-    print_body<Torus>("Output quotient", (Torus *)quotient->ptr, 
-                      quotient->num_radix_blocks, radix_params.big_lwe_dimension,
-                      576460752303423488ULL);
+    // cuda_set_device(0);
+    // print_body<Torus>("Output rem", (Torus *)remainder_gpu_0->ptr,
+    //                   remainder_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
+    // print_body<Torus>("Output quotient", (Torus *)quotient->ptr, 
+    //                   quotient->num_radix_blocks, radix_params.big_lwe_dimension,
+    //                   576460752303423488ULL);
     // Copy remainder_gpu_0 to all other GPUs
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_1, remainder_gpu_0);
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_2, remainder_gpu_0);
