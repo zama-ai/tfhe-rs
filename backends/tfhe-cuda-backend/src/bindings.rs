@@ -94,6 +94,18 @@ unsafe extern "C" {
         polynomial_size: u32,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_modulus_switch_multi_bit_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+        degree: u32,
+        grouping_factor: u32,
+    );
+}
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
@@ -1665,6 +1677,16 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_kb_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
+unsafe extern "C" {
+    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        scalar: u64,
+        message_modulus: u32,
+        carry_modulus: u32,
+    );
+}
+
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: CudaStreamsFFI,

@@ -745,6 +745,11 @@ void cuda_integer_ilog2_kb_64(
 
 void cleanup_cuda_integer_ilog2_kb_64(CudaStreamsFFI streams,
                                       int8_t **mem_ptr_void);
+
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint64_t scalar,
+    const uint32_t message_modulus, const uint32_t carry_modulus);
+
 } // extern C
 
 #endif // CUDA_INTEGER_H
