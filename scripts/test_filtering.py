@@ -172,6 +172,11 @@ def filter_integer_tests(input_args):
         elif input_args.backend == "cpu":
             filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
 
+
+    # Do not run noise check tests by default as they can be very slow
+    # they will be run e.g. nightly or on demand
+    filter =  filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")
+
     return " and ".join(filter_expression)
 
 

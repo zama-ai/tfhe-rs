@@ -65,23 +65,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_improve_noise_modulus_switch_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_array_indexes: *const ffi::c_void,
-        encrypted_zeros: *const ffi::c_void,
-        lwe_size: u32,
-        num_lwes: u32,
-        num_zeros: u32,
-        input_variance: f64,
-        r_sigma: f64,
-        bound: f64,
-        log_modulus: u32,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_glwe_sample_extract_128(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -1927,6 +1910,15 @@ unsafe extern "C" {
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        scalar: u64,
+        message_modulus: u32,
+        carry_modulus: u32,
     );
 }
 unsafe extern "C" {

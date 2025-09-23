@@ -831,6 +831,19 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     );
 }
 
+pub fn cuda_modulus_switch_ciphertext<Scalar>(
+    output_lwe_ciphertext: &mut CudaVec<Scalar>,
+    log_modulus: u32,
+    streams: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_modulus_switch_ciphertext_async(streams, output_lwe_ciphertext, log_modulus);
+    }
+    streams.synchronize();
+}
+
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety

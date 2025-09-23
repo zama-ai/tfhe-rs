@@ -996,6 +996,15 @@ test_noise_check:
 		--features=boolean,shortint,integer -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
+.PHONY: test_noise_check_gpu # Run dedicated noise and pfail check tests on gpu backend
+test_noise_check_gpu:
+	@# First run the sanity checks to make sure the atomic patterns are correct
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,gpu -p tfhe -- gpu_sanity_check
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,gpu -p tfhe -- gpu_noise_check \
+		--test-threads=1 --nocapture
+
 .PHONY: test_safe_serialization # Run the tests for safe serialization
 test_safe_serialization: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
