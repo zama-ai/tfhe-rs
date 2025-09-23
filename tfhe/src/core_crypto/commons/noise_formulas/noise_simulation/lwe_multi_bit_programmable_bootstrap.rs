@@ -204,7 +204,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
         *output = NoiseSimulationLwe::new(
             output_lwe_dimension,
             Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0),
-            accumulator.modulus,
+            accumulator.modulus(),
         );
     }
 }

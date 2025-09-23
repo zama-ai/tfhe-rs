@@ -20,11 +20,11 @@ impl AllocateStandardModSwitchResult for NoiseSimulationLwe {
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        Self {
-            lwe_dimension: self.lwe_dimension,
-            variance: Variance(f64::INFINITY),
-            modulus: self.modulus(),
-        }
+        Self::Output::new(
+            self.lwe_dimension(),
+            Variance(f64::INFINITY),
+            self.modulus(),
+        )
     }
 }
 
@@ -46,18 +46,18 @@ impl StandardModSwitch<Self> for NoiseSimulationLwe {
         assert!(output_modulus_f64 < input_modulus_f64);
 
         let mod_switch_additive_variance = modulus_switch_additive_variance(
-            self.lwe_dimension,
+            self.lwe_dimension(),
             input_modulus_f64,
             output_modulus_f64,
         );
 
         *output = Self::new(
-            self.lwe_dimension,
-            Variance(self.variance.0 + mod_switch_additive_variance.0),
+            self.lwe_dimension(),
+            Variance(self.variance().0 + mod_switch_additive_variance.0),
             // Mod switched but the noise is to be interpreted with respect to the input modulus,
             // as strictly the operation adding the noise is the rounding under the
             // original modulus
-            self.modulus,
+            self.modulus(),
         );
     }
 }
@@ -70,11 +70,11 @@ impl AllocateMultiBitModSwitchResult for NoiseSimulationLwe {
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        Self {
-            lwe_dimension: self.lwe_dimension,
-            variance: Variance(f64::INFINITY),
-            modulus: self.modulus(),
-        }
+        Self::Output::new(
+            self.lwe_dimension(),
+            Variance(f64::INFINITY),
+            self.modulus(),
+        )
     }
 }
 
@@ -98,19 +98,19 @@ impl MultiBitModSwitch<Self> for NoiseSimulationLwe {
         assert!(output_modulus_f64 < input_modulus_f64);
 
         let mod_switch_additive_variance = multi_bit_modulus_switch_additive_variance(
-            self.lwe_dimension,
+            self.lwe_dimension(),
             grouping_factor_f64,
             input_modulus_f64,
             output_modulus_f64,
         );
 
         *output = Self::new(
-            self.lwe_dimension,
-            Variance(self.variance.0 + mod_switch_additive_variance.0),
+            self.lwe_dimension(),
+            Variance(self.variance().0 + mod_switch_additive_variance.0),
             // Mod switched but the noise is to be interpreted with respect to the input modulus,
             // as strictly the operation adding the noise is the rounding under the
             // original modulus
-            self.modulus,
+            self.modulus(),
         );
     }
 }
@@ -123,11 +123,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for NoiseSimulationLwe
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        Self::new(
-            self.lwe_dimension(),
-            Variance(f64::NEG_INFINITY),
-            self.modulus(),
-        )
+        Self::new(self.lwe_dimension(), Variance(f64::NAN), self.modulus())
     }
 }
 
@@ -149,18 +145,18 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for NoiseSimulationLwe {
         assert!(output_modulus_f64 < input_modulus_f64);
 
         let mod_switch_additive_variance = centered_binary_shifted_modulus_switch_additive_variance(
-            self.lwe_dimension,
+            self.lwe_dimension(),
             input_modulus_f64,
             output_modulus_f64,
         );
 
         *output = Self::new(
-            self.lwe_dimension,
-            Variance(self.variance.0 + mod_switch_additive_variance.0),
+            self.lwe_dimension(),
+            Variance(self.variance().0 + mod_switch_additive_variance.0),
             // Mod switched but the noise is to be interpreted with respect to the input modulus,
             // as strictly the operation adding the noise is the rounding under the
             // original modulus
-            self.modulus,
+            self.modulus(),
         );
     }
 }

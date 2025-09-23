@@ -70,146 +70,158 @@ impl NoiseSimulationModulus {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct NoiseSimulationLwe {
-    lwe_dimension: LweDimension,
-    variance: Variance,
-    modulus: NoiseSimulationModulus,
-}
+// Avoids fields to be public/accessible in the noise_simulation module to make sure all functions
+// use constructors
+mod simulation_ciphertexts {
+    use super::*;
 
-impl NoiseSimulationLwe {
-    pub fn new(
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct NoiseSimulationLwe {
         lwe_dimension: LweDimension,
         variance: Variance,
         modulus: NoiseSimulationModulus,
-    ) -> Self {
-        Self {
-            lwe_dimension,
-            variance,
-            modulus,
+    }
+
+    impl NoiseSimulationLwe {
+        pub fn new(
+            lwe_dimension: LweDimension,
+            variance: Variance,
+            modulus: NoiseSimulationModulus,
+        ) -> Self {
+            Self {
+                lwe_dimension,
+                variance,
+                modulus,
+            }
+        }
+
+        pub fn lwe_dimension(&self) -> LweDimension {
+            self.lwe_dimension
+        }
+
+        pub fn variance(&self) -> Variance {
+            self.variance
+        }
+
+        pub fn modulus(&self) -> NoiseSimulationModulus {
+            self.modulus
         }
     }
 
-    pub fn lwe_dimension(&self) -> LweDimension {
-        self.lwe_dimension
+    impl<Scalar: CastInto<f64>> ScalarMul<Scalar> for NoiseSimulationLwe {
+        type Output = Self;
+        type SideResources = ();
+
+        fn scalar_mul(
+            &self,
+            rhs: Scalar,
+            side_resources: &mut Self::SideResources,
+        ) -> Self::Output {
+            let mut output = *self;
+            output.scalar_mul_assign(rhs, side_resources);
+            output
+        }
     }
 
-    pub fn variance(&self) -> Variance {
-        self.variance
+    impl<Scalar: CastInto<f64>> ScalarMulAssign<Scalar> for NoiseSimulationLwe {
+        type SideResources = ();
+
+        fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
+            let rhs: f64 = rhs.cast_into();
+            self.variance.0 *= rhs.powi(2);
+        }
     }
 
-    pub fn modulus(&self) -> NoiseSimulationModulus {
-        self.modulus
-    }
-}
-
-impl<Scalar: CastInto<f64>> ScalarMul<Scalar> for NoiseSimulationLwe {
-    type Output = Self;
-    type SideResources = ();
-
-    fn scalar_mul(&self, rhs: Scalar, side_resources: &mut Self::SideResources) -> Self::Output {
-        let mut output = *self;
-        output.scalar_mul_assign(rhs, side_resources);
-        output
-    }
-}
-
-impl<Scalar: CastInto<f64>> ScalarMulAssign<Scalar> for NoiseSimulationLwe {
-    type SideResources = ();
-
-    fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
-        let rhs: f64 = rhs.cast_into();
-        self.variance.0 *= rhs.powi(2);
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct NoiseSimulationGlwe {
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    variance_per_occupied_slot: Variance,
-    modulus: NoiseSimulationModulus,
-}
-
-impl NoiseSimulationGlwe {
-    pub fn new(
+    #[derive(Clone, Copy, Debug)]
+    pub struct NoiseSimulationGlwe {
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
         variance_per_occupied_slot: Variance,
         modulus: NoiseSimulationModulus,
-    ) -> Self {
-        Self {
-            glwe_dimension,
-            polynomial_size,
-            variance_per_occupied_slot,
-            modulus,
+    }
+
+    impl NoiseSimulationGlwe {
+        pub fn new(
+            glwe_dimension: GlweDimension,
+            polynomial_size: PolynomialSize,
+            variance_per_occupied_slot: Variance,
+            modulus: NoiseSimulationModulus,
+        ) -> Self {
+            Self {
+                glwe_dimension,
+                polynomial_size,
+                variance_per_occupied_slot,
+                modulus,
+            }
+        }
+
+        pub fn into_lwe(self) -> NoiseSimulationLwe {
+            let lwe_dimension = self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size());
+            NoiseSimulationLwe {
+                lwe_dimension,
+                variance: self.variance_per_occupied_slot(),
+                modulus: self.modulus(),
+            }
+        }
+
+        pub fn glwe_dimension(&self) -> GlweDimension {
+            self.glwe_dimension
+        }
+
+        pub fn polynomial_size(&self) -> PolynomialSize {
+            self.polynomial_size
+        }
+
+        pub fn variance_per_occupied_slot(&self) -> Variance {
+            self.variance_per_occupied_slot
+        }
+
+        pub fn modulus(&self) -> NoiseSimulationModulus {
+            self.modulus
         }
     }
 
-    pub fn into_lwe(self) -> NoiseSimulationLwe {
-        let lwe_dimension = self
-            .glwe_dimension()
-            .to_equivalent_lwe_dimension(self.polynomial_size());
-        NoiseSimulationLwe {
-            lwe_dimension,
-            variance: self.variance_per_occupied_slot(),
-            modulus: self.modulus(),
+    impl AllocateLweBootstrapResult for NoiseSimulationGlwe {
+        type Output = NoiseSimulationLwe;
+        type SideResources = ();
+
+        fn allocate_lwe_bootstrap_result(
+            &self,
+            _side_resources: &mut Self::SideResources,
+        ) -> Self::Output {
+            let lwe_dimension = self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size());
+
+            Self::Output {
+                lwe_dimension,
+                variance: self.variance_per_occupied_slot(),
+                modulus: self.modulus(),
+            }
         }
     }
 
-    pub fn glwe_dimension(&self) -> GlweDimension {
-        self.glwe_dimension
-    }
+    impl AllocateLweMultiBitBlindRotateResult for NoiseSimulationGlwe {
+        type Output = NoiseSimulationLwe;
+        type SideResources = ();
 
-    pub fn polynomial_size(&self) -> PolynomialSize {
-        self.polynomial_size
-    }
+        fn allocate_lwe_multi_bit_blind_rotate_result(
+            &self,
+            _side_resources: &mut Self::SideResources,
+        ) -> Self::Output {
+            let lwe_dimension = self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size());
 
-    pub fn variance_per_occupied_slot(&self) -> Variance {
-        self.variance_per_occupied_slot
-    }
-
-    pub fn modulus(&self) -> NoiseSimulationModulus {
-        self.modulus
+            Self::Output {
+                lwe_dimension,
+                variance: self.variance_per_occupied_slot(),
+                modulus: self.modulus(),
+            }
+        }
     }
 }
 
-impl AllocateLweBootstrapResult for NoiseSimulationGlwe {
-    type Output = NoiseSimulationLwe;
-    type SideResources = ();
-
-    fn allocate_lwe_bootstrap_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
-        let lwe_dimension = self
-            .glwe_dimension()
-            .to_equivalent_lwe_dimension(self.polynomial_size());
-
-        Self::Output {
-            lwe_dimension,
-            variance: self.variance_per_occupied_slot(),
-            modulus: self.modulus(),
-        }
-    }
-}
-
-impl AllocateLweMultiBitBlindRotateResult for NoiseSimulationGlwe {
-    type Output = NoiseSimulationLwe;
-    type SideResources = ();
-
-    fn allocate_lwe_multi_bit_blind_rotate_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
-        let lwe_dimension = self
-            .glwe_dimension()
-            .to_equivalent_lwe_dimension(self.polynomial_size());
-
-        Self::Output {
-            lwe_dimension,
-            variance: self.variance_per_occupied_slot(),
-            modulus: self.modulus(),
-        }
-    }
-}
+pub use simulation_ciphertexts::{NoiseSimulationGlwe, NoiseSimulationLwe};

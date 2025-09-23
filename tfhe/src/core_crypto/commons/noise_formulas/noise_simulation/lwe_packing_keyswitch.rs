@@ -116,12 +116,12 @@ impl AllocateLwePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        Self::Output {
-            glwe_dimension: self.output_glwe_size().to_glwe_dimension(),
-            polynomial_size: self.output_polynomial_size(),
-            variance_per_occupied_slot: Variance(f64::NEG_INFINITY),
-            modulus: self.modulus,
-        }
+        Self::Output::new(
+            self.output_glwe_size().to_glwe_dimension(),
+            self.output_polynomial_size(),
+            Variance(f64::NAN),
+            self.modulus,
+        )
     }
 }
 
@@ -170,10 +170,11 @@ impl LwePackingKeyswitch<[&NoiseSimulationLwe], NoiseSimulationGlwe>
             }
         };
 
-        output.glwe_dimension = self.output_glwe_size().to_glwe_dimension();
-        output.polynomial_size = self.output_polynomial_size();
-        output.variance_per_occupied_slot =
-            Variance(input.variance().0 + packing_ks_additive_var.0);
-        output.modulus = self.modulus();
+        *output = NoiseSimulationGlwe::new(
+            self.output_glwe_size().to_glwe_dimension(),
+            self.output_polynomial_size(),
+            Variance(input.variance().0 + packing_ks_additive_var.0),
+            self.modulus(),
+        );
     }
 }
