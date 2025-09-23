@@ -41,3 +41,12 @@ void cleanup_cuda_integer_radix_scalar_mul(CudaStreamsFFI streams,
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
+
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint64_t scalar,
+    const uint32_t message_modulus, const uint32_t carry_modulus) {
+
+  host_integer_small_scalar_mul_radix<uint64_t>(CudaStreams(streams), lwe_array,
+                                                lwe_array, scalar,
+                                                message_modulus, carry_modulus);
+}
