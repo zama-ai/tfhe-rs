@@ -15,7 +15,7 @@ dylint_linting = "4.1.0"
 [dev-dependencies]
 dylint_testing = "4.1.0"
 serde = { version = "1.0", features = ["derive"] }
-tfhe-versionable = "0.6.1"
+tfhe-versionable = { version = "0.6.2", path = "../tfhe-versionable" }
 
 [package.metadata.rust-analyzer]
 rustc_private = true
