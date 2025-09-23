@@ -22,6 +22,9 @@ use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootst
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 
+#[cfg(all(feature = "gpu", feature = "integer"))]
+use crate::integer::gpu::server_key::CudaBootstrappingKey;
+
 #[derive(Clone, Copy)]
 pub struct NoiseSimulationLweFourierBsk {
     input_lwe_dimension: LweDimension,
@@ -79,6 +82,48 @@ impl NoiseSimulationLweFourierBsk {
             && polynomial_size == bsk_polynomial_size
             && decomp_base_log == bsk_decomp_base_log
             && decomp_level_count == bsk_decomp_level_count
+    }
+
+    #[cfg(all(feature = "gpu", feature = "integer"))]
+    pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaBootstrappingKey<u64>) -> bool {
+        let Self {
+            input_lwe_dimension,
+            output_glwe_size: glwe_size,
+            output_polynomial_size: polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            noise_distribution: _,
+            modulus: _,
+        } = *self;
+
+        match lwe_bsk {
+            CudaBootstrappingKey::Classic(cuda_bsk) => {
+                let bsk_input_lwe_dimension = cuda_bsk.input_lwe_dimension();
+                let bsk_glwe_size = cuda_bsk.glwe_dimension().to_glwe_size();
+                let bsk_polynomial_size = cuda_bsk.polynomial_size();
+                let bsk_decomp_base_log = cuda_bsk.decomp_base_log();
+                let bsk_decomp_level_count = cuda_bsk.decomp_level_count();
+
+                input_lwe_dimension == bsk_input_lwe_dimension
+                    && glwe_size == bsk_glwe_size
+                    && polynomial_size == bsk_polynomial_size
+                    && decomp_base_log == bsk_decomp_base_log
+                    && decomp_level_count == bsk_decomp_level_count
+            }
+            CudaBootstrappingKey::MultiBit(cuda_mb_bsk) => {
+                let bsk_input_lwe_dimension = cuda_mb_bsk.input_lwe_dimension();
+                let bsk_glwe_size = cuda_mb_bsk.glwe_dimension().to_glwe_size();
+                let bsk_polynomial_size = cuda_mb_bsk.polynomial_size();
+                let bsk_decomp_base_log = cuda_mb_bsk.decomp_base_log();
+                let bsk_decomp_level_count = cuda_mb_bsk.decomp_level_count();
+
+                input_lwe_dimension == bsk_input_lwe_dimension
+                    && glwe_size == bsk_glwe_size
+                    && polynomial_size == bsk_polynomial_size
+                    && decomp_base_log == bsk_decomp_base_log
+                    && decomp_level_count == bsk_decomp_level_count
+            }
+        }
     }
 
     pub fn input_lwe_dimension(&self) -> LweDimension {
