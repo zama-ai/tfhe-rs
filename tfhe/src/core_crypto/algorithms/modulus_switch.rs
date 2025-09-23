@@ -1,6 +1,9 @@
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 
+/// Represent any kind of LWE ciphertext after a modulus switch operation.
+///
+/// This may be used as an input to the blind rotatation.
 pub trait ModulusSwitchedLweCiphertext<Scalar> {
     fn log_modulus(&self) -> CiphertextModulusLog;
     fn lwe_dimension(&self) -> LweDimension;
