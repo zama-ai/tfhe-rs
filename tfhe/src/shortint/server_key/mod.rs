@@ -43,7 +43,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::{ComputationBuffers, Fft};
+use crate::core_crypto::prelude::{ComputationBuffers, Fft, Fft128};
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -79,12 +79,13 @@ pub use pbs_stats::*;
 
 use super::atomic_pattern::{
     AtomicPattern, AtomicPatternMut, AtomicPatternParameters, AtomicPatternServerKey,
-    StandardAtomicPatternServerKey,
+    KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
 };
 use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
 use super::ciphertext::unchecked_create_trivial_with_lwe_size;
+use super::noise_squashing::Shortint128BootstrappingKey;
 use super::parameters::KeySwitch32PBSParameters;
 use super::PBSParameters;
 
@@ -485,10 +486,12 @@ pub type ServerKey = GenericServerKey<AtomicPatternServerKey>;
 pub type StandardServerKey = GenericServerKey<StandardAtomicPatternServerKey>;
 pub type ServerKeyView<'key> = GenericServerKey<&'key AtomicPatternServerKey>;
 pub type StandardServerKeyView<'key> = GenericServerKey<&'key StandardAtomicPatternServerKey>;
+pub type KS32ServerKeyView<'key> = GenericServerKey<&'key KS32AtomicPatternServerKey>;
 
-// Manual implementation of Copy because the derive will require AP to be Copy,
+// Manual implementations of Copy because the derive will require AP to be Copy,
 // which is actually overrestrictive: https://github.com/rust-lang/rust/issues/26925
 impl Copy for StandardServerKeyView<'_> {}
+impl Copy for KS32ServerKeyView<'_> {}
 
 impl From<StandardServerKey> for ServerKey {
     fn from(value: StandardServerKey) -> Self {
@@ -540,6 +543,25 @@ impl<'key> TryFrom<ServerKeyView<'key>> for StandardServerKeyView<'key> {
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
         let AtomicPatternServerKey::Standard(atomic_pattern) = value.atomic_pattern else {
+            return Err(UnsupportedOperation);
+        };
+
+        Ok(Self {
+            atomic_pattern,
+            message_modulus: value.message_modulus,
+            carry_modulus: value.carry_modulus,
+            max_degree: value.max_degree,
+            max_noise_level: value.max_noise_level,
+            ciphertext_modulus: value.ciphertext_modulus,
+        })
+    }
+}
+
+impl<'key> TryFrom<ServerKeyView<'key>> for KS32ServerKeyView<'key> {
+    type Error = UnsupportedOperation;
+
+    fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
+        let AtomicPatternServerKey::KeySwitch32(atomic_pattern) = value.atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
@@ -1511,6 +1533,72 @@ pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar,
     apply_ms_blind_rotate(bootstrapping_key, lwe_in, &mut glwe_out, buffers);
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, lwe_out, MonomialDegree(0));
+}
+
+pub(crate) fn apply_programmable_bootstrap_128<InputScalar, InputCont, OutputScalar, OutputCont>(
+    bootstrapping_key: &Shortint128BootstrappingKey<InputScalar>,
+    lwe_in: &LweCiphertext<InputCont>,
+    lwe_out: &mut LweCiphertext<OutputCont>,
+    acc: &GlweCiphertext<Vec<OutputScalar>>,
+    buffers: &mut ComputationBuffers,
+) where
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputScalar: UnsignedTorus + CastFrom<usize>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+{
+    match bootstrapping_key {
+        Shortint128BootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
+        } => {
+            let bsk_glwe_size = bsk.glwe_size();
+            let bsk_polynomial_size = bsk.polynomial_size();
+
+            let fft = Fft128::new(bsk_polynomial_size);
+            let fft = fft.as_view();
+
+            let mem_requirement =
+                blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement::<u128>(
+                    bsk_glwe_size,
+                    bsk_polynomial_size,
+                    fft,
+                )
+                .unwrap()
+                .try_unaligned_bytes_required()
+                .unwrap();
+
+            let br_input_modulus_log = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
+            let lwe_ciphertext_to_squash_noise = modulus_switch_noise_reduction_key
+                .lwe_ciphertext_modulus_switch(lwe_in, br_input_modulus_log);
+
+            buffers.resize(mem_requirement);
+
+            // Also include sample extract
+            blind_rotate_f128_lwe_ciphertext_mem_optimized(
+                &lwe_ciphertext_to_squash_noise,
+                lwe_out,
+                acc,
+                bsk,
+                fft,
+                buffers.stack(),
+            );
+        }
+        Shortint128BootstrappingKey::MultiBit {
+            bsk,
+            thread_count,
+            deterministic_execution,
+        } => {
+            multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+                lwe_in,
+                lwe_out,
+                acc,
+                bsk,
+                *thread_count,
+                *deterministic_execution,
+            );
+        }
+    }
 }
 
 /// Generate a lookup table without any encoding specifications
