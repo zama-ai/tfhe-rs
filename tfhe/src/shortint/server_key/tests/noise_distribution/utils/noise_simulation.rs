@@ -20,7 +20,10 @@ use crate::core_crypto::entities::{
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::list_compression::NoiseSquashingCompressionKey;
-use crate::shortint::noise_squashing::{NoiseSquashingKey, Shortint128BootstrappingKey};
+use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
+use crate::shortint::noise_squashing::{
+    NoiseSquashingKey, Shortint128BootstrappingKey, StandardNoiseSquashingKeyView,
+};
 use crate::shortint::parameters::{
     AtomicPatternParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, PBSParameters,
@@ -653,13 +656,15 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
 
 impl NoiseSquashingKey {
     pub fn noise_simulation_modulus_switch_config(&self) -> NoiseSimulationModulusSwitchConfig {
-        match self.bootstrapping_key() {
+        let nsk = StandardNoiseSquashingKeyView::try_from(self.as_view())
+            .expect("Noise tests only support standard atomic pattern");
+        match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
                 bsk: _,
                 modulus_switch_noise_reduction_key,
             } => modulus_switch_noise_reduction_key.into(),
             Shortint128BootstrappingKey::MultiBit { .. } => {
-                panic!("MultiBit ServerKey does support the drift technique")
+                panic!("MultiBit ServerKey does not support the drift technique")
             }
         }
     }
@@ -674,7 +679,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
         &self,
         side_resources: &mut Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
-        match self.bootstrapping_key() {
+        let nsk = StandardNoiseSquashingKeyView::try_from(self.as_view())
+            .expect("Noise tests only support standard atomic pattern");
+
+        match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
                 bsk: _,
                 modulus_switch_noise_reduction_key,
@@ -713,7 +721,14 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
         after_mod_switch: &mut DynLwe,
         side_resources: &mut Self::SideResources,
     ) {
-        match self.bootstrapping_key() {
+        let nsk = match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+            AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+                todo!()
+            }
+        };
+
+        match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
                 bsk: _,
                 modulus_switch_noise_reduction_key,
@@ -770,7 +785,13 @@ where
         accumulator: &GlweCiphertext<AccCont>,
         side_resources: &mut Self::SideResources,
     ) {
-        match self.bootstrapping_key() {
+        let nsk = match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+            AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+                todo!()
+            }
+        };
+        match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
                 bsk,
                 modulus_switch_noise_reduction_key: _,

@@ -545,6 +545,15 @@ impl AtomicPatternParameters {
             Self::KeySwitch32(key_switch32_pbsparameters) => key_switch32_pbsparameters.log2_p_fail,
         }
     }
+
+    pub const fn atomic_pattern(&self) -> AtomicPatternKind {
+        match self {
+            Self::Standard(parameters) => {
+                AtomicPatternKind::Standard(parameters.encryption_key_choice().into_pbs_order())
+            }
+            Self::KeySwitch32(_) => AtomicPatternKind::KeySwitch32,
+        }
+    }
 }
 
 impl ParameterSetConformant for AtomicPatternServerKey {

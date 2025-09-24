@@ -13,8 +13,10 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{
     NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
 };
+use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
     NoiseSquashingKey, NoiseSquashingPrivateKey, Shortint128BootstrappingKey,
+    StandardNoiseSquashingKeyView,
 };
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::test_params::{
@@ -302,7 +304,11 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
         }
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
-    let br_input_modulus_log = noise_squashing_key
+
+    let standard_nsk = StandardNoiseSquashingKeyView::try_from(noise_squashing_key.as_view())
+        .expect("Noise tests only support standard atomic pattern");
+
+    let br_input_modulus_log = standard_nsk
         .bootstrapping_key()
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();
@@ -317,8 +323,8 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
     let max_scalar_mul = sks.max_noise_level.get();
 
     let id_lut = generate_programmable_bootstrap_glwe_lut(
-        noise_squashing_key.bootstrapping_key().polynomial_size(),
-        noise_squashing_key.bootstrapping_key().glwe_size(),
+        standard_nsk.bootstrapping_key().polynomial_size(),
+        standard_nsk.bootstrapping_key().glwe_size(),
         u128_encoding
             .cleartext_space_without_padding()
             .try_into()
@@ -451,6 +457,8 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
             &thread_noise_squashing_compression_key,
         )
     };
+    let standard_nsk = StandardNoiseSquashingKeyView::try_from(noise_squashing_key.as_view())
+        .expect("Noise tests only support standard atomic pattern");
 
     let noise_simulation_modulus_switch_config =
         noise_squashing_key.noise_simulation_modulus_switch_config();
@@ -461,8 +469,8 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         }
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
-    let bsk_polynomial_size = noise_squashing_key.bootstrapping_key().polynomial_size();
-    let bsk_glwe_size = noise_squashing_key.bootstrapping_key().glwe_size();
+    let bsk_polynomial_size = standard_nsk.bootstrapping_key().polynomial_size();
+    let bsk_glwe_size = standard_nsk.bootstrapping_key().glwe_size();
     let br_input_modulus_log = bsk_polynomial_size.to_blind_rotation_input_modulus_log();
 
     let u128_encoding = ShortintEncoding {
@@ -678,10 +686,13 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         noise_squashing_compression_params,
     );
 
+    let standard_nsk = StandardNoiseSquashingKeyView::try_from(noise_squashing_key.as_view())
+        .expect("Noise tests only support standard atomic pattern");
+
     let noise_simulation_modulus_switch_config =
         noise_squashing_key.noise_simulation_modulus_switch_config();
 
-    let fbsk_128 = match noise_squashing_key.bootstrapping_key() {
+    let fbsk_128 = match standard_nsk.bootstrapping_key() {
         Shortint128BootstrappingKey::Classic {
             bsk,
             modulus_switch_noise_reduction_key: _,
@@ -693,7 +704,14 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
     assert!(noise_simulation_packing_key
         .matches_actual_pksk(noise_squashing_compression_key.packing_key_switching_key()));
 
-    let br_input_modulus_log = noise_squashing_key
+    let nsk = match noise_squashing_key.atomic_pattern() {
+        AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+        AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+            todo!()
+        }
+    };
+
+    let br_input_modulus_log = nsk
         .bootstrapping_key()
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();
