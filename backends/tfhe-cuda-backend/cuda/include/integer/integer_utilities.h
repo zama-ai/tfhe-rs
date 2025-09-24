@@ -4792,8 +4792,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     init_temporary_buffers(streams, gpu_indexes, num_blocks,
                            allocate_gpu_memory, size_tracker);
 
-    sub_streams_1 = (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
-    sub_streams_2 = (cudaStream_t *)malloc(4 * sizeof(cudaStream_t));
+    sub_streams_1 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    sub_streams_2 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
     // sub_streams_3 =
     //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
     // sub_streams_4 =
@@ -4804,7 +4804,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
     // sub_streams_7 =
     //     (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    for (uint j = 0; j < 4; j++) {
+    for (uint j = 0; j < gpu_count; j++) {
       sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
       sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
       // sub_streams_3[j] = cuda_create_stream(gpu_indexes[j]);
@@ -5187,6 +5187,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     free(scalars_for_overflow_sub_gpu_2);
 
     cudaEventDestroy(create_indexes_done);
+
+
+    // release sub streams
+    for (uint i = 0; i < gpu_count; i++) {
+      cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
+    }
+    free(sub_streams_1);
   }
 };
 

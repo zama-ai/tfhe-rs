@@ -544,7 +544,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           rx->num_radix_blocks);
     };
 
-    for (uint j = 0; j < 3; j++) {
+    for (uint j = 0; j < 4; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
@@ -595,6 +595,8 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
+
+
 
     // cuda_set_device(0);
     // print_body<Torus>("q3", (Torus *)mem_ptr->q3->ptr, mem_ptr->q3->num_radix_blocks,
