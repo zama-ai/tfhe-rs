@@ -1,8 +1,10 @@
 use crate::shortint::parameters::{
     current_params, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
-    CompressionParameters, MultiBitPBSParameters, NoiseSquashingCompressionParameters,
-    NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    CompressionParameters, KeySwitch32PBSParameters, MultiBitPBSParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
+
+use super::v1_4::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
 use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -81,6 +83,11 @@ pub const PARAM_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_
 // 2M64
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+// Compute KS32
+// 2M128
+pub const PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
+    V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
 // Compression Gaussian
 // 2M128
