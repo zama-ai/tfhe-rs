@@ -24,6 +24,13 @@ jobs:
     with:
       package-name: "tfhe-versionable-derive"
       dry-run: ${{ inputs.dry_run }}
+    permissions:
+      # Needed to detect the GitHub Actions environment
+      actions: read
+      # Needed to create the provenance via GitHub OIDC
+      id-token: write
+      # Needed to upload assets/artifacts
+      contents: write
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -39,6 +46,13 @@ jobs:
     with:
       package-name: "tfhe-versionable"
       dry-run: ${{ inputs.dry_run }}
+    permissions:
+      # Needed to detect the GitHub Actions environment
+      actions: read
+      # Needed to create the provenance via GitHub OIDC
+      id-token: write
+      # Needed to upload assets/artifacts
+      contents: write
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
