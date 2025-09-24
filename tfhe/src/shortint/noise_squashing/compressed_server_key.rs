@@ -1,17 +1,21 @@
+use super::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
+use super::server_key::Shortint128BootstrappingKeyConformanceParams;
 use super::{NoiseSquashingKey, NoiseSquashingKeyConformanceParams, NoiseSquashingPrivateKey};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_seeded_lwe_bootstrap_key;
+use crate::core_crypto::commons::math::random::Uniform;
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, SeededLweBootstrapKeyOwned};
 use crate::core_crypto::prelude::{
     par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key,
-    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128,
-    Fourier128LweMultiBitBootstrapKey, SeededLweMultiBitBootstrapKeyOwned, ThreadCount,
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128, CastFrom, Container,
+    DynamicDistribution, Encryptable, Fourier128LweMultiBitBootstrapKey, LweSecretKey,
+    SeededLweMultiBitBootstrapKeyOwned, ThreadCount, UnsignedInteger, UnsignedTorus,
 };
 use crate::shortint::backward_compatibility::noise_squashing::{
     CompressedNoiseSquashingKeyVersions, CompressedShortint128BootstrappingKeyVersions,
 };
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
+
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::noise_squashing::server_key::Shortint128BootstrappingKey;
@@ -22,15 +26,19 @@ use crate::shortint::parameters::{
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
 };
+use crate::shortint::AtomicPatternKind;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedShortint128BootstrappingKeyVersions)]
-pub enum CompressedShortint128BootstrappingKey {
+pub enum CompressedShortint128BootstrappingKey<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
     Classic {
         bsk: SeededLweBootstrapKeyOwned<u128>,
-        modulus_switch_noise_reduction_key: CompressedModulusSwitchConfiguration<u64>,
+        modulus_switch_noise_reduction_key: CompressedModulusSwitchConfiguration<Scalar>,
     },
     MultiBit {
         bsk: SeededLweMultiBitBootstrapKeyOwned<u128>,
@@ -39,8 +47,84 @@ pub enum CompressedShortint128BootstrappingKey {
     },
 }
 
-impl CompressedShortint128BootstrappingKey {
-    fn decompress(&self) -> Shortint128BootstrappingKey {
+impl<Scalar> CompressedShortint128BootstrappingKey<Scalar>
+where
+    Scalar: UnsignedTorus,
+{
+    pub fn new<InputKeyCont>(
+        encryption_key: &LweSecretKey<InputKeyCont>,
+        ciphertext_modulus: CoreCiphertextModulus<Scalar>,
+        lwe_noise_distribution: DynamicDistribution<Scalar>,
+        noise_squashing_private_key: &NoiseSquashingPrivateKey,
+    ) -> Self
+    where
+        InputKeyCont: Container<Element = Scalar> + Sync,
+        Scalar: Encryptable<Uniform, DynamicDistribution<Scalar>> + CastFrom<usize>,
+    {
+        let noise_squashing_parameters = noise_squashing_private_key.noise_squashing_parameters();
+
+        match noise_squashing_parameters {
+            NoiseSquashingParameters::Classic(params) => {
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    let seeded_bsk = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                        encryption_key,
+                        noise_squashing_private_key.post_noise_squashing_secret_key(),
+                        params.decomp_base_log,
+                        params.decomp_level_count,
+                        params.glwe_noise_distribution,
+                        params.ciphertext_modulus,
+                        &mut engine.seeder,
+                    );
+
+                    let modulus_switch_noise_reduction_key = params
+                        .modulus_switch_noise_reduction_params
+                        .to_compressed_modulus_switch_configuration(
+                            encryption_key,
+                            ciphertext_modulus,
+                            lwe_noise_distribution,
+                            engine,
+                        );
+
+                    Self::Classic {
+                        bsk: seeded_bsk,
+                        modulus_switch_noise_reduction_key,
+                    }
+                })
+            }
+            NoiseSquashingParameters::MultiBit(params) => {
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    let seeded_bsk =
+                        par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                            encryption_key,
+                            noise_squashing_private_key.post_noise_squashing_secret_key(),
+                            params.decomp_base_log,
+                            params.decomp_level_count,
+                            params.glwe_noise_distribution,
+                            params.grouping_factor,
+                            params.ciphertext_modulus,
+                            &mut engine.seeder,
+                        );
+
+                    let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                        encryption_key.lwe_dimension(),
+                        params.glwe_dimension,
+                        params.polynomial_size,
+                        params.decomp_base_log,
+                        params.decomp_level_count,
+                        params.grouping_factor,
+                    );
+
+                    Self::MultiBit {
+                        bsk: seeded_bsk,
+                        thread_count,
+                        deterministic_execution: params.deterministic_execution,
+                    }
+                })
+            }
+        }
+    }
+
+    pub(super) fn decompress(&self) -> Shortint128BootstrappingKey<Scalar> {
         match self {
             Self::Classic {
                 bsk,
@@ -100,183 +184,23 @@ impl CompressedShortint128BootstrappingKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
-#[versionize(CompressedNoiseSquashingKeyVersions)]
-pub struct CompressedNoiseSquashingKey {
-    bootstrapping_key: CompressedShortint128BootstrappingKey,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    output_ciphertext_modulus: CoreCiphertextModulus<u128>,
-}
-
-impl ClientKey {
-    pub fn new_compressed_noise_squashing_key(
-        &self,
-        noise_squashing_private_key: &NoiseSquashingPrivateKey,
-    ) -> CompressedNoiseSquashingKey {
-        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
-            panic!("Only the standard atomic pattern supports noise squashing")
-        };
-
-        let pbs_parameters = std_cks.parameters;
-
-        let noise_squashing_parameters = noise_squashing_private_key.noise_squashing_parameters();
-
-        assert_eq!(
-            pbs_parameters.message_modulus(),
-            noise_squashing_parameters.message_modulus(),
-            "Mismatched MessageModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
-            pbs_parameters.message_modulus(),
-            noise_squashing_parameters.message_modulus()
-        );
-        assert_eq!(
-            pbs_parameters.carry_modulus(),
-            noise_squashing_parameters.carry_modulus(),
-            "Mismatched CarryModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
-            pbs_parameters.carry_modulus(),
-            noise_squashing_parameters.carry_modulus()
-        );
-
-        let bootstrapping_key = match noise_squashing_parameters {
-            NoiseSquashingParameters::Classic(params) => {
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    let seeded_bsk = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                        &std_cks.lwe_secret_key,
-                        noise_squashing_private_key.post_noise_squashing_secret_key(),
-                        params.decomp_base_log,
-                        params.decomp_level_count,
-                        params.glwe_noise_distribution,
-                        params.ciphertext_modulus,
-                        &mut engine.seeder,
-                    );
-
-                    let modulus_switch_noise_reduction_key = params
-                        .modulus_switch_noise_reduction_params
-                        .to_compressed_modulus_switch_configuration(
-                            &std_cks.lwe_secret_key,
-                            pbs_parameters.ciphertext_modulus(),
-                            pbs_parameters.lwe_noise_distribution(),
-                            engine,
-                        );
-
-                    CompressedShortint128BootstrappingKey::Classic {
-                        bsk: seeded_bsk,
-                        modulus_switch_noise_reduction_key,
-                    }
-                })
-            }
-            NoiseSquashingParameters::MultiBit(params) => {
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    let seeded_bsk =
-                        par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                            &std_cks.lwe_secret_key,
-                            noise_squashing_private_key.post_noise_squashing_secret_key(),
-                            params.decomp_base_log,
-                            params.decomp_level_count,
-                            params.glwe_noise_distribution,
-                            params.grouping_factor,
-                            params.ciphertext_modulus,
-                            &mut engine.seeder,
-                        );
-
-                    let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
-                        std_cks.lwe_secret_key.lwe_dimension(),
-                        params.glwe_dimension,
-                        params.polynomial_size,
-                        params.decomp_base_log,
-                        params.decomp_level_count,
-                        params.grouping_factor,
-                    );
-
-                    CompressedShortint128BootstrappingKey::MultiBit {
-                        bsk: seeded_bsk,
-                        thread_count,
-                        deterministic_execution: params.deterministic_execution,
-                    }
-                })
-            }
-        };
-
-        CompressedNoiseSquashingKey {
-            bootstrapping_key,
-            output_ciphertext_modulus: noise_squashing_parameters.ciphertext_modulus(),
-            message_modulus: noise_squashing_parameters.message_modulus(),
-            carry_modulus: noise_squashing_parameters.carry_modulus(),
-        }
-    }
-}
-
-impl CompressedNoiseSquashingKey {
-    pub fn new(
-        client_key: &ClientKey,
-        noise_squashing_private_key: &NoiseSquashingPrivateKey,
-    ) -> Self {
-        client_key.new_compressed_noise_squashing_key(noise_squashing_private_key)
-    }
-
-    pub fn from_raw_parts(
-        bootstrapping_key: CompressedShortint128BootstrappingKey,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        output_ciphertext_modulus: CoreCiphertextModulus<u128>,
-    ) -> Self {
-        Self {
-            bootstrapping_key,
-            message_modulus,
-            carry_modulus,
-            output_ciphertext_modulus,
-        }
-    }
-
-    pub fn decompress(&self) -> NoiseSquashingKey {
-        NoiseSquashingKey::from_raw_parts(
-            self.bootstrapping_key.decompress(),
-            self.message_modulus,
-            self.carry_modulus,
-            self.output_ciphertext_modulus,
-        )
-    }
-
-    pub fn bootstrapping_key(&self) -> &CompressedShortint128BootstrappingKey {
-        &self.bootstrapping_key
-    }
-
-    pub fn message_modulus(&self) -> MessageModulus {
-        self.message_modulus
-    }
-
-    pub fn carry_modulus(&self) -> CarryModulus {
-        self.carry_modulus
-    }
-
-    pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
-        self.output_ciphertext_modulus
-    }
-}
-
-impl ParameterSetConformant for CompressedNoiseSquashingKey {
-    type ParameterSet = NoiseSquashingKeyConformanceParams;
+impl<Scalar> ParameterSetConformant for CompressedShortint128BootstrappingKey<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    type ParameterSet = Shortint128BootstrappingKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self {
-            bootstrapping_key,
-            message_modulus,
-            carry_modulus,
-            output_ciphertext_modulus,
-        } = self;
-
-        match (bootstrapping_key, parameter_set) {
+        match (self, parameter_set) {
             (
-                CompressedShortint128BootstrappingKey::Classic {
+                Self::Classic {
                     bsk,
                     modulus_switch_noise_reduction_key,
                 },
-                NoiseSquashingKeyConformanceParams::Classic {
+                Shortint128BootstrappingKeyConformanceParams::Classic {
                     bootstrapping_key_params: expected_bootstrapping_key_params,
                     modulus_switch_noise_reduction_params:
                         expected_modulus_switch_noise_reduction_params,
-                    message_modulus: expected_message_modulus,
-                    carry_modulus: expected_carry_modulus,
                 },
             ) => {
                 let lwe_dimension = bsk.input_lwe_dimension();
@@ -308,28 +232,144 @@ impl ParameterSetConformant for CompressedNoiseSquashingKey {
                     (_, _) => false,
                 };
 
-                modulus_switch_key_ok
-                    && bsk.is_conformant(expected_bootstrapping_key_params)
-                    && *output_ciphertext_modulus
-                        == expected_bootstrapping_key_params.ciphertext_modulus
-                    && *message_modulus == *expected_message_modulus
-                    && *carry_modulus == *expected_carry_modulus
+                modulus_switch_key_ok && bsk.is_conformant(expected_bootstrapping_key_params)
             }
             (
-                CompressedShortint128BootstrappingKey::MultiBit { bsk, .. },
-                NoiseSquashingKeyConformanceParams::MultiBit {
+                Self::MultiBit { bsk, .. },
+                Shortint128BootstrappingKeyConformanceParams::MultiBit {
                     bootstrapping_key_params: expected_bootstrapping_key_params,
-                    message_modulus: expected_message_modulus,
-                    carry_modulus: expected_carry_modulus,
                 },
-            ) => {
-                bsk.is_conformant(expected_bootstrapping_key_params)
-                    && *output_ciphertext_modulus
-                        == expected_bootstrapping_key_params.ciphertext_modulus
-                    && *message_modulus == *expected_message_modulus
-                    && *carry_modulus == *expected_carry_modulus
-            }
+            ) => bsk.is_conformant(expected_bootstrapping_key_params),
             _ => false,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedNoiseSquashingKeyVersions)]
+pub struct CompressedNoiseSquashingKey {
+    atomic_pattern: CompressedAtomicPatternNoiseSquashingKey,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    output_ciphertext_modulus: CoreCiphertextModulus<u128>,
+}
+
+impl ClientKey {
+    pub fn new_compressed_noise_squashing_key(
+        &self,
+        noise_squashing_private_key: &NoiseSquashingPrivateKey,
+    ) -> CompressedNoiseSquashingKey {
+        let compute_parameters = self.parameters();
+
+        let noise_squashing_parameters = noise_squashing_private_key.noise_squashing_parameters();
+
+        assert_eq!(
+            compute_parameters.message_modulus(),
+            noise_squashing_parameters.message_modulus(),
+            "Mismatched MessageModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
+            compute_parameters.message_modulus(),
+            noise_squashing_parameters.message_modulus()
+        );
+        assert_eq!(
+            compute_parameters.carry_modulus(),
+            noise_squashing_parameters.carry_modulus(),
+            "Mismatched CarryModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
+            compute_parameters.carry_modulus(),
+            noise_squashing_parameters.carry_modulus()
+        );
+
+        let atomic_pattern = CompressedAtomicPatternNoiseSquashingKey::new(
+            &self.atomic_pattern,
+            noise_squashing_private_key,
+        );
+
+        CompressedNoiseSquashingKey {
+            atomic_pattern,
+            output_ciphertext_modulus: noise_squashing_parameters.ciphertext_modulus(),
+            message_modulus: noise_squashing_parameters.message_modulus(),
+            carry_modulus: noise_squashing_parameters.carry_modulus(),
+        }
+    }
+}
+
+impl CompressedNoiseSquashingKey {
+    pub fn new(
+        client_key: &ClientKey,
+        noise_squashing_private_key: &NoiseSquashingPrivateKey,
+    ) -> Self {
+        client_key.new_compressed_noise_squashing_key(noise_squashing_private_key)
+    }
+
+    pub fn from_raw_parts(
+        atomic_pattern: CompressedAtomicPatternNoiseSquashingKey,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        output_ciphertext_modulus: CoreCiphertextModulus<u128>,
+    ) -> Self {
+        Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        }
+    }
+
+    pub fn atomic_pattern(&self) -> &CompressedAtomicPatternNoiseSquashingKey {
+        &self.atomic_pattern
+    }
+
+    pub fn decompress(&self) -> NoiseSquashingKey {
+        NoiseSquashingKey::from_raw_parts(
+            self.atomic_pattern.decompress(),
+            self.message_modulus,
+            self.carry_modulus,
+            self.output_ciphertext_modulus,
+        )
+    }
+
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.message_modulus
+    }
+
+    pub fn carry_modulus(&self) -> CarryModulus {
+        self.carry_modulus
+    }
+
+    pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
+        self.output_ciphertext_modulus
+    }
+}
+
+impl ParameterSetConformant for CompressedNoiseSquashingKey {
+    type ParameterSet = NoiseSquashingKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
+        let bsk_conformant = match (atomic_pattern, parameter_set.atomic_pattern) {
+            (
+                CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std),
+                AtomicPatternKind::Standard(_),
+            ) => compressed_std
+                .bootstrapping_key()
+                .is_conformant(&parameter_set.pbs_params),
+            (
+                CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(compressed_ks32),
+                AtomicPatternKind::KeySwitch32,
+            ) => compressed_ks32
+                .bootstrapping_key()
+                .is_conformant(&parameter_set.pbs_params),
+            _ => false,
+        };
+
+        bsk_conformant
+            && *output_ciphertext_modulus == parameter_set.output_ciphertext_modulus
+            && *message_modulus == parameter_set.message_modulus
+            && *carry_modulus == parameter_set.carry_modulus
     }
 }
