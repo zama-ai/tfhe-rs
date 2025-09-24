@@ -1854,13 +1854,6 @@ where
     KeyCont: Container<Element = Scalar>,
 {
     let exclusive_max = crs.exclusive_max_noise();
-    if Scalar::BITS < 64 && (1u64 << Scalar::BITS) >= exclusive_max {
-        return Err(
-            "The given random distribution would create random values out \
-            of the expected bounds of given to the CRS"
-                .into(),
-        );
-    }
 
     if mask_noise_distribution.contains(exclusive_max.cast_into()) {
         // The proof expect noise bound between [-b, b) (aka -b..b)
