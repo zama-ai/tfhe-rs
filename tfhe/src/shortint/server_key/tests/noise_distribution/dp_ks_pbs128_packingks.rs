@@ -13,6 +13,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{
     NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
 };
+use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
     NoiseSquashingKey, NoiseSquashingPrivateKey, Shortint128BootstrappingKey,
 };
@@ -23,7 +24,7 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, NoiseSquashingCompressionParameters};
-use crate::shortint::server_key::{ModulusSwitchConfiguration, ServerKey};
+use crate::shortint::server_key::{ModulusSwitchConfiguration, ServerKey, StandardServerKeyView};
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -256,10 +257,15 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
 
     let max_scalar_mul = sks.max_noise_level.get();
 
-    match &sks.atomic_pattern {
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            let ksk = &standard_atomic_pattern_server_key.key_switching_key;
-            let bsk = noise_squashing_key.bootstrapping_key();
+    match noise_squashing_key.atomic_pattern() {
+        AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => todo!(),
+        AtomicPatternNoiseSquashingKey::Standard(std_nsk) => {
+            let std_server_key: StandardServerKeyView = sks
+                .as_view()
+                .try_into()
+                .expect("Server key and noise squashing key are not compatible");
+            let ksk = &std_server_key.atomic_pattern.key_switching_key;
+            let bsk = std_nsk.bootstrapping_key();
             let (fbsk, drift_key) = match bsk {
                 Shortint128BootstrappingKey::Classic {
                     bsk,
@@ -331,10 +337,6 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
 
             assert_eq!(after_packing.as_view(), extracted.as_view());
         }
-        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => {
-            todo!();
-        }
-        AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
     }
 }
 
@@ -429,8 +431,15 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
     };
 
+    let nsk = match noise_squashing_key.atomic_pattern() {
+        AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+        AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+            todo!()
+        }
+    };
+
     let (bsk_128, drift_key) = {
-        let (bsk, drift_key) = match noise_squashing_key.bootstrapping_key() {
+        let (bsk, drift_key) = match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
                 bsk,
                 modulus_switch_noise_reduction_key,
@@ -667,7 +676,14 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         noise_squashing_compression_params,
     );
 
-    let fbsk_128 = match noise_squashing_key.bootstrapping_key() {
+    let nsk = match noise_squashing_key.atomic_pattern() {
+        AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+        AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+            todo!()
+        }
+    };
+
+    let fbsk_128 = match nsk.bootstrapping_key() {
         Shortint128BootstrappingKey::Classic {
             bsk,
             modulus_switch_noise_reduction_key: _,
@@ -679,7 +695,14 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
     assert!(noise_simulation_packing_key
         .matches_actual_pksk(noise_squashing_compression_key.packing_key_switching_key()));
 
-    let br_input_modulus_log = noise_squashing_key
+    let nsk = match noise_squashing_key.atomic_pattern() {
+        AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
+        AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
+            todo!()
+        }
+    };
+
+    let br_input_modulus_log = nsk
         .bootstrapping_key()
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();

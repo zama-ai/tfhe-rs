@@ -1,3 +1,4 @@
+pub mod atomic_pattern;
 mod compressed_server_key;
 mod private_key;
 mod server_key;
@@ -10,5 +11,6 @@ pub use compressed_server_key::{
 pub use private_key::NoiseSquashingPrivateKey;
 pub(crate) use private_key::NoiseSquashingPrivateKeyView;
 pub use server_key::{
-    NoiseSquashingKey, NoiseSquashingKeyConformanceParams, Shortint128BootstrappingKey,
+    GenericNoiseSquashingKey, NoiseSquashingKey, NoiseSquashingKeyConformanceParams,
+    Shortint128BootstrappingKey, StandardNoiseSquashingKey,
 };
