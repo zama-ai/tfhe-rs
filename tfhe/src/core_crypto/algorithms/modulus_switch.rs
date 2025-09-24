@@ -186,7 +186,7 @@ impl<
             .is_compatible_with_native_modulus());
         assert_eq!(self.lwe_size(), output.lwe_size());
         // Mod switched but the noise is to be interpreted with respect to the input modulus, as
-        // strictly the operation adding the noise is the rounding under the original rounding
+        // strictly the operation adding the noise is the rounding under the original modulus
         assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
 
         let lwe_mod_switched = lwe_ciphertext_centered_binary_modulus_switch::<Scalar, Scalar, _>(
