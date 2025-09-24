@@ -22,6 +22,14 @@ fn test_multi_bit_noise_squashing_ci_run_filter() {
     );
 }
 
+#[test]
+fn test_ks32_noise_squashing_ci_run_filter() {
+    test_noise_squashing(
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+}
+
 fn test_noise_squashing(
     classic_params: impl Into<AtomicPatternParameters>,
     noise_squashing_params: NoiseSquashingParameters,

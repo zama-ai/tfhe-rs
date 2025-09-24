@@ -6,12 +6,21 @@ use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstr
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
+use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::CompressedShortint128BootstrappingKey;
 use crate::shortint::server_key::CompressedModulusSwitchConfiguration;
 
 impl CompressedNoiseSquashingKey {
     pub fn decompress_to_cuda(&self, streams: &CudaStreams) -> CudaNoiseSquashingKey {
-        let bootstrapping_key = match self.key.bootstrapping_key() {
+        let compressed_bsk =
+            if let CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_nsk) =
+                self.key.atomic_pattern()
+            {
+                compressed_nsk.bootstrapping_key()
+            } else {
+                panic!("GPU only supports the Standard atomic pattern")
+            };
+        let bootstrapping_key = match compressed_bsk {
             CompressedShortint128BootstrappingKey::Classic {
                 bsk: seeded_bsk,
                 modulus_switch_noise_reduction_key,
