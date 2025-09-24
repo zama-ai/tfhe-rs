@@ -84,6 +84,11 @@ pub struct Args {
     #[arg(long, default_value = "Patient")]
     flush_behaviour: FlushBehaviour,
 
+    /// Force parallel IOp implementations or not. By default this is derived
+    /// from the batch size.
+    #[arg(long, default_value = None)]
+    parallel: Option<bool>,
+
     /// Integer bit width
     #[arg(long, default_value_t = 8)]
     integer_w: usize,
@@ -168,6 +173,7 @@ fn main() -> Result<(), anyhow::Error> {
             use_tiers: args.use_tiers,
             flush: args.flush,
             flush_behaviour: args.flush_behaviour,
+            parallel: None,
         }),
         cur_op_cfg: OpCfg::default(),
         pe_cfg,
