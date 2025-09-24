@@ -186,6 +186,7 @@ impl FromRtl for HpuPcParameters {
         let ksk_pc = *hbm_pc_fields.get("ksk_pc").expect("Unknown field") as usize;
         let bsk_pc = *hbm_pc_fields.get("bsk_pc").expect("Unknown field") as usize;
         let pem_pc = *hbm_pc_fields.get("pem_pc").expect("Unknown field") as usize;
+        let glwe_pc = *hbm_pc_fields.get("glwe_pc").expect("Unknown field") as usize;
 
         // Extract bus width for each channel
         let ksk_bytes_w = {
@@ -229,6 +230,7 @@ impl FromRtl for HpuPcParameters {
             ksk_pc,
             bsk_pc,
             pem_pc,
+            glwe_pc,
             ksk_bytes_w,
             bsk_bytes_w,
             pem_bytes_w,

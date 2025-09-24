@@ -37,6 +37,7 @@
     bsk_bytes_w= 64
     pem_pc= 2
     pem_bytes_w= 64
+    glwe_pc= 1
     glwe_bytes_w= 64
 [regf_params]
     reg_nb= 64
