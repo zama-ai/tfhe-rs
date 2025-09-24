@@ -24,7 +24,8 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_div_rem_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, bool is_signed, int_div_rem_memory<Torus> **mem_ptr,
-    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
+    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory)
+{
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_div_rem_memory<Torus>(streams, gpu_indexes, gpu_count,
@@ -41,9 +42,11 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
     uint64_t *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr) {
+    unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr)
+{
 
-  if (gpu_count < 4) {
+  if (gpu_count < 4)
+  {
     PANIC("GPU count should be greater than 4 when using div_rem_2_2");
   }
   // alias
@@ -57,9 +60,27 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   auto divisor_gpu_1 = mem_ptr->divisor_gpu_1;
   auto divisor_gpu_2 = mem_ptr->divisor_gpu_2;
 
+  auto make_view = [](CudaModulusSwitchNoiseReductionKeyFFI const *src, size_t i)
+  {
+    CudaModulusSwitchNoiseReductionKeyFFI v;
+    v.ptr = src->ptr + i;
+    v.num_zeros = src->num_zeros;
+    v.ms_bound = src->ms_bound;
+    v.ms_r_sigma = src->ms_r_sigma;
+    v.ms_input_variance = src->ms_input_variance;
+    return v;
+  };
+
+  CudaModulusSwitchNoiseReductionKeyFFI nrk0 = make_view(ms_noise_reduction_key, 0);
+  CudaModulusSwitchNoiseReductionKeyFFI nrk1 = make_view(ms_noise_reduction_key, 1);
+  CudaModulusSwitchNoiseReductionKeyFFI nrk2 = make_view(ms_noise_reduction_key, 2);
+  CudaModulusSwitchNoiseReductionKeyFFI nrk3 = make_view(ms_noise_reduction_key, 3);
+
+  CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_keys[4] = {
+      &nrk0, &nrk1, &nrk2, &nrk3};
+
   // gpu[0] -> gpu[0]
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                     remainder_gpu_0, numerator);
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_0, numerator);
 
   // gpu[0] -> gpu[1]
   copy_radix_ciphertext_async<Torus>(streams[1], gpu_indexes[1],
@@ -77,24 +98,6 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
   copy_radix_ciphertext_async<Torus>(streams[2], gpu_indexes[2], divisor_gpu_2,
                                      divisor);
 
-  // // print remainders on different gpu
-  // cuda_set_device(0);
-  // print_body<Torus>("remainder_gpu_0", (Torus *)remainder_gpu_0->ptr,
-  //                   remainder_gpu_0->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-  // cuda_set_device(1);
-  // print_body<Torus>("remainder_gpu_1", (Torus *)remainder_gpu_1->ptr,
-  //                   remainder_gpu_1->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-  // cuda_set_device(2);
-  // print_body<Torus>("remainder_gpu_2", (Torus *)remainder_gpu_2->ptr,
-  //                   remainder_gpu_2->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-  // cuda_set_device(3);
-  // print_body<Torus>("remainder_gpu_3", (Torus *)remainder_gpu_3->ptr,
-  //                   remainder_gpu_3->num_radix_blocks,
-  //                  radix_params.big_lwe_dimension, 576460752303423488ULL);
-
   // gpu[0]
   set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                quotient, 0, num_blocks);
@@ -110,7 +113,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       mem_ptr->d2, divisor_gpu_1, &streams[1], &gpu_indexes[1]);
   host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
       &streams[1], &gpu_indexes[1], 1, mem_ptr->d2, 1, mem_ptr->shift_mem,
-      &bsks[1], &ksks[1], ms_noise_reduction_key,
+      &bsks[1], &ksks[1], ms_noise_reduction_keys[1],
       mem_ptr->d2->num_radix_blocks);
 
   // Computes 3*d = 4*d - d using block shift and subtraction on gpu[0]
@@ -123,30 +126,26 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                                                mem_ptr->d3, 0, 1);
   host_sub_and_propagate_single_carry(
       &streams[0], &gpu_indexes[0], 1, mem_ptr->d3, mem_ptr->tmp_gpu_0, nullptr,
-      nullptr, mem_ptr->sub_and_propagate_mem, bsks, ksks,
-      ms_noise_reduction_key, outputFlag::FLAG_NONE, 0);
+      nullptr, mem_ptr->sub_and_propagate_mem, &bsks[0], &ksks[0],
+      ms_noise_reduction_keys[0], outputFlag::FLAG_NONE, 0);
 
-  // for (uint j = 0; j < 3; j++) {
-  //   cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-  // }
 
-  // cuda_set_device(2);
-  // print_body<Torus>("d1", (Torus *)mem_ptr->d1->ptr,
-  //                   mem_ptr->d1->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
-  // cuda_set_device(1);
-  // print_body<Torus>("d2", (Torus *)mem_ptr->d2->ptr,
-  //                   mem_ptr->d2->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
-  // cuda_set_device(0);
-  // print_body<Torus>("d3", (Torus *)mem_ptr->d3->ptr,
-  //                   mem_ptr->d3->num_radix_blocks,
-  //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
-  for (int block_index = num_blocks - 1; block_index >= 0; block_index--) {
-    // printf("block_index: %d\n", block_index);
+  // +-----------------+-----------------+-----------------+-----------------+
+  // |     GPU[0]      |     GPU[1]      |     GPU[2]      |     GPU[3]      |
+  // +-----------------+-----------------+-----------------+-----------------+
+  // | d3              | d2              | d1              | -               |
+  // | low3            | low2            | low1            | -               |
+  // | rem3            | rem2            | rem1            | rem0            |
+  // | sub_result_1    | sub_result_2    | sub_result_3    | -               |
+  // | s_1_overflowed  | s_2_overflowed  | s_3_overflowed  | -               |
+  // | cmp_1           | cmp_2           | cmp_3           | -               |
+  // | r3              | r2              | r1              | -               |
+  // | o3              | o2              | o1              | -               |
+  // | c3 = !o3        | c2 = !o2 + o3   | c1 = !o1 + o2   | c0 = o1         |
+  // | z_o_not_1_lut_1 | z_o_not_2_lut_1 | z_o_not_2_lut_2 | z_o_not_1_lut_2 |
+  // +-----------------+-----------------+-----------------+-----------------+
+  for (int block_index = num_blocks - 1; block_index >= 0; block_index--)
+  {
 
     uint32_t slice_len = num_blocks - block_index;
 
@@ -154,9 +153,11 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                               CudaRadixCiphertextFFI *xd,
                               CudaRadixCiphertextFFI *rem,
                               CudaRadixCiphertextFFI *cur_remainder,
-                              size_t gpu_index, bool init_low) {
+                              size_t gpu_index, bool init_low)
+    {
       rem->num_radix_blocks = slice_len;
-      if (init_low) {
+      if (init_low)
+      {
         low->num_radix_blocks = slice_len;
         copy_radix_ciphertext_slice_async<Torus>(streams[gpu_index],
                                                  gpu_indexes[gpu_index], low, 0,
@@ -175,33 +176,6 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     init_low_rem_f(mem_ptr->low3, mem_ptr->d3, mem_ptr->rem3, remainder_gpu_0,
                    0, true);
 
-    // cuda_set_device(3);
-    // print_body<Torus>("rem0", (Torus *)mem_ptr->rem0->ptr,
-    //                   mem_ptr->rem0->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(2);
-    // print_body<Torus>("low1", (Torus *)mem_ptr->low1->ptr,
-    //                   mem_ptr->low1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("rem1", (Torus *)mem_ptr->rem1->ptr,
-    //                   mem_ptr->rem1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("low2", (Torus *)mem_ptr->low2->ptr,
-    //                   mem_ptr->low2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("rem2", (Torus *)mem_ptr->rem2->ptr,
-    //                   mem_ptr->rem2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
-    // cuda_set_device(0);
-    // print_body<Torus>("low3", (Torus *)mem_ptr->low3->ptr,
-    //                   mem_ptr->low3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("rem3", (Torus *)mem_ptr->rem3->ptr,
-    //                   mem_ptr->rem3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
     auto sub_result_f = [&](cudaStream_t const *streams,
                             uint32_t const *gpu_indexes, size_t gpu_index,
                             CudaRadixCiphertextFFI *sub_result,
@@ -209,7 +183,8 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                             int_borrow_prop_memory<Torus> *overflow_sub_mem,
                             CudaRadixCiphertextFFI *low,
                             CudaRadixCiphertextFFI *rem, Torus *first_indexes,
-                            Torus *second_indexes, Torus *scalar_indexes) {
+                            Torus *second_indexes, Torus *scalar_indexes)
+    {
       uint32_t compute_overflow = 1;
       uint32_t uses_input_borrow = 0;
       sub_result->num_radix_blocks = low->num_radix_blocks;
@@ -220,7 +195,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           &streams[gpu_index], &gpu_indexes[gpu_index], 1, sub_result, rem, low,
           sub_overflowed, (const CudaRadixCiphertextFFI *)nullptr,
           overflow_sub_mem, &bsks[gpu_index], &ksks[gpu_index],
-          ms_noise_reduction_key, compute_overflow, uses_input_borrow);
+          ms_noise_reduction_keys[gpu_index], compute_overflow, uses_input_borrow);
     };
 
     auto cmp_f = [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -228,33 +203,38 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
                      CudaRadixCiphertextFFI *out_boolean_block,
                      CudaRadixCiphertextFFI *comparison_blocks,
                      CudaRadixCiphertextFFI *d,
-                     int_comparison_buffer<Torus> *comparison_buffer) {
+                     int_comparison_buffer<Torus> *comparison_buffer)
+    {
       CudaRadixCiphertextFFI *d_msb = new CudaRadixCiphertextFFI;
       uint32_t slice_start = num_blocks - block_index;
       uint32_t slice_end = d->num_radix_blocks;
       as_radix_ciphertext_slice<Torus>(d_msb, d, slice_start, slice_end);
       comparison_blocks->num_radix_blocks = d_msb->num_radix_blocks;
-      if (d_msb->num_radix_blocks == 0) {
+      if (d_msb->num_radix_blocks == 0)
+      {
         cuda_memset_async((Torus *)out_boolean_block->ptr, 0,
                           sizeof(Torus) *
                               (out_boolean_block->lwe_dimension + 1),
                           streams[gpu_index], gpu_indexes[gpu_index]);
-      } else {
+      }
+      else
+      {
         host_compare_blocks_with_zero<Torus>(
             &streams[gpu_index], &gpu_indexes[gpu_index], 1, comparison_blocks,
             d_msb, comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
-            ms_noise_reduction_key, d_msb->num_radix_blocks,
+            ms_noise_reduction_keys[gpu_index], d_msb->num_radix_blocks,
             comparison_buffer->is_zero_lut);
         are_all_comparisons_block_true(
             &streams[gpu_index], &gpu_indexes[gpu_index], 1, out_boolean_block,
             comparison_blocks, comparison_buffer, &bsks[gpu_index],
-            &ksks[gpu_index], ms_noise_reduction_key,
+            &ksks[gpu_index], ms_noise_reduction_keys[gpu_index],
             comparison_blocks->num_radix_blocks);
 
         host_negation<Torus>(streams[gpu_index], gpu_indexes[gpu_index],
                              (Torus *)out_boolean_block->ptr,
                              (Torus *)out_boolean_block->ptr,
                              radix_params.big_lwe_dimension, 1);
+
         // we calculate encoding because this block works only for
         // message_modulus = 4 and carry_modulus = 4.
         const Torus encoded_scalar = 1ULL << (sizeof(Torus) * 8 - 5);
@@ -266,9 +246,11 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
       delete d_msb;
     };
 
-    for (uint j = 0; j < 3; j++) {
+    for (uint j = 0; j < 3; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
+
     size_t indexes_id = mem_ptr->rem3->num_radix_blocks - 1;
     sub_result_f(streams, gpu_indexes, 0, mem_ptr->sub_result_1,
                  mem_ptr->sub_1_overflowed, mem_ptr->overflow_sub_mem_1,
@@ -299,41 +281,8 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           mem_ptr->comparison_blocks_3, mem_ptr->d1,
           mem_ptr->comparison_buffer_3);
 
-    // cuda_set_device(2);
-    // print_body<Torus>("sub_result_3", (Torus *)mem_ptr->sub_result_3->ptr,
-    //                   mem_ptr->sub_result_3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("sub_3_overflowed",
-    //                   (Torus *)mem_ptr->sub_3_overflowed->ptr,
-    //                   mem_ptr->sub_3_overflowed->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("cmp_3", (Torus *)mem_ptr->cmp_3->ptr,
-    //                   mem_ptr->cmp_3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("sub_result_2", (Torus *)mem_ptr->sub_result_2->ptr,
-    //                   mem_ptr->sub_result_2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("sub_2_overflowed",
-    //                   (Torus *)mem_ptr->sub_2_overflowed->ptr,
-    //                   mem_ptr->sub_2_overflowed->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("cmp_2", (Torus *)mem_ptr->cmp_2->ptr,
-    //                   mem_ptr->cmp_2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(0);
-    // print_body<Torus>("sub_result_1", (Torus *)mem_ptr->sub_result_1->ptr,
-    //                   mem_ptr->sub_result_1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("sub_1_overflowed",
-    //                   (Torus *)mem_ptr->sub_1_overflowed->ptr,
-    //                   mem_ptr->sub_1_overflowed->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // print_body<Torus>("cmp_1", (Torus *)mem_ptr->cmp_1->ptr,
-    //                   mem_ptr->cmp_1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
-    for (uint j = 0; j < 3; j++) {
+    for (uint j = 0; j < 3; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
@@ -345,114 +294,18 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     auto o2 = mem_ptr->sub_2_overflowed;
     auto o3 = mem_ptr->sub_1_overflowed;
 
-    // +-----------------+-----------------+-----------------+-----------------+
-    // |     GPU[0]      |     GPU[1]      |     GPU[2]      |     GPU[3]      |
-    // +-----------------+-----------------+-----------------+-----------------+
-    // | d3              | d2              | d1              | -               |
-    // | low3            | low2            | low1            | -               |
-    // | rem3            | rem2            | rem1            | rem0            |
-    // | sub_result_1    | sub_result_2    | sub_result_3    | -               |
-    // | s_1_overflowed  | s_2_overflowed  | s_3_overflowed  | -               |
-    // | cmp_1           | cmp_2           | cmp_3           | -               |
-    // | r3              | r2              | r1              | -               |
-    // | o3              | o2              | o1              | -               |
-    // | c3 = !o3        | c2 = !o2 + o3   | c1 = !o1 + o2   | c0 = o1         |
-    // | z_o_not_1_lut_1 | z_o_not_2_lut_1 | z_o_not_2_lut_2 | z_o_not_1_lut_2 |
-    // +-----------------+-----------------+-----------------+-----------------+
-    // auto print_degrees = [](CudaRadixCiphertextFFI *radix, const char* name) {
-    //   printf("%s degrees: ", name);
-    //   for (int i = 0; i < radix->num_radix_blocks; i++) {
-    //     printf("%d ", radix->degrees[i]);
-    //   }
-    //   printf("\n");
-    // };
-
-    // auto print_noise = [](CudaRadixCiphertextFFI *radix, const char* name) {
-    //   printf("%s noise: ", name);
-    //   for (int i = 0; i < radix->num_radix_blocks; i++) {
-    //     printf("%d ", radix->noise_levels[i]);
-    //   }
-    //   printf("\n");
-    // };
-    // print_degrees(remainder_gpu_0, "remainder_gpu_0");
-    // print_degrees(remainder_gpu_1, "remainder_gpu_1");
-    // print_degrees(remainder_gpu_2, "remainder_gpu_2");
-    // print_degrees(remainder_gpu_3, "remainder_gpu_3");
-    // print_degrees(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
-    // print_degrees(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
-    // print_degrees(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
-    // print_degrees(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
-    // print_degrees(mem_ptr->low1, "low1");
-    // print_degrees(mem_ptr->low2, "low2");
-    // print_degrees(mem_ptr->low3, "low3");
-    // print_degrees(mem_ptr->rem0, "rem0");
-    // print_degrees(mem_ptr->rem1, "rem1");
-    // print_degrees(mem_ptr->rem2, "rem2");
-    // print_degrees(mem_ptr->rem3, "rem3");
-    // print_degrees(mem_ptr->sub_result_1, "sub_result_1");
-    // print_degrees(mem_ptr->sub_result_2, "sub_result_2");
-    // print_degrees(mem_ptr->sub_result_3, "sub_result_3");
-    // print_degrees(mem_ptr->q1, "q1");
-    // print_degrees(mem_ptr->q2, "q2");
-    // print_degrees(mem_ptr->q3, "q3");
-    // print_degrees(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
-    // print_degrees(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
-    // print_degrees(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
-    // print_degrees(mem_ptr->cmp_1, "cmp_1");
-    // print_degrees(mem_ptr->cmp_2, "cmp_2");
-    // print_degrees(mem_ptr->cmp_3, "cmp_3");
-    // print_degrees(mem_ptr->c0, "c0");
-
-    // print_noise(remainder_gpu_0, "remainder_gpu_0");
-    // print_noise(remainder_gpu_1, "remainder_gpu_1");
-    // print_noise(remainder_gpu_2, "remainder_gpu_2");
-    // print_noise(remainder_gpu_3, "remainder_gpu_3");
-    // print_noise(mem_ptr->tmp_gpu_0, "tmp_gpu_0");
-    // print_noise(mem_ptr->tmp_gpu_1, "tmp_gpu_1");
-    // print_noise(mem_ptr->tmp_gpu_2, "tmp_gpu_2");
-    // print_noise(mem_ptr->tmp_gpu_3, "tmp_gpu_3");
-    // print_noise(mem_ptr->low1, "low1");
-    // print_noise(mem_ptr->low2, "low2");
-    // print_noise(mem_ptr->low3, "low3");
-    // print_noise(mem_ptr->rem0, "rem0");
-    // print_noise(mem_ptr->rem1, "rem1");
-    // print_noise(mem_ptr->rem2, "rem2");
-    // print_noise(mem_ptr->rem3, "rem3");
-    // print_noise(mem_ptr->sub_result_1, "sub_result_1");
-    // print_noise(mem_ptr->sub_result_2, "sub_result_2");
-    // print_noise(mem_ptr->sub_result_3, "sub_result_3");
-    // print_noise(mem_ptr->q1, "q1");
-    // print_noise(mem_ptr->q2, "q2");
-    // print_noise(mem_ptr->q3, "q3");
-    // print_noise(mem_ptr->sub_1_overflowed, "sub_1_overflowed");
-    // print_noise(mem_ptr->sub_2_overflowed, "sub_2_overflowed");
-    // print_noise(mem_ptr->sub_3_overflowed, "sub_3_overflowed");
-    // print_noise(mem_ptr->cmp_1, "cmp_1");
-    // print_noise(mem_ptr->cmp_2, "cmp_2");
-    // print_noise(mem_ptr->cmp_3, "cmp_3");
-    // print_noise(mem_ptr->c0, "c0");
     // used as a bitor
     host_integer_radix_bitop_kb(&streams[0], &gpu_indexes[0], 1, o3, o3,
                                 mem_ptr->cmp_1, mem_ptr->bitor_mem_1, &bsks[0],
-                                &ksks[0], ms_noise_reduction_key);
+                                &ksks[0], ms_noise_reduction_keys[0]);
     // used as a bitor
     host_integer_radix_bitop_kb(&streams[1], &gpu_indexes[1], 1, o2, o2,
                                 mem_ptr->cmp_2, mem_ptr->bitor_mem_2, &bsks[1],
-                                &ksks[1], ms_noise_reduction_key);
+                                &ksks[1], ms_noise_reduction_keys[1]);
     // used as a bitor
     host_integer_radix_bitop_kb(&streams[2], &gpu_indexes[2], 1, o1, o1,
                                 mem_ptr->cmp_3, mem_ptr->bitor_mem_3, &bsks[2],
-                                &ksks[2], ms_noise_reduction_key);
-    // cuda_set_device(2);
-    // print_body<Torus>("o1 after bitor", (Torus *)o1->ptr, o1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("o2 after bitor", (Torus *)o2->ptr, o2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(0);
-    // print_body<Torus>("o3 after bitor", (Torus *)o3->ptr, o3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
+                                &ksks[2], ms_noise_reduction_keys[2]);
 
     // cmp_1, cmp_2, cmp_3 are not needed anymore, we can reuse them as c3,
     // c2, c1. c0 is allocated on gpu[3], we take it from mem_ptr.
@@ -470,9 +323,11 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     o2_gpu_2->num_radix_blocks = o2->num_radix_blocks;
     o1_gpu_3->num_radix_blocks = o1->num_radix_blocks;
 
-    for (uint j = 0; j < 4; j++) {
+    for (uint j = 0; j < 4; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
+
     copy_radix_ciphertext_async<Torus>(streams[1], gpu_indexes[1], o3_gpu_1,
                                        o3);
     copy_radix_ciphertext_async<Torus>(streams[2], gpu_indexes[2], o2_gpu_2,
@@ -514,24 +369,12 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     copy_radix_ciphertext_slice_async<Torus>(streams[3], gpu_indexes[3],
                                              mem_ptr->c0, 0, 1, o1_gpu_3, 0, 1);
 
-    // cuda_set_device(0);
-    // print_body<Torus>("c3", (Torus *)c3->ptr, c3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("c2", (Torus *)c2->ptr, c2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(2);
-    // print_body<Torus>("c1", (Torus *)c1->ptr, c1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(3);
-    // print_body<Torus>("c0", (Torus *)c0->ptr, c0->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
     auto conditional_update = [&](cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes, size_t gpu_index,
                                   CudaRadixCiphertextFFI *cx,
                                   CudaRadixCiphertextFFI *rx,
-                                  int_radix_lut<Torus> *lut, Torus factor) {
+                                  int_radix_lut<Torus> *lut, Torus factor)
+    {
       auto rx_list = to_lwe_ciphertext_list(rx);
       host_cleartext_multiplication<Torus>(streams[gpu_index],
                                            gpu_indexes[gpu_index],
@@ -540,11 +383,12 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
           streams[gpu_index], gpu_indexes[gpu_index], rx, rx, cx, 4, 4);
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           &streams[gpu_index], &gpu_indexes[gpu_index], 1, rx, rx,
-          &bsks[gpu_index], &ksks[gpu_index], ms_noise_reduction_key, lut,
+          &bsks[gpu_index], &ksks[gpu_index], ms_noise_reduction_keys[gpu_index], lut,
           rx->num_radix_blocks);
     };
 
-    for (uint j = 0; j < 4; j++) {
+    for (uint j = 0; j < 4; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
@@ -558,66 +402,37 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     conditional_update(streams, gpu_indexes, 3, c0, mem_ptr->rem0,
                        mem_ptr->zero_out_if_not_1_lut_2, 2);
 
-    // cuda_set_device(0);
-    // print_body<Torus>("r3 after conditional update", (Torus *)r3->ptr,
-    //                   r3->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("r2 after conditional update", (Torus *)r2->ptr,
-    //                   r2->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // cuda_set_device(2);
-    // print_body<Torus>("r1 after conditional update", (Torus *)r1->ptr,
-    //                   r1->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // cuda_set_device(3);
-    // print_body<Torus>("rem0 after conditional update",
-    //                   (Torus *)mem_ptr->rem0->ptr,
-    //                   mem_ptr->rem0->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-
     // calculate quotient bits GPU[2]
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         &mem_ptr->sub_streams_1[2], &gpu_indexes[2], 1, mem_ptr->q1, c1,
-        &bsks[2], &ksks[2], ms_noise_reduction_key, mem_ptr->quotient_lut_1,
+        &bsks[2], &ksks[2], ms_noise_reduction_keys[2], mem_ptr->quotient_lut_1,
         1);
     // calculate quotient bits GPU[1]
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         &mem_ptr->sub_streams_1[1], &gpu_indexes[1], 1, mem_ptr->q2, c2,
-        &bsks[1], &ksks[1], ms_noise_reduction_key, mem_ptr->quotient_lut_2,
+        &bsks[1], &ksks[1], ms_noise_reduction_keys[1], mem_ptr->quotient_lut_2,
         1);
     // calculate quotient bits GPU[0]
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         &mem_ptr->sub_streams_1[0], &gpu_indexes[0], 1, mem_ptr->q3, c3,
-        &bsks[0], &ksks[0], ms_noise_reduction_key, mem_ptr->quotient_lut_3, 1);
-   
-    for (uint j = 0; j < 4; j++) {
+        &bsks[0], &ksks[0], ms_noise_reduction_keys[0], mem_ptr->quotient_lut_3, 1);
+
+    for (uint j = 0; j < 4; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
-
-
-
-    // cuda_set_device(0);
-    // print_body<Torus>("q3", (Torus *)mem_ptr->q3->ptr, mem_ptr->q3->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(1);
-    // print_body<Torus>("q2", (Torus *)mem_ptr->q2->ptr, mem_ptr->q2->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
-    // cuda_set_device(2);
-    // print_body<Torus>("q1", (Torus *)mem_ptr->q1->ptr, mem_ptr->q1->num_radix_blocks,
-    //                   radix_params.big_lwe_dimension, 576460752303423488ULL);
 
     // We need to accumulate rem, r1, r2, and r3, but each buffer currently lives on a different GPU.
     // To gather them on GPU[0], we’ll **reuse** buffers already allocated on GPU[0]. At this point,
     // the contents of rem3, tmp_gpu_0, and low3 are no longer needed, so it’s safe to repurpose them.
     // Aliases for the GPU[0] destinations:
-    auto r3_gpu_0  = r3;                   // reuse: destination for r3 on GPU[0]
-    auto r2_gpu_0  = mem_ptr->tmp_gpu_0;   // reuse: destination for r2 on GPU[0]
-    auto r1_gpu_0  = mem_ptr->low3;        // reuse: destination for r1 on GPU[0]
-    auto rem_gpu_0 = mem_ptr->rem3;        // reuse: destination for rem on GPU[0]
-    
-    r2_gpu_0->num_radix_blocks  = r2->num_radix_blocks;
+    auto r3_gpu_0 = r3;                 // reuse: destination for r3 on GPU[0]
+    auto r2_gpu_0 = mem_ptr->tmp_gpu_0; // reuse: destination for r2 on GPU[0]
+    auto r1_gpu_0 = mem_ptr->low3;      // reuse: destination for r1 on GPU[0]
+    auto rem_gpu_0 = mem_ptr->rem3;     // reuse: destination for rem on GPU[0]
+
+    r2_gpu_0->num_radix_blocks = r2->num_radix_blocks;
     // r3 is already on GPU 0, so no need to copy it.
 
     // Copy r2 from GPU[1] to GPU[0]
@@ -629,27 +444,13 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     // Copy rem from GPU[3] to GPU[0]
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, mem_ptr->rem0);
 
-    // We do the same to accumulate quotient bits q1, q2 and q3. q3 is already on GPU[0]. 
+    // We do the same to accumulate quotient bits q1, q2 and q3. q3 is already on GPU[0].
     // To copy q1 and q2 we will reuse buffers allocated on GPU[0]: sub_1_overflowed and cmp_1.
-    auto q3_gpu_0 = mem_ptr->q3;                 // q3 is already on GPU[0]
-    auto q2_gpu_0 = mem_ptr->sub_1_overflowed;   // reuse: destination for q2 on GPU[0]
-    auto q1_gpu_0 = mem_ptr->cmp_1;              // reuse: destination for q1 on GPU[0]
+    auto q3_gpu_0 = mem_ptr->q3;               // q3 is already on GPU[0]
+    auto q2_gpu_0 = mem_ptr->sub_1_overflowed; // reuse: destination for q2 on GPU[0]
+    auto q1_gpu_0 = mem_ptr->cmp_1;            // reuse: destination for q1 on GPU[0]
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q2_gpu_0, mem_ptr->q2);
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], q1_gpu_0, mem_ptr->q1);
-
-    // cuda_set_device(0);
-    // print_body<Torus>("r3_gpu_0 after copy", (Torus *)r3_gpu_0->ptr,
-    //                   r3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // print_body<Torus>("r2_gpu_0 after copy", (Torus *)r2_gpu_0->ptr, 
-    //                   r2_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // print_body<Torus>("r1_gpu_0 after copy", (Torus *)r1_gpu_0->ptr, 
-    //                   r1_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL); 
-    // print_body<Torus>("rem_gpu_0 after copy", (Torus *)rem_gpu_0->ptr,
-    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
 
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r3_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
     host_addition<Torus>(streams[0], gpu_indexes[0], rem_gpu_0, rem_gpu_0, r2_gpu_0, rem_gpu_0->num_radix_blocks, 4, 4);
@@ -657,15 +458,9 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
 
     host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q2_gpu_0, 1, 4, 4);
     host_addition<Torus>(streams[0], gpu_indexes[0], q3_gpu_0, q3_gpu_0, q1_gpu_0, 1, 4, 4);
-    // cuda_set_device(0);
-    // print_body<Torus>("rem after final accumulation", (Torus *)rem_gpu_0->ptr,
-    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // print_body<Torus>("q3 after final accumulation", (Torus *)q3_gpu_0->ptr, 
-    //                   q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
 
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
 
@@ -677,39 +472,26 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
         mem_ptr->sub_streams_1, gpu_indexes, gpu_count, q3_gpu_0,
         q3_gpu_0, bsks, ksks, ms_noise_reduction_key,
         mem_ptr->message_extract_lut_2, 1);
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     }
-
-    // cuda_set_device(0);
-    // print_body<Torus>("Final rem", (Torus *)rem_gpu_0->ptr,
-    //                   rem_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // print_body<Torus>("Final quotient", (Torus *)q3_gpu_0->ptr,
-    //                   q3_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], remainder_gpu_0, block_index,
         remainder_gpu_0->num_radix_blocks, rem_gpu_0, 0, rem_gpu_0->num_radix_blocks);
     insert_block_in_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                                  q3_gpu_0, quotient, 0);       
+                                                  q3_gpu_0, quotient, 0);
 
-    // cuda_set_device(0);
-    // print_body<Torus>("Output rem", (Torus *)remainder_gpu_0->ptr,
-    //                   remainder_gpu_0->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
-    // print_body<Torus>("Output quotient", (Torus *)quotient->ptr, 
-    //                   quotient->num_radix_blocks, radix_params.big_lwe_dimension,
-    //                   576460752303423488ULL);
     // Copy remainder_gpu_0 to all other GPUs
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_1, remainder_gpu_0);
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_2, remainder_gpu_0);
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_gpu_3, remainder_gpu_0);
-    
+
     // non boolean blocks
-    for (int block_id = 0; block_id < slice_len; block_id++) {
+    for (int block_id = 0; block_id < slice_len; block_id++)
+    {
       mem_ptr->sub_result_1->degrees[block_id] = radix_params.message_modulus - 1;
       mem_ptr->rem0->degrees[block_id] = radix_params.message_modulus - 1;
     }
@@ -720,80 +502,10 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     mem_ptr->cmp_1->degrees[0] = 0;
     mem_ptr->cmp_3->noise_levels[0] = 0;
 
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
-
-
-
-    //   for (uint j = 0; j < gpu_count; j++) {
-    //     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-    //   }
-
-    //   calculate_quotient_bits(mem_ptr->sub_streams_5, gpu_indexes, 1,
-    //   mem_ptr->q1,
-    //                           mem_ptr->c1, mem_ptr->quotient_lut_1);
-    //   calculate_quotient_bits(mem_ptr->sub_streams_6, gpu_indexes, 1,
-    //   mem_ptr->q2,
-    //                           mem_ptr->c2, mem_ptr->quotient_lut_2);
-    //   calculate_quotient_bits(mem_ptr->sub_streams_7, gpu_indexes, 1,
-    //   mem_ptr->q3,
-    //                           mem_ptr->c3, mem_ptr->quotient_lut_3);
-
-    //   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_4[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_5[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_6[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_7[j], gpu_indexes[j]);
-    //   }
-
-    //   host_addition<Torus>(streams[0], gpu_indexes[0], mem_ptr->rem,
-    //   mem_ptr->rem,
-    //                        r3, mem_ptr->rem->num_radix_blocks, 4, 4);
-    //   host_addition<Torus>(streams[0], gpu_indexes[0], mem_ptr->rem,
-    //   mem_ptr->rem,
-    //                        r2, mem_ptr->rem->num_radix_blocks, 4, 4);
-    //   host_addition<Torus>(streams[0], gpu_indexes[0], mem_ptr->rem,
-    //   mem_ptr->rem,
-    //                        r1, mem_ptr->rem->num_radix_blocks, 4, 4);
-
-    //   host_addition<Torus>(streams[0], gpu_indexes[0], mem_ptr->q1,
-    //   mem_ptr->q1,
-    //                        mem_ptr->q2, 1, 4, 4);
-    //   host_addition<Torus>(streams[0], gpu_indexes[0], mem_ptr->q1,
-    //   mem_ptr->q1,
-    //                        mem_ptr->q3, 1, 4, 4);
-
-    //   for (uint j = 0; j < gpu_count; j++) {
-    //     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-    //   }
-    //   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-    //       mem_ptr->sub_streams_1, gpu_indexes, gpu_count, mem_ptr->rem,
-    //       mem_ptr->rem, bsks, ksks, ms_noise_reduction_key,
-    //       mem_ptr->message_extract_lut_1, mem_ptr->rem->num_radix_blocks);
-    //   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-    //       mem_ptr->sub_streams_2, gpu_indexes, gpu_count, mem_ptr->q1,
-    //       mem_ptr->q1, bsks, ksks, ms_noise_reduction_key,
-    //       mem_ptr->message_extract_lut_2, 1);
-    //   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-    //     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-    //   }
-
-    //   size_t tmp_rem_size = mem_ptr->rem->num_radix_blocks;
-    //   mem_ptr->rem->num_radix_blocks = remainder->num_radix_blocks;
-    //   copy_radix_ciphertext_slice_async<Torus>(
-    //       streams[0], gpu_indexes[0], remainder, block_index,
-    //       remainder->num_radix_blocks, mem_ptr->rem, 0, tmp_rem_size);
-    //   mem_ptr->rem->num_radix_blocks = tmp_rem_size;
-
-    //   insert_block_in_radix_ciphertext_async<Torus>(streams[0],
-    //   gpu_indexes[0],
-    //                                                 mem_ptr->q1, quotient,
-    //                                                 0);
   }
 }
 
@@ -805,7 +517,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
     uint64_t *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    unsigned_int_div_rem_memory<uint64_t> *mem_ptr) {
+    unsigned_int_div_rem_memory<uint64_t> *mem_ptr)
+{
 
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
@@ -817,7 +530,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     PANIC("Cuda error: input and output lwe dimension must be equal")
 
   if (mem_ptr->params.message_modulus == 4 &&
-      mem_ptr->params.carry_modulus == 4) {
+      mem_ptr->params.carry_modulus == 4)
+  {
     host_unsigned_integer_div_rem_kb_block_by_block_2_2<Torus>(
         streams, gpu_indexes, gpu_count, quotient, remainder, numerator,
         divisor, bsks, ksks, ms_noise_reduction_key, mem_ptr->div_rem_2_2_mem);
@@ -853,7 +567,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
   set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                quotient, 0, num_blocks);
 
-  for (int i = total_bits - 1; i >= 0; i--) {
+  for (int i = total_bits - 1; i >= 0; i--)
+  {
     uint32_t pos_in_block = i % num_bits_in_message;
     uint32_t msb_bit_set = total_bits - 1 - i;
     uint32_t last_non_trivial_block = msb_bit_set / num_bits_in_message;
@@ -891,8 +606,10 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // divisor_ms_blocks to trim out bits which should not be there
     auto trim_last_interesting_divisor_bits = [&](cudaStream_t const *streams,
                                                   uint32_t const *gpu_indexes,
-                                                  uint32_t gpu_count) {
-      if ((msb_bit_set + 1) % num_bits_in_message == 0) {
+                                                  uint32_t gpu_count)
+    {
+      if ((msb_bit_set + 1) % num_bits_in_message == 0)
+      {
         return;
       }
       // The last block of the interesting part of the remainder
@@ -929,9 +646,11 @@ __host__ void host_unsigned_integer_div_rem_kb(
 
     auto trim_first_divisor_ms_bits = [&](cudaStream_t const *streams,
                                           uint32_t const *gpu_indexes,
-                                          uint32_t gpu_count) {
+                                          uint32_t gpu_count)
+    {
       if (divisor_ms_blocks->num_radix_blocks == 0 ||
-          ((msb_bit_set + 1) % num_bits_in_message) == 0) {
+          ((msb_bit_set + 1) % num_bits_in_message) == 0)
+      {
         return;
       }
       // Where the msb is set in the block
@@ -967,7 +686,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // of the Remainder, so that left shifting will pull the bit we need.
     auto left_shift_interesting_remainder1 = [&](cudaStream_t const *streams,
                                                  uint32_t const *gpu_indexes,
-                                                 uint32_t gpu_count) {
+                                                 uint32_t gpu_count)
+    {
       pop_radix_ciphertext_block_async<Torus>(streams[0], gpu_indexes[0],
                                               mem_ptr->numerator_block_1,
                                               numerator_block_stack);
@@ -994,7 +714,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                               mem_ptr->numerator_block_1,
                                               interesting_remainder1);
 
-      if (pos_in_block != 0) {
+      if (pos_in_block != 0)
+      {
         // We have not yet extracted all the bits from this numerator
         // so, we put it back on the front so that it gets taken next
         // iteration
@@ -1006,14 +727,16 @@ __host__ void host_unsigned_integer_div_rem_kb(
 
     auto left_shift_interesting_remainder2 = [&](cudaStream_t const *streams,
                                                  uint32_t const *gpu_indexes,
-                                                 uint32_t gpu_count) {
+                                                 uint32_t gpu_count)
+    {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, gpu_indexes, gpu_count, interesting_remainder2, 1,
           mem_ptr->shift_mem_2, bsks, ksks, ms_noise_reduction_key,
           interesting_remainder2->num_radix_blocks);
     }; // left_shift_interesting_remainder2
 
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // interesting_divisor
@@ -1028,7 +751,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // interesting_remainder2
     left_shift_interesting_remainder2(mem_ptr->sub_streams_4, gpu_indexes,
                                       gpu_count);
-    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -1071,7 +795,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     //  `subtraction_overflowed` - single ciphertext
     auto do_overflowing_sub = [&](cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes,
-                                  uint32_t gpu_count) {
+                                  uint32_t gpu_count)
+    {
       uint32_t compute_borrow = 1;
       uint32_t uses_input_borrow = 0;
       auto first_indexes =
@@ -1098,13 +823,17 @@ __host__ void host_unsigned_integer_div_rem_kb(
     //  `at_least_one_upper_block_is_non_zero` - single ciphertext
     auto check_divisor_upper_blocks = [&](cudaStream_t const *streams,
                                           uint32_t const *gpu_indexes,
-                                          uint32_t gpu_count) {
+                                          uint32_t gpu_count)
+    {
       auto trivial_blocks = divisor_ms_blocks;
-      if (trivial_blocks->num_radix_blocks == 0) {
+      if (trivial_blocks->num_radix_blocks == 0)
+      {
         set_zero_radix_ciphertext_slice_async<Torus>(
             streams[0], gpu_indexes[0], at_least_one_upper_block_is_non_zero, 0,
             1);
-      } else {
+      }
+      else
+      {
 
         // We could call unchecked_scalar_ne
         // But we are in the special case where scalar == 0
@@ -1129,17 +858,19 @@ __host__ void host_unsigned_integer_div_rem_kb(
     //  `cleaned_merged_interesting_remainder` - radix ciphertext
     auto create_clean_version_of_merged_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
-            uint32_t gpu_count) {
-          integer_radix_apply_univariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count,
-              cleaned_merged_interesting_remainder,
-              cleaned_merged_interesting_remainder, bsks, ksks,
-              ms_noise_reduction_key, mem_ptr->message_extract_lut_1,
-              cleaned_merged_interesting_remainder->num_radix_blocks);
-        };
+            uint32_t gpu_count)
+    {
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count,
+          cleaned_merged_interesting_remainder,
+          cleaned_merged_interesting_remainder, bsks, ksks,
+          ms_noise_reduction_key, mem_ptr->message_extract_lut_1,
+          cleaned_merged_interesting_remainder->num_radix_blocks);
+    };
 
     // phase 2
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // new_remainder
@@ -1150,7 +881,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // cleaned_merged_interesting_remainder
     create_clean_version_of_merged_remainder(mem_ptr->sub_streams_3,
                                              gpu_indexes, gpu_count);
-    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -1165,7 +897,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
     int factor = (i) ? message_modulus - 1 : message_modulus - 2;
     int factor_lut_id = (i) ? 1 : 0;
     for (size_t k = 0;
-         k < cleaned_merged_interesting_remainder->num_radix_blocks; k++) {
+         k < cleaned_merged_interesting_remainder->num_radix_blocks; k++)
+    {
       copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                overflow_sum_radix, k, k + 1,
                                                overflow_sum, 0, 1);
@@ -1173,29 +906,32 @@ __host__ void host_unsigned_integer_div_rem_kb(
 
     auto conditionally_zero_out_merged_interesting_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
-            uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count,
-              cleaned_merged_interesting_remainder,
-              cleaned_merged_interesting_remainder, overflow_sum_radix, bsks,
-              ksks, ms_noise_reduction_key,
-              mem_ptr->zero_out_if_overflow_did_not_happen[factor_lut_id],
-              cleaned_merged_interesting_remainder->num_radix_blocks, factor);
-        };
+            uint32_t gpu_count)
+    {
+      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count,
+          cleaned_merged_interesting_remainder,
+          cleaned_merged_interesting_remainder, overflow_sum_radix, bsks,
+          ksks, ms_noise_reduction_key,
+          mem_ptr->zero_out_if_overflow_did_not_happen[factor_lut_id],
+          cleaned_merged_interesting_remainder->num_radix_blocks, factor);
+    };
 
     auto conditionally_zero_out_merged_new_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
-            uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count, new_remainder, new_remainder,
-              overflow_sum_radix, bsks, ksks, ms_noise_reduction_key,
-              mem_ptr->zero_out_if_overflow_happened[factor_lut_id],
-              new_remainder->num_radix_blocks, factor);
-        };
+            uint32_t gpu_count)
+    {
+      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, new_remainder, new_remainder,
+          overflow_sum_radix, bsks, ksks, ms_noise_reduction_key,
+          mem_ptr->zero_out_if_overflow_happened[factor_lut_id],
+          new_remainder->num_radix_blocks, factor);
+    };
 
     auto set_quotient_bit = [&](cudaStream_t const *streams,
                                 uint32_t const *gpu_indexes,
-                                uint32_t gpu_count) {
+                                uint32_t gpu_count)
+    {
       uint32_t block_of_bit = i / num_bits_in_message;
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, mem_ptr->did_not_overflow,
@@ -1214,7 +950,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
                            radix_params.carry_modulus);
     };
 
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // cleaned_merged_interesting_remainder
@@ -1225,7 +962,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                                 gpu_indexes, gpu_count);
     // quotient
     set_quotient_bit(mem_ptr->sub_streams_3, gpu_indexes, gpu_count);
-    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -1258,7 +996,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
                        radix_params.message_modulus,
                        radix_params.carry_modulus);
 
-  for (uint j = 0; j < gpu_count; j++) {
+  for (uint j = 0; j < gpu_count; j++)
+  {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -1268,7 +1007,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_2, gpu_indexes, gpu_count, quotient, quotient, bsks,
       ksks, ms_noise_reduction_key, mem_ptr->message_extract_lut_2, num_blocks);
-  for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
+  for (uint j = 0; j < mem_ptr->active_gpu_count; j++)
+  {
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
   }
@@ -1282,7 +1022,8 @@ __host__ void host_integer_div_rem_kb(
     CudaRadixCiphertextFFI const *divisor, bool is_signed, void *const *bsks,
     uint64_t *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int_div_rem_memory<uint64_t> *int_mem_ptr) {
+    int_div_rem_memory<uint64_t> *int_mem_ptr)
+{
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
       remainder->num_radix_blocks != quotient->num_radix_blocks)
@@ -1293,7 +1034,8 @@ __host__ void host_integer_div_rem_kb(
     PANIC("Cuda error: input and output lwe dimension must be equal")
 
   auto num_blocks = quotient->num_radix_blocks;
-  if (is_signed) {
+  if (is_signed)
+  {
     auto radix_params = int_mem_ptr->params;
 
     // temporary memory
@@ -1304,7 +1046,8 @@ __host__ void host_integer_div_rem_kb(
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
                                        positive_divisor, divisor);
 
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < gpu_count; j++)
+    {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
 
@@ -1316,7 +1059,8 @@ __host__ void host_integer_div_rem_kb(
                                int_mem_ptr->active_gpu_count, positive_divisor,
                                bsks, ksks, ms_noise_reduction_key,
                                int_mem_ptr->abs_mem_2, true);
-    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
     }
@@ -1339,7 +1083,8 @@ __host__ void host_integer_div_rem_kb(
         int_mem_ptr->compare_signed_bits_lut, 1,
         int_mem_ptr->compare_signed_bits_lut->params.message_modulus);
 
-    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
     }
@@ -1378,11 +1123,14 @@ __host__ void host_integer_div_rem_kb(
         &numerator_sign, int_mem_ptr->negated_remainder, remainder,
         int_mem_ptr->cmux_remainder_mem, bsks, ksks, ms_noise_reduction_key);
 
-    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++) {
+    for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++)
+    {
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
     }
-  } else {
+  }
+  else
+  {
     host_unsigned_integer_div_rem_kb<Torus>(
         streams, gpu_indexes, gpu_count, quotient, remainder, numerator,
         divisor, bsks, ksks, ms_noise_reduction_key, int_mem_ptr->unsigned_mem);
