@@ -2,7 +2,7 @@
 //! The aim is to completely hide underlying specificities and enable compile-time
 //! swapping.
 //!
-//! Mainly replacing Xrt(u55c)/V80 by a simulation interface to ease CI
+//! Mainly replacing V80 by a simulation interface to ease CI
 
 use crate::interface::FFIMode;
 
