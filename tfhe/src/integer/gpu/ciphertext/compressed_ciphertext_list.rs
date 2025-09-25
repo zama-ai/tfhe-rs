@@ -125,7 +125,6 @@ impl CudaCompressedCiphertextList {
         ))
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     fn get_blocks_of_size_on_gpu(
         &self,
         index: usize,
@@ -144,7 +143,7 @@ impl CudaCompressedCiphertextList {
 
         let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
 
-        Some(decomp_key.get_unpack_size_on_gpu(
+        Some(decomp_key.get_gpu_list_unpack_size_on_gpu(
             &self.packed_list,
             start_block_index,
             end_block_index,
