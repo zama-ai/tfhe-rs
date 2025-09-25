@@ -692,10 +692,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_64(
     uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks_to_process,
-    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    uint32_t message_bits_per_block, uint32_t total_random_bits,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory, uint32_t message_bits_per_block,
+    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_grouped_oprf_async_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
