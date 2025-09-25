@@ -89,7 +89,8 @@ impl HpuHw {
         } else {
             Err(format!(
                 "UUID mismatch loaded {:?} expected {:?}",
-                current_uuid, pdi.metadata.bitstream.uuid.to_lowercase()
+                current_uuid,
+                pdi.metadata.bitstream.uuid.to_lowercase()
             )
             .into())
         }
