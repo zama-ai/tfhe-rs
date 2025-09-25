@@ -88,9 +88,6 @@ mod hpu_test {
         (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
-    // NB: Currently u55c didn't check for workq overflow.
-    // -> Use default value < queue depth to circumvent this limitation
-    // NB': This is only for u55c, on V80 user could set HPU_TEST_ITER to whatever value he want
     const DEFAULT_TEST_ITER: usize = 32;
 
     macro_rules! hpu_testbundle {

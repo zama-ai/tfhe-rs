@@ -8,7 +8,6 @@ HPU_MOCKUP_DIR=$CUR_SCRIPT_DIR/mockups/tfhe-hpu-mockup
 # Default default bitstream
 # Available options are:
 #  * sim: use with the mockup (i.e simulation)
-#  * u55c: use with u55c (latest bitstream with gf64 config)
 #  * v80: use with v80 (i.e should specify pcie-dev flag [zamav80: 01, srvzama: 21]
 HPU_CONFIG="sim"
 
@@ -35,7 +34,7 @@ do
     case "$1" in
         -h|--help)
             echo "Available options are:"
-            echo " * --config: target configuration [sim, u55c_gf64, v80]"
+            echo " * --config: target configuration [sim, v80]"
             echo " * --rust-log: Specify rust verbosity [Cf. tracing]"
             echo " * --pcie-dev: target pcie device [Warn: v80 only]"
             return 0
@@ -109,15 +108,6 @@ export RUST_LOG
 # Sim specific init ###########################################################
 if [[ "$HPU_CONFIG" == sim* ]]; then
     export HPU_MOCKUP_DIR
-fi
-
-# U55c specific init ###########################################################
-if [[ "$HPU_CONFIG" == u55c* ]]; then
-    # Setup Xrt for low-level xfer with u55c
-    XRT_SETUP=/opt/xilinx/xrt/setup.sh
-    if [[ -f $XRT_SETUP ]]; then
-        source $XRT_SETUP
-    fi
 fi
 
 # V80 specific init ###########################################################
