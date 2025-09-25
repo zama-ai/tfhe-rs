@@ -19,7 +19,8 @@ use crate::integer::block_decomposition::{
     DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
 use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
@@ -82,6 +83,12 @@ impl<'a, T> TensorSlice<'a, GpuSlice<'a, T>> {
 
     pub fn par_iter(self) -> ParStridedIter<'a, T> {
         ParStridedIter::new(self.slice.0, self.dims.clone())
+    }
+    pub fn len(&self) -> usize {
+        self.dims.flattened_len()
+    }
+    pub fn as_slice(&self) -> &'a [T] {
+        self.slice.0
     }
 }
 
@@ -316,7 +323,25 @@ where
         lhs: TensorSlice<'_, Self::Slice<'a>>,
         rhs: TensorSlice<'_, Self::Slice<'a>>,
     ) -> Self::Owned {
-        par_map_sks_op_on_pair_of_elements(lhs, rhs, crate::integer::gpu::CudaServerKey::bitand)
+        GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
+            let streams = &cuda_key.streams;
+            let num_ciphertexts = lhs.len() as u32;
+            let lhs_slice: &[T] = lhs.as_slice();
+            let rhs_slice: &[T] = rhs.as_slice();
+            let mut lhs_aligned = T::from(CudaRadixCiphertext::from_radix_ciphertext_vec(
+                lhs_slice, streams,
+            ));
+            let rhs_aligned = T::from(CudaRadixCiphertext::from_radix_ciphertext_vec(
+                rhs_slice, streams,
+            ));
+            crate::integer::gpu::CudaServerKey::bitand_vec(
+                cuda_key.pbs_key(),
+                &mut lhs_aligned,
+                &rhs_aligned,
+                num_ciphertexts,
+                streams,
+            )
+        }))
     }
 
     fn bitor<'a>(

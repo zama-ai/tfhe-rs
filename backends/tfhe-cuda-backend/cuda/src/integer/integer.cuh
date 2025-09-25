@@ -417,9 +417,12 @@ __host__ void host_pack_bivariate_blocks(
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
-      num_radix_blocks > lwe_array_1->num_radix_blocks ||
-      num_radix_blocks > lwe_array_2->num_radix_blocks)
+  if (num_radix_blocks > lwe_array_out->num_radix_blocks *
+                             lwe_array_out->num_radix_ciphertexts ||
+      num_radix_blocks >
+          lwe_array_1->num_radix_blocks * lwe_array_1->num_radix_ciphertexts ||
+      num_radix_blocks >
+          lwe_array_2->num_radix_blocks * lwe_array_2->num_radix_ciphertexts)
     PANIC("Cuda error: num radix blocks on which packing is applied should be "
           "smaller or equal to the number of input & output radix blocks")
 
@@ -530,7 +533,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks)
+  if (num_radix_blocks >
+      lwe_array_out->num_radix_blocks * lwe_array_out->num_radix_ciphertexts)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of input & output radix blocks")
 
@@ -756,11 +760,14 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
-      num_radix_blocks > lwe_array_1->num_radix_blocks ||
-      num_radix_blocks > lwe_array_2->num_radix_blocks)
+  if (num_radix_blocks > lwe_array_out->num_radix_blocks *
+                             lwe_array_out->num_radix_ciphertexts ||
+      num_radix_blocks >
+          lwe_array_1->num_radix_blocks * lwe_array_1->num_radix_ciphertexts ||
+      num_radix_blocks >
+          lwe_array_2->num_radix_blocks * lwe_array_2->num_radix_ciphertexts)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
-          "smaller or equal to the number of input & output radix blocks")
+          "smaller or equal to the number of total input & output radix blocks")
 
   auto params = lut->params;
   auto pbs_type = params.pbs_type;

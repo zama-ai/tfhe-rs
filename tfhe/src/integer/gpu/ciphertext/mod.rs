@@ -7,7 +7,7 @@ pub mod squashed_noise;
 
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::parameters::LweDimension;
@@ -15,6 +15,7 @@ use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext, EncryptionKeyChoice};
 use crate::GpuIndex;
 
+use crate::shortint::parameters::LweCiphertextCount;
 pub use compressed_noise_squashed_ciphertext_list::*;
 
 pub trait CudaIntegerRadixCiphertext: Sized {
@@ -70,8 +71,68 @@ pub trait CudaIntegerRadixCiphertext: Sized {
     fn gpu_indexes(&self) -> &[GpuIndex] {
         &self.as_ref().d_blocks.0.d_vec.gpu_indexes
     }
+
+    // Converts a CudaIntegerRadixCiphertext with num_blocks * num_ciphertexts LWEs into a
+    // Vec<CudaIntegerRadixCiphertext> of length num_radix_ciphertexts, where each ciphertext has
+    // num_blocks LWEs
+    fn to_integer_radix_ciphertext_vec(
+        &self,
+        num_radix_ciphertexts: u32,
+        streams: &CudaStreams,
+    ) -> Vec<Self> {
+        let total_blocks = self.as_ref().d_blocks.0.lwe_ciphertext_count.0;
+        assert_eq!(total_blocks % num_radix_ciphertexts as usize, 0, "Total number of blocks ({total_blocks}) is not divisible by number of radix ciphertexts ({num_radix_ciphertexts})");
+
+        let num_blocks = total_blocks / num_radix_ciphertexts as usize;
+
+        let mut result = Vec::with_capacity(num_radix_ciphertexts as usize);
+        let lwe_dimension = self.as_ref().d_blocks.lwe_dimension();
+
+        for i in 0..num_radix_ciphertexts as usize {
+            let block_start = i * num_blocks;
+            let block_end = block_start + num_blocks;
+
+            let d_vec = unsafe {
+                let mut d_vec =
+                    CudaVec::new_async(lwe_dimension.to_lwe_size().0 * num_blocks, streams, 0);
+
+                let copy_start = block_start * lwe_dimension.to_lwe_size().0;
+                let copy_end = block_end * lwe_dimension.to_lwe_size().0;
+                d_vec.copy_src_range_gpu_to_gpu_async(
+                    copy_start..copy_end,
+                    &self.as_ref().d_blocks.0.d_vec,
+                    streams,
+                    0,
+                );
+
+                streams.synchronize();
+                d_vec
+            };
+            let lwe_list = CudaLweList::<u64> {
+                d_vec,
+                lwe_ciphertext_count: LweCiphertextCount(num_blocks),
+                lwe_dimension,
+                ciphertext_modulus: self.as_ref().d_blocks.ciphertext_modulus(),
+            };
+
+            // Copy the associated block metadata
+            let block_info = self.as_ref().info.blocks[block_start..block_end].to_vec();
+
+            let info = CudaRadixCiphertextInfo { blocks: block_info };
+
+            result.push(Self::from(CudaRadixCiphertext::new(
+                CudaLweCiphertextList(lwe_list),
+                info,
+            )));
+        }
+
+        result
+    }
 }
 
+/// This struct corresponds to the pointers on GPU and
+/// metadata representing an array of LWEs corresponding
+/// to one or more RadixCiphertexts
 pub struct CudaRadixCiphertext {
     pub d_blocks: CudaLweCiphertextList<u64>,
     pub info: CudaRadixCiphertextInfo,
