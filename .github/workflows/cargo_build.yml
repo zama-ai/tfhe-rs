@@ -26,7 +26,7 @@ jobs:
       matrix:
         # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
         # even with a few PRs
-        os: [large_ubuntu_16, macos-latest, windows-latest]
+        os: [large_ubuntu_16, macos-latest-xlarge, large_windows_16_latest]
       fail-fast: false
 
     steps:
