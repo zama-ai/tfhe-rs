@@ -5968,14 +5968,10 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
   // with message_bits_per_block == ilog2(msg_modulus) from crypto params
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
-                          uint32_t num_blocks_to_process, uint32_t num_blocks,
+                          uint32_t num_blocks_to_process,
                           uint32_t message_bits_per_block,
                           uint64_t total_random_bits, bool allocate_gpu_memory,
                           uint64_t &size_tracker) {
-
-    if (num_blocks < num_blocks_to_process) {
-      PANIC("num_blocks should be greater than num_blocks_to_process");
-    }
 
     uint32_t calculated_active_blocks =
         total_random_bits == 0
@@ -5990,14 +5986,14 @@ template <typename Torus> struct int_grouped_oprf_memory {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->luts =
-        new int_radix_lut<Torus>(streams, params, message_bits_per_block,
-                                 num_blocks, allocate_gpu_memory, size_tracker);
+    this->luts = new int_radix_lut<Torus>(
+        streams, params, message_bits_per_block, num_blocks_to_process,
+        allocate_gpu_memory, size_tracker);
 
     this->plaintext_corrections = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->plaintext_corrections,
-        num_blocks, params.big_lwe_dimension, size_tracker,
+        num_blocks_to_process, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
     uint64_t message_modulus_log2 = (uint64_t)std::log2(params.message_modulus);
@@ -6041,8 +6037,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // use, and the final plaintext correction to add.
     //
     Torus *h_corrections =
-        (Torus *)calloc(num_blocks * lwe_size, sizeof(Torus));
-    this->h_lut_indexes = (Torus *)calloc(num_blocks, sizeof(Torus));
+        (Torus *)calloc(num_blocks_to_process * lwe_size, sizeof(Torus));
+    this->h_lut_indexes = (Torus *)calloc(num_blocks_to_process, sizeof(Torus));
 
     uint64_t bits_processed = 0;
     for (uint32_t i = 0; i < num_blocks_to_process; ++i) {
@@ -6072,15 +6068,15 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // All lwes in h_corrections have a mask equal to 0.
     // Copy the prepared plaintext corrections to the GPU.
     cuda_memcpy_async_to_gpu(this->plaintext_corrections->ptr, h_corrections,
-                             num_blocks * lwe_size * sizeof(Torus),
+                             num_blocks_to_process * lwe_size * sizeof(Torus),
                              streams.stream(0), streams.gpu_index(0));
 
     // Copy the prepared LUT indexes to the GPU 0, before broadcast to all other
     // GPUs.
     cuda_memcpy_async_to_gpu(luts->get_lut_indexes(0, 0), this->h_lut_indexes,
-                             num_blocks * sizeof(Torus), streams.stream(0),
-                             streams.gpu_index(0));
-    auto active_streams = streams.active_gpu_subset(num_blocks);
+                             num_blocks_to_process * sizeof(Torus),
+                             streams.stream(0), streams.gpu_index(0));
+    auto active_streams = streams.active_gpu_subset(num_blocks_to_process);
     luts->broadcast_lut(active_streams);
 
     free(h_corrections);

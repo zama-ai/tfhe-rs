@@ -8,14 +8,13 @@ template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf(
     CudaStreams streams, int_grouped_oprf_memory<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks_to_process,
-    uint32_t num_blocks, uint32_t message_bits_per_block,
-    uint64_t total_random_bits, bool allocate_gpu_memory) {
+    uint32_t message_bits_per_block, uint64_t total_random_bits,
+    bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_memory<Torus>(
-      streams, params, num_blocks_to_process, num_blocks,
-      message_bits_per_block, total_random_bits, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_blocks_to_process, message_bits_per_block,
+      total_random_bits, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
@@ -32,8 +31,8 @@ void host_integer_grouped_oprf(
 
   if (active_streams.count() == 1) {
     execute_pbs_async<Torus, Torus>(
-        streams, (Torus *)(radix_lwe_out->ptr), lut->lwe_indexes_out,
-        lut->lut_vec, lut->lut_indexes_vec,
+        streams.subset_first_gpu(), (Torus *)(radix_lwe_out->ptr),
+        lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
         const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in, bsks,
         ms_noise_reduction_key, lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
@@ -52,15 +51,13 @@ void host_integer_grouped_oprf(
                              streams.gpu_index(j));
     }
 
-    if (!lut->using_trivial_lwe_indexes) {
-      PANIC("lut->using_trivial_lwe_indexes should be true");
-    }
-
+    PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, seeded_lwe_input, lut->lwe_indexes_in,
         lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
         active_streams.count(), num_blocks_to_process,
         mem_ptr->params.small_lwe_dimension + 1);
+    POP_RANGE()
 
     execute_pbs_async<Torus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
@@ -71,12 +68,13 @@ void host_integer_grouped_oprf(
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
         num_blocks_to_process, mem_ptr->params.pbs_type, 1, 0);
 
+    PUSH_RANGE("gather")
     multi_gpu_gather_lwe_async<Torus>(
         active_streams, (Torus *)radix_lwe_out->ptr, lwe_after_pbs_vec,
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
-
+    POP_RANGE()
     // other gpus record their events
     for (int j = 1; j < active_streams.count(); j++) {
       cuda_event_record(lut->event_scatter_out[j], streams.stream(j),
