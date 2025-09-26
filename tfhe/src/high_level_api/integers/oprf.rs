@@ -366,3 +366,22 @@ impl<Id: FheIntId> FheInt<Id> {
         })
     }
 }
+
+#[cfg(feature = "gpu")]
+#[allow(unused_imports)]
+mod test {
+    use crate::prelude::*;
+    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint64, GpuIndex};
+
+    #[test]
+    fn test_oprf_size_on_gpu() {
+        let config = ConfigBuilder::default().build();
+        let (_client_key, server_key) = generate_keys(config);
+
+        set_server_key(server_key);
+        let size = FheUint32::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
+        check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
+        let size_1 = FheUint64::get_generate_oblivious_pseudo_random_size_on_gpu();
+        check_valid_cuda_malloc_assert_oom(size_1, GpuIndex::new(0));
+    }
+}
