@@ -281,6 +281,55 @@ const _: () = {
         divisor_has_more_bits_than_numerator
     ) - 60usize];
 };
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaLweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub num_radix_blocks: u32,
+    pub lwe_dimension: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaLweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaLweCiphertextListFFI>() - 16usize];
+    ["Alignment of CudaLweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaLweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaLweCiphertextListFFI::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, num_radix_blocks) - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, lwe_dimension) - 12usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaPackedGlweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub storage_log_modulus: u32,
+    pub lwe_per_glwe: u32,
+    pub total_lwe_bodies_count: u32,
+    pub glwe_dimension: u32,
+    pub polynomial_size: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaPackedGlweCiphertextListFFI>() - 32usize];
+    ["Alignment of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaPackedGlweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
         streams: CudaStreamsFFI,
@@ -1617,55 +1666,6 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_kb_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaLweCiphertextListFFI {
-    pub ptr: *mut ffi::c_void,
-    pub num_radix_blocks: u32,
-    pub lwe_dimension: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaLweCiphertextListFFI"]
-        [::std::mem::size_of::<CudaLweCiphertextListFFI>() - 16usize];
-    ["Alignment of CudaLweCiphertextListFFI"]
-        [::std::mem::align_of::<CudaLweCiphertextListFFI>() - 8usize];
-    ["Offset of field: CudaLweCiphertextListFFI::ptr"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, ptr) - 0usize];
-    ["Offset of field: CudaLweCiphertextListFFI::num_radix_blocks"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, num_radix_blocks) - 8usize];
-    ["Offset of field: CudaLweCiphertextListFFI::lwe_dimension"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, lwe_dimension) - 12usize];
-};
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaPackedGlweCiphertextListFFI {
-    pub ptr: *mut ffi::c_void,
-    pub storage_log_modulus: u32,
-    pub lwe_per_glwe: u32,
-    pub total_lwe_bodies_count: u32,
-    pub glwe_dimension: u32,
-    pub polynomial_size: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaPackedGlweCiphertextListFFI"]
-        [::std::mem::size_of::<CudaPackedGlweCiphertextListFFI>() - 32usize];
-    ["Alignment of CudaPackedGlweCiphertextListFFI"]
-        [::std::mem::align_of::<CudaPackedGlweCiphertextListFFI>() - 8usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::ptr"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
-};
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: CudaStreamsFFI,
