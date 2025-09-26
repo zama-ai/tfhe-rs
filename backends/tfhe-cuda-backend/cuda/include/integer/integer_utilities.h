@@ -3767,35 +3767,37 @@ template <typename Torus> struct int_comparison_eq_buffer {
     auto active_streams = streams.active_gpu_subset(num_radix_blocks);
     is_non_zero_lut->broadcast_lut(active_streams);
 
-    if (op == COMPARISON_TYPE::EQ || COMPARISON_TYPE::NE) {
-      // Operator LUT
-      auto operator_f = [op](Torus lhs, Torus rhs) -> Torus {
-        if (op == COMPARISON_TYPE::EQ) {
-          return (lhs == rhs);
-        } else if (op == COMPARISON_TYPE::NE) {
-          return (lhs != rhs);
-          PANIC("Cuda error (eq/ne): invalid comparison type")
-        }
-      };
-      // Scalar may have up to num_radix_blocks blocks
-      scalar_comparison_luts = new int_radix_lut<Torus>(
-          streams, params, total_modulus, num_radix_blocks, allocate_gpu_memory,
-          size_tracker);
+    // Scalar may have up to num_radix_blocks blocks
+    scalar_comparison_luts = new int_radix_lut<Torus>(
+        streams, params, total_modulus, num_radix_blocks, allocate_gpu_memory,
+        size_tracker);
 
-      for (int i = 0; i < total_modulus; i++) {
-        auto lut_f = [i, operator_f](Torus x) -> Torus {
-          return operator_f(i, x);
-        };
-
-        generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0),
-            scalar_comparison_luts->get_lut(0, i),
-            scalar_comparison_luts->get_degree(i),
-            scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_f, gpu_memory_allocated);
+    // Operator LUT
+    auto operator_f = [op](Torus lhs, Torus rhs) -> Torus {
+      if (op == COMPARISON_TYPE::EQ) {
+        return (lhs == rhs);
+      } else if (op == COMPARISON_TYPE::NE) {
+        return (lhs != rhs);
+      } else {
+        // For signed scalar comparisons we check equality with zero
+        return (lhs == rhs);
       }
-      scalar_comparison_luts->broadcast_lut(active_streams);
+    };
+    for (int i = 0; i < total_modulus; i++) {
+      auto lut_f = [i, operator_f](Torus x) -> Torus {
+        return operator_f(i, x);
+      };
+
+      generate_device_accumulator<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          scalar_comparison_luts->get_lut(0, i),
+          scalar_comparison_luts->get_degree(i),
+          scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          lut_f, gpu_memory_allocated);
+    }
+    scalar_comparison_luts->broadcast_lut(active_streams);
+    if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
       operator_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
@@ -3808,23 +3810,17 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
       operator_lut->broadcast_lut(active_streams);
     } else {
-      scalar_comparison_luts = nullptr;
       operator_lut = nullptr;
     }
   }
 
   void release(CudaStreams streams) {
-    if (op == COMPARISON_TYPE::EQ || COMPARISON_TYPE::NE) {
+    if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
       PANIC_IF_FALSE(operator_lut != nullptr,
                      "Cuda error: no operator lut was created");
       operator_lut->release(streams);
       delete operator_lut;
       operator_lut = nullptr;
-      PANIC_IF_FALSE(scalar_comparison_luts != nullptr,
-                     "Cuda error: no scalar comparison luts were created");
-      scalar_comparison_luts->release(streams);
-      delete scalar_comparison_luts;
-      scalar_comparison_luts = nullptr;
     }
     is_non_zero_lut->release(streams);
     delete is_non_zero_lut;
@@ -3832,6 +3828,9 @@ template <typename Torus> struct int_comparison_eq_buffer {
     are_all_block_true_buffer->release(streams);
     delete are_all_block_true_buffer;
     are_all_block_true_buffer = nullptr;
+    scalar_comparison_luts->release(streams);
+    delete scalar_comparison_luts;
+    scalar_comparison_luts = nullptr;
   }
 };
 
