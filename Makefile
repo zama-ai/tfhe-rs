@@ -1189,6 +1189,8 @@ check_compile_tests: install_rs_build_toolchain
 		--features=experimental,boolean,shortint,integer,internal-keycache \
 		-p tfhe
 
+.PHONY: check_compile_tests_c_api # Build C API tests without running them
+check_compile_tests_c_api: install_rs_build_toolchain
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
 		./scripts/c_api_tests.sh --build-only --cargo-profile "$(CARGO_PROFILE)"; \
@@ -1662,11 +1664,38 @@ sha256_bool: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 	--example sha256_bool --features=boolean
 
-.PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash \
-clippy_all check_compile_tests test_tfhe_lints \
-tfhe_lints
+.PHONY: pcc # pcc stands for pre commit checks for CPU compilation
+pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc_batch_7
+
+#
+# PCC split into several batches to speed-up CI feedback.
+# Each batch have roughly the same execution time.
+# Durations are given from GitHub Ubuntu large runner with 16 CPU.
+#
+
+.PHONY: pcc_batch_1 # duration: 6'10''
+pcc_batch_1: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
+check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash test_tfhe_lints tfhe_lints \
+clippy_rustdoc
+
+.PHONY: pcc_batch_2 # duration: 6'10''
+pcc_batch_2: clippy clippy_all_targets
+
+.PHONY: pcc_batch_3 # duration: 6'50''
+pcc_batch_3: clippy_shortint clippy_integer
+
+.PHONY: pcc_batch_4 # duration: 7'40''
+pcc_batch_4: clippy_core clippy_js_wasm_api clippy_ws_tests clippy_bench
+
+.PHONY: pcc_batch_5 # duration: 7'20''
+pcc_batch_5: clippy_tfhe_lints check_compile_tests clippy_backward_compat_data
+
+.PHONY: pcc_batch_6  # duration: 4'50'' (shortest one, extend it with further checks)
+pcc_batch_6: clippy_boolean clippy_c_api clippy_tasks clippy_tfhe_csprng clippy_zk_pok \
+clippy_trivium clippy_versionable clippy_param_dedup
+
+.PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)
+pcc_batch_7: check_compile_tests_c_api
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
