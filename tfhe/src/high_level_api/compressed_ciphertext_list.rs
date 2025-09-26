@@ -622,20 +622,32 @@ impl CiphertextList for CompressedCiphertextList {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
-                cuda_key
-                    .key
-                    .decompression_key
-                    .as_ref()
-                    .ok_or_else(|| {
-                        crate::Error::new("Compression key not set in server key".to_owned())
-                    })
-                    .map(|decompression_key| {
-                        self.inner.on_gpu(streams).get_decompression_size_on_gpu(
-                            index,
-                            decompression_key,
-                            streams,
-                        )
-                    })
+                match &self.inner {
+                    InnerCompressedCiphertextList::Cpu(ct_list) => cuda_key
+                        .key
+                        .decompression_key
+                        .as_ref()
+                        .ok_or_else(|| {
+                            crate::Error::new("Compression key not set in server key".to_owned())
+                        })
+                        .map(|decompression_key| {
+                            ct_list.get_decompression_size_on_gpu(index, decompression_key, streams)
+                        }),
+                    InnerCompressedCiphertextList::Cuda(cuda_ct_list) => cuda_key
+                        .key
+                        .decompression_key
+                        .as_ref()
+                        .ok_or_else(|| {
+                            crate::Error::new("Compression key not set in server key".to_owned())
+                        })
+                        .map(|decompression_key| {
+                            cuda_ct_list.get_decompression_size_on_gpu(
+                                index,
+                                decompression_key,
+                                streams,
+                            )
+                        }),
+                }
             } else {
                 Ok(Some(0))
             }
@@ -1221,7 +1233,7 @@ mod tests {
                 );
             }
 
-            let compressed_list = compressed_list_init.build().unwrap();
+            let mut compressed_list = compressed_list_init.build().unwrap();
             let decompress_ct1_size_on_gpu = compressed_list
                 .get_decompression_size_on_gpu(0)
                 .unwrap()
@@ -1232,6 +1244,17 @@ mod tests {
                 .unwrap()
                 .unwrap();
             check_valid_cuda_malloc_assert_oom(decompress_ct2_size_on_gpu, GpuIndex::new(0));
+            compressed_list.move_to_current_device();
+            let decompress_ct1_size_on_gpu_1 = compressed_list
+                .get_decompression_size_on_gpu(0)
+                .unwrap()
+                .unwrap();
+            let decompress_ct2_size_on_gpu_1 = compressed_list
+                .get_decompression_size_on_gpu(1)
+                .unwrap()
+                .unwrap();
+            assert_eq!(decompress_ct1_size_on_gpu, decompress_ct1_size_on_gpu_1);
+            assert_eq!(decompress_ct2_size_on_gpu, decompress_ct2_size_on_gpu_1);
         }
     }
 }

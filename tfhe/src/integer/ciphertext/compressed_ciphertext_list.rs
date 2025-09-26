@@ -1,6 +1,10 @@
 use super::{DataKind, Expandable, RadixCiphertext, SignedRadixCiphertext};
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
 use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
 use crate::integer::BooleanBlock;
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
 use crate::shortint::Ciphertext;
@@ -175,6 +179,41 @@ impl CompressedCiphertextList {
         self.blocks_of(index, decomp_key)
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
+    }
+    #[cfg(feature = "gpu")]
+    pub fn get_decompression_size_on_gpu(
+        &self,
+        index: usize,
+        decomp_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+    ) -> Option<u64> {
+        self.get_blocks_of_size_on_gpu(index, decomp_key, streams)
+    }
+    #[cfg(feature = "gpu")]
+    fn get_blocks_of_size_on_gpu(
+        &self,
+        index: usize,
+        decomp_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+    ) -> Option<u64> {
+        let preceding_infos = self.info.get(..index)?;
+        let current_info = self.info.get(index).copied()?;
+        let message_modulus = self.packed_list.message_modulus()?;
+
+        let start_block_index: usize = preceding_infos
+            .iter()
+            .copied()
+            .map(|kind| kind.num_blocks(message_modulus))
+            .sum();
+
+        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+
+        Some(decomp_key.get_cpu_list_unpack_size_on_gpu(
+            &self.packed_list,
+            start_block_index,
+            end_block_index,
+            streams,
+        ))
     }
 }
 

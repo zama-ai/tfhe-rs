@@ -20,6 +20,7 @@ use crate::integer::gpu::{
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
+    CompressedCiphertextList,
     CompressedSquashedNoiseCiphertextList as ShortintCompressedSquashedNoiseCiphertextList, Degree,
     NoiseLevel,
 };
@@ -477,14 +478,14 @@ impl CudaDecompressionKey {
             }
         }
     }
-    pub fn get_unpack_size_on_gpu(
+    pub fn get_gpu_list_unpack_size_on_gpu(
         &self,
         packed_list: &CudaPackedGlweCiphertextList<u64>,
         start_block_index: usize,
         end_block_index: usize,
         streams: &CudaStreams,
     ) -> u64 {
-        if packed_list.bodies_count() == 0 && start_block_index == end_block_index {
+        if start_block_index == end_block_index {
             return 0;
         }
 
@@ -500,6 +501,62 @@ impl CudaDecompressionKey {
         let encryption_polynomial_size = self.polynomial_size;
         let compression_glwe_dimension = meta.glwe_dimension;
         let compression_polynomial_size = meta.polynomial_size;
+
+        let indexes_array_len = LweCiphertextCount(indexes_array.len());
+
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        match &self.blind_rotate_key {
+            CudaBootstrappingKey::Classic(bsk) => {
+                assert!(
+                    bsk.ms_noise_reduction_configuration.is_none(),
+                    "Decompression key should not do modulus switch noise reduction"
+                );
+                let lwe_dimension = bsk.output_lwe_dimension();
+
+                get_decompression_size_on_gpu(
+                    streams,
+                    message_modulus,
+                    carry_modulus,
+                    encryption_glwe_dimension,
+                    encryption_polynomial_size,
+                    compression_glwe_dimension,
+                    compression_polynomial_size,
+                    lwe_dimension,
+                    bsk.decomp_base_log(),
+                    bsk.decomp_level_count(),
+                    indexes_array_len.0 as u32,
+                )
+            }
+            CudaBootstrappingKey::MultiBit(_) => {
+                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
+            }
+        }
+    }
+    pub fn get_cpu_list_unpack_size_on_gpu(
+        &self,
+        packed_list: &CompressedCiphertextList,
+        start_block_index: usize,
+        end_block_index: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        if start_block_index == end_block_index {
+            return 0;
+        }
+
+        let indexes_array = (start_block_index..=end_block_index)
+            .map(|x| x as u32)
+            .collect_vec();
+
+        let encryption_glwe_dimension = self.glwe_dimension;
+        let encryption_polynomial_size = self.polynomial_size;
+
+        let compression_polynomial_size =
+            packed_list.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
+        let compression_glwe_dimension =
+            packed_list.modulus_switched_glwe_ciphertext_list[0].glwe_dimension();
+
         let indexes_array_len = LweCiphertextCount(indexes_array.len());
 
         let message_modulus = self.message_modulus;
