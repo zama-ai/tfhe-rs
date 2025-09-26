@@ -1616,6 +1616,44 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_kb_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_aes_encrypt_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_blocks: u32,
+        sbox_parallelism: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_aes_ctr_encrypt_64(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        iv: *const CudaRadixCiphertextFFI,
+        round_keys: *const CudaRadixCiphertextFFI,
+        counter_bits_le_all_blocks: *const u64,
+        num_blocks: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_aes_encrypt_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaLweCiphertextListFFI {
