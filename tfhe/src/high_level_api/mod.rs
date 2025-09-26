@@ -53,6 +53,8 @@ use backward_compatibility::compressed_ciphertext_list::SquashedNoiseCiphertextS
 pub use config::{Config, ConfigBuilder};
 #[cfg(feature = "gpu")]
 pub use global_state::CudaGpuChoice;
+#[cfg(feature = "gpu")]
+pub use global_state::CustomMultiGpuIndexes;
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 
 pub use integers::{

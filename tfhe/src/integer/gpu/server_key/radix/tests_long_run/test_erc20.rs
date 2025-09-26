@@ -1,4 +1,4 @@
-use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_erc20::{

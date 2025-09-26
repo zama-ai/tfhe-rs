@@ -5,6 +5,7 @@ use crate::integer::{
     BooleanBlock, IntegerCiphertext, RadixCiphertext, RadixClientKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::NoiseLevel;
+use crate::CompressedServerKey;
 use rand::Rng;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
@@ -16,6 +17,42 @@ pub(crate) mod test_signed_random_op_sequence;
 pub(crate) const NB_CTXT_LONG_RUN: usize = 32;
 pub(crate) const NB_TESTS_LONG_RUN: usize = 20000;
 pub(crate) const NB_TESTS_LONG_RUN_MINIMAL: usize = 200;
+
+pub(crate) fn get_user_defined_seed() -> Option<Seed> {
+    match std::env::var("TFHE_RS_LONGRUN_TESTS_SEED") {
+        Ok(val) => match val.parse::<u128>() {
+            Ok(s) => Some(Seed(s)),
+            Err(_e) => None,
+        },
+        Err(_e) => None,
+    }
+}
+
+/// This trait is to be implemented by a struct that is capable
+/// of executing a particular function to be tested in the
+/// random op sequence tests. This executor
+/// can execute ops either on CPU or on both CPU and GPU
+pub(crate) trait OpSequenceFunctionExecutor<TestInput, TestOutput> {
+    /// Setups the executor
+    ///
+    /// Implementers are expected to be fully functional after this
+    /// function has been called.
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    );
+
+    /// Executes the function
+    ///
+    /// The function receives some inputs and return some output.
+    /// Implementers may have to do more than just calling the function
+    /// that is being tested (for example input/output may need to be converted)
+    ///
+    /// Look at the test case function to know what are the expected inputs and outputs.
+    fn execute(&mut self, input: TestInput) -> TestOutput;
+}
 
 pub(crate) fn get_long_test_iterations() -> usize {
     static ENV_KEY_LONG_TESTS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -60,11 +97,13 @@ impl RadixEncryptable for i64 {
         key.encrypt_signed(*self)
     }
 }
-
-struct RandomOpSequenceDataGenerator<P, C> {
+// Generates data for the random op sequence tests. It
+// can generate data deterministically using a user-specified
+// seed
+pub(crate) struct RandomOpSequenceDataGenerator<P, C> {
     pub(crate) lhs: Vec<TestDataSample<P, C>>,
     pub(crate) rhs: Vec<TestDataSample<P, C>>,
-    deterministic_seeder: DeterministicSeeder<DefaultRandomGenerator>,
+    pub(crate) deterministic_seeder: DeterministicSeeder<DefaultRandomGenerator>,
     seed: Seed,
     cks: RadixClientKey,
     op_counter: usize,
@@ -75,7 +114,7 @@ impl<
         C: IntegerCiphertext,
     > RandomOpSequenceDataGenerator<P, C>
 {
-    fn new(total_num_ops: usize, cks: &RadixClientKey) -> Self {
+    pub(crate) fn new(total_num_ops: usize, cks: &RadixClientKey) -> Self {
         let mut rng = rand::thread_rng();
 
         let seed: u128 = rng.gen();
@@ -99,7 +138,7 @@ impl<
             }) // Generate random i64 values and encrypt them
             .collect()
     }
-    fn new_with_seed(total_num_ops: usize, seed: Seed, cks: &RadixClientKey) -> Self {
+    pub(crate) fn new_with_seed(total_num_ops: usize, seed: Seed, cks: &RadixClientKey) -> Self {
         let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         Self {
@@ -112,7 +151,7 @@ impl<
         }
     }
 
-    fn get_seed(&self) -> Seed {
+    pub(crate) fn get_seed(&self) -> Seed {
         self.seed
     }
 
@@ -198,6 +237,11 @@ impl<
     fn gen_encrypted_bool(&mut self) -> (bool, BooleanBlock) {
         let val = self.deterministic_seeder.seed().0 % 2;
         (val == 1, self.cks.encrypt_bool(val == 1))
+    }
+
+    fn gen_bool_uniform(&mut self) -> bool {
+        let val = self.deterministic_seeder.seed().0 % 2;
+        val == 1
     }
 }
 #[allow(clippy::too_many_arguments)]

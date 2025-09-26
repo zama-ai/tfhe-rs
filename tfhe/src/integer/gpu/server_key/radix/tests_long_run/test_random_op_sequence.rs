@@ -1,17 +1,137 @@
-use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::CudaServerKey;
+use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_random_op_sequence::{
     random_op_sequence_test, BinaryOpExecutor, ComparisonOpExecutor, DivRemOpExecutor,
     Log2OpExecutor, OverflowingOpExecutor, ScalarBinaryOpExecutor, ScalarComparisonOpExecutor,
     ScalarDivRemOpExecutor, ScalarOverflowingOpExecutor, SelectOpExecutor, UnaryOpExecutor,
 };
+use crate::integer::server_key::radix_parallel::tests_long_run::{
+    get_user_defined_seed, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
+};
+use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
+use crate::{ClientKey, CompressedServerKey, Tag};
 use std::cmp::{max, min};
+use std::sync::Arc;
 
 create_gpu_parameterized_test!(random_op_sequence {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn random_op_sequence_test_init_gpu<P>(
+    param: P,
+    binary_ops: &mut [(BinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    unary_ops: &mut [(UnaryOpExecutor, impl Fn(u64) -> u64, String)],
+    scalar_binary_ops: &mut [(ScalarBinaryOpExecutor, impl Fn(u64, u64) -> u64, String)],
+    overflowing_ops: &mut [(
+        OverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    scalar_overflowing_ops: &mut [(
+        ScalarOverflowingOpExecutor,
+        impl Fn(u64, u64) -> (u64, bool),
+        String,
+    )],
+    comparison_ops: &mut [(ComparisonOpExecutor, impl Fn(u64, u64) -> bool, String)],
+    scalar_comparison_ops: &mut [(
+        ScalarComparisonOpExecutor,
+        impl Fn(u64, u64) -> bool,
+        String,
+    )],
+    select_op: &mut [(SelectOpExecutor, impl Fn(bool, u64, u64) -> u64, String)],
+    div_rem_op: &mut [(DivRemOpExecutor, impl Fn(u64, u64) -> (u64, u64), String)],
+    scalar_div_rem_op: &mut [(
+        ScalarDivRemOpExecutor,
+        impl Fn(u64, u64) -> (u64, u64),
+        String,
+    )],
+    log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
+) -> (
+    RadixClientKey,
+    Arc<ServerKey>,
+    RandomOpSequenceDataGenerator<u64, RadixCiphertext>,
+)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let (cks0, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let cks = ClientKey::from_raw_parts(cks0.clone(), None, None, None, None, None, Tag::default());
+    let comp_sks = CompressedServerKey::new(&cks);
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    println!("Setting up operations");
+    let cks = RadixClientKey::from((cks0, NB_CTXT_LONG_RUN));
+
+    let total_num_ops = binary_ops.len()
+        + unary_ops.len()
+        + scalar_binary_ops.len()
+        + overflowing_ops.len()
+        + scalar_overflowing_ops.len()
+        + comparison_ops.len()
+        + scalar_comparison_ops.len()
+        + select_op.len()
+        + div_rem_op.len()
+        + scalar_div_rem_op.len()
+        + log2_ops.len();
+    println!("Total num ops {total_num_ops}");
+
+    let mut datagen = get_user_defined_seed().map_or_else(
+        || RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(total_num_ops, &cks),
+        |seed| {
+            RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new_with_seed(
+                total_num_ops,
+                seed,
+                &cks,
+            )
+        },
+    );
+
+    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
+
+    for x in binary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in unary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_binary_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in overflowing_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_overflowing_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in comparison_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_comparison_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in select_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in div_rem_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in scalar_div_rem_op.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in log2_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+
+    (cks, sks, datagen)
+}
+
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
@@ -19,18 +139,24 @@ where
     println!("Running random op sequence test");
 
     // Binary Ops Executors
-    let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
-    let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
-    let bitwise_and_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitand);
-    let bitwise_or_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
-    let bitwise_xor_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
-    let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
-    let rotate_left_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_left);
-    let left_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::left_shift);
-    let rotate_right_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_right);
-    let right_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::right_shift);
-    let max_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::max);
-    let min_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::min);
+    let add_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    let sub_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
+    let bitwise_and_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitand);
+    let bitwise_or_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
+    let bitwise_xor_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
+    let mul_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
+    let rotate_left_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_left);
+    let left_shift_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::left_shift);
+    let rotate_right_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_right);
+    let right_shift_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::right_shift);
+    let max_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::max);
+    let min_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::min);
 
     // Binary Ops Clear functions
     let clear_add = |x, y| x + y;
@@ -93,10 +219,10 @@ where
     ];
 
     // Unary Ops Executors
-    let neg_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::neg);
-    let bitnot_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitnot);
+    let neg_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::neg);
+    let bitnot_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitnot);
     //let reverse_bits_executor =
-    // GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::reverse_bits); Unary Ops Clear
+    // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::reverse_bits); Unary Ops Clear
     // functions
     let clear_neg = |x: u64| x.wrapping_neg();
     let clear_bitnot = |x: u64| !x;
@@ -117,23 +243,26 @@ where
     ];
 
     // Scalar binary Ops Executors
-    let scalar_add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_add);
-    let scalar_sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_sub);
+    let scalar_add_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_add);
+    let scalar_sub_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_sub);
     let scalar_bitwise_and_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitand);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitand);
     let scalar_bitwise_or_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitor);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitor);
     let scalar_bitwise_xor_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitxor);
-    let scalar_mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_mul);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitxor);
+    let scalar_mul_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_mul);
     let scalar_rotate_left_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
     let scalar_left_shift_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
     let scalar_rotate_right_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
     let scalar_right_shift_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_binary_ops: Vec<(ScalarBinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
@@ -191,11 +320,11 @@ where
 
     // Overflowing Ops Executors
     let overflowing_add_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     let overflowing_sub_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
     //let overflowing_mul_executor =
-    //    GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_mul);
+    //    OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_mul);
 
     // Overflowing Ops Clear functions
     let clear_overflowing_add = |x: u64, y: u64| -> (u64, bool) { x.overflowing_add(y) };
@@ -226,10 +355,12 @@ where
     ];
 
     // Scalar Overflowing Ops Executors
-    let overflowing_scalar_add_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_scalar_add);
+    let overflowing_scalar_add_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::unsigned_overflowing_scalar_add,
+    );
     //    let overflowing_scalar_sub_executor =
-    //        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_scalar_sub);
+    //        OpSequenceGpuMultiDeviceFunctionExecutor::new(&
+    // CudaServerKey::unsigned_overflowing_scalar_sub);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_overflowing_ops: Vec<(
@@ -250,12 +381,12 @@ where
     ];
 
     // Comparison Ops Executors
-    let gt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::gt);
-    let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
-    let lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::lt);
-    let le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::le);
-    let eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::eq);
-    let ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ne);
+    let gt_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::gt);
+    let ge_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
+    let lt_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::lt);
+    let le_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::le);
+    let eq_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::eq);
+    let ne_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ne);
 
     // Comparison Ops Clear functions
     let clear_gt = |x: u64, y: u64| -> bool { x > y };
@@ -276,12 +407,18 @@ where
     ];
 
     // Scalar Comparison Ops Executors
-    let scalar_gt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_gt);
-    let scalar_ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ge);
-    let scalar_lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_lt);
-    let scalar_le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_le);
-    let scalar_eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_eq);
-    let scalar_ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ne);
+    let scalar_gt_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_gt);
+    let scalar_ge_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ge);
+    let scalar_lt_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_lt);
+    let scalar_le_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_le);
+    let scalar_eq_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_eq);
+    let scalar_ne_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ne);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_comparison_ops: Vec<(
@@ -322,7 +459,8 @@ where
     ];
 
     // Select Executor
-    let select_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
+    let select_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
 
     // Select
     let clear_select = |b: bool, x: u64, y: u64| if b { x } else { y };
@@ -335,7 +473,7 @@ where
     )];
 
     // Div executor
-    let div_rem_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
+    let div_rem_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
     // Div Rem Clear functions
     let clear_div_rem = |x: u64, y: u64| -> (u64, u64) { (x.wrapping_div(y), x.wrapping_rem(y)) };
     #[allow(clippy::type_complexity)]
@@ -347,7 +485,7 @@ where
 
     // Scalar Div executor
     let scalar_div_rem_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_div_rem);
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_div_rem);
     #[allow(clippy::type_complexity)]
     let mut scalar_div_rem_op: Vec<(
         ScalarDivRemOpExecutor,
@@ -360,9 +498,11 @@ where
     )];
 
     // Log2/Hamming weight ops
-    let ilog2_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ilog2);
-    //let count_zeros_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_zeros);
-    //let count_ones_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_ones);
+    let ilog2_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ilog2);
+    //let count_zeros_executor =
+    // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_zeros);
+    // let count_ones_executor =
+    // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_ones);
     let clear_ilog2 = |x: u64| x.ilog2() as u64;
     //let clear_count_zeros = |x: u64| x.count_zeros() as u64;
     //let clear_count_ones = |x: u64| x.count_ones() as u64;
@@ -382,8 +522,25 @@ where
         //),
     ];
 
-    random_op_sequence_test(
+    let (cks, sks, mut datagen) = random_op_sequence_test_init_gpu(
         param,
+        &mut binary_ops,
+        &mut unary_ops,
+        &mut scalar_binary_ops,
+        &mut overflowing_ops,
+        &mut scalar_overflowing_ops,
+        &mut comparison_ops,
+        &mut scalar_comparison_ops,
+        &mut select_op,
+        &mut div_rem_op,
+        &mut scalar_div_rem_op,
+        &mut log2_ops,
+    );
+
+    random_op_sequence_test(
+        &mut datagen,
+        &cks,
+        &sks,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,

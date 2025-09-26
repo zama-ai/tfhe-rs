@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::get_number_of_gpus;
-use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
