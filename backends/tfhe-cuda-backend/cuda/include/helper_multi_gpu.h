@@ -84,6 +84,11 @@ public:
     return CudaStreams(_streams, _gpu_indexes, 1);
   }
 
+  // Returns a subset containing only the ith stream
+  CudaStreams subset(int i) const {
+    return CudaStreams(&_streams[i], &_gpu_indexes[i], 1);
+  }
+
   // Synchronize all the streams in the set
   void synchronize() const {
     for (uint32_t i = 0; i < _gpu_count; i++) {
