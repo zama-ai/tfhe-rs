@@ -11,3 +11,96 @@ pub mod multi_bit_modulus_switch;
 pub mod secure_noise;
 
 pub mod noise_simulation;
+
+use crate::core_crypto::commons::dispersion::*;
+use crate::core_crypto::commons::parameters::*;
+
+#[test]
+fn lol() {
+    fn lwe_compact_public_key_encryption_expected_variance(
+        input_noise: impl DispersionParameter,
+        lwe_dimension: LweDimension,
+    ) -> Variance {
+        let input_variance = input_noise.get_variance();
+        Variance(input_variance.0 * (lwe_dimension.to_lwe_size().0 as f64))
+    }
+
+    let encryption_lwe_dimension = LweDimension(2048);
+    let encryption_noise_distribution = DynamicDistribution::<u64>::new_t_uniform(17);
+    let encryption_modulus = CiphertextModulus::<u64>::new_native();
+
+    let pke_var = dbg!(match encryption_noise_distribution {
+        DynamicDistribution::Gaussian(_) => unreachable!(),
+        DynamicDistribution::TUniform(tuniform) => {
+            lwe_compact_public_key_encryption_expected_variance(
+                tuniform.variance(encryption_modulus.raw_modulus_float()),
+                encryption_lwe_dimension,
+            )
+        }
+    });
+
+    let compute_lwe_dimension = LweDimension(918);
+    let compute_glwe_dimension = GlweDimension(1);
+    let compute_polynomial_size = PolynomialSize(2048);
+    // let compute_lwe_noise_distribution = DynamicDistribution::new_t_uniform(45);
+    // let compute_glwe_noise_distribution = DynamicDistribution::new_t_uniform(17);
+    let compute_ks_base_log = DecompositionBaseLog(4);
+    let compute_ks_level = DecompositionLevelCount(4);
+    let compute_ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+
+    let compute_big_lwe = compute_glwe_dimension.to_equivalent_lwe_dimension(compute_polynomial_size);
+
+    let dimension_switch_ks_level = DecompositionLevelCount(1);
+    let dimension_switch_ks_base_log = DecompositionBaseLog(24);
+
+    let compression_packing_ks_polynomial_size = PolynomialSize(256);
+    let compression_packing_ks_glwe_dimension = GlweDimension(4);
+    let compression_br_level = DecompositionLevelCount(1);
+    let compression_br_base_log = DecompositionBaseLog(23);
+
+    let compression_lwe_dimension = compression_packing_ks_glwe_dimension
+        .to_equivalent_lwe_dimension(compression_packing_ks_polynomial_size);
+
+    let after_decompression_var =
+        lwe_programmable_bootstrap::pbs_variance_132_bits_security_tuniform_fft_mul(
+            compression_lwe_dimension,
+            compute_glwe_dimension,
+            compute_polynomial_size,
+            compression_br_base_log,
+            compression_br_level,
+            compute_ciphertext_modulus.raw_modulus_float(),
+        );
+
+    let dimension_switch_additive_var = lwe_keyswitch::keyswitch_additive_variance_132_bits_security_tuniform(
+        encryption_lwe_dimension,
+        compute_big_lwe,
+        dimension_switch_ks_base_log,
+        dimension_switch_ks_level,
+        encryption_modulus.raw_modulus_float(),
+        compute_ciphertext_modulus.raw_modulus_float(),
+    );
+
+    let after_dimension_switch_var = dbg!(Variance(pke_var.0 + dimension_switch_additive_var.0));
+
+    let after_re_rand_var = dbg!(Variance(after_dimension_switch_var.0 + after_decompression_var.0));
+    let after_dp_var = dbg!(Variance(after_re_rand_var.0 * 25.0));
+    let ks_additive_var = lwe_keyswitch::keyswitch_additive_variance_132_bits_security_tuniform(
+        compute_big_lwe,
+        compute_lwe_dimension,
+        compute_ks_base_log,
+        compute_ks_level,
+        compute_ciphertext_modulus.raw_modulus_float(),
+        compute_ciphertext_modulus.raw_modulus_float(),
+    );
+    let after_ks_var = dbg!(Variance(after_dp_var.0 + ks_additive_var.0));
+    let br_input_modulus = 2.0f64.powi(compute_polynomial_size.to_blind_rotation_input_modulus_log().0 as i32);
+    let centered_ms_additive_var = 
+    centered_mean_shifted_modulus_switch::centered_binary_shifted_modulus_switch_additive_variance(
+        compute_lwe_dimension,
+        compute_ciphertext_modulus.raw_modulus_float(),
+        br_input_modulus);
+
+    let after_ms_var = dbg!(Variance(after_ks_var.0 + centered_ms_additive_var.0));
+
+    panic!("{:?}", after_ms_var);
+}
