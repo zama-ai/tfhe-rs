@@ -61,3 +61,23 @@ impl FheBool {
         Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "gpu")]
+mod test {
+    use crate::prelude::FheDecrypt;
+    use tfhe_csprng::seeders::Seed;
+
+    #[test]
+    fn test_oprf_boolean() {
+        let config = crate::ConfigBuilder::default().build();
+        let client_key = crate::ClientKey::generate(config);
+        let compressed_server_key = crate::CompressedServerKey::new(&client_key);
+        let gpu_key = compressed_server_key.decompress_to_gpu();
+        crate::set_server_key(gpu_key);
+
+        let rnd = crate::FheBool::generate_oblivious_pseudo_random(Seed(123u128));
+        let decrypted_result: bool = rnd.decrypt(&client_key);
+        println!("Random bool: {decrypted_result}");
+    }
+}
