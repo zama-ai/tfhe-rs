@@ -6028,6 +6028,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
           degree, params.message_modulus, params.carry_modulus,
           params.glwe_dimension, params.polynomial_size, lut_f,
           allocate_gpu_memory);
+      // In  OPRF the degree is hard set to p - 1 instead of the LUT degree
+      degree = p - 1;
       *luts->get_degree(lut_index) = degree;
     }
 
