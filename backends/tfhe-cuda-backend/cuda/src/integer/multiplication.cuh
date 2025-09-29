@@ -398,19 +398,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
     if (active_streams.count() == 1) {
       execute_keyswitch_async<Torus>(
-          streams.subset_first_gpu(), (Torus *)small_lwe_vector->ptr,
-          d_pbs_indexes_in, (Torus *)current_blocks->ptr, d_pbs_indexes_in,
-          ksks, big_lwe_dimension, small_lwe_dimension,
-          mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
-          total_messages);
+          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
+          (Torus *)current_blocks->ptr, d_pbs_indexes_in, ksks,
+          big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
+          mem_ptr->params.ks_level, total_messages);
 
       execute_pbs_async<Torus, Torus>(
-          streams.subset_first_gpu(), (Torus *)current_blocks->ptr,
-          d_pbs_indexes_out, luts_message_carry->lut_vec,
-          luts_message_carry->lut_indexes_vec, (Torus *)small_lwe_vector->ptr,
-          d_pbs_indexes_in, bsks, ms_noise_reduction_key,
-          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
-          polynomial_size, mem_ptr->params.pbs_base_log,
+          streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
+          luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
+          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
+          small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
           total_ciphertexts, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);
@@ -451,18 +449,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
     if (active_streams.count() == 1) {
       execute_keyswitch_async<Torus>(
-          streams.subset_first_gpu(), (Torus *)small_lwe_vector->ptr,
-          d_pbs_indexes_in, (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
+          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
+          (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
           mem_ptr->params.ks_level, num_radix_blocks);
 
       execute_pbs_async<Torus, Torus>(
-          streams.subset_first_gpu(), (Torus *)current_blocks->ptr,
-          d_pbs_indexes_out, luts_message_carry->lut_vec,
-          luts_message_carry->lut_indexes_vec, (Torus *)small_lwe_vector->ptr,
-          d_pbs_indexes_in, bsks, ms_noise_reduction_key,
-          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
-          polynomial_size, mem_ptr->params.pbs_base_log,
+          streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
+          luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
+          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
+          small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
           2 * num_radix_blocks, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);

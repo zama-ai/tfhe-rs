@@ -1347,7 +1347,7 @@ template <typename Torus> struct int_fullprop_buffer {
                       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
-    lut = new int_radix_lut<Torus>(streams.subset_first_gpu(), params, 2, 2,
+    lut = new int_radix_lut<Torus>(streams.get_ith(0), params, 2, 2,
                                    allocate_gpu_memory, size_tracker);
 
     // LUTs
@@ -1407,7 +1407,7 @@ template <typename Torus> struct int_fullprop_buffer {
                                    tmp_small_lwe_vector, gpu_memory_allocated);
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_big_lwe_vector, gpu_memory_allocated);
-    lut->release(streams.subset_first_gpu());
+    lut->release(streams.get_ith(0));
     delete tmp_small_lwe_vector;
     delete tmp_big_lwe_vector;
     delete lut;
@@ -4488,19 +4488,19 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                           bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     zero_out_if_not_1_lut_1 =
-        new int_radix_lut<Torus>(streams.subset(0), params, 1, num_blocks,
+        new int_radix_lut<Torus>(streams.get_ith(0), params, 1, num_blocks,
                                  allocate_gpu_memory, size_tracker);
 
     zero_out_if_not_2_lut_1 =
-        new int_radix_lut<Torus>(streams.subset(1), params, 1, num_blocks,
+        new int_radix_lut<Torus>(streams.get_ith(1), params, 1, num_blocks,
                                  allocate_gpu_memory, tmp_size_tracker);
 
     zero_out_if_not_2_lut_2 =
-        new int_radix_lut<Torus>(streams.subset(2), params, 1, num_blocks,
+        new int_radix_lut<Torus>(streams.get_ith(2), params, 1, num_blocks,
                                  allocate_gpu_memory, tmp_size_tracker);
 
     zero_out_if_not_1_lut_2 =
-        new int_radix_lut<Torus>(streams.subset(3), params, 1, num_blocks,
+        new int_radix_lut<Torus>(streams.get_ith(3), params, 1, num_blocks,
                                  allocate_gpu_memory, tmp_size_tracker);
 
     auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
@@ -4539,12 +4539,14 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           params.carry_modulus, zero_out_if_not_2_lut_f, gpu_memory_allocated);
     }
 
-    quotient_lut_1 = new int_radix_lut<Torus>(
-        streams.subset(2), params, 1, 1, allocate_gpu_memory, tmp_size_tracker);
-    quotient_lut_2 = new int_radix_lut<Torus>(
-        streams.subset(1), params, 1, 1, allocate_gpu_memory, tmp_size_tracker);
+    quotient_lut_1 =
+        new int_radix_lut<Torus>(streams.get_ith(2), params, 1, 1,
+                                 allocate_gpu_memory, tmp_size_tracker);
+    quotient_lut_2 =
+        new int_radix_lut<Torus>(streams.get_ith(1), params, 1, 1,
+                                 allocate_gpu_memory, tmp_size_tracker);
     quotient_lut_3 = new int_radix_lut<Torus>(
-        streams.subset(0), params, 1, 1, allocate_gpu_memory, size_tracker);
+        streams.get_ith(0), params, 1, 1, allocate_gpu_memory, size_tracker);
 
     auto quotient_lut_1_f = [](Torus cond) -> Torus {
       return (Torus)(cond == 2);
@@ -4610,22 +4612,22 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     gpu_memory_allocated = allocate_gpu_memory;
 
     sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
-        streams.subset(0), params, num_blocks + 1, outputFlag::FLAG_NONE,
+        streams.get_ith(0), params, num_blocks + 1, outputFlag::FLAG_NONE,
         allocate_gpu_memory, size_tracker);
 
     shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-        streams.subset(1), SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params,
+        streams.get_ith(1), SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params,
         2 * num_blocks, allocate_gpu_memory, tmp_size_tracker);
 
     uint32_t compute_overflow = 1;
     overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
-        streams.subset(0), params, num_blocks, compute_overflow,
+        streams.get_ith(0), params, num_blocks, compute_overflow,
         allocate_gpu_memory, size_tracker);
     overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
-        streams.subset(1), params, num_blocks, compute_overflow,
+        streams.get_ith(1), params, num_blocks, compute_overflow,
         allocate_gpu_memory, tmp_size_tracker);
     overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
-        streams.subset(2), params, num_blocks, compute_overflow,
+        streams.get_ith(2), params, num_blocks, compute_overflow,
         allocate_gpu_memory, tmp_size_tracker);
     uint32_t group_size = overflow_sub_mem_1->group_size;
     bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
@@ -4633,7 +4635,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
 
     cuda_set_device(0);
     cudaEventCreateWithFlags(&create_indexes_done, cudaEventDisableTiming);
-    create_indexes_for_overflow_sub(streams.subset(0), num_blocks, group_size,
+    create_indexes_for_overflow_sub(streams.get_ith(0), num_blocks, group_size,
                                     use_seq, allocate_gpu_memory, size_tracker);
     cudaEventRecord(create_indexes_done, streams.stream(0));
     cuda_set_device(1);
@@ -4653,22 +4655,22 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         num_blocks, allocate_gpu_memory, tmp_size_tracker);
 
     comparison_buffer_1 = new int_comparison_buffer<Torus>(
-        streams.subset(0), COMPARISON_TYPE::EQ, params, num_blocks, false,
+        streams.get_ith(0), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, size_tracker);
     comparison_buffer_2 = new int_comparison_buffer<Torus>(
-        streams.subset(1), COMPARISON_TYPE::EQ, params, num_blocks, false,
+        streams.get_ith(1), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, tmp_size_tracker);
     comparison_buffer_3 = new int_comparison_buffer<Torus>(
-        streams.subset(2), COMPARISON_TYPE::EQ, params, num_blocks, false,
+        streams.get_ith(2), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, tmp_size_tracker);
     bitor_mem_1 = new int_bitop_buffer<Torus>(
-        streams.subset(0), BITOP_TYPE::BITOR, params, num_blocks,
+        streams.get_ith(0), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
     bitor_mem_2 = new int_bitop_buffer<Torus>(
-        streams.subset(1), BITOP_TYPE::BITOR, params, num_blocks,
+        streams.get_ith(1), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, tmp_size_tracker);
     bitor_mem_3 = new int_bitop_buffer<Torus>(
-        streams.subset(2), BITOP_TYPE::BITOR, params, num_blocks,
+        streams.get_ith(2), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, tmp_size_tracker);
 
     init_lookup_tables(streams, num_blocks, allocate_gpu_memory, size_tracker);
@@ -4823,17 +4825,17 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     }
 
     // release and delete integer ops memory objects
-    sub_and_propagate_mem->release(streams.subset(0));
-    shift_mem->release(streams.subset(1));
-    overflow_sub_mem_1->release(streams.subset(0));
-    overflow_sub_mem_2->release(streams.subset(1));
-    overflow_sub_mem_3->release(streams.subset(2));
-    comparison_buffer_1->release(streams.subset(0));
-    comparison_buffer_2->release(streams.subset(1));
-    comparison_buffer_3->release(streams.subset(2));
-    bitor_mem_1->release(streams.subset(0));
-    bitor_mem_2->release(streams.subset(1));
-    bitor_mem_3->release(streams.subset(2));
+    sub_and_propagate_mem->release(streams.get_ith(0));
+    shift_mem->release(streams.get_ith(1));
+    overflow_sub_mem_1->release(streams.get_ith(0));
+    overflow_sub_mem_2->release(streams.get_ith(1));
+    overflow_sub_mem_3->release(streams.get_ith(2));
+    comparison_buffer_1->release(streams.get_ith(0));
+    comparison_buffer_2->release(streams.get_ith(1));
+    comparison_buffer_3->release(streams.get_ith(2));
+    bitor_mem_1->release(streams.get_ith(0));
+    bitor_mem_2->release(streams.get_ith(1));
+    bitor_mem_3->release(streams.get_ith(2));
 
     delete sub_and_propagate_mem;
     sub_and_propagate_mem = nullptr;
@@ -4861,13 +4863,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     // release and delete lut objects
     message_extract_lut_1->release(streams);
     message_extract_lut_2->release(streams);
-    zero_out_if_not_1_lut_1->release(streams.subset(0));
-    zero_out_if_not_1_lut_2->release(streams.subset(3));
-    zero_out_if_not_2_lut_1->release(streams.subset(1));
-    zero_out_if_not_2_lut_2->release(streams.subset(2));
-    quotient_lut_1->release(streams.subset(2));
-    quotient_lut_2->release(streams.subset(1));
-    quotient_lut_3->release(streams.subset(0));
+    zero_out_if_not_1_lut_1->release(streams.get_ith(0));
+    zero_out_if_not_1_lut_2->release(streams.get_ith(3));
+    zero_out_if_not_2_lut_1->release(streams.get_ith(1));
+    zero_out_if_not_2_lut_2->release(streams.get_ith(2));
+    quotient_lut_1->release(streams.get_ith(2));
+    quotient_lut_2->release(streams.get_ith(1));
+    quotient_lut_3->release(streams.get_ith(0));
 
     delete message_extract_lut_1;
     message_extract_lut_1 = nullptr;

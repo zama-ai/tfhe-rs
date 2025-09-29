@@ -78,14 +78,8 @@ public:
                        get_active_gpu_count(num_radix_blocks, _gpu_count));
   }
 
-  // Returns a subset containing only the first gpu of this set. It
-  // is used to create subset of streams for mono-GPU functions
-  CudaStreams subset_first_gpu() const {
-    return CudaStreams(_streams, _gpu_indexes, 1);
-  }
-
-  // Returns a subset containing only the ith stream
-  CudaStreams subset(int i) const {
+  // Returns a CudaStreams struct containing only the ith stream
+  CudaStreams get_ith(int i) const {
     return CudaStreams(&_streams[i], &_gpu_indexes[i], 1);
   }
 
