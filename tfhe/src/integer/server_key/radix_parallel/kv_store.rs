@@ -1,5 +1,5 @@
 use crate::integer::backward_compatibility::ciphertext::CompressedKVStoreVersions;
-use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
+use crate::integer::block_decomposition::Decomposable;
 use crate::integer::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, Compressible, Expandable,
 };
@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::num::NonZeroUsize;
 use tfhe_versionable::Versionize;
 
@@ -25,6 +26,7 @@ use tfhe_versionable::Versionize;
 ///
 ///
 /// To serialize a KVStore it must first be compressed with [KVStore::compress]
+#[derive(Clone)]
 pub struct KVStore<Key, Ct> {
     data: HashMap<Key, Ct>,
     block_count: Option<NonZeroUsize>,
@@ -84,6 +86,14 @@ impl<Key, Ct> KVStore<Key, Ct> {
         self.data.insert(key, value)
     }
 
+    /// Removes a key-value pair.
+    pub fn remove(&mut self, key: &Key) -> Option<Ct>
+    where
+        Key: Eq + Hash,
+    {
+        self.data.remove(key)
+    }
+
     /// Returns the number of key-value pairs currently stored
     pub fn len(&self) -> usize {
         self.data.len()
@@ -109,6 +119,10 @@ impl<Key, Ct> KVStore<Key, Ct> {
     {
         self.data.par_iter().map(|(k, _)| k)
     }
+
+    pub(crate) fn blocks_per_radix(&self) -> Option<NonZeroUsize> {
+        self.block_count
+    }
 }
 
 impl<Key, Ct> Default for KVStore<Key, Ct>
@@ -121,127 +135,6 @@ where
 }
 
 impl ServerKey {
-    /// Internal function used to perform a binary operation
-    /// on an entry.
-    ///
-    /// `encrypted_key`: The key of the slot
-    /// `func`: function that receives to arguments:
-    ///     * A boolean block that encrypts `true` if the corresponding key is the same as the
-    ///       `encrypted_key`
-    ///     * a `& mut` to the ciphertext which stores the value
-    fn kv_store_binary_op_to_slot<Key, Ct, F>(
-        &self,
-        map: &mut KVStore<Key, Ct>,
-        encrypted_key: &Ct,
-        func: F,
-    ) where
-        Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
-        F: Fn(&BooleanBlock, &mut Ct) + Sync + Send,
-    {
-        let kv_vec: Vec<(&Key, &mut Ct)> = map.data.iter_mut().collect();
-
-        // For each clear key, get a boolean ciphertext that tells if it's
-        // equal to the encrypted key
-        let selectors =
-            self.compute_equality_selectors(encrypted_key, kv_vec.par_iter().map(|(k, _v)| **k));
-
-        kv_vec
-            .into_par_iter()
-            .zip(selectors.par_iter())
-            .for_each(|((_k, current_ct), selector)| func(selector, current_ct));
-    }
-
-    /// Performs an addition on an entry of the store
-    ///
-    /// `map[encrypted_key] += value`
-    ///
-    /// This finds the value that corresponds to the given `encrypted_key `
-    /// and adds `value` to it.
-    pub fn kv_store_add_to_slot<Key, Ct>(
-        &self,
-        map: &mut KVStore<Key, Ct>,
-        encrypted_key: &Ct,
-        value: &Ct,
-    ) where
-        Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
-    {
-        self.kv_store_binary_op_to_slot(map, encrypted_key, |selector, v| {
-            let mut ct_to_add = value.clone();
-            self.zero_out_if_condition_is_false(&mut ct_to_add, &selector.0);
-            self.add_assign_parallelized(v, &ct_to_add);
-        });
-    }
-
-    /// Performs an addition by a clear on an entry of the store
-    ///
-    /// `map[encrypted_key] += value`
-    ///
-    /// This finds the value that corresponds to the given `encrypted_key `
-    /// and adds `value` to it.
-    pub fn kv_store_scalar_add_to_slot<Key, Ct, Clear>(
-        &self,
-        map: &mut KVStore<Key, Ct>,
-        encrypted_key: &Ct,
-        value: Clear,
-    ) where
-        Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
-        Clear: DecomposableInto<u64>,
-    {
-        self.kv_store_binary_op_to_slot(map, encrypted_key, |selector, v| {
-            let ct_to_add =
-                self.scalar_cmux_parallelized(selector, value, Clear::ZERO, v.blocks().len());
-            self.add_assign_parallelized(v, &ct_to_add);
-        });
-    }
-
-    /// Performs a subtraction on an entry of the store
-    ///
-    /// `map[encrypted_key] -= value`
-    ///
-    /// This finds the value that corresponds to the given `encrypted_key`,
-    /// and subtracts `value` to it.
-    pub fn kv_store_sub_to_slot<Key, Ct>(
-        &self,
-        map: &mut KVStore<Key, Ct>,
-        encrypted_key: &Ct,
-        value: &Ct,
-    ) where
-        Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
-    {
-        self.kv_store_binary_op_to_slot(map, encrypted_key, |selector, v| {
-            let mut ct_to_sub = value.clone();
-            self.zero_out_if_condition_is_false(&mut ct_to_sub, &selector.0);
-            self.sub_assign_parallelized(v, &ct_to_sub);
-        });
-    }
-
-    /// Performs a multiplication on an entry of the store
-    ///
-    /// `map[encrypted_key] *= value`
-    ///
-    /// This finds the value that corresponds to the given `encrypted_key`,
-    /// and multiplies it by `value`.
-    pub fn kv_store_mul_to_slot<Key, Ct>(
-        &self,
-        map: &mut KVStore<Key, Ct>,
-        encrypted_key: &Ct,
-        value: &Ct,
-    ) where
-        Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
-        Self: for<'a> ServerKeyDefaultCMux<u64, &'a Ct, Output = Ct>,
-    {
-        self.kv_store_binary_op_to_slot(map, encrypted_key, |selector, v| {
-            let selector = self.boolean_bitnot(selector);
-            let ct_to_mul = self.if_then_else_parallelized(&selector, 1u64, value);
-            self.mul_assign_parallelized(v, &ct_to_mul);
-        });
-    }
-
     /// Implementation of the get function that additionally returns the Vec of selectors
     /// so it can be reused to avoid re-computing it.
     fn kv_store_get_impl<Key, Ct>(
@@ -350,21 +243,21 @@ impl ServerKey {
     /// This finds the value that corresponds to the given `encrypted_key`, then
     /// calls `func` then updates the value stored with the one returned by the `func`.
     ///
-    /// Returns the new value and a boolean block that encrypts `true` if an entry for
-    /// the `encrypted_key` was found.
+    /// Returns the (old_value, new_value, check_block) where `check_block` encrypts `true` if an
+    /// entry for the `encrypted_key` was found.
     pub fn kv_store_map<Key, Ct, F>(
         &self,
         map: &mut KVStore<Key, Ct>,
         encrypted_key: &Ct,
         func: F,
-    ) -> (Ct, BooleanBlock)
+    ) -> (Ct, Ct, BooleanBlock)
     where
         Ct: IntegerRadixCiphertext,
         Key: Decomposable + CastInto<usize> + Hash + Eq,
         F: Fn(Ct) -> Ct,
     {
-        let (result, check_block, selectors) = self.kv_store_get_impl(map, encrypted_key);
-        let new_value = func(result);
+        let (old_value, check_block, selectors) = self.kv_store_get_impl(map, encrypted_key);
+        let new_value = func(old_value.clone());
 
         let kv_vec: Vec<(&Key, &mut Ct)> = map.data.iter_mut().collect();
         kv_vec
@@ -374,17 +267,17 @@ impl ServerKey {
                 *old_value = self.if_then_else_parallelized(s, &new_value, old_value);
             });
 
-        (new_value, check_block)
+        (old_value, new_value, check_block)
     }
 }
 
 impl<Key, Ct> KVStore<Key, Ct>
 where
     Key: Copy,
-    Ct: Compressible + Clone,
+    Ct: IntegerRadixCiphertext + Compressible + Clone,
 {
     /// Compress the KVStore to be able to serialize it
-    pub fn compress(&self, compression_key: &CompressionKey) -> CompressedKVStore<Key> {
+    pub fn compress(&self, compression_key: &CompressionKey) -> CompressedKVStore<Key, Ct> {
         let mut builder = CompressedCiphertextListBuilder::new();
         let mut keys = Vec::with_capacity(self.data.len());
         for (key, value) in self.data.iter() {
@@ -394,7 +287,7 @@ where
 
         let values = builder.build(compression_key);
 
-        CompressedKVStore { keys, values }
+        CompressedKVStore::new(keys, values)
     }
 }
 
@@ -403,34 +296,54 @@ where
 /// This type is the serializable and deserializable form of a KVStore
 #[derive(Serialize, Deserialize, Versionize)]
 #[versionize(CompressedKVStoreVersions)]
-pub struct CompressedKVStore<Key> {
+pub struct CompressedKVStore<Key, Value> {
     keys: Vec<Key>,
     values: CompressedCiphertextList,
+    is_signed: bool,
+    _v: PhantomData<Value>,
 }
 
-impl<Key> CompressedKVStore<Key>
+impl<Key, Value> CompressedKVStore<Key, Value>
 where
-    Key: Copy + Display + Eq + Hash,
+    Value: Expandable + IntegerRadixCiphertext,
 {
+    fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
+        Self {
+            keys,
+            values: compressed_values,
+            is_signed: Value::IS_SIGNED,
+            _v: PhantomData,
+        }
+    }
     /// Decompressed the KVStore
     ///
     /// Returns an error if:
+    /// * The requested value type does not have the same signedness as the stored one
     /// * A key does not have a corresponding value
     /// * A value (which is a radix ciphertext) does not have the same number of blocks as the
     ///   others.
     ///
     /// Both these errors indicate corrupted or malformed data
-    pub fn decompress<Ct>(
+    pub fn decompress(
         &self,
         decompression_key: &DecompressionKey,
-    ) -> crate::Result<KVStore<Key, Ct>>
+    ) -> crate::Result<KVStore<Key, Value>>
     where
-        Ct: Expandable + IntegerRadixCiphertext,
+        Key: Copy + Display + Eq + Hash,
     {
+        if Value::IS_SIGNED != self.is_signed {
+            let requested = if Value::IS_SIGNED { "Signed" } else { "" };
+            let stored = if self.is_signed { "Signed" } else { "" };
+            return Err(crate::error!(
+                "Requested value type does not have signed.\
+             Requested '{requested}RadixCiphertext' but stored '{stored}RadixCiphertext'"
+            ));
+        }
+
         let mut block_count = None;
         let mut store = KVStore::new();
         for (i, key) in self.keys.iter().enumerate() {
-            let value: Ct = self
+            let value: Value = self
                 .values
                 .get(i, decompression_key)?
                 .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
@@ -454,9 +367,22 @@ where
 
 macro_rules! impl_named_for_kv_store {
     ($Key:ty) => {
-        impl crate::named::Named for CompressedKVStore<$Key> {
-            const NAME: &'static str =
-                concat!("integer::CompressedKVStore<", stringify!($Key), ">");
+        impl crate::named::Named for CompressedKVStore<$Key, crate::integer::RadixCiphertext> {
+            const NAME: &'static str = concat!(
+                "integer::CompressedKVStore<",
+                stringify!($Key),
+                ", integer::RadixCiphertext>"
+            );
+        }
+
+        impl crate::named::Named
+            for CompressedKVStore<$Key, crate::integer::SignedRadixCiphertext>
+        {
+            const NAME: &'static str = concat!(
+                "integer::CompressedKVStore<",
+                stringify!($Key),
+                ", integer::SignedRadixCiphertext>"
+            );
         }
     };
 }
@@ -547,7 +473,7 @@ mod tests {
 
         let mut data = vec![];
         crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
-        let compressed: CompressedKVStore<u32> =
+        let compressed: CompressedKVStore<u32, RadixCiphertext> =
             crate::safe_serialization::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         assert_store_unsigned_matches(&clear_store, &kv_store, &cks);
@@ -614,7 +540,7 @@ mod tests {
 
         let mut data = vec![];
         crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
-        let compressed: CompressedKVStore<u32> =
+        let compressed: CompressedKVStore<u32, SignedRadixCiphertext> =
             crate::safe_serialization::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         assert_store_signed_matches(&clear_store, &kv_store, &cks);

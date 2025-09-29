@@ -151,6 +151,6 @@ pub enum SquashedNoiseBooleanBlockVersions {
 }
 
 #[derive(VersionsDispatch)]
-pub enum CompressedKVStoreVersions<K> {
-    V0(CompressedKVStore<K>),
+pub enum CompressedKVStoreVersions<K, V> {
+    V0(CompressedKVStore<K, V>),
 }

@@ -4,9 +4,10 @@ use super::inner::SignedRadixCiphertext;
 use crate::backward_compatibility::integers::FheIntVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::global_state;
-use crate::high_level_api::integers::{FheUint, FheUintId, IntegerId};
+use crate::high_level_api::integers::{FheIntegerType, FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{ReRandomize, Tagged};
@@ -20,7 +21,14 @@ use crate::shortint::PBSParameters;
 use crate::{Device, FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
 
-pub trait FheIntId: IntegerId {}
+#[cfg(not(feature = "gpu"))]
+type ExpectedInnerGpu = ();
+#[cfg(feature = "gpu")]
+type ExpectedInnerGpu = crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+pub trait FheIntId:
+    IntegerId<InnerCpu = crate::integer::SignedRadixCiphertext, InnerGpu = ExpectedInnerGpu>
+{
+}
 
 /// A Generic FHE signed integer
 ///
@@ -104,6 +112,29 @@ where
 
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
+    }
+}
+
+impl<Id> FheIntegerType for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Id = Id;
+
+    fn on_cpu(&self) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerCpu> {
+        self.ciphertext.on_cpu()
+    }
+
+    fn into_cpu(self) -> <Self::Id as IntegerId>::InnerCpu {
+        self.ciphertext.into_cpu()
+    }
+
+    fn from_cpu(
+        inner: <Self::Id as IntegerId>::InnerCpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
+        Self::new(inner, tag, re_randomization_metadata)
     }
 }
 

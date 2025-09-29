@@ -30,19 +30,23 @@ expand_pub_use_fhe_type!(
     };
 );
 
+use crate::prelude::Tagged;
+use crate::ReRandomizationMetadata;
 pub(in crate::high_level_api) use signed::{
-    CompressedSignedRadixCiphertext, FheIntId, InnerSquashedNoiseSignedRadixCiphertextVersionOwned,
+    CompressedSignedRadixCiphertext, InnerSquashedNoiseSignedRadixCiphertextVersionOwned,
     SignedRadixCiphertextVersionOwned,
 };
 pub(in crate::high_level_api) use unsigned::{
-    CompressedRadixCiphertext, FheUintId, InnerSquashedNoiseRadixCiphertextVersionOwned,
+    CompressedRadixCiphertext, InnerSquashedNoiseRadixCiphertextVersionOwned,
     RadixCiphertextVersionOwned as UnsignedRadixCiphertextVersionOwned,
 };
 // These are pub-exported so that their doc can appear in generated rust docs
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::traits::FheId;
 use crate::shortint::MessageModulus;
-pub use signed::{CompressedFheInt, FheInt, SquashedNoiseFheInt};
-pub use unsigned::{CompressedFheUint, FheUint, SquashedNoiseFheUint};
+use crate::Tag;
+pub use signed::{CompressedFheInt, FheInt, FheIntId, SquashedNoiseFheInt};
+pub use unsigned::{CompressedFheUint, FheUint, FheUintId, SquashedNoiseFheUint};
 
 pub mod oprf;
 pub(super) mod signed;
@@ -52,9 +56,27 @@ pub(super) mod unsigned;
 // The 'static restrains implementor from holding non-static refs
 // which is ok as it is meant to be impld by zero sized types.
 pub trait IntegerId: FheId + 'static {
+    type InnerCpu: crate::integer::IntegerRadixCiphertext;
+
+    type InnerGpu;
+
     fn num_bits() -> usize;
 
     fn num_blocks(message_modulus: MessageModulus) -> usize {
         Self::num_bits() / message_modulus.0.ilog2() as usize
     }
+}
+
+pub trait FheIntegerType: Tagged {
+    type Id: IntegerId;
+
+    fn on_cpu(&self) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerCpu>;
+
+    fn into_cpu(self) -> <Self::Id as IntegerId>::InnerCpu;
+
+    fn from_cpu(
+        inner: <Self::Id as IntegerId>::InnerCpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self;
 }
