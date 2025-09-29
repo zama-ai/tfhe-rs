@@ -1,32 +1,32 @@
 use super::dp_ks_ms::dp_ks_any_ms;
 use super::utils::noise_simulation::{
-    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
+    NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
-    encrypt_new_noiseless_lwe, mean_and_variance_check, normality_check, pfail_check,
-    update_ap_params_for_pfail, DecryptionAndNoiseResult, NoiseSample, PfailTestMeta,
-    PfailTestResult,
+    mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
+    DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::dispersion::Variance;
-use crate::core_crypto::commons::parameters::{CiphertextModulus, CiphertextModulusLog};
-use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternServerKey};
+use crate::core_crypto::commons::parameters::CiphertextModulusLog;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::{
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
-use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
+use crate::shortint::server_key::ServerKey;
 use crate::shortint::{Ciphertext, PaddingBit};
 use rayon::prelude::*;
 
@@ -228,32 +228,8 @@ where
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
 
-    let small_lwe_sk = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            standard_atomic_pattern_client_key.lwe_secret_key.as_view()
-        }
-        AtomicPatternClientKey::KeySwitch32(_) => todo!(),
-    };
-
-    let ms_ciphertext_modulus =
-        CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap();
-    let ms_encoding = ShortintEncoding {
-        ciphertext_modulus: ms_ciphertext_modulus,
-        message_modulus: sks.message_modulus,
-        carry_modulus: sks.carry_modulus,
-        padding_bit: PaddingBit::Yes,
-    };
-
     for _ in 0..10 {
-        let input_zero_as_lwe = ShortintEngine::with_thread_local_mut(|engine| {
-            DynLwe::U64(encrypt_new_noiseless_lwe(
-                &small_lwe_sk,
-                ms_ciphertext_modulus,
-                0,
-                &ms_encoding,
-                &mut engine.encryption_generator,
-            ))
-        });
+        let input_zero_as_lwe = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
 
         let (
             _input,
@@ -304,7 +280,8 @@ where
 
 create_parameterized_test!(sanity_check_encrypt_br_dp_ks_pbs {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
 });
 
 fn encrypt_br_dp_ks_any_ms_inner_helper(
@@ -341,20 +318,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper(
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
 
-    let ct = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            ShortintEngine::with_thread_local_mut(|engine| {
-                DynLwe::U64(encrypt_new_noiseless_lwe(
-                    &standard_atomic_pattern_client_key.lwe_secret_key,
-                    CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
-                    0,
-                    &sks.encoding(PaddingBit::Yes),
-                    &mut engine.encryption_generator,
-                ))
-            })
-        }
-        AtomicPatternClientKey::KeySwitch32(_ks32_atomic_pattern_client_key) => todo!(),
-    };
+    let ct = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
 
     let id_lut = sks.generate_lookup_table(|x| x);
 
@@ -372,48 +336,112 @@ fn encrypt_br_dp_ks_any_ms_inner_helper(
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
 
-    let output_encoding = ShortintEncoding::from_parameters(params, PaddingBit::Yes);
-
     match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-            DecryptionAndNoiseResult::new_from_lwe(
-                &input.as_lwe_64(),
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_br.as_lwe_64(),
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_dp.as_lwe_64(),
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ks.as_lwe_64(),
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &before_ms.as_lwe_64(),
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ms.as_lwe_64(),
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-        ),
-        AtomicPatternClientKey::KeySwitch32(_) => todo!(),
+        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+            let params = standard_atomic_pattern_client_key.parameters;
+            let output_encoding = ShortintEncoding {
+                ciphertext_modulus: params.ciphertext_modulus(),
+                message_modulus: params.message_modulus(),
+                carry_modulus: params.carry_modulus(),
+                padding_bit: PaddingBit::Yes,
+            };
+            let large_lwe_secret_key = standard_atomic_pattern_client_key.large_lwe_secret_key();
+            let small_lwe_secret_key = standard_atomic_pattern_client_key.small_lwe_secret_key();
+            (
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &input.as_lwe_64(),
+                    &small_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_br.as_lwe_64(),
+                    &large_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_dp.as_lwe_64(),
+                    &large_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_ks.as_lwe_64(),
+                    &small_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &before_ms.as_lwe_64(),
+                    &small_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_ms.as_lwe_64(),
+                    &small_lwe_secret_key,
+                    msg,
+                    &output_encoding,
+                ),
+            )
+        }
+        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+            let msg_u32: u32 = msg.try_into().unwrap();
+            let params = ks32_atomic_pattern_client_key.parameters;
+            let small_key_encoding = ShortintEncoding {
+                ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
+                message_modulus: params.message_modulus(),
+                carry_modulus: params.carry_modulus(),
+                padding_bit: PaddingBit::Yes,
+            };
+            let big_key_encoding = ShortintEncoding {
+                ciphertext_modulus: params.ciphertext_modulus(),
+                message_modulus: params.message_modulus(),
+                carry_modulus: params.carry_modulus(),
+                padding_bit: PaddingBit::Yes,
+            };
+            let large_lwe_secret_key = ks32_atomic_pattern_client_key.large_lwe_secret_key();
+            let small_lwe_secret_key = ks32_atomic_pattern_client_key.small_lwe_secret_key();
+            (
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &input.as_lwe_32(),
+                    &small_lwe_secret_key,
+                    msg_u32,
+                    &small_key_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_br.as_lwe_64(),
+                    &large_lwe_secret_key,
+                    msg,
+                    &big_key_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_dp.as_lwe_64(),
+                    &large_lwe_secret_key,
+                    msg,
+                    &big_key_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_ks.as_lwe_32(),
+                    &small_lwe_secret_key,
+                    msg_u32,
+                    &small_key_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &before_ms.as_lwe_32(),
+                    &small_lwe_secret_key,
+                    msg_u32,
+                    &small_key_encoding,
+                ),
+                DecryptionAndNoiseResult::new_from_lwe(
+                    &after_ms.as_lwe_32(),
+                    &small_lwe_secret_key,
+                    msg_u32,
+                    &small_key_encoding,
+                ),
+            )
+        }
     }
 }
 
@@ -501,42 +529,21 @@ where
     let expected_average_after_ms =
         noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
-    let drift_key = match &sks.atomic_pattern {
-        // TODO manage key checks directly on the noise simulations objects
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            assert!(noise_simulation_ksk
-                .matches_actual_ksk(&standard_atomic_pattern_server_key.key_switching_key));
-
-            let drift_key = standard_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_configuration()
-                .unwrap()
-                .modulus_switch_noise_reduction_key();
-
-            match (drift_key, noise_simulation_drift_key) {
-                (Some(drift_key), Some(noise_simulation_drift_key)) => {
-                    assert!(noise_simulation_drift_key.matches_actual_drift_key(drift_key))
-                }
-                (None, None) => (),
-                _ => panic!("Inconsistent drift_key configuration"),
-            }
-
-            match &standard_atomic_pattern_server_key.bootstrapping_key {
-                ShortintBootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key: _,
-                } => assert!(noise_simulation_bsk.matches_actual_bsk(bsk)),
-                ShortintBootstrappingKey::MultiBit { .. } => todo!(),
-            }
-
-            match noise_simulation_modulus_switch_config {
-                NoiseSimulationModulusSwitchConfig::Standard => None,
-                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-                NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-            }
-        }
-        _ => unimplemented!(),
+    let drift_key = match noise_simulation_modulus_switch_config {
+        NoiseSimulationModulusSwitchConfig::Standard => None,
+        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
+        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
+
+    assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
+    match (noise_simulation_drift_key, drift_key) {
+        (Some(noise_simulation_drift_key), Some(drift_key)) => {
+            assert!(noise_simulation_drift_key.matches_actual_shortint_server_key(drift_key))
+        }
+        (None, None) => (),
+        _ => panic!("Inconsistent Drift Key configuration"),
+    }
+    assert!(noise_simulation_bsk.matches_actual_shortint_server_key(&sks));
 
     let max_scalar_mul = sks.max_noise_level.get();
 
@@ -567,22 +574,7 @@ where
     };
 
     let id_lut = sks.generate_lookup_table(|x| x);
-    let sample_input = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            ShortintEngine::with_thread_local_mut(|engine| {
-                DynLwe::U64(encrypt_new_noiseless_lwe(
-                    &standard_atomic_pattern_client_key.lwe_secret_key,
-                    CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap(),
-                    0,
-                    &sks.encoding(PaddingBit::Yes),
-                    &mut engine.encryption_generator,
-                ))
-            })
-        }
-        AtomicPatternClientKey::KeySwitch32(_ks32_atomic_pattern_client_key) => {
-            todo!("Manage generation of DynLwe as an additional impl on the ClientKey")
-        }
-    };
+    let sample_input = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
@@ -643,7 +635,8 @@ where
 
 create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail<P>(params: P)
@@ -711,5 +704,6 @@ where
 
 create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_pfail {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
 });

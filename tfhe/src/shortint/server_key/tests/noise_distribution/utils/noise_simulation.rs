@@ -12,13 +12,16 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulusLog, DynamicDistribution, LweDimension, LweSize, PolynomialSize,
+    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, LweDimension, LweSize,
+    PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
 };
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::NoiseSquashingCompressionKey;
 use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
@@ -28,10 +31,12 @@ use crate::shortint::parameters::{
     AtomicPatternParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, PBSParameters,
 };
+use crate::shortint::server_key::tests::noise_distribution::utils::encrypt_new_noiseless_lwe;
 use crate::shortint::server_key::{
     AtomicPatternServerKey, LookupTable, ModulusSwitchConfiguration,
     ModulusSwitchNoiseReductionKey, ServerKey, ShortintBootstrappingKey,
 };
+use crate::shortint::{PaddingBit, ShortintEncoding};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum DynLwe {
@@ -247,6 +252,55 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for DynLwe {
                     side_resources,
                 ),
             _ => panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch"),
+        }
+    }
+}
+
+impl ClientKey {
+    pub fn encrypt_noiseless_pbs_input_dyn_lwe(
+        &self,
+        modulus_log: CiphertextModulusLog,
+        msg: u64,
+    ) -> DynLwe {
+        match &self.atomic_pattern {
+            AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                let params = standard_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    DynLwe::U64(encrypt_new_noiseless_lwe(
+                        &standard_atomic_pattern_client_key.lwe_secret_key,
+                        CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
+                        msg,
+                        &encoding,
+                        &mut engine.encryption_generator,
+                    ))
+                })
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                let params = ks32_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    DynLwe::U32(encrypt_new_noiseless_lwe(
+                        &ks32_atomic_pattern_client_key.lwe_secret_key,
+                        CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
+                        msg.try_into().unwrap(),
+                        &encoding,
+                        &mut engine.encryption_generator,
+                    ))
+                })
+            }
         }
     }
 }
@@ -1076,5 +1130,89 @@ impl NoiseSimulationLwePackingKeyswitchKey {
                 noise_squashing_compression_params.ciphertext_modulus,
             ),
         )
+    }
+}
+
+impl NoiseSimulationLweKeyswitchKey {
+    pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
+        match &server_key.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                self.matches_actual_ksk(&standard_atomic_pattern_server_key.key_switching_key)
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                self.matches_actual_ksk(&ks32_atomic_pattern_server_key.key_switching_key)
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl NoiseSimulationDriftTechniqueKey {
+    pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
+        match &server_key.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic {
+                        bsk: _,
+                        modulus_switch_noise_reduction_key,
+                    } => match modulus_switch_noise_reduction_key {
+                        ModulusSwitchConfiguration::Standard => false,
+                        ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                            modulus_switch_noise_reduction_key,
+                        ) => self.matches_actual_drift_key(modulus_switch_noise_reduction_key),
+                        ModulusSwitchConfiguration::CenteredMeanNoiseReduction => false,
+                    },
+                    ShortintBootstrappingKey::MultiBit { .. } => false,
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic {
+                        bsk: _,
+                        modulus_switch_noise_reduction_key,
+                    } => match modulus_switch_noise_reduction_key {
+                        ModulusSwitchConfiguration::Standard => false,
+                        ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                            modulus_switch_noise_reduction_key,
+                        ) => self.matches_actual_drift_key(modulus_switch_noise_reduction_key),
+                        ModulusSwitchConfiguration::CenteredMeanNoiseReduction => false,
+                    },
+                    ShortintBootstrappingKey::MultiBit { .. } => false,
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl NoiseSimulationLweFourierBsk {
+    pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
+        match &server_key.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic {
+                        bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => self.matches_actual_bsk(bsk),
+                    ShortintBootstrappingKey::MultiBit { .. } => false,
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic {
+                        bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => self.matches_actual_bsk(bsk),
+                    ShortintBootstrappingKey::MultiBit { .. } => false,
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
     }
 }
