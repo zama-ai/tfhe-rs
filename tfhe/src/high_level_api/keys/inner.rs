@@ -812,6 +812,9 @@ impl
         }
         .to_lwe_size();
 
+        let output_ciphertext_modulus =
+            sk_params.ciphertext_modulus_for_key(ks_params.destination_key);
+
         let cast_rshift = (sk_params.carry_modulus().0.ilog2()
             + sk_params.message_modulus().0.ilog2()
             - cpk_params.carry_modulus.0.ilog2()
@@ -824,7 +827,7 @@ impl
                 decomp_level_count: ks_params.ks_level,
                 output_lwe_size,
                 input_lwe_dimension: cpk_params.encryption_lwe_dimension,
-                ciphertext_modulus: sk_params.ciphertext_modulus(),
+                ciphertext_modulus: output_ciphertext_modulus,
             },
             cast_rshift,
             destination_key: ks_params.destination_key,
