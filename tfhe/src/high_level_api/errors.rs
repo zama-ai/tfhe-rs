@@ -81,10 +81,52 @@ impl Display for UninitializedReRandKey {
     }
 }
 
-impl std::error::Error for UninitializedReRandKey {}
-
 impl From<UninitializedReRandKey> for Error {
     fn from(value: UninitializedReRandKey) -> Self {
+        Self::new(format!("{value}"))
+    }
+}
+
+impl std::error::Error for UninitializedReRandKey {}
+
+#[derive(Debug)]
+pub struct UninitializedCompressionKey;
+
+impl Display for UninitializedCompressionKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Compression key is not set in server key, \
+            did you forget to call `enable_compression` when building your Config?",
+        )
+    }
+}
+
+impl std::error::Error for UninitializedCompressionKey {}
+
+impl From<UninitializedCompressionKey> for Error {
+    fn from(value: UninitializedCompressionKey) -> Self {
+        Self::new(format!("{value}"))
+    }
+}
+
+#[derive(Debug)]
+pub struct UninitializedDecompressionKey;
+
+impl Display for UninitializedDecompressionKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Decompression key is not set in server key, \
+            did you forget to call `enable_compression` when building your Config?",
+        )
+    }
+}
+
+impl std::error::Error for UninitializedDecompressionKey {}
+
+impl From<UninitializedDecompressionKey> for Error {
+    fn from(value: UninitializedDecompressionKey) -> Self {
         Self::new(format!("{value}"))
     }
 }

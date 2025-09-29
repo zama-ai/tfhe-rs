@@ -5,6 +5,8 @@ use std::{env, fs};
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 use tfhe::core_crypto::prelude::*;
+#[cfg(feature = "integer")]
+use tfhe::prelude::*;
 
 #[cfg(feature = "boolean")]
 pub mod boolean_utils {
@@ -464,6 +466,39 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         ((num_threads + (num_threads * 0.2)) * block_multiplicator.min(1.0) * operation_loading)
             as u64
     }
+}
+
+// Given an `Op` this returns how many more ops should be done in parallel
+// to saturate the CPU and have a better throughput measurement
+#[cfg(feature = "integer")]
+pub fn hlapi_throughput_num_ops<Op>(op: Op, cks: &tfhe::ClientKey) -> usize
+where
+    Op: FnOnce(),
+{
+    tfhe::reset_pbs_count();
+    let t = std::time::Instant::now();
+    op();
+    let time_for_op = t.elapsed();
+    let pbs_count_for_op = tfhe::get_pbs_count();
+
+    let a = tfhe::FheBool::encrypt(true, cks);
+    let b = tfhe::FheBool::encrypt(true, cks);
+    let t = std::time::Instant::now();
+    let _ = a & b;
+    let time_for_single_pbs = t.elapsed();
+
+    // Round-up with nano seconds
+    let pbs_time_in_ms =
+        time_for_single_pbs.as_millis() + u128::from(time_for_single_pbs.as_nanos() != 0);
+
+    // Theoretical time if the op was just 1 layer of PBS all in parallel
+    let time_if_full_occupancy =
+        pbs_count_for_op.div_ceil(rayon::current_num_threads() as u64) as u128 * pbs_time_in_ms;
+
+    // Then find how many ops we should do to have full occupancy
+    let factor = time_for_op.as_millis().div_ceil(time_if_full_occupancy);
+
+    factor as usize
 }
 
 #[cfg(feature = "gpu")]

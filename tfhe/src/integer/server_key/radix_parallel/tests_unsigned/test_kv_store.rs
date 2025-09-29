@@ -10,63 +10,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 create_parameterized_test!(
-    integer_default_kv_store_add
-    {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_default_kv_store_sub
-      {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_default_kv_store_mul
-    {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
     integer_default_kv_store_get_update
     {
         coverage => {
@@ -105,21 +48,6 @@ create_parameterized_test!(
     }
 );
 
-fn integer_default_kv_store_add(params: impl Into<TestParameters>) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::kv_store_add_to_slot);
-    default_kv_store_add_test(params, executor);
-}
-
-fn integer_default_kv_store_sub(params: impl Into<TestParameters>) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::kv_store_sub_to_slot);
-    default_kv_store_sub_test(params, executor);
-}
-
-fn integer_default_kv_store_mul(params: impl Into<TestParameters>) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::kv_store_mul_to_slot);
-    default_kv_store_mul_test(params, executor);
-}
-
 fn integer_default_kv_store_get_update(params: impl Into<TestParameters>) {
     let get_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_get);
     let update_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_update);
@@ -139,194 +67,8 @@ fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
 
 pub type KeyType = u8;
 
-fn default_kv_store_add_test<P, T>(params: P, mut kv_store_add: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
-            &'a RadixCiphertext,
-            &'a RadixCiphertext,
-        ),
-        (),
-    >,
-{
-    let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    kv_store_add.setup(&cks, sks);
-
-    let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
-
-    // Test modifying a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
-
-        let value_to_add = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_add);
-        kv_store_add.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        panic_if_not_the_same(&map, &clear_store, &cks);
-    }
-
-    // Test modifying a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
-
-        let value_to_add = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_add);
-
-        kv_store_add.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        let new_value = clear_store
-            .get(&key_target)
-            .map(|v| v.wrapping_add(value_to_add) % modulus)
-            .unwrap();
-        clear_store.insert(key_target, new_value);
-
-        panic_if_not_properly_updated(&map, &clear_store, key_target, &cks)
-    }
-}
-
 fn get_num_block_for_key(msg_mod: MessageModulus) -> usize {
     KeyType::BITS.div_ceil(msg_mod.0.ilog2()) as usize
-}
-
-fn default_kv_store_sub_test<P, T>(params: P, mut kv_store_sub: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
-            &'a RadixCiphertext,
-            &'a RadixCiphertext,
-        ),
-        (),
-    >,
-{
-    let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    kv_store_sub.setup(&cks, sks);
-
-    let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
-
-    // Test modifying a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
-
-        let value_to_add = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_add);
-        kv_store_sub.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        panic_if_not_the_same(&map, &clear_store, &cks);
-    }
-
-    // Test modifying a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
-
-        let value_to_sub = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_sub);
-
-        kv_store_sub.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        let new_value = clear_store
-            .get(&key_target)
-            .map(|v| v.wrapping_sub(value_to_sub) % modulus)
-            .unwrap();
-        clear_store.insert(key_target, new_value);
-
-        panic_if_not_properly_updated(&map, &clear_store, key_target, &cks)
-    }
-}
-
-fn default_kv_store_mul_test<P, T>(params: P, mut kv_store_mul: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
-            &'a RadixCiphertext,
-            &'a RadixCiphertext,
-        ),
-        (),
-    >,
-{
-    let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    kv_store_mul.setup(&cks, sks);
-
-    let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
-
-    // Test modifying a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
-
-        let value_to_add = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_add);
-        kv_store_mul.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        panic_if_not_the_same(&map, &clear_store, &cks);
-    }
-
-    // Test modifying a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
-
-        let value_to_mul = rand::random::<u64>() % modulus;
-        let encrypted_value_to_add: RadixCiphertext = cks.encrypt(value_to_mul);
-
-        kv_store_mul.execute((&mut map, &encrypted_key, &encrypted_value_to_add));
-
-        let new_value = clear_store
-            .get(&key_target)
-            .map(|v| v.wrapping_mul(value_to_mul) % modulus)
-            .unwrap();
-        clear_store.insert(key_target, new_value);
-
-        panic_if_not_properly_updated(&map, &clear_store, key_target, &cks)
-    }
 }
 
 fn default_kv_store_get_update_test<P, T1, T2>(
@@ -415,7 +157,7 @@ where
             &'a RadixCiphertext,
             &'a dyn Fn(RadixCiphertext) -> RadixCiphertext,
         ),
-        (RadixCiphertext, BooleanBlock),
+        (RadixCiphertext, RadixCiphertext, BooleanBlock),
     >,
 {
     let params = params.into();
@@ -448,7 +190,7 @@ where
         let key = generate_unused_key(&clear_store);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
-        let (_, is_some) = kv_store_map.execute((&mut map, &encrypted_key, &function));
+        let (_, _, is_some) = kv_store_map.execute((&mut map, &encrypted_key, &function));
         assert!(!cks.decrypt_bool(&is_some));
 
         panic_if_not_the_same(&map, &clear_store, &cks);
@@ -460,19 +202,21 @@ where
         let key_target = *clear_store.iter().nth(key_index).unwrap().0;
         let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 
-        let new_value = clear_store
+        let (old_value, new_value) = clear_store
             .get(&key_target)
             .copied()
-            .map(clear_function)
+            .map(|old_value| (old_value, clear_function(old_value)))
             .unwrap();
 
-        let (result, is_some) = kv_store_map.execute((
+        let (e_old_value, e_new_value, is_some) = kv_store_map.execute((
             &mut map,
             &encrypted_key,
             &function as &dyn Fn(RadixCiphertext) -> RadixCiphertext,
         ));
         assert!(cks.decrypt_bool(&is_some));
-        assert_eq!(cks.decrypt::<u64>(&result), new_value);
+        assert_eq!(cks.decrypt::<u64>(&e_new_value), new_value);
+        assert_eq!(cks.decrypt::<u64>(&e_old_value), old_value);
+
         clear_store.insert(key_target, new_value);
 
         panic_if_not_properly_updated(&map, &clear_store, key_target, &cks);

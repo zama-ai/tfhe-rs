@@ -1505,13 +1505,13 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 bench_hlapi: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,nightly-avx512 -p tfhe-benchmark --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
 bench_hlapi_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_hpu: install_rs_check_toolchain
@@ -1519,7 +1519,7 @@ bench_hlapi_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark --
+	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc20 # Run benchmarks for ERC20 operations
 bench_hlapi_erc20: install_rs_check_toolchain
