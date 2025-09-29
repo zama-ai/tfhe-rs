@@ -1672,6 +1672,8 @@ where
                     seed,
                 )?;
 
+                self.re_randomization_metadata_mut().clear();
+
                 Ok(())
             }
             #[cfg(feature = "gpu")]

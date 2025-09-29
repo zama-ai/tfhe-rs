@@ -78,8 +78,10 @@ fn test_re_rand() {
         let mut seed_gen = re_rand_context.finalize();
 
         a.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(a.re_randomization_metadata().data().is_empty());
 
         b.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(b.re_randomization_metadata().data().is_empty());
 
         let c = a + b;
         let dec: u64 = c.decrypt(&cks);
@@ -130,8 +132,10 @@ fn test_re_rand() {
         let mut seed_gen = re_rand_context.finalize();
 
         a.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(a.re_randomization_metadata().data().is_empty());
 
         b.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(b.re_randomization_metadata().data().is_empty());
 
         let c = a + b;
         let dec: i8 = c.decrypt(&cks);
@@ -181,8 +185,10 @@ fn test_re_rand() {
                 let mut seed_gen = re_rand_context.finalize();
 
                 a.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+                assert!(a.re_randomization_metadata().data().is_empty());
 
                 b.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+                assert!(b.re_randomization_metadata().data().is_empty());
 
                 let c = a & b;
                 let dec: bool = c.decrypt(&cks);

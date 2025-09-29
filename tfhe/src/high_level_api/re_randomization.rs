@@ -231,4 +231,8 @@ impl ReRandomizationMetadata {
     pub fn set_data(&mut self, data: &[u8]) {
         self.inner.set_data(data);
     }
+
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
 }

@@ -174,6 +174,16 @@ impl SmallVec {
         self.set_data(le_bytes.as_slice());
     }
 
+    /// Clears the vector, removing all values.
+    ///
+    /// Note that this method has no effect on the allocated capacity of the vector.
+    pub fn clear(&mut self) {
+        match self {
+            Self::Stack { bytes: _, len } => *len = 0,
+            Self::Heap(items) => items.clear(),
+        }
+    }
+
     // Creates a SmallVec from the vec, but, only re-uses the vec
     // if its len would not fit on the stack part.
     //
