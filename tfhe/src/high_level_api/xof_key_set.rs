@@ -4,8 +4,6 @@ use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::entities::{LweCompactPublicKey, LweKeyswitchKey};
 use crate::core_crypto::prelude::*;
 
-#[cfg(test)]
-use crate::high_level_api::keys::ReRandomizationKeyGenerationInfo;
 use crate::integer::ciphertext::{
     CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
 };
@@ -13,8 +11,12 @@ use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
 use crate::named::Named;
 
-use crate::shortint::atomic_pattern::{AtomicPatternServerKey, StandardAtomicPatternServerKey};
+use crate::shortint::atomic_pattern::{
+    AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
+};
 
+#[cfg(test)]
+use crate::shortint::key_switching_key::KeySwitchingKeyDestinationAtomicPattern;
 use crate::shortint::noise_squashing::atomic_pattern::ks32::KS32AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::atomic_pattern::standard::StandardAtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
@@ -40,11 +42,15 @@ use crate::integer::compression_keys::CompressionKey;
 use crate::integer::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
 };
-use crate::shortint::atomic_pattern::compressed::CompressedStandardAtomicPatternServerKey;
+use crate::shortint::atomic_pattern::compressed::{
+    CompressedAtomicPatternServerKey, CompressedKS32AtomicPatternServerKey,
+    CompressedStandardAtomicPatternServerKey,
+};
 use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
     CompressedShortint128BootstrappingKey, Shortint128BootstrappingKey,
 };
+
 #[cfg(test)]
 mod cfg_test_imports {
     pub(super) use crate::core_crypto::commons::generators::NoiseRandomGenerator;
@@ -55,10 +61,9 @@ mod cfg_test_imports {
     pub(super) use crate::high_level_api::keys::CompactPrivateKey;
     pub(super) use crate::integer::compression_keys::CompressionPrivateKeys;
     pub(super) use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
-    pub(super) use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
     pub(super) use crate::shortint::ciphertext::MaxDegree;
     pub(super) use crate::shortint::client_key::atomic_pattern::{
-        AtomicPatternClientKey, StandardAtomicPatternClientKey,
+        AtomicPatternClientKey, KS32AtomicPatternClientKey, StandardAtomicPatternClientKey,
     };
     pub(super) use crate::shortint::noise_squashing::atomic_pattern::compressed::standard::CompressedStandardAtomicPatternNoiseSquashingKey;
     pub(super) use crate::shortint::parameters::{
@@ -68,6 +73,8 @@ mod cfg_test_imports {
         ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
     };
     pub(super) use tfhe_csprng::seeders::Seed;
+
+    pub(super) use crate::high_level_api::keys::ReRandomizationKeyGenerationInfo;
 }
 #[cfg(test)]
 use cfg_test_imports::*;
@@ -126,13 +133,12 @@ impl CompressedXofKeySet {
 
         let shortint_sk = &self.compressed_server_key.integer_key.key.key;
 
-        let decompressed_ap = shortint_sk
-            .as_compressed_standard_atomic_pattern_server_key()
-            .map(|ap| ap.decompress_with_pre_seeded_generator(&mut mask_generator))
-            .ok_or_else(|| crate::error!("Only standard atomic pattern is supported"))?;
+        let atomic_pattern_key = shortint_sk
+            .compressed_ap_server_key
+            .decompress_with_pre_seeded_generator(&mut mask_generator);
 
         let shortint_sk = shortint::ServerKey::from_raw_parts(
-            AtomicPatternServerKey::Standard(decompressed_ap),
+            atomic_pattern_key,
             shortint_sk.message_modulus,
             shortint_sk.carry_modulus,
             shortint_sk.max_degree,
@@ -428,8 +434,7 @@ impl CompressedNoiseSquashingKey {
     #[cfg(test)]
     fn generate_with_pre_seeded_generator<Gen>(
         private_noise_squashing_key: &integer::noise_squashing::NoiseSquashingPrivateKey,
-        lwe_secret_key: &LweSecretKey<Vec<u64>>,
-        computation_parameters: ShortintParameterSet,
+        ap_client_key: &AtomicPatternClientKey,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
     where
@@ -437,12 +442,12 @@ impl CompressedNoiseSquashingKey {
     {
         let noise_squashing_parameters = private_noise_squashing_key.noise_squashing_parameters();
 
-        let shortint_key = match computation_parameters.atomic_pattern() {
-            shortint::AtomicPatternKind::Standard(_) => {
+        let shortint_key = match ap_client_key {
+            AtomicPatternClientKey::Standard(std_ap) => {
                 let bsk = CompressedShortint128BootstrappingKey::generate_with_pre_seeded_generator(
-                    lwe_secret_key,
-                    computation_parameters.ciphertext_modulus(),
-                    computation_parameters.lwe_noise_distribution(),
+                    &std_ap.lwe_secret_key,
+                    std_ap.parameters.ciphertext_modulus(),
+                    std_ap.parameters.lwe_noise_distribution(),
                     private_noise_squashing_key,
                     generator,
                 );
@@ -451,9 +456,19 @@ impl CompressedNoiseSquashingKey {
                     CompressedStandardAtomicPatternNoiseSquashingKey::from_raw_parts(bsk),
                 )
             }
-            shortint::AtomicPatternKind::KeySwitch32 => {
-                // Should be completed when Xofkeyset is implemented for the compute KS32 ap
-                todo!()
+            AtomicPatternClientKey::KeySwitch32(ks32_ap) => {
+                use crate::shortint::noise_squashing::atomic_pattern::compressed::ks32::CompressedKS32AtomicPatternNoiseSquashingKey;
+                let bsk = CompressedShortint128BootstrappingKey::generate_with_pre_seeded_generator(
+                    &ks32_ap.lwe_secret_key,
+                    ks32_ap.parameters.post_keyswitch_ciphertext_modulus,
+                    ks32_ap.parameters.lwe_noise_distribution,
+                    private_noise_squashing_key,
+                    generator,
+                );
+
+                CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(
+                    CompressedKS32AtomicPatternNoiseSquashingKey::from_raw_parts(bsk),
+                )
             }
         };
 
@@ -695,6 +710,187 @@ impl ShortintMultibitCompressedBootstrappingKeyParts {
     }
 }
 
+impl CompressedKS32AtomicPatternServerKey {
+    #[cfg(test)]
+    fn generate_with_pre_seeded_generator<Gen>(
+        client_key_ap: &KS32AtomicPatternClientKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let core_ksk = allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
+            &client_key_ap.large_lwe_secret_key(),
+            &client_key_ap.small_lwe_secret_key(),
+            client_key_ap.parameters.ks_base_log,
+            client_key_ap.parameters.ks_level,
+            client_key_ap.parameters.lwe_noise_distribution,
+            client_key_ap.parameters.post_keyswitch_ciphertext_modulus,
+            generator,
+        );
+
+        let core_bsk = allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+            &client_key_ap.lwe_secret_key,
+            &client_key_ap.glwe_secret_key,
+            client_key_ap.parameters.pbs_base_log,
+            client_key_ap.parameters.pbs_level,
+            client_key_ap.parameters.glwe_noise_distribution,
+            client_key_ap.parameters.ciphertext_modulus,
+            generator,
+        );
+
+        let modulus_switch_noise_reduction_config =
+            CompressedModulusSwitchConfiguration::generate_with_pre_seeded_generator(
+                &client_key_ap
+                    .parameters
+                    .modulus_switch_noise_reduction_params,
+                &client_key_ap.lwe_secret_key,
+                client_key_ap.parameters.lwe_noise_distribution,
+                client_key_ap.parameters.post_keyswitch_ciphertext_modulus,
+                generator,
+            );
+
+        let shortint_bsk = ShortintCompressedBootstrappingKey::Classic {
+            bsk: core_bsk,
+            modulus_switch_noise_reduction_key: modulus_switch_noise_reduction_config,
+        };
+
+        Self::from_raw_parts(core_ksk, shortint_bsk)
+    }
+
+    fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        mask_generator: &mut MaskRandomGenerator<Gen>,
+    ) -> KS32AtomicPatternServerKey
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        let mut core_ksk = LweKeyswitchKey::new(
+            0u32,
+            self.key_switching_key().decomposition_base_log(),
+            self.key_switching_key().decomposition_level_count(),
+            self.key_switching_key().input_key_lwe_dimension(),
+            self.key_switching_key().output_key_lwe_dimension(),
+            self.key_switching_key().ciphertext_modulus(),
+        );
+        decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator(
+            &mut core_ksk,
+            self.key_switching_key(),
+            mask_generator,
+        );
+
+        let shortint_bsk = self
+            .bootstrapping_key()
+            .decompress_with_pre_seeded_generator(mask_generator);
+
+        KS32AtomicPatternServerKey::from_raw_parts(
+            core_ksk,
+            shortint_bsk,
+            self.bootstrapping_key().ciphertext_modulus(),
+        )
+    }
+}
+
+impl CompressedAtomicPatternServerKey {
+    #[cfg(test)]
+    fn generate_with_pre_seeded_generator<Gen>(
+        client_key_ap: &AtomicPatternClientKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match client_key_ap {
+            AtomicPatternClientKey::Standard(ap) => Self::Standard(
+                CompressedStandardAtomicPatternServerKey::generate_with_pre_seeded_generator(
+                    ap, generator,
+                ),
+            ),
+            AtomicPatternClientKey::KeySwitch32(ap) => Self::KeySwitch32(
+                CompressedKS32AtomicPatternServerKey::generate_with_pre_seeded_generator(
+                    ap, generator,
+                ),
+            ),
+        }
+    }
+
+    fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        mask_generator: &mut MaskRandomGenerator<Gen>,
+    ) -> AtomicPatternServerKey
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        match self {
+            Self::Standard(std_ap) => AtomicPatternServerKey::Standard(
+                std_ap.decompress_with_pre_seeded_generator(mask_generator),
+            ),
+            Self::KeySwitch32(ks32_ap) => AtomicPatternServerKey::KeySwitch32(
+                ks32_ap.decompress_with_pre_seeded_generator(mask_generator),
+            ),
+        }
+    }
+}
+
+impl<Scalar> ShortintCompressedBootstrappingKey<Scalar>
+where
+    Scalar: UnsignedTorus,
+{
+    fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        mask_generator: &mut MaskRandomGenerator<Gen>,
+    ) -> ShortintBootstrappingKey<Scalar>
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                let core_fourier_bsk =
+                    par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
+                        bsk,
+                        mask_generator,
+                    );
+
+                let modulus_switch_noise_reduction_key = modulus_switch_noise_reduction_key
+                    .decompress_with_pre_seeded_generator(mask_generator);
+
+                ShortintBootstrappingKey::Classic {
+                    bsk: core_fourier_bsk,
+                    modulus_switch_noise_reduction_key,
+                }
+            }
+            Self::MultiBit {
+                seeded_bsk,
+                deterministic_execution,
+            } => {
+                let core_fourier_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator(
+                        seeded_bsk,
+                        mask_generator
+                    );
+
+                let thread_count =
+                    crate::shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                        seeded_bsk.input_lwe_dimension(),
+                        seeded_bsk.glwe_size().to_glwe_dimension(),
+                        seeded_bsk.polynomial_size(),
+                        seeded_bsk.decomposition_base_log(),
+                        seeded_bsk.decomposition_level_count(),
+                        seeded_bsk.grouping_factor(),
+                    );
+
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk: core_fourier_bsk,
+                    thread_count,
+                    deterministic_execution: *deterministic_execution,
+                }
+            }
+        }
+    }
+}
+
 impl CompressedStandardAtomicPatternServerKey {
     #[cfg(test)]
     fn generate_with_pre_seeded_generator<Gen>(
@@ -793,51 +989,9 @@ impl CompressedStandardAtomicPatternServerKey {
             mask_generator,
         );
 
-        let shortint_bsk = match self.bootstrapping_key() {
-            ShortintCompressedBootstrappingKey::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                let core_fourier_bsk =
-                    par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
-                        bsk,
-                        mask_generator,
-                    );
-
-                let modulus_switch_noise_reduction_key = modulus_switch_noise_reduction_key
-                    .decompress_with_pre_seeded_generator(mask_generator);
-
-                ShortintBootstrappingKey::Classic {
-                    bsk: core_fourier_bsk,
-                    modulus_switch_noise_reduction_key,
-                }
-            }
-            ShortintCompressedBootstrappingKey::MultiBit {
-                seeded_bsk,
-                deterministic_execution,
-            } => {
-                let core_fourier_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator(
-                        seeded_bsk,
-                        mask_generator
-                    );
-
-                let thread_count =
-                    crate::shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
-                        seeded_bsk.input_lwe_dimension(),
-                        seeded_bsk.glwe_size().to_glwe_dimension(),
-                        seeded_bsk.polynomial_size(),
-                        seeded_bsk.decomposition_base_log(),
-                        seeded_bsk.decomposition_level_count(),
-                        seeded_bsk.grouping_factor(),
-                    );
-
-                ShortintBootstrappingKey::MultiBit {
-                    fourier_bsk: core_fourier_bsk,
-                    thread_count,
-                    deterministic_execution: *deterministic_execution,
-                }
-            }
-        };
+        let shortint_bsk = self
+            .bootstrapping_key()
+            .decompress_with_pre_seeded_generator(mask_generator);
 
         shortint::atomic_pattern::StandardAtomicPatternServerKey::from_raw_parts(
             core_ksk,
@@ -940,6 +1094,7 @@ impl CompressedKeySwitchingKeyMaterial {
             key_switching_key,
             cast_rshift: self.material.cast_rshift,
             destination_key: self.material.destination_key,
+            destination_atomic_pattern: self.material.destination_atomic_pattern,
         };
         KeySwitchingKeyMaterial::from_raw_parts(shortint_cpk_ksk)
     }
@@ -951,6 +1106,7 @@ impl CompressedReRandomizationKeySwitchingKey {
         glwe_secret_key: &GlweSecretKeyOwned<u64>,
         noise_distribution: DynamicDistribution<u64>,
         ciphertext_modulus: CiphertextModulus<u64>,
+        destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
         key_gen_info: &ReRandomizationKeyGenerationInfo<'_>,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
@@ -979,6 +1135,7 @@ impl CompressedReRandomizationKeySwitchingKey {
                         key_switching_key,
                         cast_rshift: 0,
                         destination_key: EncryptionKeyChoice::Big,
+                        destination_atomic_pattern,
                     },
                 };
 
@@ -1219,6 +1376,7 @@ mod test {
     use super::*;
     use crate::core_crypto::prelude::new_seeder;
     use crate::prelude::*;
+    use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
     use crate::xof_key_set::{CompressedXofKeySet, XofKeySet};
     use crate::*;
 
@@ -1238,12 +1396,6 @@ mod test {
 
             let computation_parameters: ShortintParameterSet = ck.key.key.parameters().into();
             let shortint_client_key = &ck.key.key.key;
-            let (lwe_secret_key, glwe_secret_key) = match &shortint_client_key.atomic_pattern {
-                AtomicPatternClientKey::Standard(ap) => (&ap.lwe_secret_key, &ap.glwe_secret_key),
-                AtomicPatternClientKey::KeySwitch32(_) => {
-                    return Err(crate::error!("KeySwitch32 atomic pattern is not supported"));
-                }
-            };
 
             // First, the public key used to encrypt
             // It uses separate parameters from the computation ones
@@ -1253,11 +1405,18 @@ mod test {
                     &mut encryption_rand_gen,
                 );
 
+            let glwe_secret_key = match &shortint_client_key.atomic_pattern {
+                AtomicPatternClientKey::Standard(ap) => &ap.glwe_secret_key,
+                AtomicPatternClientKey::KeySwitch32(ks32_ap) => &ks32_ap.glwe_secret_key,
+            };
+
             let compression_key = ck
                 .key
                 .compression_key
                 .as_ref()
                 .map(|private_compression_key| {
+                    // Compression requires EncryptionKey::Big, but if that was not the case,
+                    // the private_compression_key would not have been generated
                     integer::compression_keys::CompressedCompressionKey::generate_with_pre_seeded_generator(
                         private_compression_key,
                         glwe_secret_key,
@@ -1281,16 +1440,9 @@ mod test {
 
             // Now, we generate the server key (ksk, then bsk)
             let integer_compressed_server_key = {
-                let AtomicPatternClientKey::Standard(std_ap) = &shortint_client_key.atomic_pattern
-                else {
-                    return Err(crate::error!(
-                        "Only the standard atomic pattern is supported"
-                    ));
-                };
-
-                let compressed_standard_ap_sk =
-                    CompressedStandardAtomicPatternServerKey::generate_with_pre_seeded_generator(
-                        std_ap,
+                let compressed_ap_server_key =
+                    CompressedAtomicPatternServerKey::generate_with_pre_seeded_generator(
+                        &shortint_client_key.atomic_pattern,
                         &mut encryption_rand_gen,
                     );
 
@@ -1301,7 +1453,7 @@ mod test {
 
                 integer::CompressedServerKey::from_raw_parts(
                     shortint::CompressedServerKey::from_raw_parts(
-                        CompressedAtomicPatternServerKey::Standard(compressed_standard_ap_sk),
+                        compressed_ap_server_key,
                         computation_parameters.message_modulus(),
                         computation_parameters.carry_modulus(),
                         max_degree,
@@ -1317,8 +1469,7 @@ mod test {
                     .map(|noise_squashing_key| {
                         CompressedNoiseSquashingKey::generate_with_pre_seeded_generator(
                             noise_squashing_key,
-                            lwe_secret_key,
-                            computation_parameters,
+                            &shortint_client_key.atomic_pattern,
                             &mut encryption_rand_gen,
                         )
                     });
@@ -1326,34 +1477,73 @@ mod test {
             // Generate the key switching material that will allow going from
             // the public key's dedicated parameters to the computation parameters
             let pk_to_sk_ksk_params = dedicated_pk_key.1;
-            let (target_private_key, noise_distrib) = match pk_to_sk_ksk_params.destination_key {
-                EncryptionKeyChoice::Big => (
-                    glwe_secret_key.as_lwe_secret_key(),
-                    computation_parameters.glwe_noise_distribution(),
-                ),
-                EncryptionKeyChoice::Small => (
-                    lwe_secret_key.as_view(),
-                    computation_parameters.lwe_noise_distribution(),
-                ),
-            };
 
             let integer_ksk_material = {
-                let key_switching_key =
-                    allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
-                        &dedicated_pk_key.0.key.key(),
-                        &target_private_key,
-                        pk_to_sk_ksk_params.ks_base_log,
-                        pk_to_sk_ksk_params.ks_level,
-                        noise_distrib,
-                        computation_parameters.ciphertext_modulus(),
-                        &mut encryption_rand_gen,
-                    );
+                let noise_distrib = match pk_to_sk_ksk_params.destination_key {
+                    EncryptionKeyChoice::Big => computation_parameters.glwe_noise_distribution(),
+                    EncryptionKeyChoice::Small => computation_parameters.lwe_noise_distribution(),
+                };
+
+                let key_switching_key = match &ck.key.key.key.atomic_pattern {
+                    AtomicPatternClientKey::Standard(std_ap) => {
+                        let target_private_key = match pk_to_sk_ksk_params.destination_key {
+                            EncryptionKeyChoice::Big => std_ap.glwe_secret_key.as_lwe_secret_key(),
+                            EncryptionKeyChoice::Small => std_ap.lwe_secret_key.as_view(),
+                        };
+
+                        allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
+                            &dedicated_pk_key.0.key.key(),
+                            &target_private_key,
+                            pk_to_sk_ksk_params.ks_base_log,
+                            pk_to_sk_ksk_params.ks_level,
+                            noise_distrib,
+                            computation_parameters.ciphertext_modulus(),
+                            &mut encryption_rand_gen,
+                        )
+                    }
+                    AtomicPatternClientKey::KeySwitch32(ks32_ap) => {
+                        match pk_to_sk_ksk_params.destination_key {
+                            EncryptionKeyChoice::Big => {
+                                allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
+                                    &dedicated_pk_key.0.key.key(),
+                                    &ks32_ap.glwe_secret_key.as_lwe_secret_key(),
+                                    pk_to_sk_ksk_params.ks_base_log,
+                                    pk_to_sk_ksk_params.ks_level,
+                                    noise_distrib,
+                                    computation_parameters.ciphertext_modulus(),
+                                    &mut encryption_rand_gen,
+                                )
+                            }
+                            EncryptionKeyChoice::Small => {
+                                let u64_container = ks32_ap
+                                    .lwe_secret_key
+                                    .as_ref()
+                                    .iter()
+                                    .copied()
+                                    .map(|v| v as u64)
+                                    .collect::<Vec<_>>();
+                                let lwe_secret_key_u64 =
+                                    LweSecretKey::from_container(u64_container);
+                                allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator(
+                                    &dedicated_pk_key.0.key.key(),
+                                    &lwe_secret_key_u64,
+                                    pk_to_sk_ksk_params.ks_base_log,
+                                    pk_to_sk_ksk_params.ks_level,
+                                    noise_distrib,
+                                    ks32_ap.parameters.post_keyswitch_ciphertext_modulus.try_to().unwrap(),
+                                    &mut encryption_rand_gen,
+                                )
+                            }
+                        }
+                    }
+                };
 
                 CompressedKeySwitchingKeyMaterial {
                     material: shortint::key_switching_key::CompressedKeySwitchingKeyMaterial {
                         key_switching_key,
                         cast_rshift: 0,
                         destination_key: dedicated_pk_key.1.destination_key,
+                        destination_atomic_pattern: ck.key.key.key.atomic_pattern.kind().into(),
                     },
                 }
             };
@@ -1369,6 +1559,7 @@ mod test {
                         glwe_secret_key,
                         computation_parameters.glwe_noise_distribution(),
                         computation_parameters.ciphertext_modulus(),
+                        computation_parameters.atomic_pattern().into(),
                         key_gen_info,
                         &mut encryption_rand_gen,
                     )
@@ -1405,7 +1596,7 @@ mod test {
     }
 
     #[test]
-    fn test_xof_key_set() {
+    fn test_xof_key_set_classic_params() {
         let params =
             shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let cpk_params = shortint::parameters::test_params::TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -1437,11 +1628,86 @@ mod test {
         );
 
         let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        test_xof_key_set(&compressed_key_set, config, &cks);
+    }
 
+    #[test]
+    fn test_xof_key_set_ks32_params_big_pke() {
+        let params =
+            shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+        let cpk_params = shortint::parameters::test_params::TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let casting_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let compression_params =
+            shortint::parameters::test_params::TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let re_rand_ksk_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+            .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
+            .enable_compression(compression_params)
+            .enable_ciphertext_re_randomization(re_rand_ksk_params)
+            .build();
+
+        let cks = ClientKey::generate(config);
+
+        let mut seeder = new_seeder();
+        let pub_seed = XofSeed::new_u128(
+            seeder.seed().0,
+            [b'T', b'F', b'H', b'E', b'_', b'G', b'E', b'N'],
+        );
+        let priv_seed = XofSeed::new_u128(
+            seeder.seed().0,
+            [b'T', b'F', b'H', b'E', b'K', b'G', b'e', b'n'],
+        );
+
+        let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        test_xof_key_set(&compressed_key_set, config, &cks);
+    }
+
+    #[test]
+    fn test_xof_key_set_ks32_params_small_pke() {
+        let params =
+            shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+        let cpk_params = shortint::parameters::test_params::TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let casting_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let compression_params =
+            shortint::parameters::test_params::TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let re_rand_ksk_params = shortint::parameters::test_params::TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params = shortint::parameters::test_params::TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+            .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
+            .enable_compression(compression_params)
+            .enable_ciphertext_re_randomization(re_rand_ksk_params)
+            .build();
+
+        let cks = ClientKey::generate(config);
+
+        let mut seeder = new_seeder();
+        let pub_seed = XofSeed::new_u128(
+            seeder.seed().0,
+            [b'T', b'F', b'H', b'E', b'_', b'G', b'E', b'N'],
+        );
+        let priv_seed = XofSeed::new_u128(
+            seeder.seed().0,
+            [b'T', b'F', b'H', b'E', b'K', b'G', b'e', b'n'],
+        );
+
+        let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        test_xof_key_set(&compressed_key_set, config, &cks);
+    }
+
+    fn test_xof_key_set(compressed_key_set: &CompressedXofKeySet, config: Config, cks: &ClientKey) {
         let compressed_size_limit = 1 << 30;
         let mut data = vec![];
         crate::safe_serialization::safe_serialize(
-            &compressed_key_set,
+            compressed_key_set,
             &mut data,
             compressed_size_limit,
         )
@@ -1502,18 +1768,18 @@ mod test {
         let c = &a * &b;
         let d = &a & &b;
 
-        let c_dec: u32 = c.decrypt(&cks);
-        let d_dec: u32 = d.decrypt(&cks);
+        let c_dec: u32 = c.decrypt(cks);
+        let d_dec: u32 = d.decrypt(cks);
 
         assert_eq!(clear_a.wrapping_mul(clear_b), c_dec);
         assert_eq!(clear_a & clear_b, d_dec);
 
         let ns_c = c.squash_noise().unwrap();
-        let ns_c_dec: u32 = ns_c.decrypt(&cks);
+        let ns_c_dec: u32 = ns_c.decrypt(cks);
         assert_eq!(clear_a.wrapping_mul(clear_b), ns_c_dec);
 
         let ns_d = d.squash_noise().unwrap();
-        let ns_d_dec: u32 = ns_d.decrypt(&cks);
+        let ns_d_dec: u32 = ns_d.decrypt(cks);
         assert_eq!(clear_a & clear_b, ns_d_dec);
 
         let compressed_list = CompressedCiphertextListBuilder::new()
@@ -1525,16 +1791,16 @@ mod test {
             .unwrap();
 
         let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
-        let da: u32 = a.decrypt(&cks);
+        let da: u32 = a.decrypt(cks);
         assert_eq!(da, clear_a);
         let b: FheUint32 = compressed_list.get(1).unwrap().unwrap();
-        let db: u32 = b.decrypt(&cks);
+        let db: u32 = b.decrypt(cks);
         assert_eq!(db, clear_b);
         let c: FheUint32 = compressed_list.get(2).unwrap().unwrap();
-        let dc: u32 = c.decrypt(&cks);
+        let dc: u32 = c.decrypt(cks);
         assert_eq!(dc, clear_a.wrapping_mul(clear_b));
         let d: FheUint32 = compressed_list.get(3).unwrap().unwrap();
-        let db: u32 = d.decrypt(&cks);
+        let db: u32 = d.decrypt(cks);
         assert_eq!(db, clear_a & clear_b);
     }
 }
