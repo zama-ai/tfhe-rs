@@ -266,6 +266,12 @@ mod tests {
         let random_positive_multiplier = rng.gen_range(1u64..=u64::MAX);
         let mul = max_noise_level * random_positive_multiplier;
         assert_eq!(mul, NoiseLevel::UNKNOWN);
+
+        let random_noise = NoiseLevel(rng.gen_range(2..=u64::MAX));
+
+        assert!(NoiseLevel::NOMINAL >= NoiseLevel::ZERO);
+        assert!(random_noise > NoiseLevel::NOMINAL);
+        assert!(random_noise <= NoiseLevel::UNKNOWN);
     }
 
     #[test]

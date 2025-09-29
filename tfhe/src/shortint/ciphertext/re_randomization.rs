@@ -268,7 +268,7 @@ impl CompactPublicKey {
                     "Mismatched LweSwize between Ciphertext being re-randomized and provided \
                 KeySwitchingKeyMaterialView.",
                 )
-            } else if ct.noise_level() != NoiseLevel::NOMINAL {
+            } else if ct.noise_level() > NoiseLevel::NOMINAL {
                 Some("Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.")
             } else {
                 None
@@ -353,6 +353,10 @@ impl CompactPublicKey {
                 );
 
                 lwe_ciphertext_add_assign(&mut ct.ct, &lwe_randomizer_ksed);
+
+                // We take ciphertexts whose noise level is Nominal or less i.e. Zero, so we can
+                // unconditionally set the noise
+                ct.set_noise_level_to_nominal();
             });
 
         Ok(())
@@ -371,8 +375,9 @@ mod test {
     use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKey};
 
     /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
+    /// Test the trivial case
     #[test]
-    fn test_rerand_large_ct_count_ci_run_filter() {
+    fn test_rerand_ci_run_filter() {
         let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
         let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -387,36 +392,65 @@ mod test {
         let msg1 = 1;
         let msg2 = 2;
 
-        let mut cts = Vec::with_capacity(pke_lwe_dim * 2);
+        {
+            let mut cts = Vec::with_capacity(pke_lwe_dim * 2);
 
-        for _ in 0..pke_lwe_dim {
-            let ct1 = cks.encrypt(msg1);
-            cts.push(ct1);
-            let ct2 = cks.encrypt(msg2);
-            cts.push(ct2);
+            for _ in 0..pke_lwe_dim {
+                let ct1 = cks.encrypt(msg1);
+                cts.push(ct1);
+                let ct2 = cks.encrypt(msg2);
+                cts.push(ct2);
+            }
+
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+            let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
+
+            re_rand_context.add_ciphertext_iterator(&cts);
+            re_rand_context.add_bytes(b"ct_radix");
+            re_rand_context.add_bytes(b"FheUint4".as_slice());
+            re_rand_context.add_bytes(&nonce);
+            let mut seeder = re_rand_context.finalize();
+
+            pubk.re_randomize_ciphertexts(
+                &mut cts,
+                &ksk.key_switching_key_material.as_view(),
+                seeder.next_seed(),
+            )
+            .unwrap();
+
+            cts.par_chunks(2).for_each(|pair| {
+                let sum = sks.add(&pair[0], &pair[1]);
+                let dec = cks.decrypt(&sum);
+
+                assert_eq!(dec, msg1 + msg2);
+            });
         }
 
-        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
-        let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
+        {
+            let mut trivial = sks.create_trivial(3);
 
-        re_rand_context.add_ciphertext_iterator(&cts);
-        re_rand_context.add_bytes(b"ct_radix");
-        re_rand_context.add_bytes(b"FheUint4".as_slice());
-        re_rand_context.add_bytes(&nonce);
-        let mut seeder = re_rand_context.finalize();
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+            let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
 
-        pubk.re_randomize_ciphertexts(
-            &mut cts,
-            &ksk.key_switching_key_material.as_view(),
-            seeder.next_seed(),
-        )
-        .unwrap();
+            re_rand_context.add_ciphertext(&trivial);
+            re_rand_context.add_bytes(&nonce);
+            re_rand_context.add_bytes(b"trivial");
 
-        for pair in cts.chunks(2) {
-            let sum = sks.add(&pair[0], &pair[1]);
-            let dec = cks.decrypt(&sum);
+            let mut seeder = re_rand_context.finalize();
 
-            assert_eq!(dec, msg1 + msg2);
+            pubk.re_randomize_ciphertexts(
+                core::slice::from_mut(&mut trivial),
+                &ksk.key_switching_key_material.as_view(),
+                seeder.next_seed(),
+            )
+            .unwrap();
+
+            let not_trivial = trivial;
+
+            assert!(not_trivial.noise_level() == NoiseLevel::NOMINAL);
+
+            let dec = cks.decrypt(&not_trivial);
+            assert_eq!(dec, 3);
         }
     }
 }
