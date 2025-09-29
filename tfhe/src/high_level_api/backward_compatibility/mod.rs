@@ -9,6 +9,7 @@ pub mod config;
 pub mod cpk_re_randomization;
 pub mod integers;
 pub mod keys;
+pub mod kv_store;
 #[cfg(feature = "strings")]
 pub mod strings;
 pub mod tag;

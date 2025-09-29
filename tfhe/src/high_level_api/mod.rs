@@ -58,8 +58,8 @@ pub use global_state::CustomMultiGpuIndexes;
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 
 pub use integers::{
-    CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId, SquashedNoiseFheInt,
-    SquashedNoiseFheUint,
+    CompressedFheInt, CompressedFheUint, FheInt, FheIntId, FheIntegerType, FheUint, FheUintId,
+    IntegerId, SquashedNoiseFheInt, SquashedNoiseFheUint,
 };
 #[cfg(feature = "gpu")]
 pub use keys::CudaServerKey;
@@ -141,6 +141,8 @@ pub use tag::Tag;
 pub use traits::FheId;
 pub mod xof_key_set;
 
+pub use kv_store::KVStore;
+
 mod booleans;
 mod compressed_ciphertext_list;
 mod config;
@@ -160,6 +162,7 @@ mod gpu_utils;
 pub mod array;
 pub mod backward_compatibility;
 mod compact_list;
+mod kv_store;
 mod tag;
 
 #[cfg(feature = "gpu")]

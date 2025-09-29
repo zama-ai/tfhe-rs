@@ -4,9 +4,10 @@ use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheUintVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
-use crate::high_level_api::integers::IntegerId;
+use crate::high_level_api::integers::{FheIntegerType, IntegerId};
 use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
@@ -68,7 +69,14 @@ impl std::fmt::Display for GenericIntegerBlockError {
     }
 }
 
-pub trait FheUintId: IntegerId {}
+#[cfg(not(feature = "gpu"))]
+type ExpectedInnerGpu = ();
+#[cfg(feature = "gpu")]
+type ExpectedInnerGpu = crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+pub trait FheUintId:
+    IntegerId<InnerCpu = crate::integer::RadixCiphertext, InnerGpu = ExpectedInnerGpu>
+{
+}
 
 /// A Generic FHE unsigned integer
 ///
@@ -142,6 +150,29 @@ impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
 
 impl<Id: FheUintId> Named for FheUint<Id> {
     const NAME: &'static str = "high_level_api::FheUint";
+}
+
+impl<Id> FheIntegerType for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Id = Id;
+
+    fn on_cpu(&self) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerCpu> {
+        self.ciphertext.on_cpu()
+    }
+
+    fn into_cpu(self) -> <Self::Id as IntegerId>::InnerCpu {
+        self.ciphertext.into_cpu()
+    }
+
+    fn from_cpu(
+        inner: <Self::Id as IntegerId>::InnerCpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
+        Self::new(inner, tag, re_randomization_metadata)
+    }
 }
 
 impl<Id> Tagged for FheUint<Id>
