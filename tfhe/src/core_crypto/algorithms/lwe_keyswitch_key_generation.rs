@@ -569,19 +569,19 @@ pub fn allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator<
     output_lwe_secret_key: &LweSecretKey<OutputLweCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_distribution: DynamicDistribution<InputLweCont::Element>,
-    ciphertext_modulus: CiphertextModulus<InputLweCont::Element>,
+    noise_distribution: DynamicDistribution<OutputLweCont::Element>,
+    ciphertext_modulus: CiphertextModulus<OutputLweCont::Element>,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> SeededLweKeyswitchKeyOwned<InputLweCont::Element>
+) -> SeededLweKeyswitchKeyOwned<OutputLweCont::Element>
 where
     InputLweCont: Container,
-    InputLweCont::Element:
-        UnsignedInteger + Encryptable<Uniform, DynamicDistribution<InputLweCont::Element>>,
-    OutputLweCont: Container<Element = InputLweCont::Element>,
+    OutputLweCont: Container,
+    InputLweCont::Element: UnsignedInteger + CastInto<OutputLweCont::Element>,
+    OutputLweCont::Element: Encryptable<Uniform, DynamicDistribution<OutputLweCont::Element>>,
     Gen: ByteRandomGenerator,
 {
     let mut key_switching_key = SeededLweKeyswitchKeyOwned::new(
-        InputLweCont::Element::ZERO,
+        OutputLweCont::Element::ZERO,
         decomp_base_log,
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
@@ -589,6 +589,7 @@ where
         CompressionSeed::from(Seed(0)),
         ciphertext_modulus,
     );
+
     generate_seeded_lwe_keyswitch_key_with_pre_seeded_generator(
         input_lwe_secret_key,
         output_lwe_secret_key,

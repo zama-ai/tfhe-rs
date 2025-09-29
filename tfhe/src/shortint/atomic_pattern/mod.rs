@@ -503,6 +503,13 @@ impl AtomicPatternParameters {
         }
     }
 
+    pub fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        match self {
+            Self::Standard(std_params) => std_params.ciphertext_modulus(),
+            Self::KeySwitch32(ks32_ap) => ks32_ap.ciphertext_modulus_for_key(key_choice),
+        }
+    }
+
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Standard(parameters) => parameters.ciphertext_modulus(),
