@@ -26,14 +26,13 @@ impl ClientKey {
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
-        assert_eq!(
-            self.parameters()
-                .pbs_parameters()
-                .unwrap()
-                .encryption_key_choice(),
-            EncryptionKeyChoice::Big,
-            "Compression is only compatible with ciphertext in post PBS dimension"
-        );
+        if let Some(pbs_params) = self.parameters().pbs_parameters() {
+            assert_eq!(
+                pbs_params.encryption_key_choice(),
+                EncryptionKeyChoice::Big,
+                "Compression is only compatible with ciphertext in post PBS dimension"
+            );
+        }
 
         let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_binary_glwe_secret_key(
