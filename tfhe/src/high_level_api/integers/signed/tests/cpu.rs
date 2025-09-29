@@ -99,6 +99,18 @@ fn test_if_then_else() {
 }
 
 #[test]
+fn test_flip() {
+    let client_key = setup_default_cpu();
+    super::test_case_flip(&client_key);
+}
+
+#[test]
+fn test_scalar_flip() {
+    let client_key = setup_default_cpu();
+    super::test_case_scalar_flip(&client_key);
+}
+
+#[test]
 fn test_abs() {
     let client_key = setup_default_cpu();
     super::test_case_abs(&client_key);

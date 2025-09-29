@@ -54,6 +54,14 @@ fn test_if_then_else() {
 }
 
 #[test]
+fn test_flip() {
+    let client_key = crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu(Some(
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
+    ));
+    super::test_case_flip(&client_key);
+}
+
+#[test]
 fn test_abs() {
     let client_key = crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu(Some(
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
