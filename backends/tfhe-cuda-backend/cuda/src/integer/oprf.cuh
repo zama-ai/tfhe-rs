@@ -31,8 +31,8 @@ void host_integer_grouped_oprf(
 
   if (active_streams.count() == 1) {
     execute_pbs_async<Torus, Torus>(
-        streams.subset_first_gpu(), (Torus *)(radix_lwe_out->ptr),
-        lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
+        streams.get_ith(0), (Torus *)(radix_lwe_out->ptr), lut->lwe_indexes_out,
+        lut->lut_vec, lut->lut_indexes_vec,
         const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in, bsks,
         ms_noise_reduction_key, lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
