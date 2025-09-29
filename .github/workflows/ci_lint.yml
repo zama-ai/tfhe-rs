@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Ensure SHA pinned actions
-        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@fc87bb5b5a97953d987372e74478de634726b3e5 # v3.0.25
+        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@9e9574ef04ea69da568d6249bd69539ccc704e74 # v4.0.0
         with:
           allowlist: |
             slsa-framework/slsa-github-generator
