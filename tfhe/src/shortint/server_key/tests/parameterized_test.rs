@@ -8,7 +8,7 @@ use rand::Rng;
 // Macro to generate tests for all parameter sets
 #[cfg(not(tarpaulin))]
 macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),* }) => {
+    ($name:ident { $($param:ident),* $(,)? }) => {
         ::paste::paste! {
             $(
             #[test]
@@ -64,7 +64,7 @@ macro_rules! create_parameterized_test{
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
 macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),* }) => {
+    ($name:ident { $($param:ident),*$(,)? }) => {
         ::paste::paste! {
             $(
             #[test]
