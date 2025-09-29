@@ -20,6 +20,15 @@ macro_rules! static_int_type {
             pub struct [<FheInt $num_bits Id>];
 
             impl IntegerId for [<FheInt $num_bits Id>] {
+                type InnerCpu = crate::integer::SignedRadixCiphertext;
+
+                #[cfg(not(feature = "gpu"))]
+                type InnerGpu = ();
+                #[cfg(feature = "gpu")]
+                type InnerGpu = crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+
+                type InnerHpu = ();
+
                 fn num_bits() -> usize {
                     $num_bits
                 }

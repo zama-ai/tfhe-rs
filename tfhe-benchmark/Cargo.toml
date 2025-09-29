@@ -70,7 +70,7 @@ required-features = ["shortint", "internal-keycache"]
 name = "hlapi"
 path = "benches/high_level_api/bench.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "internal-keycache", "pbs-stats"]
 
 [[bench]]
 name = "hlapi-erc20"

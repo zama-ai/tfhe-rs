@@ -1,13 +1,21 @@
-use benchmark::utilities::{write_to_json, OperatorType};
-use criterion::{black_box, Criterion};
+use benchmark::utilities::{hlapi_throughput_num_ops, write_to_json, BenchmarkType, OperatorType};
+use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
+use std::hash::Hash;
+use std::marker::PhantomData;
 use std::ops::*;
+use tfhe::core_crypto::prelude::Numeric;
+use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::keycache::NamedParam;
+use tfhe::named::Named;
 use tfhe::prelude::*;
 use tfhe::{
-    ClientKey, CompressedServerKey, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16,
-    FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
+    ClientKey, CompressedServerKey, FheIntegerType, FheUint10, FheUint12, FheUint128, FheUint14,
+    FheUint16, FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8, FheUintId, IntegerId,
+    KVStore,
 };
+
+use rayon::prelude::*;
 
 fn bench_fhe_type<FheType>(
     c: &mut Criterion,
@@ -225,6 +233,170 @@ bench_type!(FheUint32);
 bench_type!(FheUint64);
 bench_type!(FheUint128);
 
+trait TypeDisplay {
+    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = std::any::type_name::<Self>();
+        let pos = name.rfind(":").map_or(0, |p| p + 1);
+        write!(f, "{}", &name[pos..])
+    }
+}
+
+impl TypeDisplay for u8 {}
+impl TypeDisplay for u16 {}
+impl TypeDisplay for u32 {}
+impl TypeDisplay for u64 {}
+impl TypeDisplay for u128 {}
+
+impl<Id: FheUintId> TypeDisplay for tfhe::FheUint<Id> {
+    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_fhe_type_name::<Self>(f)
+    }
+}
+
+impl<Id: tfhe::FheIntId> TypeDisplay for tfhe::FheInt<Id> {
+    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_fhe_type_name::<Self>(f)
+    }
+}
+
+struct TypeDisplayer<T: TypeDisplay>(PhantomData<T>);
+
+impl<T: TypeDisplay> Default for TypeDisplayer<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<T: TypeDisplay> std::fmt::Display for TypeDisplayer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        T::fmt(f)
+    }
+}
+
+fn write_fhe_type_name<'a, FheType>(f: &mut std::fmt::Formatter<'a>) -> std::fmt::Result
+where
+    FheType: FheIntegerType + Named,
+{
+    let full_name = FheType::NAME;
+    let i = full_name.rfind(":").map_or(0, |p| p + 1);
+
+    write!(f, "{}{}", &full_name[i..], FheType::Id::num_bits())
+}
+
+fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
+where
+    rand::distributions::Standard: rand::distributions::Distribution<Key>,
+    Key: Numeric + DecomposableInto<u64> + Eq + Hash + CastInto<usize> + TypeDisplay,
+    Value: FheEncrypt<u128, ClientKey> + FheIntegerType + Clone + Send + Sync + TypeDisplay,
+    Value::Id: FheUintId,
+    FheKey: FheEncrypt<Key, ClientKey> + FheIntegerType + Send + Sync,
+    FheKey::Id: FheUintId,
+{
+    let mut kv_store = KVStore::new();
+    let mut rng = rand::thread_rng();
+
+    let format_id_bench = |op_name: &str| -> String {
+        format!(
+            "KVStore::<{}, {}>::{op_name}/{num_elements}",
+            TypeDisplayer::<Key>::default(),
+            TypeDisplayer::<Value>::default(),
+        )
+    };
+
+    match BenchmarkType::from_env().unwrap() {
+        BenchmarkType::Latency => {
+            while kv_store.len() != num_elements {
+                let key = rng.gen::<Key>();
+                let value = rng.gen::<u128>();
+
+                let encrypted_value = Value::encrypt(value, cks);
+                kv_store.insert_with_clear_key(key, encrypted_value);
+            }
+
+            let key = rng.gen::<Key>();
+            let encrypted_key = FheKey::encrypt(key, cks);
+
+            let value = rng.gen::<u128>();
+            let value_to_add = Value::encrypt(value, cks);
+
+            c.bench_function(&format_id_bench("Get"), |b| {
+                b.iter(|| {
+                    let _ = kv_store.get(&encrypted_key);
+                })
+            });
+
+            c.bench_function(&format_id_bench("Update"), |b| {
+                b.iter(|| {
+                    let _ = kv_store.update(&encrypted_key, &value_to_add);
+                })
+            });
+
+            c.bench_function(&format_id_bench("Map"), |b| {
+                b.iter(|| {
+                    kv_store.map(&encrypted_key, |v| v);
+                })
+            });
+        }
+        BenchmarkType::Throughput => {
+            while kv_store.len() != num_elements {
+                let key = rng.gen::<Key>();
+                let value = rng.gen::<u128>();
+
+                let encrypted_value = Value::encrypt(value, cks);
+                kv_store.insert_with_clear_key(key, encrypted_value);
+            }
+
+            let key = rng.gen::<Key>();
+            let encrypted_key = FheKey::encrypt(key, cks);
+
+            let value = rng.gen::<u128>();
+            let value_to_add = Value::encrypt(value, cks);
+
+            let factor = hlapi_throughput_num_ops(
+                || {
+                    kv_store.map(&encrypted_key, |v| v);
+                },
+                cks,
+            );
+
+            let mut kv_stores = vec![];
+            for _ in 0..factor.saturating_sub(1) {
+                kv_stores.push(kv_store.clone());
+            }
+            kv_stores.push(kv_store);
+
+            let mut group = c.benchmark_group("KVStore Throughput");
+            group.throughput(Throughput::Elements(kv_stores.len() as u64));
+
+            group.bench_function(format_id_bench("Map"), |b| {
+                b.iter(|| {
+                    kv_stores.par_iter_mut().for_each(|kv_store| {
+                        kv_store.map(&encrypted_key, |v| v);
+                    })
+                })
+            });
+
+            group.bench_function(format_id_bench("Update"), |b| {
+                b.iter(|| {
+                    kv_stores.par_iter_mut().for_each(|kv_store| {
+                        kv_store.update(&encrypted_key, &value_to_add);
+                    })
+                })
+            });
+
+            group.bench_function(format_id_bench("Get"), |b| {
+                b.iter(|| {
+                    kv_stores.par_iter_mut().for_each(|kv_store| {
+                        kv_store.get(&encrypted_key);
+                    })
+                })
+            });
+
+            group.finish();
+        }
+    }
+}
+
 fn main() {
     #[cfg(feature = "hpu")]
     let cks = {
@@ -256,7 +428,9 @@ fn main() {
         let cks = ClientKey::generate(config);
         let compressed_sks = CompressedServerKey::new(&cks);
 
-        set_server_key(compressed_sks.decompress());
+        let sks = compressed_sks.decompress();
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
         cks
     };
 
@@ -273,6 +447,18 @@ fn main() {
     bench_fhe_uint32(&mut c, &cks);
     bench_fhe_uint64(&mut c, &cks);
     bench_fhe_uint128(&mut c, &cks);
+
+    for pow in 1..=10 {
+        bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
+    }
+
+    for pow in 1..=10 {
+        bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
+    }
+
+    for pow in 1..=10 {
+        bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
+    }
 
     c.final_summary();
 }
