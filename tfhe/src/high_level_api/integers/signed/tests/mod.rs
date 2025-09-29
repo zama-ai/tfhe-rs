@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::{ClientKey, FheInt16, FheInt32, FheInt64, FheInt8, FheUint64, FheUint8};
+use crate::{ClientKey, FheBool, FheInt16, FheInt32, FheInt64, FheInt8, FheUint64, FheUint8};
 use rand::prelude::*;
 
 mod cpu;
@@ -388,6 +388,47 @@ fn test_case_if_then_else(cks: &ClientKey) {
         decrypted_result,
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
+}
+
+fn test_case_flip(client_key: &ClientKey) {
+    let clear_a = rand::random::<i32>();
+    let clear_b = rand::random::<i32>();
+
+    let a = FheInt32::encrypt(clear_a, client_key);
+    let b = FheInt32::encrypt(clear_b, client_key);
+
+    let c = FheBool::encrypt(true, client_key);
+    let (ra, rb) = c.flip(&a, &b);
+    let decrypted_a: i32 = ra.decrypt(client_key);
+    let decrypted_b: i32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_b, clear_a));
+
+    let c = FheBool::encrypt(false, client_key);
+
+    let (ra, rb) = c.flip(&a, &b);
+    let decrypted_a: i32 = ra.decrypt(client_key);
+    let decrypted_b: i32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_a, clear_b));
+}
+
+fn test_case_scalar_flip(client_key: &ClientKey) {
+    let clear_a = rand::random::<i32>();
+    let clear_b = rand::random::<i32>();
+
+    let a = FheInt32::encrypt(clear_a, client_key);
+    let b = FheInt32::encrypt(clear_b, client_key);
+
+    let c = FheBool::encrypt(true, client_key);
+    let (ra, rb) = c.flip(&a, clear_b);
+    let decrypted_a: i32 = ra.decrypt(client_key);
+    let decrypted_b: i32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_b, clear_a));
+
+    let c = FheBool::encrypt(false, client_key);
+    let (ra, rb) = c.flip(clear_a, &b);
+    let decrypted_a: i32 = ra.decrypt(client_key);
+    let decrypted_b: i32 = rb.decrypt(client_key);
+    assert_eq!((decrypted_a, decrypted_b), (clear_a, clear_b));
 }
 
 fn test_case_abs(cks: &ClientKey) {

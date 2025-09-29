@@ -163,6 +163,12 @@ pub trait ScalarIfThenElse<Lhs, Rhs> {
     }
 }
 
+pub trait Flip<Lhs, Rhs> {
+    type Output;
+
+    fn flip(&self, lhs: Lhs, rhs: Rhs) -> (Self::Output, Self::Output);
+}
+
 pub trait OverflowingAdd<Rhs> {
     type Output;
 
