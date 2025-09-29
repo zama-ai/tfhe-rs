@@ -377,7 +377,7 @@ impl AmiDriver {
         if ack_str.is_empty() {
             0
         } else {
-            let ack_nb = ack_str.as_str().trim_ascii().parse::<u32>().unwrap();
+            let ack_nb = ack_str.as_str().lines().map(|line| line.trim_ascii().parse::<u32>().unwrap()).sum();
             tracing::trace!("Get value {ack_str} from {ami_proc_path} => {ack_nb}",);
             ack_nb
         }
