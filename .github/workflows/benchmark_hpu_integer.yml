@@ -58,7 +58,7 @@ jobs:
   integer-benchmarks-hpu:
     name: benchmark_hpu_integer/integer-benchmarks-hpu
     needs: prepare-matrix
-    runs-on: v80-desktop
+    runs-on: v80-marais
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
