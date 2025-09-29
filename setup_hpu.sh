@@ -22,7 +22,7 @@ V80_PCIE_DEV="unselected"
 XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
 
 # V80 bitstream refresh require insmod of ami.ko module
-AMI_PATH=${AMI_PATH:-"/opt/v80/ami/ef9249f"}
+AMI_PATH=${AMI_PATH:-"/opt/v80/ami/e55d02d"}
 
 # Parse user CLI ##############################################################
 opt_short="hc:l:p:"

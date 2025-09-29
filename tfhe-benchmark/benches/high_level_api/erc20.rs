@@ -663,7 +663,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
         .len()
         / 3;
     let mut rng = thread_rng();
-    for num_elems in [2, 10] {
+    for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_id =
