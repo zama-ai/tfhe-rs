@@ -3,9 +3,12 @@ use tfhe_versionable::Versionize;
 
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, allocate_and_generate_new_lwe_keyswitch_key,
+    allocate_and_generate_new_seeded_lwe_keyswitch_key, LweKeyswitchKeyOwned,
+    SeededLweKeyswitchKeyOwned,
 };
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::KS32AtomicPatternClientKeyVersions;
+use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::client_key::{GlweSecretKeyOwned, LweSecretKeyOwned, LweSecretKeyView};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{
@@ -14,8 +17,9 @@ use crate::shortint::list_compression::{
 };
 use crate::shortint::parameters::{
     CompressionParameters, DynamicDistribution, KeySwitch32PBSParameters,
+    ShortintKeySwitchingParameters,
 };
-use crate::shortint::{AtomicPatternKind, ShortintParameterSet};
+use crate::shortint::{AtomicPatternKind, EncryptionKeyChoice, ShortintParameterSet};
 
 use super::EncryptionAtomicPattern;
 
@@ -193,6 +197,105 @@ impl KS32AtomicPatternClientKey {
     ) -> CompressedDecompressionKey {
         private_compression_key
             .new_compressed_decompression_key(&self.glwe_secret_key, self.parameters())
+    }
+
+    pub fn new_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> LweKeyswitchKeyOwned<u64> {
+        match params.destination_key {
+            EncryptionKeyChoice::Big => {
+                let (output_secret_key, encryption_noise) = self.encryption_key_and_noise();
+
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_lwe_keyswitch_key(
+                        &input_secret_key.lwe_secret_key,
+                        &output_secret_key,
+                        params.ks_base_log,
+                        params.ks_level,
+                        encryption_noise,
+                        self.parameters.ciphertext_modulus(),
+                        &mut engine.encryption_generator,
+                    )
+                })
+            }
+            EncryptionKeyChoice::Small => {
+                let ksk = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_lwe_keyswitch_key(
+                        &input_secret_key.lwe_secret_key,
+                        &self.small_lwe_secret_key(),
+                        params.ks_base_log,
+                        params.ks_level,
+                        self.parameters.lwe_noise_distribution(),
+                        self.parameters.post_keyswitch_ciphertext_modulus(),
+                        &mut engine.encryption_generator,
+                    )
+                });
+
+                LweKeyswitchKeyOwned::from_container(
+                    ksk.as_ref().iter().map(|elem| *elem as u64).collect(),
+                    ksk.decomposition_base_log(),
+                    ksk.decomposition_level_count(),
+                    ksk.output_lwe_size(),
+                    ksk.ciphertext_modulus()
+                        .try_to()
+                        // Ok to unwrap because converting a 32b modulus into a 64b one
+                        // should not fail
+                        .unwrap(),
+                )
+            }
+        }
+    }
+
+    pub fn new_seeded_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> SeededLweKeyswitchKeyOwned<u64> {
+        match params.destination_key {
+            EncryptionKeyChoice::Big => {
+                let (output_secret_key, encryption_noise) = self.encryption_key_and_noise();
+
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                        &input_secret_key.lwe_secret_key,
+                        &output_secret_key,
+                        params.ks_base_log,
+                        params.ks_level,
+                        encryption_noise,
+                        self.parameters.ciphertext_modulus(),
+                        &mut engine.seeder,
+                    )
+                })
+            }
+            EncryptionKeyChoice::Small => {
+                let ksk = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                        &input_secret_key.lwe_secret_key,
+                        &self.small_lwe_secret_key(),
+                        params.ks_base_log,
+                        params.ks_level,
+                        self.parameters.lwe_noise_distribution(),
+                        self.parameters.post_keyswitch_ciphertext_modulus(),
+                        &mut engine.seeder,
+                    )
+                });
+
+                SeededLweKeyswitchKeyOwned::from_container(
+                    ksk.as_ref().iter().map(|elem| *elem as u64).collect(),
+                    ksk.decomposition_base_log(),
+                    ksk.decomposition_level_count(),
+                    ksk.output_lwe_size(),
+                    ksk.compression_seed(),
+                    ksk.ciphertext_modulus()
+                        .try_to()
+                        // Ok to unwrap because converting a 32b modulus into a 64b one
+                        // should not fail
+                        .unwrap(),
+                )
+            }
+        }
     }
 }
 
