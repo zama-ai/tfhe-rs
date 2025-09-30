@@ -12,7 +12,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, LweDimension, LweSize,
+    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweDimension, LweSize,
     PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
@@ -710,16 +710,76 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
 
 impl NoiseSquashingKey {
     pub fn noise_simulation_modulus_switch_config(&self) -> NoiseSimulationModulusSwitchConfig {
-        let nsk = StandardNoiseSquashingKeyView::try_from(self.as_view())
-            .expect("Noise tests only support standard atomic pattern");
-        match nsk.bootstrapping_key() {
-            Shortint128BootstrappingKey::Classic {
-                bsk: _,
-                modulus_switch_noise_reduction_key,
-            } => modulus_switch_noise_reduction_key.into(),
-            Shortint128BootstrappingKey::MultiBit { .. } => {
-                panic!("MultiBit ServerKey does not support the drift technique")
-            }
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => match &standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
+                    modulus_switch_noise_reduction_key,
+                } => modulus_switch_noise_reduction_key.into(),
+                Shortint128BootstrappingKey::MultiBit { .. } => {
+                    panic!("MultiBit ServerKey does not support the drift technique")
+                }
+            },
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => match &ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
+                    modulus_switch_noise_reduction_key,
+                } => modulus_switch_noise_reduction_key.into(),
+                Shortint128BootstrappingKey::MultiBit { .. } => {
+                    panic!("MultiBit ServerKey does not support the drift technique")
+                }
+            },
+        }
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => standard_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .polynomial_size(),
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => ks32_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .polynomial_size(),
+        }
+    }
+
+    pub fn glwe_size(&self) -> GlweSize {
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => standard_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .glwe_size(),
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => ks32_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .glwe_size(),
+        }
+    }
+
+    pub fn br_input_modulus_log(&self) -> CiphertextModulusLog {
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => standard_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => ks32_atomic_pattern_noise_squashing_key
+                .bootstrapping_key()
+                .polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
         }
     }
 }
@@ -775,50 +835,92 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
         after_mod_switch: &mut DynLwe,
         side_resources: &mut Self::SideResources,
     ) {
-        let nsk = match self.atomic_pattern() {
-            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
-            AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
-                todo!()
-            }
-        };
-
-        match nsk.bootstrapping_key() {
-            Shortint128BootstrappingKey::Classic {
-                bsk: _,
-                modulus_switch_noise_reduction_key,
-            } => match modulus_switch_noise_reduction_key {
-                ModulusSwitchConfiguration::Standard => panic!(
-                    "ModulusSwitchConfiguration::Standard \
-                            does not support the drift technique"
-                ),
-                ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
                     modulus_switch_noise_reduction_key,
-                ) => match (input, after_drift_technique, after_mod_switch) {
-                    (
-                        DynLwe::U64(input),
-                        DynLwe::U64(after_drift_technique),
-                        DynLwe::U64(after_mod_switch),
-                    ) => {
-                        modulus_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
-                            output_modulus_log,
-                            input,
-                            after_drift_technique,
-                            after_mod_switch,
-                            side_resources,
-                        );
-                    }
-                    _ => {
-                        panic!("AtomicPatternServerKey::Standard only supports DynLwe::U64")
-                    }
-                },
-                ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
-                    "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
+                } => match modulus_switch_noise_reduction_key {
+                    ModulusSwitchConfiguration::Standard => panic!(
+                        "ModulusSwitchConfiguration::Standard \
                             does not support the drift technique"
-                ),
+                    ),
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => match (input, after_drift_technique, after_mod_switch) {
+                        (
+                            DynLwe::U64(input),
+                            DynLwe::U64(after_drift_technique),
+                            DynLwe::U64(after_mod_switch),
+                        ) => {
+                            modulus_switch_noise_reduction_key
+                                .drift_technique_and_standard_mod_switch(
+                                    output_modulus_log,
+                                    input,
+                                    after_drift_technique,
+                                    after_mod_switch,
+                                    side_resources,
+                                );
+                        }
+                        _ => {
+                            panic!("AtomicPatternServerKey::Standard only supports DynLwe::U64")
+                        }
+                    },
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
+                        "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
+                            does not support the drift technique"
+                    ),
+                },
+                Shortint128BootstrappingKey::MultiBit { .. } => {
+                    panic!("MultiBit ServerKey does support the drift technique")
+                }
             },
-            Shortint128BootstrappingKey::MultiBit { .. } => {
-                panic!("MultiBit ServerKey does support the drift technique")
-            }
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
+                    modulus_switch_noise_reduction_key,
+                } => match modulus_switch_noise_reduction_key {
+                    ModulusSwitchConfiguration::Standard => panic!(
+                        "ModulusSwitchConfiguration::Standard \
+                            does not support the drift technique"
+                    ),
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => match (input, after_drift_technique, after_mod_switch) {
+                        (
+                            DynLwe::U32(input),
+                            DynLwe::U32(after_drift_technique),
+                            DynLwe::U32(after_mod_switch),
+                        ) => {
+                            modulus_switch_noise_reduction_key
+                                .drift_technique_and_standard_mod_switch(
+                                    output_modulus_log,
+                                    input,
+                                    after_drift_technique,
+                                    after_mod_switch,
+                                    side_resources,
+                                );
+                        }
+                        _ => {
+                            panic!(
+                                "AtomicPatternNoiseSquashingKey::KeySwitch32 \
+                                only supports DynLwe::U32"
+                            )
+                        }
+                    },
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
+                        "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
+                            does not support the drift technique"
+                    ),
+                },
+                Shortint128BootstrappingKey::MultiBit { .. } => {
+                    panic!("MultiBit ServerKey does support the drift technique")
+                }
+            },
         }
     }
 }
@@ -839,24 +941,44 @@ where
         accumulator: &GlweCiphertext<AccCont>,
         side_resources: &mut Self::SideResources,
     ) {
-        let nsk = match self.atomic_pattern() {
-            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => std_nsk,
-            AtomicPatternNoiseSquashingKey::KeySwitch32(_ks32_nsk) => {
-                todo!()
-            }
-        };
-        match nsk.bootstrapping_key() {
-            Shortint128BootstrappingKey::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key: _,
-            } => match input {
-                DynLwe::U64(input) => {
-                    bsk.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => {
+                match std_nsk.bootstrapping_key() {
+                    Shortint128BootstrappingKey::Classic {
+                        bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => match input {
+                        DynLwe::U64(input) => {
+                            bsk.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+                        }
+                        _ => panic!(
+                            "AtomicPatternNoiseSquashingKey::Standard \
+                            only supports DynLwe::U64 input"
+                        ),
+                    },
+                    Shortint128BootstrappingKey::MultiBit { .. } => {
+                        panic!("MultiBit ServerKey does support classic PBS")
+                    }
                 }
-                _ => panic!("NoiseSquashingKey only supports DynLwe::U64 input"),
-            },
-            Shortint128BootstrappingKey::MultiBit { .. } => {
-                panic!("MultiBit ServerKey does support classic PBS")
+            }
+            AtomicPatternNoiseSquashingKey::KeySwitch32(ks32_nsk) => {
+                match ks32_nsk.bootstrapping_key() {
+                    Shortint128BootstrappingKey::Classic {
+                        bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => match input {
+                        DynLwe::U32(input) => {
+                            bsk.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+                        }
+                        _ => panic!(
+                            "AtomicPatternNoiseSquashingKey::KeySwitch32 \
+                            only supports DynLwe::U32 input"
+                        ),
+                    },
+                    Shortint128BootstrappingKey::MultiBit { .. } => {
+                        panic!("MultiBit ServerKey does support classic PBS")
+                    }
+                }
             }
         }
     }
@@ -1187,6 +1309,44 @@ impl NoiseSimulationDriftTechniqueKey {
             }
         }
     }
+
+    pub fn matches_actual_shortint_noise_squashing_key(
+        &self,
+        noise_squashing_key: &NoiseSquashingKey,
+    ) -> bool {
+        match noise_squashing_key.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
+                    modulus_switch_noise_reduction_key,
+                } => match modulus_switch_noise_reduction_key {
+                    ModulusSwitchConfiguration::Standard => false,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => self.matches_actual_drift_key(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => false,
+                },
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk: _,
+                    modulus_switch_noise_reduction_key,
+                } => match modulus_switch_noise_reduction_key {
+                    ModulusSwitchConfiguration::Standard => false,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => self.matches_actual_drift_key(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => false,
+                },
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
+        }
+    }
 }
 
 impl NoiseSimulationLweFourierBsk {
@@ -1213,6 +1373,34 @@ impl NoiseSimulationLweFourierBsk {
             AtomicPatternServerKey::Dynamic(_) => {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
             }
+        }
+    }
+}
+
+impl NoiseSimulationLweFourier128Bsk {
+    pub fn matches_actual_shortint_noise_squashing_key(
+        &self,
+        noise_squashing_key: &NoiseSquashingKey,
+    ) -> bool {
+        match noise_squashing_key.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                } => self.matches_actual_bsk(bsk),
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                } => self.matches_actual_bsk(bsk),
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
         }
     }
 }
