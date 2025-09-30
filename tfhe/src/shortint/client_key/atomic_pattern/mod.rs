@@ -4,15 +4,19 @@ pub mod standard;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
+use crate::core_crypto::prelude::{LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned};
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::AtomicPatternClientKeyVersions;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
 };
-use crate::shortint::parameters::{CompressionParameters, DynamicDistribution};
+use crate::shortint::parameters::{
+    CompressionParameters, DynamicDistribution, ShortintKeySwitchingParameters,
+};
 use crate::shortint::{AtomicPatternKind, AtomicPatternParameters, ShortintParameterSet};
 
+use super::secret_encryption_key::SecretEncryptionKeyView;
 use super::{LweSecretKeyOwned, LweSecretKeyView};
 
 pub use ks32::*;
@@ -168,6 +172,28 @@ impl AtomicPatternClientKey {
             Self::KeySwitch32(ks32_cks) => {
                 ks32_cks.new_compressed_decompression_key(private_compression_key)
             }
+        }
+    }
+
+    pub(crate) fn new_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> LweKeyswitchKeyOwned<u64> {
+        match self {
+            Self::Standard(ap) => ap.new_keyswitching_key(input_secret_key, params),
+            Self::KeySwitch32(ap) => ap.new_keyswitching_key(input_secret_key, params),
+        }
+    }
+
+    pub(crate) fn new_seeded_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> SeededLweKeyswitchKeyOwned<u64> {
+        match self {
+            Self::Standard(ap) => ap.new_seeded_keyswitching_key(input_secret_key, params),
+            Self::KeySwitch32(ap) => ap.new_seeded_keyswitching_key(input_secret_key, params),
         }
     }
 }
