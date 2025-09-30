@@ -9,12 +9,16 @@ use crate::core_crypto::entities::*;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
+use crate::shortint::client_key::atomic_pattern::{
+    AtomicPatternClientKey, EncryptionAtomicPattern,
+};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::shortint::client_key::StandardClientKeyView;
+use crate::shortint::client_key::{ClientKeyView, StandardClientKeyView};
 use crate::shortint::parameters::{KeySwitch32PBSParameters, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
-    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
+    CiphertextModulus, ClientKey, CompressedServerKey, EncryptionKeyChoice, PBSParameters,
+    ServerKey,
 };
 
 impl ShortintEngine {
@@ -258,11 +262,56 @@ impl ShortintEngine {
     pub(crate) fn new_key_switching_key(
         &mut self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
-        output_client_key: StandardClientKeyView<'_>,
+        output_client_key: ClientKeyView<'_>,
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
-        let (output_secret_key, encryption_noise) =
-            output_client_key.keyswitch_encryption_key_and_noise(params);
+        let ks32_secret_key;
+        let (output_secret_key, encryption_noise, output_ciphertext_modulus) =
+            match output_client_key.atomic_pattern {
+                AtomicPatternClientKey::Standard(std_ck) => {
+                    let (output_secret_key, encryption_noise) =
+                        std_ck.keyswitch_encryption_key_and_noise(params);
+                    (
+                        output_secret_key,
+                        encryption_noise,
+                        std_ck.parameters.ciphertext_modulus(),
+                    )
+                }
+                AtomicPatternClientKey::KeySwitch32(ks32_ck) => match params.destination_key {
+                    EncryptionKeyChoice::Big => {
+                        let (output_secret_key, encryption_noise) =
+                            ks32_ck.encryption_key_and_noise();
+                        (
+                            output_secret_key,
+                            encryption_noise,
+                            ks32_ck.parameters.ciphertext_modulus(),
+                        )
+                    }
+                    EncryptionKeyChoice::Small => {
+                        // Needs to clone the secret key to cast elements as u64
+                        ks32_secret_key = LweSecretKey::from_container(
+                            ks32_ck
+                                .small_lwe_secret_key()
+                                .into_container()
+                                .iter()
+                                .map(|elem| *elem as u64)
+                                .collect::<Vec<_>>(),
+                        );
+
+                        (
+                            ks32_secret_key.as_view(),
+                            ks32_ck.parameters().lwe_noise_distribution(),
+                            ks32_ck
+                                .parameters
+                                .post_keyswitch_ciphertext_modulus
+                                .try_to()
+                                // Ok to unwrap because converting a 32b modulus into a 64b one
+                                // should not fail
+                                .unwrap(),
+                        )
+                    }
+                },
+            };
 
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(
@@ -271,7 +320,7 @@ impl ShortintEngine {
             params.ks_base_log,
             params.ks_level,
             encryption_noise,
-            output_client_key.parameters().ciphertext_modulus(),
+            output_ciphertext_modulus,
             &mut self.encryption_generator,
         )
     }
