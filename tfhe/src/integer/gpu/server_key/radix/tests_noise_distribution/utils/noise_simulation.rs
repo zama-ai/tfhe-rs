@@ -128,7 +128,9 @@ impl ScalarMul<u64> for CudaDynLwe {
 
     fn scalar_mul(&self, scalar: u64, side_resources: &mut Self::SideResources) -> Self::Output {
         match self {
-            Self::U32(cuda_lwe) => Self::U32(cuda_lwe.clone()),
+            Self::U32(cuda_lwe) => {
+                panic!("U32 scalar mul not implemented for CudaDynLwe - only U64 is supported")
+            }
             Self::U64(cuda_lwe) => {
                 // Use the block info from side_resources for proper modulus values
                 let mut cuda_radix = CudaRadixCiphertext::new(
@@ -151,10 +153,7 @@ impl ScalarMul<u64> for CudaDynLwe {
                 Self::U64(cuda_radix.d_blocks)
             }
             Self::U128(cuda_lwe) => {
-                // For u128, similar to u32, we might need a different approach
-                // For now, we'll return a clone (this may need to be updated based on actual
-                // requirements)
-                Self::U128(cuda_lwe.clone())
+                panic!("U128 scalar mul not implemented for CudaDynLwe - only U64 is supported")
             }
         }
     }
@@ -211,12 +210,7 @@ impl StandardModSwitch<Self> for CudaDynLwe {
     ) {
         match (self, output) {
             (Self::U32(input), Self::U32(output_cuda_lwe)) => {
-                output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
-                cuda_modulus_switch_ciphertext(
-                    output_cuda_lwe,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
+                panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
                 output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
@@ -227,12 +221,7 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 );
             }
             (Self::U128(input), Self::U128(output_cuda_lwe)) => {
-                output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
-                cuda_modulus_switch_ciphertext(
-                    output_cuda_lwe,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
+                panic!("U128 modulus switch not implemented for CudaDynLwe - only U64 is supported")
             }
             _ => panic!("Inconsistent inputs/outputs for CudaDynLwe StandardModSwitch"),
         }
@@ -320,30 +309,7 @@ impl DriftTechniqueStandardModSwitch<Self, Self, Self> for CudaDynLwe {
         after_mod_switch: &mut Self,
         side_resources: &mut Self::SideResources,
     ) {
-        match (input, after_drift_technique, after_mod_switch) {
-            (Self::U32(_input), Self::U32(_after_drift), Self::U32(after_ms)) => {
-                cuda_modulus_switch_ciphertext(
-                    after_ms,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
-            }
-            (Self::U64(_input), Self::U64(after_drift), Self::U64(after_ms)) => {
-                cuda_modulus_switch_ciphertext(
-                    after_ms,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
-            }
-            (Self::U128(_input), Self::U128(_after_drift), Self::U128(after_ms)) => {
-                cuda_modulus_switch_ciphertext(
-                    after_ms,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
-            }
-            _ => panic!("Inconsistent input/output types for CudaDynLwe drift technique"),
-        }
+        panic!("Drift technique is being deprecated, use other flavors of mod switch instead")
     }
 }
 
@@ -454,19 +420,6 @@ impl DriftTechniqueStandardModSwitch<CudaDynLwe, CudaDynLwe, CudaDynLwe> for Cud
         after_mod_switch: &mut CudaDynLwe,
         side_resources: &mut Self::SideResources,
     ) {
-        match (input, after_drift_technique, after_mod_switch) {
-            (
-                CudaDynLwe::U64(_input_cuda_lwe),
-                CudaDynLwe::U64(_after_drift_cuda_lwe),
-                CudaDynLwe::U64(after_ms_cuda_lwe),
-            ) => {
-                cuda_modulus_switch_ciphertext(
-                    after_ms_cuda_lwe,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
-            }
-            _ => panic!("CudaServerKey drift technique only supports U64 ciphertexts"),
-        }
+        panic!("Drift technique is being deprecated, use other flavors of mod switch instead")
     }
 }
