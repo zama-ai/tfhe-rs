@@ -828,6 +828,7 @@ impl
             },
             cast_rshift,
             destination_key: ks_params.destination_key,
+            destination_atomic_pattern: sk_params.atomic_pattern().into(),
         })
     }
 }
