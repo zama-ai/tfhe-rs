@@ -21,7 +21,9 @@ use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
     LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, PBSOrder, PBSParameters};
+use crate::shortint::{
+    Ciphertext, CiphertextModulus, EncryptionKeyChoice, PBSOrder, PBSParameters,
+};
 
 /// The definition of the server key elements used in the [`Standard`](AtomicPatternKind::Standard)
 /// atomic pattern
@@ -118,21 +120,26 @@ impl StandardAtomicPatternServerKey {
 
     pub fn intermediate_lwe_dimension(&self) -> LweDimension {
         match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.key_switching_key.output_key_lwe_dimension(),
-            PBSOrder::BootstrapKeyswitch => self.key_switching_key.input_key_lwe_dimension(),
+            PBSOrder::KeyswitchBootstrap => {
+                self.ciphertext_lwe_dimension_for_key(EncryptionKeyChoice::Small)
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                self.ciphertext_lwe_dimension_for_key(EncryptionKeyChoice::Big)
+            }
         }
     }
 }
 
 impl AtomicPattern for StandardAtomicPatternServerKey {
-    fn ciphertext_lwe_dimension(&self) -> LweDimension {
-        match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
-            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension {
+        match key_choice {
+            EncryptionKeyChoice::Big => self.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small => self.bootstrapping_key.input_lwe_dimension(),
         }
     }
 
-    fn ciphertext_modulus(&self) -> CiphertextModulus {
+    fn ciphertext_modulus_for_key(&self, _key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        // Both keys use the same modulus
         self.key_switching_key.ciphertext_modulus()
     }
 

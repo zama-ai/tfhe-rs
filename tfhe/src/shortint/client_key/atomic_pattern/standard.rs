@@ -3,9 +3,12 @@ use tfhe_versionable::Versionize;
 
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, allocate_and_generate_new_lwe_keyswitch_key,
+    allocate_and_generate_new_seeded_lwe_keyswitch_key, LweKeyswitchKeyOwned,
+    SeededLweKeyswitchKeyOwned,
 };
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::StandardAtomicPatternClientKeyVersions;
+use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::client_key::{GlweSecretKeyOwned, LweSecretKeyOwned, LweSecretKeyView};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{
@@ -284,6 +287,46 @@ impl StandardAtomicPatternClientKey {
     ) -> CompressedDecompressionKey {
         private_compression_key
             .new_compressed_decompression_key(&self.glwe_secret_key, self.parameters())
+    }
+
+    pub fn new_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> LweKeyswitchKeyOwned<u64> {
+        let (output_secret_key, encryption_noise) = self.keyswitch_encryption_key_and_noise(params);
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &output_secret_key,
+                params.ks_base_log,
+                params.ks_level,
+                encryption_noise,
+                self.parameters().ciphertext_modulus(),
+                &mut engine.encryption_generator,
+            )
+        })
+    }
+
+    pub fn new_seeded_keyswitching_key(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+    ) -> SeededLweKeyswitchKeyOwned<u64> {
+        let (output_secret_key, encryption_noise) = self.keyswitch_encryption_key_and_noise(params);
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &output_secret_key,
+                params.ks_base_log,
+                params.ks_level,
+                encryption_noise,
+                self.parameters().ciphertext_modulus(),
+                &mut engine.seeder,
+            )
+        })
     }
 }
 

@@ -75,10 +75,22 @@ impl AtomicPatternKind {
 /// certain number of linear operations.
 pub trait AtomicPattern {
     /// The LWE dimension of the ciphertext used as input and output of the AP
-    fn ciphertext_lwe_dimension(&self) -> LweDimension;
+    fn ciphertext_lwe_dimension(&self) -> LweDimension {
+        let key_choice = EncryptionKeyChoice::from(self.kind().pbs_order());
+        self.ciphertext_lwe_dimension_for_key(key_choice)
+    }
+
+    /// The LWE dimension of a ciphertext encrypted using the provided key choice
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension;
 
     /// The modulus of the ciphertext used as input and output of the AP
-    fn ciphertext_modulus(&self) -> CiphertextModulus;
+    fn ciphertext_modulus(&self) -> CiphertextModulus {
+        let key_choice = EncryptionKeyChoice::from(self.kind().pbs_order());
+        self.ciphertext_modulus_for_key(key_choice)
+    }
+
+    /// The modulus of a ciphertext encrypted using the provided key choice
+    fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus;
 
     /// Decompression method used to extract cipherexts compressed with the modulus switch
     /// compression
@@ -202,8 +214,16 @@ impl<T: AtomicPattern> AtomicPattern for &T {
         (*self).ciphertext_lwe_dimension()
     }
 
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension {
+        (*self).ciphertext_lwe_dimension_for_key(key_choice)
+    }
+
     fn ciphertext_modulus(&self) -> CiphertextModulus {
         (*self).ciphertext_modulus()
+    }
+
+    fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        (*self).ciphertext_modulus_for_key(key_choice)
     }
 
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
@@ -289,11 +309,27 @@ impl AtomicPattern for AtomicPatternServerKey {
         }
     }
 
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension {
+        match self {
+            Self::Standard(ap) => ap.ciphertext_lwe_dimension_for_key(key_choice),
+            Self::KeySwitch32(ap) => ap.ciphertext_lwe_dimension_for_key(key_choice),
+            Self::Dynamic(ap) => ap.ciphertext_lwe_dimension_for_key(key_choice),
+        }
+    }
+
     fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Standard(ap) => ap.ciphertext_modulus(),
             Self::KeySwitch32(ap) => ap.ciphertext_modulus(),
             Self::Dynamic(ap) => ap.ciphertext_modulus(),
+        }
+    }
+
+    fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        match self {
+            Self::Standard(ap) => ap.ciphertext_modulus_for_key(key_choice),
+            Self::KeySwitch32(ap) => ap.ciphertext_modulus_for_key(key_choice),
+            Self::Dynamic(ap) => ap.ciphertext_modulus_for_key(key_choice),
         }
     }
 
