@@ -742,8 +742,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
             "compact_fhe_uint_proven_encryption_" +
             params.zk_scheme +
             "_" +
-            encrypt_count * 64 +
+            bits_to_encrypt +
             "_bits_packed_" +
+            proof_config["crs_bit_size"] +
+            "_bits_crs_" +
             load_to_str[loadChoice];
           const bench_str_1 = common_bench_str + "_mean_" + block_params_name;
           console.log(bench_str_1, ": ", mean, " ms");
