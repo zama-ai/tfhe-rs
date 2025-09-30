@@ -1330,7 +1330,7 @@ bench_integer_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark -- --quick
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
