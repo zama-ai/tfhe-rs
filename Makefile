@@ -54,6 +54,7 @@ TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # tfhe-hpu-backend
 HPU_CONFIG=v80
+V80_PCIE_DEV?=01
 
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
@@ -1329,6 +1330,7 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
