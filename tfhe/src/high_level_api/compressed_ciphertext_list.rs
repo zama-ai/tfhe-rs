@@ -957,13 +957,18 @@ pub mod gpu {
 mod tests {
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
+    #[cfg(not(feature = "gpu"))]
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+    #[cfg(feature = "gpu")]
     use crate::shortint::parameters::{
         COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::shortint::parameters::{
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use crate::shortint::PBSParameters;
+    use crate::shortint::AtomicPatternParameters;
     #[cfg(feature = "gpu")]
     use crate::GpuIndex;
     use crate::{
@@ -974,26 +979,25 @@ mod tests {
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {
         for (params, comp_params) in [
-            if cfg!(not(feature = "gpu")) {
-                (
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-            } else {
-                (
-                    crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                        .into(),
-                    crate::shortint::parameters::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-            },
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            #[cfg(not(feature = "gpu"))]
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            #[cfg(feature = "gpu")]
             (
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         ] {
-            let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
-                .enable_compression(comp_params)
-                .build();
+            let config =
+                crate::ConfigBuilder::with_custom_parameters::<AtomicPatternParameters>(params)
+                    .enable_compression(comp_params)
+                    .build();
 
             let ck = crate::ClientKey::generate(config);
             let sk = crate::CompressedServerKey::new(&ck);
@@ -1202,9 +1206,10 @@ mod tests {
                 COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         ] {
-            let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
-                .enable_compression(comp_params)
-                .build();
+            let config =
+                crate::ConfigBuilder::with_custom_parameters::<AtomicPatternParameters>(params)
+                    .enable_compression(comp_params)
+                    .build();
 
             let ck = crate::ClientKey::generate(config);
             let sk = crate::CompressedServerKey::new(&ck);
