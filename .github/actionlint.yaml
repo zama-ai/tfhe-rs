@@ -7,6 +7,8 @@ self-hosted-runner:
     - large_ubuntu_16
     - large_ubuntu_16-22.04
     - v80-desktop
+    - v80-marais
+    - v80-couperin
 # Configuration variables in array of strings defined in your repository or
 # organization. `null` means disabling configuration variables check.
 # Empty array means no configuration variable is allowed.
