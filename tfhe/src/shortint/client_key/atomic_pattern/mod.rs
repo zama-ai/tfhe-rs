@@ -6,7 +6,11 @@ use tfhe_versionable::Versionize;
 
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::AtomicPatternClientKeyVersions;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::DynamicDistribution;
+use crate::shortint::list_compression::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
+    DecompressionKey,
+};
+use crate::shortint::parameters::{CompressionParameters, DynamicDistribution};
 use crate::shortint::{AtomicPatternKind, AtomicPatternParameters, ShortintParameterSet};
 
 use super::{LweSecretKeyOwned, LweSecretKeyView};
@@ -100,6 +104,70 @@ impl AtomicPatternClientKey {
             AtomicPatternParameters::KeySwitch32(ap_params) => Ok(Self::KeySwitch32(
                 KS32AtomicPatternClientKey::try_from_lwe_encryption_key(encryption_key, ap_params)?,
             )),
+        }
+    }
+
+    pub fn new_compression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressionKey {
+        match self {
+            Self::Standard(std_cks) => std_cks.new_compression_key(private_compression_key),
+            Self::KeySwitch32(ks32_cks) => ks32_cks.new_compression_key(private_compression_key),
+        }
+    }
+
+    pub fn new_compressed_compression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressedCompressionKey {
+        match self {
+            Self::Standard(std_cks) => {
+                std_cks.new_compressed_compression_key(private_compression_key)
+            }
+            Self::KeySwitch32(ks32_cks) => {
+                ks32_cks.new_compressed_compression_key(private_compression_key)
+            }
+        }
+    }
+
+    pub fn new_decompression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> DecompressionKey {
+        match self {
+            Self::Standard(std_cks) => std_cks.new_decompression_key(private_compression_key),
+            Self::KeySwitch32(ks32_cks) => ks32_cks.new_decompression_key(private_compression_key),
+        }
+    }
+
+    /// Create a decompression key with different parameters than the one in the secret key.
+    ///
+    /// This allows for example to compress using cpu parameters and decompress with gpu parameters
+    pub fn new_decompression_key_with_params(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+    ) -> DecompressionKey {
+        match self {
+            Self::Standard(std_cks) => std_cks
+                .new_decompression_key_with_params(private_compression_key, compression_params),
+            Self::KeySwitch32(ks32_cks) => ks32_cks
+                .new_decompression_key_with_params(private_compression_key, compression_params),
+        }
+    }
+
+    pub fn new_compressed_decompression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressedDecompressionKey {
+        match self {
+            Self::Standard(std_cks) => {
+                std_cks.new_compressed_decompression_key(private_compression_key)
+            }
+            Self::KeySwitch32(ks32_cks) => {
+                ks32_cks.new_compressed_decompression_key(private_compression_key)
+            }
         }
     }
 }
