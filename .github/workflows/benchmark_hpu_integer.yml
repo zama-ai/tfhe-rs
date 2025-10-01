@@ -114,6 +114,7 @@ jobs:
       - name: Run benchmarks
         run: |
           make pull_hpu_files
+          source ./setup_hpu.sh --config v80 -p 24
           export V80_SERIAL_NUMBER=XFL12NWY3ZKG
           source /opt/amd/Vivado/2024.2/settings64.sh
           make BENCH_TYPE="${BENCH_TYPE}" bench_integer_hpu
