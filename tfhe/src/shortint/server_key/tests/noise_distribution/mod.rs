@@ -1,4 +1,5 @@
 pub(crate) mod br_dp_ks_ms;
+pub(crate) mod br_rerand_dp_ks_ms;
 pub(crate) mod dp_ks_ms;
 pub(crate) mod dp_ks_pbs128_packingks;
 pub(crate) mod utils;
