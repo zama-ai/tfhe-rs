@@ -867,5 +867,7 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
     }
 }
 
+pub mod extract_bits_multibit;
+
 #[cfg(test)]
 pub mod tests;

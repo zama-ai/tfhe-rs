@@ -15,6 +15,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(all(test, feature = "experimental"))]
 mod test;
 
+#[cfg(all(test, feature = "experimental"))]
+mod test_multibit_extract_bits;
+
 // Struct for WoPBS based on the private functional packing keyswitch.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
@@ -742,8 +745,19 @@ mod experimental {
                             stack,
                         );
                     }
-                    ShortintBootstrappingKey::MultiBit { .. } => {
-                        todo!("extract_bits_assign currently does not support multi-bit PBS")
+                    ShortintBootstrappingKey::MultiBit { fourier_bsk } => {
+                        use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::extract_bits_multibit::extract_bits_multi_bit;
+                        
+                        extract_bits_multi_bit(
+                            output.as_mut_view(),
+                            &ciphertext.ct,
+                            ksk,
+                            fourier_bsk.as_view(),
+                            delta_log,
+                            num_bits_to_extract,
+                            fft,
+                            stack,
+                        );
                     }
                 }
             });
