@@ -65,9 +65,12 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_3in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
-  polling_us=10
+  polling_us=2
 [fpga.ffi.V80] # Hardware properties
-  ami_dev="/dev/ami1" # Name of ami device
+  id="${V80_PCIE_DEV}"
+  board_sn="${V80_SERIAL_NUMBER}"
+  hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64.hpu"
+  ami_path="${AMI_PATH}/ami.ko"
   qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-0" # QDma host to card device
   qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-1" # QDma card to host device
 
@@ -207,11 +210,26 @@ In order to run those applications on hardware, user must build from the project
 > ```
 
 ``` bash
-cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
+$ cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config v80
-./target/release/examples/hpu_bench --integer-w 64 --integer-w 32 --iop MUL --iter 10
-./target/release/examples/hpu_hlapi
+$ source setup_hpu.sh --config v80 -p
+# Source Xilinx environment (2024 or 2025 version)
+$ source /opt/xilinx/Vivado/2024.2/settings64.sh
+$ xsdb -eval "connect;puts [lsort -unique [regex -all -inline {( XFL[A-Z0-9]*)} [targets -target-properties]]]"
+****** Xilinx hw_server v2024.2
+  **** Build date : Oct 29 2024 at 10:16:47
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+
+INFO: hw_server application started
+INFO: Use Ctrl-C to exit hw_server application
+
+INFO: To connect to this hw_server instance use url: TCP:127.0.0.1:3121
+
+{ XFL12E5XJHWLA}
+$ export V80_SERIAL_NUMBER=XFL12E5XJHWL
+$ ./target/release/examples/hpu_bench --integer-w 64 --integer-w 32 --iop MUL --iter 10
+$ ./target/release/examples/hpu_hlapi
 ```
 
 > NB: Error that occurred when ".hpu" files weren't correctly fetch could be a bit enigmatic: `memory allocation of ... bytes failed`
@@ -220,6 +238,31 @@ source setup_hpu.sh --config v80
 > make pull_hpu_files
 > ```
 
+> NB: tfhe-hpu-backend can only use one V80 board at this time but if you have several boards on your server you can do
+> ```bash
+> $ . setup_hpu.sh --config v80 -p
+> getopt: option requires an argument -- 'p'
+> Please select a device in following list (1st two digits):
+> 24:00.1 Processing accelerators: Xilinx Corporation Device 50b5
+> 61:00.1 Processing accelerators: Xilinx Corporation Device 50b5
+> $ . setup_hpu.sh --config v80 -p 61
+> $ source /opt/xilinx/Vivado/2024.2/settings64.sh
+> # if AMI driver is loaded and AMC version running is the expected one
+> $ cat /sys/module/ami/drivers/pci\:ami/0000\:61\:00.0/board_serial
+> XFL1UKRD42KW
+> # list serial number available on USB JTAG
+> $ xsdb -eval "connect;puts [lsort -unique [regex -all -inline {( XFL[A-Z0-9]*)} [targets -target-properties]]]"
+> ...
+> { XFL12E5XJHWLA} { XFL1UKRD42KWA}
+> $ export V80_SERIAL_NUMBER=XFL1UKRD42KW
+> $ ./target/release/examples/hpu_hlapi
+> ```
+
+> NB: By default setup_hpu.sh will set AMI_PATH to something like /opt/v80/ami/e55d02d where e55d02d is the git revision of AMI driver.
+> To run properly, You need to either place a compiled ami.ko from this revision in this directory or set AMI_PATH to your AVED extraction:
+> ```bash
+> export AMI_PATH=/home/user/AVED/sw/AMI/driver/
+> ```
 
 ## Test framework
 There is also a set of tests backed in tfhe-rs. Tests are gather in testbundle over various integer width.
@@ -235,7 +278,7 @@ Those tests have 5 sub-kind:
 Snippets below give some example of command that could be used for testing:
 ``` bash
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config v80 --init-qdma
+source setup_hpu.sh --config v80 -p
 
 # Run all sub-kind for 64b integer width
 cargo test --release --features="hpu-v80" --test hpu -- u64
@@ -249,7 +292,7 @@ HPU is completely integrated in tfhe benchmark system. Performances results coul
 Three benchmarks could be started, through the following Makefile target for simplicity:
 ``` bash
 # Do not forget to correctly set environment before hand
-source setup_hpu.sh --config v80 --init-qdma
+source setup_hpu.sh --config v80 -p
 
 # Run hlapi benches
 make test_high_level_api_hpu
