@@ -16,8 +16,7 @@ __host__ void host_integer_radix_bitop_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    void *const *bsks, Torus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -45,9 +44,8 @@ __host__ void host_integer_radix_bitop_kb(
   }
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, lwe_array_1, lwe_array_2, bsks, ksks,
-      ms_noise_reduction_key, lut, lwe_array_out->num_radix_blocks,
-      lut->params.message_modulus);
+      streams, lwe_array_out, lwe_array_1, lwe_array_2, bsks, ksks, lut,
+      lwe_array_out->num_radix_blocks, lut->params.message_modulus);
 
   memcpy(lwe_array_out->degrees, degrees,
          lwe_array_out->num_radix_blocks * sizeof(uint64_t));

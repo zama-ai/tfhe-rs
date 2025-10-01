@@ -24,13 +24,12 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
 void cuda_integer_unsigned_scalar_div_radix_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
     const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   host_integer_unsigned_scalar_div_radix<uint64_t>(
       CudaStreams(streams), numerator_ct,
       (int_unsigned_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
-      ms_noise_reduction_key, scalar_divisor_ffi);
+      scalar_divisor_ffi);
 }
 
 void cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -69,13 +68,12 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
 void cuda_integer_signed_scalar_div_radix_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, uint32_t numerator_bits) {
 
   host_integer_signed_scalar_div_radix_kb<uint64_t>(
       CudaStreams(streams), numerator_ct,
       (int_signed_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
-      ms_noise_reduction_key, scalar_divisor_ffi, numerator_bits);
+      scalar_divisor_ffi, numerator_bits);
 }
 
 void cleanup_cuda_integer_signed_scalar_div_radix_kb_64(CudaStreamsFFI streams,
@@ -115,9 +113,7 @@ uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
 void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
-    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     void const *clear_blocks, void const *h_clear_blocks,
@@ -126,9 +122,9 @@ void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
   host_integer_unsigned_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,
       (int_unsigned_scalar_div_rem_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, ms_noise_reduction_key, scalar_divisor_ffi,
-      divisor_has_at_least_one_set, decomposed_divisor, num_scalars_divisor,
-      (uint64_t *)clear_blocks, (uint64_t *)h_clear_blocks, num_clear_blocks);
+      (uint64_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
+      decomposed_divisor, num_scalars_divisor, (uint64_t *)clear_blocks,
+      (uint64_t *)h_clear_blocks, num_clear_blocks);
 }
 
 void cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -168,9 +164,7 @@ uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
 void cuda_integer_signed_scalar_div_rem_radix_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {
@@ -178,9 +172,8 @@ void cuda_integer_signed_scalar_div_rem_radix_kb_64(
   host_integer_signed_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,
       (int_signed_scalar_div_rem_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, ms_noise_reduction_key, scalar_divisor_ffi,
-      divisor_has_at_least_one_set, decomposed_divisor, num_scalars_divisor,
-      numerator_bits);
+      (uint64_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
+      decomposed_divisor, num_scalars_divisor, numerator_bits);
 }
 
 void cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(

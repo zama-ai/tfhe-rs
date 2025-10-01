@@ -22,9 +22,7 @@ use crate::core_crypto::prelude::{
     GlweCiphertextOwned, GlweSecretKey, LweCiphertextCount, LweCiphertextOwned, LweSecretKey,
     Plaintext, SignedDecomposer, UnsignedTorus,
 };
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{ModulusSwitchType, NoiseSquashingParameters};
-use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
 use crate::shortint::MultiBitPBSParameters;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -114,7 +112,6 @@ pub fn execute_bootstrap_u128(
             .collect::<Vec<_>>(),
     );
 
-    let mut engine = ShortintEngine::new();
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
@@ -122,15 +119,8 @@ pub fn execute_bootstrap_u128(
         .modulus_switch_noise_reduction_params
     {
         ModulusSwitchType::Standard => None,
-        ModulusSwitchType::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_params) => {
-            let ms_red_key = ModulusSwitchNoiseReductionKey::new(
-                modulus_switch_noise_reduction_params,
-                &input_lwe_secret_key,
-                &mut engine,
-                input_params.ciphertext_modulus,
-                input_params.lwe_noise_distribution,
-            );
-            Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&ms_red_key,&stream))
+        ModulusSwitchType::DriftTechniqueNoiseReduction(_modulus_switch_noise_reduction_params) => {
+            panic!("Drift noise reduction is not supported on GPU")
         }
         ModulusSwitchType::CenteredMeanNoiseReduction => {
             Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)

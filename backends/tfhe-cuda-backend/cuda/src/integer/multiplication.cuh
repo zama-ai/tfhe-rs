@@ -291,7 +291,6 @@ template <typename Torus>
 __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
@@ -407,8 +406,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
-          ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
-          small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
+          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
+          polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
           total_ciphertexts, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);
@@ -420,7 +419,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, current_blocks, current_blocks, bsks, ksks,
-          ms_noise_reduction_key, luts_message_carry, total_ciphertexts);
+          luts_message_carry, total_ciphertexts);
     }
     cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);
@@ -458,8 +457,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
-          ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
-          small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
+          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
+          polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
           2 * num_radix_blocks, mem_ptr->params.pbs_type, num_many_lut,
           lut_stride);
@@ -471,7 +470,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           active_streams, current_blocks, radix_lwe_out, bsks, ksks,
-          ms_noise_reduction_key, luts_message_carry, num_blocks_in_apply_lut);
+          luts_message_carry, num_blocks_in_apply_lut);
     }
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
@@ -493,9 +492,8 @@ __host__ void host_integer_mult_radix_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, uint64_t *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
+    void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,
+    uint32_t num_blocks) {
 
   if (radix_lwe_out->lwe_dimension != radix_lwe_left->lwe_dimension ||
       radix_lwe_right->lwe_dimension != radix_lwe_left->lwe_dimension)
@@ -513,14 +511,14 @@ __host__ void host_integer_mult_radix_kb(
   if (is_bool_right) {
     zero_out_if<Torus>(streams, radix_lwe_out, radix_lwe_left, radix_lwe_right,
                        mem_ptr->zero_out_mem, mem_ptr->zero_out_predicate_lut,
-                       bsks, ksks, ms_noise_reduction_key, num_blocks);
+                       bsks, ksks, num_blocks);
     return;
   }
 
   if (is_bool_left) {
     zero_out_if<Torus>(streams, radix_lwe_out, radix_lwe_right, radix_lwe_left,
                        mem_ptr->zero_out_mem, mem_ptr->zero_out_predicate_lut,
-                       bsks, ksks, ms_noise_reduction_key, num_blocks);
+                       bsks, ksks, num_blocks);
     return;
   }
 
@@ -589,8 +587,7 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, block_mul_res, block_mul_res, vector_result_sb, bsks, ksks,
-      ms_noise_reduction_key, luts_array, total_block_count,
-      luts_array->params.message_modulus);
+      luts_array, total_block_count, luts_array->params.message_modulus);
 
   vector_result_lsb = block_mul_res;
   as_radix_ciphertext_slice<Torus>(&vector_result_msb, block_mul_res,
@@ -618,15 +615,14 @@ __host__ void host_integer_mult_radix_kb(
   }
   host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
       streams, radix_lwe_out, vector_result_sb, bsks, ksks,
-      ms_noise_reduction_key, mem_ptr->sum_ciphertexts_mem, num_blocks,
-      2 * num_blocks);
+      mem_ptr->sum_ciphertexts_mem, num_blocks, 2 * num_blocks);
 
   auto scp_mem_ptr = mem_ptr->sc_prop_mem;
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(
-      streams, radix_lwe_out, nullptr, nullptr, scp_mem_ptr, bsks, ksks,
-      ms_noise_reduction_key, requested_flag, uses_carry);
+  host_propagate_single_carry<Torus>(streams, radix_lwe_out, nullptr, nullptr,
+                                     scp_mem_ptr, bsks, ksks, requested_flag,
+                                     uses_carry);
 }
 
 template <typename Torus>

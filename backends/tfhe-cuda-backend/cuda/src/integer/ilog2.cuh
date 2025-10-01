@@ -9,14 +9,12 @@ template <typename Torus>
 __host__ void host_integer_prepare_count_of_consecutive_bits(
     CudaStreams streams, CudaRadixCiphertextFFI *ciphertext,
     int_prepare_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    void *const *bsks, Torus *const *ksks) {
 
   auto tmp = mem_ptr->tmp_ct;
 
   host_apply_univariate_lut_kb<Torus>(streams, tmp, ciphertext,
-                                      mem_ptr->univ_lut_mem, ksks,
-                                      ms_noise_reduction_key, bsks);
+                                      mem_ptr->univ_lut_mem, ksks, bsks);
 
   if (mem_ptr->direction == Leading) {
     host_radix_blocks_reverse_inplace<Torus>(streams, tmp);
@@ -24,7 +22,7 @@ __host__ void host_integer_prepare_count_of_consecutive_bits(
 
   host_compute_prefix_sum_hillis_steele<uint64_t>(
       streams, ciphertext, tmp, mem_ptr->biv_lut_mem, bsks, ksks,
-      ms_noise_reduction_key, ciphertext->num_radix_blocks);
+      ciphertext->num_radix_blocks);
 }
 
 template <typename Torus>
@@ -48,8 +46,7 @@ __host__ void host_integer_count_of_consecutive_bits(
     CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
     CudaRadixCiphertextFFI const *input_ct,
     int_count_of_consecutive_bits_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    Torus *const *ksks) {
 
   auto params = mem_ptr->params;
   auto ct_prepared = mem_ptr->ct_prepared;
@@ -60,9 +57,8 @@ __host__ void host_integer_count_of_consecutive_bits(
 
   // Prepare count of consecutive bits
   //
-  host_integer_prepare_count_of_consecutive_bits(streams, ct_prepared,
-                                                 mem_ptr->prepare_mem, bsks,
-                                                 ksks, ms_noise_reduction_key);
+  host_integer_prepare_count_of_consecutive_bits(
+      streams, ct_prepared, mem_ptr->prepare_mem, bsks, ksks);
 
   // Perform addition and propagation of prepared cts
   //
@@ -76,12 +72,11 @@ __host__ void host_integer_count_of_consecutive_bits(
   }
 
   host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
-      streams, output_ct, cts, bsks, ksks, ms_noise_reduction_key,
-      mem_ptr->sum_mem, counter_num_blocks, ct_prepared->num_radix_blocks);
+      streams, output_ct, cts, bsks, ksks, mem_ptr->sum_mem, counter_num_blocks,
+      ct_prepared->num_radix_blocks);
 
   host_propagate_single_carry<Torus>(streams, output_ct, nullptr, nullptr,
-                                     mem_ptr->propagate_mem, bsks, ksks,
-                                     ms_noise_reduction_key, 0, 0);
+                                     mem_ptr->propagate_mem, bsks, ksks, 0, 0);
 }
 
 template <typename Torus>
@@ -103,14 +98,14 @@ __host__ uint64_t scratch_integer_ilog2(CudaStreams streams,
 }
 
 template <typename Torus>
-__host__ void host_integer_ilog2(
-    CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
-    CudaRadixCiphertextFFI const *input_ct,
-    CudaRadixCiphertextFFI const *trivial_ct_neg_n,
-    CudaRadixCiphertextFFI const *trivial_ct_2,
-    CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block,
-    int_ilog2_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+__host__ void
+host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
+                   CudaRadixCiphertextFFI const *input_ct,
+                   CudaRadixCiphertextFFI const *trivial_ct_neg_n,
+                   CudaRadixCiphertextFFI const *trivial_ct_2,
+                   CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block,
+                   int_ilog2_buffer<Torus> *mem_ptr, void *const *bsks,
+                   Torus *const *ksks) {
 
   // Prepare the input ciphertext by computing the number of consecutive
   // leading zeros for each of its blocks.
@@ -118,8 +113,7 @@ __host__ void host_integer_ilog2(
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      mem_ptr->ct_in_buffer, input_ct);
   host_integer_prepare_count_of_consecutive_bits<Torus>(
-      streams, mem_ptr->ct_in_buffer, mem_ptr->prepare_mem, bsks, ksks,
-      ms_noise_reduction_key);
+      streams, mem_ptr->ct_in_buffer, mem_ptr->prepare_mem, bsks, ksks);
 
   // Build the input for the sum by taking each block's leading zero count
   // and placing it into a separate, zero-padded ct slot.
@@ -148,17 +142,17 @@ __host__ void host_integer_ilog2(
   //
   host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
       streams, mem_ptr->sum_output_not_propagated, mem_ptr->sum_input_cts, bsks,
-      ksks, ms_noise_reduction_key, mem_ptr->sum_mem,
-      mem_ptr->counter_num_blocks, mem_ptr->input_num_blocks + 1);
+      ksks, mem_ptr->sum_mem, mem_ptr->counter_num_blocks,
+      mem_ptr->input_num_blocks + 1);
 
   // Apply luts to the partial sum.
   //
-  host_apply_univariate_lut_kb<Torus>(
-      streams, mem_ptr->message_blocks_not, mem_ptr->sum_output_not_propagated,
-      mem_ptr->lut_message_not, ksks, ms_noise_reduction_key, bsks);
-  host_apply_univariate_lut_kb<Torus>(
-      streams, mem_ptr->carry_blocks_not, mem_ptr->sum_output_not_propagated,
-      mem_ptr->lut_carry_not, ksks, ms_noise_reduction_key, bsks);
+  host_apply_univariate_lut_kb<Torus>(streams, mem_ptr->message_blocks_not,
+                                      mem_ptr->sum_output_not_propagated,
+                                      mem_ptr->lut_message_not, ksks, bsks);
+  host_apply_univariate_lut_kb<Torus>(streams, mem_ptr->carry_blocks_not,
+                                      mem_ptr->sum_output_not_propagated,
+                                      mem_ptr->lut_carry_not, ksks, bsks);
 
   // Left-shift the bitwise-negated carry blocks by one position.
   //
@@ -196,12 +190,12 @@ __host__ void host_integer_ilog2(
       trivial_ct_2, 0, mem_ptr->counter_num_blocks);
 
   host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
-      streams, output_ct, mem_ptr->sum_input_cts, bsks, ksks,
-      ms_noise_reduction_key, mem_ptr->sum_mem, mem_ptr->counter_num_blocks, 3);
+      streams, output_ct, mem_ptr->sum_input_cts, bsks, ksks, mem_ptr->sum_mem,
+      mem_ptr->counter_num_blocks, 3);
 
-  host_full_propagate_inplace<Torus>(
-      streams, output_ct, mem_ptr->final_propagate_mem, ksks,
-      ms_noise_reduction_key, bsks, mem_ptr->counter_num_blocks);
+  host_full_propagate_inplace<Torus>(streams, output_ct,
+                                     mem_ptr->final_propagate_mem, ksks, bsks,
+                                     mem_ptr->counter_num_blocks);
 }
 
 #endif

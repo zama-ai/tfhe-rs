@@ -36,7 +36,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128(
 template <typename InputTorus>
 void executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lut_vector, InputTorus *lwe_array_in,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -83,7 +83,7 @@ void executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
 template <typename InputTorus>
 void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lut_vector, InputTorus *lwe_array_in,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -132,36 +132,17 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     __uint128_t const *lut_vector, void const *lwe_array_in,
     void const *bootstrapping_key,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_drift_noise_reduction_ptr,
-    void const *ms_noise_reduction_ptr,
     pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
-  // If the parameters contain drift noise reduction key, then apply it
-  if (buffer->noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT) {
-    uint32_t log_modulus = log2(polynomial_size) + 1;
-    host_drift_modulus_switch<InputTorus>(
-        static_cast<cudaStream_t>(stream), gpu_index,
-        static_cast<InputTorus *>(buffer->temp_lwe_array_in),
-        static_cast<InputTorus const *>(lwe_array_in),
-        static_cast<uint64_t const *>(buffer->trivial_indexes),
-        static_cast<const InputTorus *>(ms_noise_reduction_ptr),
-        lwe_dimension + 1, num_samples, ms_drift_noise_reduction_ptr->num_zeros,
-        ms_drift_noise_reduction_ptr->ms_input_variance,
-        ms_drift_noise_reduction_ptr->ms_r_sigma,
-        ms_drift_noise_reduction_ptr->ms_bound, log_modulus);
-  } else {
-    buffer->temp_lwe_array_in =
-        const_cast<InputTorus *>(static_cast<const InputTorus *>(lwe_array_in));
-  }
   switch (buffer->pbs_variant) {
   case DEFAULT:
     executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<InputTorus>(
         stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
-        lut_vector, static_cast<InputTorus *>(buffer->temp_lwe_array_in),
+        lut_vector, static_cast<InputTorus const *>(lwe_array_in),
         static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples);
     break;
@@ -169,7 +150,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
     executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128<
         InputTorus>(
         stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
-        lut_vector, static_cast<InputTorus *>(buffer->temp_lwe_array_in),
+        lut_vector, static_cast<InputTorus const *>(lwe_array_in),
         static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples);
     break;
@@ -234,9 +215,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
 void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
     void *streams, uint32_t gpu_index, void *lwe_array_out,
     void const *lut_vector, void const *lwe_array_in,
-    void const *bootstrapping_key,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void const *ms_noise_reduction_ptr, int8_t *mem_ptr, uint32_t lwe_dimension,
+    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples) {
   pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *buffer =
@@ -245,9 +224,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
   host_programmable_bootstrap_lwe_ciphertext_vector_128<uint64_t>(
       streams, gpu_index, lwe_array_out,
       static_cast<const __uint128_t *>(lut_vector), lwe_array_in,
-      bootstrapping_key, ms_noise_reduction_key, ms_noise_reduction_ptr, buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-      num_samples);
+      bootstrapping_key, buffer, lwe_dimension, glwe_dimension, polynomial_size,
+      base_log, level_count, num_samples);
 }
 
 /*

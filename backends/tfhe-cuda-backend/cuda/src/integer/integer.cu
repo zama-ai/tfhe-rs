@@ -2,18 +2,17 @@
 #include "integer/negation.cuh"
 #include <linear_algebra.h>
 
-void cuda_full_propagation_64_inplace(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
-    int8_t *mem_ptr, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_blocks) {
+void cuda_full_propagation_64_inplace(CudaStreamsFFI streams,
+                                      CudaRadixCiphertextFFI *input_blocks,
+                                      int8_t *mem_ptr, void *const *ksks,
+                                      void *const *bsks, uint32_t num_blocks) {
 
   int_fullprop_buffer<uint64_t> *buffer =
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
 
-  host_full_propagate_inplace<uint64_t>(
-      CudaStreams(streams), input_blocks, buffer, (uint64_t **)(ksks),
-      ms_noise_reduction_key, bsks, num_blocks);
+  host_full_propagate_inplace<uint64_t>(CudaStreams(streams), input_blocks,
+                                        buffer, (uint64_t **)(ksks), bsks,
+                                        num_blocks);
 }
 
 uint64_t scratch_cuda_full_propagation_64(
@@ -103,27 +102,24 @@ void cuda_propagate_single_carry_kb_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t requested_flag, uint32_t uses_carry) {
 
   host_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lwe_array, carry_out, carry_in,
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      ms_noise_reduction_key, requested_flag, uses_carry);
+      requested_flag, uses_carry);
 }
 
 void cuda_add_and_propagate_single_carry_kb_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t requested_flag, uint32_t uses_carry) {
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
 
   host_add_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      ms_noise_reduction_key, requested_flag, uses_carry);
+      requested_flag, uses_carry);
 }
 
 void cuda_integer_overflowing_sub_kb_64_inplace(
@@ -131,15 +127,13 @@ void cuda_integer_overflowing_sub_kb_64_inplace(
     const CudaRadixCiphertextFFI *rhs_array,
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t compute_overflow, uint32_t uses_input_borrow) {
+    void *const *bsks, void *const *ksks, uint32_t compute_overflow,
+    uint32_t uses_input_borrow) {
   PUSH_RANGE("overflow sub")
   host_integer_overflowing_sub<uint64_t>(
       CudaStreams(streams), lhs_array, lhs_array, rhs_array, overflow_block,
       input_borrow, (int_borrow_prop_memory<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, ms_noise_reduction_key, compute_overflow,
-      uses_input_borrow);
+      (uint64_t **)ksks, compute_overflow, uses_input_borrow);
   POP_RANGE()
 }
 
@@ -218,14 +212,11 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
 void cuda_apply_univariate_lut_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks) {
+    void *const *ksks, void *const *bsks) {
 
   host_apply_univariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks),
-      ms_noise_reduction_key, bsks);
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks);
 }
 
 void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
@@ -241,14 +232,13 @@ void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
 void cuda_apply_many_univariate_lut_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_many_lut, uint32_t lut_stride) {
+    void *const *ksks, void *const *bsks, uint32_t num_many_lut,
+    uint32_t lut_stride) {
 
   host_apply_many_univariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks),
-      ms_noise_reduction_key, bsks, num_many_lut, lut_stride);
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks,
+      num_many_lut, lut_stride);
 }
 
 uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
@@ -275,15 +265,13 @@ void cuda_apply_bivariate_lut_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe_1,
     CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_radix_blocks, uint32_t shift) {
+    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
+    uint32_t shift) {
 
   host_apply_bivariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe_1,
       input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
-      (uint64_t **)(ksks), ms_noise_reduction_key, bsks, num_radix_blocks,
-      shift);
+      (uint64_t **)(ksks), bsks, num_radix_blocks, shift);
 }
 
 void cleanup_cuda_apply_bivariate_lut_kb_64(CudaStreamsFFI streams,
@@ -320,14 +308,12 @@ uint64_t scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI *generates_or_propagates, int8_t *mem_ptr,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_radix_blocks) {
+    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks) {
 
   host_compute_prefix_sum_hillis_steele<uint64_t>(
       CudaStreams(streams), output_radix_lwe, generates_or_propagates,
       (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      ms_noise_reduction_key, num_radix_blocks);
+      num_radix_blocks);
 }
 
 void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
@@ -399,15 +385,12 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
 void cuda_apply_noise_squashing_kb(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks) {
+    void *const *ksks, void *const *bsks) {
 
   PUSH_RANGE("apply noise squashing")
   integer_radix_apply_noise_squashing_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
-      ms_noise_reduction_key);
+      (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
   POP_RANGE()
 }
 

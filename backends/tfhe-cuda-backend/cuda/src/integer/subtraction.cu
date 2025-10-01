@@ -23,14 +23,12 @@ void cuda_sub_and_propagate_single_carry_kb_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t requested_flag, uint32_t uses_carry) {
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
   PUSH_RANGE("sub")
   host_sub_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
       (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      ms_noise_reduction_key, requested_flag, uses_carry);
+      requested_flag, uses_carry);
   POP_RANGE()
 }
 

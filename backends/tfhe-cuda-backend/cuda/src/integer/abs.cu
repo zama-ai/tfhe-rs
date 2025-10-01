@@ -21,14 +21,12 @@ uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
 
 void cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *ct, int8_t *mem_ptr,
-    bool is_signed, void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    bool is_signed, void *const *bsks, void *const *ksks) {
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 
   host_integer_abs_kb<uint64_t>(CudaStreams(streams), ct, bsks,
-                                (uint64_t **)(ksks), ms_noise_reduction_key,
-                                mem, is_signed);
+                                (uint64_t **)(ksks), mem, is_signed);
 }
 
 void cleanup_cuda_integer_abs_inplace(CudaStreamsFFI streams,

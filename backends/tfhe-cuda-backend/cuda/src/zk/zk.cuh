@@ -19,8 +19,7 @@ template <typename Torus, class params>
 __host__ void host_expand_without_verification(
     CudaStreams streams, Torus *lwe_array_out,
     const Torus *lwe_flattened_compact_array_in, zk_expand_mem<Torus> *mem_ptr,
-    Torus *const *casting_keys, void *const *bsks, Torus *const *compute_ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    Torus *const *casting_keys, void *const *bsks, Torus *const *compute_ksks) {
   // Expand
   auto casting_key_type = mem_ptr->casting_key_type;
   auto expanded_lwes = mem_ptr->tmp_expanded_lwes;
@@ -96,8 +95,8 @@ __host__ void host_expand_without_verification(
   auto input = new CudaRadixCiphertextFFI;
   into_radix_ciphertext(input, lwe_array_input, 2 * num_lwes, lwe_dimension);
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, output, input, bsks, ksks, ms_noise_reduction_key,
-      message_and_carry_extract_luts, 2 * num_lwes);
+      streams, output, input, bsks, ksks, message_and_carry_extract_luts,
+      2 * num_lwes);
 }
 
 template <typename Torus>

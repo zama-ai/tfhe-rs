@@ -29,13 +29,12 @@ uint64_t scratch_integer_count_of_consecutive_bits_kb_64(
 void cuda_integer_count_of_consecutive_bits_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
     CudaRadixCiphertextFFI const *input_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key) {
+    void *const *ksks) {
 
   host_integer_count_of_consecutive_bits<uint64_t>(
       CudaStreams(streams), output_ct, input_ct,
       (int_count_of_consecutive_bits_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, ms_noise_reduction_key);
+      (uint64_t **)ksks);
 }
 
 void cleanup_cuda_integer_count_of_consecutive_bits_kb_64(
@@ -81,13 +80,12 @@ void cuda_integer_ilog2_kb_64(
     CudaRadixCiphertextFFI const *trivial_ct_neg_n,
     CudaRadixCiphertextFFI const *trivial_ct_2,
     CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks,
-    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key) {
+    void *const *bsks, void *const *ksks) {
 
   host_integer_ilog2<uint64_t>(
       CudaStreams(streams), output_ct, input_ct, trivial_ct_neg_n, trivial_ct_2,
       trivial_ct_m_minus_1_block, (int_ilog2_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, ms_noise_reduction_key);
+      (uint64_t **)ksks);
 }
 
 void cleanup_cuda_integer_ilog2_kb_64(CudaStreamsFFI streams,

@@ -30,11 +30,10 @@ __host__ uint64_t scratch_cuda_integer_abs_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_abs_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *ct, void *const *bsks,
-    uint64_t *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int_abs_buffer<uint64_t> *mem_ptr, bool is_signed) {
+__host__ void
+host_integer_abs_kb(CudaStreams streams, CudaRadixCiphertextFFI *ct,
+                    void *const *bsks, uint64_t *const *ksks,
+                    int_abs_buffer<uint64_t> *mem_ptr, bool is_signed) {
   if (!is_signed)
     return;
 
@@ -49,19 +48,19 @@ __host__ void host_integer_abs_kb(
 
   host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
       streams, mask, num_bits_in_ciphertext - 1,
-      mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key);
+      mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ct, mask, ct,
                        ct->num_radix_blocks, mem_ptr->params.message_modulus,
                        mem_ptr->params.carry_modulus);
 
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(
-      streams, ct, nullptr, nullptr, mem_ptr->scp_mem, bsks, ksks,
-      ms_noise_reduction_key, requested_flag, uses_carry);
+  host_propagate_single_carry<Torus>(streams, ct, nullptr, nullptr,
+                                     mem_ptr->scp_mem, bsks, ksks,
+                                     requested_flag, uses_carry);
 
   host_integer_radix_bitop_kb<Torus>(streams, ct, mask, ct, mem_ptr->bitxor_mem,
-                                     bsks, ksks, ms_noise_reduction_key);
+                                     bsks, ksks);
 }
 
 #endif // TFHE_RS_ABS_CUH

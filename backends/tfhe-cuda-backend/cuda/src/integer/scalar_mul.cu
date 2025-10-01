@@ -22,15 +22,13 @@ uint64_t scratch_cuda_integer_scalar_mul_kb_64(
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
-    int8_t *mem, void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t num_scalars) {
+    int8_t *mem, void *const *bsks, void *const *ksks, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t num_scalars) {
 
   host_integer_scalar_mul_radix<uint64_t>(
       CudaStreams(streams), lwe_array, decomposed_scalar, has_at_least_one_set,
       reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-      (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-      num_scalars);
+      (uint64_t **)(ksks), message_modulus, num_scalars);
 }
 
 void cleanup_cuda_integer_radix_scalar_mul(CudaStreamsFFI streams,
