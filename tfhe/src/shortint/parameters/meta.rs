@@ -11,6 +11,9 @@ pub struct DedicatedCompactPublicKeyParameters {
     /// Parameters used to key switch from the compact public key
     /// parameters to compute parameters
     pub ksk_params: ShortintKeySwitchingParameters,
+    /// Parameters to key switch from the compact public key
+    /// to rerand state
+    pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -25,6 +28,4 @@ pub struct MetaParameters {
     pub compression_parameters: Option<CompressionParameters>,
     /// Parameters for noise squashing
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
-    /// Parameters for ciphertext re-randomization
-    pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
 }
