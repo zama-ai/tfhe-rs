@@ -77,10 +77,7 @@ impl AllocateLweKeyswitchResult for NoiseSimulationLweKeyswitchKey {
     type Output = NoiseSimulationLwe;
     type SideResources = ();
 
-    fn allocate_lwe_keyswitch_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(&self, _side_resources: &Self::SideResources) -> Self::Output {
         Self::Output::new(
             self.output_lwe_dimension,
             Variance(f64::NAN),
@@ -96,7 +93,7 @@ impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLwe
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         assert_eq!(input.lwe_dimension(), self.input_lwe_dimension);
 

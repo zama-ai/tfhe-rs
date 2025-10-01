@@ -18,7 +18,7 @@ impl AllocateStandardModSwitchResult for NoiseSimulationLwe {
 
     fn allocate_standard_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
             self.lwe_dimension(),
@@ -35,7 +35,7 @@ impl StandardModSwitch<Self> for NoiseSimulationLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         let simulation_after_mod_switch_modulus =
             NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);
@@ -68,7 +68,7 @@ impl AllocateMultiBitModSwitchResult for NoiseSimulationLwe {
 
     fn allocate_multi_bit_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
             self.lwe_dimension(),
@@ -86,7 +86,7 @@ impl MultiBitModSwitch<Self> for NoiseSimulationLwe {
         grouping_factor: LweBskGroupingFactor,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         let simulation_after_mod_switch_modulus =
             NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);
@@ -121,7 +121,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for NoiseSimulationLwe
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         Self::new(self.lwe_dimension(), Variance(f64::NAN), self.modulus())
     }
@@ -134,7 +134,7 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for NoiseSimulationLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         let simulation_after_mod_switch_modulus =
             NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);

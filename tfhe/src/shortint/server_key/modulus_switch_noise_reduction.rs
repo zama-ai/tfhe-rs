@@ -409,7 +409,7 @@ impl<Scalar: UnsignedInteger> AllocateDriftTechniqueStandardModSwitchResult
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let after_drift = Self::AfterDriftOutput::new(
             Scalar::ZERO,
@@ -441,7 +441,7 @@ impl<
         input: &LweCiphertext<InputCont>,
         after_drift_technique: &mut LweCiphertext<AfterDriftCont>,
         after_mod_switch: &mut LweCiphertext<AfterMsCont>,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         after_drift_technique
             .as_mut()

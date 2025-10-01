@@ -49,7 +49,7 @@ fn dp_ks_any_ms_standard_pbs128<
     bsk_128: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
-    side_resources: &mut Resources,
+    side_resources: &Resources,
 ) -> (
     InputCt,
     ScalarMulResult,

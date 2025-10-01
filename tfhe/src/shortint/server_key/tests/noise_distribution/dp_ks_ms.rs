@@ -37,7 +37,7 @@ pub fn dp_ks_any_ms<
     modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
     mod_switch_noise_reduction_key: Option<&DriftKey>,
     br_input_modulus_log: CiphertextModulusLog,
-    side_resources: &mut Resources,
+    side_resources: &Resources,
 ) -> (
     InputCt,
     ScalarMulResult,
@@ -143,7 +143,7 @@ fn dp_ks_any_ms_classic_pbs<
     bsk: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
-    side_resources: &mut Resources,
+    side_resources: &Resources,
 ) -> (
     InputCt,
     ScalarMulResult,
@@ -239,7 +239,7 @@ where
                 &sks,
                 br_input_modulus_log,
                 &id_lut,
-                &mut (),
+                &(),
             );
 
         let mut shortint_res =
@@ -297,7 +297,7 @@ fn encrypt_dp_ks_any_ms_inner_helper(
         noise_simulation_modulus_switch_config,
         drift_key,
         br_input_modulus_log,
-        &mut (),
+        &(),
     );
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
@@ -457,7 +457,7 @@ where
             noise_simulation_modulus_switch_config,
             noise_simulation_drift_key.as_ref(),
             br_input_modulus_log,
-            &mut (),
+            &(),
         )
     };
 
@@ -473,7 +473,7 @@ where
             noise_simulation_modulus_switch_config,
             drift_key,
             br_input_modulus_log,
-            &mut (),
+            &(),
         );
 
         (after_ms.lwe_dimension(), after_ms.raw_modulus_float())

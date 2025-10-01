@@ -128,7 +128,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
         accumulator: &NoiseSimulationGlwe,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         assert_eq!(self.input_lwe_dimension(), input.lwe_dimension());
         assert_eq!(

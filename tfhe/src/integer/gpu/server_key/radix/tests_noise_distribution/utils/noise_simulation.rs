@@ -6,20 +6,16 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::gpu::algorithms::lwe_keyswitch::cuda_keyswitch_lwe_ciphertext;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext, CudaStreams};
 use crate::core_crypto::prelude::*;
-use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::radix::{CudaBlockInfo, CudaRadixCiphertextInfo};
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::gpu::{
     cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async,
 };
-use crate::shortint::atomic_pattern::AtomicPatternServerKey;
-use crate::shortint::client_key::ClientKey;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
-use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MessageModulus};
+
 //I will wrap the CudaBlockInfo in the resources for simplicity cause the
 //CudaLweCiphertextList doesn't contain this info
 pub struct CudaSideResources {
@@ -126,9 +122,9 @@ impl ScalarMul<u64> for CudaDynLwe {
     type Output = Self;
     type SideResources = CudaSideResources;
 
-    fn scalar_mul(&self, scalar: u64, side_resources: &mut Self::SideResources) -> Self::Output {
+    fn scalar_mul(&self, scalar: u64, side_resources: &Self::SideResources) -> Self::Output {
         match self {
-            Self::U32(cuda_lwe) => {
+            Self::U32(_cuda_lwe) => {
                 panic!("U32 scalar mul not implemented for CudaDynLwe - only U64 is supported")
             }
             Self::U64(cuda_lwe) => {
@@ -152,7 +148,7 @@ impl ScalarMul<u64> for CudaDynLwe {
 
                 Self::U64(cuda_radix.d_blocks)
             }
-            Self::U128(cuda_lwe) => {
+            Self::U128(_cuda_lwe) => {
                 panic!("U128 scalar mul not implemented for CudaDynLwe - only U64 is supported")
             }
         }
@@ -165,7 +161,7 @@ impl AllocateStandardModSwitchResult for CudaDynLwe {
 
     fn allocate_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output {
         match self {
             Self::U32(cuda_lwe) => {
@@ -206,10 +202,10 @@ impl StandardModSwitch<Self> for CudaDynLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match (self, output) {
-            (Self::U32(input), Self::U32(output_cuda_lwe)) => {
+            (Self::U32(_input), Self::U32(_output_cuda_lwe)) => {
                 panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
@@ -220,7 +216,7 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                     &side_resources.streams,
                 );
             }
-            (Self::U128(input), Self::U128(output_cuda_lwe)) => {
+            (Self::U128(_input), Self::U128(_output_cuda_lwe)) => {
                 panic!("U128 modulus switch not implemented for CudaDynLwe - only U64 is supported")
             }
             _ => panic!("Inconsistent inputs/outputs for CudaDynLwe StandardModSwitch"),
@@ -234,7 +230,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for CudaDynLwe {
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output {
         self.allocate_standard_mod_switch_result(side_resources)
     }
@@ -247,7 +243,7 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match (self, output) {
             (Self::U32(input), Self::U32(output_cuda_lwe)) => {
@@ -289,7 +285,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for CudaDynLwe {
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let after_drift = self.allocate_standard_mod_switch_result(side_resources);
         let after_ms = self.allocate_standard_mod_switch_result(side_resources);
@@ -303,11 +299,11 @@ impl DriftTechniqueStandardModSwitch<Self, Self, Self> for CudaDynLwe {
 
     fn drift_technique_and_standard_mod_switch(
         &self,
-        output_modulus_log: CiphertextModulusLog,
-        input: &Self,
-        after_drift_technique: &mut Self,
-        after_mod_switch: &mut Self,
-        side_resources: &mut Self::SideResources,
+        _output_modulus_log: CiphertextModulusLog,
+        _input: &Self,
+        _after_drift_technique: &mut Self,
+        _after_mod_switch: &mut Self,
+        _side_resources: &Self::SideResources,
     ) {
         panic!("Drift technique is being deprecated, use other flavors of mod switch instead")
     }
@@ -317,10 +313,7 @@ impl AllocateLweKeyswitchResult for CudaServerKey {
     type Output = CudaDynLwe;
     type SideResources = CudaSideResources;
 
-    fn allocate_lwe_keyswitch_result(
-        &self,
-        side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(&self, side_resources: &Self::SideResources) -> Self::Output {
         let output_lwe_dimension = self
             .key_switching_key
             .output_key_lwe_size()
@@ -345,7 +338,7 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaServerKey {
         &self,
         input: &CudaDynLwe,
         output: &mut CudaDynLwe,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match (input, output) {
             (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
@@ -379,7 +372,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for CudaServerKey {
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let output_lwe_dimension = self
             .key_switching_key
@@ -414,11 +407,11 @@ impl DriftTechniqueStandardModSwitch<CudaDynLwe, CudaDynLwe, CudaDynLwe> for Cud
 
     fn drift_technique_and_standard_mod_switch(
         &self,
-        output_modulus_log: CiphertextModulusLog,
-        input: &CudaDynLwe,
-        after_drift_technique: &mut CudaDynLwe,
-        after_mod_switch: &mut CudaDynLwe,
-        side_resources: &mut Self::SideResources,
+        _output_modulus_log: CiphertextModulusLog,
+        _input: &CudaDynLwe,
+        _after_drift_technique: &mut CudaDynLwe,
+        _after_mod_switch: &mut CudaDynLwe,
+        _side_resources: &Self::SideResources,
     ) {
         panic!("Drift technique is being deprecated, use other flavors of mod switch instead")
     }

@@ -1,16 +1,11 @@
 use super::utils::noise_simulation::CudaSideResources;
-use super::utils::*;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::client_key::RadixClientKey;
-use crate::integer::gpu::gen_keys_radix_gpu;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
 use crate::integer::gpu::server_key::CudaServerKey;
-use crate::shortint::client_key::ClientKey as ShortintClientKey;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -28,9 +23,8 @@ use rayon::prelude::*;
 use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::server_key::radix::CudaUnsignedRadixCiphertext;
 use crate::integer::server_key::ServerKey;
-use crate::integer::{CompactPublicKey, CompressedServerKey};
+use crate::integer::CompressedServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_ms;
@@ -53,7 +47,7 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     msg: u64,
     scalar_for_multiplication: u64,
     br_input_modulus_log: CiphertextModulusLog,
-    streams: &mut CudaStreams,
+    streams: &CudaStreams,
 ) -> (
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
@@ -61,7 +55,6 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
 ) {
-    let engine = ShortintEngine::new();
     let thread_cks: crate::integer::ClientKey;
     let thread_sks: crate::integer::ServerKey;
     let thread_cuda_sks: CudaServerKey;
@@ -86,7 +79,7 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     };
 
     let ct_input = cks.encrypt(msg);
-    let d_ct_input = CudaLweCiphertextList::from_lwe_ciphertext(&ct_input.ct, &streams);
+    let d_ct_input = CudaLweCiphertextList::from_lwe_ciphertext(&ct_input.ct, streams);
     let gpu_sample_input = CudaDynLwe::U64(d_ct_input);
     let block_info = CudaBlockInfo {
         degree: crate::shortint::parameters::Degree::new(1),
@@ -198,7 +191,7 @@ fn encrypt_dp_ks_any_ms_noise_helper_gpu(
     msg: u64,
     scalar_for_multiplication: u64,
     br_input_modulus_log: CiphertextModulusLog,
-    streams: &mut CudaStreams,
+    streams: &CudaStreams,
 ) -> (
     NoiseSample,
     NoiseSample,
@@ -244,7 +237,7 @@ fn encrypt_dp_ks_any_ms_pfail_helper_gpu(
     msg: u64,
     scalar_for_multiplication: u64,
     br_input_modulus_log: CiphertextModulusLog,
-    streams: &mut CudaStreams,
+    streams: &CudaStreams,
 ) -> DecryptionAndNoiseResult {
     let (_input, _before_ms, _after_ks, after_ms, _after_pbs) =
         encrypt_dp_ks_any_ms_inner_helper_gpu(
@@ -272,7 +265,7 @@ where
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
     let gpu_index = 0;
-    let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     let block_params: ShortintParameterSet = params.into();
     let cks = crate::integer::ClientKey::new(block_params);
@@ -323,7 +316,7 @@ where
             noise_simulation_modulus_switch_config,
             noise_simulation_drift_key.as_ref(),
             br_input_modulus_log,
-            &mut (),
+            &(),
         )
     };
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
@@ -363,14 +356,19 @@ where
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
     let mut noise_samples_before_ms = vec![];
     let mut noise_samples_after_ms = vec![];
+    let num_streams = 16;
+    let vec_local_streams = (0..num_streams)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
+        .collect::<Vec<_>>();
 
-    let sample_count_per_msg = 1000;
-    for k in 0..cleartext_modulus {
+    let sample_count_per_msg = 1000usize;
+    for _ in 0..cleartext_modulus {
         let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) = (0
             ..sample_count_per_msg)
-            .into_iter()
-            .map(|_| {
-                let mut local_streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+            .into_par_iter()
+            .map(|index| {
+                let stream_index = index % num_streams;
+                let local_streams = &vec_local_streams[stream_index];
                 let (_input, _after_dp, _after_ks, before_ms, after_ms) =
                     encrypt_dp_ks_any_ms_noise_helper_gpu(
                         params,
@@ -380,7 +378,7 @@ where
                         0,
                         max_scalar_mul,
                         br_input_modulus_log,
-                        &mut local_streams,
+                        local_streams,
                     );
                 (before_ms.value, after_ms.value)
             })
@@ -453,7 +451,7 @@ where
     };
 
     let gpu_index = 0;
-    let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     let block_params: ShortintParameterSet = params.into();
     let cks = crate::integer::ClientKey::new(block_params);
@@ -464,10 +462,15 @@ where
     let br_input_modulus_log = sks.key.br_input_modulus_log();
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
 
+    let num_streams = 16;
+    let vec_local_streams = (0..num_streams)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
+        .collect::<Vec<_>>();
     let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .into_iter()
-        .map(|_| {
-            let mut local_streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        .into_par_iter()
+        .map(|index| {
+            let stream_index = index % num_streams;
+            let local_streams = &vec_local_streams[stream_index as usize];
             let after_ms_decryption_result = encrypt_dp_ks_any_ms_pfail_helper_gpu(
                 params,
                 &cks.key,
@@ -476,7 +479,7 @@ where
                 0,
                 max_scalar_mul,
                 br_input_modulus_log,
-                &mut local_streams,
+                local_streams,
             );
             after_ms_decryption_result.failure_as_f64()
         })

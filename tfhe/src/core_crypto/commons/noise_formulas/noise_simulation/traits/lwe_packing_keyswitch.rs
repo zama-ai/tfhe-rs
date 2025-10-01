@@ -4,7 +4,7 @@ pub trait AllocateLwePackingKeyswitchResult {
 
     fn allocate_lwe_packing_keyswitch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output;
 }
 
@@ -15,6 +15,6 @@ pub trait LwePackingKeyswitch<Input: ?Sized, Output> {
         &self,
         input: &Input,
         output: &mut Output,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }

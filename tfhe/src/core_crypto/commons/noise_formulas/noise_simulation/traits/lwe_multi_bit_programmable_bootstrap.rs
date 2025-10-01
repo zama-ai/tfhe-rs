@@ -4,7 +4,7 @@ pub trait AllocateLweMultiBitBlindRotateResult {
 
     fn allocate_lwe_multi_bit_blind_rotate_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output;
 }
 
@@ -16,7 +16,7 @@ pub trait LweMultiBitFftBlindRotate<Input, Output, Accumulator> {
         input: &Input,
         output: &mut Output,
         accumulator: &Accumulator,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }
 
@@ -28,6 +28,6 @@ pub trait LweMultiBitFft128BlindRotate<Input, Output, Accumulator> {
         input: &Input,
         output: &mut Output,
         accumulator: &Accumulator,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }

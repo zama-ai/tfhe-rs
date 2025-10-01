@@ -827,7 +827,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ScalarMul<Scalar>
     type Output = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn scalar_mul(&self, rhs: Scalar, _side_resources: &mut Self::SideResources) -> Self::Output {
+    fn scalar_mul(&self, rhs: Scalar, _side_resources: &Self::SideResources) -> Self::Output {
         let mut output =
             LweCiphertextOwned::from_container(self.as_ref().to_vec(), self.ciphertext_modulus());
         lwe_ciphertext_cleartext_mul(&mut output, self, Cleartext(rhs));
@@ -840,7 +840,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ScalarMulAssign
 {
     type SideResources = ();
 
-    fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
+    fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &Self::SideResources) {
         lwe_ciphertext_cleartext_mul_assign(self, Cleartext(rhs));
     }
 }

@@ -83,10 +83,7 @@ impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateLweB
     type Output = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocate_lwe_bootstrap_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_bootstrap_result(&self, _side_resources: &Self::SideResources) -> Self::Output {
         let glwe_dim = self.glwe_size().to_glwe_dimension();
         let poly_size = self.polynomial_size();
         let equivalent_lwe_dim = glwe_dim.to_equivalent_lwe_dimension(poly_size);

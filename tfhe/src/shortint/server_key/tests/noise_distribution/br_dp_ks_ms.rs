@@ -53,7 +53,7 @@ pub fn br_dp_ks_any_ms<
     mod_switch_noise_reduction_key: Option<&DriftKey>,
     accumulator: &Accumulator,
     br_input_modulus_log: CiphertextModulusLog,
-    side_resources: &mut Resources,
+    side_resources: &Resources,
 ) -> (
     InputCt,
     PBSResult,
@@ -136,7 +136,7 @@ pub fn br_dp_ks_any_ms_pbs<
     mod_switch_noise_reduction_key: Option<&DriftKey>,
     accumulator: &Accumulator,
     br_input_modulus_log: CiphertextModulusLog,
-    side_resources: &mut Resources,
+    side_resources: &Resources,
 ) -> (
     InputCt,
     PBSResult,
@@ -272,7 +272,7 @@ where
             drift_key,
             &id_lut,
             br_input_modulus_log,
-            &mut (),
+            &(),
         );
 
         // Shortint APIs are not granular enough to compare ciphertexts at the MS level
@@ -367,7 +367,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper(
         drift_key,
         &id_lut,
         br_input_modulus_log,
-        &mut (),
+        &(),
     );
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
@@ -562,7 +562,7 @@ where
             noise_simulation_drift_key.as_ref(),
             &noise_simulation_accumulator,
             br_input_modulus_log,
-            &mut (),
+            &(),
         )
     };
 
@@ -596,7 +596,7 @@ where
             drift_key,
             &id_lut,
             br_input_modulus_log,
-            &mut (),
+            &(),
         );
 
         (after_ms.lwe_dimension(), after_ms.raw_modulus_float())
