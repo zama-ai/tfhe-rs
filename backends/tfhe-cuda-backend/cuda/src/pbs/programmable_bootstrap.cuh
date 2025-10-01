@@ -204,20 +204,20 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
 }
 
 template <typename InputTorus, typename OutputTorus>
-void execute_pbs_async(
-    CudaStreams streams, const LweArrayVariant<OutputTorus> &lwe_array_out,
-    const LweArrayVariant<InputTorus> &lwe_output_indexes,
-    const std::vector<OutputTorus *> lut_vec,
-    const std::vector<InputTorus *> lut_indexes_vec,
-    const LweArrayVariant<InputTorus> &lwe_array_in,
-    const LweArrayVariant<InputTorus> &lwe_input_indexes,
-    void *const *bootstrapping_keys,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+void execute_pbs_async(CudaStreams streams,
+                       const LweArrayVariant<OutputTorus> &lwe_array_out,
+                       const LweArrayVariant<InputTorus> &lwe_output_indexes,
+                       const std::vector<OutputTorus *> lut_vec,
+                       const std::vector<InputTorus *> lut_indexes_vec,
+                       const LweArrayVariant<InputTorus> &lwe_array_in,
+                       const LweArrayVariant<InputTorus> &lwe_input_indexes,
+                       void *const *bootstrapping_keys,
+                       std::vector<int8_t *> pbs_buffer,
+                       uint32_t glwe_dimension, uint32_t lwe_dimension,
+                       uint32_t polynomial_size, uint32_t base_log,
+                       uint32_t level_count, uint32_t grouping_factor,
+                       uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
+                       uint32_t num_many_lut, uint32_t lut_stride) {
 
   if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
     // 32 bits
@@ -310,17 +310,13 @@ void execute_pbs_async(
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        void *zeros = nullptr;
-        if (ms_noise_reduction_key != nullptr &&
-            ms_noise_reduction_key->ptr != nullptr)
-          zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], ms_noise_reduction_key, zeros, pbs_buffer[i],
-            lwe_dimension, glwe_dimension, polynomial_size, base_log,
-            level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
+            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, base_log, level_count, num_inputs_on_gpu,
+            num_many_lut, lut_stride);
       }
       break;
     default:
@@ -374,16 +370,11 @@ void execute_pbs_async(
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        void *zeros = nullptr;
-        if (ms_noise_reduction_key != nullptr &&
-            ms_noise_reduction_key->ptr != nullptr)
-          zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             lut_vec[i], current_lwe_array_in, bootstrapping_keys[i],
-            ms_noise_reduction_key, zeros, pbs_buffer[i], lwe_dimension,
-            glwe_dimension, polynomial_size, base_log, level_count,
-            num_inputs_on_gpu);
+            pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count, num_inputs_on_gpu);
       }
       break;
     default:

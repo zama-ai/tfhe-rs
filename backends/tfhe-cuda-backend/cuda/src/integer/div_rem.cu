@@ -24,14 +24,13 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    void *const *bsks, void *const *ksks) {
   PUSH_RANGE("div")
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 
-  host_integer_div_rem_kb<uint64_t>(
-      CudaStreams(streams), quotient, remainder, numerator, divisor, is_signed,
-      bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem);
+  host_integer_div_rem_kb<uint64_t>(CudaStreams(streams), quotient, remainder,
+                                    numerator, divisor, is_signed, bsks,
+                                    (uint64_t **)(ksks), mem);
   POP_RANGE()
 }
 

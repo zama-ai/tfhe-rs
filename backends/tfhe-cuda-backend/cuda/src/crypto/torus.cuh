@@ -426,31 +426,4 @@ __global__ void __launch_bounds__(512)
   }
 }
 
-template <typename Torus>
-__host__ void host_drift_modulus_switch(
-    cudaStream_t stream, uint32_t gpu_index, Torus *array_out,
-    Torus const *array_in, uint64_t const *indexes, const Torus *zeros,
-    uint32_t lwe_size, uint32_t num_lwes, const uint32_t num_zeros,
-    const double input_variance, const double r_sigma, const double bound,
-    uint32_t log_modulus) {
-
-  PANIC_IF_FALSE(lwe_size >= 512,
-                 "The lwe_size (%d) is less than 512, this is not supported\n",
-                 lwe_size);
-  PANIC_IF_FALSE(
-      lwe_size <= 1024,
-      "The lwe_size (%d) is greater than 1024, this is not supported\n",
-      lwe_size);
-
-  cuda_set_device(gpu_index);
-
-  // This reduction requires a power of two num of threads
-  int num_threads = 512, num_blocks = num_lwes;
-
-  improve_noise_modulus_switch<Torus><<<num_blocks, num_threads, 0, stream>>>(
-      array_out, array_in, indexes, zeros, lwe_size, num_zeros, input_variance,
-      r_sigma, bound, log_modulus);
-  check_cuda_error(cudaGetLastError());
-}
-
 #endif // CNCRT_TORUS_H

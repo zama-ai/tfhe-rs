@@ -668,7 +668,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
 template <typename InputTorus, class params, bool first_iter>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
-    InputTorus *lwe_array_in, double const *bootstrapping_key,
+    InputTorus const *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
     PBS_MS_REDUCTION_T noise_reduction_type,
     uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
@@ -752,7 +752,7 @@ __host__ void execute_step_two_128(
 template <typename InputTorus, class params>
 __host__ void host_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lut_vector, InputTorus *lwe_array_in,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,

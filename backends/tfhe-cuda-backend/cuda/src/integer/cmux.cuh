@@ -5,15 +5,13 @@
 #include "radix_ciphertext.cuh"
 
 template <typename Torus>
-__host__ void
-zero_out_if(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-            CudaRadixCiphertextFFI const *lwe_array_input,
-            CudaRadixCiphertextFFI const *lwe_condition,
-            int_zero_out_if_buffer<Torus> *mem_ptr,
-            int_radix_lut<Torus> *predicate, void *const *bsks,
-            Torus *const *ksks,
-            CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-            uint32_t num_radix_blocks) {
+__host__ void zero_out_if(CudaStreams streams,
+                          CudaRadixCiphertextFFI *lwe_array_out,
+                          CudaRadixCiphertextFFI const *lwe_array_input,
+                          CudaRadixCiphertextFFI const *lwe_condition,
+                          int_zero_out_if_buffer<Torus> *mem_ptr,
+                          int_radix_lut<Torus> *predicate, void *const *bsks,
+                          Torus *const *ksks, uint32_t num_radix_blocks) {
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks >= num_radix_blocks &&
           lwe_array_input->num_radix_blocks >= num_radix_blocks,
@@ -38,8 +36,8 @@ zero_out_if(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
       num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks,
-      ms_noise_reduction_key, predicate, num_radix_blocks);
+      streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,
+      num_radix_blocks);
 }
 
 template <typename Torus>
@@ -48,8 +46,7 @@ __host__ void host_integer_radix_cmux_kb(
     CudaRadixCiphertextFFI const *lwe_condition,
     CudaRadixCiphertextFFI const *lwe_array_true,
     CudaRadixCiphertextFFI const *lwe_array_false,
-    int_cmux_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    int_cmux_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks) {
 
   if (lwe_array_out->num_radix_blocks != lwe_array_true->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
@@ -73,8 +70,8 @@ __host__ void host_integer_radix_cmux_kb(
   }
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, mem_ptr->buffer_out, mem_ptr->buffer_in,
-      mem_ptr->condition_array, bsks, ksks, ms_noise_reduction_key,
-      mem_ptr->predicate_lut, 2 * num_radix_blocks, params.message_modulus);
+      mem_ptr->condition_array, bsks, ksks, mem_ptr->predicate_lut,
+      2 * num_radix_blocks, params.message_modulus);
 
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will
@@ -91,7 +88,7 @@ __host__ void host_integer_radix_cmux_kb(
                        params.message_modulus, params.carry_modulus);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, &mem_true, bsks, ksks, ms_noise_reduction_key,
+      streams, lwe_array_out, &mem_true, bsks, ksks,
       mem_ptr->message_extract_lut, num_radix_blocks);
 }
 

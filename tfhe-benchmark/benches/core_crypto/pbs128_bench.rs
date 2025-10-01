@@ -178,14 +178,12 @@ mod cuda {
         cuda_programmable_bootstrap_128_lwe_ciphertext, get_number_of_gpus, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
-    use tfhe::shortint::engine::ShortintEngine;
     use tfhe::shortint::parameters::{
         ModulusSwitchType, NoiseSquashingParameters,
         NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
 
     fn cuda_pbs_128(c: &mut Criterion) {
         let bench_name = "core_crypto::cuda::pbs128";
@@ -237,29 +235,20 @@ mod cuda {
             squash_params.ciphertext_modulus,
         );
 
-        let mut engine = ShortintEngine::new();
         let streams = CudaStreams::new_multi_gpu();
 
-        let modulus_switch_noise_reduction_configuration = match squash_params
-            .modulus_switch_noise_reduction_params
-        {
-            ModulusSwitchType::Standard => None,
-            ModulusSwitchType::DriftTechniqueNoiseReduction(
-                modulus_switch_noise_reduction_params,
-            ) => {
-                let mod_redkey = ModulusSwitchNoiseReductionKey::new(
-                    modulus_switch_noise_reduction_params,
-                    &input_lwe_secret_key,
-                    &mut engine,
-                    input_params.ciphertext_modulus,
-                    input_params.lwe_noise_distribution,
-                );
-                Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&mod_redkey, &streams))
-            }
-            ModulusSwitchType::CenteredMeanNoiseReduction => {
-                Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
-            }
-        };
+        let modulus_switch_noise_reduction_configuration =
+            match squash_params.modulus_switch_noise_reduction_params {
+                ModulusSwitchType::Standard => None,
+                ModulusSwitchType::DriftTechniqueNoiseReduction(
+                    _modulus_switch_noise_reduction_params,
+                ) => {
+                    panic!("Drift noise reduction is not supported on GPU")
+                }
+                ModulusSwitchType::CenteredMeanNoiseReduction => {
+                    Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+                }
+            };
 
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 

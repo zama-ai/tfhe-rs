@@ -29,13 +29,12 @@ void cuda_cmux_integer_radix_ciphertext_kb_64(
     CudaRadixCiphertextFFI const *lwe_condition,
     CudaRadixCiphertextFFI const *lwe_array_true,
     CudaRadixCiphertextFFI const *lwe_array_false, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    void *const *bsks, void *const *ksks) {
   PUSH_RANGE("cmux")
   host_integer_radix_cmux_kb<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_condition, lwe_array_true,
       lwe_array_false, (int_cmux_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks), ms_noise_reduction_key);
+      (uint64_t **)(ksks));
   POP_RANGE()
 }
 

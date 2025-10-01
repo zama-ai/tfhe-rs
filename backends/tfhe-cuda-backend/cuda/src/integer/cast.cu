@@ -35,16 +35,17 @@ uint64_t scratch_cuda_extend_radix_with_sign_msb_64(
       num_blocks, num_additional_blocks, allocate_gpu_memory);
 }
 
-void cuda_extend_radix_with_sign_msb_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI const *input, int8_t *mem_ptr,
-    uint32_t num_additional_blocks, void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+void cuda_extend_radix_with_sign_msb_64(CudaStreamsFFI streams,
+                                        CudaRadixCiphertextFFI *output,
+                                        CudaRadixCiphertextFFI const *input,
+                                        int8_t *mem_ptr,
+                                        uint32_t num_additional_blocks,
+                                        void *const *bsks, void *const *ksks) {
   PUSH_RANGE("cast")
   host_extend_radix_with_sign_msb<uint64_t>(
       CudaStreams(streams), output, input,
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)mem_ptr,
-      num_additional_blocks, bsks, (uint64_t **)ksks, ms_noise_reduction_key);
+      num_additional_blocks, bsks, (uint64_t **)ksks);
   POP_RANGE()
 }
 

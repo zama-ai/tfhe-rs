@@ -20,11 +20,12 @@ uint64_t scratch_cuda_integer_grouped_oprf(
 }
 
 template <typename Torus>
-void host_integer_grouped_oprf(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    const Torus *seeded_lwe_input, uint32_t num_blocks_to_process,
-    int_grouped_oprf_memory<Torus> *mem_ptr, void *const *bsks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+void host_integer_grouped_oprf(CudaStreams streams,
+                               CudaRadixCiphertextFFI *radix_lwe_out,
+                               const Torus *seeded_lwe_input,
+                               uint32_t num_blocks_to_process,
+                               int_grouped_oprf_memory<Torus> *mem_ptr,
+                               void *const *bsks) {
 
   auto active_streams = streams.active_gpu_subset(num_blocks_to_process);
   auto lut = mem_ptr->luts;
@@ -34,7 +35,7 @@ void host_integer_grouped_oprf(
         streams.get_ith(0), (Torus *)(radix_lwe_out->ptr), lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec,
         const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in, bsks,
-        ms_noise_reduction_key, lut->buffer, mem_ptr->params.glwe_dimension,
+        lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
         mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
         mem_ptr->params.grouping_factor, num_blocks_to_process,
@@ -62,7 +63,7 @@ void host_integer_grouped_oprf(
     execute_pbs_async<Torus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_array_in_vec,
-        lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key, lut->buffer,
+        lwe_trivial_indexes_vec, bsks, lut->buffer,
         mem_ptr->params.glwe_dimension, mem_ptr->params.small_lwe_dimension,
         mem_ptr->params.polynomial_size, mem_ptr->params.pbs_base_log,
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,

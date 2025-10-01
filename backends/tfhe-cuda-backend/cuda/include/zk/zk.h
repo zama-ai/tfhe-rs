@@ -22,8 +22,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
 void cuda_expand_without_verification_64(
     CudaStreamsFFI streams, void *lwe_array_out,
     const void *lwe_flattened_compact_array_in, int8_t *mem_ptr,
-    void *const *bsks, void *const *computing_ksks, void *const *casting_keys,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key);
+    void *const *bsks, void *const *computing_ksks, void *const *casting_keys);
 
 void cleanup_expand_without_verification_64(CudaStreamsFFI streams,
                                             int8_t **mem_ptr_void);
