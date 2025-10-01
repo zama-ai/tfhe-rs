@@ -274,3 +274,13 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
 </p>
+---
+
+## Türkçe Açıklama
+
+TFHE-rs, şifreli veriler üzerinde boolean ve tam sayı aritmetiği yapabilen, tamamen Rust ile yazılmış bir TFHE implementasyonudur.
+
+### Özellikler
+- Rust, C ve WASM API desteği
+- Şifreli veri üzerinde tam sayı işlemleri
+- Yüksek performanslı kriptografik işlemler
