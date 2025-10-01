@@ -818,7 +818,7 @@ pub fn lwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
 
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    ScalarMul, ScalarMulAssign,
+    LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, ScalarMulAssign,
 };
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ScalarMul<Scalar>
@@ -842,5 +842,65 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ScalarMulAssign
 
     fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
         lwe_ciphertext_cleartext_mul_assign(self, Cleartext(rhs));
+    }
+}
+
+impl<
+        'rhs,
+        Scalar: UnsignedInteger,
+        LhsCont: Container<Element = Scalar>,
+        RhsCont: Container<Element = Scalar>,
+    > LweUncorrelatedAdd<&'rhs LweCiphertext<RhsCont>> for LweCiphertext<LhsCont>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    // The correlation notion is valid from a noise perspective, from ours, we can't tell if two
+    // random looking inputs are correlated noise-wise or not, so we just add stuff and call it a
+    // day
+    fn lwe_uncorrelated_add(
+        &self,
+        rhs: &'rhs LweCiphertext<RhsCont>,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // That's the best we can do in terms of sanity checks
+        assert_ne!(self.as_ref(), rhs.as_ref());
+
+        let mut result =
+            LweCiphertext::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus());
+
+        lwe_ciphertext_add(&mut result, self, rhs);
+
+        result
+    }
+}
+
+impl<
+        'rhs,
+        Scalar: UnsignedInteger,
+        LhsCont: Container<Element = Scalar>,
+        RhsCont: Container<Element = Scalar>,
+    > LweUncorrelatedSub<&'rhs LweCiphertext<RhsCont>> for LweCiphertext<LhsCont>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    // The correlation notion is valid from a noise perspective, from ours, we can't tell if two
+    // random looking inputs are correlated noise-wise or not, so we just sub stuff and call it a
+    // day
+    fn lwe_uncorrelated_sub(
+        &self,
+        rhs: &'rhs LweCiphertext<RhsCont>,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // That's the best we can do in terms of sanity checks
+        assert_ne!(self.as_ref(), rhs.as_ref());
+
+        let mut result =
+            LweCiphertext::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus());
+
+        lwe_ciphertext_sub(&mut result, self, rhs);
+
+        result
     }
 }
