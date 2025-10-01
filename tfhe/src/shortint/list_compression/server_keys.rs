@@ -7,7 +7,6 @@ use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionKeyVersions, DecompressionKeyVersions, NoiseSquashingCompressionKeyVersions,
 };
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::CompressedNoiseSquashingCompressionKey;
@@ -16,7 +15,6 @@ use crate::shortint::parameters::{
     CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
     PolynomialSize,
 };
-use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -47,93 +45,28 @@ impl DecompressionKey {
 }
 
 impl ClientKey {
+    /// Create a decompression key with different parameters than the one in the secret key.
+    ///
+    /// This allows for example to compress using cpu parameters and decompress with gpu parameters
     pub(crate) fn new_decompression_key_with_params(
         &self,
         private_compression_key: &CompressionPrivateKeys,
         compression_params: CompressionParameters,
     ) -> DecompressionKey {
-        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
-            panic!("Only the standard atomic pattern supports compression")
-        };
-
-        let pbs_params = std_cks.parameters;
-
-        assert_eq!(
-            pbs_params.encryption_key_choice(),
-            EncryptionKeyChoice::Big,
-            "Compression is only compatible with ciphertext in post PBS dimension"
-        );
-
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_classic_bootstrapping_key(
-                &private_compression_key
-                    .post_packing_ks_key
-                    .as_lwe_secret_key(),
-                &std_cks.glwe_secret_key,
-                pbs_params.glwe_noise_distribution(),
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.ciphertext_modulus(),
-            )
-        });
-
-        DecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-        }
+        self.atomic_pattern
+            .new_decompression_key_with_params(private_compression_key, compression_params)
     }
 
     pub fn new_compression_decompression_keys(
         &self,
         private_compression_key: &CompressionPrivateKeys,
     ) -> (CompressionKey, DecompressionKey) {
-        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
-            panic!("Only the standard atomic pattern supports compression")
-        };
-
-        let pbs_params = std_cks.parameters;
-
-        assert_eq!(
-            pbs_params.encryption_key_choice(),
-            EncryptionKeyChoice::Big,
-            "Compression is only compatible with ciphertext in post PBS dimension"
-        );
-
-        let compression_params = &private_compression_key.params;
-
-        assert!(
-            compression_params.storage_log_modulus.0
-                <= pbs_params
-                    .polynomial_size()
-                    .to_blind_rotation_input_modulus_log()
-                    .0,
-            "Compression parameters say to store more bits than useful"
-        );
-
-        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &std_cks.large_lwe_secret_key(),
-                &private_compression_key.post_packing_ks_key,
-                compression_params.packing_ks_base_log,
-                compression_params.packing_ks_level,
-                compression_params.packing_ks_key_noise_distribution,
-                pbs_params.ciphertext_modulus(),
-                &mut engine.encryption_generator,
-            )
-        });
-
-        let glwe_compression_key = CompressionKey {
-            packing_key_switching_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-            storage_log_modulus: compression_params.storage_log_modulus,
-        };
-
-        let glwe_decompression_key = self.new_decompression_key_with_params(
-            private_compression_key,
-            private_compression_key.params,
-        );
-
-        (glwe_compression_key, glwe_decompression_key)
+        (
+            self.atomic_pattern
+                .new_compression_key(private_compression_key),
+            self.atomic_pattern
+                .new_decompression_key(private_compression_key),
+        )
     }
 }
 
