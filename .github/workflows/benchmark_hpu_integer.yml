@@ -48,12 +48,12 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |
           echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
-
-
+      
       - name: Set benchmark types output
         id: set_bench_type
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
 
   integer-benchmarks-hpu:
     name: benchmark_hpu_integer/integer-benchmarks-hpu
@@ -111,11 +111,15 @@ jobs:
         run: |
           echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
 
+      - name: Select HPU board
+        run: |
+          echo "V80_PCIE_DEV=24" >> "${GITHUB_ENV}"
+          echo "V80_SERIAL_NUMBER=XFL12NWY3ZKG" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks
         run: |
+          echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
           make pull_hpu_files
-          export V80_SERIAL_NUMBER=XFL12NWY3ZKG
-          source /opt/amd/Vivado/2024.2/settings64.sh
           make BENCH_TYPE="${BENCH_TYPE}" bench_integer_hpu
         env:
           BENCH_TYPE: ${{ matrix.bench_type }}
