@@ -1518,6 +1518,7 @@ bench_hlapi_gpu: install_rs_check_toolchain
 .PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
@@ -1550,6 +1551,7 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
