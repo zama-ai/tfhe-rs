@@ -92,6 +92,20 @@ impl ClientKey {
             .new_decompression_key_with_params(private_compression_key, compression_params)
     }
 
+    pub fn new_decompression_key_with_params_and_engine(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
+        self.atomic_pattern
+            .new_decompression_key_with_params_and_engine(
+                private_compression_key,
+                compression_params,
+                engine,
+            )
+    }
+
     pub fn new_compression_decompression_keys(
         &self,
         private_compression_key: &CompressionPrivateKeys,
