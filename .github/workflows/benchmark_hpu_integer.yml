@@ -32,8 +32,6 @@ jobs:
     runs-on: v80-marais
     outputs:
       bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
-      v80_pcie_dev: ${{ steps.set_bench_type.outputs.v80_pcie_dev }}
-      v80_serial_number: ${{ steps.set_bench_type.outputs.v80_serial_number }}
     steps:
       - name: Set benchmark types
         if: github.event_name == 'workflow_dispatch'
@@ -51,19 +49,10 @@ jobs:
         run: |
           echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
       
-      - name: Select HPU board
-        id: select_hpu_board
-        run: |
-          echo "V80_PCIE_DEV=24" >> "${GITHUB_ENV}"
-          echo "V80_SERIAL_NUMBER=XFL12NWY3ZKG" >> "${GITHUB_ENV}"
-
-
       - name: Set benchmark types output
         id: set_bench_type
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
-          echo "v80_pcie_dev=${{ env.V80_PCIE_DEV }}" >> "${GITHUB_OUTPUT}"
-          echo "v80_serial_number=$${ env.V80_SERIAL_NUMBER }}" >> "${GITHUB_OUTPUT}"
 
 
   integer-benchmarks-hpu:
@@ -122,6 +111,11 @@ jobs:
         run: |
           echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
 
+      - name: Select HPU board
+        run: |
+          echo "V80_PCIE_DEV=24" >> "${GITHUB_ENV}"
+          echo "V80_SERIAL_NUMBER=XFL12NWY3ZKG" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks
         run: |
           echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
@@ -129,8 +123,6 @@ jobs:
           make BENCH_TYPE="${BENCH_TYPE}" bench_integer_hpu
         env:
           BENCH_TYPE: ${{ matrix.bench_type }}
-          V80_PCIE_DEV: ${{ matrix.v80_pcie_dev }}
-          V80_SERIAL_NUMBER: ${{ matrix.v80_serial_number }}
 
       - name: Parse results
         run: |
