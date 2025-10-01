@@ -9,14 +9,14 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
     par_allocate_and_generate_new_seeded_lwe_bootstrap_key,
     par_convert_standard_lwe_bootstrap_key_to_fourier, CiphertextModulusLog,
-    FourierLweBootstrapKey, LweCiphertextCount, LwePackingKeyswitchKeyConformanceParams,
-    SeededLweBootstrapKeyOwned, SeededLwePackingKeyswitchKey,
+    FourierLweBootstrapKey, GlweSecretKey, LweCiphertextCount,
+    LwePackingKeyswitchKeyConformanceParams, SeededLweBootstrapKeyOwned,
+    SeededLwePackingKeyswitchKey,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressedCompressionKeyVersions, CompressedDecompressionKeyVersions,
     CompressedNoiseSquashingCompressionKeyVersions,
 };
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::EncryptionKeyChoice;
@@ -84,11 +84,7 @@ impl ClientKey {
         &self,
         private_compression_key: &CompressionPrivateKeys,
     ) -> (CompressedCompressionKey, CompressedDecompressionKey) {
-        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
-            panic!("Only the standard atomic pattern supports compression")
-        };
-
-        let pbs_params = std_cks.parameters;
+        let pbs_params = self.parameters();
 
         assert_eq!(
             pbs_params.encryption_key_choice(),
@@ -98,9 +94,10 @@ impl ClientKey {
 
         let compression_params = &private_compression_key.params;
 
+        let big_lwe_secret_key = self.encryption_key();
         let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_packing_keyswitch_key(
-                &std_cks.large_lwe_secret_key(),
+                &big_lwe_secret_key,
                 &private_compression_key.post_packing_ks_key,
                 compression_params.packing_ks_base_log,
                 compression_params.packing_ks_level,
@@ -116,12 +113,16 @@ impl ClientKey {
             storage_log_modulus: compression_params.storage_log_modulus,
         };
 
+        let glwe_secret_key = GlweSecretKey::from_container(
+            big_lwe_secret_key.as_ref(),
+            pbs_params.polynomial_size(),
+        );
         let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
             par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
                 &private_compression_key
                     .post_packing_ks_key
                     .as_lwe_secret_key(),
-                &std_cks.glwe_secret_key,
+                &glwe_secret_key,
                 compression_params.br_base_log,
                 compression_params.br_level,
                 pbs_params.glwe_noise_distribution(),

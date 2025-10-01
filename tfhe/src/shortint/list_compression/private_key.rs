@@ -27,10 +27,7 @@ impl ClientKey {
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
         assert_eq!(
-            self.parameters()
-                .pbs_parameters()
-                .unwrap()
-                .encryption_key_choice(),
+            self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
