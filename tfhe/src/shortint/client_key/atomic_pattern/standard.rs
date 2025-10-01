@@ -8,7 +8,13 @@ use crate::core_crypto::prelude::{
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::StandardAtomicPatternClientKeyVersions;
 use crate::shortint::client_key::{GlweSecretKeyOwned, LweSecretKeyOwned, LweSecretKeyView};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{DynamicDistribution, ShortintKeySwitchingParameters};
+use crate::shortint::list_compression::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
+    DecompressionKey,
+};
+use crate::shortint::parameters::{
+    CompressionParameters, DynamicDistribution, ShortintKeySwitchingParameters,
+};
 use crate::shortint::{
     AtomicPatternKind, EncryptionKeyChoice, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
@@ -236,6 +242,48 @@ impl StandardAtomicPatternClientKey {
                 self.parameters().lwe_noise_distribution(),
             ),
         }
+    }
+
+    pub fn new_compression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressionKey {
+        private_compression_key.new_compression_key(&self.glwe_secret_key, self.parameters())
+    }
+
+    pub fn new_compressed_compression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressedCompressionKey {
+        private_compression_key
+            .new_compressed_compression_key(&self.glwe_secret_key, self.parameters())
+    }
+
+    pub fn new_decompression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> DecompressionKey {
+        private_compression_key.new_decompression_key(&self.glwe_secret_key, self.parameters())
+    }
+
+    pub fn new_decompression_key_with_params(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+    ) -> DecompressionKey {
+        private_compression_key.new_decompression_key_with_params(
+            &self.glwe_secret_key,
+            self.parameters(),
+            compression_params,
+        )
+    }
+
+    pub fn new_compressed_decompression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressedDecompressionKey {
+        private_compression_key
+            .new_compressed_decompression_key(&self.glwe_secret_key, self.parameters())
     }
 }
 

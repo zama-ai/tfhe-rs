@@ -1,7 +1,10 @@
 use tfhe_versionable::Versionize;
 
 use crate::core_crypto::prelude::{
-    allocate_and_generate_new_binary_glwe_secret_key, GlweSecretKeyOwned,
+    allocate_and_generate_new_binary_glwe_secret_key,
+    allocate_and_generate_new_lwe_packing_keyswitch_key,
+    allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
+    par_allocate_and_generate_new_seeded_lwe_bootstrap_key, GlweSecretKey, GlweSecretKeyOwned,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionPrivateKeysVersions, NoiseSquashingCompressionPrivateKeyVersions,
@@ -11,8 +14,12 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKeyView;
 use crate::shortint::parameters::{CompressionParameters, NoiseSquashingCompressionParameters};
-use crate::shortint::EncryptionKeyChoice;
+use crate::shortint::{EncryptionKeyChoice, ShortintParameterSet};
 use std::fmt::Debug;
+
+use super::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressionPrivateKeysVersions)]
@@ -21,16 +28,158 @@ pub struct CompressionPrivateKeys {
     pub params: CompressionParameters,
 }
 
+impl CompressionPrivateKeys {
+    pub(crate) fn new_compression_key(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+    ) -> CompressionKey {
+        assert_eq!(
+            pbs_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big,
+            "Compression is only compatible with ciphertext in post PBS dimension"
+        );
+
+        let compression_params = &self.params;
+
+        assert!(
+            compression_params.storage_log_modulus.0
+                <= pbs_params
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log()
+                    .0,
+            "Compression parameters say to store more bits than useful"
+        );
+
+        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_lwe_packing_keyswitch_key(
+                &glwe_secret_key.as_lwe_secret_key(),
+                &self.post_packing_ks_key,
+                compression_params.packing_ks_base_log,
+                compression_params.packing_ks_level,
+                compression_params.packing_ks_key_noise_distribution,
+                pbs_params.ciphertext_modulus(),
+                &mut engine.encryption_generator,
+            )
+        });
+
+        CompressionKey {
+            packing_key_switching_key,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+            storage_log_modulus: compression_params.storage_log_modulus,
+        }
+    }
+    pub(crate) fn new_compressed_compression_key(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+    ) -> CompressedCompressionKey {
+        assert_eq!(
+            pbs_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big,
+            "Compression is only compatible with ciphertext in post PBS dimension"
+        );
+
+        let compression_params = &self.params;
+
+        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_seeded_lwe_packing_keyswitch_key(
+                &glwe_secret_key.as_lwe_secret_key(),
+                &self.post_packing_ks_key,
+                compression_params.packing_ks_base_log,
+                compression_params.packing_ks_level,
+                compression_params.packing_ks_key_noise_distribution,
+                pbs_params.ciphertext_modulus(),
+                &mut engine.seeder,
+            )
+        });
+
+        CompressedCompressionKey {
+            packing_key_switching_key,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+            storage_log_modulus: compression_params.storage_log_modulus,
+        }
+    }
+
+    pub(crate) fn new_decompression_key(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+    ) -> DecompressionKey {
+        self.new_decompression_key_with_params(glwe_secret_key, pbs_params, self.params)
+    }
+
+    /// Create a decompression key with different parameters than the one in the secret key.
+    ///
+    /// This allows for example to compress using cpu parameters and decompress with gpu parameters
+    pub(crate) fn new_decompression_key_with_params(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+        compression_params: CompressionParameters,
+    ) -> DecompressionKey {
+        assert_eq!(
+            pbs_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big,
+            "Compression is only compatible with ciphertext in post PBS dimension"
+        );
+
+        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+            engine.new_classic_bootstrapping_key(
+                &self.post_packing_ks_key.as_lwe_secret_key(),
+                glwe_secret_key,
+                pbs_params.glwe_noise_distribution(),
+                compression_params.br_base_log,
+                compression_params.br_level,
+                pbs_params.ciphertext_modulus(),
+            )
+        });
+
+        DecompressionKey {
+            blind_rotate_key,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+        }
+    }
+
+    pub(crate) fn new_compressed_decompression_key(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+    ) -> CompressedDecompressionKey {
+        assert_eq!(
+            pbs_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big,
+            "Compression is only compatible with ciphertext in post PBS dimension"
+        );
+
+        let compression_params = &self.params;
+
+        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+            par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                &self.post_packing_ks_key.as_lwe_secret_key(),
+                glwe_secret_key,
+                compression_params.br_base_log,
+                compression_params.br_level,
+                pbs_params.glwe_noise_distribution(),
+                pbs_params.ciphertext_modulus(),
+                &mut engine.seeder,
+            )
+        });
+
+        CompressedDecompressionKey {
+            blind_rotate_key,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+        }
+    }
+}
+
 impl ClientKey {
     pub fn new_compression_private_key(
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
         assert_eq!(
-            self.parameters()
-                .pbs_parameters()
-                .unwrap()
-                .encryption_key_choice(),
+            self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
