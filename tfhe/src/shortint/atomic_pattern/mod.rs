@@ -108,7 +108,7 @@ pub trait AtomicPattern {
     /// `full_bits_count` is the size of the lwe message, ie the shortint message + carry + padding
     /// bit.
     /// The output in in the form 0000rrr000noise (random_bits_count=3, full_bits_count=7)
-    /// The encryted value is oblivious to the server
+    /// The encrypted value is oblivious to the server
     fn generate_oblivious_pseudo_random(
         &self,
         seed: Seed,

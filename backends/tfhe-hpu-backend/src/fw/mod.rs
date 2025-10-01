@@ -3,7 +3,7 @@
 //!
 //! Provide two concrete implementation of those traits
 //! * DigitOperations (DOp)
-//! * IntegerOperarions (IOp)
+//! * IntegerOperations (IOp)
 
 pub mod fw_impl;
 pub mod isc_sim;

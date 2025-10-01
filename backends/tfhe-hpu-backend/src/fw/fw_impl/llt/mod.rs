@@ -98,7 +98,7 @@ pub fn iop_add(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -123,11 +123,11 @@ pub fn iop_adds(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediate".to_string());
     iop_addx(prog, dst, src_a, src_b);
 }
 
@@ -138,7 +138,7 @@ pub fn iop_sub(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -152,11 +152,11 @@ pub fn iop_subs(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediate".to_string());
     iop_subx(prog, dst, src_a, src_b);
 }
 
@@ -166,11 +166,11 @@ pub fn iop_ssub(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Imm, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 0);
 
     // Add Comment header
-    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediate".to_string());
     iop_subx(prog, dst, src_a, src_b);
 }
 
@@ -199,7 +199,7 @@ pub fn iop_mul(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -215,11 +215,11 @@ pub fn iop_muls(prog: &mut Program) {
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediate".to_string());
 
     iop_mulx(prog, dst, src_a, src_b).add_to_prog(prog);
 }
@@ -534,7 +534,7 @@ pub fn iop_mulx(
 
 /// Generic mul operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_mulx_ser(
     prog: &mut Program,
@@ -654,7 +654,7 @@ pub fn iop_mulx_ser(
 
 /// Generic Cmp operation
 /// One destination block and two sources operands
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_cmpx(
     prog: &mut Program,
@@ -673,7 +673,7 @@ pub fn iop_cmpx(
 
 /// Generic Cmp operation
 /// One destination block and two sources operands
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_cmpx_rtl(
     prog: &mut Program,

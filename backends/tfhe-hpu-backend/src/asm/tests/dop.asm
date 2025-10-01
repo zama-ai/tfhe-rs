@@ -20,7 +20,7 @@ SUB R2 R1 R3
 MUL R2 R1 R3
 MAC R2 R1 R3 4
 
-; Test ArithMsg operation with various immediat template format
+; Test ArithMsg operation with various immediate template format
 ADDS R2 R1 10
 SUBS R2 R1 TI[4].0
 SSUB R2 R1 TI[2].4

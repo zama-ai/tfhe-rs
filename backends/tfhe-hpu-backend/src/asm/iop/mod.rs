@@ -2,7 +2,7 @@
 //! IOp definition
 
 mod field;
-pub use field::{HexParsingError, IOp, IOpcode, Immediat, Operand, OperandKind};
+pub use field::{HexParsingError, IOp, IOpcode, Immediate, Operand, OperandKind};
 mod fmt;
 pub use fmt::{IOpRepr, IOpWordRepr};
 mod iop_macro;

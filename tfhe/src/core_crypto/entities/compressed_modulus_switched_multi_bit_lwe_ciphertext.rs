@@ -534,8 +534,8 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && match lwe_ct_parameters.ms_decompression_method {
                 MsDecompressionType::ClassicPbs => false,
-                MsDecompressionType::MultiBitPbs(expected_gouping_factor) => {
-                    expected_gouping_factor.0 == grouping_factor.0
+                MsDecompressionType::MultiBitPbs(expected_grouping_factor) => {
+                    expected_grouping_factor.0 == grouping_factor.0
                 }
             }
             && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus

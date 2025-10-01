@@ -4,7 +4,7 @@
 
 use super::*;
 use field::{
-    FwMode, IOpHeader, IOpcode, ImmBundle, Immediat, Operand, OperandBlock, OperandBundle,
+    FwMode, IOpHeader, IOpcode, ImmBundle, Immediate, Operand, OperandBlock, OperandBundle,
 };
 use lazy_static::lazy_static;
 
@@ -393,7 +393,7 @@ impl std::str::FromStr for ImmBundle {
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                 };
 
-                Ok(Immediat::from_cst(imm))
+                Ok(Immediate::from_cst(imm))
             })
             .collect::<Result<Vec<_>, ParsingError>>()?;
 
@@ -475,7 +475,7 @@ impl std::fmt::Display for IOp {
         // Source operands list
         write!(f, " <{}>", self.src)?;
 
-        // Immediat operands list [Optional]
+        // Immediate operands list [Optional]
         if self.header.has_imm {
             write!(f, " <{}>", self.imm)?;
         }

@@ -84,7 +84,7 @@ impl HpuV80Pdi {
     }
 
     #[allow(unused)]
-    /// Deconstruct HpuV80Pdi into a folder with discret files
+    /// Deconstruct HpuV80Pdi into a folder with discrete files
     pub fn to_folder(&self, folder_path: &str) -> Result<(), Box<dyn Error>> {
         let metadata_path = Path::new(folder_path).join("metadata.toml");
         self.metadata.to_toml(

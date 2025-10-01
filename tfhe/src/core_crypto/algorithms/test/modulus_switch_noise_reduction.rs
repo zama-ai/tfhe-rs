@@ -292,8 +292,8 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
             input_variance,
             log_modulus,
         ) {
-            CandidateResult::SatisfiyingBound(candidate) => candidate,
-            CandidateResult::BestNotSatisfiyingBound(_) => {
+            CandidateResult::SatisfyingBound(candidate) => candidate,
+            CandidateResult::BestNotSatisfyingBound(_) => {
                 panic!("No candidate was good enough")
             }
         };
