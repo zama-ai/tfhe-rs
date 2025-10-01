@@ -56,7 +56,7 @@ pub struct Args {
     #[arg(long, value_parser = maybe_hex::<u128>)]
     pub src: Vec<u128>,
 
-    /// Force immediat input values
+    /// Force immediate input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
     pub imm: Vec<u128>,
 

@@ -178,7 +178,7 @@ pub(crate) fn raw_seeded_msed_to_lwe<Scalar: UnsignedInteger + CastFrom<usize>>(
 /// `full_bits_count` is the size of the lwe message, ie the shortint message + carry + padding
 /// bit.
 /// The output in in the form 0000rrr000noise (rbc=3, fbc=7)
-/// The encryted value is oblivious to the server.
+/// The encrypted value is oblivious to the server.
 ///
 /// It is the reponsiblity of the calling AP to transform this into a shortint ciphertext. The
 /// returned LWE is in the post PBS state, so a Keyswitch might be needed if the order is PBS-KS.
@@ -261,7 +261,7 @@ where
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
     /// `2^random_bits_count` must be smaller than the message modulus
-    /// The encryted value is oblivious to the server
+    /// The encrypted value is oblivious to the server
     pub fn generate_oblivious_pseudo_random(
         &self,
         seed: Seed,
@@ -281,7 +281,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 
     /// Uniformly generates a random value in `[0, 2^random_bits_count[`
-    /// The encryted value is oblivious to the server
+    /// The encrypted value is oblivious to the server
     pub(crate) fn generate_oblivious_pseudo_random_message_and_carry(
         &self,
         seed: Seed,

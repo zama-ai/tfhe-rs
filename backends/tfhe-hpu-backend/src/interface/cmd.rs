@@ -2,11 +2,11 @@
 /// Help with IOp management over HPU
 /// Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::iop::{Immediat, Operand, OperandKind};
+use crate::asm::iop::{Immediate, Operand, OperandKind};
 use crate::asm::{IOp, IOpcode};
 use variable::HpuVarWrapped;
 
-/// Underlying type used for Immediat value;
+/// Underlying type used for Immediate value;
 pub type HpuImm = u128;
 
 /// Structure that hold an IOp with there associated operands
@@ -15,7 +15,7 @@ pub struct HpuCmd {
     pub(crate) op: IOp,
     pub(crate) dst: Vec<HpuVarWrapped>,
     pub(crate) src: Vec<HpuVarWrapped>,
-    // NB: No need to track Immediat lifetime. It's simply constant completely held by the IOp
+    // NB: No need to track Immediate lifetime. It's simply constant completely held by the IOp
     // definition
 }
 
@@ -75,7 +75,7 @@ impl HpuCmd {
             .collect::<Vec<_>>();
         let imm_op = imm
             .iter()
-            .map(|var| Immediat::from_cst(*var))
+            .map(|var| Immediate::from_cst(*var))
             .collect::<Vec<_>>();
 
         let op = IOp::new(opcode, dst_op, src_op, imm_op);

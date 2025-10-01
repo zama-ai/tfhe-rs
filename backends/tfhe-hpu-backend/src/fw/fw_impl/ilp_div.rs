@@ -21,7 +21,7 @@ pub fn iop_div(prog: &mut Program) {
     let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -37,11 +37,11 @@ pub fn iop_divs(prog: &mut Program) {
     let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("DIVS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("DIVS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic divx function
     // TODO: do computation on immediate directly for more efficiency.
     // Workaround: transform immediate into ct.
@@ -52,7 +52,7 @@ pub fn iop_divs(prog: &mut Program) {
 
 /// Generic div operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 pub fn iop_divx(
     prog: &mut Program,
     dst_quotient: &mut [metavar::MetaVarCell],
@@ -80,7 +80,7 @@ pub fn iop_mod(prog: &mut Program) {
     let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -95,11 +95,11 @@ pub fn iop_mods(prog: &mut Program) {
     let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("MODS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("MODS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic modx function
     // TODO: do computation on immediate directly for more efficiency.
     // Workaround: transform immediate into ct.
@@ -110,7 +110,7 @@ pub fn iop_mods(prog: &mut Program) {
 
 /// Generic mod operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 pub fn iop_modx(
     prog: &mut Program,
     dst_remain: &mut [metavar::MetaVarCell],
