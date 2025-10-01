@@ -175,7 +175,7 @@ where
             gen_keys_inner(shortint_parameters_set)
         } else {
             keycache::KEY_CACHE
-                .get_from_params(shortint_parameters_set.pbs_parameters().unwrap(), key_kind)
+                .get_from_params(shortint_parameters_set.ap_parameters().unwrap(), key_kind)
         }
     }
     #[cfg(all(not(test), not(feature = "internal-keycache")))]
