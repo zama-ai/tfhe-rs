@@ -1,3 +1,4 @@
+pub mod add_sub;
 pub mod lwe_keyswitch;
 pub mod lwe_multi_bit_programmable_bootstrap;
 pub mod lwe_packing_keyswitch;
@@ -5,6 +6,7 @@ pub mod lwe_programmable_bootstrap;
 pub mod modulus_switch;
 pub mod scalar_mul;
 
+pub use add_sub::{LweUncorrelatedAdd, LweUncorrelatedSub};
 pub use lwe_keyswitch::{AllocateLweKeyswitchResult, LweKeyswitch};
 pub use lwe_multi_bit_programmable_bootstrap::{
     AllocateLweMultiBitBlindRotateResult, LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate,

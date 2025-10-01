@@ -8,7 +8,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
     CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
     LweClassicFft128Bootstrap, LweClassicFftBootstrap, LweKeyswitch, LwePackingKeyswitch,
-    ScalarMul, StandardModSwitch,
+    LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
@@ -148,6 +148,54 @@ impl<Scalar: CastInto<u32> + CastInto<u64> + CastInto<u128>> ScalarMul<Scalar> f
             Self::U128(lwe_ciphertext) => {
                 Self::U128(lwe_ciphertext.scalar_mul(rhs.cast_into(), side_resources))
             }
+        }
+    }
+}
+
+impl<'rhs> LweUncorrelatedAdd<&'rhs Self> for DynLwe {
+    type Output = Self;
+    type SideResources = ();
+
+    fn lwe_uncorrelated_add(
+        &self,
+        rhs: &'rhs Self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        match (self, rhs) {
+            (DynLwe::U32(lhs), DynLwe::U32(rhs)) => {
+                DynLwe::U32(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            (DynLwe::U64(lhs), DynLwe::U64(rhs)) => {
+                DynLwe::U64(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            (DynLwe::U128(lhs), DynLwe::U128(rhs)) => {
+                DynLwe::U128(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            _ => panic!("Inconsistent lhs and rhs"),
+        }
+    }
+}
+
+impl<'rhs> LweUncorrelatedSub<&'rhs Self> for DynLwe {
+    type Output = Self;
+    type SideResources = ();
+
+    fn lwe_uncorrelated_sub(
+        &self,
+        rhs: &'rhs Self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        match (self, rhs) {
+            (DynLwe::U32(lhs), DynLwe::U32(rhs)) => {
+                DynLwe::U32(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            (DynLwe::U64(lhs), DynLwe::U64(rhs)) => {
+                DynLwe::U64(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            (DynLwe::U128(lhs), DynLwe::U128(rhs)) => {
+                DynLwe::U128(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            _ => panic!("Inconsistent lhs and rhs"),
         }
     }
 }
