@@ -26,7 +26,7 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 ### Supported platforms
 
-**TFHE-rs** HPU backend is supported on Linux (x86, aarch64).
+**TFHE-rs** HPU backend is only supported on Linux (x86).
 
 | OS      | x86         | aarch64       |
 | ------- | ----------- | ------------- |
@@ -130,20 +130,32 @@ Finally, the client decrypts the result using:
 
 The HPU backend includes the following operations for unsigned encrypted integers:
 
-| name                  | symbol         | `Enc`/`Enc`                | `Enc`/ `Int`               |
-| --------------------- | -------------- | -------------------------- | -------------------------- |
-| Add                   | `+`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Sub                   | `-`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Mul                   | `*`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| BitAnd                | `&`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| BitOr                 | `\|`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| BitXor                | `^`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Greater than          | `gt`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Greater or equal than | `ge`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Lower than            | `lt`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Lower or equal than   | `le`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Equal                 | `eq`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Ternary operator      | `select`       | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
+| name                                                                                                                              | symbol          | `Enc`/`Enc`          | `Enc`/ `Int`               |
+|-----------------------------------------------------------------------------------------------------------------------------------|-----------------|----------------------|----------------------------|
+| [Add](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.add-1)                                                           | `+`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Sub](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.sub-1)                                                           | `-`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Mul](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.mul-1)                                                           | `*`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Div](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.div-1)                                                           | `/`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Rem](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.rem-1)                                                           | `%`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [BitAnd](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitand-1)                                                     | `&`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [BitOr](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitor-1)                                                       | `\|`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [BitXor](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitxor-1)                                                     | `^`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Shr](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.shr-1)                                                           | `>>`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Shl](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.shl-1)                                                           | `<<`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Rotate right](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.rotate_right-3)                                         | `rotate_right`  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Rotate left](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.rotate_left-3)                                           | `rotate_left`   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Min](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.min-1)                                                           | `min`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Max](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.max-1)                                                           | `max`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Greater than](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.gt-2)                                                   | `gt`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Greater or equal than](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.ge-2)                                          | `ge`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Lower than](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.lt-2)                                                     | `lt`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Lower or equal than](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.le-2)                                            | `le`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Equal](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.eq-2)                                                          | `eq`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Not Equal](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.ne-2)                                                      | `ne`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Ternary operator](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.select)                                             | `select`        | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| [Integer logarithm](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.ilog2)                                             | `ilog2`         | :heavy\_check\_mark: | N/A                        |
+| [Count trailing/leading ones](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.leading_ones)                            | `leading_zeros` | :heavy\_check\_mark: | N/A                        |
+| [Count trailing/leading zeros](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.leading_zeros)                          | `leading_ones`  | :heavy\_check\_mark: | N/A                        |
 
 {% hint style="info" %}
 All operations follow the same syntax than the one described in [here](../../fhe-computation/operations/README.md).
