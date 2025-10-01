@@ -120,6 +120,23 @@ impl CompressionPrivateKeys {
         pbs_params: ShortintParameterSet,
         compression_params: CompressionParameters,
     ) -> DecompressionKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_decompression_key_with_params_and_engine(
+                glwe_secret_key,
+                pbs_params,
+                compression_params,
+                engine,
+            )
+        })
+    }
+
+    pub(crate) fn new_decompression_key_with_params_and_engine(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
         assert_eq!(
             pbs_params.encryption_key_choice(),
             EncryptionKeyChoice::Big,
@@ -128,16 +145,14 @@ impl CompressionPrivateKeys {
 
         match compression_params {
             CompressionParameters::Classic(classic_compression_parameters) => {
-                let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.new_classic_bootstrapping_key(
-                        &self.post_packing_ks_key.as_lwe_secret_key(),
-                        glwe_secret_key,
-                        pbs_params.glwe_noise_distribution(),
-                        classic_compression_parameters.br_base_log,
-                        classic_compression_parameters.br_level,
-                        pbs_params.ciphertext_modulus(),
-                    )
-                });
+                let blind_rotate_key = engine.new_classic_bootstrapping_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    pbs_params.glwe_noise_distribution(),
+                    classic_compression_parameters.br_base_log,
+                    classic_compression_parameters.br_level,
+                    pbs_params.ciphertext_modulus(),
+                );
 
                 DecompressionKey::Classic {
                     blind_rotate_key,
@@ -145,17 +160,15 @@ impl CompressionPrivateKeys {
                 }
             }
             CompressionParameters::MultiBit(multi_bit_compression_parameters) => {
-                let multi_bit_blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.new_multibit_bootstrapping_key(
-                        &self.post_packing_ks_key.as_lwe_secret_key(),
-                        glwe_secret_key,
-                        pbs_params.glwe_noise_distribution(),
-                        multi_bit_compression_parameters.br_base_log,
-                        multi_bit_compression_parameters.br_level,
-                        multi_bit_compression_parameters.decompression_grouping_factor,
-                        pbs_params.ciphertext_modulus(),
-                    )
-                });
+                let multi_bit_blind_rotate_key = engine.new_multibit_bootstrapping_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    pbs_params.glwe_noise_distribution(),
+                    multi_bit_compression_parameters.br_base_log,
+                    multi_bit_compression_parameters.br_level,
+                    multi_bit_compression_parameters.decompression_grouping_factor,
+                    pbs_params.ciphertext_modulus(),
+                );
 
                 let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
                     pbs_params.lwe_dimension(),
@@ -235,19 +248,27 @@ impl ClientKey {
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_compression_private_key_with_engine(params, engine)
+        })
+    }
+
+    pub(crate) fn new_compression_private_key_with_engine(
+        &self,
+        params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> CompressionPrivateKeys {
         assert_eq!(
             self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.packing_ks_glwe_dimension(),
-                params.packing_ks_polynomial_size(),
-                &mut engine.secret_generator,
-            )
-        });
+        let post_packing_ks_key = allocate_and_generate_new_binary_glwe_secret_key(
+            params.packing_ks_glwe_dimension(),
+            params.packing_ks_polynomial_size(),
+            &mut engine.secret_generator,
+        );
 
         CompressionPrivateKeys {
             post_packing_ks_key,

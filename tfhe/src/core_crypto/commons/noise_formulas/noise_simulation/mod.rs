@@ -14,7 +14,8 @@ pub use lwe_programmable_bootstrap::{
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateLweBootstrapResult, AllocateLweMultiBitBlindRotateResult, ScalarMul, ScalarMulAssign,
+    AllocateLweBootstrapResult, AllocateLweMultiBitBlindRotateResult, LweUncorrelatedAdd,
+    LweUncorrelatedSub, ScalarMul, ScalarMulAssign,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
@@ -129,6 +130,46 @@ mod simulation_ciphertexts {
         fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
             let rhs: f64 = rhs.cast_into();
             self.variance.0 *= rhs.powi(2);
+        }
+    }
+
+    impl<'rhs> LweUncorrelatedAdd<&'rhs Self> for NoiseSimulationLwe {
+        type Output = Self;
+        type SideResources = ();
+
+        fn lwe_uncorrelated_add(
+            &self,
+            rhs: &'rhs Self,
+            _side_resources: &mut Self::SideResources,
+        ) -> Self::Output {
+            assert_eq!(self.lwe_dimension(), rhs.lwe_dimension());
+            assert_eq!(self.modulus(), rhs.modulus());
+
+            Self::Output::new(
+                self.lwe_dimension(),
+                Variance(self.variance().0 + rhs.variance().0),
+                self.modulus(),
+            )
+        }
+    }
+
+    impl<'rhs> LweUncorrelatedSub<&'rhs Self> for NoiseSimulationLwe {
+        type Output = Self;
+        type SideResources = ();
+
+        fn lwe_uncorrelated_sub(
+            &self,
+            rhs: &'rhs Self,
+            _side_resources: &mut Self::SideResources,
+        ) -> Self::Output {
+            assert_eq!(self.lwe_dimension(), rhs.lwe_dimension());
+            assert_eq!(self.modulus(), rhs.modulus());
+
+            Self::Output::new(
+                self.lwe_dimension(),
+                Variance(self.variance().0 + rhs.variance().0),
+                self.modulus(),
+            )
         }
     }
 

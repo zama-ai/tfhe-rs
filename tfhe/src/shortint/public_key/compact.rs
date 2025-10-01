@@ -76,15 +76,20 @@ impl<C: Container<Element = u64>> CompactPrivateKey<C> {
 
 impl CompactPrivateKey<Vec<u64>> {
     pub fn new(parameters: CompactPublicKeyEncryptionParameters) -> Self {
+        ShortintEngine::with_thread_local_mut(|engine| Self::new_with_engine(parameters, engine))
+    }
+
+    pub(crate) fn new_with_engine(
+        parameters: CompactPublicKeyEncryptionParameters,
+        engine: &mut ShortintEngine,
+    ) -> Self {
         let parameters = parameters.validate();
         let encryption_lwe_dimension = parameters.encryption_lwe_dimension;
 
-        let key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_lwe_secret_key(
-                encryption_lwe_dimension,
-                &mut engine.secret_generator,
-            )
-        });
+        let key = allocate_and_generate_new_binary_lwe_secret_key(
+            encryption_lwe_dimension,
+            &mut engine.secret_generator,
+        );
 
         Self { key, parameters }
     }
@@ -162,12 +167,36 @@ impl CompactPublicKey {
         C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
         Error: From<E>,
     {
-        Self::try_new(compact_private_key).expect(
+        ShortintEngine::with_thread_local_mut(|engine| {
+            Self::new_with_engine(compact_private_key, engine)
+        })
+    }
+
+    pub(crate) fn new_with_engine<'data, C, E>(
+        compact_private_key: C,
+        engine: &mut ShortintEngine,
+    ) -> Self
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        Error: From<E>,
+    {
+        Self::try_new_with_engine(compact_private_key, engine).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
     pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, Error>
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        Error: From<E>,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| Self::try_new_with_engine(input_key, engine))
+    }
+
+    pub(crate) fn try_new_with_engine<'data, C, E>(
+        input_key: C,
+        engine: &mut ShortintEngine,
+    ) -> Result<Self, Error>
     where
         C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
         Error: From<E>,
@@ -192,14 +221,12 @@ impl CompactPublicKey {
             secret_encryption_key.lwe_dimension(),
             parameters.ciphertext_modulus,
         );
-        ShortintEngine::with_thread_local_mut(|engine| {
-            generate_lwe_compact_public_key(
-                secret_encryption_key,
-                &mut key,
-                encryption_noise_distribution,
-                &mut engine.encryption_generator,
-            );
-        });
+        generate_lwe_compact_public_key(
+            secret_encryption_key,
+            &mut key,
+            encryption_noise_distribution,
+            &mut engine.encryption_generator,
+        );
 
         Ok(Self { key, parameters })
     }
@@ -299,6 +326,17 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.encrypt_iter_with_modulus_with_engine(messages, encryption_modulus, engine)
+        })
+    }
+
+    pub fn encrypt_iter_with_modulus_with_engine(
+        &self,
+        messages: impl Iterator<Item = u64>,
+        encryption_modulus: u64,
+        engine: &mut ShortintEngine,
+    ) -> CompactCiphertextList {
         let plaintext_container =
             to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
                 .map(|plaintext| plaintext.0)
@@ -318,32 +356,28 @@ impl CompactPublicKey {
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
             use crate::core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            ShortintEngine::with_thread_local_mut(|engine| {
-                encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                    &self.key,
-                    &mut ct_list,
-                    &plaintext_list,
-                    encryption_noise_distribution,
-                    encryption_noise_distribution,
-                    engine.encryption_generator.noise_generator_mut(),
-                );
-            });
+            encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &self.key,
+                &mut ct_list,
+                &plaintext_list,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
+                engine.encryption_generator.noise_generator_mut(),
+            );
         }
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
             use crate::core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            ShortintEngine::with_thread_local_mut(|engine| {
-                par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                    &self.key,
-                    &mut ct_list,
-                    &plaintext_list,
-                    encryption_noise_distribution,
-                    encryption_noise_distribution,
-                    engine.encryption_generator.noise_generator_mut(),
-                );
-            });
+            par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &self.key,
+                &mut ct_list,
+                &plaintext_list,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
+                engine.encryption_generator.noise_generator_mut(),
+            );
         }
 
         let message_modulus = self.parameters.message_modulus;

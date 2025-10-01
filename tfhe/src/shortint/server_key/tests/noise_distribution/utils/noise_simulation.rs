@@ -1,6 +1,9 @@
 pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
+use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
+use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+use crate::core_crypto::commons::math::random::Gaussian;
 use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::generalized_modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
@@ -8,35 +11,43 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
     CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
     LweClassicFft128Bootstrap, LweClassicFftBootstrap, LweKeyswitch, LwePackingKeyswitch,
-    ScalarMul, StandardModSwitch,
+    LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweDimension, LweSize,
-    PolynomialSize,
+    PlaintextCount, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
+    PlaintextList,
 };
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::list_compression::NoiseSquashingCompressionKey;
+use crate::shortint::key_switching_key::{
+    KeySwitchingKeyDestinationAtomicPattern, KeySwitchingKeyView,
+};
+use crate::shortint::list_compression::{
+    CompressionPrivateKeys, DecompressionKey, NoiseSquashingCompressionKey,
+};
 use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
     NoiseSquashingKey, Shortint128BootstrappingKey, StandardNoiseSquashingKeyView,
 };
 use crate::shortint::parameters::{
-    AtomicPatternParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
-    NoiseSquashingParameters, PBSParameters,
+    AtomicPatternParameters, CarryModulus, CompactPublicKeyEncryptionParameters,
+    CompressionParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, PBSParameters, ShortintKeySwitchingParameters,
 };
+use crate::shortint::public_key::CompactPublicKey;
 use crate::shortint::server_key::tests::noise_distribution::utils::encrypt_new_noiseless_lwe;
 use crate::shortint::server_key::{
     AtomicPatternServerKey, LookupTable, ModulusSwitchConfiguration,
     ModulusSwitchNoiseReductionKey, ServerKey, ShortintBootstrappingKey,
 };
-use crate::shortint::{PaddingBit, ShortintEncoding};
+use crate::shortint::{EncryptionKeyChoice, PaddingBit, ShortintEncoding};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum DynLwe {
@@ -148,6 +159,54 @@ impl<Scalar: CastInto<u32> + CastInto<u64> + CastInto<u128>> ScalarMul<Scalar> f
             Self::U128(lwe_ciphertext) => {
                 Self::U128(lwe_ciphertext.scalar_mul(rhs.cast_into(), side_resources))
             }
+        }
+    }
+}
+
+impl<'rhs> LweUncorrelatedAdd<&'rhs Self> for DynLwe {
+    type Output = Self;
+    type SideResources = ();
+
+    fn lwe_uncorrelated_add(
+        &self,
+        rhs: &'rhs Self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        match (self, rhs) {
+            (Self::U32(lhs), Self::U32(rhs)) => {
+                Self::U32(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            (Self::U64(lhs), Self::U64(rhs)) => {
+                Self::U64(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            (Self::U128(lhs), Self::U128(rhs)) => {
+                Self::U128(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            }
+            _ => panic!("Inconsistent lhs and rhs"),
+        }
+    }
+}
+
+impl<'rhs> LweUncorrelatedSub<&'rhs Self> for DynLwe {
+    type Output = Self;
+    type SideResources = ();
+
+    fn lwe_uncorrelated_sub(
+        &self,
+        rhs: &'rhs Self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        match (self, rhs) {
+            (Self::U32(lhs), Self::U32(rhs)) => {
+                Self::U32(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            (Self::U64(lhs), Self::U64(rhs)) => {
+                Self::U64(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            (Self::U128(lhs), Self::U128(rhs)) => {
+                Self::U128(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            }
+            _ => panic!("Inconsistent lhs and rhs"),
         }
     }
 }
@@ -302,6 +361,77 @@ impl ClientKey {
                 })
             }
         }
+    }
+}
+
+impl CompressionPrivateKeys {
+    // Decompression input == an LWE that would result from a compression, i.e. under the post
+    // packing ks secret key
+    pub fn encrypt_noiseless_decompression_input_dyn_lwe(
+        &self,
+        cks: &ClientKey,
+        msg: u64,
+        engine: &mut ShortintEngine,
+    ) -> DynLwe {
+        // cks used to have the proper encoding used for the computations
+        let compute_params = cks.parameters();
+        let encoding = ShortintEncoding {
+            ciphertext_modulus: compute_params.ciphertext_modulus(),
+            message_modulus: compute_params.message_modulus(),
+            // Adapt to the compression which has no carry bits
+            carry_modulus: CarryModulus(1),
+            padding_bit: PaddingBit::Yes,
+        };
+
+        DynLwe::U64(encrypt_new_noiseless_lwe(
+            &self.post_packing_ks_key.as_lwe_secret_key(),
+            CiphertextModulus::try_new_power_of_2(self.params.storage_log_modulus().0).unwrap(),
+            msg,
+            &encoding,
+            &mut engine.encryption_generator,
+        ))
+    }
+
+    pub fn encrypt_noiseless_glwe(
+        &self,
+        cks: &ClientKey,
+        msg: u64,
+        engine: &mut ShortintEngine,
+    ) -> GlweCiphertextOwned<u64> {
+        assert_eq!(msg, 0, "todo: update this to manage other stuff");
+        assert!(cks.parameters().ciphertext_modulus().is_native_modulus());
+
+        let plaintext_list = PlaintextList::new(0, PlaintextCount(self.params.lwe_per_glwe().0));
+
+        let ct_modulus =
+            CiphertextModulus::try_new_power_of_2(self.params.storage_log_modulus().0).unwrap();
+
+        let mut out = GlweCiphertext::new(
+            0u64,
+            self.post_packing_ks_key.glwe_dimension().to_glwe_size(),
+            self.post_packing_ks_key.polynomial_size(),
+            ct_modulus,
+        );
+
+        let noiseless_distribution = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
+
+        encrypt_glwe_ciphertext(
+            &self.post_packing_ks_key,
+            &mut out,
+            &plaintext_list,
+            noiseless_distribution,
+            &mut engine.encryption_generator,
+        );
+
+        let cont = out.into_container();
+
+        // Set the modulus as native to be compatible with operations afterwards
+        // power of two encoding is compatible with native modulus
+        GlweCiphertextOwned::from_container(
+            cont,
+            self.post_packing_ks_key.polynomial_size(),
+            cks.parameters().ciphertext_modulus(),
+        )
     }
 }
 
@@ -1017,6 +1147,131 @@ where
     }
 }
 
+impl AllocateLweKeyswitchResult for KeySwitchingKeyView<'_> {
+    type Output = DynLwe;
+    type SideResources = ();
+
+    fn allocate_lwe_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        match (
+            self.key_switching_key_material.destination_atomic_pattern,
+            self.key_switching_key_material.destination_key,
+        ) {
+            (
+                KeySwitchingKeyDestinationAtomicPattern::Standard,
+                EncryptionKeyChoice::Big | EncryptionKeyChoice::Small,
+            ) => DynLwe::U64(
+                self.key_switching_key_material
+                    .key_switching_key
+                    .allocate_lwe_keyswitch_result(side_resources),
+            ),
+            (KeySwitchingKeyDestinationAtomicPattern::KeySwitch32, EncryptionKeyChoice::Big) => {
+                DynLwe::U64(
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .allocate_lwe_keyswitch_result(side_resources),
+                )
+            }
+            (KeySwitchingKeyDestinationAtomicPattern::KeySwitch32, EncryptionKeyChoice::Small) => {
+                DynLwe::U32(LweCiphertext::new(
+                    0,
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .output_lwe_size(),
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .ciphertext_modulus()
+                        .try_to()
+                        .unwrap(),
+                ))
+            }
+        }
+    }
+}
+
+impl LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'_> {
+    type SideResources = ();
+
+    fn lwe_keyswitch(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match (
+            input,
+            output,
+            self.key_switching_key_material.destination_atomic_pattern,
+        ) {
+            (
+                DynLwe::U64(input),
+                DynLwe::U32(output),
+                KeySwitchingKeyDestinationAtomicPattern::KeySwitch32,
+            ) => {
+                let mut tmp = LweCiphertext::new(
+                    0u64,
+                    output.lwe_size(),
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .ciphertext_modulus(),
+                );
+                self.key_switching_key_material
+                    .key_switching_key
+                    .lwe_keyswitch(input, &mut tmp, side_resources);
+
+                // Manage encoding
+                output
+                    .as_mut()
+                    .iter_mut()
+                    .zip(tmp.as_ref().iter())
+                    .for_each(|(dst, src)| *dst = (*src >> 32) as u32);
+            }
+            (
+                DynLwe::U64(input),
+                DynLwe::U64(output),
+                KeySwitchingKeyDestinationAtomicPattern::Standard
+                | KeySwitchingKeyDestinationAtomicPattern::KeySwitch32,
+            ) => self
+                .key_switching_key_material
+                .key_switching_key
+                .lwe_keyswitch(input, output, side_resources),
+            _ => panic!("Unsupported configuration for KeySwitchingKeyView in noise simulation"),
+        }
+    }
+}
+
+impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
+    type SideResources = ();
+
+    fn lwe_classic_fft_pbs(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<Vec<u64>>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self {
+            Self::Classic {
+                blind_rotate_key,
+                lwe_per_glwe: _,
+            } => {
+                match (input, output) {
+                    (DynLwe::U64(input), DynLwe::U64(output)) => blind_rotate_key
+                        .lwe_classic_fft_pbs(input, output, &accumulator.acc, side_resources),
+                    _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
+                }
+            }
+            Self::MultiBit { .. } => {
+                panic!("Tried to compute a classic PBS with a multi bit DecompressionKey")
+            }
+        }
+    }
+}
+
+// ==== Below NoiseSimulation extensions
+
 impl NoiseSimulationLwe {
     pub fn encrypt(key: &ClientKey, _msg: u64) -> Self {
         let (encryption_key, encryption_noise_distribution) = key.encryption_key_and_noise();
@@ -1031,6 +1286,27 @@ impl NoiseSimulationLwe {
             encryption_key.lwe_dimension(),
             enc_var,
             NoiseSimulationModulus::from_ciphertext_modulus(key.parameters().ciphertext_modulus()),
+        )
+    }
+
+    pub fn encrypt_with_cpk(cpk: &CompactPublicKey) -> Self {
+        let encryption_lwe_dimension = cpk.key.lwe_dimension();
+        let noise_var = match cpk.parameters().encryption_noise_distribution {
+            DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
+            DynamicDistribution::TUniform(tuniform) => {
+                tuniform.variance(cpk.parameters().ciphertext_modulus.raw_modulus_float())
+            }
+        };
+
+        let cpk_encryption_noise_var = lwe_compact_public_key_encryption_expected_variance(
+            noise_var,
+            encryption_lwe_dimension,
+        );
+
+        Self::new(
+            encryption_lwe_dimension,
+            cpk_encryption_noise_var,
+            NoiseSimulationModulus::from_ciphertext_modulus(cpk.parameters().ciphertext_modulus),
         )
     }
 }
@@ -1060,6 +1336,47 @@ impl NoiseSimulationLweKeyswitchKey {
                     )
                 }
             },
+        )
+    }
+
+    pub fn new_from_cpk_params(
+        cpk_params: CompactPublicKeyEncryptionParameters,
+        ksk_params: ShortintKeySwitchingParameters,
+        compute_params: AtomicPatternParameters,
+    ) -> Self {
+        let (output_lwe_dimension, noise_distribution, ciphertext_modulus) =
+            match ksk_params.destination_key {
+                EncryptionKeyChoice::Big => (
+                    compute_params
+                        .glwe_dimension()
+                        .to_equivalent_lwe_dimension(compute_params.polynomial_size()),
+                    compute_params.glwe_noise_distribution(),
+                    compute_params.ciphertext_modulus(),
+                ),
+                EncryptionKeyChoice::Small => (
+                    compute_params.lwe_dimension(),
+                    compute_params.lwe_noise_distribution(),
+                    match compute_params {
+                        AtomicPatternParameters::Standard(pbsparameters) => {
+                            pbsparameters.ciphertext_modulus()
+                        }
+                        AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+                            key_switch32_pbsparameters
+                                .post_keyswitch_ciphertext_modulus
+                                .try_to()
+                                .unwrap()
+                        }
+                    },
+                ),
+            };
+
+        Self::new(
+            cpk_params.encryption_lwe_dimension,
+            output_lwe_dimension,
+            ksk_params.ks_base_log,
+            ksk_params.ks_level,
+            noise_distribution,
+            NoiseSimulationModulus::from_ciphertext_modulus(ciphertext_modulus),
         )
     }
 }
@@ -1228,6 +1545,23 @@ impl NoiseSimulationLweFourierBsk {
             NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
         )
     }
+
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        comp_params: CompressionParameters,
+    ) -> Self {
+        Self::new(
+            comp_params
+                .packing_ks_glwe_dimension()
+                .to_equivalent_lwe_dimension(comp_params.packing_ks_polynomial_size()),
+            params.glwe_dimension().to_glwe_size(),
+            params.polynomial_size(),
+            comp_params.br_base_log(),
+            comp_params.br_level(),
+            params.glwe_noise_distribution(),
+            NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+        )
+    }
 }
 
 impl NoiseSimulationLwePackingKeyswitchKey {
@@ -1268,6 +1602,10 @@ impl NoiseSimulationLweKeyswitchKey {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
             }
         }
+    }
+
+    pub fn matches_actual_shortint_keyswitching_key(&self, ksk: &KeySwitchingKeyView<'_>) -> bool {
+        self.matches_actual_ksk(ksk.key_switching_key_material.key_switching_key)
     }
 }
 
@@ -1373,6 +1711,16 @@ impl NoiseSimulationLweFourierBsk {
             AtomicPatternServerKey::Dynamic(_) => {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
             }
+        }
+    }
+
+    pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
+        match decomp_key {
+            DecompressionKey::Classic {
+                blind_rotate_key,
+                lwe_per_glwe: _,
+            } => self.matches_actual_bsk(blind_rotate_key),
+            DecompressionKey::MultiBit { .. } => false,
         }
     }
 }
