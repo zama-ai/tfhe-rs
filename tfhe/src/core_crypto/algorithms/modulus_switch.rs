@@ -115,7 +115,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardMo
 
     fn allocate_standard_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         // We will mod switch but we keep the current modulus as the noise is interesting in the
         // context of the input modulus
@@ -135,7 +135,7 @@ impl<
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut LweCiphertext<OutputCont>,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         assert!(self
             .ciphertext_modulus()
@@ -161,7 +161,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         // We will mod switch but we keep the current modulus as the noise is interesting in the
         // context of the input modulus
@@ -182,7 +182,7 @@ impl<
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut LweCiphertext<OutputCont>,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         assert!(self
             .ciphertext_modulus()

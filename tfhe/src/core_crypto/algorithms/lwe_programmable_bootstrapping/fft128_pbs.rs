@@ -493,7 +493,7 @@ impl<
         input: &LweCiphertext<InputCont>,
         output: &mut LweCiphertext<OutputCont>,
         accumulator: &GlweCiphertext<AccCont>,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         programmable_bootstrap_f128_lwe_ciphertext(input, output, accumulator, self);
     }

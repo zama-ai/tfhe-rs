@@ -114,7 +114,7 @@ impl AllocateLwePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey
 
     fn allocate_lwe_packing_keyswitch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
             self.output_glwe_size().to_glwe_dimension(),
@@ -134,7 +134,7 @@ impl LwePackingKeyswitch<[&NoiseSimulationLwe], NoiseSimulationGlwe>
         &self,
         input: &[&NoiseSimulationLwe],
         output: &mut NoiseSimulationGlwe,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         let mut input_iter = input.iter();
         let input = input_iter.next().unwrap();

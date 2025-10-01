@@ -770,7 +770,7 @@ impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>>
 
     fn allocate_lwe_packing_keyswitch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
             Scalar::ZERO,
@@ -795,7 +795,7 @@ impl<
         &self,
         input: &[&LweCiphertext<InputCont>],
         output: &mut GlweCiphertext<OutputCont>,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         let input = LweCiphertextList::new_from_lwe_ciphertext_iterator(
             input.iter().map(|lwe| lwe.as_view()),

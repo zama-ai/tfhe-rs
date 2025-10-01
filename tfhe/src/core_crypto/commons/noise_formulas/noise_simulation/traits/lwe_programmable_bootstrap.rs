@@ -2,10 +2,7 @@ pub trait AllocateLweBootstrapResult {
     type Output;
     type SideResources;
 
-    fn allocate_lwe_bootstrap_result(
-        &self,
-        side_resources: &mut Self::SideResources,
-    ) -> Self::Output;
+    fn allocate_lwe_bootstrap_result(&self, side_resources: &Self::SideResources) -> Self::Output;
 }
 
 pub trait LweClassicFftBootstrap<Input, Output, Accumulator> {
@@ -16,7 +13,7 @@ pub trait LweClassicFftBootstrap<Input, Output, Accumulator> {
         input: &Input,
         output: &mut Output,
         accumulator: &Accumulator,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }
 
@@ -28,6 +25,6 @@ pub trait LweClassicFft128Bootstrap<Input, Output, Accumulator> {
         input: &Input,
         output: &mut Output,
         accumulator: &Accumulator,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }

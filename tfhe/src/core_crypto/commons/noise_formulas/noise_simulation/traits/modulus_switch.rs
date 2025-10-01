@@ -6,7 +6,7 @@ pub trait AllocateStandardModSwitchResult {
 
     fn allocate_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output;
 }
 
@@ -17,7 +17,7 @@ pub trait StandardModSwitch<Output> {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Output,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }
 
@@ -28,7 +28,7 @@ pub trait AllocateDriftTechniqueStandardModSwitchResult {
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput);
 }
 
@@ -41,7 +41,7 @@ pub trait DriftTechniqueStandardModSwitch<Input, OutputAfterDriftTechnique, Outp
         input: &Input,
         after_drift_technique: &mut OutputAfterDriftTechnique,
         after_mod_switch: &mut OutputAfterMs,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }
 
@@ -51,7 +51,7 @@ pub trait AllocateMultiBitModSwitchResult {
 
     fn allocate_multi_bit_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output;
 }
 
@@ -63,7 +63,7 @@ pub trait MultiBitModSwitch<Output> {
         grouping_factor: LweBskGroupingFactor,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Output,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }
 
@@ -73,7 +73,7 @@ pub trait AllocateCenteredBinaryShiftedStandardModSwitchResult {
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output;
 }
 
@@ -84,6 +84,6 @@ pub trait CenteredBinaryShiftedStandardModSwitch<Output> {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Output,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     );
 }

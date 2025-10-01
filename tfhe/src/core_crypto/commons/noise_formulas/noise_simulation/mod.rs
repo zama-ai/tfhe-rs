@@ -112,11 +112,7 @@ mod simulation_ciphertexts {
         type Output = Self;
         type SideResources = ();
 
-        fn scalar_mul(
-            &self,
-            rhs: Scalar,
-            side_resources: &mut Self::SideResources,
-        ) -> Self::Output {
+        fn scalar_mul(&self, rhs: Scalar, side_resources: &Self::SideResources) -> Self::Output {
             let mut output = *self;
             output.scalar_mul_assign(rhs, side_resources);
             output
@@ -126,7 +122,7 @@ mod simulation_ciphertexts {
     impl<Scalar: CastInto<f64>> ScalarMulAssign<Scalar> for NoiseSimulationLwe {
         type SideResources = ();
 
-        fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &mut Self::SideResources) {
+        fn scalar_mul_assign(&mut self, rhs: Scalar, _side_resources: &Self::SideResources) {
             let rhs: f64 = rhs.cast_into();
             self.variance.0 *= rhs.powi(2);
         }
@@ -189,7 +185,7 @@ mod simulation_ciphertexts {
 
         fn allocate_lwe_bootstrap_result(
             &self,
-            _side_resources: &mut Self::SideResources,
+            _side_resources: &Self::SideResources,
         ) -> Self::Output {
             let lwe_dimension = self
                 .glwe_dimension()
@@ -209,7 +205,7 @@ mod simulation_ciphertexts {
 
         fn allocate_lwe_multi_bit_blind_rotate_result(
             &self,
-            _side_resources: &mut Self::SideResources,
+            _side_resources: &Self::SideResources,
         ) -> Self::Output {
             let lwe_dimension = self
                 .glwe_dimension()

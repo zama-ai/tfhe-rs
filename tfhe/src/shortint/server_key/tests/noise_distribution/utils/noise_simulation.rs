@@ -137,7 +137,7 @@ impl<Scalar: CastInto<u32> + CastInto<u64> + CastInto<u128>> ScalarMul<Scalar> f
     type Output = Self;
     type SideResources = ();
 
-    fn scalar_mul(&self, rhs: Scalar, side_resources: &mut Self::SideResources) -> Self::Output {
+    fn scalar_mul(&self, rhs: Scalar, side_resources: &Self::SideResources) -> Self::Output {
         match self {
             Self::U32(lwe_ciphertext) => {
                 Self::U32(lwe_ciphertext.scalar_mul(rhs.cast_into(), side_resources))
@@ -158,7 +158,7 @@ impl AllocateStandardModSwitchResult for DynLwe {
 
     fn allocate_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output {
         match self {
             Self::U32(lwe_ciphertext) => {
@@ -181,7 +181,7 @@ impl StandardModSwitch<Self> for DynLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match (self, output) {
             (Self::U32(input), Self::U32(output)) => {
@@ -204,7 +204,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for DynLwe {
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output {
         match self {
             Self::U32(lwe_ciphertext) => Self::U32(
@@ -230,7 +230,7 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for DynLwe {
         &self,
         output_modulus_log: CiphertextModulusLog,
         output: &mut Self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match (self, output) {
             (Self::U32(input), Self::U32(output)) => input
@@ -309,10 +309,7 @@ impl AllocateLweKeyswitchResult for ServerKey {
     type Output = DynLwe;
     type SideResources = ();
 
-    fn allocate_lwe_keyswitch_result(
-        &self,
-        side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(&self, side_resources: &Self::SideResources) -> Self::Output {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => DynLwe::U64(
                 standard_atomic_pattern_server_key
@@ -426,7 +423,7 @@ impl LweKeyswitch<DynLwe, DynLwe> for ServerKey {
         &self,
         input: &DynLwe,
         output: &mut DynLwe,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
@@ -462,7 +459,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
@@ -541,7 +538,7 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for ServerKey {
         input: &DynLwe,
         after_drift_technique: &mut DynLwe,
         after_mod_switch: &mut DynLwe,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
@@ -639,10 +636,7 @@ impl<C: Container<Element = u64>> AllocateLweBootstrapResult for LookupTable<C> 
     type Output = DynLwe;
     type SideResources = ();
 
-    fn allocate_lwe_bootstrap_result(
-        &self,
-        side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_bootstrap_result(&self, side_resources: &Self::SideResources) -> Self::Output {
         DynLwe::U64(self.acc.allocate_lwe_bootstrap_result(side_resources))
     }
 }
@@ -657,7 +651,7 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
         input: &DynLwe,
         output: &mut DynLwe,
         accumulator: &LookupTable<C>,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
@@ -791,7 +785,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let nsk = StandardNoiseSquashingKeyView::try_from(self.as_view())
             .expect("Noise tests only support standard atomic pattern");
@@ -833,7 +827,7 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
         input: &DynLwe,
         after_drift_technique: &mut DynLwe,
         after_mod_switch: &mut DynLwe,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match self.atomic_pattern() {
             AtomicPatternNoiseSquashingKey::Standard(
@@ -939,7 +933,7 @@ where
         input: &DynLwe,
         output: &mut LweCiphertext<OutputCont>,
         accumulator: &GlweCiphertext<AccCont>,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         match self.atomic_pattern() {
             AtomicPatternNoiseSquashingKey::Standard(std_nsk) => {
@@ -990,7 +984,7 @@ impl AllocateLwePackingKeyswitchResult for NoiseSquashingCompressionKey {
 
     fn allocate_lwe_packing_keyswitch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> Self::Output {
         self.packing_key_switching_key()
             .allocate_lwe_packing_keyswitch_result(side_resources)
@@ -1010,7 +1004,7 @@ where
         &self,
         input: &[&'a LweCiphertext<InputCont>],
         output: &mut GlweCiphertext<OutputCont>,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) {
         self.packing_key_switching_key()
             .keyswitch_lwes_and_pack_in_glwe(input, output, side_resources);
@@ -1134,7 +1128,7 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSimulationDriftTechn
 
     fn allocate_drift_technique_standard_mod_switch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        side_resources: &Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
         let after_drift =
             NoiseSimulationLwe::new(self.lwe_dimension, Variance(f64::NAN), self.modulus);
@@ -1154,7 +1148,7 @@ impl DriftTechniqueStandardModSwitch<NoiseSimulationLwe, NoiseSimulationLwe, Noi
         input: &NoiseSimulationLwe,
         after_drift_technique: &mut NoiseSimulationLwe,
         after_mod_switch: &mut NoiseSimulationLwe,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         assert_eq!(self.modulus, input.modulus());
 

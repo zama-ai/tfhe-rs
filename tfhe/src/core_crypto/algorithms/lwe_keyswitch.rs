@@ -995,10 +995,7 @@ impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocateLweK
     type Output = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocate_lwe_keyswitch_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(&self, _side_resources: &Self::SideResources) -> Self::Output {
         Self::Output::new(
             Scalar::ZERO,
             self.output_lwe_size(),
@@ -1022,7 +1019,7 @@ impl<
         &self,
         input: &LweCiphertext<InputCont>,
         output: &mut LweCiphertext<OutputCont>,
-        _side_resources: &mut Self::SideResources,
+        _side_resources: &Self::SideResources,
     ) {
         // We are forced to do this because rust complains of conflicting trait implementations
         // even though generics are different, it's not enough to rule that actual
