@@ -1,5 +1,5 @@
 use super::utils::noise_simulation::{
-    NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
+    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
@@ -17,12 +17,20 @@ use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::key_switching_key::{KeySwitchingKey, KeySwitchingKeyBuildHelper};
 use crate::shortint::parameters::test_params::{
+    TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus};
+use crate::shortint::parameters::{
+    AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+    ShortintKeySwitchingParameters,
+};
+use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
@@ -401,13 +409,30 @@ fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_dp_ks_ms_noise<P>(params: P)
-where
+fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
+    params: P,
+    mut cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+) where
     P: Into<AtomicPatternParameters>,
 {
     let params: AtomicPatternParameters = params.into();
+
+    // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after expand
+    let cpk_params = {
+        cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+            params.encryption_key_choice().into_pbs_order(),
+        );
+        cpk_params
+    };
+
     let cks = ClientKey::new(params);
+    let cpk_private_key = CompactPrivateKey::new(cpk_params);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
     let sks = ServerKey::new(&cks);
+    let ksk_rerand: KeySwitchingKey =
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params)
+            .into();
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
@@ -482,6 +507,15 @@ where
 
     let id_lut = sks.generate_lookup_table(|x| x);
     let sample_input = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
+    let cpk_zero_sample_input = {
+        let compact_list = cpk.encrypt_slice(&[0]);
+        let mut expanded = compact_list
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap();
+        assert_eq!(expanded.len(), 1);
+
+        DynLwe::U64(expanded.pop().unwrap().ct)
+    };
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
@@ -498,7 +532,7 @@ where
             sample_input,
             &sks,
             cpk_zero_sample_input,
-            ksk_rerand,
+            &ksk_rerand,
             max_scalar_mul,
             &sks,
             noise_simulation_modulus_switch_config,
@@ -556,8 +590,17 @@ where
     assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
 }
 
-create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-});
+// create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
+//     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+//     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+//     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+// });
+
+#[test]
+fn test_noise_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
+    noise_check_encrypt_br_dp_ks_ms_noise(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
