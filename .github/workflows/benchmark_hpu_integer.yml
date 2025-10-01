@@ -32,6 +32,8 @@ jobs:
     runs-on: v80-marais
     outputs:
       bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+      v80_pcie_dev: ${{ steps.select_hpu_board.outputs.v80_pcie_dev }}
+      v80_serial_number: ${{ steps.select_hpu_board.outputs.v80_serial_number }}
     steps:
       - name: Set benchmark types
         if: github.event_name == 'workflow_dispatch'
@@ -59,6 +61,8 @@ jobs:
       - name: Select HPU board
         id: select_hpu_board
         run: |
+          echo "V80_PCIE_DEV=24" >> "${GITHUB_ENV}"
+          echo "V80_SERIAL_NUMBER=XFL12NWY3ZKG" >> "${GITHUB_ENV}"
           echo "v80_pcie_dev=24" >> "${GITHUB_OUTPUT}"
           echo "v80_serial_number=XFL12NWY3ZKG" >> "${GITHUB_OUTPUT}"
 
