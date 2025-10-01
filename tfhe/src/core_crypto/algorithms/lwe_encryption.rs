@@ -1920,7 +1920,6 @@ fn encrypt_lwe_ciphertext_with_compact_public_key_impl<
     OutputCont,
     MaskDistribution,
     NoiseDistribution,
-    SecretGen,
     EncryptionGen,
 >(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
@@ -1928,8 +1927,7 @@ fn encrypt_lwe_ciphertext_with_compact_public_key_impl<
     encoded: Plaintext<Scalar>,
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
-    secret_generator: &mut SecretRandomGenerator<SecretGen>,
-    encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
+    noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
 ) -> CompactPublicKeyRandomVectors<Scalar>
 where
     Scalar: Encryptable<MaskDistribution, NoiseDistribution> + RandomGenerable<UniformBinary>,
@@ -1937,7 +1935,6 @@ where
     OutputCont: ContainerMut<Element = Scalar>,
     MaskDistribution: Distribution,
     NoiseDistribution: Distribution,
-    SecretGen: ByteRandomGenerator,
     EncryptionGen: ByteRandomGenerator,
 {
     assert!(
@@ -1962,13 +1959,13 @@ where
     );
 
     let mut binary_random_vector = vec![Scalar::ZERO; lwe_compact_public_key.lwe_dimension().0];
-    secret_generator.fill_slice_with_random_uniform_binary(&mut binary_random_vector);
+    noise_generator.fill_slice_with_random_uniform_binary_bits(&mut binary_random_vector);
 
     let mut mask_noise = vec![Scalar::ZERO; lwe_compact_public_key.lwe_dimension().0];
-    encryption_generator
+    noise_generator
         .fill_slice_with_random_noise_from_distribution(&mut mask_noise, mask_noise_distribution);
 
-    let body_noise = encryption_generator.random_noise_from_distribution(body_noise_distribution);
+    let body_noise = noise_generator.random_noise_from_distribution(body_noise_distribution);
 
     {
         let (mut ct_mask, ct_body) = output.get_mut_mask_and_body();
@@ -2048,8 +2045,7 @@ where
 ///     plaintext,
 ///     glwe_noise_distribution,
 ///     glwe_noise_distribution,
-///     &mut secret_generator,
-///     &mut encryption_generator,
+///     encryption_generator.noise_generator_mut(),
 /// );
 ///
 /// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
@@ -2072,7 +2068,6 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     NoiseDistribution,
     KeyCont,
     OutputCont,
-    SecretGen,
     EncryptionGen,
 >(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
@@ -2080,15 +2075,13 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     encoded: Plaintext<Scalar>,
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
-    secret_generator: &mut SecretRandomGenerator<SecretGen>,
-    encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
+    noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
 ) where
     Scalar: Encryptable<MaskDistribution, NoiseDistribution> + RandomGenerable<UniformBinary>,
     MaskDistribution: Distribution,
     NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
-    SecretGen: ByteRandomGenerator,
     EncryptionGen: ByteRandomGenerator,
 {
     let _ = encrypt_lwe_ciphertext_with_compact_public_key_impl(
@@ -2097,8 +2090,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
         encoded,
         mask_noise_distribution,
         body_noise_distribution,
-        secret_generator,
-        encryption_generator,
+        noise_generator,
     );
 }
 
@@ -2176,8 +2168,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     delta,
 ///     glwe_noise_distribution,
 ///     glwe_noise_distribution,
-///     &mut secret_generator,
-///     &mut encryption_generator,
+///     encryption_generator.noise_generator_mut(),
 ///     &mut random_generator,
 ///     &crs,
 ///     &metadata,
@@ -2215,7 +2206,6 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     OutputCont,
     MaskDistribution,
     NoiseDistribution,
-    SecretGen,
     EncryptionGen,
     G,
 >(
@@ -2225,8 +2215,7 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     delta: Scalar,
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
-    secret_generator: &mut SecretRandomGenerator<SecretGen>,
-    encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
+    noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
     crs: &CompactPkeCrs,
     metadata: &[u8],
@@ -2243,7 +2232,6 @@ where
     OutputCont: ContainerMut<Element = Scalar>,
     MaskDistribution: BoundedDistribution<Scalar::Signed>,
     NoiseDistribution: BoundedDistribution<Scalar::Signed>,
-    SecretGen: ByteRandomGenerator,
     EncryptionGen: ByteRandomGenerator,
     G: ByteRandomGenerator,
 {
@@ -2267,8 +2255,7 @@ where
         Plaintext(message.0 * delta),
         mask_noise_distribution,
         body_noise_distribution,
-        secret_generator,
-        encryption_generator,
+        noise_generator,
     );
 
     Ok(crs.prove(
@@ -3275,8 +3262,7 @@ mod test {
                 plaintext,
                 glwe_noise_distribution,
                 glwe_noise_distribution,
-                &mut secret_random_generator,
-                &mut encryption_random_generator,
+                encryption_random_generator.noise_generator_mut(),
             );
 
             let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
