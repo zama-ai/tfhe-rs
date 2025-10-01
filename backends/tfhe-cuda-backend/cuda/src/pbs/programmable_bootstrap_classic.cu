@@ -650,33 +650,15 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *ms_drift_noise_reduction_ptr, int8_t *mem_ptr, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
 
-  // If the parameters contain drift noise reduction key, then apply it
-  if (buffer->noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT) {
-    uint32_t log_modulus = log2(polynomial_size) + 1;
-    host_drift_modulus_switch<uint64_t>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer->temp_lwe_array_in,
-        static_cast<uint64_t const *>(lwe_array_in),
-        static_cast<uint64_t const *>(lwe_input_indexes),
-        static_cast<uint64_t *>(ms_drift_noise_reduction_ptr),
-        lwe_dimension + 1, num_samples, ms_noise_reduction_key->num_zeros,
-        ms_noise_reduction_key->ms_input_variance,
-        ms_noise_reduction_key->ms_r_sigma, ms_noise_reduction_key->ms_bound,
-        log_modulus);
-  } else {
-    buffer->temp_lwe_array_in =
-        const_cast<uint64_t *>(static_cast<const uint64_t *>(lwe_array_in));
-  }
   check_cuda_error(cudaGetLastError());
 
   switch (buffer->pbs_variant) {
@@ -687,7 +669,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
         static_cast<const uint64_t *>(lut_vector_indexes),
-        static_cast<const uint64_t *>(buffer->temp_lwe_array_in),
+        static_cast<const uint64_t *>(buffer->lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
         static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
@@ -702,7 +684,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
         static_cast<const uint64_t *>(lut_vector_indexes),
-        static_cast<const uint64_t *>(buffer->temp_lwe_array_in),
+        static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
         static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
@@ -714,7 +696,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
         static_cast<const uint64_t *>(lut_vector_indexes),
-        static_cast<const uint64_t *>(buffer->temp_lwe_array_in),
+        static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
         static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,

@@ -55,8 +55,7 @@ __host__ void host_extend_radix_with_sign_msb(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input,
     int_extend_radix_with_sign_msb_buffer<Torus> *mem_ptr,
-    uint32_t num_additional_blocks, void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    uint32_t num_additional_blocks, void *const *bsks, Torus *const *ksks) {
 
   if (num_additional_blocks == 0) {
     PUSH_RANGE("cast/extend no addblocks")
@@ -79,8 +78,7 @@ __host__ void host_extend_radix_with_sign_msb(
       input_blocks - 1, input_blocks);
 
   host_apply_univariate_lut_kb(streams, mem_ptr->padding_block,
-                               mem_ptr->last_block, mem_ptr->lut, ksks,
-                               ms_noise_reduction_key, bsks);
+                               mem_ptr->last_block, mem_ptr->lut, ksks, bsks);
 
   for (uint32_t i = 0; i < num_additional_blocks; ++i) {
     uint32_t dst_block_idx = input_blocks + i;

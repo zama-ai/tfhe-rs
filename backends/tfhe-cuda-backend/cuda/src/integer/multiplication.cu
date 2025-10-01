@@ -128,59 +128,51 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
+    void *const *bsks, void *const *ksks, int8_t *mem_ptr,
+    uint32_t polynomial_size, uint32_t num_blocks) {
   PUSH_RANGE("mul")
   switch (polynomial_size) {
   case 256:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<256>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 512:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<512>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 1024:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<1024>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 2048:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<2048>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 4096:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<4096>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 8192:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<8192>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 16384:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<16384>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, (int_mul_memory<uint64_t> *)mem_ptr,
-        num_blocks);
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
@@ -225,8 +217,7 @@ uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    void *const *ksks) {
 
   auto mem = (int_sum_ciphertexts_vec_memory<uint64_t> *)mem_ptr;
   if (radix_lwe_vec->num_radix_blocks % radix_lwe_out->num_radix_blocks != 0)
@@ -234,8 +225,7 @@ void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
           "output's number of radix blocks")
   host_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
       CudaStreams(streams), radix_lwe_out, radix_lwe_vec, bsks,
-      (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-      radix_lwe_out->num_radix_blocks,
+      (uint64_t **)(ksks), mem, radix_lwe_out->num_radix_blocks,
       radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
 }
 

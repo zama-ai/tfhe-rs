@@ -33,7 +33,6 @@ void host_sub_and_propagate_single_carry(
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *input_carries,
     int_sub_and_propagate<Torus> *mem, void *const *bsks, Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t requested_flag, uint32_t uses_carry) {
 
   host_integer_radix_negation<Torus>(
@@ -42,8 +41,7 @@ void host_sub_and_propagate_single_carry(
 
   host_add_and_propagate_single_carry<Torus>(
       streams, lhs_array, mem->neg_rhs_array, carry_out, input_carries,
-      mem->sc_prop_mem, bsks, ksks, ms_noise_reduction_key, requested_flag,
-      uses_carry);
+      mem->sc_prop_mem, bsks, ksks, requested_flag, uses_carry);
 }
 
 template <typename Torus>

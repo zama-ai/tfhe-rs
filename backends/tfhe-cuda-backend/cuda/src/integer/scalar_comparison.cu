@@ -35,9 +35,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
     void const *h_scalar_blocks, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_scalar_blocks) {
+    void *const *ksks, uint32_t num_scalar_blocks) {
 
   // The output ciphertext might be a boolean block or a radix ciphertext
   // depending on the case (eq/gt vs max/min) so the amount of blocks to
@@ -51,8 +49,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     host_integer_radix_scalar_equality_check_kb<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks), buffer, bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, num_radix_blocks,
-        num_scalar_blocks);
+        (uint64_t **)(ksks), num_radix_blocks, num_scalar_blocks);
     break;
   case GT:
   case GE:
@@ -66,7 +63,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer,
         buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
-        ms_noise_reduction_key, num_radix_blocks, num_scalar_blocks);
+        num_radix_blocks, num_scalar_blocks);
     break;
   case MAX:
   case MIN:
@@ -77,8 +74,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer, bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, num_radix_blocks,
-        num_scalar_blocks);
+        (uint64_t **)(ksks), num_radix_blocks, num_scalar_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")

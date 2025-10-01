@@ -56,9 +56,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT)
-          ? &lwe_array_in[blockIdx.x * (lwe_dimension + 1)]
-          : &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
       &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *

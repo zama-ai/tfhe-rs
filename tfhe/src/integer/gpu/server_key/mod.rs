@@ -17,9 +17,7 @@ use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchType;
-use crate::shortint::server_key::{
-    CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey,
-};
+use crate::shortint::server_key::CompressedModulusSwitchConfiguration;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 
 mod radix;
@@ -118,26 +116,18 @@ impl CudaServerKey {
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
-                let modulus_switch_noise_reduction_configuration = match pbs_params
-                    .modulus_switch_noise_reduction_params
-                {
-                    ModulusSwitchType::Standard => None,
-                    ModulusSwitchType::DriftTechniqueNoiseReduction(
-                        modulus_switch_noise_reduction_params,
-                    ) => {
-                        let ms_red_key = ModulusSwitchNoiseReductionKey::new(
-                            modulus_switch_noise_reduction_params,
-                            &std_cks.lwe_secret_key,
-                            &mut engine,
-                            pbs_params.ciphertext_modulus,
-                            pbs_params.lwe_noise_distribution,
-                        );
-                        Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&ms_red_key,streams))
-                    }
-                    ModulusSwitchType::CenteredMeanNoiseReduction => {
-                        Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
-                    }
-                };
+                let modulus_switch_noise_reduction_configuration =
+                    match pbs_params.modulus_switch_noise_reduction_params {
+                        ModulusSwitchType::Standard => None,
+                        ModulusSwitchType::DriftTechniqueNoiseReduction(
+                            _modulus_switch_noise_reduction_params,
+                        ) => {
+                            panic!("Drift noise reduction is not supported on GPU")
+                        }
+                        ModulusSwitchType::CenteredMeanNoiseReduction => {
+                            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+                        }
+                    };
 
                 let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &h_bootstrap_key,
@@ -265,7 +255,7 @@ impl CudaServerKey {
 
                 let  modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
                     CompressedModulusSwitchConfiguration::Standard => None,
-                    CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_key) => Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&modulus_switch_noise_reduction_key.decompress(), streams)),
+                    CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_modulus_switch_noise_reduction_key) => panic!("Drift noise reduction is not supported on GPU"),
                     CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => Some(CudaModulusSwitchNoiseReductionConfiguration::Centered),
                 };
 

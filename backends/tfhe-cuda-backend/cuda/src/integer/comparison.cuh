@@ -61,9 +61,7 @@ __host__ void are_all_comparisons_block_true(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -158,8 +156,7 @@ __host__ void are_all_comparisons_block_true(
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, lwe_array_out, accumulator, bsks, ksks,
-          ms_noise_reduction_key, lut, 1);
+          streams, lwe_array_out, accumulator, bsks, ksks, lut, 1);
       // Reset max_value_lut_indexes before returning, otherwise if the lut is
       // reused the lut indexes will be wrong
       memset(is_max_value_lut->h_lut_indexes, 0,
@@ -176,8 +173,7 @@ __host__ void are_all_comparisons_block_true(
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, tmp_out, accumulator, bsks, ksks, ms_noise_reduction_key,
-          lut, num_chunks);
+          streams, tmp_out, accumulator, bsks, ksks, lut, num_chunks);
     }
   }
 }
@@ -193,9 +189,7 @@ __host__ void is_at_least_one_comparisons_block_true(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -249,12 +243,12 @@ __host__ void is_at_least_one_comparisons_block_true(
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, lwe_array_out, buffer->tmp_block_accumulated, bsks, ksks,
-          ms_noise_reduction_key, lut, 1);
+          lut, 1);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, mem_ptr->tmp_lwe_array_out, buffer->tmp_block_accumulated,
-          bsks, ksks, ms_noise_reduction_key, lut, num_chunks);
+          bsks, ksks, lut, num_chunks);
     }
   }
 }
@@ -264,9 +258,8 @@ __host__ void host_compare_blocks_with_zero(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int32_t num_radix_blocks, int_radix_lut<Torus> *zero_comparison) {
+    Torus *const *ksks, int32_t num_radix_blocks,
+    int_radix_lut<Torus> *zero_comparison) {
 
   if (num_radix_blocks == 0)
     return;
@@ -322,8 +315,7 @@ __host__ void host_compare_blocks_with_zero(
   }
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, sum, bsks, ksks, ms_noise_reduction_key,
-      zero_comparison, num_sum_blocks);
+      streams, lwe_array_out, sum, bsks, ksks, zero_comparison, num_sum_blocks);
 
   reset_radix_ciphertext_blocks(lwe_array_out, num_sum_blocks);
 }
@@ -334,9 +326,7 @@ __host__ void host_integer_radix_equality_check_kb(
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
@@ -347,16 +337,15 @@ __host__ void host_integer_radix_equality_check_kb(
   auto comparisons = mem_ptr->tmp_block_comparisons;
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, comparisons, lwe_array_1, lwe_array_2, bsks, ksks,
-      ms_noise_reduction_key, eq_buffer->operator_lut, num_radix_blocks,
+      eq_buffer->operator_lut, num_radix_blocks,
       eq_buffer->operator_lut->params.message_modulus);
 
   // This takes a Vec of blocks, where each block is either 0 or 1.
   //
   // It returns a block encrypting 1 if all input blocks are 1
   // otherwise the block encrypts 0
-  are_all_comparisons_block_true<Torus>(
-      streams, lwe_array_out, comparisons, mem_ptr, bsks, ksks,
-      ms_noise_reduction_key, num_radix_blocks);
+  are_all_comparisons_block_true<Torus>(streams, lwe_array_out, comparisons,
+                                        mem_ptr, bsks, ksks, num_radix_blocks);
 }
 
 template <typename Torus>
@@ -365,9 +354,7 @@ __host__ void compare_radix_blocks_kb(
     CudaRadixCiphertextFFI const *lwe_array_left,
     CudaRadixCiphertextFFI const *lwe_array_right,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
@@ -400,8 +387,8 @@ __host__ void compare_radix_blocks_kb(
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, lwe_array_out, bsks, ksks, ms_noise_reduction_key,
-      is_non_zero_lut, num_radix_blocks);
+      streams, lwe_array_out, lwe_array_out, bsks, ksks, is_non_zero_lut,
+      num_radix_blocks);
 
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
@@ -414,14 +401,13 @@ __host__ void compare_radix_blocks_kb(
 // (inferior, equal, superior) to one single shortint block containing the
 // final sign
 template <typename Torus>
-__host__ void tree_sign_reduction(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI *lwe_block_comparisons,
-    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
-    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+__host__ void
+tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+                    CudaRadixCiphertextFFI *lwe_block_comparisons,
+                    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
+                    std::function<Torus(Torus)> sign_handler_f,
+                    void *const *bsks, Torus *const *ksks,
+                    uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_block_comparisons->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -454,8 +440,7 @@ __host__ void tree_sign_reduction(
                        partial_block_count, message_modulus);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, x, y, bsks, ksks, ms_noise_reduction_key, inner_tree_leaf,
-        partial_block_count >> 1);
+        streams, x, y, bsks, ksks, inner_tree_leaf, partial_block_count >> 1);
 
     if ((partial_block_count % 2) != 0) {
       partial_block_count >>= 1;
@@ -501,8 +486,7 @@ __host__ void tree_sign_reduction(
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, lwe_array_out, y, bsks, ksks, ms_noise_reduction_key, last_lut,
-      1);
+      streams, lwe_array_out, y, bsks, ksks, last_lut, 1);
 }
 
 template <typename Torus>
@@ -512,9 +496,7 @@ __host__ void host_integer_radix_difference_check_kb(
     CudaRadixCiphertextFFI const *lwe_array_right,
     int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> reduction_lut_f, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
@@ -554,7 +536,7 @@ __host__ void host_integer_radix_difference_check_kb(
     auto identity_lut = mem_ptr->identity_lut;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, diff_buffer->tmp_packed, diff_buffer->tmp_packed, bsks, ksks,
-        ms_noise_reduction_key, identity_lut, 2 * packed_num_radix_blocks);
+        identity_lut, 2 * packed_num_radix_blocks);
   } else {
     as_radix_ciphertext_slice<Torus>(&lhs, lwe_array_left, 0,
                                      lwe_array_left->num_radix_blocks);
@@ -572,16 +554,14 @@ __host__ void host_integer_radix_difference_check_kb(
     // Compare packed blocks, or simply the total number of radix blocks in the
     // inputs
     compare_radix_blocks_kb<Torus>(streams, comparisons, &lhs, &rhs, mem_ptr,
-                                   bsks, ksks, ms_noise_reduction_key,
-                                   packed_num_radix_blocks);
+                                   bsks, ksks, packed_num_radix_blocks);
     num_comparisons = packed_num_radix_blocks;
   } else {
     // Packing is possible
     if (carry_modulus >= message_modulus) {
       // Compare (num_radix_blocks - 2) / 2 packed blocks
       compare_radix_blocks_kb<Torus>(streams, comparisons, &lhs, &rhs, mem_ptr,
-                                     bsks, ksks, ms_noise_reduction_key,
-                                     packed_num_radix_blocks);
+                                     bsks, ksks, packed_num_radix_blocks);
 
       // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
@@ -595,7 +575,7 @@ __host__ void host_integer_radix_difference_check_kb(
                                        num_radix_blocks - 1);
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, &last_left_block_before_sign_block, &shifted_lwe_array_left,
-          bsks, ksks, ms_noise_reduction_key, identity_lut, 1);
+          bsks, ksks, identity_lut, 1);
 
       CudaRadixCiphertextFFI last_right_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
@@ -608,8 +588,7 @@ __host__ void host_integer_radix_difference_check_kb(
                                        num_radix_blocks - 1);
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, &last_right_block_before_sign_block,
-          &shifted_lwe_array_right, bsks, ksks, ms_noise_reduction_key,
-          identity_lut, 1);
+          &shifted_lwe_array_right, bsks, ksks, identity_lut, 1);
 
       CudaRadixCiphertextFFI shifted_comparisons;
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
@@ -617,8 +596,7 @@ __host__ void host_integer_radix_difference_check_kb(
                                        packed_num_radix_blocks + 1);
       compare_radix_blocks_kb<Torus>(
           streams, &shifted_comparisons, &last_left_block_before_sign_block,
-          &last_right_block_before_sign_block, mem_ptr, bsks, ksks,
-          ms_noise_reduction_key, 1);
+          &last_right_block_before_sign_block, mem_ptr, bsks, ksks, 1);
 
       // Compare the sign block separately
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
@@ -632,14 +610,14 @@ __host__ void host_integer_radix_difference_check_kb(
                                        num_radix_blocks - 1, num_radix_blocks);
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, &shifted_comparisons, &last_left_block, &last_right_block,
-          bsks, ksks, ms_noise_reduction_key, mem_ptr->signed_lut, 1,
+          bsks, ksks, mem_ptr->signed_lut, 1,
           mem_ptr->signed_lut->params.message_modulus);
       num_comparisons = packed_num_radix_blocks + 2;
 
     } else {
-      compare_radix_blocks_kb<Torus>(
-          streams, comparisons, lwe_array_left, lwe_array_right, mem_ptr, bsks,
-          ksks, ms_noise_reduction_key, num_radix_blocks - 1);
+      compare_radix_blocks_kb<Torus>(streams, comparisons, lwe_array_left,
+                                     lwe_array_right, mem_ptr, bsks, ksks,
+                                     num_radix_blocks - 1);
       // Compare the sign block separately
       CudaRadixCiphertextFFI shifted_comparisons;
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
@@ -652,7 +630,7 @@ __host__ void host_integer_radix_difference_check_kb(
                                        num_radix_blocks - 1, num_radix_blocks);
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, &shifted_comparisons, &last_left_block, &last_right_block,
-          bsks, ksks, ms_noise_reduction_key, mem_ptr->signed_lut, 1,
+          bsks, ksks, mem_ptr->signed_lut, 1,
           mem_ptr->signed_lut->params.message_modulus);
       num_comparisons = num_radix_blocks;
     }
@@ -661,9 +639,9 @@ __host__ void host_integer_radix_difference_check_kb(
   // Reduces a vec containing radix blocks that encrypts a sign
   // (inferior, equal, superior) to one single radix block containing the
   // final sign
-  tree_sign_reduction<Torus>(
-      streams, lwe_array_out, comparisons, mem_ptr->diff_buffer->tree_buffer,
-      reduction_lut_f, bsks, ksks, ms_noise_reduction_key, num_comparisons);
+  tree_sign_reduction<Torus>(streams, lwe_array_out, comparisons,
+                             mem_ptr->diff_buffer->tree_buffer, reduction_lut_f,
+                             bsks, ksks, num_comparisons);
 }
 
 template <typename Torus>
@@ -685,9 +663,7 @@ __host__ void host_integer_radix_maxmin_kb(
     CudaRadixCiphertextFFI const *lwe_array_left,
     CudaRadixCiphertextFFI const *lwe_array_right,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
@@ -701,14 +677,12 @@ __host__ void host_integer_radix_maxmin_kb(
   // Compute the sign
   host_integer_radix_difference_check_kb<Torus>(
       streams, mem_ptr->tmp_lwe_array_out, lwe_array_left, lwe_array_right,
-      mem_ptr, mem_ptr->identity_lut_f, bsks, ksks, ms_noise_reduction_key,
-      num_radix_blocks);
+      mem_ptr, mem_ptr->identity_lut_f, bsks, ksks, num_radix_blocks);
 
   // Selector
-  host_integer_radix_cmux_kb<Torus>(streams, lwe_array_out,
-                                    mem_ptr->tmp_lwe_array_out, lwe_array_left,
-                                    lwe_array_right, mem_ptr->cmux_buffer, bsks,
-                                    ksks, ms_noise_reduction_key);
+  host_integer_radix_cmux_kb<Torus>(
+      streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, lwe_array_left,
+      lwe_array_right, mem_ptr->cmux_buffer, bsks, ksks);
 }
 
 template <typename Torus>
@@ -716,15 +690,12 @@ __host__ void host_integer_are_all_comparisons_block_true_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   // It returns a block encrypting 1 if all input blocks are 1
   // otherwise the block encrypts 0
-  are_all_comparisons_block_true<Torus>(
-      streams, lwe_array_out, lwe_array_in, mem_ptr, bsks, ksks,
-      ms_noise_reduction_key, num_radix_blocks);
+  are_all_comparisons_block_true<Torus>(streams, lwe_array_out, lwe_array_in,
+                                        mem_ptr, bsks, ksks, num_radix_blocks);
 }
 
 template <typename Torus>
@@ -732,14 +703,12 @@ __host__ void host_integer_is_at_least_one_comparisons_block_true_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_radix_blocks) {
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   // It returns a block encrypting 1 if all input blocks are 1
   // otherwise the block encrypts 0
-  is_at_least_one_comparisons_block_true<Torus>(
-      streams, lwe_array_out, lwe_array_in, mem_ptr, bsks, ksks,
-      ms_noise_reduction_key, num_radix_blocks);
+  is_at_least_one_comparisons_block_true<Torus>(streams, lwe_array_out,
+                                                lwe_array_in, mem_ptr, bsks,
+                                                ksks, num_radix_blocks);
 }
 #endif

@@ -28,9 +28,7 @@ template <typename Torus>
 __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    uint32_t num_blocks) {
+    Torus *const *ksks, uint32_t num_blocks) {
 
   if (lwe_array->num_radix_blocks < num_blocks)
     PANIC("Cuda error: input does not have enough blocks")
@@ -81,9 +79,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, &partial_current_blocks, &partial_current_blocks,
-        &partial_previous_blocks, bsks, ksks, ms_noise_reduction_key,
-        lut_bivariate, partial_block_count,
-        lut_bivariate->params.message_modulus);
+        &partial_previous_blocks, bsks, ksks, lut_bivariate,
+        partial_block_count, lut_bivariate->params.message_modulus);
 
   } else {
     // right shift
@@ -113,8 +110,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, partial_current_blocks, partial_current_blocks,
-        &partial_next_blocks, bsks, ksks, ms_noise_reduction_key, lut_bivariate,
-        partial_block_count, lut_bivariate->params.message_modulus);
+        &partial_next_blocks, bsks, ksks, lut_bivariate, partial_block_count,
+        lut_bivariate->params.message_modulus);
   }
 }
 
@@ -135,8 +132,7 @@ template <typename Torus>
 __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks,
-    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+    Torus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
@@ -205,9 +201,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
 
         integer_radix_apply_bivariate_lookup_table_kb<Torus>(
             streams, partial_current_blocks, partial_current_blocks,
-            &partial_next_blocks, bsks, ksks, ms_noise_reduction_key,
-            lut_bivariate, partial_block_count,
-            lut_bivariate->params.message_modulus);
+            &partial_next_blocks, bsks, ksks, lut_bivariate,
+            partial_block_count, lut_bivariate->params.message_modulus);
       }
       // Since our CPU threads will be working on different streams we shall
       // Ensure the work in the main stream is completed
@@ -216,7 +211,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
           mem->lut_buffers_univariate[num_bits_in_block - 1];
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           mem->local_streams_1, &padding_block, &last_block_copy, bsks, ksks,
-          ms_noise_reduction_key, lut_univariate_padding_block, 1);
+          lut_univariate_padding_block, 1);
       // Replace blocks 'pulled' from the left with the correct padding
       // block
       for (uint i = 0; i < rotations; i++) {
@@ -230,7 +225,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
             mem->lut_buffers_univariate[shift_within_block - 1];
         integer_radix_apply_univariate_lookup_table_kb<Torus>(
             mem->local_streams_2, &last_block, &last_block_copy, bsks, ksks,
-            ms_noise_reduction_key, lut_univariate_shift_last_block, 1);
+            lut_univariate_shift_last_block, 1);
       }
 
       mem->local_streams_1.synchronize();

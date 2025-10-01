@@ -18,15 +18,16 @@ impl CompressedNoiseSquashingKey {
             } => {
                 let std_bsk = seeded_bsk.as_view().par_decompress_into_lwe_bootstrap_key();
 
-                let modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
-            CompressedModulusSwitchConfiguration::Standard => None,
-            CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
-                modulus_switch_noise_reduction_key,
-            ) => Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&modulus_switch_noise_reduction_key.decompress(), streams)),
-            CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
-            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
-            }
-        };
+                let modulus_switch_noise_reduction_configuration =
+                    match modulus_switch_noise_reduction_key {
+                        CompressedModulusSwitchConfiguration::Standard => None,
+                        CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                            _modulus_switch_noise_reduction_key,
+                        ) => panic!("Drift noise reduction is not supported on GPU"),
+                        CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
+                            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+                        }
+                    };
 
                 let bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &std_bsk,
