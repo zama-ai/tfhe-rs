@@ -197,6 +197,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the input slice with random noise, using the random generator.
+    #[cfg(test)]
     pub(crate) fn fill_slice_with_random_noise_from_distribution<D, Scalar>(
         &mut self,
         output: &mut [Scalar],

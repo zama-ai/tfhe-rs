@@ -967,8 +967,7 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 plaintext,
                 glwe_noise_distribution,
                 glwe_noise_distribution,
-                &mut rsc.secret_random_generator,
-                &mut rsc.encryption_random_generator,
+                rsc.encryption_random_generator.noise_generator_mut(),
             );
 
             assert!(check_encrypted_content_respects_mod(
@@ -1072,8 +1071,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                     delta,
                     glwe_noise_distribution,
                     glwe_noise_distribution,
-                    &mut rsc.secret_random_generator,
-                    &mut rsc.encryption_random_generator,
+                    rsc.encryption_random_generator.noise_generator_mut(),
                     &mut random_generator,
                     crs,
                     &metadata,

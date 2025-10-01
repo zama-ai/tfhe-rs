@@ -162,8 +162,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
                 plaintext,
                 glwe_noise_distribution,
                 glwe_noise_distribution,
-                &mut rsc.secret_random_generator,
-                &mut rsc.encryption_random_generator,
+                rsc.encryption_random_generator.noise_generator_mut(),
             );
 
             assert!(check_encrypted_content_respects_mod(
