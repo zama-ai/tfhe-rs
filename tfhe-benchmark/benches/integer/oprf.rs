@@ -59,14 +59,13 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             BenchmarkType::Throughput => {
                 let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
                 reset_pbs_count();
                 sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                     Seed(0),
                     bit_size as u64,
                     num_block as u64,
                 );
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1);
 
                 bench_id_oprf = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_id_oprf_bounded =
@@ -122,11 +121,13 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 pub mod cuda {
     use super::*;
+    use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use benchmark::utilities::cuda_integer_utils::cuda_local_keys;
     use criterion::black_box;
     use std::cmp::max;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe::shortint::AtomicPatternParameters;
     use tfhe::GpuIndex;
     use tfhe_csprng::seeders::Seed;
 
@@ -138,7 +139,14 @@ pub mod cuda {
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
 
-        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        let param: AtomicPatternParameters =
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let num_blocks_to_bench = [32, 64, 128];
+
+        for num_block in num_blocks_to_bench {
+            let bits_per_block = (param.message_modulus().0 as f64).log2().floor() as usize;
+            let bit_size = num_block * bits_per_block;
+
             let param_name = param.name();
 
             let bench_id_oprf;
@@ -190,14 +198,13 @@ pub mod cuda {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
-                    // Execute the operation once to know its cost.
                     reset_pbs_count();
                     cpu_sks.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         Seed(0),
                         bit_size as u64,
                         num_block as u64,
                     );
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1);
 
                     bench_id_oprf =
                         format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
