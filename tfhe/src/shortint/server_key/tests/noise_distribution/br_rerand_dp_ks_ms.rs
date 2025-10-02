@@ -11,14 +11,14 @@ use super::utils::{
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
-use crate::shortint::atomic_pattern::AtomicPattern;
-use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::key_switching_key::{KeySwitchingKey, KeySwitchingKeyBuildHelper};
+use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
+use crate::shortint::list_compression::{CompressionPrivateKeys, DecompressionKey};
 use crate::shortint::parameters::test_params::{
+    TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -27,14 +27,14 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
-    ShortintKeySwitchingParameters,
+    CompactPublicKeyEncryptionParameters, CompressionParameters,
+    ShortintCompactCiphertextListCastingMode, ShortintKeySwitchingParameters,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
-use crate::shortint::{Ciphertext, PaddingBit};
+use crate::shortint::{Ciphertext, PBSOrder, PaddingBit};
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -49,7 +49,7 @@ pub fn br_rerand_dp_ks_any_ms<
     KsResult,
     DriftTechniqueResult,
     MsResult,
-    PBSKey,
+    DecompPBSKey,
     DPScalar,
     KsKey,
     DriftKey,
@@ -57,14 +57,14 @@ pub fn br_rerand_dp_ks_any_ms<
     Resources,
 >(
     input: InputCt,
-    bsk: &PBSKey,
+    decomp_bsk: &DecompPBSKey,
     input_zero_rerand: InputZeroRerand,
     ksk_rerand: &KsKeyRerand,
     scalar: DPScalar,
     ksk: &KsKey,
     modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
     mod_switch_noise_reduction_key: Option<&DriftKey>,
-    accumulator: &Accumulator,
+    decomp_accumulator: &Accumulator,
     br_input_modulus_log: CiphertextModulusLog,
     side_resources: &mut Resources,
 ) -> (
@@ -78,7 +78,8 @@ pub fn br_rerand_dp_ks_any_ms<
 )
 where
     Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    PBSKey: LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
+    DecompPBSKey:
+        LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
     KsKeyRerand: AllocateLweKeyswitchResult<Output = KsedZeroReRand, SideResources = Resources>
         + LweKeyswitch<InputZeroRerand, KsedZeroReRand, SideResources = Resources>,
     PBSResult: for<'a> LweUncorrelatedAdd<
@@ -107,8 +108,8 @@ where
         >,
 {
     // BR to decomp
-    let mut br_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk.lwe_classic_fft_pbs(&input, &mut br_result, accumulator, side_resources);
+    let mut br_result = decomp_accumulator.allocate_lwe_bootstrap_result(side_resources);
+    decomp_bsk.lwe_classic_fft_pbs(&input, &mut br_result, decomp_accumulator, side_resources);
 
     // Ks the CPK encryption of 0 to be added to BR result
     let mut ksed_zero_rerand = ksk_rerand.allocate_lwe_keyswitch_result(side_resources);
@@ -173,14 +174,24 @@ where
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
     params: AtomicPatternParameters,
+    cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
+    single_cpk_private_key: &CompactPrivateKey<Vec<u64>>,
+    single_cpk: &CompactPublicKey,
+    single_ksk_rerand: &KeySwitchingKeyView<'_>,
+    single_comp_private_key: &CompressionPrivateKeys,
+    single_decomp_key: &DecompressionKey,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
     msg: u64,
     scalar_for_multiplication: u64,
 ) -> (
-    DecryptionAndNoiseResult,
+    (DecryptionAndNoiseResult, DecryptionAndNoiseResult),
+    (DecryptionAndNoiseResult, DecryptionAndNoiseResult),
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
@@ -188,16 +199,59 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
     DecryptionAndNoiseResult,
 ) {
     let mut engine = ShortintEngine::new();
+    let thread_cpk_private_key;
+    let thread_cpk;
+    let thread_ksk_rerand_builder;
+    let thread_ksk_rerand;
+    let thread_comp_private_key;
+    let thread_decomp_key;
     let thread_cks;
     let thread_sks;
-    let (cks, sks) = if should_use_single_key_debug() {
-        (single_cks, single_sks)
-    } else {
-        thread_cks = engine.new_client_key(params);
-        thread_sks = engine.new_server_key(&thread_cks);
+    let (cpk_private_key, cpk, ksk_rerand, comp_private_key, decomp_key, cks, sks) =
+        if should_use_single_key_debug() {
+            (
+                single_cpk_private_key,
+                single_cpk,
+                single_ksk_rerand,
+                single_comp_private_key,
+                single_decomp_key,
+                single_cks,
+                single_sks,
+            )
+        } else {
+            thread_cpk_private_key = CompactPrivateKey::new_with_engine(cpk_params, &mut engine);
+            thread_cpk = CompactPublicKey::new_with_engine(&thread_cpk_private_key, &mut engine);
+            thread_cks = engine.new_client_key(params);
+            thread_sks = engine.new_server_key(&thread_cks);
 
-        (&thread_cks, &thread_sks)
-    };
+            thread_ksk_rerand_builder = KeySwitchingKeyBuildHelper::new_with_engine(
+                (&thread_cpk_private_key, None),
+                (&thread_cks, &thread_sks),
+                rerand_ksk_params,
+                &mut engine,
+            );
+            thread_ksk_rerand = thread_ksk_rerand_builder.as_key_switching_key_view();
+
+            thread_comp_private_key =
+                thread_cks.new_compression_private_key_with_engine(compression_params, &mut engine);
+            // TODO update once KS32 refactor is merged there are new primitives to make this easier
+            // to manage
+            thread_decomp_key = thread_cks.new_decompression_key_with_params_and_engine(
+                &thread_comp_private_key,
+                compression_params,
+                &mut engine,
+            );
+
+            (
+                &thread_cpk_private_key,
+                &thread_cpk,
+                &thread_ksk_rerand,
+                &thread_comp_private_key,
+                &thread_decomp_key,
+                &thread_cks,
+                &thread_sks,
+            )
+        };
 
     let br_input_modulus_log = sks.br_input_modulus_log();
     let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
@@ -207,11 +261,30 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
 
-    let ct = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
+    let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(&cks, 0, &mut engine);
 
-    let id_lut = sks.generate_lookup_table(|x| x);
+    let cpk_ct_zero_rerand = {
+        let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
+            core::iter::once(0),
+            cpk.parameters.message_modulus.0,
+            &mut engine,
+        );
+        let mut expanded = compact_list
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap();
+        assert_eq!(expanded.len(), 1);
 
-    // let (input, after_br, after_dp, after_ks, after_drift, after_ms)
+        DynLwe::U64(expanded.pop().unwrap().ct)
+    };
+
+    let decomp_rescale_lut = decomp_key.rescaling_lut(
+        sks.ciphertext_modulus,
+        sks.message_modulus,
+        CarryModulus(1),
+        sks.message_modulus,
+        sks.carry_modulus,
+    );
+
     let (
         (input, after_br),
         (input_zero_rerand, after_ksed_zero_rerand),
@@ -222,14 +295,14 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
         after_ms,
     ) = br_rerand_dp_ks_any_ms(
         ct,
-        sks,
+        decomp_key,
         cpk_ct_zero_rerand,
         ksk_rerand,
         scalar_for_multiplication,
         sks,
         noise_simulation_modulus_switch_config,
         drift_key,
-        &id_lut,
+        &decomp_rescale_lut,
         br_input_modulus_log,
         &mut (),
     );
@@ -239,140 +312,159 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
     match &cks.atomic_pattern {
         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
             let params = standard_atomic_pattern_client_key.parameters;
-            let output_encoding = ShortintEncoding {
+            let comp_encoding = ShortintEncoding {
+                ciphertext_modulus: params.ciphertext_modulus(),
+                message_modulus: params.message_modulus(),
+                // Adapt to the compression which has no carry bits
+                carry_modulus: CarryModulus(1),
+                padding_bit: PaddingBit::Yes,
+            };
+            let compute_encoding = ShortintEncoding {
                 ciphertext_modulus: params.ciphertext_modulus(),
                 message_modulus: params.message_modulus(),
                 carry_modulus: params.carry_modulus(),
                 padding_bit: PaddingBit::Yes,
             };
-            let large_lwe_secret_key = standard_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_lwe_secret_key = standard_atomic_pattern_client_key.small_lwe_secret_key();
+
+            let cpk_lwe_secret_key = cpk_private_key.key();
+            let comp_lwe_secret_key = comp_private_key.post_packing_ks_key.as_lwe_secret_key();
+
+            let large_compute_lwe_secret_key =
+                standard_atomic_pattern_client_key.large_lwe_secret_key();
+            let small_compute_lwe_secret_key =
+                standard_atomic_pattern_client_key.small_lwe_secret_key();
             (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_64(),
-                    &small_lwe_secret_key,
-                    msg,
-                    &output_encoding,
+                (
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &input.as_lwe_64(),
+                        &comp_lwe_secret_key,
+                        msg,
+                        &comp_encoding,
+                    ),
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &after_br.as_lwe_64(),
+                        &large_compute_lwe_secret_key,
+                        msg,
+                        &compute_encoding,
+                    ),
+                ),
+                (
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &input_zero_rerand.as_lwe_64(),
+                        &cpk_lwe_secret_key,
+                        msg,
+                        &compute_encoding,
+                    ),
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &after_ksed_zero_rerand.as_lwe_64(),
+                        &large_compute_lwe_secret_key,
+                        msg,
+                        &compute_encoding,
+                    ),
                 ),
                 DecryptionAndNoiseResult::new_from_lwe(
-                    &after_br.as_lwe_64(),
-                    &large_lwe_secret_key,
+                    &after_rerand.as_lwe_64(),
+                    &large_compute_lwe_secret_key,
                     msg,
-                    &output_encoding,
+                    &compute_encoding,
                 ),
                 DecryptionAndNoiseResult::new_from_lwe(
                     &after_dp.as_lwe_64(),
-                    &large_lwe_secret_key,
+                    &large_compute_lwe_secret_key,
                     msg,
-                    &output_encoding,
+                    &compute_encoding,
                 ),
                 DecryptionAndNoiseResult::new_from_lwe(
                     &after_ks.as_lwe_64(),
-                    &small_lwe_secret_key,
+                    &small_compute_lwe_secret_key,
                     msg,
-                    &output_encoding,
+                    &compute_encoding,
                 ),
                 DecryptionAndNoiseResult::new_from_lwe(
                     &before_ms.as_lwe_64(),
-                    &small_lwe_secret_key,
+                    &small_compute_lwe_secret_key,
                     msg,
-                    &output_encoding,
+                    &compute_encoding,
                 ),
                 DecryptionAndNoiseResult::new_from_lwe(
                     &after_ms.as_lwe_64(),
-                    &small_lwe_secret_key,
+                    &small_compute_lwe_secret_key,
                     msg,
-                    &output_encoding,
+                    &compute_encoding,
                 ),
             )
         }
-        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-            let msg_u32: u32 = msg.try_into().unwrap();
-            let params = ks32_atomic_pattern_client_key.parameters;
-            let small_key_encoding = ShortintEncoding {
-                ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let big_key_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let large_lwe_secret_key = ks32_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_lwe_secret_key = ks32_atomic_pattern_client_key.small_lwe_secret_key();
-            (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_br.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &big_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_dp.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &big_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-            )
+        AtomicPatternClientKey::KeySwitch32(_) => {
+            todo!()
         }
     }
 }
 
 fn encrypt_br_rerand_dp_ks_any_ms_noise_helper(
     params: AtomicPatternParameters,
+    cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
+    single_cpk_private_key: &CompactPrivateKey<Vec<u64>>,
+    single_cpk: &CompactPublicKey,
+    single_ksk_rerand: &KeySwitchingKeyView<'_>,
+    single_comp_private_key: &CompressionPrivateKeys,
+    single_decomp_key: &DecompressionKey,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
     msg: u64,
     scalar_for_multiplication: u64,
 ) -> (
-    NoiseSample,
+    (NoiseSample, NoiseSample),
+    (NoiseSample, NoiseSample),
     NoiseSample,
     NoiseSample,
     NoiseSample,
     NoiseSample,
     NoiseSample,
 ) {
-    let (input, after_br, after_dp, after_ks, before_ms, after_ms) =
-        encrypt_br_rerand_dp_ks_any_ms_inner_helper(
-            params,
-            single_cks,
-            single_sks,
-            msg,
-            scalar_for_multiplication,
-        );
+    let (
+        (input, after_br),
+        (input_zero_rerand, after_ksed_zero_rerand),
+        after_rerand,
+        after_dp,
+        after_ks,
+        before_ms,
+        after_ms,
+    ) = encrypt_br_rerand_dp_ks_any_ms_inner_helper(
+        params,
+        cpk_params,
+        rerand_ksk_params,
+        compression_params,
+        single_cpk_private_key,
+        single_cpk,
+        single_ksk_rerand,
+        single_comp_private_key,
+        single_decomp_key,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+    );
 
     (
-        input
-            .get_noise_if_decryption_was_correct()
-            .expect("Decryption Failed"),
-        after_br
+        (
+            input
+                .get_noise_if_decryption_was_correct()
+                .expect("Decryption Failed"),
+            after_br
+                .get_noise_if_decryption_was_correct()
+                .expect("Decryption Failed"),
+        ),
+        (
+            input_zero_rerand
+                .get_noise_if_decryption_was_correct()
+                .expect("Decryption Failed"),
+            after_ksed_zero_rerand
+                .get_noise_if_decryption_was_correct()
+                .expect("Decryption Failed"),
+        ),
+        after_rerand
             .get_noise_if_decryption_was_correct()
             .expect("Decryption Failed"),
         after_dp
@@ -390,29 +482,30 @@ fn encrypt_br_rerand_dp_ks_any_ms_noise_helper(
     )
 }
 
-fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
-    params: AtomicPatternParameters,
-    single_cks: &ClientKey,
-    single_sks: &ServerKey,
-    msg: u64,
-    scalar_for_multiplication: u64,
-) -> DecryptionAndNoiseResult {
-    let (_input, _after_br, _after_dp, _after_ks, _before_ms, after_ms) =
-        encrypt_br_rerand_dp_ks_any_ms_inner_helper(
-            params,
-            single_cks,
-            single_sks,
-            msg,
-            scalar_for_multiplication,
-        );
+// fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
+//     params: AtomicPatternParameters,
+//     single_cks: &ClientKey,
+//     single_sks: &ServerKey,
+//     msg: u64,
+//     scalar_for_multiplication: u64,
+// ) -> DecryptionAndNoiseResult {
+//     let (_input, _after_br, _after_dp, _after_ks, _before_ms, after_ms) =
+//         encrypt_br_rerand_dp_ks_any_ms_inner_helper(
+//             params,
+//             single_cks,
+//             single_sks,
+//             msg,
+//             scalar_for_multiplication,
+//         );
 
-    after_ms
-}
+//     after_ms
+// }
 
 fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
     params: P,
     mut cpk_params: CompactPublicKeyEncryptionParameters,
     rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
 ) where
     P: Into<AtomicPatternParameters>,
 {
@@ -426,27 +519,30 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
         cpk_params
     };
 
-    let cks = ClientKey::new(params);
     let cpk_private_key = CompactPrivateKey::new(cpk_params);
     let cpk = CompactPublicKey::new(&cpk_private_key);
+    let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
-    let ksk_rerand: KeySwitchingKey =
-        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params)
-            .into();
+    let comp_private_key = cks.new_compression_private_key(compression_params);
+    // TODO update once KS32 refactor is merged there are new primitives to make this easier to
+    // manage
+    let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+
+    let ksk_rerand_builder =
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
+    let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_ksk_rerand =
-        NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(todo!(
-            "Manage rerand case with CPK + dedicated KSK params for rerand"
-        ));
+        NoiseSimulationLweKeyswitchKey::new_from_cpk_params(cpk_params, rerand_ksk_params, params);
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
-    let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_decomp_bsk =
+        NoiseSimulationLweFourierBsk::new_from_comp_parameters(params, compression_params);
 
     let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-    let br_input_modulus_log = sks.br_input_modulus_log();
+    let compute_br_input_modulus_log = sks.br_input_modulus_log();
     let expected_average_after_ms =
         noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
@@ -457,6 +553,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
     };
 
     assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
+    assert!(noise_simulation_ksk_rerand.matches_actual_shortint_keyswitching_key(&ksk_rerand));
     match (noise_simulation_drift_key, drift_key) {
         (Some(noise_simulation_drift_key), Some(drift_key)) => {
             assert!(noise_simulation_drift_key.matches_actual_shortint_server_key(drift_key))
@@ -464,7 +561,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
         (None, None) => (),
         _ => panic!("Inconsistent Drift Key configuration"),
     }
-    assert!(noise_simulation_bsk.matches_actual_shortint_server_key(&sks));
+    assert!(noise_simulation_decomp_bsk.matches_actual_shortint_decomp_key(&decomp_key));
 
     let max_scalar_mul = sks.max_noise_level.get();
 
@@ -479,20 +576,22 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
     ) = {
         // Noiseless LWE already mod switched is the input of the AP for testing
         let noise_simulation_input = NoiseSimulationLwe::new(
-            noise_simulation_bsk.input_lwe_dimension(),
+            noise_simulation_decomp_bsk.input_lwe_dimension(),
             Variance(0.0),
-            NoiseSimulationModulus::Other(1 << br_input_modulus_log.0),
+            NoiseSimulationModulus::Other(1 << compute_br_input_modulus_log.0),
         );
-        let noise_simulation_input_zero_rerand = NoiseSimulationLwe::new(todo!(), todo!(), todo!());
+        let noise_simulation_input_zero_rerand = NoiseSimulationLwe::encrypt_with_cpk(&cpk);
         let noise_simulation_accumulator = NoiseSimulationGlwe::new(
-            noise_simulation_bsk.output_glwe_size().to_glwe_dimension(),
-            noise_simulation_bsk.output_polynomial_size(),
+            noise_simulation_decomp_bsk
+                .output_glwe_size()
+                .to_glwe_dimension(),
+            noise_simulation_decomp_bsk.output_polynomial_size(),
             Variance(0.0),
-            noise_simulation_bsk.modulus(),
+            noise_simulation_decomp_bsk.modulus(),
         );
         br_rerand_dp_ks_any_ms(
             noise_simulation_input,
-            &noise_simulation_bsk,
+            &noise_simulation_decomp_bsk,
             noise_simulation_input_zero_rerand,
             &noise_simulation_ksk_rerand,
             max_scalar_mul,
@@ -500,13 +599,22 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
             noise_simulation_modulus_switch_config,
             noise_simulation_drift_key.as_ref(),
             &noise_simulation_accumulator,
-            br_input_modulus_log,
+            compute_br_input_modulus_log,
             &mut (),
         )
     };
 
-    let id_lut = sks.generate_lookup_table(|x| x);
-    let sample_input = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
+    let decomp_rescale_lut = decomp_key.rescaling_lut(
+        sks.ciphertext_modulus,
+        sks.message_modulus,
+        CarryModulus(1),
+        sks.message_modulus,
+        sks.carry_modulus,
+    );
+
+    let sample_input = ShortintEngine::with_thread_local_mut(|engine| {
+        comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(&cks, 0, engine)
+    });
     let cpk_zero_sample_input = {
         let compact_list = cpk.encrypt_slice(&[0]);
         let mut expanded = compact_list
@@ -530,15 +638,15 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
             after_ms,
         ) = br_rerand_dp_ks_any_ms(
             sample_input,
-            &sks,
+            &decomp_key,
             cpk_zero_sample_input,
             &ksk_rerand,
             max_scalar_mul,
             &sks,
             noise_simulation_modulus_switch_config,
             drift_key,
-            &id_lut,
-            br_input_modulus_log,
+            &decomp_rescale_lut,
+            compute_br_input_modulus_log,
             &mut (),
         );
 
@@ -559,14 +667,29 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
             ..sample_count_per_msg)
             .into_par_iter()
             .map(|_| {
-                let (_input, _after_br, _after_dp, _after_ks, before_ms, after_ms) =
-                    encrypt_br_rerand_dp_ks_any_ms_noise_helper(
-                        params,
-                        &cks,
-                        &sks,
-                        0,
-                        max_scalar_mul,
-                    );
+                let (
+                    (_input, _after_br),
+                    (_input_zero_rerand, _after_ksed_zero_rerand),
+                    _after_rerand,
+                    _after_dp,
+                    _after_ks,
+                    before_ms,
+                    after_ms,
+                ) = encrypt_br_rerand_dp_ks_any_ms_noise_helper(
+                    params,
+                    cpk_params,
+                    rerand_ksk_params,
+                    compression_params,
+                    &cpk_private_key,
+                    &cpk,
+                    &ksk_rerand,
+                    &comp_private_key,
+                    &decomp_key,
+                    &cks,
+                    &sks,
+                    0,
+                    max_scalar_mul,
+                );
                 (before_ms.value, after_ms.value)
             })
             .unzip();
@@ -602,5 +725,6 @@ fn test_noise_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pb
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }

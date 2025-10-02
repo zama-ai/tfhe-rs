@@ -178,19 +178,27 @@ impl ClientKey {
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_compression_private_key_with_engine(params, engine)
+        })
+    }
+
+    pub(crate) fn new_compression_private_key_with_engine(
+        &self,
+        params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> CompressionPrivateKeys {
         assert_eq!(
             self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.packing_ks_glwe_dimension,
-                params.packing_ks_polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
+        let post_packing_ks_key = allocate_and_generate_new_binary_glwe_secret_key(
+            params.packing_ks_glwe_dimension,
+            params.packing_ks_polynomial_size,
+            &mut engine.secret_generator,
+        );
 
         CompressionPrivateKeys {
             post_packing_ks_key,
