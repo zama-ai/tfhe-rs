@@ -3,6 +3,16 @@ name: benchmark_core_crypto
 
 on:
   workflow_dispatch:
+    inputs:
+      param_type:
+        description: "Parameters type"
+        type: choice
+        default: classical
+        options:
+          - classical
+          - multi_bit
+          - both
+
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 5a.m.
     - cron: '0 5 * * 6'
@@ -22,8 +32,38 @@ env:
 permissions: {}
 
 jobs:
+  prepare-matrix:
+    name: benchmark_core_crypto/prepare-matrix
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      param_type: ${{ steps.set_param_type.outputs.param_type }}
+    steps:
+      - name: Set parameters types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${INPUTS_PARAM_TYPE}" == "both" ]]; then
+            echo "PARAM_TYPE=[\"classical\", \"multi_bit\"]" >> "${GITHUB_ENV}"
+          else
+            echo "PARAM_TYPE=[\"${INPUTS_PARAM_TYPE}\"]" >> "${GITHUB_ENV}"
+          fi
+        env:
+          INPUTS_PARAM_TYPE: ${{ inputs.param_type }}
+
+      - name: Default parameters type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "PARAM_TYPE=[\"classical\"]" >> "${GITHUB_ENV}"
+
+      - name: Set parameters types output
+        id: set_param_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "param_type=${{ toJSON(env.PARAM_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
   setup-instance:
     name: benchmark_core_crypto/setup-instance
+    needs: prepare-matrix
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -43,11 +83,16 @@ jobs:
 
   core-crypto-benchmarks:
     name: benchmark_core_crypto/core-crypto-benchmarks
-    needs: setup-instance
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    timeout-minutes: 1440  # 24 hours
+    strategy:
+      max-parallel: 1
+      matrix:
+        param_type: ${{ fromJSON(needs.prepare-matrix.outputs.param_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -78,6 +123,8 @@ jobs:
           make bench_pbs
           make bench_pbs128
           make bench_ks
+        env:
+          BENCH_PARAM_TYPE: ${{ matrix.param_type }}
 
       - name: Parse results
         run: |
@@ -96,7 +143,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_core_crypto
+          name: ${{ github.sha }}_core_crypto_${{ matrix.param_type }}_pbs
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
