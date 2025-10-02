@@ -1314,14 +1314,21 @@ mod tests {
 
     #[test]
     fn test_compact_list_with_casting() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        for compute_param in [
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
+        ] {
+            test_compact_list_with_casting_inner(compute_param);
+        }
+    }
+
+    fn test_compact_list_with_casting_inner(params: AtomicPatternParameters) {
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
 
         let ck = crate::ClientKey::generate(config);
         let sk = crate::ServerKey::new(&ck);
@@ -1373,14 +1380,22 @@ mod tests {
     #[cfg(feature = "zk-pok")]
     #[test]
     fn test_proven_compact_list() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        for compute_param in [
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
+        ] {
+            test_proven_compact_list_inner(compute_param);
+        }
+    }
+
+    #[cfg(feature = "zk-pok")]
+    fn test_proven_compact_list_inner(params: AtomicPatternParameters) {
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
 
         let ck = crate::ClientKey::generate(config);
         let pk = crate::CompactPublicKey::new(&ck);
@@ -1544,16 +1559,24 @@ mod tests {
     #[cfg(feature = "strings")]
     #[test]
     fn test_compact_list_with_string_and_casting() {
+        for compute_param in [
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
+        ] {
+            test_compact_list_with_string_and_casting_inner(compute_param);
+        }
+    }
+
+    #[cfg(feature = "strings")]
+    fn test_compact_list_with_string_and_casting_inner(params: AtomicPatternParameters) {
         use crate::FheAsciiString;
 
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
 
         let ck = crate::ClientKey::generate(config);
         let sk = crate::ServerKey::new(&ck);
