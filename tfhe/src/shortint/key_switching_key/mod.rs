@@ -269,6 +269,20 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
     where
         InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
     {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            Self::new_with_engine(input_key_pair, output_key_pair, params, engine)
+        })
+    }
+
+    pub(crate) fn new_with_engine<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&'keys ServerKey>),
+        output_key_pair: (&'keys ClientKey, &'keys ServerKey),
+        params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
+    {
         let input_secret_key: SecretEncryptionKeyView<'_> = input_key_pair.0.into();
 
         let output_cks = output_key_pair.0;
@@ -311,6 +325,20 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
             },
             dest_server_key,
             src_server_key: input_key_pair.1,
+        }
+    }
+
+    pub fn as_key_switching_key_view(&self) -> KeySwitchingKeyView<'_> {
+        let Self {
+            key_switching_key_material,
+            dest_server_key,
+            src_server_key,
+        } = self;
+
+        KeySwitchingKeyView {
+            key_switching_key_material: key_switching_key_material.as_view(),
+            dest_server_key: *dest_server_key,
+            src_server_key: *src_server_key,
         }
     }
 }
