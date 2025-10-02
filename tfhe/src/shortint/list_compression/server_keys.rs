@@ -52,6 +52,21 @@ impl ClientKey {
         private_compression_key: &CompressionPrivateKeys,
         compression_params: CompressionParameters,
     ) -> DecompressionKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_decompression_key_with_params_and_engine(
+                private_compression_key,
+                compression_params,
+                engine,
+            )
+        })
+    }
+
+    pub(crate) fn new_decompression_key_with_params_and_engine(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
         let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
             panic!("Only the standard atomic pattern supports compression")
         };
@@ -64,18 +79,16 @@ impl ClientKey {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_classic_bootstrapping_key(
-                &private_compression_key
-                    .post_packing_ks_key
-                    .as_lwe_secret_key(),
-                &std_cks.glwe_secret_key,
-                pbs_params.glwe_noise_distribution(),
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.ciphertext_modulus(),
-            )
-        });
+        let blind_rotate_key = engine.new_classic_bootstrapping_key(
+            &private_compression_key
+                .post_packing_ks_key
+                .as_lwe_secret_key(),
+            &std_cks.glwe_secret_key,
+            pbs_params.glwe_noise_distribution(),
+            compression_params.br_base_log,
+            compression_params.br_level,
+            pbs_params.ciphertext_modulus(),
+        );
 
         DecompressionKey {
             blind_rotate_key,
