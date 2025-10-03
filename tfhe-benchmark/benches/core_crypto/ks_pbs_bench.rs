@@ -1147,11 +1147,11 @@ pub fn ks_pbs_group() {
 
 pub fn multi_bit_ks_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_ks_pbs(
-        &mut criterion,
-        &multi_bit_benchmark_parameters_with_grouping(),
-        false,
-    );
+    //multi_bit_ks_pbs(
+    //    &mut criterion,
+    //    &multi_bit_benchmark_parameters_with_grouping(),
+    //    false,
+    //);
     multi_bit_ks_pbs(
         &mut criterion,
         &multi_bit_benchmark_parameters_with_grouping(),
