@@ -20,8 +20,7 @@ use crate::shortint::list_compression::{CompressionPrivateKeys, DecompressionKey
 use crate::shortint::parameters::test_params::{
     TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    // TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
@@ -32,12 +31,12 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
-use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
-use crate::shortint::{Ciphertext, PBSOrder, PaddingBit};
+use crate::shortint::PaddingBit;
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn br_rerand_dp_ks_any_ms<
     InputCt,
     InputZeroRerand,
@@ -175,6 +174,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
     params: AtomicPatternParameters,
     cpk_params: CompactPublicKeyEncryptionParameters,
@@ -261,7 +261,7 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
     };
 
-    let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(&cks, 0, &mut engine);
+    let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(cks, 0, &mut engine);
 
     let cpk_ct_zero_rerand = {
         let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
@@ -400,6 +400,8 @@ fn encrypt_br_rerand_dp_ks_any_ms_inner_helper(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn encrypt_br_rerand_dp_ks_any_ms_noise_helper(
     params: AtomicPatternParameters,
     cpk_params: CompactPublicKeyEncryptionParameters,
@@ -482,24 +484,49 @@ fn encrypt_br_rerand_dp_ks_any_ms_noise_helper(
     )
 }
 
-// fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
-//     params: AtomicPatternParameters,
-//     single_cks: &ClientKey,
-//     single_sks: &ServerKey,
-//     msg: u64,
-//     scalar_for_multiplication: u64,
-// ) -> DecryptionAndNoiseResult {
-//     let (_input, _after_br, _after_dp, _after_ks, _before_ms, after_ms) =
-//         encrypt_br_rerand_dp_ks_any_ms_inner_helper(
-//             params,
-//             single_cks,
-//             single_sks,
-//             msg,
-//             scalar_for_multiplication,
-//         );
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
+    params: AtomicPatternParameters,
+    cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
+    single_cpk_private_key: &CompactPrivateKey<Vec<u64>>,
+    single_cpk: &CompactPublicKey,
+    single_ksk_rerand: &KeySwitchingKeyView<'_>,
+    single_comp_private_key: &CompressionPrivateKeys,
+    single_decomp_key: &DecompressionKey,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+) -> DecryptionAndNoiseResult {
+    let (
+        (_input, _after_br),
+        (_input_zero_rerand, _after_ksed_zero_rerand),
+        _after_rerand,
+        _after_dp,
+        _after_ks,
+        _before_ms,
+        after_ms,
+    ) = encrypt_br_rerand_dp_ks_any_ms_inner_helper(
+        params,
+        cpk_params,
+        rerand_ksk_params,
+        compression_params,
+        single_cpk_private_key,
+        single_cpk,
+        single_ksk_rerand,
+        single_comp_private_key,
+        single_decomp_key,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+    );
 
-//     after_ms
-// }
+    after_ms
+}
 
 fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
     params: P,
@@ -722,6 +749,117 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
 #[test]
 fn test_noise_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
     noise_check_encrypt_br_dp_ks_ms_noise(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail<P>(
+    params: P,
+    mut cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
+) where
+    P: Into<AtomicPatternParameters> + Copy,
+{
+    // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
+    // expand
+    let cpk_params = {
+        let params: AtomicPatternParameters = params.into();
+
+        cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+            params.encryption_key_choice().into_pbs_order(),
+        );
+        cpk_params
+    };
+
+    let (pfail_test_meta, params, compression_params) = {
+        let mut ap_params: AtomicPatternParameters = params.into();
+
+        let original_message_modulus = ap_params.message_modulus();
+        let original_carry_modulus = ap_params.carry_modulus();
+
+        // For now only allow 2_2 parameters, and see later for heuristics to use
+        assert_eq!(original_message_modulus.0, 4);
+        assert_eq!(original_carry_modulus.0, 4);
+
+        // Update parameters to fail more frequently by inflating the carry modulus, allows to keep
+        // the max multiplication without risks of message overflow
+        let (original_pfail_and_precision, new_expected_pfail_and_precision) =
+            update_ap_params_for_pfail(
+                &mut ap_params,
+                original_message_modulus,
+                CarryModulus(1 << 5),
+            );
+
+        let pfail_test_meta = if should_run_short_pfail_tests_debug() {
+            let expected_fails = 200;
+            PfailTestMeta::new_with_desired_expected_fails(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                expected_fails,
+            )
+        } else {
+            let total_runs = 1_000_000;
+            PfailTestMeta::new_with_total_runs(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                total_runs,
+            )
+        };
+
+        (pfail_test_meta, ap_params, compression_params)
+    };
+
+    let cpk_private_key = CompactPrivateKey::new(cpk_params);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+    let comp_private_key = cks.new_compression_private_key(compression_params);
+    // TODO update once KS32 refactor is merged there are new primitives to make this easier to
+    // manage
+    let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+
+    let ksk_rerand_builder =
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
+    let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+
+    let max_scalar_mul = sks.max_noise_level.get();
+
+    let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
+
+    let measured_fails: f64 = (0..total_runs_for_expected_fails)
+        .into_par_iter()
+        .map(|_| {
+            let after_ms_decryption_result = encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
+                params,
+                cpk_params,
+                rerand_ksk_params,
+                compression_params,
+                &cpk_private_key,
+                &cpk,
+                &ksk_rerand,
+                &comp_private_key,
+                &decomp_key,
+                &cks,
+                &sks,
+                0,
+                max_scalar_mul,
+            );
+            after_ms_decryption_result.failure_as_f64()
+        })
+        .sum();
+
+    let test_result = PfailTestResult { measured_fails };
+
+    pfail_check(&pfail_test_meta, test_result);
+}
+
+#[test]
+fn test_pfail_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
+    noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,

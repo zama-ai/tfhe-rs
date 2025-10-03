@@ -321,7 +321,6 @@ impl CompactPublicKey {
     /// # Panic
     ///
     /// - This will panic is encryption modulus is greater that message_modulus * carry_modulus
-
     pub fn encrypt_iter_with_modulus(
         &self,
         messages: impl Iterator<Item = u64>,

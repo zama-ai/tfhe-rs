@@ -168,14 +168,14 @@ impl<'rhs> LweUncorrelatedAdd<&'rhs Self> for DynLwe {
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
         match (self, rhs) {
-            (DynLwe::U32(lhs), DynLwe::U32(rhs)) => {
-                DynLwe::U32(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            (Self::U32(lhs), Self::U32(rhs)) => {
+                Self::U32(lhs.lwe_uncorrelated_add(rhs, side_resources))
             }
-            (DynLwe::U64(lhs), DynLwe::U64(rhs)) => {
-                DynLwe::U64(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            (Self::U64(lhs), Self::U64(rhs)) => {
+                Self::U64(lhs.lwe_uncorrelated_add(rhs, side_resources))
             }
-            (DynLwe::U128(lhs), DynLwe::U128(rhs)) => {
-                DynLwe::U128(lhs.lwe_uncorrelated_add(rhs, side_resources))
+            (Self::U128(lhs), Self::U128(rhs)) => {
+                Self::U128(lhs.lwe_uncorrelated_add(rhs, side_resources))
             }
             _ => panic!("Inconsistent lhs and rhs"),
         }
@@ -192,14 +192,14 @@ impl<'rhs> LweUncorrelatedSub<&'rhs Self> for DynLwe {
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
         match (self, rhs) {
-            (DynLwe::U32(lhs), DynLwe::U32(rhs)) => {
-                DynLwe::U32(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            (Self::U32(lhs), Self::U32(rhs)) => {
+                Self::U32(lhs.lwe_uncorrelated_sub(rhs, side_resources))
             }
-            (DynLwe::U64(lhs), DynLwe::U64(rhs)) => {
-                DynLwe::U64(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            (Self::U64(lhs), Self::U64(rhs)) => {
+                Self::U64(lhs.lwe_uncorrelated_sub(rhs, side_resources))
             }
-            (DynLwe::U128(lhs), DynLwe::U128(rhs)) => {
-                DynLwe::U128(lhs.lwe_uncorrelated_sub(rhs, side_resources))
+            (Self::U128(lhs), Self::U128(rhs)) => {
+                Self::U128(lhs.lwe_uncorrelated_sub(rhs, side_resources))
             }
             _ => panic!("Inconsistent lhs and rhs"),
         }
@@ -1100,7 +1100,7 @@ where
     }
 }
 
-impl<'keys> AllocateLweKeyswitchResult for KeySwitchingKeyView<'keys> {
+impl AllocateLweKeyswitchResult for KeySwitchingKeyView<'_> {
     type Output = DynLwe;
     type SideResources = ();
 
@@ -1116,7 +1116,7 @@ impl<'keys> AllocateLweKeyswitchResult for KeySwitchingKeyView<'keys> {
     }
 }
 
-impl<'keys> LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'keys> {
+impl LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'_> {
     type SideResources = ();
 
     fn lwe_keyswitch(
@@ -1484,7 +1484,7 @@ impl NoiseSimulationLweKeyswitchKey {
     }
 
     pub fn matches_actual_shortint_keyswitching_key(&self, ksk: &KeySwitchingKeyView<'_>) -> bool {
-        self.matches_actual_ksk(&ksk.key_switching_key_material.key_switching_key)
+        self.matches_actual_ksk(ksk.key_switching_key_material.key_switching_key)
     }
 }
 
