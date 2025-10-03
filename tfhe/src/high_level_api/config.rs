@@ -4,7 +4,8 @@ use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
-    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    MetaParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    ShortintKeySwitchingParameters,
 };
 
 /// The config type
@@ -147,5 +148,28 @@ impl ConfigBuilder {
 impl From<ConfigBuilder> for Config {
     fn from(builder: ConfigBuilder) -> Self {
         builder.build()
+    }
+}
+
+impl From<MetaParameters> for Config {
+    fn from(meta_params: MetaParameters) -> Self {
+        Self {
+            inner: IntegerConfig {
+                block_parameters: meta_params.compute_parameters,
+                dedicated_compact_public_key_parameters: meta_params
+                    .dedicated_compact_public_key_parameters
+                    .map(|dedicated_p| (dedicated_p.pke_params, dedicated_p.ksk_params)),
+                compression_parameters: meta_params.compression_parameters,
+                noise_squashing_parameters: meta_params
+                    .noise_squashing_parameters
+                    .map(|ns_p| ns_p.parameters),
+                noise_squashing_compression_parameters: meta_params
+                    .noise_squashing_parameters
+                    .and_then(|ns_p| ns_p.compression_parameters),
+                cpk_re_randomization_ksk_params: meta_params
+                    .dedicated_compact_public_key_parameters
+                    .and_then(|dedicated_pke| dedicated_pke.re_randomization_parameters),
+            },
+        }
     }
 }
