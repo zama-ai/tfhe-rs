@@ -750,14 +750,14 @@ pub fn iop_mulx(
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ShiftKind {
+pub(super) enum ShiftKind {
     ShiftRight,
     ShiftLeft,
     RotRight,
     RotLeft,
 }
 #[derive(Debug, Clone, Copy)]
-enum CondPos {
+pub(super) enum CondPos {
     Pos0,
     Pos1,
 }
