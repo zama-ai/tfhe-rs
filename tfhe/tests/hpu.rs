@@ -251,7 +251,7 @@ mod hpu_test {
     hpu_testcase!("DIVS" => [u8, u16, u32, u64, u128]
     |ct, imm| if imm[0] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(imm[0]), ct[0] % imm[0]]});
     hpu_testcase!("MODS" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0] % imm[0]]);
+    |ct, imm| if imm[0] == 0 {[ct[0]]} else {[ct[0] % imm[0]]});
 
     // Version with overflow flag
     hpu_testcase!("OVF_ADDS" => [u8, u16, u32, u64, u128]
@@ -295,7 +295,7 @@ mod hpu_test {
     hpu_testcase!("DIV" => [u8, u16, u32, u64, u128]
     |ct, imm| if ct[1] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(ct[1]), ct[0] % ct[1]]});
     hpu_testcase!("MOD" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0] % ct[1]]);
+    |ct, imm| if ct[1] == 0 {[ct[0]]} else {[ct[0] % ct[1]]});
 
     hpu_testcase!("OVF_ADD" => [u8, u16, u32, u64, u128]
         |ct, imm| {
@@ -371,7 +371,7 @@ mod hpu_test {
     hpu_testcase!("COUNT1" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].count_ones()]);
     hpu_testcase!("ILOG2" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].ilog2()]);
+    |ct, imm| [if ct[0] == 0 {0} else {ct[0].ilog2()}]);
     hpu_testcase!("LEAD0" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].leading_zeros()]);
     hpu_testcase!("LEAD1" => [u8, u16, u32, u64, u128]
