@@ -3431,34 +3431,34 @@ criterion_group!(
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
+    //neg_parallelized,
+    //abs_parallelized,
     add_parallelized,
-    unsigned_overflowing_add_parallelized,
-    sub_parallelized,
-    unsigned_overflowing_sub_parallelized,
+    //unsigned_overflowing_add_parallelized,
+    //sub_parallelized,
+    //unsigned_overflowing_sub_parallelized,
     mul_parallelized,
-    unsigned_overflowing_mul_parallelized,
+    //unsigned_overflowing_mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
-    div_rem_parallelized,
+    //div_rem_parallelized,
     bitand_parallelized,
-    bitnot,
-    bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
-    ciphertexts_sum_parallelized,
-    leading_zeros_parallelized,
-    leading_ones_parallelized,
-    trailing_zeros_parallelized,
-    trailing_ones_parallelized,
-    ilog2_parallelized,
-    checked_ilog2_parallelized,
-    count_zeros_parallelized,
-    count_ones_parallelized,
+    //bitnot,
+    //bitor_parallelized,
+    //bitxor_parallelized,
+    //left_shift_parallelized,
+    //right_shift_parallelized,
+    //rotate_left_parallelized,
+    //rotate_right_parallelized,
+    //ciphertexts_sum_parallelized,
+    //leading_zeros_parallelized,
+    //leading_ones_parallelized,
+    //trailing_zeros_parallelized,
+    //trailing_ones_parallelized,
+    //ilog2_parallelized,
+    //checked_ilog2_parallelized,
+    //count_zeros_parallelized,
+    //count_ones_parallelized,
 );
 
 criterion_group!(
@@ -3768,9 +3768,9 @@ fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
             default_parallelized_ops();
-            default_parallelized_ops_comp();
-            default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp();
+            //default_parallelized_ops_comp();
+            //default_scalar_parallelized_ops();
+            //default_scalar_parallelized_ops_comp();
             //cast_ops();
             //oprf()
         }
