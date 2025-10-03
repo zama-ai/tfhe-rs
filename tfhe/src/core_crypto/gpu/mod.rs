@@ -65,6 +65,7 @@ impl CudaStreams {
             ptr_array.push(unsafe { cuda_create_stream(i) });
             gpu_indexes.push(GpuIndex::new(i));
         }
+        println!("FAKE MULTI");
         Self {
             ptr: ptr_array,
             gpu_indexes,
