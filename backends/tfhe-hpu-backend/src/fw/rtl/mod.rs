@@ -1770,6 +1770,7 @@ impl<'a> dot2::Labeller<'a> for Graph {
                 n.copy_name(),
                 n.borrow()
                     .load_stats()
+                    .clone()
                     .and_then(|l| Some(format!("{:?}", l)))
                     .unwrap_or(String::from("None")),
                 n.copy_uid(),
