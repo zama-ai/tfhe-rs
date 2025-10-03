@@ -243,7 +243,7 @@ public:
 struct CudaStreamsFirstWaitsWorkersBarrier {
 private:
   std::vector<cudaEvent_t> _events;
-  CudaStreams _streams;
+  CudaStreams _lut_streams;
 
   CudaStreamsFirstWaitsWorkersBarrier(
       const CudaStreamsFirstWaitsWorkersBarrier &) {
@@ -256,7 +256,7 @@ public:
   void create_on(const CudaStreams &streams) {
     GPU_ASSERT(streams.count() > 1, "CudaStreamsFirstWaitsWorkersBarrier: "
                                     "Attempted to create on single GPU");
-    _streams = streams;
+    _lut_streams = streams;
     _events.resize(streams.count());
     for (int i = 0; i < streams.count(); i++) {
       _events[i] = cuda_create_event(streams.gpu_index(i));
@@ -265,29 +265,40 @@ public:
 
   CudaStreamsFirstWaitsWorkersBarrier(){};
 
-  void gpu_0_wait_for_workers() {
+  void gpu_0_wait_for_user_streams(const CudaStreams &streams) {
     GPU_ASSERT(
         !_events.empty(),
         "CudaStreamsFirstWaitsWorkersBarrier: must call create_on before use");
+    GPU_ASSERT(
+        streams.count() == _events.size(),
+        "CudaStreamsFirstWaitsWorkersBarrier: trying to synchronize too many "
+        "streams. "
+        "The barrier was created on a LUT that had %lu active streams, while "
+        "the user stream set has %u streams",
+        _events.size(), streams.count());
 
-    if (_streams.count() > 1) {
+    if (streams.count() > 1) {
       // Worker GPUs record their events
-      for (int j = 1; j < _streams.count(); j++) {
-        cuda_event_record(_events[j], _streams.stream(j),
-                          _streams.gpu_index(j));
+      for (int j = 0; j < _lut_streams.count(); j++) {
+        GPU_ASSERT(_lut_streams.gpu_index(j) == streams.gpu_index(j),
+                   "CudaStreamsFirstWaitsWorkersBarrier: The user stream "
+                   "set GPU[%d]=%u while the LUT stream set GPU[%d]=%u",
+                   j, streams.gpu_index(j), j, _lut_streams.gpu_index(j));
+
+        cuda_event_record(_events[j], streams.stream(j), streams.gpu_index(j));
       }
 
       // GPU 0 waits for all workers
-      for (int j = 1; j < _streams.count(); j++) {
-        cuda_stream_wait_event(_streams.stream(0), _events[j],
-                               _streams.gpu_index(0));
+      for (int j = 0; j < _lut_streams.count(); j++) {
+        cuda_stream_wait_event(_lut_streams.stream(0), _events[j],
+                               _lut_streams.gpu_index(0));
       }
     }
   }
 
   void release() {
-    for (int j = 0; j < _streams.count(); j++) {
-      cuda_event_destroy(_events[j], _streams.gpu_index(j));
+    for (int j = 0; j < _lut_streams.count(); j++) {
+      cuda_event_destroy(_events[j], _lut_streams.gpu_index(j));
     }
 
     _events.clear();

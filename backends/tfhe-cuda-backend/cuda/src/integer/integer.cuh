@@ -593,7 +593,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
-    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_user_streams(active_streams);
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
@@ -694,7 +694,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         num_radix_blocks, big_lwe_dimension + 1, num_many_lut);
     POP_RANGE()
 
-    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_user_streams(active_streams);
   }
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
@@ -806,7 +806,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
-    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_user_streams(active_streams);
   }
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];

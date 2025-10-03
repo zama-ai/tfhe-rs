@@ -71,7 +71,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lut->lwe_aligned_vec, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
     POP_RANGE()
-    lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
+    lut->multi_gpu_gather_barrier.gpu_0_wait_for_user_streams(active_streams);
   }
 
   for (uint32_t i = 0; i < num_blocks_to_process; i++) {

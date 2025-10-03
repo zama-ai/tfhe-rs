@@ -359,7 +359,8 @@ host_integer_decompress(CudaStreams streams,
       std::vector<Torus *> lwe_trivial_indexes_vec =
           lut->lwe_trivial_indexes_vec;
 
-      lut->multi_gpu_scatter_barrier.user_streams_wait_for_gpu_0(active_streams);
+      lut->multi_gpu_scatter_barrier.user_streams_wait_for_gpu_0(
+          active_streams);
 
       /// With multiple GPUs we push to the vectors on each GPU then when we
       /// gather data to GPU 0 we can copy back to the original indexing
@@ -390,7 +391,7 @@ host_integer_decompress(CudaStreams streams,
 
       /// Synchronize all GPUs
       // other gpus record their events
-      lut->multi_gpu_gather_barrier.gpu_0_wait_for_workers();
+      lut->multi_gpu_gather_barrier.gpu_0_wait_for_user_streams(active_streams);
     }
   } else {
     static_assert(std::is_same_v<Torus, __uint128_t>,
