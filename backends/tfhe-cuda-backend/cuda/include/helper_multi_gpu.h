@@ -279,7 +279,7 @@ public:
 
     if (streams.count() > 1) {
       // Worker GPUs record their events
-      for (int j = 0; j < _lut_streams.count(); j++) {
+      for (int j = 0; j < streams.count(); j++) {
         GPU_ASSERT(_lut_streams.gpu_index(j) == streams.gpu_index(j),
                    "CudaStreamsFirstWaitsWorkersBarrier: The user stream "
                    "set GPU[%d]=%u while the LUT stream set GPU[%d]=%u",
@@ -289,7 +289,7 @@ public:
       }
 
       // GPU 0 waits for all workers
-      for (int j = 0; j < _lut_streams.count(); j++) {
+      for (int j = 0; j < streams.count(); j++) {
         cuda_stream_wait_event(_lut_streams.stream(0), _events[j],
                                _lut_streams.gpu_index(0));
       }
