@@ -528,7 +528,7 @@ fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
+fn noise_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
     params: P,
     mut cpk_params: CompactPublicKeyEncryptionParameters,
     rerand_ksk_params: ShortintKeySwitchingParameters,
@@ -747,8 +747,9 @@ fn noise_check_encrypt_br_dp_ks_ms_noise<P>(
 // });
 
 #[test]
-fn test_noise_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
-    noise_check_encrypt_br_dp_ks_ms_noise(
+fn test_noise_check_encrypt_br_rerand_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
+) {
+    noise_check_encrypt_br_rerand_dp_ks_ms_noise(
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -858,7 +859,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail<P>(
 }
 
 #[test]
-fn test_pfail_check_encrypt_br_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
+fn test_pfail_check_encrypt_br_rerand_dp_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
+) {
     noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
