@@ -344,7 +344,7 @@ host_integer_decompress(CudaStreams streams,
       execute_pbs_async<Torus, Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,
           lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
-          lut->lwe_indexes_in, d_bsks, lut->buffer,
+          lut->lwe_indexes_in.get(), d_bsks, lut->buffer,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
@@ -365,7 +365,7 @@ host_integer_decompress(CudaStreams streams,
       /// With multiple GPUs we push to the vectors on each GPU then when we
       /// gather data to GPU 0 we can copy back to the original indexing
       multi_gpu_scatter_lwe_async<Torus>(
-          active_streams, lwe_array_in_vec, extracted_lwe, lut->lwe_indexes_in,
+          active_streams, lwe_array_in_vec, extracted_lwe, lut->lwe_indexes_in.get(),
           lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
           lut->active_streams.count(), num_blocks_to_decompress,
           compression_params.small_lwe_dimension + 1);

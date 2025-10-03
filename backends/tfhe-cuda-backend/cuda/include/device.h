@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cuda_runtime.h>
+#include <memory>
 
 extern "C" {
 
@@ -139,5 +140,35 @@ bool cuda_check_support_thread_block_clusters();
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n);
+
+template <class T> struct malloc_with_size_tracking_async_deleter {
+private:
+  cudaStream_t _stream;
+  uint32_t _gpu_index;
+  uint64_t &_size_tracker;
+  bool _allocate_gpu_memory;
+
+public:
+  malloc_with_size_tracking_async_deleter(cudaStream_t stream,
+                                          uint32_t gpu_index,
+                                          uint64_t &size_tracker,
+                                          bool allocate_gpu_memory)
+      : _stream(stream), _gpu_index(gpu_index), _size_tracker(size_tracker),
+        _allocate_gpu_memory(allocate_gpu_memory)
+
+  {}
+  void operator()(T *ptr) { cuda_drop_with_size_tracking_async(ptr, _stream, _gpu_index, _allocate_gpu_memory) ; }
+};
+
+template <class T>
+std::shared_ptr<T> cuda_make_shared_with_size_tracking_async(
+    uint64_t size, cudaStream_t stream, uint32_t gpu_index,
+    uint64_t &size_tracker, bool allocate_gpu_memory) {
+  return std::shared_ptr<T>(
+      (T*)cuda_malloc_with_size_tracking_async(size, stream, gpu_index,
+                                           size_tracker, allocate_gpu_memory),
+      malloc_with_size_tracking_async_deleter<T>(
+          stream, gpu_index, size_tracker, allocate_gpu_memory));
+}
 
 #endif

@@ -546,7 +546,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
-        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
+        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in.get(), ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
         num_radix_blocks);
 
@@ -568,7 +568,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_in->ptr,
-        lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->lwe_indexes_in.get(), lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
@@ -648,7 +648,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
-        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
+        (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in.get(), ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
         num_radix_blocks);
 
@@ -670,7 +670,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_in->ptr,
-        lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->lwe_indexes_in.get(), lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
@@ -748,10 +748,10 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   uint32_t lut_stride = 0;
 
   // Left message is shifted
-  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks.get();
   host_pack_bivariate_blocks<Torus>(
       streams, lwe_array_pbs_in, lut->lwe_trivial_indexes, lwe_array_1,
-      lwe_array_2, lut->lwe_indexes_in, shift, num_radix_blocks,
+      lwe_array_2, lut->lwe_indexes_in.get(), shift, num_radix_blocks,
       params.message_modulus, params.carry_modulus);
   check_cuda_error(cudaGetLastError());
 
@@ -766,7 +766,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
-        (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
+        (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in.get(), ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
         num_radix_blocks);
 
@@ -785,7 +785,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_pbs_in->ptr,
-        lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->lwe_indexes_in.get(), lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
         big_lwe_dimension + 1);
     POP_RANGE()
@@ -2334,7 +2334,7 @@ __host__ void integer_radix_apply_noise_squashing_kb(
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
-  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks.get();
   std::vector<InputTorus *> lwe_array_in_vec = lut->lwe_array_in_vec;
   std::vector<InputTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<__uint128_t *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
@@ -2353,7 +2353,7 @@ __host__ void integer_radix_apply_noise_squashing_kb(
   if (active_streams.count() == 1) {
     execute_keyswitch_async<InputTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
-        (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
+        (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in.get(), ksks,
         lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
         ks_level, lwe_array_out->num_radix_blocks);
 
@@ -2377,7 +2377,7 @@ __host__ void integer_radix_apply_noise_squashing_kb(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<InputTorus>(
         active_streams, lwe_array_in_vec, (InputTorus *)lwe_array_pbs_in->ptr,
-        lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->lwe_indexes_in.get(), lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_scatter_vec, lut->active_streams.count(),
         lwe_array_out->num_radix_blocks, lut->input_big_lwe_dimension + 1);
 
