@@ -1456,18 +1456,18 @@ use cuda::{cuda_multi_bit_pbs_group, cuda_pbs_group};
 pub fn pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
     mem_optimized_pbs(&mut criterion, &benchmark_parameters());
-    mem_optimized_pbs(&mut criterion, &benchmark_32bits_parameters());
-    mem_optimized_pbs_ntt(&mut criterion);
-    mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters());
+    //mem_optimized_pbs(&mut criterion, &benchmark_32bits_parameters());
+    //mem_optimized_pbs_ntt(&mut criterion);
+    //mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters());
 }
 
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_pbs(
-        &mut criterion,
-        &multi_bit_benchmark_parameters_with_grouping(),
-        false,
-    );
+    //multi_bit_pbs(
+    //    &mut criterion,
+    //    &multi_bit_benchmark_parameters_with_grouping(),
+    //    false,
+    //);
     multi_bit_pbs(
         &mut criterion,
         &multi_bit_benchmark_parameters_with_grouping(),

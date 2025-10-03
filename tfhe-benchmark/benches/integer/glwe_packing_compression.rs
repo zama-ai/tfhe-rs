@@ -30,13 +30,13 @@ fn cpu_glwe_packing(c: &mut Criterion) {
     let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 
     for bit_size in [
-        2,
         8,
         16,
         32,
         64,
         128,
         256,
+        512,
         comp_param.lwe_per_glwe.0 * log_message_modulus,
     ] {
         assert_eq!(bit_size % log_message_modulus, 0);

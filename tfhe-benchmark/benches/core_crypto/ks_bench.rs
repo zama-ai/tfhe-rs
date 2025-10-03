@@ -859,7 +859,7 @@ fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "classical" => {
             ks_group();
-            packing_ks_group()
+            //packing_ks_group()
         }
         "multi_bit" => multi_bit_ks_group(),
         _ => panic!("unknown benchmark operations flavor"),
