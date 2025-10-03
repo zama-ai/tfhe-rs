@@ -191,6 +191,20 @@ impl KS32AtomicPatternClientKey {
         )
     }
 
+    pub fn new_decompression_key_with_params_and_engine(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
+        private_compression_key.new_decompression_key_with_params_and_engine(
+            &self.glwe_secret_key,
+            self.parameters(),
+            compression_params,
+            engine,
+        )
+    }
+
     pub fn new_compressed_decompression_key(
         &self,
         private_compression_key: &CompressionPrivateKeys,
@@ -204,30 +218,37 @@ impl KS32AtomicPatternClientKey {
         input_secret_key: &SecretEncryptionKeyView<'_>,
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_keyswitching_key_with_engine(input_secret_key, params, engine)
+        })
+    }
+
+    pub(crate) fn new_keyswitching_key_with_engine(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
+    ) -> LweKeyswitchKeyOwned<u64> {
         match params.destination_key {
-            EncryptionKeyChoice::Big => ShortintEngine::with_thread_local_mut(|engine| {
-                allocate_and_generate_new_lwe_keyswitch_key(
+            EncryptionKeyChoice::Big => allocate_and_generate_new_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &self.large_lwe_secret_key(),
+                params.ks_base_log,
+                params.ks_level,
+                self.parameters.glwe_noise_distribution(),
+                self.parameters.ciphertext_modulus(),
+                &mut engine.encryption_generator,
+            ),
+            EncryptionKeyChoice::Small => {
+                let ksk = allocate_and_generate_new_lwe_keyswitch_key(
                     &input_secret_key.lwe_secret_key,
-                    &self.large_lwe_secret_key(),
+                    &self.small_lwe_secret_key(),
                     params.ks_base_log,
                     params.ks_level,
-                    self.parameters.glwe_noise_distribution(),
-                    self.parameters.ciphertext_modulus(),
+                    self.parameters.lwe_noise_distribution(),
+                    self.parameters.post_keyswitch_ciphertext_modulus(),
                     &mut engine.encryption_generator,
-                )
-            }),
-            EncryptionKeyChoice::Small => {
-                let ksk = ShortintEngine::with_thread_local_mut(|engine| {
-                    allocate_and_generate_new_lwe_keyswitch_key(
-                        &input_secret_key.lwe_secret_key,
-                        &self.small_lwe_secret_key(),
-                        params.ks_base_log,
-                        params.ks_level,
-                        self.parameters.lwe_noise_distribution(),
-                        self.parameters.post_keyswitch_ciphertext_modulus(),
-                        &mut engine.encryption_generator,
-                    )
-                });
+                );
                 let shift = u64::BITS - u32::BITS;
 
                 LweKeyswitchKeyOwned::from_container(

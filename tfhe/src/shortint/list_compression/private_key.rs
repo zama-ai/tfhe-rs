@@ -118,22 +118,37 @@ impl CompressionPrivateKeys {
         pbs_params: ShortintParameterSet,
         compression_params: CompressionParameters,
     ) -> DecompressionKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_decompression_key_with_params_and_engine(
+                glwe_secret_key,
+                pbs_params,
+                compression_params,
+                engine,
+            )
+        })
+    }
+
+    pub(crate) fn new_decompression_key_with_params_and_engine(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
         assert_eq!(
             pbs_params.encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_classic_bootstrapping_key(
-                &self.post_packing_ks_key.as_lwe_secret_key(),
-                glwe_secret_key,
-                pbs_params.glwe_noise_distribution(),
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.ciphertext_modulus(),
-            )
-        });
+        let blind_rotate_key = engine.new_classic_bootstrapping_key(
+            &self.post_packing_ks_key.as_lwe_secret_key(),
+            glwe_secret_key,
+            pbs_params.glwe_noise_distribution(),
+            compression_params.br_base_log,
+            compression_params.br_level,
+            pbs_params.ciphertext_modulus(),
+        );
 
         DecompressionKey {
             blind_rotate_key,

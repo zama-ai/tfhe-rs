@@ -161,6 +161,26 @@ impl AtomicPatternClientKey {
         }
     }
 
+    pub fn new_decompression_key_with_params_and_engine(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+        engine: &mut ShortintEngine,
+    ) -> DecompressionKey {
+        match self {
+            Self::Standard(std_cks) => std_cks.new_decompression_key_with_params_and_engine(
+                private_compression_key,
+                compression_params,
+                engine,
+            ),
+            Self::KeySwitch32(ks32_cks) => ks32_cks.new_decompression_key_with_params_and_engine(
+                private_compression_key,
+                compression_params,
+                engine,
+            ),
+        }
+    }
+
     pub fn new_compressed_decompression_key(
         &self,
         private_compression_key: &CompressionPrivateKeys,
@@ -183,6 +203,22 @@ impl AtomicPatternClientKey {
         match self {
             Self::Standard(ap) => ap.new_keyswitching_key(input_secret_key, params),
             Self::KeySwitch32(ap) => ap.new_keyswitching_key(input_secret_key, params),
+        }
+    }
+
+    pub(crate) fn new_keyswitching_key_with_engine(
+        &self,
+        input_secret_key: &SecretEncryptionKeyView<'_>,
+        params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
+    ) -> LweKeyswitchKeyOwned<u64> {
+        match self {
+            Self::Standard(ap) => {
+                ap.new_keyswitching_key_with_engine(input_secret_key, params, engine)
+            }
+            Self::KeySwitch32(ap) => {
+                ap.new_keyswitching_key_with_engine(input_secret_key, params, engine)
+            }
         }
     }
 
