@@ -492,6 +492,7 @@ pub type KS32ServerKeyView<'key> = GenericServerKey<&'key KS32AtomicPatternServe
 // which is actually overrestrictive: https://github.com/rust-lang/rust/issues/26925
 impl Copy for StandardServerKeyView<'_> {}
 impl Copy for KS32ServerKeyView<'_> {}
+impl Copy for ServerKeyView<'_> {}
 
 impl From<StandardServerKey> for ServerKey {
     fn from(value: StandardServerKey) -> Self {

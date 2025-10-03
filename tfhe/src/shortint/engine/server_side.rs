@@ -9,9 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
-use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::shortint::client_key::StandardClientKeyView;
-use crate::shortint::parameters::{KeySwitch32PBSParameters, ShortintKeySwitchingParameters};
+use crate::shortint::parameters::KeySwitch32PBSParameters;
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
     CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
@@ -253,48 +251,6 @@ impl ShortintEngine {
             &mut fourier_bsk,
         );
         fourier_bsk
-    }
-
-    pub(crate) fn new_key_switching_key(
-        &mut self,
-        input_secret_key: &SecretEncryptionKeyView<'_>,
-        output_client_key: StandardClientKeyView<'_>,
-        params: ShortintKeySwitchingParameters,
-    ) -> LweKeyswitchKeyOwned<u64> {
-        let (output_secret_key, encryption_noise) =
-            output_client_key.keyswitch_encryption_key_and_noise(params);
-
-        // Creation of the key switching key
-        allocate_and_generate_new_lwe_keyswitch_key(
-            &input_secret_key.lwe_secret_key,
-            &output_secret_key,
-            params.ks_base_log,
-            params.ks_level,
-            encryption_noise,
-            output_client_key.parameters().ciphertext_modulus(),
-            &mut self.encryption_generator,
-        )
-    }
-
-    pub(crate) fn new_seeded_key_switching_key(
-        &mut self,
-        input_secret_key: &SecretEncryptionKeyView<'_>,
-        output_client_key: StandardClientKeyView<'_>,
-        params: ShortintKeySwitchingParameters,
-    ) -> SeededLweKeyswitchKeyOwned<u64> {
-        let (output_secret_key, encryption_noise) =
-            output_client_key.keyswitch_encryption_key_and_noise(params);
-
-        // Creation of the key switching key
-        allocate_and_generate_new_seeded_lwe_keyswitch_key(
-            &input_secret_key.lwe_secret_key,
-            &output_secret_key,
-            params.ks_base_log,
-            params.ks_level,
-            encryption_noise,
-            output_client_key.parameters().ciphertext_modulus(),
-            &mut self.seeder,
-        )
     }
 
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {

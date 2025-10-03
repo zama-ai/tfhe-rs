@@ -304,6 +304,15 @@ impl From<EncryptionKeyChoice> for PBSOrder {
     }
 }
 
+impl From<PBSOrder> for EncryptionKeyChoice {
+    fn from(value: PBSOrder) -> Self {
+        match value {
+            PBSOrder::KeyswitchBootstrap => Self::Big,
+            PBSOrder::BootstrapKeyswitch => Self::Small,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
 #[versionize(PBSOrderVersions)]
 pub enum PBSOrder {

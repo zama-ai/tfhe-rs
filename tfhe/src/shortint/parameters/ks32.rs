@@ -152,4 +152,14 @@ impl KeySwitch32PBSParameters {
             noise_level,
         }
     }
+
+    pub fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        match key_choice {
+            EncryptionKeyChoice::Big => self.ciphertext_modulus,
+            // Ok to unwrap because converting a 32b modulus into a 64b one should not fail
+            EncryptionKeyChoice::Small => {
+                self.post_keyswitch_ciphertext_modulus().try_to().unwrap()
+            }
+        }
+    }
 }

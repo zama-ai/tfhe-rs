@@ -23,7 +23,7 @@ use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
     LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus};
+use crate::shortint::{Ciphertext, CiphertextModulus, EncryptionKeyChoice};
 
 /// The definition of the server key elements used in the
 /// [`KeySwitch32`](AtomicPatternKind::KeySwitch32) atomic pattern
@@ -116,17 +116,24 @@ impl KS32AtomicPatternServerKey {
     }
 
     pub fn intermediate_lwe_dimension(&self) -> LweDimension {
-        self.key_switching_key.output_key_lwe_dimension()
+        self.ciphertext_lwe_dimension_for_key(EncryptionKeyChoice::Small)
     }
 }
 
 impl AtomicPattern for KS32AtomicPatternServerKey {
-    fn ciphertext_lwe_dimension(&self) -> LweDimension {
-        self.key_switching_key.input_key_lwe_dimension()
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension {
+        match key_choice {
+            EncryptionKeyChoice::Big => self.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small => self.bootstrapping_key.input_lwe_dimension(),
+        }
     }
 
-    fn ciphertext_modulus(&self) -> CiphertextModulus {
-        self.ciphertext_modulus
+    fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
+        match key_choice {
+            EncryptionKeyChoice::Big => self.ciphertext_modulus,
+            // Ok to unwrap because converting a 32b modulus into a 64b one should not fail
+            EncryptionKeyChoice::Small => self.intermediate_ciphertext_modulus().try_to().unwrap(),
+        }
     }
 
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
