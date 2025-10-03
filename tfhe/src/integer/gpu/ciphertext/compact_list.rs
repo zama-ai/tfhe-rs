@@ -20,7 +20,7 @@ use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulu
 use crate::GpuIndex;
 use itertools::Itertools;
 use serde::Deserializer;
-use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_to_gpu;
+use tfhe_cuda_backend::cuda_bind::cuda_ext_memcpy_async_to_gpu;
 
 #[derive(Clone)]
 pub struct CudaCompactCiphertextListInfo {
@@ -271,7 +271,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                 let dest_ptr = d_flattened_d_vec
                     .as_mut_c_ptr(0)
                     .add(offset * std::mem::size_of::<u64>());
-                cuda_memcpy_async_to_gpu(
+                cuda_ext_memcpy_async_to_gpu(
                     dest_ptr,
                     container.as_ptr().cast(),
                     (expected_length * std::mem::size_of::<u64>()) as u64,

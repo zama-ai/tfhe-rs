@@ -4,7 +4,7 @@ use crate::core_crypto::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
     LweDimension, LweSize, UnsignedInteger,
 };
-use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
+use tfhe_cuda_backend::cuda_bind::cuda_ext_memcpy_async_gpu_to_gpu;
 
 /// A structure representing a vector of LWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Clone, Debug)]
@@ -123,7 +123,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             * std::mem::size_of::<T>();
         // Concatenate gpu_index memory
         unsafe {
-            cuda_memcpy_async_gpu_to_gpu(
+            cuda_ext_memcpy_async_gpu_to_gpu(
                 ptr,
                 first_item.0.d_vec.as_c_ptr(0),
                 size as u64,
@@ -132,7 +132,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             );
             ptr = ptr.wrapping_byte_add(size);
             for list in cuda_ciphertexts_list_vec {
-                cuda_memcpy_async_gpu_to_gpu(
+                cuda_ext_memcpy_async_gpu_to_gpu(
                     ptr,
                     list.0.d_vec.as_c_ptr(0),
                     size as u64,
