@@ -3771,8 +3771,8 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
-            cast_ops();
-            oprf()
+            //cast_ops();
+            //oprf()
         }
         "fast_default" => {
             default_dedup_ops();

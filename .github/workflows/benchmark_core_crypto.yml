@@ -121,7 +121,6 @@ jobs:
         run: |
           make bench_ks_pbs
           make bench_pbs
-          make bench_pbs128
           make bench_ks
         env:
           BENCH_PARAM_TYPE: ${{ matrix.param_type }}
