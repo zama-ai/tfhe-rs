@@ -6,7 +6,9 @@ use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::high_level_api::traits::{FheEq, IfThenElse, ReRandomize, ScalarIfThenElse, Tagged};
+use crate::high_level_api::traits::{
+    FheEq, Flip, IfThenElse, ReRandomize, ScalarIfThenElse, Tagged,
+};
 use crate::high_level_api::{global_state, CompactPublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::ReRandomizationSeed;
@@ -622,6 +624,310 @@ impl IfThenElse<Self> for FheBool {
             }
         });
         Self::new(ciphertext, tag, ReRandomizationMetadata::default())
+    }
+}
+
+impl<Id> Flip<&FheInt<Id>, &FheInt<Id>> for FheBool
+where
+    Id: FheIntId + std::marker::Send + std::marker::Sync,
+{
+    type Output = FheInt<Id>;
+
+    /// Flips the two inputs based on the value of `self`.
+    ///
+    /// * flip(true, a, b) returns (b, a)
+    /// * flip(false, a, b) returns (a, b)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt32};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = i32::MIN;
+    /// let b = FheInt32::encrypt(i32::MAX, &client_key);
+    /// let cond = FheBool::encrypt(true, &client_key);
+    ///
+    /// let (ra, rb) = cond.flip(a, &b);
+    /// let da: i32 = ra.decrypt(&client_key);
+    /// let db: i32 = rb.decrypt(&client_key);
+    /// assert_eq!((da, db), (i32::MAX, i32::MIN));
+    /// ```
+    fn flip(&self, lhs: &FheInt<Id>, rhs: &FheInt<Id>) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*lhs.ciphertext.on_cpu(),
+                    &*rhs.ciphertext.on_cpu(),
+                );
+                (
+                    FheInt::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheInt::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => rayon::join(
+                || {
+                    let streams = &cuda_key.streams;
+                    let inner = cuda_key.key.key.if_then_else(
+                        &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                        &*rhs.ciphertext.on_gpu(streams),
+                        &*lhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+
+                    FheInt::new(
+                        inner,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    )
+                },
+                || {
+                    let streams = &cuda_key.streams;
+                    let inner = cuda_key.key.key.if_then_else(
+                        &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                        &*lhs.ciphertext.on_gpu(streams),
+                        &*rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+
+                    FheInt::new(
+                        inner,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    )
+                },
+            ),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                let a = self.if_then_else(rhs, lhs);
+                let b = self.if_then_else(lhs, rhs);
+                (a, b)
+            }
+        })
+    }
+}
+
+impl<Id> Flip<&FheUint<Id>, &FheUint<Id>> for FheBool
+where
+    Id: FheUintId + std::marker::Send + std::marker::Sync,
+{
+    type Output = FheUint<Id>;
+
+    /// Flips the two inputs based on the value of `self`.
+    ///
+    /// * flip(true, a, b) returns (b, a)
+    /// * flip(false, a, b) returns (a, b)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint32};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = u32::MIN;
+    /// let b = FheUint32::encrypt(u32::MAX, &client_key);
+    /// let cond = FheBool::encrypt(true, &client_key);
+    ///
+    /// let (ra, rb) = cond.flip(a, &b);
+    /// let da: u32 = ra.decrypt(&client_key);
+    /// let db: u32 = rb.decrypt(&client_key);
+    /// assert_eq!((da, db), (u32::MAX, u32::MIN));
+    /// ```
+    fn flip(&self, lhs: &FheUint<Id>, rhs: &FheUint<Id>) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*lhs.ciphertext.on_cpu(),
+                    &*rhs.ciphertext.on_cpu(),
+                );
+                (
+                    FheUint::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheUint::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => rayon::join(
+                || {
+                    let streams = &cuda_key.streams;
+                    let inner = cuda_key.key.key.if_then_else(
+                        &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                        &*rhs.ciphertext.on_gpu(streams),
+                        &*lhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+
+                    FheUint::new(
+                        inner,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    )
+                },
+                || {
+                    let streams = &cuda_key.streams;
+                    let inner = cuda_key.key.key.if_then_else(
+                        &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                        &*lhs.ciphertext.on_gpu(streams),
+                        &*rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+
+                    FheUint::new(
+                        inner,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    )
+                },
+            ),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                let a = self.if_then_else(rhs, lhs);
+                let b = self.if_then_else(lhs, rhs);
+                (a, b)
+            }
+        })
+    }
+}
+
+impl<Id, T> Flip<&FheUint<Id>, T> for FheBool
+where
+    Id: FheUintId,
+    T: DecomposableInto<u64> + UnsignedNumeric,
+{
+    type Output = FheUint<Id>;
+
+    fn flip(&self, lhs: &FheUint<Id>, rhs: T) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*lhs.ciphertext.on_cpu(),
+                    rhs,
+                );
+                (
+                    FheUint::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheUint::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Gpu does not support FheBool::flip with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::flip with clear input")
+            }
+        })
+    }
+}
+
+impl<Id, T> Flip<&FheInt<Id>, T> for FheBool
+where
+    Id: FheIntId,
+    T: DecomposableInto<u64> + SignedNumeric,
+{
+    type Output = FheInt<Id>;
+
+    fn flip(&self, lhs: &FheInt<Id>, rhs: T) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*lhs.ciphertext.on_cpu(),
+                    rhs,
+                );
+                (
+                    FheInt::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheInt::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Gpu does not support FheBool::flip with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::flip with clear input")
+            }
+        })
+    }
+}
+
+impl<Id, T> Flip<T, &FheInt<Id>> for FheBool
+where
+    Id: FheIntId,
+    T: DecomposableInto<u64> + SignedNumeric,
+{
+    type Output = FheInt<Id>;
+
+    fn flip(&self, lhs: T, rhs: &FheInt<Id>) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    lhs,
+                    &*rhs.ciphertext.on_cpu(),
+                );
+                (
+                    FheInt::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheInt::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Gpu does not support FheBool::flip with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::flip with clear input")
+            }
+        })
+    }
+}
+
+impl<Id, T> Flip<T, &FheUint<Id>> for FheBool
+where
+    Id: FheUintId,
+    T: DecomposableInto<u64> + UnsignedNumeric,
+{
+    type Output = FheUint<Id>;
+
+    fn flip(&self, lhs: T, rhs: &FheUint<Id>) -> (Self::Output, Self::Output) {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let (a, b) = cpu_sks.pbs_key().flip_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    lhs,
+                    &*rhs.ciphertext.on_cpu(),
+                );
+                (
+                    FheUint::new(a, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                    FheUint::new(b, cpu_sks.tag.clone(), ReRandomizationMetadata::default()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Gpu does not support FheBool::flip with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::flip with clear input")
+            }
+        })
     }
 }
 
