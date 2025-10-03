@@ -270,7 +270,7 @@ public:
         !_events.empty(),
         "CudaStreamsFirstWaitsWorkersBarrier: must call create_on before use");
     GPU_ASSERT(
-        streams.count() == _events.size(),
+        streams.count() <= _events.size(),
         "CudaStreamsFirstWaitsWorkersBarrier: trying to synchronize too many "
         "streams. "
         "The barrier was created on a LUT that had %lu active streams, while "
