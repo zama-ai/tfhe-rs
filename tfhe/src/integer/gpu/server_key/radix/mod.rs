@@ -57,6 +57,7 @@ mod sub;
 mod vector_comparisons;
 mod vector_find;
 
+mod aes;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]

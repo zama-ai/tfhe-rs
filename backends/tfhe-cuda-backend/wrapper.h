@@ -2,6 +2,7 @@
 #include "cuda/include/ciphertext.h"
 #include "cuda/include/integer/compression/compression.h"
 #include "cuda/include/integer/integer.h"
+#include "cuda/include/aes/aes.h"
 #include "cuda/include/zk/zk.h"
 #include "cuda/include/keyswitch/keyswitch.h"
 #include "cuda/include/keyswitch/ks_enums.h"
