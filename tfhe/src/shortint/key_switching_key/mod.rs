@@ -328,7 +328,8 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
         }
     }
 
-    pub fn as_key_switching_key_view(&self) -> KeySwitchingKeyView<'_> {
+    #[cfg(test)]
+    pub(crate) fn as_key_switching_key_view(&self) -> KeySwitchingKeyView<'_> {
         let Self {
             key_switching_key_material,
             dest_server_key,
