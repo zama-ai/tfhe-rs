@@ -6,6 +6,9 @@
 
 use crate::interface::FFIMode;
 
+#[cfg(feature = "hw-v80")]
+use crate::prelude::ShellString;
+
 /// Enumeration to define the synchronisation of data between Host and Device
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum SyncMode {
@@ -174,6 +177,7 @@ impl HpuHw {
                     ami_path,
                     qdma_h2c,
                     qdma_c2h,
+                    force_reload,
                 } => Self(v80::HpuHw::new_hpu_hw(
                     &id.expand(),
                     &board_sn.expand(),
@@ -182,6 +186,10 @@ impl HpuHw {
                     retry_rate,
                     &qdma_h2c.expand(),
                     &qdma_c2h.expand(),
+                    &force_reload
+                        .clone()
+                        .unwrap_or_else(|| ShellString::new("false".into()))
+                        .expand(),
                 )),
                 _ => panic!("Unsupported config type with ffi::v80"),
             }
