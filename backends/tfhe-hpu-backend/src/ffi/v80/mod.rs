@@ -34,6 +34,15 @@ pub struct HpuHw {
     allocator: Option<MemAlloc>,
 }
 
+#[derive(Debug)]
+pub struct ForceError {}
+impl Error for ForceError {}
+impl std::fmt::Display for ForceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Reload Forced")
+    }
+}
+
 impl HpuHw {
     /// Handle ffi instantiation
     /// Instantiate current HW and check uuid. If it match with targeted one continue,
@@ -47,18 +56,25 @@ impl HpuHw {
         ami_retry: std::time::Duration,
         h2c_path: &str,
         c2h_path: &str,
+        force: &str,
     ) -> HpuHw {
         // Load Pdi archive
         let hpu_pdi = HpuV80Pdi::from_bincode(hpu_path)
             .unwrap_or_else(|err| panic!("Invalid \'.hpu\' {hpu_path:?}: {err}"));
 
         // Try current hw and fallback to a fresh reload
-        Self::try_current_hw(id, &hpu_pdi, ami_retry, h2c_path, c2h_path).unwrap_or_else(|err| {
-            tracing::warn!("Loading current HW failed with {err:?}. Will do a fresh reload");
-            Self::reload_hw(
-                &id, &board_sn, &hpu_pdi, ami_path, ami_retry, h2c_path, c2h_path,
-            )
-        })
+        let force: Result<Option<bool>, Box<dyn Error>> = match force {
+            "true" => Err(Box::new(ForceError {})),
+            _ => Ok(None),
+        };
+        force
+            .and_then(|_| Self::try_current_hw(id, &hpu_pdi, ami_retry, h2c_path, c2h_path))
+            .unwrap_or_else(|err| {
+                tracing::warn!("Loading current HW failed with {err:?}. Will do a fresh reload");
+                Self::reload_hw(
+                    &id, &board_sn, &hpu_pdi, ami_path, ami_retry, h2c_path, c2h_path,
+                )
+            })
     }
 
     /// Load a Pdi in the FPGA
