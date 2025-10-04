@@ -48,6 +48,7 @@ pub enum FFIMode {
         ami_path: ShellString,
         qdma_h2c: ShellString,
         qdma_c2h: ShellString,
+        force_reload: Option<ShellString>,
     },
     Xrt {
         id: u32,
