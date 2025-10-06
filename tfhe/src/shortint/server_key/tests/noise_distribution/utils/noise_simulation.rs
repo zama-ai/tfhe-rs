@@ -23,7 +23,9 @@ use crate::core_crypto::entities::{
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::key_switching_key::KeySwitchingKeyView;
+use crate::shortint::key_switching_key::{
+    KeySwitchingKeyDestinationAtomicPattern, KeySwitchingKeyView,
+};
 use crate::shortint::list_compression::{
     CompressionPrivateKeys, DecompressionKey, NoiseSquashingCompressionKey,
 };
@@ -1108,11 +1110,26 @@ impl AllocateLweKeyswitchResult for KeySwitchingKeyView<'_> {
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        DynLwe::U64(
-            self.key_switching_key_material
-                .key_switching_key
-                .allocate_lwe_keyswitch_result(side_resources),
-        )
+        match self.key_switching_key_material.destination_atomic_pattern {
+            KeySwitchingKeyDestinationAtomicPattern::Standard => DynLwe::U64(
+                self.key_switching_key_material
+                    .key_switching_key
+                    .allocate_lwe_keyswitch_result(side_resources),
+            ),
+            KeySwitchingKeyDestinationAtomicPattern::KeySwitch32 => {
+                DynLwe::U32(LweCiphertext::new(
+                    0,
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .output_lwe_size(),
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .ciphertext_modulus()
+                        .try_to()
+                        .unwrap(),
+                ))
+            }
+        }
     }
 }
 
@@ -1125,13 +1142,43 @@ impl LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'_> {
         output: &mut DynLwe,
         side_resources: &mut Self::SideResources,
     ) {
-        match (input, output) {
-            (DynLwe::U64(input), DynLwe::U64(output)) => {
+        match (
+            input,
+            output,
+            self.key_switching_key_material.destination_atomic_pattern,
+        ) {
+            (
+                DynLwe::U64(input),
+                DynLwe::U32(output),
+                KeySwitchingKeyDestinationAtomicPattern::KeySwitch32,
+            ) => {
+                let mut tmp = LweCiphertext::new(
+                    0u64,
+                    output.lwe_size(),
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .ciphertext_modulus(),
+                );
                 self.key_switching_key_material
                     .key_switching_key
-                    .lwe_keyswitch(input, output, side_resources);
+                    .lwe_keyswitch(input, &mut tmp, side_resources);
+
+                // Manage encoding
+                output
+                    .as_mut()
+                    .iter_mut()
+                    .zip(tmp.as_ref().iter())
+                    .for_each(|(dst, src)| *dst = (*src >> 32) as u32);
             }
-            _ => panic!("KeySwitchingKeyView only supports DynLwe::U64 for noise simulation"),
+            (
+                DynLwe::U64(input),
+                DynLwe::U64(output),
+                KeySwitchingKeyDestinationAtomicPattern::Standard,
+            ) => self
+                .key_switching_key_material
+                .key_switching_key
+                .lwe_keyswitch(input, output, side_resources),
+            _ => panic!("Unsupported configuration for KeySwitchingKeyView in noise simulation"),
         }
     }
 }
@@ -1244,8 +1291,17 @@ impl NoiseSimulationLweKeyswitchKey {
                 EncryptionKeyChoice::Small => (
                     compute_params.lwe_dimension(),
                     compute_params.lwe_noise_distribution(),
-                    // TODO manage KS32 to have the correct modulus here
-                    compute_params.ciphertext_modulus(),
+                    match compute_params {
+                        AtomicPatternParameters::Standard(pbsparameters) => {
+                            pbsparameters.ciphertext_modulus()
+                        }
+                        AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+                            key_switch32_pbsparameters
+                                .post_keyswitch_ciphertext_modulus
+                                .try_to()
+                                .unwrap()
+                        }
+                    },
                 ),
             };
 

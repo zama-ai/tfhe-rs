@@ -111,6 +111,7 @@ impl KeySwitchingKeyMaterial {
             key_switching_key: &self.key_switching_key,
             cast_rshift: self.cast_rshift,
             destination_key: self.destination_key,
+            destination_atomic_pattern: self.destination_atomic_pattern,
         }
     }
 }
@@ -251,6 +252,7 @@ pub struct KeySwitchingKeyMaterialView<'key> {
     pub(crate) key_switching_key: &'key LweKeyswitchKeyOwned<u64>,
     pub(crate) cast_rshift: i8,
     pub(crate) destination_key: EncryptionKeyChoice,
+    pub(crate) destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
