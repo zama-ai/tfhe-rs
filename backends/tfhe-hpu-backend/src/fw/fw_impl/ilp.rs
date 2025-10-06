@@ -498,6 +498,7 @@ pub fn iop_mulx(
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
     let pbs_carry = new_pbs!(prog, "CarryInMsg");
+    let pbs_carry_is_some = new_pbs!(prog, "CarryIsSome");
     let pbs_mul_lsb = new_pbs!(prog, "MultCarryMsgLsb");
     let pbs_mul_msb = new_pbs!(prog, "MultCarryMsgMsb");
     let pbs_mult_is_some = new_pbs!(prog, "MultCarryMsgIsSome");
@@ -691,7 +692,7 @@ pub fn iop_mulx(
                     pp_vars.push_back((w + 1, msb));
                 } else if flag.is_some() {
                     // Last carry must be extracted for overflow computation
-                    let ovf_lsb_nz = var.pbs(&pbs_mult_msb_is_some, false);
+                    let ovf_lsb_nz = var.pbs(&pbs_carry_is_some, false);
                     ovf_non_zero_vars.push(ovf_lsb_nz);
                 }
             }
