@@ -401,10 +401,10 @@ pub mod shortint_params {
         vec![
             // Most complete 2_2 parameters set
             V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
             V1_4_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128,
             V1_4_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128,
             V1_4_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128,
-            V1_4_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128,
         ]
     }
 
