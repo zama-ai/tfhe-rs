@@ -21,7 +21,7 @@ use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use crate::{Device, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -78,7 +78,7 @@ pub struct FheBoolConformanceParams(pub(crate) CiphertextConformanceParams);
 
 impl<P> From<P> for FheBoolConformanceParams
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     fn from(params: P) -> Self {
         let mut params = params.into().to_shortint_conformance_param();

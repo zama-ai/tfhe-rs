@@ -17,7 +17,7 @@ use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use crate::{Device, FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
 
@@ -58,7 +58,7 @@ pub struct FheIntConformanceParams<Id: FheIntId> {
     pub(crate) id: PhantomData<Id>,
 }
 
-impl<Id: FheIntId, P: Into<PBSParameters>> From<P> for FheIntConformanceParams<Id> {
+impl<Id: FheIntId, P: Into<AtomicPatternParameters>> From<P> for FheIntConformanceParams<Id> {
     fn from(params: P) -> Self {
         let params = params.into();
         Self {
