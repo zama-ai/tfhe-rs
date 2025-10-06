@@ -296,10 +296,11 @@ macro_rules! define_scalar_comparison_test_functions {
 /// The goal of this function is to ensure that scalar comparisons
 /// work when the scalar type used is either bigger or smaller (in bit size)
 /// compared to the ciphertext
-fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_comparisons_edge<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let mut rng = rand::thread_rng();
 
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = (128f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -402,7 +403,8 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_comparisons_edge_one_block<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let mut rng = rand::thread_rng();
 
     let num_block = 1;
@@ -486,7 +488,8 @@ fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParamete
 
 // Given a ciphertext that consists of empty blocks,
 // the function tests whether comparisons still hold.
-fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
+fn integer_comparisons_for_empty_blocks<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let mut rng = rand::thread_rng();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -519,9 +522,10 @@ fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
+fn integer_is_scalar_out_of_bounds<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = 128usize.div_ceil(param.message_modulus.0.ilog2() as usize);
+    let num_block = 128usize.div_ceil(param.message_modulus().0.ilog2() as usize);
 
     let mut rng = thread_rng();
 
