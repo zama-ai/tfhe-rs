@@ -1,0 +1,1 @@
+py-markdown-table==1.3.0

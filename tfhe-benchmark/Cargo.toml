@@ -43,25 +43,25 @@ pbs-stats = ["tfhe/pbs-stats"]
 zk-pok = ["tfhe/zk-pok"]
 
 [[bench]]
-name = "boolean-bench"
+name = "boolean"
 path = "benches/boolean/bench.rs"
 harness = false
 required-features = ["boolean", "internal-keycache"]
 
 [[bench]]
-name = "shortint-bench"
+name = "shortint"
 path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
-name = "oprf-shortint-bench"
+name = "shortint-oprf"
 path = "benches/shortint/oprf.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
-name = "glwe_packing_compression-shortint-bench"
+name = "shortint-glwe_packing_compression"
 path = "benches/shortint/glwe_packing_compression.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
@@ -91,55 +91,55 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
-name = "glwe_packing_compression-integer-bench"
+name = "integer-glwe_packing_compression"
 path = "benches/integer/glwe_packing_compression.rs"
 harness = false
 required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
-name = "integer-bench"
+name = "integer"
 path = "benches/integer/bench.rs"
 harness = false
 required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
-name = "integer-signed-bench"
+name = "integer-signed"
 path = "benches/integer/signed_bench.rs"
 harness = false
 required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
-name = "zk-pke-bench"
+name = "integer-zk-pke"
 path = "benches/integer/zk_pke.rs"
 harness = false
 required-features = ["integer", "zk-pok", "pbs-stats", "internal-keycache"]
 
 [[bench]]
-name = "ks-bench"
+name = "core_crypto-ks"
 path = "benches/core_crypto/ks_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
-name = "pbs-bench"
+name = "core_crypto-pbs"
 path = "benches/core_crypto/pbs_bench.rs"
 harness = false
 required-features = ["boolean", "shortint", "internal-keycache"]
 
 [[bench]]
-name = "ks-pbs-bench"
+name = "core_crypto-ks-pbs"
 path = "benches/core_crypto/ks_pbs_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
-name = "modulus_switch_noise_reduction"
+name = "core_crypto-modulus_switch_noise_reduction"
 path = "benches/core_crypto/modulus_switch_noise_reduction.rs"
 harness = false
 required-features = ["shortint"]
 
 [[bench]]
-name = "pbs128-bench"
+name = "core_crypto-pbs128"
 path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
