@@ -43,7 +43,6 @@ impl CompactPkeCrs {
     #[wasm_bindgen]
     pub fn deserialize(buffer: &[u8]) -> Result<CompactPkeCrs, JsError> {
         // If buffer is compressed it is automatically detected and uncompressed.
-        // TODO: handle validation
         catch_panic_result(|| {
             bincode::deserialize(buffer)
                 .map(CompactPkeCrs)
