@@ -13,13 +13,20 @@ One can also provide a fully custom profile via the issue comment string see: fu
 
 This script is also capable of checking for performance regression based on previous benchmarks results.
 It works by providing a result file containing the baseline values and the results of the last run.
+Alongside this mode, a performance report can be generated to help identify potential regressions.
 """
 
 import argparse
 import enum
+import json
+import math
 import pathlib
+import statistics
 import sys
 import tomllib
+from dataclasses import dataclass
+
+from py_markdown_table.markdown_table import markdown_table
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -32,8 +39,24 @@ parser.add_argument(
     dest="issue_comment",
     help="GitHub issue comment defining the regression benchmark profile to use",
 )
+parser.add_argument(
+    "--results-file",
+    dest="results_file",
+    help="Path to the results file containing the baseline and last run results",
+)
+parser.add_argument(
+    "--generate-report",
+    dest="generate_report",
+    action="store_true",
+    default=False,
+    help="Generate markdown report of the regression check",
+)
 
 COMMENT_IDENTIFIER = "/bench"
+
+SECONDS_IN_NANO = 1e9
+MILLISECONDS_IN_NANO = 1e6
+MICROSECONDS_IN_NANO = 1e3
 
 CWD = pathlib.Path(__file__).parent
 REPO_ROOT = CWD.parent
@@ -305,6 +328,8 @@ class ProfileDefinition:
             case TfheBackend.Hpu:
                 features.extend(["hpu", "hpu-v80"])
 
+        features.append("pbs-stats")
+
         return features
 
     def generate_cargo_commands(self):
@@ -420,7 +445,307 @@ def write_backend_config_to_file(backend, profile):
         )
 
 
-# TODO Perform regression computing by providing a file containing results from database that would be parsed
+def write_regression_config_to_file(tfhe_rs_backend, regression_profile):
+    """
+    Write tfhe-rs backend and regression configuration to different files to ease parsing.
+
+    :param backend:
+    :param profile:
+    :return:
+    """
+    for filepart, content in [
+        ("tfhe_rs_backend", tfhe_rs_backend),
+        ("selected_profile", regression_profile),
+    ]:
+        pathlib.Path(f"ci/perf_regression_{filepart}_config.txt").write_text(
+            f"{content}\n"
+        )
+
+
+# Scale factor to improve the signal/noise ratio in anomaly detection.
+MAJOR_CHANGE_SCALE_FACTOR = 4
+MINOR_CHANGE_SCALE_FACTOR = 2
+REGRESSION_REPORT_FILE = CWD.joinpath("regression_report.md")
+
+
+class PerfChange(enum.StrEnum):
+    NoChange = "no changes"
+    MinorImprovement = "minor improvement"
+    MajorImprovement = "improvement"
+    MinorRegression = "minor regression"
+    MajorRegression = "regression"
+
+    def get_emoji(self):
+        match self:
+            case PerfChange.NoChange:
+                return ":heavy_minus_sign:"
+            case PerfChange.MinorImprovement:
+                return ":white_check_mark:"
+            case PerfChange.MajorImprovement:
+                return ":heavy_check_mark:"
+            case PerfChange.MinorRegression:
+                return ":warning:"
+            case PerfChange.MajorRegression:
+                return ":bangbang:"
+
+
+@dataclass
+class OperationPerformance:
+    name: str
+    baseline_mean: float
+    baseline_stdev: float
+    head_branch_value: float
+    change_percentage: float
+    change_type: PerfChange = PerfChange.NoChange
+
+    def __init__(self, name: str, baseline_data: list[float], head_branch_value: float):
+        self.name = name
+        self.baseline_mean = round(statistics.mean(baseline_data), 2)
+        self.baseline_stdev = round(statistics.stdev(baseline_data), 2)
+        self.head_branch_value = head_branch_value
+
+    def compute_change(self):
+        self.change_percentage = round(
+            (self.head_branch_value - self.baseline_mean) / self.baseline_mean * 100, 2
+        )
+
+        major_threshold = MAJOR_CHANGE_SCALE_FACTOR * self.baseline_stdev
+        minor_threshold = MINOR_CHANGE_SCALE_FACTOR * self.baseline_stdev
+
+        if self.head_branch_value > self.baseline_mean + major_threshold:
+            self.change_type = PerfChange.MajorRegression
+        elif self.head_branch_value > self.baseline_mean + minor_threshold:
+            self.change_type = PerfChange.MinorRegression
+        elif (self.head_branch_value < self.baseline_mean + minor_threshold) and (
+            self.head_branch_value > self.baseline_mean - minor_threshold
+        ):
+            # Between +/- MINOR_CHANGE_SCALE_FACTOR * Std_dev we consider there is no change
+            self.change_type = PerfChange.NoChange
+        if self.head_branch_value < self.baseline_mean - minor_threshold:
+            self.change_type = PerfChange.MinorImprovement
+        elif self.head_branch_value < self.baseline_mean - major_threshold:
+            self.change_type = PerfChange.MajorImprovement
+
+        return self.change_percentage, self.change_type
+
+    def change_percentage_as_str(self):
+        if (
+            self.change_type == PerfChange.MajorImprovement
+            or self.change_type == PerfChange.MinorImprovement
+            or (
+                self.change_type == PerfChange.NoChange
+                and (self.head_branch_value < self.baseline_mean)
+            )
+        ):
+            sign = ""
+        else:
+            # Minus sign is already embedded in the float value.
+            sign = "+"
+
+        return f"{sign}{self.change_percentage}%"
+
+
+def convert_value_to_readable_text(value: float, max_digits=3):
+    """
+    Convert timing in nanoseconds to the highest unit usable.
+
+    :param value: timing value
+    :param max_digits: number of digits to keep in the final representation of the value
+
+    :return: human-readable value with unit as :class:`str`
+    """
+    if value > SECONDS_IN_NANO:
+        converted_parts = (value / SECONDS_IN_NANO), "s"
+    elif value > MILLISECONDS_IN_NANO:
+        converted_parts = (value / MILLISECONDS_IN_NANO), "ms"
+    elif value > MICROSECONDS_IN_NANO:
+        converted_parts = (value / MICROSECONDS_IN_NANO), "us"
+    else:
+        converted_parts = value, "ns"
+
+    power_of_10 = math.floor(math.log10(converted_parts[0]))
+    rounding_digit = max_digits - (power_of_10 + 1)
+    if converted_parts[0] >= 100.0:
+        rounding_digit = None
+
+    return f"{round(converted_parts[0], rounding_digit)} {converted_parts[1]}"
+
+
+def check_performance_changes(results_file: pathlib.Path):
+    """
+    Check if any operation has regressed compared to the base branch.
+
+    Results file must be in JSON format with the following structure:
+
+    ```json
+    {
+      "backend": "<tfhe-rs_backend>",
+      "profile": "<regression_profile>",
+      "operation": [
+        {
+          "name": "<operation_name>",
+          "bit_size": <int>,
+          "params": "<parameters_alias>",
+
+          "results": {
+            "base": {
+              "name": "<base_branche_name>",
+              "data": [
+                <float>,
+                <float>,
+                ...,
+              ]
+            },
+            "head": {
+              "name": "<dev_branch_name>",
+              "value": <float>
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+    :param results_file: path to the result file
+    :type results_file: pathlib.Path
+
+    :return: :class:`list` of :class:`OperationPerformance`
+    """
+    changes = []
+
+    results = json.loads(results_file.read_text())
+    for operation in results["operations"]:
+        op_name = operation["name"]
+        try:
+            baseline_data = operation["results"]["base"]["data"]
+        except KeyError:
+            raise KeyError(
+                f"no base branch data found in results file for '{op_name}' operation"
+            )
+
+        try:
+            head_branch_value = operation["results"]["head"]["value"]
+        except KeyError:
+            raise KeyError(
+                f"no head branch value found in results file for '{op_name}' operation"
+            )
+
+        op_perf = OperationPerformance(op_name, baseline_data, head_branch_value)
+        op_perf.compute_change()
+        changes.append(op_perf)
+
+    return changes, results["backend"], results["profile"]
+
+
+OPERATION_HEADER = "Operation"
+CURRENT_VALUE_HEADER = "Current (ms)"
+BASELINE_VALUE_HEADER = "Baseline (ms)"
+BASELINE_STDDEV_HEADER = "Baseline Stddev (ms)"
+CHANGE_HEADER = "Change (%)"
+STATUS_HEADER = "Status"
+
+
+def generate_regression_report(
+    ops_performances: list[OperationPerformance], backend: str, profile: str
+):
+    """
+    Generate a regression report in Markdown format and write it to a specified file.
+
+    This function analyzes performance data for various operations and generates a Markdown
+    formatted report summarizing the performance. It highlights any major regressions by
+    providing detailed data about the affected operations and overall benchmark results.
+    Additionally, it includes configuration details, such as the backend and regression profile
+    used in the analysis.
+
+    :param ops_performances: A list of performance data for operations to be analyzed
+        and summarized.
+    :type ops_performances: list[OperationPerformance]
+    :param backend: The backend being used in the performance analysis.
+    :type backend: str
+    :param profile: The profile identifying the regression analysis configuration.
+    :type profile: str
+    """
+    full_data = [
+        {
+            OPERATION_HEADER: op.name,
+            CURRENT_VALUE_HEADER: convert_value_to_readable_text(op.head_branch_value),
+            BASELINE_VALUE_HEADER: convert_value_to_readable_text(op.baseline_mean),
+            BASELINE_STDDEV_HEADER: convert_value_to_readable_text(op.baseline_stdev),
+            CHANGE_HEADER: op.change_percentage_as_str(),
+            STATUS_HEADER: " ".join((op.change_type.get_emoji(), op.change_type.value)),
+        }
+        for op in ops_performances
+    ]
+    full_array_markdown = (
+        markdown_table(full_data)
+        .set_params(row_sep="markdown", quote=False)
+        .get_markdown()
+    )
+
+    regression_data = []
+    for op in ops_performances:
+        if op.change_type != PerfChange.MajorRegression:
+            continue
+
+        regression_data.append(
+            {
+                OPERATION_HEADER: op.name,
+                CURRENT_VALUE_HEADER: convert_value_to_readable_text(
+                    op.head_branch_value
+                ),
+                BASELINE_VALUE_HEADER: convert_value_to_readable_text(op.baseline_mean),
+                CHANGE_HEADER: op.change_percentage_as_str(),
+            }
+        )
+
+    comment_body = []
+
+    if regression_data:
+        regression_array_markdown = (
+            markdown_table(regression_data)
+            .set_params(row_sep="markdown", quote=False)
+            .get_markdown()
+        )
+
+        regression_details = [
+            "> [!CAUTION]",
+            "> Performances for some operations have regressed compared to the base branch.",
+            "",  # Add a newline since tables cannot be rendered in markdown note.
+            regression_array_markdown,
+            "",  # Add a newline to avoid rendering the next line of text into the array.
+        ]
+        comment_body.extend(regression_details)
+    else:
+        comment_body.append("No performance regression detected. :tada:")
+
+    comment_body.append(
+        "\n".join(
+            [
+                "Configuration",
+                f"* backend: `{backend}`",
+                f"* regression-profile: `{profile}`",
+                "",
+            ]
+        )
+    )
+
+    all_results_details = [
+        "<details>",
+        "<summary><strong>View All Benchmarks</strong></summary>",
+        "",
+        full_array_markdown,
+        "</details>",
+    ]
+    comment_body.extend(all_results_details)
+
+    formatted_text = "\n".join(comment_body)
+
+    try:
+        REGRESSION_REPORT_FILE.write_text(formatted_text)
+    except Exception as err:
+        print(f"failed to write regression report (error: {err})")
+        raise
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -449,8 +774,27 @@ if __name__ == "__main__":
             write_backend_config_to_file(
                 definition.slab_backend, definition.slab_profile
             )
+            write_regression_config_to_file(
+                definition.backend, definition.regression_profile
+            )
         except Exception as err:
             print(f"failed to write commands/env to file (error:{err})")
             sys.exit(3)
     elif args.command == "check_regression":
-        pass
+        results_file = args.results_file
+        if not results_file:
+            print(
+                f"cannot run `{args.command}` command: please specify the results file path with `--results-file` argument"
+            )
+            sys.exit(1)
+
+        results_file_path = pathlib.Path(results_file)
+        perf_changes, backend, profile = check_performance_changes(results_file_path)
+
+        if args.generate_report:
+            try:
+                generate_regression_report(perf_changes, backend, profile)
+            except Exception:
+                sys.exit(4)
+
+# TODO Add unittests primarly to check if commands and env generated are correct.
