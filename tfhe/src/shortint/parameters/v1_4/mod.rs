@@ -1747,7 +1747,7 @@ pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
 ];
 
 /// All [`MetaParameters`] in this module.
-pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 173] = [
+pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 175] = [
     (
         &V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40,
         "V1_4_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40",
@@ -2139,6 +2139,14 @@ pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 173] = [
     (
         &V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
         "V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128",
+    ),
+    (
+        &V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        "V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128",
+    ),
+    (
+        &V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        "V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128",
     ),
     (
         &V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128,
