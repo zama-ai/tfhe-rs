@@ -3043,8 +3043,9 @@ mod hpu {
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     bench_group
                         .sample_size(10)
-                        .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block, 1);
+                        .measurement_time(std::time::Duration::from_secs(120));
+                    // Enforce that 64Iop are sent
+                    let elements = 64;
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -3097,7 +3098,7 @@ mod hpu {
                                         &input.1,
                                     )
                                 })
-                                .next_back()
+                                .last()
                                 .unwrap();
                             last_res.into_iter().for_each(|ct| {
                                 ct.wait();
