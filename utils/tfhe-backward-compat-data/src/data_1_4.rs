@@ -2,16 +2,19 @@ use crate::generate::{
     store_versioned_auxiliary_tfhe_1_4, store_versioned_test_tfhe_1_4, TfhersVersion,
     INSECURE_DEDICATED_CPK_TEST_PARAMS, INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT,
     INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION, INSECURE_SMALL_TEST_PARAMS_MULTI_BIT,
-    KS_TO_BIG_TEST_PARAMS, KS_TO_SMALL_TEST_PARAMS,
+    KS_TO_BIG_TEST_PARAMS, KS_TO_SMALL_TEST_PARAMS, VALID_TEST_PARAMS_TUNIFORM,
+    VALID_TEST_PARAMS_TUNIFORM_COMPRESSION,
 };
 use crate::{
-    HlClientKeyTest, HlServerKeyTest, HlSquashedNoiseUnsignedCiphertextTest,
-    TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters, TestDistribution,
+    HlClientKeyTest, HlCompressedKVStoreTest, HlServerKeyTest,
+    HlSquashedNoiseUnsignedCiphertextTest, TestClassicParameterSet,
+    TestCompactPublicKeyEncryptionParameters, TestCompressionParameterSet, TestDistribution,
     TestKeySwitchingParams, TestMetadata, TestModulusSwitchNoiseReductionParams,
     TestModulusSwitchType, TestMultiBitParameterSet, TestNoiseSquashingParamsMultiBit,
     TestParameterSet, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fs::create_dir_all;
 
 use tfhe_1_4::boolean::engine::BooleanEngine;
@@ -22,18 +25,18 @@ use tfhe_1_4::prelude::*;
 use tfhe_1_4::shortint::engine::ShortintEngine;
 use tfhe_1_4::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 use tfhe_1_4::shortint::parameters::{
-    CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, CoreCiphertextModulus, DecompositionBaseLog,
-    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
-    LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
-    ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseEstimationMeasureBound,
-    NoiseSquashingParameters, PolynomialSize, RSigmaFactor, ShortintKeySwitchingParameters,
-    StandardDev, SupportedCompactPkeZkScheme, Variance,
+    CarryModulus, CiphertextModulus, CiphertextModulusLog, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, CompressionParameters, CoreCiphertextModulus,
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
+    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel,
+    MessageModulus, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
+    NoiseEstimationMeasureBound, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
+    ShortintKeySwitchingParameters, StandardDev, SupportedCompactPkeZkScheme, Variance,
 };
 use tfhe_1_4::shortint::{AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters};
 use tfhe_1_4::{
-    set_server_key, ClientKey, CompressedCompactPublicKey, ConfigBuilder, FheUint32, Seed,
-    ServerKey,
+    set_server_key, ClientKey, CompressedCompactPublicKey, ConfigBuilder, FheUint32, FheUint64,
+    KVStore, Seed, ServerKey,
 };
 
 macro_rules! store_versioned_test {
@@ -269,6 +272,33 @@ impl From<TestCompactPublicKeyEncryptionParameters> for CompactPublicKeyEncrypti
     }
 }
 
+impl From<TestCompressionParameterSet> for CompressionParameters {
+    fn from(value: TestCompressionParameterSet) -> Self {
+        let TestCompressionParameterSet {
+            br_level,
+            br_base_log,
+            packing_ks_level,
+            packing_ks_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            lwe_per_glwe,
+            storage_log_modulus,
+            packing_ks_key_noise_distribution,
+        } = value;
+        Self {
+            br_level: DecompositionLevelCount(br_level),
+            br_base_log: DecompositionBaseLog(br_base_log),
+            packing_ks_level: DecompositionLevelCount(packing_ks_level),
+            packing_ks_base_log: DecompositionBaseLog(packing_ks_base_log),
+            packing_ks_polynomial_size: PolynomialSize(packing_ks_polynomial_size),
+            packing_ks_glwe_dimension: GlweDimension(packing_ks_glwe_dimension),
+            lwe_per_glwe: LweCiphertextCount(lwe_per_glwe),
+            storage_log_modulus: CiphertextModulusLog(storage_log_modulus),
+            packing_ks_key_noise_distribution: packing_ks_key_noise_distribution.into(),
+        }
+    }
+}
+
 const TEST_FILENAME: Cow<'static, str> = Cow::Borrowed("client_key_with_noise_squashing");
 
 const HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST: HlClientKeyTest = HlClientKeyTest {
@@ -295,6 +325,13 @@ const HL_SERVERKEY_RERAND_TEST: HlServerKeyTest = HlServerKeyTest {
     client_key_filename: Cow::Borrowed("client_key_for_rerand"),
     rerand_cpk_filename: Some(Cow::Borrowed("cpk_for_rerand")),
     compressed: false,
+};
+
+const HL_COMPRESSED_KV_STORE_TEST: HlCompressedKVStoreTest = HlCompressedKVStoreTest {
+    kv_store_file_name: Cow::Borrowed("compressed_kv_store"),
+    client_key_file_name: Cow::Borrowed("client_key_for_kv_store"),
+    server_key_file_name: Cow::Borrowed("server_key_for_kv_store"),
+    num_elements: 512,
 };
 
 pub struct V1_4;
@@ -390,6 +427,47 @@ impl TfhersVersion for V1_4 {
             );
         }
 
+        // Test CompressedKVStore
+        {
+            let config = ConfigBuilder::with_custom_parameters(VALID_TEST_PARAMS_TUNIFORM)
+                .enable_compression(VALID_TEST_PARAMS_TUNIFORM_COMPRESSION.into())
+                .build();
+            let hl_client_key = ClientKey::generate(config);
+            let hl_server_key = ServerKey::new(&hl_client_key);
+            set_server_key(hl_server_key.clone());
+
+            let mut clear_store = HashMap::new();
+            let mut store = KVStore::new();
+            for key in 0..HL_COMPRESSED_KV_STORE_TEST.num_elements as u32 {
+                let value = u64::MAX - u64::from(key);
+
+                let encrypted = FheUint64::encrypt(value, &hl_client_key);
+
+                let _ = clear_store.insert(key, value);
+                let _ = store.insert_with_clear_key(key, encrypted);
+            }
+
+            let compressed_kv_store = store.compress().unwrap();
+
+            store_versioned_auxiliary!(
+                &hl_client_key,
+                &dir,
+                &HL_COMPRESSED_KV_STORE_TEST.client_key_file_name
+            );
+
+            store_versioned_auxiliary!(
+                &hl_server_key,
+                &dir,
+                &HL_COMPRESSED_KV_STORE_TEST.server_key_file_name
+            );
+
+            store_versioned_test!(
+                &compressed_kv_store,
+                &dir,
+                &HL_COMPRESSED_KV_STORE_TEST.kv_store_file_name,
+            );
+        }
+
         vec![
             TestMetadata::HlClientKey(HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST),
             TestMetadata::HlServerKey(HL_SERVERKEY_TEST),
@@ -397,6 +475,7 @@ impl TfhersVersion for V1_4 {
                 HL_SQUASHED_NOISE_UNSIGNED_CIPHERTEXT_TEST,
             ),
             TestMetadata::HlServerKey(HL_SERVERKEY_RERAND_TEST),
+            TestMetadata::HlCompressedKVStoreTest(HL_COMPRESSED_KV_STORE_TEST),
         ]
     }
 }
