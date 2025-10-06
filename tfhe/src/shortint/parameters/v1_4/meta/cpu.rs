@@ -1194,6 +1194,52 @@ pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaPar
         ),
     };
 
+pub const V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
+    MetaParameters {
+        backend: Backend::Cpu,
+        compute_parameters: AtomicPatternParameters::KeySwitch32(
+            V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        ),
+        dedicated_compact_public_key_parameters: Some(DedicatedCompactPublicKeyParameters {
+            pke_params: V1_4_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+            ksk_params:
+                V1_4_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        }),
+        compression_parameters: Some(V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        noise_squashing_parameters: Some(MetaNoiseSquashingParameters {
+            parameters: V1_4_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            compression_parameters: Some(
+                V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        ),
+    };
+
+pub const V1_4_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaParameters =
+    MetaParameters {
+        backend: Backend::Cpu,
+        compute_parameters: AtomicPatternParameters::KeySwitch32(
+            V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        ),
+        dedicated_compact_public_key_parameters: Some(DedicatedCompactPublicKeyParameters {
+            pke_params: V1_4_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+            ksk_params:
+                V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        }),
+        compression_parameters: Some(V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        noise_squashing_parameters: Some(MetaNoiseSquashingParameters {
+            parameters: V1_4_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            compression_parameters: Some(
+                V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        }),
+        re_randomization_parameters: Some(
+            V1_4_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        ),
+    };
+
 pub const V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
         backend: Backend::Cpu,
