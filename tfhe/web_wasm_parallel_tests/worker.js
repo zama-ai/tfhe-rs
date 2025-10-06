@@ -251,7 +251,7 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
 
 async function compactPublicKeyWithCastingTest256Bit() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
   );
   let casting_params = new ShortintCompactPublicKeyEncryptionParameters(
     ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -306,7 +306,7 @@ async function compactPublicKeyWithCastingTest256Bit() {
 
 async function compressedCompactPublicKeyWithCastingTest256Bit() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
   );
   let casting_params = new ShortintCompactPublicKeyEncryptionParameters(
     ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -362,7 +362,7 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
 
 async function compactPublicKeyZeroKnowledgeTest() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
   );
   let casting_params = new ShortintCompactPublicKeyEncryptionParameters(
     ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -647,10 +647,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
     {
       zk_scheme: "ZKV2",
       name: shortint_params_name(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
       ),
       block_params: new ShortintParameters(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
       ),
       casting_params: new ShortintCompactPublicKeyEncryptionParameters(
         ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -659,10 +659,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
     {
       zk_scheme: "ZKV1",
       name: shortint_params_name(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
       ),
       block_params: new ShortintParameters(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
       ),
       casting_params: new ShortintCompactPublicKeyEncryptionParameters(
         ShortintCompactPublicKeyEncryptionParametersName.V1_5_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,

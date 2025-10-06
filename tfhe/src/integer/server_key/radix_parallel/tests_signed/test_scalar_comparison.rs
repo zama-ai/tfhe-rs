@@ -316,9 +316,10 @@ macro_rules! define_signed_scalar_comparison_test_functions {
     };
 }
 
-fn integer_signed_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
+fn integer_signed_is_scalar_out_of_bounds<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = (128f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
 

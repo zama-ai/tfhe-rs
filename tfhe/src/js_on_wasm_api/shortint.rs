@@ -39,7 +39,7 @@ pub struct ShortintCompressedServerKey(pub(crate) crate::shortint::CompressedSer
 pub struct Shortint {}
 
 #[wasm_bindgen]
-pub struct ShortintParameters(pub(crate) crate::shortint::ClassicPBSParameters);
+pub struct ShortintParameters(pub(crate) crate::shortint::AtomicPatternParameters);
 
 #[wasm_bindgen]
 pub struct ShortintCompactPublicKeyEncryptionParameters {
@@ -53,122 +53,62 @@ pub struct ShortintCompactPublicKeyEncryptionParameters {
 impl ShortintParameters {
     #[wasm_bindgen]
     pub fn lwe_dimension(&self) -> usize {
-        self.0.lwe_dimension.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_lwe_dimension(&mut self, new_value: usize) {
-        self.0.lwe_dimension.0 = new_value;
+        self.0.lwe_dimension().0
     }
 
     #[wasm_bindgen]
     pub fn glwe_dimension(&self) -> usize {
-        self.0.glwe_dimension.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_glwe_dimension(&mut self, new_value: usize) {
-        self.0.glwe_dimension.0 = new_value;
+        self.0.glwe_dimension().0
     }
 
     #[wasm_bindgen]
     pub fn polynomial_size(&self) -> usize {
-        self.0.polynomial_size.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_polynomial_size(&mut self, new_value: usize) {
-        self.0.polynomial_size.0 = new_value;
+        self.0.polynomial_size().0
     }
 
     #[wasm_bindgen]
     pub fn lwe_noise_distribution(&self) -> ShortintNoiseDistribution {
-        ShortintNoiseDistribution(self.0.lwe_noise_distribution)
-    }
-
-    #[wasm_bindgen]
-    pub fn set_lwe_noise_distribution(&mut self, new_value: &ShortintNoiseDistribution) {
-        self.0.lwe_noise_distribution = new_value.0;
+        ShortintNoiseDistribution(self.0.lwe_noise_distribution())
     }
 
     #[wasm_bindgen]
     pub fn glwe_noise_distribution(&self) -> ShortintNoiseDistribution {
-        ShortintNoiseDistribution(self.0.lwe_noise_distribution)
-    }
-
-    #[wasm_bindgen]
-    pub fn set_glwe_noise_distribution(&mut self, new_value: &ShortintNoiseDistribution) {
-        self.0.glwe_noise_distribution = new_value.0;
+        ShortintNoiseDistribution(self.0.lwe_noise_distribution())
     }
 
     #[wasm_bindgen]
     pub fn pbs_base_log(&self) -> usize {
-        self.0.pbs_base_log.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_pbs_base_log(&mut self, new_value: usize) {
-        self.0.pbs_base_log.0 = new_value;
+        self.0.pbs_base_log().0
     }
 
     #[wasm_bindgen]
     pub fn pbs_level(&self) -> usize {
-        self.0.pbs_level.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_pbs_level(&mut self, new_value: usize) {
-        self.0.pbs_level.0 = new_value;
+        self.0.pbs_level().0
     }
 
     #[wasm_bindgen]
     pub fn ks_base_log(&self) -> usize {
-        self.0.ks_base_log.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_ks_base_log(&mut self, new_value: usize) {
-        self.0.ks_base_log.0 = new_value;
+        self.0.ks_base_log().0
     }
 
     #[wasm_bindgen]
     pub fn ks_level(&self) -> usize {
-        self.0.ks_level.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_ks_level(&mut self, new_value: usize) {
-        self.0.ks_level.0 = new_value;
+        self.0.ks_level().0
     }
 
     #[wasm_bindgen]
     pub fn message_modulus(&self) -> u64 {
-        self.0.message_modulus.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_message_modulus(&mut self, new_value: u64) {
-        self.0.message_modulus.0 = new_value;
+        self.0.message_modulus().0
     }
 
     #[wasm_bindgen]
     pub fn carry_modulus(&self) -> u64 {
-        self.0.carry_modulus.0
-    }
-
-    #[wasm_bindgen]
-    pub fn set_carry_modulus(&mut self, new_value: u64) {
-        self.0.carry_modulus.0 = new_value;
+        self.0.carry_modulus().0
     }
 
     #[wasm_bindgen]
     pub fn encryption_key_choice(&self) -> ShortintEncryptionKeyChoice {
-        self.0.encryption_key_choice.into()
-    }
-
-    #[wasm_bindgen]
-    pub fn set_encryption_key_choice(&mut self, new_value: ShortintEncryptionKeyChoice) {
-        self.0.encryption_key_choice = new_value.into();
+        self.0.encryption_key_choice().into()
     }
 }
 
@@ -394,7 +334,7 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
             #[derive(Clone, Copy)]
             #[allow(non_camel_case_types)]
             pub enum ShortintParametersName {
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
                 $($([<$version:upper _ $param_base_name $pfail:upper>]),*),*
             }
 
@@ -406,7 +346,7 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
                 };
 
                 match param {
-                    ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 => Ok("PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128".to_string()),
+                    ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128 => Ok("PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128".to_string()),
                     $(
                         $(
                             ShortintParametersName::[<$version:upper _ $param_base_name $pfail:upper>] => Ok(stringify!([<$version:upper _ $param_base_name $pfail:upper>]).to_string()),
@@ -423,13 +363,13 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
                         return Err(JsError::new("invalid variant for ShortintParametersName"));
                     };
                     match name {
-                        ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 => {
-                            Ok(Self(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128))
+                        ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128 => {
+                            Ok(Self(PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()))
                         },
                         $(
                             $(
                                 ShortintParametersName::[<$version:upper _ $param_base_name $pfail:upper>] => {
-                                    Ok(Self([<$version:upper _ $param_base_name $pfail:upper>]))
+                                    Ok(Self([<$version:upper _ $param_base_name $pfail:upper>].into()))
                                 }
                             )*
                         )*
@@ -444,7 +384,13 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
 // A mistake was made in 1.1 and versions were added at the start, to conserve the backward
 // compatible order starting with 1.1, new versions are now added at the END
 expose_predefined_pbs_parameters!(
-    (V1_1, M128), (V1_0, M128), (V0_11, M64), (V1_2, M128), (V1_3, M128), (V1_4, M128), (V1_5, M128) @
+    (V1_1, M128),
+    (V1_0, M128),
+    (V0_11, M64),
+    (V1_2, M128),
+    (V1_3, M128),
+    (V1_4, M128),
+    (V1_5, M128) @
     PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2,
@@ -560,27 +506,31 @@ impl Shortint {
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
-        ShortintParameters(crate::shortint::ClassicPBSParameters {
-            lwe_dimension: LweDimension(lwe_dimension),
-            glwe_dimension: GlweDimension(glwe_dimension),
-            polynomial_size: PolynomialSize(polynomial_size),
-            lwe_noise_distribution: lwe_noise_distribution.0,
-            glwe_noise_distribution: glwe_noise_distribution.0,
-            pbs_base_log: DecompositionBaseLog(pbs_base_log),
-            pbs_level: DecompositionLevelCount(pbs_level),
-            ks_base_log: DecompositionBaseLog(ks_base_log),
-            ks_level: DecompositionLevelCount(ks_level),
-            message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
-            carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
-            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(max_noise_level),
-            log2_p_fail,
-            ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
-                modulus_power_of_2_exponent,
-            )
-            .unwrap(),
-            encryption_key_choice: encryption_key_choice.into(),
-            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
-        })
+        ShortintParameters(
+            crate::shortint::ClassicPBSParameters {
+                lwe_dimension: LweDimension(lwe_dimension),
+                glwe_dimension: GlweDimension(glwe_dimension),
+                polynomial_size: PolynomialSize(polynomial_size),
+                lwe_noise_distribution: lwe_noise_distribution.0,
+                glwe_noise_distribution: glwe_noise_distribution.0,
+                pbs_base_log: DecompositionBaseLog(pbs_base_log),
+                pbs_level: DecompositionLevelCount(pbs_level),
+                ks_base_log: DecompositionBaseLog(ks_base_log),
+                ks_level: DecompositionLevelCount(ks_level),
+                message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
+                carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
+                max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(max_noise_level),
+                log2_p_fail,
+                ciphertext_modulus:
+                    crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
+                        modulus_power_of_2_exponent,
+                    )
+                    .unwrap(),
+                encryption_key_choice: encryption_key_choice.into(),
+                modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
+            }
+            .into(),
+        )
     }
 
     #[wasm_bindgen]
