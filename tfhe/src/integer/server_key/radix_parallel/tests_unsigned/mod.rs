@@ -12,6 +12,7 @@ pub(crate) mod test_ilog2;
 pub(crate) mod test_kv_store;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+pub(crate) mod test_oprf;
 pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;

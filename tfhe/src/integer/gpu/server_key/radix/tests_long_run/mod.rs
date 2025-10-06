@@ -8,7 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFuncti
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
 use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex};
 use tfhe_csprng::generators::DefaultRandomGenerator;
-use tfhe_csprng::seeders::Seeder;
+use tfhe_csprng::seeders::{Seed, Seeder};
 
 pub(crate) mod test_erc20;
 pub(crate) mod test_random_op_sequence;
@@ -1461,5 +1461,147 @@ where
         );
 
         d_res.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For OPRF functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For bounded OPRF functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For custom range OPRF functions (signature placeholder)
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, u64, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(
+            &context.sks,
+            input.0,
+            input.1,
+            input.2,
+            input.3,
+            &context.streams,
+        );
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For Signed OPRF functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For Bounded Signed OPRF functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }

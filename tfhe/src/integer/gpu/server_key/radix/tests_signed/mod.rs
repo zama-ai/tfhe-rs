@@ -7,6 +7,7 @@ pub(crate) mod test_div_mod;
 pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+mod test_oprf;
 pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
@@ -33,6 +34,7 @@ use crate::GpuIndex;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use std::sync::Arc;
+use tfhe_csprng::seeders::Seed;
 
 /// For default/unchecked unary functions
 impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
@@ -717,6 +719,47 @@ where
             CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<F> FunctionExecutor<(Seed, u64), SignedRadixCiphertext> for GpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<F> FunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>
+    for GpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
