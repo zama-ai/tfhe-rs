@@ -37,7 +37,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         128,
         256,
         512,
-        comp_param.lwe_per_glwe.0 * log_message_modulus,
+        //comp_param.lwe_per_glwe.0 * log_message_modulus,
     ] {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
