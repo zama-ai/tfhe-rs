@@ -141,7 +141,7 @@ pub use tag::Tag;
 pub use traits::FheId;
 pub mod xof_key_set;
 
-pub use kv_store::KVStore;
+pub use kv_store::{CompressedKVStore, KVStore};
 
 mod booleans;
 mod compressed_ciphertext_list;
