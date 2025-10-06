@@ -4,13 +4,31 @@ pub mod slice;
 pub mod vec;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::CudaVec;
+use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
+use crate::GpuIndex;
+
+/// Side resources for CUDA operations in noise simulation
+#[derive(Clone)]
+pub struct CudaSideResources {
+    pub streams: CudaStreams,
+    pub block_info: CudaBlockInfo,
+}
+
+impl CudaSideResources {
+    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        Self {
+            streams: streams.clone(),
+            block_info,
+        }
+    }
+}
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter,
     GlweCiphertextCount, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension,
     PolynomialSize, UnsignedInteger,
 };
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 pub use algorithms::*;
 pub use entities::*;
 use std::any::{Any, TypeId};

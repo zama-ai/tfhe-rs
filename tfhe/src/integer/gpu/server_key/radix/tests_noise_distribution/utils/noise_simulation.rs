@@ -1,36 +1,22 @@
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
-    AllocateDriftTechniqueStandardModSwitchResult, AllocateLweKeyswitchResult,
-    AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
-    DriftTechniqueStandardModSwitch, LweKeyswitch, ScalarMul, StandardModSwitch,
+    AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
+    AllocateLweKeyswitchResult, AllocateStandardModSwitchResult,
+    CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
+    LweClassicFftBootstrap, LweKeyswitch, ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::gpu::algorithms::lwe_keyswitch::cuda_keyswitch_lwe_ciphertext;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext, CudaStreams};
+use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext, CudaSideResources};
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
-use crate::integer::gpu::server_key::radix::{CudaBlockInfo, CudaRadixCiphertextInfo};
+use crate::integer::gpu::server_key::radix::CudaRadixCiphertextInfo;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::gpu::{
     cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async,
 };
-
-//I will wrap the CudaBlockInfo in the resources for simplicity cause the
-//CudaLweCiphertextList doesn't contain this info
-pub struct CudaSideResources {
-    pub streams: CudaStreams,
-    pub block_info: CudaBlockInfo,
-}
-
-impl CudaSideResources {
-    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
-        Self {
-            streams: streams.clone(),
-            block_info,
-        }
-    }
-}
 
 /// GPU version of DynLwe for CUDA operations
 #[derive(Clone)]
@@ -264,6 +250,19 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
                     output_modulus_log.0 as u32,
                 );
                 side_resources.streams.synchronize();
+                let cpu_lwe = output_cuda_lwe.into_lwe_ciphertext(&side_resources.streams);
+                let mut cpu_ct = LweCiphertext::from_container(
+                    cpu_lwe.clone().into_container(),
+                    cpu_lwe.ciphertext_modulus(),
+                );
+                // This probably is better to make it from a GPU kernel, but for now it is ok
+                let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
+                for val in cpu_ct.as_mut() {
+                    *val <<= shift_to_map_to_native;
+                }
+                let d_after_ms =
+                    CudaLweCiphertextList::from_lwe_ciphertext(&cpu_ct, &side_resources.streams);
+                output_cuda_lwe.clone_from(&d_after_ms);
             },
             (Self::U128(input), Self::U128(output_cuda_lwe)) => {
                 output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
@@ -414,5 +413,88 @@ impl DriftTechniqueStandardModSwitch<CudaDynLwe, CudaDynLwe, CudaDynLwe> for Cud
         _side_resources: &Self::SideResources,
     ) {
         panic!("Drift technique is being deprecated, use other flavors of mod switch instead")
+    }
+}
+
+/// Implementation for CudaGlweCiphertextList<u64> to return CudaDynLwe (for test compatibility)
+impl AllocateLweBootstrapResult for CudaGlweCiphertextList<u64> {
+    type Output = CudaDynLwe;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_bootstrap_result(&self, side_resources: &Self::SideResources) -> Self::Output {
+        // For PBS result, we allocate LWE ciphertexts wrapped in CudaDynLwe
+        // The output has LWE dimension = GLWE dimension * polynomial size + 1
+        let lwe_dimension = LweDimension(self.glwe_dimension().0 * self.polynomial_size().0);
+
+        let cuda_lwe = CudaLweCiphertextList::new(
+            lwe_dimension,
+            LweCiphertextCount(self.glwe_ciphertext_count().0),
+            self.ciphertext_modulus(),
+            &side_resources.streams,
+        );
+        CudaDynLwe::U64(cuda_lwe)
+    }
+}
+
+// Implement LweClassicFftBootstrap for CudaServerKey
+impl LweClassicFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>> for CudaServerKey {
+    type SideResources = CudaSideResources;
+
+    fn lwe_classic_fft_pbs(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList<u64>,
+        side_resources: &Self::SideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_lwe_ciphertext;
+        use crate::core_crypto::gpu::vec::CudaVec;
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+        use crate::integer::gpu::CastInto;
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                // Create indexes for PBS
+                let num_ct_blocks = 1;
+                let lwe_indexes: Vec<u64> = (0..num_ct_blocks)
+                    .map(|x| <usize as CastInto<u64>>::cast_into(x))
+                    .collect();
+                let mut d_lut_vector_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+                let mut d_input_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+                let mut d_output_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+
+                unsafe {
+                    d_lut_vector_indexes.copy_from_cpu_async(
+                        &lwe_indexes,
+                        &side_resources.streams,
+                        0,
+                    );
+                    d_input_indexes.copy_from_cpu_async(&lwe_indexes, &side_resources.streams, 0);
+                    d_output_indexes.copy_from_cpu_async(&lwe_indexes, &side_resources.streams, 0);
+                }
+
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_programmable_bootstrap_lwe_ciphertext(
+                            input_cuda_lwe,
+                            output_cuda_lwe,
+                            accumulator,
+                            &d_lut_vector_indexes,
+                            &d_output_indexes,
+                            &d_input_indexes,
+                            d_bsk,
+                            &side_resources.streams,
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(_d_multibit_bsk) => {
+                        panic!("MultiBit PBS is not supported in noise simulation");
+                    }
+                }
+            }
+            _ => panic!("Only U64 PBS is supported for CudaServerKey"),
+        }
     }
 }

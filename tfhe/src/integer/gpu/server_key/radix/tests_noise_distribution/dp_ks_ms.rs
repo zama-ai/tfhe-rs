@@ -1,10 +1,11 @@
-use super::utils::noise_simulation::CudaSideResources;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{CudaSideResources, CudaStreams};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::IntegerCiphertext;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -20,14 +21,19 @@ use crate::shortint::server_key::tests::noise_distribution::utils::{
 };
 use rayon::prelude::*;
 
+use crate::core_crypto::commons::numeric::Numeric;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
+use crate::integer::gpu::{unchecked_small_scalar_mul_integer_async, CastInto, CudaVec};
 use crate::integer::server_key::ServerKey;
 use crate::integer::CompressedServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_ms;
+use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::{
+    dp_ks_any_ms, dp_ks_any_ms_classic_pbs,
+};
 use crate::shortint::server_key::tests::noise_distribution::should_run_short_pfail_tests_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationLwe,
@@ -37,6 +43,140 @@ use crate::shortint::server_key::tests::noise_distribution::utils::{
     PfailTestMeta, PfailTestResult,
 };
 use crate::shortint::{ClientKey, ShortintParameterSet};
+use itertools::Itertools;
+
+/// Test function to verify that the noise checking tools match the actual atomic patterns
+/// implemented in shortint
+fn sanity_check_encrypt_dp_ks_pbs_gpu<P>(params: P)
+where
+    P: Into<AtomicPatternParameters> + Copy,
+{
+    let atomic_params: AtomicPatternParameters = params.into();
+    let gpu_index = 0;
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+
+    let block_params: ShortintParameterSet = atomic_params.into();
+    let cks = crate::integer::ClientKey::new(block_params);
+    let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+    let sks = compressed_server_key.decompress();
+    let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+    let noise_simulation_modulus_switch_config = sks.key.noise_simulation_modulus_switch_config();
+    let br_input_modulus_log = sks.key.br_input_modulus_log();
+    let _expected_average_after_ms = noise_simulation_modulus_switch_config
+        .expected_average_after_ms(atomic_params.polynomial_size());
+
+    let max_scalar_mul = sks.key.max_noise_level.get();
+
+    let id_lut = cuda_sks.generate_lookup_table(|x| x);
+    let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&id_lut.acc, &streams);
+
+    let drift_key = match noise_simulation_modulus_switch_config {
+        NoiseSimulationModulusSwitchConfig::Standard => None,
+        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&cuda_sks),
+        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
+    };
+    let block_info = CudaBlockInfo {
+        degree: crate::shortint::parameters::Degree::new(1),
+        message_modulus: atomic_params.message_modulus(),
+        carry_modulus: atomic_params.carry_modulus(),
+        atomic_pattern: crate::shortint::parameters::AtomicPatternKind::Standard(
+            crate::shortint::parameters::PBSOrder::KeyswitchBootstrap,
+        ),
+        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
+    };
+
+    let side_resources = CudaSideResources::new(&streams, block_info);
+    // Need to generate the required indexes for the PBS
+    let num_ct_blocks = 1;
+    let mut lut_vector_indexes: Vec<u64> = vec![u64::ZERO; num_ct_blocks];
+    for (i, ind) in lut_vector_indexes.iter_mut().enumerate() {
+        *ind = <usize as CastInto<u64>>::cast_into(i);
+    }
+    let mut d_lut_vector_indexes = unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &streams, 0) };
+    unsafe { d_lut_vector_indexes.copy_from_cpu_async(&lut_vector_indexes, &streams, 0) };
+    let lwe_indexes_usize: Vec<usize> = (0..num_ct_blocks).collect_vec();
+    let lwe_indexes = lwe_indexes_usize
+        .iter()
+        .map(|&x| <usize as CastInto<u64>>::cast_into(x))
+        .collect_vec();
+    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &streams, 0) };
+    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &streams, 0) };
+    unsafe {
+        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams, 0);
+        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams, 0);
+    }
+    streams.synchronize();
+    for _ in 0..10 {
+        let ct_input = cks.key.encrypt(0);
+        let cloned_ct_input = ct_input.clone();
+        let radix_ct_input = crate::integer::RadixCiphertext::from_blocks(vec![ct_input]);
+        let d_ct_input =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_ct_input, &streams);
+        let gpu_sample_input = CudaDynLwe::U64(d_ct_input.ciphertext.d_blocks);
+
+        let (_input, _after_dp, _after_ks, _before_ms, _after_ms, after_pbs) =
+            dp_ks_any_ms_classic_pbs(
+                gpu_sample_input,
+                max_scalar_mul,
+                &cuda_sks,
+                noise_simulation_modulus_switch_config,
+                drift_key,
+                &cuda_sks,
+                br_input_modulus_log,
+                &d_accumulator,
+                &side_resources,
+            );
+
+        let after_pbs_list = after_pbs.as_lwe_64().to_lwe_ciphertext_list(&streams);
+        let after_pbs_ct = LweCiphertext::from_container(
+            after_pbs_list.clone().into_container(),
+            after_pbs_list.ciphertext_modulus(),
+        );
+
+        let radix_ct = crate::integer::RadixCiphertext::from_blocks(vec![cloned_ct_input]);
+        let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_ct, &streams);
+
+        unsafe {
+            unchecked_small_scalar_mul_integer_async(
+                &streams,
+                &mut d_ct.ciphertext,
+                max_scalar_mul,
+                atomic_params.message_modulus(),
+                atomic_params.carry_modulus(),
+            );
+        }
+        streams.synchronize();
+
+        let mut after_pbs_shortint_ct: CudaUnsignedRadixCiphertext =
+            cuda_sks.create_trivial_zero_radix(1, &streams);
+        unsafe {
+            cuda_sks.apply_lookup_table_async(
+                &mut after_pbs_shortint_ct.ciphertext,
+                &d_ct.ciphertext,
+                &id_lut,
+                0..1,
+                &streams,
+            );
+        }
+        streams.synchronize();
+
+        let shortint_res_list = after_pbs_shortint_ct
+            .ciphertext
+            .d_blocks
+            .to_lwe_ciphertext_list(&streams);
+        let shortint_res_ct = LweCiphertext::from_container(
+            shortint_res_list.clone().into_container(),
+            shortint_res_list.ciphertext_modulus(),
+        );
+        assert_eq!(after_pbs_ct.as_view(), shortint_res_ct.as_view());
+    }
+}
+
+#[cfg(feature = "gpu")]
+create_gpu_parameterized_test!(sanity_check_encrypt_dp_ks_pbs_gpu {
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
 
 use crate::shortint::CarryModulus;
 fn encrypt_dp_ks_any_ms_inner_helper_gpu(
@@ -125,15 +265,10 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     );
     let after_ks = DynLwe::U64(after_ks_ct);
     let after_ms_list = after_ms_gpu.as_lwe_64().to_lwe_ciphertext_list(streams);
-    let mut after_ms_ct = LweCiphertext::from_container(
+    let after_ms_ct = LweCiphertext::from_container(
         after_ms_list.clone().into_container(),
         after_ms_list.ciphertext_modulus(),
     );
-    // This probably is better to keep it in the modulus switch function
-    let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
-    for val in after_ms_ct.as_mut() {
-        *val <<= shift_to_map_to_native;
-    }
     let after_ms = DynLwe::U64(after_ms_ct);
 
     let before_ms_gpu: &CudaDynLwe = after_drift_gpu.as_ref().unwrap_or(&after_ks_gpu);
@@ -467,7 +602,7 @@ where
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
         .collect::<Vec<_>>();
     let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .into_par_iter()
+        .into_iter()
         .map(|index| {
             let stream_index = index % num_streams;
             let local_streams = &vec_local_streams[stream_index as usize];

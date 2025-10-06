@@ -121,7 +121,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn dp_ks_any_ms_classic_pbs<
+pub fn dp_ks_any_ms_classic_pbs<
     InputCt,
     ScalarMulResult,
     KsResult,
