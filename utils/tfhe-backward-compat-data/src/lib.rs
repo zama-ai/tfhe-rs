@@ -624,6 +624,28 @@ impl TestType for ZkPkePublicParamsTest {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlCompressedKVStoreTest {
+    pub kv_store_file_name: Cow<'static, str>,
+    pub client_key_file_name: Cow<'static, str>,
+    pub server_key_file_name: Cow<'static, str>,
+    pub num_elements: usize,
+}
+
+impl TestType for HlCompressedKVStoreTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "CompressedKVStore".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.kv_store_file_name.to_string()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Display)]
 pub enum TestMetadata {
     // Shortint
@@ -644,6 +666,7 @@ pub enum TestMetadata {
     HlSquashedNoiseSignedCiphertext(HlSquashedNoiseSignedCiphertextTest),
     HlSquashedNoiseBoolCiphertext(HlSquashedNoiseBoolCiphertextTest),
     HlCompressedSquashedNoiseCiphertextList(HlCompressedSquashedNoiseCiphertextListTest),
+    HlCompressedKVStoreTest(HlCompressedKVStoreTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
