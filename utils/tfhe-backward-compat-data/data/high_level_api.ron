@@ -702,4 +702,14 @@
             compressed: false,
         )),
     ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlCompressedKVStoreTest((
+            kv_store_file_name: "compressed_kv_store",
+            client_key_file_name: "client_key_for_kv_store",
+            server_key_file_name: "server_key_for_kv_store",
+            num_elements: 512,
+        )),
+    ),
 ]

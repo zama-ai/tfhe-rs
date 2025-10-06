@@ -18,8 +18,9 @@ use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedPublicKey, CompressedServerKey, CompressedSquashedNoiseCiphertextList, FheBool,
-    FheInt8, FheUint8, ReRandomizationContext, SquashedNoiseFheBool, SquashedNoiseFheInt,
+    CompressedKVStore, CompressedPublicKey, CompressedServerKey,
+    CompressedSquashedNoiseCiphertextList, FheBool, FheInt8, FheUint64, FheUint8,
+    ReRandomizationContext, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
     SquashedNoiseFheUint,
 };
 #[cfg(feature = "zk-pok")]
@@ -28,7 +29,7 @@ use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
+    DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest, HlCompressedKVStoreTest,
     HlCompressedSquashedNoiseCiphertextListTest, HlHeterogeneousCiphertextListTest,
     HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
     HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
@@ -616,6 +617,54 @@ pub fn test_hl_compressed_squashed_noise_ciphertext_list(
     Ok(test.success(format))
 }
 
+fn test_hl_compressed_kv_store_test(
+    dir: &Path,
+    test: &HlCompressedKVStoreTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key_file = dir.join(&*test.client_key_file_name);
+    let client_key = ClientKey::unversionize(
+        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(format!("Failed to load client key file: {e}"), format))?;
+
+    let server_key_file = dir.join(&*test.server_key_file_name);
+    let server_key = ServerKey::unversionize(
+        load_versioned_auxiliary(server_key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(format!("Failed to load server key file: {e}"), format))?;
+
+    let file = dir.join(&*test.kv_store_file_name);
+    let compressed_kv_store = CompressedKVStore::<u32, FheUint64>::unversionize(
+        load_versioned_auxiliary(file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| {
+        test.failure(
+            format!("Failed to load compressed kvstore file: {e}"),
+            format,
+        )
+    })?;
+
+    set_server_key(server_key);
+    let kv_store = compressed_kv_store.decompress().unwrap();
+    for key in 0..test.num_elements as u32 {
+        if let Some(encrypted_value) = kv_store.get_with_clear_key(&key) {
+            let value: u64 = encrypted_value.decrypt(&client_key);
+            let expected = u64::MAX - u64::from(key);
+            if value != expected {
+                return Err(test.failure(
+                    format!("Expected value for key {key} to be {expected}, got {value} instead"),
+                    format,
+                ));
+            }
+        } else {
+            return Err(test.failure(format!("Expected an entry for key {key}"), format));
+        }
+    }
+
+    Ok(test.success(format))
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -664,6 +713,9 @@ impl TestedModule for Hl {
             TestMetadata::HlCompressedSquashedNoiseCiphertextList(test) => {
                 test_hl_compressed_squashed_noise_ciphertext_list(test_dir.as_ref(), test, format)
                     .into()
+            }
+            TestMetadata::HlCompressedKVStoreTest(test) => {
+                test_hl_compressed_kv_store_test(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
