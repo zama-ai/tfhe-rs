@@ -23,7 +23,9 @@ use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
 use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::engine::ShortintEngine;
-use super::parameters::{DynamicDistribution, KeySwitch32PBSParameters};
+use super::parameters::{
+    CiphertextConformanceParams, DynamicDistribution, KeySwitch32PBSParameters,
+};
 use super::prelude::{DecompositionBaseLog, DecompositionLevelCount};
 use super::server_key::{
     apply_ms_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
@@ -595,6 +597,15 @@ impl AtomicPatternParameters {
                 AtomicPatternKind::Standard(parameters.encryption_key_choice().into_pbs_order())
             }
             Self::KeySwitch32(_) => AtomicPatternKind::KeySwitch32,
+        }
+    }
+
+    pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
+        match self {
+            Self::Standard(pbsparameters) => pbsparameters.to_shortint_conformance_param(),
+            Self::KeySwitch32(key_switch32_pbsparameters) => {
+                key_switch32_pbsparameters.to_shortint_conformance_param()
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ use crate::integer::server_key::MatchValues;
 use crate::named::Named;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 #[cfg(feature = "gpu")]
 use crate::GpuIndex;
 use crate::{FheBool, ServerKey, Tag};
@@ -108,7 +108,7 @@ pub struct FheUintConformanceParams<Id: FheUintId> {
     pub(crate) id: PhantomData<Id>,
 }
 
-impl<Id: FheUintId, P: Into<PBSParameters>> From<P> for FheUintConformanceParams<Id> {
+impl<Id: FheUintId, P: Into<AtomicPatternParameters>> From<P> for FheUintConformanceParams<Id> {
     fn from(params: P) -> Self {
         let params = params.into();
         Self {
