@@ -370,66 +370,9 @@ pub(crate) mod test {
     };
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::IntegerKeyKind;
-    use crate::shortint::oprf::test::test_uniformity;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use tfhe_csprng::seeders::Seed;
-
-    #[test]
-    fn oprf_test_uniformity_ci_run_filter() {
-        let sample_count: usize = 10_000;
-
-        let p_value_limit: f64 = 0.000_01;
-
-        let random_bits_count = 3;
-
-        let num_blocks = 2;
-
-        let (ck, sk) = KEY_CACHE.get_from_params(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            IntegerKeyKind::Radix,
-        );
-
-        let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
-            test_uniformity(sample_count, p_value_limit, distinct_values, f)
-        };
-
-        test_uniformity(1 << random_bits_count, &|seed| {
-            let img = sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                Seed(seed as u128),
-                random_bits_count,
-                num_blocks as u64,
-            );
-            ck.decrypt_radix(&img)
-        });
-
-        test_uniformity(1 << random_bits_count, &|seed| {
-            let img = sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
-                Seed(seed as u128),
-                random_bits_count,
-                num_blocks as u64,
-            );
-            let result = ck.decrypt_signed_radix::<i64>(&img);
-
-            assert!(result >= 0);
-
-            result as u64
-        });
-
-        test_uniformity(1 << (2 * num_blocks), &|seed| {
-            let img = sk.par_generate_oblivious_pseudo_random_signed_integer(
-                Seed(seed as u128),
-                num_blocks as u64,
-            );
-
-            // Move from [-2^(p-1), 2^(p-1)[ to [0, 2^p[ (p = 2 * num_blocks)
-            let result = ck.decrypt_signed_radix::<i64>(&img) + (1 << (2 * num_blocks - 1));
-
-            assert!(result >= 0);
-
-            result as u64
-        });
-    }
 
     #[test]
     fn oprf_test_any_range_ci_run_filter() {

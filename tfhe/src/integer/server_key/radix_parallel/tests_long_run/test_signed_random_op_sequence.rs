@@ -10,7 +10,7 @@ use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
-use crate::{ClientKey, CompressedServerKey, Tag};
+use crate::{ClientKey, CompressedServerKey, Seed, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
 
@@ -83,6 +83,13 @@ pub(crate) type SignedScalarDivRemOpExecutor = Box<
 >;
 pub(crate) type SignedLog2OpExecutor =
     Box<dyn for<'a> OpSequenceFunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>>;
+
+// Add these new types for Signed OPRF operations
+pub(crate) type SignedOprfExecutor =
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>>;
+pub(crate) type SignedOprfBoundedExecutor =
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>>;
+
 fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
@@ -490,6 +497,23 @@ where
         ),
     ];
 
+    let signed_oprf_executor = OpSequenceCpuFunctionExecutor::new(
+        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer,
+    );
+    let signed_oprf_bounded_executor = OpSequenceCpuFunctionExecutor::new(
+        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
+    );
+
+    let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
+        Box::new(signed_oprf_executor),
+        "par_generate_oblivious_pseudo_random_signed_integer".to_string(),
+    )];
+
+    let mut signed_oprf_bounded_ops: Vec<(SignedOprfBoundedExecutor, String)> = vec![(
+        Box::new(signed_oprf_bounded_executor),
+        "par_generate_oblivious_pseudo_random_signed_integer_bounded".to_string(),
+    )];
+
     let (cks, sks, mut datagen) = signed_random_op_sequence_test_init_cpu(
         param,
         &mut binary_ops,
@@ -505,6 +529,8 @@ where
         &mut log2_ops,
         &mut rotate_shift_ops,
         &mut scalar_shift_rotate_ops,
+        &mut signed_oprf_ops,
+        &mut signed_oprf_bounded_ops,
     );
 
     signed_random_op_sequence_test(
@@ -524,6 +550,8 @@ where
         &mut log2_ops,
         &mut rotate_shift_ops,
         &mut scalar_shift_rotate_ops,
+        &mut signed_oprf_ops,
+        &mut signed_oprf_bounded_ops,
     );
 }
 
@@ -579,6 +607,8 @@ pub(crate) fn signed_random_op_sequence_test_init_cpu<P>(
         impl Fn(i64, u64) -> i64,
         String,
     )],
+    signed_oprf_ops: &mut [(SignedOprfExecutor, String)],
+    signed_oprf_bounded_ops: &mut [(SignedOprfBoundedExecutor, String)],
 ) -> (
     RadixClientKey,
     Arc<ServerKey>,
@@ -599,7 +629,9 @@ where
         + scalar_div_rem_op.len()
         + log2_ops.len()
         + rotate_shift_ops.len()
-        + scalar_rotate_shift_ops.len();
+        + scalar_rotate_shift_ops.len()
+        + signed_oprf_ops.len()
+        + signed_oprf_bounded_ops.len();
 
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -667,6 +699,12 @@ where
     for x in scalar_rotate_shift_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
+    for x in signed_oprf_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in signed_oprf_bounded_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
 
     (cks, sks, datagen)
 }
@@ -725,6 +763,8 @@ pub(crate) fn signed_random_op_sequence_test(
         impl Fn(i64, u64) -> i64,
         String,
     )],
+    signed_oprf_ops: &mut [(SignedOprfExecutor, String)],
+    signed_oprf_bounded_ops: &mut [(SignedOprfBoundedExecutor, String)],
 ) {
     let binary_ops_range = 0..binary_ops.len();
     let unary_ops_range = binary_ops_range.end..binary_ops_range.end + unary_ops.len();
@@ -747,6 +787,10 @@ pub(crate) fn signed_random_op_sequence_test(
     let rotate_shift_ops_range = log2_ops_range.end..log2_ops_range.end + rotate_shift_ops.len();
     let scalar_rotate_shift_ops_range =
         rotate_shift_ops_range.end..rotate_shift_ops_range.end + scalar_rotate_shift_ops.len();
+    let signed_oprf_ops_range = scalar_rotate_shift_ops_range.end
+        ..scalar_rotate_shift_ops_range.end + signed_oprf_ops.len();
+    let signed_oprf_bounded_ops_range =
+        signed_oprf_ops_range.end..signed_oprf_ops_range.end + signed_oprf_bounded_ops.len();
 
     for fn_index in 0..get_long_test_iterations() {
         let (i, idx) = datagen.gen_op_index();
@@ -1184,6 +1228,80 @@ pub(crate) fn signed_random_op_sequence_test(
                 expected_res,
                 lhs.p,
                 rhs.p,
+            );
+        } else if signed_oprf_ops_range.contains(&i) {
+            let index = i - signed_oprf_ops_range.start;
+            let (op_executor, fn_name) = &mut signed_oprf_ops[index];
+
+            let seed = datagen.gen_seed();
+            let num_blocks = NB_CTXT_LONG_RUN as u64;
+
+            println!(
+                "{idx}: Start {fn_name} with seed={:?}, num_blocks={num_blocks}",
+                seed.0
+            );
+
+            let res = op_executor.execute((seed, num_blocks));
+            let res_1 = op_executor.execute((seed, num_blocks));
+
+            let decrypted_res: i64 = cks.decrypt_signed(&res);
+
+            let bits_per_block = sks.message_modulus().0.ilog2();
+            let total_bits = num_blocks * bits_per_block as u64;
+            let upper_bound = 1i128 << (total_bits - 1);
+            let lower_bound = -upper_bound;
+            assert!((decrypted_res as i128) < upper_bound);
+            assert!((decrypted_res as i128) >= lower_bound);
+
+            datagen.put_op_result_random_side(decrypted_res, &res, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypted_res,
+                decrypted_res,
+                0,
+                0,
+            );
+        } else if signed_oprf_bounded_ops_range.contains(&i) {
+            let index = i - signed_oprf_bounded_ops_range.start;
+            let (op_executor, fn_name) = &mut signed_oprf_bounded_ops[index];
+
+            let seed = datagen.gen_seed();
+            let num_blocks = NB_CTXT_LONG_RUN as u64;
+            let bits_per_block = sks.message_modulus().0.ilog2();
+            let max_bits = num_blocks * bits_per_block as u64 - 1;
+            let random_bits_count = datagen.gen_random_bits_count(max_bits);
+
+            println!(
+                "{idx}: Start {fn_name} with seed={:?}, bits={random_bits_count}, num_blocks={num_blocks}",
+                seed.0
+            );
+
+            let res = op_executor.execute((seed, random_bits_count, num_blocks));
+            let res_1 = op_executor.execute((seed, random_bits_count, num_blocks));
+
+            let decrypted_res: i64 = cks.decrypt_signed(&res);
+
+            let upper_bound = 1i64 << random_bits_count;
+            assert!(decrypted_res >= 0);
+            assert!(decrypted_res < upper_bound);
+
+            datagen.put_op_result_random_side(decrypted_res, &res, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypted_res,
+                decrypted_res,
+                0,
+                0,
             );
         }
     }

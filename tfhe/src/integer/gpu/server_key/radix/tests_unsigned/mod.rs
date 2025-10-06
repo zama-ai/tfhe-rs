@@ -53,6 +53,7 @@ macro_rules! create_gpu_parameterized_test{
 
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 pub(crate) use create_gpu_parameterized_test;
+use tfhe_csprng::seeders::Seed;
 
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,
@@ -1060,6 +1061,46 @@ where
         (self.func)(&context.sks, &mut d_ctxt_1, &d_ctxt_2, &context.streams);
 
         *input.0 = d_ctxt_1.to_radix_ciphertext(&context.streams);
+    }
+}
+
+impl<F> FunctionExecutor<(Seed, u64, u64), RadixCiphertext> for GpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<F> FunctionExecutor<(Seed, u64), RadixCiphertext> for GpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+
+        gpu_result.to_radix_ciphertext(&context.streams)
     }
 }
 

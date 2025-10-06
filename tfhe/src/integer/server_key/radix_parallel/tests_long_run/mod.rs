@@ -14,6 +14,7 @@ pub(crate) mod test_erc20;
 pub(crate) mod test_random_op_sequence;
 pub(crate) mod test_signed_erc20;
 pub(crate) mod test_signed_random_op_sequence;
+
 pub(crate) const NB_CTXT_LONG_RUN: usize = 32;
 pub(crate) const NB_TESTS_LONG_RUN: usize = 20000;
 pub(crate) const NB_TESTS_LONG_RUN_MINIMAL: usize = 200;
@@ -177,7 +178,7 @@ impl<
             self.rhs[j].c.blocks().iter().map(|b| b.degree.0).collect();
 
         println!("{op_idx}: Start {op_name} lhs[{i}]={} deg={input_degrees_left:?} (prod: {}:{}), rhs[{j}]={} deg={input_degrees_right:?} (prod: {}:{})",
-            self.lhs[i].p, self.lhs[i].producer.1, self.lhs[i].producer.0, self.rhs[j].p, self.rhs[j].producer.1, self.rhs[j].producer.0,
+                 self.lhs[i].p, self.lhs[i].producer.1, self.lhs[i].producer.0, self.rhs[j].p, self.rhs[j].producer.1, self.rhs[j].producer.0,
         );
 
         (self.lhs[i].clone(), self.rhs[j].clone())
@@ -242,6 +243,29 @@ impl<
     fn gen_bool_uniform(&mut self) -> bool {
         let val = self.deterministic_seeder.seed().0 % 2;
         val == 1
+    }
+
+    fn gen_seed(&mut self) -> Seed {
+        self.deterministic_seeder.seed()
+    }
+
+    // Generates a number of bits for bounded and custom_range variants
+    // Ensures it's not 0 and not excessively large
+    fn gen_random_bits_count(&mut self, max_bits: u64) -> u64 {
+        let bits = (self.deterministic_seeder.seed().0 % max_bits as u128) as u64;
+        bits.max(1) // Ensure we request at least 1 bit
+    }
+
+    // Generates an upper bound for the custom_range variant.
+    // Ensures it's not a power of two to test the specific logic of that function.
+    fn gen_excluded_upper_bound(&mut self) -> u64 {
+        loop {
+            // Generate a value in a reasonable range, e.g., up to 10000
+            let bound = (self.deterministic_seeder.seed().0 % 10000) as u64;
+            if bound > 1 && !bound.is_power_of_two() {
+                return bound;
+            }
+        }
     }
 }
 #[allow(clippy::too_many_arguments)]

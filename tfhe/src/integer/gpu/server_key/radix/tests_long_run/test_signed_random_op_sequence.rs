@@ -4,10 +4,11 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_signed_random_op_sequence::{
     signed_random_op_sequence_test, SignedBinaryOpExecutor, SignedComparisonOpExecutor,
-    SignedDivRemOpExecutor, SignedLog2OpExecutor, SignedOverflowingOpExecutor,
-    SignedScalarBinaryOpExecutor, SignedScalarComparisonOpExecutor, SignedScalarDivRemOpExecutor,
-    SignedScalarOverflowingOpExecutor, SignedScalarShiftRotateExecutor, SignedSelectOpExecutor,
-    SignedShiftRotateExecutor, SignedUnaryOpExecutor,
+    SignedDivRemOpExecutor, SignedLog2OpExecutor, SignedOprfBoundedExecutor, SignedOprfExecutor,
+    SignedOverflowingOpExecutor, SignedScalarBinaryOpExecutor, SignedScalarComparisonOpExecutor,
+    SignedScalarDivRemOpExecutor, SignedScalarOverflowingOpExecutor,
+    SignedScalarShiftRotateExecutor, SignedSelectOpExecutor, SignedShiftRotateExecutor,
+    SignedUnaryOpExecutor,
 };
 use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_user_defined_seed, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
@@ -74,6 +75,8 @@ pub(crate) fn signed_random_op_sequence_test_init_gpu<P>(
         impl Fn(i64, u64) -> i64,
         String,
     )],
+    signed_oprf_ops: &mut [(SignedOprfExecutor, String)],
+    signed_oprf_bounded_ops: &mut [(SignedOprfBoundedExecutor, String)],
 ) -> (
     RadixClientKey,
     Arc<ServerKey>,
@@ -97,7 +100,9 @@ where
         + scalar_div_rem_op.len()
         + log2_ops.len()
         + rotate_shift_ops.len()
-        + scalar_rotate_shift_ops.len();
+        + scalar_rotate_shift_ops.len()
+        + signed_oprf_ops.len()
+        + signed_oprf_bounded_ops.len();
 
     let cks = ClientKey::from_raw_parts(cks0.clone(), None, None, None, None, None, Tag::default());
     let comp_sks = CompressedServerKey::new(&cks);
@@ -159,6 +164,12 @@ where
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
     for x in scalar_rotate_shift_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in signed_oprf_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in signed_oprf_bounded_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
 
@@ -589,6 +600,23 @@ where
         //),
     ];
 
+    let signed_oprf_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::par_generate_oblivious_pseudo_random_signed_integer,
+    );
+    let signed_oprf_bounded_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
+    );
+
+    let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
+        Box::new(signed_oprf_executor),
+        "par_generate_oblivious_pseudo_random_signed_integer".to_string(),
+    )];
+
+    let mut signed_oprf_bounded_ops: Vec<(SignedOprfBoundedExecutor, String)> = vec![(
+        Box::new(signed_oprf_bounded_executor),
+        "par_generate_oblivious_pseudo_random_signed_integer_bounded".to_string(),
+    )];
+
     let (cks, sks, mut datagen) = signed_random_op_sequence_test_init_gpu(
         param,
         &mut binary_ops,
@@ -604,6 +632,8 @@ where
         &mut log2_ops,
         &mut shift_rotate_ops,
         &mut scalar_shift_rotate_ops,
+        &mut signed_oprf_ops,
+        &mut signed_oprf_bounded_ops,
     );
 
     signed_random_op_sequence_test(
@@ -623,5 +653,7 @@ where
         &mut log2_ops,
         &mut shift_rotate_ops,
         &mut scalar_shift_rotate_ops,
+        &mut signed_oprf_ops,
+        &mut signed_oprf_bounded_ops,
     );
 }
