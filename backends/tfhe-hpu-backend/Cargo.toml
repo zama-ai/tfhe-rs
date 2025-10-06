@@ -33,7 +33,7 @@ serde = { version = "1", features = ["derive"] }
 toml = { version = "0.8", features = [] }
 paste = "1.0.15"
 thiserror = "1.0.61"
-bytemuck = "1.16.0"
+bytemuck = { workspace = true }
 anyhow = "1.0.82"
 lazy_static = "1.4.0"
 rand = "0.8.5"
