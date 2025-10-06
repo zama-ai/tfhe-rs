@@ -16,9 +16,7 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
-use crate::shortint::list_compression::{CompressionPrivateKeys, DecompressionKey};
 use crate::shortint::parameters::test_params::{
-    TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,

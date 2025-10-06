@@ -980,3 +980,73 @@ fn test_pfail_check_encrypt_br_rerand_dp_ks_ms_noise_test_param_message_2_carry_
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
+
+// fn sanity_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
+//     params: P,
+//     mut cpk_params: CompactPublicKeyEncryptionParameters,
+//     rerand_ksk_params: ShortintKeySwitchingParameters,
+//     compression_params: CompressionParameters,
+// ) where
+//     P: Into<AtomicPatternParameters>,
+// {
+//     let params: AtomicPatternParameters = params.into();
+
+//     // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after expand
+//     let cpk_params = {
+//         cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+//             params.encryption_key_choice().into_pbs_order(),
+//         );
+//         cpk_params
+//     };
+
+//     let cpk_private_key = CompactPrivateKey::new(cpk_params);
+//     let cpk = CompactPublicKey::new(&cpk_private_key);
+//     let cks = ClientKey::new(params);
+//     let sks = ServerKey::new(&cks);
+//     let comp_private_key = cks.new_compression_private_key(compression_params);
+//     // TODO update once KS32 refactor is merged there are new primitives to make this easier to
+//     // manage
+//     let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+
+//     let ksk_rerand_builder =
+//         KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
+//     let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+
+//     let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+//     let compute_br_input_modulus_log = sks.br_input_modulus_log();
+//     let expected_average_after_ms =
+//         noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
+
+//     let drift_key = match noise_simulation_modulus_switch_config {
+//         NoiseSimulationModulusSwitchConfig::Standard => None,
+//         NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
+//         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
+//     };
+
+//     let max_scalar_mul = sks.max_noise_level.get();
+
+//     let decomp_rescale_lut = decomp_key.rescaling_lut(
+//         sks.ciphertext_modulus,
+//         sks.message_modulus,
+//         CarryModulus(1),
+//         sks.message_modulus,
+//         sks.carry_modulus,
+//     );
+
+//     let sample_input = ShortintEngine::with_thread_local_mut(|engine| {
+//         comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(&cks, 0, engine)
+//     });
+//     let cpk_zero_sample_input = {
+//         let compact_list = cpk.encrypt_slice(&[0]);
+//         let mut expanded = compact_list
+//             .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+//             .unwrap();
+//         assert_eq!(expanded.len(), 1);
+
+//         DynLwe::U64(expanded.pop().unwrap().ct)
+//     };
+
+//     for _ in 0..10 {
+        
+//     }
+// }
