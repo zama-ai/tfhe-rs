@@ -1,13 +1,15 @@
 use crate::generate::{
     store_versioned_auxiliary_tfhe_1_3, store_versioned_test_tfhe_1_3, TfhersVersion,
-    INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION, PRNG_SEED, VALID_TEST_PARAMS_TUNIFORM,
+    INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION, PRNG_SEED, VALID_TEST_PARAMS_KS32_TUNIFORM,
+    VALID_TEST_PARAMS_TUNIFORM,
 };
 use crate::{
-    DataKind, HlClientKeyTest, HlCompressedSquashedNoiseCiphertextListTest,
+    DataKind, HlCiphertextTest, HlClientKeyTest, HlCompressedSquashedNoiseCiphertextListTest,
     HlHeterogeneousCiphertextListTest, HlServerKeyTest, PkeZkProofAuxiliaryInfo,
-    TestClassicParameterSet, TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams,
-    TestModulusSwitchType, TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters,
-    TestNoiseSquashingParams, TestParameterSet, ZkPkePublicParamsTest, HL_MODULE_NAME,
+    TestClassicParameterSet, TestDistribution, TestKS32ParameterSet, TestMetadata,
+    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
+    TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams, TestParameterSet,
+    ZkPkePublicParamsTest, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -20,23 +22,25 @@ use crate::generate::{
 use tfhe_1_3::boolean::engine::BooleanEngine;
 use tfhe_1_3::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe_1_3::core_crypto::commons::math::random::RandomGenerator;
-use tfhe_1_3::core_crypto::prelude::{DefaultRandomGenerator, TUniform};
+use tfhe_1_3::core_crypto::prelude::{DefaultRandomGenerator, TUniform, UnsignedInteger};
 use tfhe_1_3::prelude::*;
 use tfhe_1_3::shortint::engine::ShortintEngine;
 use tfhe_1_3::shortint::parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, CoreCiphertextModulus,
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
-    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel,
-    MessageModulus, ModulusSwitchNoiseReductionParams, MultiBitPBSParameters,
-    NoiseEstimationMeasureBound, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-    PolynomialSize, RSigmaFactor, StandardDev, Variance,
+    CarryModulus, CiphertextModulus, CiphertextModulus32, ClassicPBSParameters,
+    CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
+    EncryptionKeyChoice, GlweDimension, KeySwitch32PBSParameters, LweBskGroupingFactor,
+    LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
+    ModulusSwitchNoiseReductionParams, MultiBitPBSParameters, NoiseEstimationMeasureBound,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
+    StandardDev, Variance,
 };
 use tfhe_1_3::shortint::prelude::ModulusSwitchType;
 use tfhe_1_3::shortint::AtomicPatternParameters;
 use tfhe_1_3::zk::{CompactPkeCrs, ZkComputeLoad, ZkMSBZeroPaddingBitCount};
 use tfhe_1_3::{
-    set_server_key, ClientKey, CompactPublicKey, CompressedSquashedNoiseCiphertextList, FheBool,
-    FheInt32, FheUint32, ProvenCompactCiphertextList, Seed, ServerKey,
+    set_server_key, ClientKey, CompactPublicKey, CompressedServerKey,
+    CompressedSquashedNoiseCiphertextList, FheBool, FheInt32, FheUint32, FheUint8,
+    ProvenCompactCiphertextList, Seed, ServerKey,
 };
 
 macro_rules! store_versioned_test {
@@ -51,20 +55,10 @@ macro_rules! store_versioned_auxiliary {
     };
 }
 
-impl From<TestDistribution> for DynamicDistribution<u64> {
-    fn from(value: TestDistribution) -> Self {
-        match value {
-            TestDistribution::Gaussian { stddev } => {
-                DynamicDistribution::new_gaussian_from_std_dev(StandardDev(stddev))
-            }
-            TestDistribution::TUniform { bound_log2 } => {
-                DynamicDistribution::new_t_uniform(bound_log2)
-            }
-        }
-    }
-}
-
-impl From<TestDistribution> for DynamicDistribution<u128> {
+impl<T> From<TestDistribution> for DynamicDistribution<T>
+where
+    T: UnsignedInteger,
+{
     fn from(value: TestDistribution) -> Self {
         match value {
             TestDistribution::Gaussian { stddev } => {
@@ -191,6 +185,51 @@ impl From<TestMultiBitParameterSet> for MultiBitPBSParameters {
     }
 }
 
+impl From<TestKS32ParameterSet> for KeySwitch32PBSParameters {
+    fn from(value: TestKS32ParameterSet) -> Self {
+        let TestKS32ParameterSet {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            ciphertext_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            modulus_switch_noise_reduction_params,
+            post_keyswitch_ciphertext_modulus,
+        } = value;
+
+        Self {
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.into(),
+            glwe_noise_distribution: glwe_noise_distribution.into(),
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            message_modulus: MessageModulus(message_modulus as u64),
+            carry_modulus: CarryModulus(carry_modulus as u64),
+            max_noise_level: MaxNoiseLevel::new(max_noise_level as u64),
+            log2_p_fail,
+            post_keyswitch_ciphertext_modulus: CiphertextModulus32::try_new(
+                post_keyswitch_ciphertext_modulus,
+            )
+            .unwrap(),
+            ciphertext_modulus: CiphertextModulus::try_new(ciphertext_modulus).unwrap(),
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.into(),
+        }
+    }
+}
+
 impl From<TestParameterSet> for AtomicPatternParameters {
     fn from(value: TestParameterSet) -> Self {
         match value {
@@ -203,6 +242,11 @@ impl From<TestParameterSet> for AtomicPatternParameters {
                 let multibit = MultiBitPBSParameters::from(test_parameter_set_multi_bit);
 
                 multibit.into()
+            }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                let ks32 = KeySwitch32PBSParameters::from(test_ks32_parameter_set);
+
+                ks32.into()
             }
         }
     }
@@ -333,6 +377,34 @@ const HL_COMPRESSED_SQUASHED_NOISE_CIPHERTEXT_LIST: HlCompressedSquashedNoiseCip
             DataKind::Bool,
         ]),
     };
+
+const CLIENT_KEY_KS32_FILENAME: &str = "client_key_ks32";
+
+const CLIENT_KEY_KS32_TEST: HlClientKeyTest = HlClientKeyTest {
+    test_filename: Cow::Borrowed(CLIENT_KEY_KS32_FILENAME),
+    parameters: VALID_TEST_PARAMS_KS32_TUNIFORM,
+};
+
+const SERVER_KEY_KS32_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("server_key_ks32"),
+    client_key_filename: Cow::Borrowed(CLIENT_KEY_KS32_FILENAME),
+    rerand_cpk_filename: None,
+    compressed: false,
+};
+
+const COMPRESSED_SERVER_KEY_KS32_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("compressed_server_key_ks32"),
+    client_key_filename: Cow::Borrowed(CLIENT_KEY_KS32_FILENAME),
+    rerand_cpk_filename: None,
+    compressed: true,
+};
+
+const CT_KS32_TEST: HlCiphertextTest = HlCiphertextTest {
+    test_filename: Cow::Borrowed("ct_ks32"),
+    key_filename: Cow::Borrowed(CLIENT_KEY_KS32_FILENAME),
+    compressed: false,
+    clear_value: 25,
+};
 
 pub struct V1_3;
 
@@ -505,6 +577,28 @@ impl TfhersVersion for V1_3 {
             );
         };
 
+        // Generate data for the KS32 AP
+        {
+            let config = tfhe_1_3::ConfigBuilder::default()
+                .use_custom_parameters(CLIENT_KEY_KS32_TEST.parameters)
+                .build();
+
+            let hl_client_key = ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&hl_client_key);
+            let hl_server_key = compressed_server_key.decompress();
+
+            let ct = FheUint8::encrypt(CT_KS32_TEST.clear_value, &hl_client_key);
+
+            store_versioned_test!(&hl_client_key, &dir, &CLIENT_KEY_KS32_TEST.test_filename);
+            store_versioned_test!(&hl_server_key, &dir, &SERVER_KEY_KS32_TEST.test_filename);
+            store_versioned_test!(
+                &compressed_server_key,
+                &dir,
+                &COMPRESSED_SERVER_KEY_KS32_TEST.test_filename
+            );
+            store_versioned_test!(&ct, &dir, &CT_KS32_TEST.test_filename);
+        }
+
         vec![
             TestMetadata::HlHeterogeneousCiphertextList(HL_PROVEN_COMPACTLIST_TEST_ZKV2_FASTHASH),
             TestMetadata::HlClientKey(HL_CLIENTKEY_MS_MEAN_COMPENSATION),
@@ -512,6 +606,10 @@ impl TfhersVersion for V1_3 {
             TestMetadata::HlCompressedSquashedNoiseCiphertextList(
                 HL_COMPRESSED_SQUASHED_NOISE_CIPHERTEXT_LIST,
             ),
+            TestMetadata::HlClientKey(CLIENT_KEY_KS32_TEST),
+            TestMetadata::HlServerKey(SERVER_KEY_KS32_TEST),
+            TestMetadata::HlServerKey(COMPRESSED_SERVER_KEY_KS32_TEST),
+            TestMetadata::HlCiphertext(CT_KS32_TEST),
         ]
     }
 }
