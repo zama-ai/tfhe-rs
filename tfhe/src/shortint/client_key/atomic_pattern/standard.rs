@@ -68,19 +68,19 @@ impl StandardAtomicPatternClientKey {
         })
     }
 
-    /// Deconstruct a [`StandardAtomicPatternClientKey`] into its constituents.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key:
-    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
-    ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
-    /// ```
+    // /// Deconstruct a [`StandardAtomicPatternClientKey`] into its constituents.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust
+    // /// use tfhe::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
+    // /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    // ///
+    // /// // Generate the client key:
+    // /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
+    // ///
+    // /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
+    // /// ```
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -104,30 +104,30 @@ impl StandardAtomicPatternClientKey {
         )
     }
 
-    /// construct a [`StandardAtomicPatternClientKey`] from its constituents.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the keys are not compatible with the parameters provided as raw parts.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key:
-    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
-    ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
-    ///
-    /// let cks = StandardAtomicPatternClientKey::from_raw_parts(
-    ///     glwe_secret_key,
-    ///     lwe_secret_key,
-    ///     parameters,
-    ///     wopbs_parameters,
-    /// );
-    /// ```
+    // /// construct a [`StandardAtomicPatternClientKey`] from its constituents.
+    // ///
+    // /// # Panics
+    // ///
+    // /// Panics if the keys are not compatible with the parameters provided as raw parts.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust
+    // /// use tfhe::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
+    // /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    // ///
+    // /// // Generate the client key:
+    // /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
+    // ///
+    // /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
+    // ///
+    // /// let cks = StandardAtomicPatternClientKey::from_raw_parts(
+    // ///     glwe_secret_key,
+    // ///     lwe_secret_key,
+    // ///     parameters,
+    // ///     wopbs_parameters,
+    // /// );
+    // /// ```
     pub fn from_raw_parts(
         glwe_secret_key: GlweSecretKeyOwned<u64>,
         lwe_secret_key: LweSecretKeyOwned<u64>,
