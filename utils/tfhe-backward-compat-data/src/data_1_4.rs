@@ -7,9 +7,9 @@ use crate::generate::{
 use crate::{
     HlClientKeyTest, HlServerKeyTest, HlSquashedNoiseUnsignedCiphertextTest,
     TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters, TestDistribution,
-    TestKeySwitchingParams, TestMetadata, TestModulusSwitchNoiseReductionParams,
-    TestModulusSwitchType, TestMultiBitParameterSet, TestNoiseSquashingParamsMultiBit,
-    TestParameterSet, HL_MODULE_NAME,
+    TestKS32ParameterSet, TestKeySwitchingParams, TestMetadata,
+    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
+    TestNoiseSquashingParamsMultiBit, TestParameterSet, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -17,18 +17,18 @@ use std::fs::create_dir_all;
 use tfhe_1_4::boolean::engine::BooleanEngine;
 use tfhe_1_4::core_crypto::commons::generators::DeterministicSeeder;
 
-use tfhe_1_4::core_crypto::prelude::DefaultRandomGenerator;
+use tfhe_1_4::core_crypto::prelude::{DefaultRandomGenerator, UnsignedInteger};
 use tfhe_1_4::prelude::*;
 use tfhe_1_4::shortint::engine::ShortintEngine;
 use tfhe_1_4::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 use tfhe_1_4::shortint::parameters::{
-    CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
+    CarryModulus, CiphertextModulus, CiphertextModulus32, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, CoreCiphertextModulus, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
-    LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
-    ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseEstimationMeasureBound,
-    NoiseSquashingParameters, PolynomialSize, RSigmaFactor, ShortintKeySwitchingParameters,
-    StandardDev, SupportedCompactPkeZkScheme, Variance,
+    KeySwitch32PBSParameters, LweBskGroupingFactor, LweCiphertextCount, LweDimension,
+    MaxNoiseLevel, MessageModulus, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
+    NoiseEstimationMeasureBound, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
+    ShortintKeySwitchingParameters, StandardDev, SupportedCompactPkeZkScheme, Variance,
 };
 use tfhe_1_4::shortint::{AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters};
 use tfhe_1_4::{
@@ -48,20 +48,10 @@ macro_rules! store_versioned_auxiliary {
     };
 }
 
-impl From<TestDistribution> for DynamicDistribution<u64> {
-    fn from(value: TestDistribution) -> Self {
-        match value {
-            TestDistribution::Gaussian { stddev } => {
-                DynamicDistribution::new_gaussian_from_std_dev(StandardDev(stddev))
-            }
-            TestDistribution::TUniform { bound_log2 } => {
-                DynamicDistribution::new_t_uniform(bound_log2)
-            }
-        }
-    }
-}
-
-impl From<TestDistribution> for DynamicDistribution<u128> {
+impl<T> From<TestDistribution> for DynamicDistribution<T>
+where
+    T: UnsignedInteger,
+{
     fn from(value: TestDistribution) -> Self {
         match value {
             TestDistribution::Gaussian { stddev } => {
@@ -188,6 +178,51 @@ impl From<TestMultiBitParameterSet> for MultiBitPBSParameters {
     }
 }
 
+impl From<TestKS32ParameterSet> for KeySwitch32PBSParameters {
+    fn from(value: TestKS32ParameterSet) -> Self {
+        let TestKS32ParameterSet {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            ciphertext_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            modulus_switch_noise_reduction_params,
+            post_keyswitch_ciphertext_modulus,
+        } = value;
+
+        Self {
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.into(),
+            glwe_noise_distribution: glwe_noise_distribution.into(),
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            message_modulus: MessageModulus(message_modulus as u64),
+            carry_modulus: CarryModulus(carry_modulus as u64),
+            max_noise_level: MaxNoiseLevel::new(max_noise_level as u64),
+            log2_p_fail,
+            post_keyswitch_ciphertext_modulus: CiphertextModulus32::try_new(
+                post_keyswitch_ciphertext_modulus,
+            )
+            .unwrap(),
+            ciphertext_modulus: CiphertextModulus::try_new(ciphertext_modulus).unwrap(),
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.into(),
+        }
+    }
+}
+
 impl From<TestParameterSet> for AtomicPatternParameters {
     fn from(value: TestParameterSet) -> Self {
         match value {
@@ -200,6 +235,11 @@ impl From<TestParameterSet> for AtomicPatternParameters {
                 let classic = MultiBitPBSParameters::from(test_parameter_set_multi_bit);
 
                 classic.into()
+            }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                let ks32 = KeySwitch32PBSParameters::from(test_ks32_parameter_set);
+
+                ks32.into()
             }
         }
     }

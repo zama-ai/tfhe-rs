@@ -12,7 +12,7 @@ use tfhe::shortint::parameters::{
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
-use tfhe::shortint::{AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus};
+use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::{
@@ -32,15 +32,9 @@ use tfhe_backward_compat_data::{
     HlCompressedSquashedNoiseCiphertextListTest, HlHeterogeneousCiphertextListTest,
     HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
     HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
-    TestParameterSet, TestType, Testcase, ZkPkePublicParamsTest,
+    TestType, Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
-
-fn load_hl_params(test_params: &TestParameterSet) -> AtomicPatternParameters {
-    let pbs_params = load_params(test_params);
-
-    pbs_params.into()
-}
 
 /// Test HL ciphertext: loads the ciphertext and compare the decrypted value to the one in the
 /// metadata.
@@ -298,7 +292,7 @@ pub fn test_hl_clientkey(
     test: &HlClientKeyTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let test_params = load_hl_params(&test.parameters);
+    let test_params = load_params(&test.parameters);
 
     let key: ClientKey = load_and_unversionize(dir, test, format)?;
     let key_params = key.computation_parameters();
