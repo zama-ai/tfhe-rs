@@ -399,8 +399,8 @@ where
 
 fn main() {
     #[cfg(feature = "hpu")]
-    let cks = {
-        // Hpu is enable, start benchmark on Hpu hw accelerator
+    let (cks, benched_device) = {
+        // Hpu is enabled, start benchmark on Hpu hw accelerator
         use tfhe::tfhe_hpu_backend::prelude::*;
         use tfhe::{set_server_key, Config};
 
@@ -415,10 +415,10 @@ fn main() {
         let compressed_sks = CompressedServerKey::new(&cks);
 
         set_server_key((hpu_device, compressed_sks));
-        cks
+        (cks, tfhe::Device::Hpu)
     };
     #[cfg(not(feature = "hpu"))]
-    let cks = {
+    let (cks, benched_device) = {
         use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use tfhe::{set_server_key, ConfigBuilder};
         let config = ConfigBuilder::with_custom_parameters(
@@ -431,7 +431,7 @@ fn main() {
         let sks = compressed_sks.decompress();
         rayon::broadcast(|_| set_server_key(sks.clone()));
         set_server_key(sks);
-        cks
+        (cks, tfhe::Device::Cpu)
     };
 
     let mut c = Criterion::default().configure_from_args();
@@ -448,16 +448,19 @@ fn main() {
     bench_fhe_uint64(&mut c, &cks);
     bench_fhe_uint128(&mut c, &cks);
 
-    for pow in 1..=10 {
-        bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-    }
+    // KVStore Benches
+    if benched_device == tfhe::Device::Cpu {
+        for pow in 1..=10 {
+            bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
+        }
 
-    for pow in 1..=10 {
-        bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
-    }
+        for pow in 1..=10 {
+            bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
+        }
 
-    for pow in 1..=10 {
-        bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
+        for pow in 1..=10 {
+            bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
+        }
     }
 
     c.final_summary();
