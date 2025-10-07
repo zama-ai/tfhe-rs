@@ -3044,8 +3044,13 @@ mod hpu {
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(120));
-                    // Enforce that 64Iop are sent
-                    let elements = 64;
+                    // Enforce that 64Iop are sent, except for div & modulus which
+                    // are triggering a criterion assertion
+                    let elements = if bench_name.contains("div") || bench_name.contains("mod") {
+                        10
+                    } else {
+                        64
+                    };
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
