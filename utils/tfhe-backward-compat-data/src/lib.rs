@@ -81,6 +81,26 @@ pub struct TestMultiBitParameterSet {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestKS32ParameterSet {
+    pub lwe_dimension: usize,
+    pub glwe_dimension: usize,
+    pub polynomial_size: usize,
+    pub lwe_noise_distribution: TestDistribution,
+    pub glwe_noise_distribution: TestDistribution,
+    pub pbs_base_log: usize,
+    pub pbs_level: usize,
+    pub ks_base_log: usize,
+    pub ks_level: usize,
+    pub message_modulus: usize,
+    pub ciphertext_modulus: u128,
+    pub carry_modulus: usize,
+    pub max_noise_level: usize,
+    pub log2_p_fail: f64,
+    pub modulus_switch_noise_reduction_params: TestModulusSwitchType,
+    pub post_keyswitch_ciphertext_modulus: u128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TestModulusSwitchNoiseReductionParams {
     pub modulus_switch_zeros_count: usize,
     pub ms_bound: f64,
@@ -277,6 +297,7 @@ pub struct HlClientKeyTest {
 pub enum TestParameterSet {
     TestClassicParameterSet(TestClassicParameterSet),
     TestMultiBitParameterSet(TestMultiBitParameterSet),
+    TestKS32ParameterSet(TestKS32ParameterSet),
 }
 
 #[allow(dead_code)]
@@ -296,6 +317,9 @@ impl TestParameterSet {
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.polynomial_size
             }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.polynomial_size
+            }
         }
     }
 
@@ -307,6 +331,9 @@ impl TestParameterSet {
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.glwe_dimension
             }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.glwe_dimension
+            }
         }
     }
     const fn lwe_noise_distribution(&self) -> TestDistribution {
@@ -316,6 +343,9 @@ impl TestParameterSet {
             }
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.lwe_noise_distribution
+            }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.lwe_noise_distribution
             }
         }
     }
@@ -327,6 +357,9 @@ impl TestParameterSet {
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.ciphertext_modulus
             }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.ciphertext_modulus
+            }
         }
     }
     const fn message_modulus(&self) -> usize {
@@ -337,6 +370,9 @@ impl TestParameterSet {
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.message_modulus
             }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.message_modulus
+            }
         }
     }
     const fn carry_modulus(&self) -> usize {
@@ -346,6 +382,9 @@ impl TestParameterSet {
             }
             TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
                 test_multi_bit_parameter_set.carry_modulus
+            }
+            TestParameterSet::TestKS32ParameterSet(test_ks32_parameter_set) => {
+                test_ks32_parameter_set.carry_modulus
             }
         }
     }
