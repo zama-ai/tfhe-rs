@@ -136,6 +136,9 @@ impl From<TestParameterSet> for PBSParameters {
             TestParameterSet::TestMultiBitParameterSet(test_parameter_set_multi_bit) => {
                 PBSParameters::MultiBitPBS(test_parameter_set_multi_bit.into())
             }
+            TestParameterSet::TestKS32ParameterSet(_) => {
+                panic!("unsupported ks32 parameters for version")
+            }
         }
     }
 }

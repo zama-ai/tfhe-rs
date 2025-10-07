@@ -13,9 +13,9 @@ use tfhe_versionable::{Versionize as VersionizeTfhe_0_10, Versionize as Versioni
 
 use crate::{
     data_dir, dir_for_version, TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters,
-    TestCompressionParameterSet, TestDistribution, TestKeySwitchingParams, TestMetadata,
-    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
-    TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
+    TestCompressionParameterSet, TestDistribution, TestKS32ParameterSet, TestKeySwitchingParams,
+    TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
+    TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
     TestNoiseSquashingParamsMultiBit, TestParameterSet,
 };
 
@@ -64,6 +64,33 @@ pub const VALID_TEST_PARAMS_TUNIFORM: TestParameterSet =
         ciphertext_modulus: 1 << 64,
         encryption_key_choice: Cow::Borrowed("big"),
         modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
+    });
+
+pub const VALID_TEST_PARAMS_KS32_TUNIFORM: TestParameterSet =
+    TestParameterSet::TestKS32ParameterSet(TestKS32ParameterSet {
+        lwe_dimension: 918,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 13 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 4,
+        ks_level: 4,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -129.358380844,
+        ciphertext_modulus: 1 << 64,
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::DriftTechniqueNoiseReduction(
+            TestModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: 1449,
+                ms_bound: 67108864f64,
+                ms_r_sigma_factor: 13.179851302864899f64,
+                ms_input_variance: 2.63039392929833E-7f64,
+            },
+        ),
+        post_keyswitch_ciphertext_modulus: 1 << 32,
     });
 
 /// Those parameters are insecure and are used to generate small legacy public keys
