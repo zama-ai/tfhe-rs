@@ -776,4 +776,24 @@
             num_elements: 512,
         )),
     ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "compressed_server_key_ks32_noise_squashing",
+            client_key_filename: "client_key_ks32_noise_squashing",
+            rerand_cpk_filename: None,
+            compressed: true,
+        )),
+    ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "server_key_ks32_noise_squashing",
+            client_key_filename: "client_key_ks32_noise_squashing",
+            rerand_cpk_filename: None,
+            compressed: false,
+        )),
+    ),
 ]
