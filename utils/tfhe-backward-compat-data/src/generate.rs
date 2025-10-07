@@ -197,12 +197,14 @@ pub const INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION: TestNoi
         glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 30 },
         decomp_base_log: 24,
         decomp_level_count: 3,
-        modulus_switch_noise_reduction_params: Some(TestModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: 2,
-            ms_bound: 288230376151711744f64,
-            ms_r_sigma_factor: 13.179852282053789f64,
-            ms_input_variance: 2.63039184094559e-7f64,
-        }),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::DriftTechniqueNoiseReduction(
+            TestModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: 2,
+                ms_bound: 288230376151711744f64,
+                ms_r_sigma_factor: 13.179852282053789f64,
+                ms_input_variance: 2.63039184094559e-7f64,
+            },
+        ),
         message_modulus: 4,
         carry_modulus: 4,
         // 0 interpreted as native modulus for u128
@@ -235,6 +237,26 @@ pub const INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT: TestNoiseSquashi
         // 0 interpreted as native modulus for u128
         ciphertext_modulus: 0,
     };
+
+pub const INSECURE_SMALL_TEST_PARAMS_KS32: TestParameterSet =
+    TestParameterSet::TestKS32ParameterSet(TestKS32ParameterSet {
+        lwe_dimension: 2,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 13 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 4,
+        ks_level: 4,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -129.15284804376165,
+        ciphertext_modulus: 1 << 64,
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::CenteredMeanNoiseReduction,
+        post_keyswitch_ciphertext_modulus: 1 << 32,
+    });
 
 // Compression parameters for 2_2 TUniform
 pub const VALID_TEST_PARAMS_TUNIFORM_COMPRESSION: TestCompressionParameterSet =

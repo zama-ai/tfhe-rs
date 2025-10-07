@@ -48,35 +48,34 @@ impl<Scalar: UnsignedInteger> From<TestDistribution> for DynamicDistribution<Sca
     }
 }
 
-impl From<TestModulusSwitchNoiseReductionParams> for ModulusSwitchNoiseReductionParams {
-    fn from(value: TestModulusSwitchNoiseReductionParams) -> Self {
+impl From<TestModulusSwitchType> for Option<ModulusSwitchNoiseReductionParams> {
+    fn from(value: TestModulusSwitchType) -> Self {
+        let modulus_switch_noise_reduction_params = match value {
+            TestModulusSwitchType::Standard => return None,
+            TestModulusSwitchType::DriftTechniqueNoiseReduction(
+                test_modulus_switch_noise_reduction_params,
+            ) => test_modulus_switch_noise_reduction_params,
+            TestModulusSwitchType::CenteredMeanNoiseReduction => panic!("Not supported"),
+        };
+
         let TestModulusSwitchNoiseReductionParams {
             modulus_switch_zeros_count,
             ms_bound,
             ms_r_sigma_factor,
             ms_input_variance,
-        } = value;
+        } = modulus_switch_noise_reduction_params;
 
-        ModulusSwitchNoiseReductionParams {
+        Some(ModulusSwitchNoiseReductionParams {
             modulus_switch_zeros_count: LweCiphertextCount(modulus_switch_zeros_count),
             ms_bound: NoiseEstimationMeasureBound(ms_bound),
             ms_r_sigma_factor: RSigmaFactor(ms_r_sigma_factor),
             ms_input_variance: Variance(ms_input_variance),
-        }
+        })
     }
 }
 
 impl From<TestClassicParameterSet> for ClassicPBSParameters {
     fn from(value: TestClassicParameterSet) -> Self {
-        let modulus_switch_noise_reduction_params =
-            match value.modulus_switch_noise_reduction_params {
-                TestModulusSwitchType::Standard => None,
-                TestModulusSwitchType::DriftTechniqueNoiseReduction(
-                    test_modulus_switch_noise_reduction_params,
-                ) => Some(test_modulus_switch_noise_reduction_params.into()),
-                TestModulusSwitchType::CenteredMeanNoiseReduction => panic!("Not supported"),
-            };
-
         ClassicPBSParameters {
             lwe_dimension: LweDimension(value.lwe_dimension),
             glwe_dimension: GlweDimension(value.glwe_dimension),
@@ -99,7 +98,9 @@ impl From<TestClassicParameterSet> for ClassicPBSParameters {
                     _ => panic!("Invalid encryption key choice"),
                 }
             },
-            modulus_switch_noise_reduction_params,
+            modulus_switch_noise_reduction_params: value
+                .modulus_switch_noise_reduction_params
+                .into(),
         }
     }
 }
@@ -189,8 +190,7 @@ impl From<TestNoiseSquashingParams> for NoiseSquashingParameters {
             glwe_noise_distribution: glwe_noise_distribution.into(),
             decomp_base_log: DecompositionBaseLog(decomp_base_log),
             decomp_level_count: DecompositionLevelCount(decomp_level_count),
-            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params
-                .map(|p| p.into()),
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.into(),
             message_modulus: MessageModulus(message_modulus.try_into().unwrap()),
             carry_modulus: CarryModulus(carry_modulus.try_into().unwrap()),
             ciphertext_modulus: if ciphertext_modulus == 0 {
