@@ -1048,7 +1048,11 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms<P>(
 
     for idx in 0..10 {
         let seed_bytes = vec![idx as u8; 258 / 8];
-        let seed = ReRandomizationSeed(XofSeed::new(seed_bytes, *b"TFHE_Enc"));
+        let rerand_xof_seed = XofSeed::new(seed_bytes, *b"TFHE_Enc");
+
+        // Manually build as the seed is made non Clone to protect user normally
+        let noise_simulation_rerand_seed = ReRandomizationSeed(rerand_xof_seed.clone());
+        let shortint_rerand_seed = ReRandomizationSeed(rerand_xof_seed);
 
         // Easier to start with a GLWE and get the LWE for noise simulation + shortint
         // rather than trying to have an LWE be inserted back in a GLWE
@@ -1094,9 +1098,11 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms<P>(
         };
 
         let recovered = decomp_key.unpack(&shortint_compressed_list, 0).unwrap();
+        let mut shortint_rerand = recovered.clone();
 
         let cpk_zero_sample_input = {
-            let compact_list = cpk.prepare_cpk_zero_for_rerand(seed, LweCiphertextCount(1));
+            let compact_list = cpk
+                .prepare_cpk_zero_for_rerand(noise_simulation_rerand_seed, LweCiphertextCount(1));
             let zero_list = compact_list.expand_into_lwe_ciphertext_list();
 
             let zero = zero_list.get(0);
@@ -1106,6 +1112,13 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms<P>(
                 zero.ciphertext_modulus(),
             ))
         };
+
+        cpk.re_randomize_ciphertexts(
+            core::slice::from_mut(&mut shortint_rerand),
+            &ksk_rerand.key_switching_key_material,
+            shortint_rerand_seed,
+        )
+        .unwrap();
 
         let (
             (_input, _after_br),
@@ -1130,6 +1143,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms<P>(
         );
 
         assert_eq!(_after_br.as_lwe_64(), recovered.ct.as_view());
+        assert_eq!(_after_rerand.as_lwe_64(), shortint_rerand.ct.as_view());
 
         todo!("yoohoo")
     }

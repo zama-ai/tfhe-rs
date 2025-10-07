@@ -280,6 +280,7 @@ impl CompactPublicKey {
     ///
     /// The key and seed are used to generate encryptions of zero that will be added to the input
     /// ciphertexts
+    #[must_use]
     pub fn re_randomize_ciphertexts(
         &self,
         cts: &mut [Ciphertext],
