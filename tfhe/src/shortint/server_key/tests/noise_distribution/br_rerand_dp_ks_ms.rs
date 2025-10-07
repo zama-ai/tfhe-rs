@@ -9,8 +9,19 @@ use super::utils::{
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
+use crate::core_crypto::algorithms::glwe_sample_extraction::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::commons::dispersion::Variance;
-use crate::core_crypto::commons::parameters::CiphertextModulusLog;
+use crate::core_crypto::commons::math::random::XofSeed;
+use crate::core_crypto::commons::parameters::{
+    CiphertextModulusLog, LweCiphertextCount, MonomialDegree,
+};
+use crate::core_crypto::commons::traits::contiguous_entity_container::ContiguousEntityContainer;
+use crate::core_crypto::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
+use crate::core_crypto::entities::{GlweCiphertext, LweCiphertextOwned};
+use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::ciphertext::{
+    CompressedCiphertextList, CompressedCiphertextListMeta, ReRandomizationSeed,
+};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
@@ -981,72 +992,156 @@ fn test_pfail_check_encrypt_br_rerand_dp_ks_ms_noise_test_param_message_2_carry_
     )
 }
 
-// fn sanity_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
-//     params: P,
-//     mut cpk_params: CompactPublicKeyEncryptionParameters,
-//     rerand_ksk_params: ShortintKeySwitchingParameters,
-//     compression_params: CompressionParameters,
-// ) where
-//     P: Into<AtomicPatternParameters>,
-// {
-//     let params: AtomicPatternParameters = params.into();
+fn sanity_check_encrypt_br_rerand_dp_ks_ms<P>(
+    params: P,
+    mut cpk_params: CompactPublicKeyEncryptionParameters,
+    rerand_ksk_params: ShortintKeySwitchingParameters,
+    compression_params: CompressionParameters,
+) where
+    P: Into<AtomicPatternParameters>,
+{
+    let params: AtomicPatternParameters = params.into();
 
-//     // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after expand
-//     let cpk_params = {
-//         cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-//             params.encryption_key_choice().into_pbs_order(),
-//         );
-//         cpk_params
-//     };
+    // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after expand
+    let cpk_params = {
+        cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+            params.encryption_key_choice().into_pbs_order(),
+        );
+        cpk_params
+    };
 
-//     let cpk_private_key = CompactPrivateKey::new(cpk_params);
-//     let cpk = CompactPublicKey::new(&cpk_private_key);
-//     let cks = ClientKey::new(params);
-//     let sks = ServerKey::new(&cks);
-//     let comp_private_key = cks.new_compression_private_key(compression_params);
-//     // TODO update once KS32 refactor is merged there are new primitives to make this easier to
-//     // manage
-//     let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+    let cpk_private_key = CompactPrivateKey::new(cpk_params);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+    let comp_private_key = cks.new_compression_private_key(compression_params);
+    // TODO update once KS32 refactor is merged there are new primitives to make this easier to
+    // manage
+    let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
 
-//     let ksk_rerand_builder =
-//         KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
-//     let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+    let ksk_rerand_builder =
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
+    let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
 
-//     let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-//     let compute_br_input_modulus_log = sks.br_input_modulus_log();
-//     let expected_average_after_ms =
-//         noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
+    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let compute_br_input_modulus_log = sks.br_input_modulus_log();
+    let expected_average_after_ms =
+        noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
-//     let drift_key = match noise_simulation_modulus_switch_config {
-//         NoiseSimulationModulusSwitchConfig::Standard => None,
-//         NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-//         NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-//     };
+    let drift_key = match noise_simulation_modulus_switch_config {
+        NoiseSimulationModulusSwitchConfig::Standard => None,
+        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
+        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
+    };
 
-//     let max_scalar_mul = sks.max_noise_level.get();
+    let max_scalar_mul = sks.max_noise_level.get();
 
-//     let decomp_rescale_lut = decomp_key.rescaling_lut(
-//         sks.ciphertext_modulus,
-//         sks.message_modulus,
-//         CarryModulus(1),
-//         sks.message_modulus,
-//         sks.carry_modulus,
-//     );
+    let decomp_rescale_lut = decomp_key.rescaling_lut(
+        sks.ciphertext_modulus,
+        sks.message_modulus,
+        CarryModulus(1),
+        sks.message_modulus,
+        sks.carry_modulus,
+    );
 
-//     let sample_input = ShortintEngine::with_thread_local_mut(|engine| {
-//         comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(&cks, 0, engine)
-//     });
-//     let cpk_zero_sample_input = {
-//         let compact_list = cpk.encrypt_slice(&[0]);
-//         let mut expanded = compact_list
-//             .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-//             .unwrap();
-//         assert_eq!(expanded.len(), 1);
+    let storage_modulus = comp_private_key.params.storage_log_modulus;
 
-//         DynLwe::U64(expanded.pop().unwrap().ct)
-//     };
+    for idx in 0..10 {
+        let seed_bytes = vec![idx as u8; 258 / 8];
+        let seed = ReRandomizationSeed(XofSeed::new(seed_bytes, *b"TFHE_Enc"));
 
-//     for _ in 0..10 {
-        
-//     }
-// }
+        // Easier to start with a GLWE and get the LWE for noise simulation + shortint
+        // rather than trying to have an LWE be inserted back in a GLWE
+        let sample_input_as_glwe = ShortintEngine::with_thread_local_mut(|engine| {
+            comp_private_key.encrypt_noiseless_glwe(&cks, 0, engine)
+        });
+
+        let glwe_for_shortint_list = CompressedModulusSwitchedGlweCiphertext::compress(
+            &sample_input_as_glwe,
+            storage_modulus,
+            LweCiphertextCount(1),
+        );
+
+        let sample_input = {
+            let mut tmp = LweCiphertextOwned::new(
+                0u64,
+                sample_input_as_glwe
+                    .glwe_size()
+                    .to_glwe_dimension()
+                    .to_equivalent_lwe_dimension(sample_input_as_glwe.polynomial_size())
+                    .to_lwe_size(),
+                sample_input_as_glwe.ciphertext_modulus(),
+            );
+
+            extract_lwe_sample_from_glwe_ciphertext(
+                &sample_input_as_glwe,
+                &mut tmp,
+                MonomialDegree(0),
+            );
+
+            DynLwe::U64(tmp)
+        };
+
+        let shortint_compressed_list = CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list: vec![glwe_for_shortint_list],
+            meta: Some(CompressedCiphertextListMeta {
+                ciphertext_modulus: params.ciphertext_modulus(),
+                message_modulus: params.message_modulus(),
+                carry_modulus: params.carry_modulus(),
+                atomic_pattern: sks.atomic_pattern.kind(),
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+            }),
+        };
+
+        let recovered = decomp_key.unpack(&shortint_compressed_list, 0).unwrap();
+
+        let cpk_zero_sample_input = {
+            let compact_list = cpk.prepare_cpk_zero_for_rerand(seed, LweCiphertextCount(1));
+            let zero_list = compact_list.expand_into_lwe_ciphertext_list();
+
+            let zero = zero_list.get(0);
+
+            DynLwe::U64(LweCiphertextOwned::from_container(
+                zero.as_ref().to_vec(),
+                zero.ciphertext_modulus(),
+            ))
+        };
+
+        let (
+            (_input, _after_br),
+            (_input_zero_rerand, _after_ksed_zero_rerand),
+            _after_rerand,
+            _after_dp,
+            _after_ks,
+            _before_ms,
+            after_ms,
+        ) = br_rerand_dp_ks_any_ms(
+            sample_input,
+            &decomp_key,
+            cpk_zero_sample_input,
+            &ksk_rerand,
+            max_scalar_mul,
+            &sks,
+            noise_simulation_modulus_switch_config,
+            drift_key,
+            &decomp_rescale_lut,
+            compute_br_input_modulus_log,
+            &mut (),
+        );
+
+        assert_eq!(_after_br.as_lwe_64(), recovered.ct.as_view());
+
+        todo!("yoohoo")
+    }
+}
+
+#[test]
+fn test_sanity_check_encrypt_br_rerand_dp_ks_ms_noise_test_param_message_2_carry_2_ks32_tuniform_2m128(
+) {
+    sanity_check_encrypt_br_rerand_dp_ks_ms(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}

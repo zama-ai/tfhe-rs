@@ -1,7 +1,9 @@
 pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
+use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+use crate::core_crypto::commons::math::random::Gaussian;
 use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::generalized_modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
@@ -14,11 +16,12 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweDimension, LweSize,
-    PolynomialSize,
+    PlaintextCount, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
+    PlaintextList,
 };
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
@@ -387,6 +390,48 @@ impl CompressionPrivateKeys {
             &encoding,
             &mut engine.encryption_generator,
         ))
+    }
+
+    pub fn encrypt_noiseless_glwe(
+        &self,
+        cks: &ClientKey,
+        msg: u64,
+        engine: &mut ShortintEngine,
+    ) -> GlweCiphertextOwned<u64> {
+        assert_eq!(msg, 0, "todo: update this to manage other stuff");
+        assert!(cks.parameters().ciphertext_modulus().is_native_modulus());
+
+        let plaintext_list = PlaintextList::new(0, PlaintextCount(self.params.lwe_per_glwe.0));
+
+        let ct_modulus =
+            CiphertextModulus::try_new_power_of_2(self.params.storage_log_modulus.0).unwrap();
+
+        let mut out = GlweCiphertext::new(
+            0u64,
+            self.post_packing_ks_key.glwe_dimension().to_glwe_size(),
+            self.post_packing_ks_key.polynomial_size(),
+            ct_modulus,
+        );
+
+        let noiseless_distribution = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
+
+        encrypt_glwe_ciphertext(
+            &self.post_packing_ks_key,
+            &mut out,
+            &plaintext_list,
+            noiseless_distribution,
+            &mut engine.encryption_generator,
+        );
+
+        let cont = out.into_container();
+
+        // Set the modulus as native to be compatible with operations afterwards
+        // power of two encoding is compatible with native modulus
+        GlweCiphertextOwned::from_container(
+            cont,
+            self.post_packing_ks_key.polynomial_size(),
+            cks.parameters().ciphertext_modulus(),
+        )
     }
 }
 
@@ -1110,13 +1155,26 @@ impl AllocateLweKeyswitchResult for KeySwitchingKeyView<'_> {
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        match self.key_switching_key_material.destination_atomic_pattern {
-            KeySwitchingKeyDestinationAtomicPattern::Standard => DynLwe::U64(
+        match (
+            self.key_switching_key_material.destination_atomic_pattern,
+            self.key_switching_key_material.destination_key,
+        ) {
+            (
+                KeySwitchingKeyDestinationAtomicPattern::Standard,
+                EncryptionKeyChoice::Big | EncryptionKeyChoice::Small,
+            ) => DynLwe::U64(
                 self.key_switching_key_material
                     .key_switching_key
                     .allocate_lwe_keyswitch_result(side_resources),
             ),
-            KeySwitchingKeyDestinationAtomicPattern::KeySwitch32 => {
+            (KeySwitchingKeyDestinationAtomicPattern::KeySwitch32, EncryptionKeyChoice::Big) => {
+                DynLwe::U64(
+                    self.key_switching_key_material
+                        .key_switching_key
+                        .allocate_lwe_keyswitch_result(side_resources),
+                )
+            }
+            (KeySwitchingKeyDestinationAtomicPattern::KeySwitch32, EncryptionKeyChoice::Small) => {
                 DynLwe::U32(LweCiphertext::new(
                     0,
                     self.key_switching_key_material
@@ -1173,7 +1231,8 @@ impl LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'_> {
             (
                 DynLwe::U64(input),
                 DynLwe::U64(output),
-                KeySwitchingKeyDestinationAtomicPattern::Standard,
+                KeySwitchingKeyDestinationAtomicPattern::Standard
+                | KeySwitchingKeyDestinationAtomicPattern::KeySwitch32,
             ) => self
                 .key_switching_key_material
                 .key_switching_key

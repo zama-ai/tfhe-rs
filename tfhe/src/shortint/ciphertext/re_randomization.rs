@@ -242,6 +242,40 @@ impl ReRandomizationSeedGen {
 }
 
 impl CompactPublicKey {
+    pub(crate) fn prepare_cpk_zero_for_rerand(
+        &self,
+        seed: ReRandomizationSeed,
+        zero_count: LweCiphertextCount,
+    ) -> LweCompactCiphertextList<Vec<u64>> {
+        let mut encryption_generator =
+            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
+
+        let mut encryption_of_zero = LweCompactCiphertextList::new(
+            0,
+            self.parameters().encryption_lwe_dimension.to_lwe_size(),
+            zero_count,
+            self.parameters().ciphertext_modulus,
+        );
+
+        let plaintext_list = PlaintextList::new(
+            0,
+            PlaintextCount(encryption_of_zero.lwe_ciphertext_count().0),
+        );
+
+        let cpk_encryption_noise_distribution = self.parameters().encryption_noise_distribution;
+
+        encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+            &self.key,
+            &mut encryption_of_zero,
+            &plaintext_list,
+            cpk_encryption_noise_distribution,
+            cpk_encryption_noise_distribution,
+            &mut encryption_generator,
+        );
+
+        encryption_of_zero
+    }
+
     /// Re-randomize a list of ciphertexts using the provided seed and compact public key
     ///
     /// The key and seed are used to generate encryptions of zero that will be added to the input
@@ -303,31 +337,8 @@ impl CompactPublicKey {
             ));
         }
 
-        let mut encryption_generator =
-            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
-
-        let mut encryption_of_zero = LweCompactCiphertextList::new(
-            0,
-            self.parameters().encryption_lwe_dimension.to_lwe_size(),
-            LweCiphertextCount(cts.len()),
-            self.parameters().ciphertext_modulus,
-        );
-
-        let plaintext_list = PlaintextList::new(
-            0,
-            PlaintextCount(encryption_of_zero.lwe_ciphertext_count().0),
-        );
-
-        let cpk_encryption_noise_distribution = self.parameters().encryption_noise_distribution;
-
-        encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-            &self.key,
-            &mut encryption_of_zero,
-            &plaintext_list,
-            cpk_encryption_noise_distribution,
-            cpk_encryption_noise_distribution,
-            &mut encryption_generator,
-        );
+        let encryption_of_zero =
+            self.prepare_cpk_zero_for_rerand(seed, LweCiphertextCount(cts.len()));
 
         let zero_lwes = encryption_of_zero.expand_into_lwe_ciphertext_list();
 
