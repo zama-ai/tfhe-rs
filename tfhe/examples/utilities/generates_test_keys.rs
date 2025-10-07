@@ -17,7 +17,8 @@ use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::{
-    ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    AtomicPatternParameters, ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 #[cfg(feature = "experimental")]
 use tfhe::shortint::parameters::{
@@ -129,6 +130,8 @@ fn client_server_keys() {
         ];
         generate_pbs_keys(&PBS_KEYS);
 
+        generate_pbs_keys(&[PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128]);
+
         #[cfg(feature = "experimental")]
         {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
@@ -155,10 +158,11 @@ fn client_server_keys() {
     }
 }
 
-fn generate_pbs_keys(params: &[ClassicPBSParameters]) {
+fn generate_pbs_keys<P: Into<AtomicPatternParameters> + Copy>(params: &[P]) {
     println!("Generating shortint (ClientKey, ServerKey)");
 
     for (i, param) in params.iter().copied().enumerate() {
+        let param: AtomicPatternParameters = param.into();
         println!(
             "Generating [{} / {}] : {}",
             i + 1,
