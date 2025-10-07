@@ -283,6 +283,7 @@ where
     write!(f, "{}{}", &full_name[i..], FheType::Id::num_bits())
 }
 
+#[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
     rand::distributions::Standard: rand::distributions::Distribution<Key>,
@@ -448,16 +449,19 @@ fn main() {
     bench_fhe_uint64(&mut c, &cks);
     bench_fhe_uint128(&mut c, &cks);
 
-    for pow in 1..=10 {
-        bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-    }
+    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+    {
+        for pow in 1..=10 {
+            bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
+        }
 
-    for pow in 1..=10 {
-        bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
-    }
+        for pow in 1..=10 {
+            bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
+        }
 
-    for pow in 1..=10 {
-        bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
+        for pow in 1..=10 {
+            bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
+        }
     }
 
     c.final_summary();
