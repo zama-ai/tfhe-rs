@@ -272,10 +272,7 @@ impl From<TestNoiseSquashingParams> for NoiseSquashingParameters {
             glwe_noise_distribution: glwe_noise_distribution.into(),
             decomp_base_log: DecompositionBaseLog(decomp_base_log),
             decomp_level_count: DecompositionLevelCount(decomp_level_count),
-            modulus_switch_noise_reduction_params: match modulus_switch_noise_reduction_params {
-                Some(p) => ModulusSwitchType::DriftTechniqueNoiseReduction(p.into()),
-                None => ModulusSwitchType::Standard,
-            },
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.into(),
             message_modulus: MessageModulus(message_modulus as u64),
             carry_modulus: CarryModulus(carry_modulus as u64),
             ciphertext_modulus: CoreCiphertextModulus::try_new(ciphertext_modulus).unwrap(),

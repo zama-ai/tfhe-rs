@@ -1,6 +1,8 @@
 use crate::generate::{
     store_versioned_auxiliary_tfhe_1_4, store_versioned_test_tfhe_1_4, TfhersVersion,
-    INSECURE_DEDICATED_CPK_TEST_PARAMS, INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT,
+    INSECURE_DEDICATED_CPK_TEST_PARAMS,
+    INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION,
+    INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT, INSECURE_SMALL_TEST_PARAMS_KS32,
     INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION, INSECURE_SMALL_TEST_PARAMS_MULTI_BIT,
     KS_TO_BIG_TEST_PARAMS, KS_TO_SMALL_TEST_PARAMS, VALID_TEST_PARAMS_TUNIFORM,
     VALID_TEST_PARAMS_TUNIFORM_COMPRESSION,
@@ -11,7 +13,7 @@ use crate::{
     TestCompactPublicKeyEncryptionParameters, TestCompressionParameterSet, TestDistribution,
     TestKS32ParameterSet, TestKeySwitchingParams, TestMetadata,
     TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
-    TestNoiseSquashingParamsMultiBit, TestParameterSet, HL_MODULE_NAME,
+    TestNoiseSquashingParams, TestNoiseSquashingParamsMultiBit, TestParameterSet, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -31,13 +33,13 @@ use tfhe_1_4::shortint::parameters::{
     DynamicDistribution, EncryptionKeyChoice, GlweDimension, KeySwitch32PBSParameters,
     LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
     ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseEstimationMeasureBound,
-    NoiseSquashingParameters, PolynomialSize, RSigmaFactor, ShortintKeySwitchingParameters,
-    StandardDev, SupportedCompactPkeZkScheme, Variance,
+    NoiseSquashingClassicParameters, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
+    ShortintKeySwitchingParameters, StandardDev, SupportedCompactPkeZkScheme, Variance,
 };
 use tfhe_1_4::shortint::{AtomicPatternParameters, ClassicPBSParameters, MultiBitPBSParameters};
 use tfhe_1_4::{
-    set_server_key, ClientKey, CompressedCompactPublicKey, ConfigBuilder, FheUint32, FheUint64,
-    KVStore, Seed, ServerKey,
+    set_server_key, ClientKey, CompressedCompactPublicKey, CompressedServerKey, ConfigBuilder,
+    FheUint32, FheUint64, KVStore, Seed, ServerKey,
 };
 
 macro_rules! store_versioned_test {
@@ -249,6 +251,38 @@ impl From<TestParameterSet> for AtomicPatternParameters {
     }
 }
 
+impl From<TestNoiseSquashingParams> for NoiseSquashingParameters {
+    fn from(value: TestNoiseSquashingParams) -> Self {
+        let TestNoiseSquashingParams {
+            glwe_dimension,
+            polynomial_size,
+            glwe_noise_distribution,
+            decomp_base_log,
+            decomp_level_count,
+            modulus_switch_noise_reduction_params,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+        } = value;
+
+        Self::Classic(NoiseSquashingClassicParameters {
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            glwe_noise_distribution: glwe_noise_distribution.into(),
+            decomp_base_log: DecompositionBaseLog(decomp_base_log),
+            decomp_level_count: DecompositionLevelCount(decomp_level_count),
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.into(),
+            message_modulus: MessageModulus(message_modulus.try_into().unwrap()),
+            carry_modulus: CarryModulus(carry_modulus.try_into().unwrap()),
+            ciphertext_modulus: if ciphertext_modulus == 0 {
+                CoreCiphertextModulus::new_native()
+            } else {
+                CoreCiphertextModulus::try_new(ciphertext_modulus).unwrap()
+            },
+        })
+    }
+}
+
 impl From<TestNoiseSquashingParamsMultiBit> for NoiseSquashingParameters {
     fn from(value: TestNoiseSquashingParamsMultiBit) -> Self {
         let TestNoiseSquashingParamsMultiBit {
@@ -373,6 +407,20 @@ const HL_COMPRESSED_KV_STORE_TEST: HlCompressedKVStoreTest = HlCompressedKVStore
     client_key_file_name: Cow::Borrowed("client_key_for_kv_store"),
     server_key_file_name: Cow::Borrowed("server_key_for_kv_store"),
     num_elements: 512,
+};
+
+const HL_SERVERKEY_KS32_NOISE_SQUASHING_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("server_key_ks32_noise_squashing"),
+    client_key_filename: Cow::Borrowed("client_key_ks32_noise_squashing"),
+    rerand_cpk_filename: None,
+    compressed: false,
+};
+
+const HL_COMPRESSED_SERVERKEY_KS32_NOISE_SQUASHING_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("compressed_server_key_ks32_noise_squashing"),
+    client_key_filename: Cow::Borrowed("client_key_ks32_noise_squashing"),
+    rerand_cpk_filename: None,
+    compressed: true,
 };
 
 pub struct V1_4;
@@ -509,6 +557,36 @@ impl TfhersVersion for V1_4 {
             );
         }
 
+        {
+            let config =
+                tfhe_1_4::ConfigBuilder::with_custom_parameters(INSECURE_SMALL_TEST_PARAMS_KS32)
+                    .enable_noise_squashing(
+                        INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION.into(),
+                    )
+                    .build();
+            let client_key = ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&client_key);
+            let server_key = compressed_server_key.decompress();
+
+            store_versioned_auxiliary!(
+                &client_key,
+                &dir,
+                &HL_SERVERKEY_KS32_NOISE_SQUASHING_TEST.client_key_filename
+            );
+
+            store_versioned_test!(
+                &compressed_server_key,
+                &dir,
+                &HL_COMPRESSED_SERVERKEY_KS32_NOISE_SQUASHING_TEST.test_filename
+            );
+
+            store_versioned_test!(
+                &server_key,
+                &dir,
+                &HL_SERVERKEY_KS32_NOISE_SQUASHING_TEST.test_filename
+            );
+        }
+
         vec![
             TestMetadata::HlClientKey(HL_CLIENTKEY_WITH_NOISE_SQUASHING_TEST),
             TestMetadata::HlServerKey(HL_SERVERKEY_TEST),
@@ -517,6 +595,8 @@ impl TfhersVersion for V1_4 {
             ),
             TestMetadata::HlServerKey(HL_SERVERKEY_RERAND_TEST),
             TestMetadata::HlCompressedKVStoreTest(HL_COMPRESSED_KV_STORE_TEST),
+            TestMetadata::HlServerKey(HL_COMPRESSED_SERVERKEY_KS32_NOISE_SQUASHING_TEST),
+            TestMetadata::HlServerKey(HL_SERVERKEY_KS32_NOISE_SQUASHING_TEST),
         ]
     }
 }

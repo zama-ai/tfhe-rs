@@ -122,7 +122,7 @@ pub struct TestNoiseSquashingParams {
     pub glwe_noise_distribution: TestDistribution,
     pub decomp_base_log: usize,
     pub decomp_level_count: usize,
-    pub modulus_switch_noise_reduction_params: Option<TestModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: TestModulusSwitchType,
     pub message_modulus: usize,
     pub carry_modulus: usize,
     pub ciphertext_modulus: u128,
