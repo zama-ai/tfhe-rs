@@ -49,6 +49,17 @@ pub mod shortint_params {
         BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
     ];
 
+    pub const SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION: [ClassicPBSParameters; 8] = [
+        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+    ];
+
     #[cfg(feature = "gpu")]
     pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
@@ -57,6 +68,34 @@ pub mod shortint_params {
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    ];
+
+    #[cfg(feature = "gpu")]
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION: [(&str, MultiBitPBSParameters); 6] = [
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        ),
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ),
+        (
+            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+        ),
     ];
 
     #[cfg(not(feature = "gpu"))]
@@ -69,26 +108,78 @@ pub mod shortint_params {
         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     ];
 
+    #[cfg(not(feature = "gpu"))]
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION: [(&str, MultiBitPBSParameters); 8] = [
+        // Message_1_carry_1 2M64 and 2M128 are exactly the same, so we run one variant only
+        // otherwise we would get a panic due to unicity rules of benchmark IDs/
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+        ),
+        (
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+        ),
+    ];
+
     #[cfg(feature = "internal-keycache")]
     pub mod shortint_params_keycache {
         use super::*;
-        use crate::utilities::CryptoParametersRecord;
+        use crate::utilities::{get_param_type, CryptoParametersRecord, ParamType};
         use tfhe::keycache::NamedParam;
 
         pub fn benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
             match get_parameters_set() {
-                ParametersSet::Default => SHORTINT_BENCH_PARAMS_TUNIFORM
-                    .iter()
-                    .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
-                    .map(|params| {
-                        (
-                            params.name(),
-                            <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(*params)
+                ParametersSet::Default => {
+                    let iterator = match get_param_type() {
+                        ParamType::ClassicalDocumentation => {
+                            SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION
+                                .iter()
+                                .chain([].iter()) // Use an empty iterator to return the same type
+                                                  // as the fallback case
+                        }
+
+                        _ => SHORTINT_BENCH_PARAMS_TUNIFORM
+                            .iter()
+                            .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter()),
+                    };
+                    iterator
+                        .map(|params| {
+                            (
+                                params.name(),
+                                <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(
+                                    *params,
+                                )
                                 .to_owned()
                                 .into(),
-                        )
-                    })
-                    .collect(),
+                            )
+                        })
+                        .collect()
+                }
                 ParametersSet::All => {
                     filter_parameters(
                         &BENCH_ALL_CLASSIC_PBS_PARAMETERS,
@@ -124,18 +215,38 @@ pub mod shortint_params {
         pub fn multi_bit_benchmark_parameters(
         ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
             match get_parameters_set() {
-                ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
-                    .iter()
-                    .map(|params| {
-                        (
-                            params.name(),
-                            <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
+                ParametersSet::Default => match get_param_type() {
+                    ParamType::MultiBitDocumentation => {
+                        SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION
+                            .iter()
+                            .map(|(name, params)| {
+                                (
+                                    name.to_string(),
+                                    <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
+                                        *params,
+                                    )
+                                    .to_owned()
+                                    .into(),
+                                    params.grouping_factor,
+                                )
+                            })
+                            .collect()
+                    }
+                    _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
+                        .iter()
+                        .map(|params| {
+                            (
+                                params.name(),
+                                <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
+                                    *params,
+                                )
                                 .to_owned()
                                 .into(),
-                            params.grouping_factor,
-                        )
-                    })
-                    .collect(),
+                                params.grouping_factor,
+                            )
+                        })
+                        .collect(),
+                },
                 ParametersSet::All => {
                     let desired_backend = if cfg!(feature = "gpu") {
                         DesiredBackend::Gpu
@@ -165,18 +276,38 @@ pub mod shortint_params {
         pub fn multi_bit_benchmark_parameters_with_grouping(
         ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
             match get_parameters_set() {
-                ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
-                    .iter()
-                    .map(|params| {
-                        (
-                            params.name(),
-                            <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
+                ParametersSet::Default => match get_param_type() {
+                    ParamType::MultiBitDocumentation => {
+                        SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION
+                            .iter()
+                            .map(|(name, params)| {
+                                (
+                                    name.to_string(),
+                                    <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
+                                        *params,
+                                    )
+                                    .to_owned()
+                                    .into(),
+                                    params.grouping_factor,
+                                )
+                            })
+                            .collect()
+                    }
+                    _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
+                        .iter()
+                        .map(|params| {
+                            (
+                                params.name(),
+                                <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
+                                    *params,
+                                )
                                 .to_owned()
                                 .into(),
-                            params.grouping_factor,
-                        )
-                    })
-                    .collect(),
+                                params.grouping_factor,
+                            )
+                        })
+                        .collect(),
+                },
                 ParametersSet::All => {
                     let desired_backend = if cfg!(feature = "gpu") {
                         DesiredBackend::Gpu

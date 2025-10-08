@@ -2,13 +2,12 @@ use benchmark::params::{
     benchmark_parameters, multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
 };
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord,
-    OperatorType,
+    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
+    CryptoParametersRecord, OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
-use std::env;
 use tfhe::core_crypto::prelude::*;
 
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
@@ -1150,46 +1149,31 @@ pub fn multi_bit_ks_pbs_group() {
     multi_bit_ks_pbs(
         &mut criterion,
         &multi_bit_benchmark_parameters_with_grouping(),
-        false,
-    );
-    multi_bit_ks_pbs(
-        &mut criterion,
-        &multi_bit_benchmark_parameters_with_grouping(),
         true,
     );
 }
 
 #[cfg(feature = "gpu")]
-fn go_through_gpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => cuda_ks_pbs_group(),
-        "multi_bit" => cuda_multi_bit_ks_pbs_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+fn go_through_gpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical | ParamType::ClassicalDocumentation => cuda_ks_pbs_group(),
+        ParamType::MultiBit | ParamType::MultiBitDocumentation => cuda_multi_bit_ks_pbs_group(),
     };
 }
 
 #[cfg(not(feature = "gpu"))]
-fn go_through_cpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => ks_pbs_group(),
-        "multi_bit" => multi_bit_ks_pbs_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+fn go_through_cpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical | ParamType::ClassicalDocumentation => ks_pbs_group(),
+        ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_pbs_group(),
     }
 }
 
 fn main() {
-    match env::var("__TFHE_RS_PARAM_TYPE") {
-        Ok(val) => {
-            #[cfg(feature = "gpu")]
-            go_through_gpu_bench_groups(&val);
-            #[cfg(not(feature = "gpu"))]
-            go_through_cpu_bench_groups(&val);
-        }
-        Err(_) => {
-            ks_pbs_group();
-            multi_bit_ks_pbs_group()
-        }
-    };
+    #[cfg(feature = "gpu")]
+    go_through_gpu_bench_groups();
+    #[cfg(not(feature = "gpu"))]
+    go_through_cpu_bench_groups();
 
     Criterion::default().configure_from_args().final_summary();
 }
