@@ -9,9 +9,8 @@ use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Display;
-use std::hash::Hash;
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
 use tfhe_versionable::Versionize;
@@ -28,7 +27,7 @@ use tfhe_versionable::Versionize;
 /// To serialize a KVStore it must first be compressed with [KVStore::compress]
 #[derive(Clone)]
 pub struct KVStore<Key, Ct> {
-    data: HashMap<Key, Ct>,
+    data: BTreeMap<Key, Ct>,
     block_count: Option<NonZeroUsize>,
 }
 
@@ -36,7 +35,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// Creates an empty KVStore
     pub fn new() -> Self {
         Self {
-            data: HashMap::new(),
+            data: BTreeMap::new(),
             block_count: None,
         }
     }
@@ -47,7 +46,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// query using an encrypted key
     pub fn get(&self, key: &Key) -> Option<&Ct>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         self.data.get(key)
     }
@@ -58,7 +57,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// query using an encrypted key
     pub fn get_mut(&mut self, key: &Key) -> Option<&mut Ct>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         self.data.get_mut(key)
     }
@@ -77,7 +76,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// values stored
     pub fn insert(&mut self, key: Key, value: Ct) -> Option<Ct>
     where
-        Key: PartialEq + Eq + Hash,
+        Key: Ord,
         Ct: IntegerRadixCiphertext,
     {
         let n_blocks = value.blocks().len();
@@ -100,7 +99,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// Removes a key-value pair.
     pub fn remove(&mut self, key: &Key) -> Option<Ct>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         self.data.remove(key)
     }
@@ -108,7 +107,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
     /// Returns the value associated to the key given in clear
     pub fn clear_get(&self, key: &Key) -> Option<&Ct>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         self.data.get(key)
     }
@@ -125,7 +124,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Ct)>
     where
-        Key: Eq + Hash + Sync,
+        Key: Ord,
         Ct: Send,
     {
         self.data.iter()
@@ -133,7 +132,7 @@ impl<Key, Ct> KVStore<Key, Ct> {
 
     fn par_iter_keys(&self) -> impl ParallelIterator<Item = &Key>
     where
-        Key: Send + Sync + Hash + Eq,
+        Key: Send + Sync + Ord,
         Ct: Send + Sync,
     {
         self.data.par_iter().map(|(k, _)| k)
@@ -153,6 +152,21 @@ where
     }
 }
 
+// # Impl Note
+//
+// In a few places we need to do parallel iteration over the BTreeMap entries, zipped with some
+// BooleanBlock However, BTreeMap's par_iter does not impl rayon::IndexedParallelIterator
+// which means it has no zip. So we resort to collecting in a Vec.
+// (Also, internally BTreeMap's par_iter already seems to be using a Vec<(&Key, &Value)>)
+//
+// We chose collecting instead or using par_bride over the zipped sequential iterators
+// as its advertised as less efficient, and we can afford the cost of the close (both memory wise
+// and compute wise) however, chances are that both impl would be fine as the real cost of compute
+// is in the FHE ops.
+//
+// Also, one important point is that par_iter_bridge may not keep iteration order
+// `The resulting iterator is not guaranteed to keep the order of the original iterator` (from rayon
+// docs) which is a problem for us as we need determinisn
 impl ServerKey {
     /// Implementation of the get function that additionally returns the Vec of selectors
     /// so it can be reused to avoid re-computing it.
@@ -163,7 +177,7 @@ impl ServerKey {
     ) -> (Ct, BooleanBlock, Vec<BooleanBlock>)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
+        Key: Decomposable + CastInto<usize> + Ord,
     {
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
@@ -209,7 +223,7 @@ impl ServerKey {
     ) -> (Ct, BooleanBlock)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
+        Key: Decomposable + CastInto<usize> + Ord,
     {
         let (result, check_block, _selectors) = self.kv_store_get_impl(map, encrypted_key);
         (result, check_block)
@@ -232,7 +246,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
+        Key: Decomposable + CastInto<usize> + Ord,
     {
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
@@ -272,7 +286,7 @@ impl ServerKey {
     ) -> (Ct, Ct, BooleanBlock)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Hash + Eq,
+        Key: Decomposable + CastInto<usize> + Ord,
         F: Fn(Ct) -> Ct,
     {
         let (old_value, check_block, selectors) = self.kv_store_get_impl(map, encrypted_key);
@@ -348,7 +362,7 @@ where
         decompression_key: &DecompressionKey,
     ) -> crate::Result<KVStore<Key, Value>>
     where
-        Key: Copy + Display + Eq + Hash,
+        Key: Copy + Display + Ord,
     {
         if Value::IS_SIGNED != self.is_signed {
             let requested = if Value::IS_SIGNED { "Signed" } else { "" };
@@ -432,7 +446,7 @@ mod tests {
     use crate::shortint::ShortintParameterSet;
 
     fn assert_store_unsigned_matches(
-        clear_store: &HashMap<u32, u64>,
+        clear_store: &BTreeMap<u32, u64>,
         kv_store: &KVStore<u32, RadixCiphertext>,
         cks: &ClientKey,
     ) {
@@ -472,7 +486,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let mut clear_store = HashMap::new();
+        let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();
         for _ in 0..num_keys {
             let key = rng.gen::<u32>();
@@ -499,7 +513,7 @@ mod tests {
     }
 
     fn assert_store_signed_matches(
-        clear_store: &HashMap<u32, i64>,
+        clear_store: &BTreeMap<u32, i64>,
         kv_store: &KVStore<u32, SignedRadixCiphertext>,
         cks: &ClientKey,
     ) {
@@ -539,7 +553,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let mut clear_store = HashMap::new();
+        let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();
         for _ in 0..num_keys {
             let key = rng.gen::<u32>();
