@@ -31,8 +31,8 @@ __host__ void zero_out_if(CudaStreams streams,
   // second operand is not an array
   auto tmp_lwe_array_input = mem_ptr->tmp;
   host_pack_bivariate_blocks_with_single_block<Torus>(
-      streams, tmp_lwe_array_input, predicate->lwe_indexes_in, lwe_array_input,
-      lwe_condition, predicate->lwe_indexes_in, params.message_modulus,
+      streams, tmp_lwe_array_input, predicate->lwe_indexes_in.get(), lwe_array_input,
+      lwe_condition, predicate->lwe_indexes_in.get(), params.message_modulus,
       num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(

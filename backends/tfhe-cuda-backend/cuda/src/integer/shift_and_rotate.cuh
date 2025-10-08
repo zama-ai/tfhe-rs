@@ -150,7 +150,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // control_bit|b|a
     host_pack_bivariate_blocks<Torus>(
         streams, mux_inputs, mux_lut->lwe_indexes_out, rotated_input,
-        input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits,
+        input_bits_a, mux_lut->lwe_indexes_in.get(), 2, total_nb_bits,
         mem->params.message_modulus, mem->params.carry_modulus);
 
     // The shift bit is already properly aligned/positioned
