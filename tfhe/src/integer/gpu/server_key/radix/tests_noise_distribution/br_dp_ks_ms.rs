@@ -32,13 +32,14 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
-    encrypt_new_noiseless_lwe, mean_and_variance_check, normality_check, DecryptionAndNoiseResult,
-    NoiseSample,
+    encrypt_new_noiseless_lwe, mean_and_variance_check, normality_check, pfail_check,
+    update_ap_params_for_pfail, DecryptionAndNoiseResult, NoiseSample, PfailTestMeta,
+    PfailTestResult,
 };
-use crate::shortint::server_key::ShortintBootstrappingKey;
-use crate::shortint::{Ciphertext, ShortintParameterSet};
 
-use crate::shortint::ClientKey;
+use crate::shortint::server_key::tests::noise_distribution::should_run_short_pfail_tests_debug;
+use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::{CarryModulus, Ciphertext, ClientKey, ShortintParameterSet};
 use itertools::Itertools;
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
@@ -437,13 +438,36 @@ fn encrypt_br_dp_ks_any_ms_noise_helper_gpu(
     )
 }
 
+fn encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
+    params: AtomicPatternParameters,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    single_cuda_sks: &CudaServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+    br_input_modulus_log: CiphertextModulusLog,
+    streams: &CudaStreams,
+) -> DecryptionAndNoiseResult {
+    let (_input, _after_br, _after_dp, _after_ks, _before_ms, after_ms) =
+        encrypt_br_dp_ks_any_ms_inner_helper_gpu(
+            params,
+            single_cks,
+            single_sks,
+            single_cuda_sks,
+            msg,
+            scalar_for_multiplication,
+            br_input_modulus_log,
+            streams,
+        );
+
+    after_ms
+}
+
 fn noise_check_encrypt_br_dp_ks_ms_noise<P>(params: P)
 where
     P: Into<AtomicPatternParameters>,
 {
     let params: AtomicPatternParameters = params.into();
-    // let cks = ClientKey::new(params);
-    // let sks = ServerKey::new(&cks);
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
@@ -591,7 +615,7 @@ where
     let mut noise_samples_before_ms = vec![];
     let mut noise_samples_after_ms = vec![];
 
-    let sample_count_per_msg = 2; // 1000;
+    let sample_count_per_msg = 1000;
 
     for _ in 0..cleartext_modulus {
         let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) = (0
@@ -633,6 +657,88 @@ where
 }
 
 create_gpu_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
+
+fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu<P>(params: P)
+where
+    P: Into<AtomicPatternParameters>,
+{
+    let (pfail_test_meta, params) = {
+        let mut ap_params: AtomicPatternParameters = params.into();
+
+        let original_message_modulus = ap_params.message_modulus();
+        let original_carry_modulus = ap_params.carry_modulus();
+
+        // For now only allow 2_2 parameters, and see later for heuristics to use
+        assert_eq!(original_message_modulus.0, 4);
+        assert_eq!(original_carry_modulus.0, 4);
+
+        // Update parameters to fail more frequently by inflating the carry modulus, allows to keep
+        // the max multiplication without risks of message overflow
+        let (original_pfail_and_precision, new_expected_pfail_and_precision) =
+            update_ap_params_for_pfail(
+                &mut ap_params,
+                original_message_modulus,
+                CarryModulus(1 << 5),
+            );
+
+        let pfail_test_meta = if should_run_short_pfail_tests_debug() {
+            let expected_fails = 200;
+            PfailTestMeta::new_with_desired_expected_fails(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                expected_fails,
+            )
+        } else {
+            let total_runs = 1_000_000;
+            PfailTestMeta::new_with_total_runs(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                total_runs,
+            )
+        };
+
+        (pfail_test_meta, ap_params)
+    };
+
+    let gpu_index = 0;
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+
+    let block_params: ShortintParameterSet = params.into();
+    let cks = crate::integer::ClientKey::new(block_params);
+    let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+    let sks = compressed_server_key.decompress();
+    let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+    let max_scalar_mul = sks.key.max_noise_level.get();
+    let br_input_modulus_log = sks.key.br_input_modulus_log();
+
+    let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
+
+    let measured_fails: f64 = (0..total_runs_for_expected_fails)
+        .into_iter()
+        .map(|_| {
+            let after_ms_decryption_result = encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
+                params,
+                &cks.key,
+                &sks,
+                &cuda_sks,
+                0,
+                max_scalar_mul,
+                br_input_modulus_log,
+                &streams,
+            );
+            after_ms_decryption_result.failure_as_f64()
+        })
+        .sum();
+
+    let test_result = PfailTestResult { measured_fails };
+
+    pfail_check(&pfail_test_meta, test_result);
+}
+
+create_gpu_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_pfail_gpu {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
