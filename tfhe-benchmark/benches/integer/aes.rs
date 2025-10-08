@@ -9,7 +9,9 @@ pub mod cuda {
     use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::integer::{IntegerKeyKind, RadixClientKey};
     use tfhe::keycache::NamedParam;
+    use tfhe::shortint::parameters::v1_4::V1_4_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40;
     use tfhe::shortint::AtomicPatternParameters;
+    use tfhe::GpuIndex;
 
     pub fn cuda_aes(c: &mut Criterion) {
         let bench_name = "integer::cuda::aes";
@@ -20,7 +22,7 @@ pub mod cuda {
             .measurement_time(std::time::Duration::from_secs(60))
             .warm_up_time(std::time::Duration::from_secs(60));
 
-        let param = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let param = V1_4_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40;
         let atomic_param: AtomicPatternParameters = param.into();
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
@@ -43,7 +45,7 @@ pub mod cuda {
                 let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
                 {
-                    const NUM_AES_INPUTS: usize = 1;
+                    const NUM_AES_INPUTS: usize = 29;
                     const SBOX_PARALLELISM: usize = 16;
                     let bench_id = format!("{param_name}::{NUM_AES_INPUTS}_input_encryption");
 
