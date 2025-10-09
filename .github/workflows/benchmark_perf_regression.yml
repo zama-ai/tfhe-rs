@@ -45,8 +45,8 @@ jobs:
       selected-regression-profile: ${{ steps.set_regression_details.outputs.selected-profile }}
       custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
     permissions:
-      # Needed to react to benchmark command in issue comment
-      issues: write
+#      # Needed to react to benchmark command in issue comment
+#      issues: write
       # Needed to react to a comment in a pull-request
       pull-requests: write
     steps:
@@ -290,8 +290,8 @@ jobs:
     needs: [ prepare-benchmarks, regression-benchmarks ]
     runs-on: ubuntu-latest
     permissions:
-      # Needed to write the regression report in issue comment
-      issues: write
+#      # Needed to write the regression report in issue comment
+#      issues: write
       # Needed to write a comment in a pull-request
       pull-requests: write
       # Needed to set up Python dependencies
