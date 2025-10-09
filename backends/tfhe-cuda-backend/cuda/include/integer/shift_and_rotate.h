@@ -165,5 +165,6 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     delete bit_extract_luts_with_offset_2;
     delete mux_lut;
     delete cleaning_lut;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

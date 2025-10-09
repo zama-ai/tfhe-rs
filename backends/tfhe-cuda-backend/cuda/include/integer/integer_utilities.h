@@ -1003,6 +1003,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   void release(CudaStreams streams) {
     lut->release(streams);
     delete (lut);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -1083,6 +1084,7 @@ template <typename Torus> struct int_fullprop_buffer {
     delete tmp_small_lwe_vector;
     delete tmp_big_lwe_vector;
     delete lut;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -1339,6 +1341,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       delete current_blocks;
       delete small_lwe_vector;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -1399,6 +1402,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
     lut_sequential_algorithm->release(streams);
     delete group_resolved_carries;
     delete lut_sequential_algorithm;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   };
 };
 
@@ -1448,6 +1452,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
 
     lut_hillis_steele->release(streams);
     delete lut_hillis_steele;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -1635,6 +1640,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     delete shifted_blocks_and_states;
     delete shifted_blocks;
     delete block_states;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   };
 };
 
@@ -1946,6 +1952,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     delete resolved_carries;
     delete luts_array_second_step;
     delete[] h_scalar_array_cum_sum;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   };
 };
 
@@ -2170,6 +2177,7 @@ template <typename Torus> struct int_sc_prop_memory {
       delete last_lhs;
       delete last_rhs;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   };
 };
 
@@ -2370,6 +2378,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     delete shifted_blocks_and_borrow_states;
     delete shifted_blocks;
     delete borrow_states;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   };
 };
 

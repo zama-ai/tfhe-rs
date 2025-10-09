@@ -26,6 +26,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
                                    gpu_memory_allocated);
     delete tmp;
     tmp = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 template <typename Torus> struct int_cmux_buffer {
@@ -135,5 +136,6 @@ template <typename Torus> struct int_cmux_buffer {
     delete buffer_in;
     delete buffer_out;
     delete condition_array;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

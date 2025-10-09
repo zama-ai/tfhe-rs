@@ -94,6 +94,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
                                      tmp_ffi, allocate_gpu_memory);
       delete tmp_ffi;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -210,6 +211,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
                                      xsign_ffi, allocate_gpu_memory);
       delete xsign_ffi;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -280,6 +282,7 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
       sub_and_propagate_mem->release(streams);
       delete sub_and_propagate_mem;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -367,5 +370,6 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
     sub_and_propagate_mem->release(streams);
     delete sub_and_propagate_mem;
     sub_and_propagate_mem = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

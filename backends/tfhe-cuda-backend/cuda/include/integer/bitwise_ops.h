@@ -78,6 +78,7 @@ template <typename Torus> struct int_bitop_buffer {
   void release(CudaStreams streams) {
     lut->release(streams);
     delete lut;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 void update_degrees_after_bitand(uint64_t *output_degrees,

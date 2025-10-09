@@ -46,7 +46,7 @@ template <typename Torus> struct int_abs_buffer {
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    mask, this->allocate_gpu_memory);
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     delete mask;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

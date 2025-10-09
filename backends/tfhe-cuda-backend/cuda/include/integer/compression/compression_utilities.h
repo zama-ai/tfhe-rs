@@ -47,6 +47,7 @@ template <typename Torus> struct int_compression {
     cleanup_packing_keyswitch_lwe_list_to_glwe(
         streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
         gpu_memory_allocated);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -138,6 +139,7 @@ template <typename Torus> struct int_decompression {
       delete decompression_rescale_lut;
       decompression_rescale_lut = nullptr;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 #endif
