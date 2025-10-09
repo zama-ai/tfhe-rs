@@ -9,6 +9,7 @@
 #include "cast.cuh"
 #include "device.h"
 #include "integer/integer_utilities.h"
+#include "integer/scalar_mul.h"
 #include "multiplication.cuh"
 #include "scalar_shifts.cuh"
 #include "utils/kernel_dimensions.cuh"

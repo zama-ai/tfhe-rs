@@ -2,19 +2,12 @@
 #define TFHE_RS_ABS_CUH
 
 #include "crypto/keyswitch.cuh"
+#include "integer/abs.h"
 #include "integer/bitwise_ops.cuh"
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
-#include "integer/negation.cuh"
 #include "integer/scalar_shifts.cuh"
 #include "radix_ciphertext.cuh"
-#include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_abs_kb(

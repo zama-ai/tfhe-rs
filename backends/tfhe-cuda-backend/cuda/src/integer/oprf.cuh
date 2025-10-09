@@ -2,7 +2,7 @@
 #define CUDA_INTEGER_OPRF_CUH
 
 #include "integer/integer.cuh"
-#include "integer/integer_utilities.h"
+#include "integer/oprf.h"
 
 template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf(

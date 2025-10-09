@@ -2,7 +2,6 @@
 #define CUDA_INTEGER_SCALAR_BITWISE_OPS_CUH
 
 #include "integer/bitwise_ops.cuh"
-#include <omp.h>
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_bitop_kb(

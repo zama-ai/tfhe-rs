@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "integer.cuh"
+#include "integer/cast.h"
 #include "integer/integer_utilities.h"
 
 template <typename Torus>

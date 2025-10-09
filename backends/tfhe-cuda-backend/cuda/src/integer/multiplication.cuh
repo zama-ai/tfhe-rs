@@ -12,14 +12,9 @@
 #include "integer/cmux.cuh"
 #include "integer/integer.cuh"
 #include "integer/integer_utilities.h"
-#include "linear_algebra.h"
-#include "pbs/programmable_bootstrap.h"
+#include "integer/multiplication.h"
 #include "utils/helper.cuh"
-#include "utils/helper_multi_gpu.cuh"
-#include "utils/kernel_dimensions.cuh"
 #include <fstream>
-#include <iostream>
-#include <omp.h>
 #include <sstream>
 #include <string>
 #include <vector>

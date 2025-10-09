@@ -2,6 +2,7 @@
 #define CUDA_INTEGER_CMUX_CUH
 
 #include "integer.cuh"
+#include "integer/cmux.h"
 #include "radix_ciphertext.cuh"
 
 template <typename Torus>

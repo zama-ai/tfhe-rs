@@ -5,12 +5,10 @@
 #include "device.h"
 #include "integer.cuh"
 #include "integer/integer_utilities.h"
+#include "integer/shift_and_rotate.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "scalar_mul.cuh"
-#include "types/complex/operations.cuh"
-#include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
