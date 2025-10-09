@@ -200,6 +200,11 @@ required-features = ["shortint", "internal-keycache"]
 # Real use-case examples
 
 [[example]]
+name = "manual_fft"
+path = "examples/manual_fft.rs"
+required-features = ["integer"]
+
+[[example]]
 name = "dark_market"
 required-features = ["integer", "internal-keycache"]
 
