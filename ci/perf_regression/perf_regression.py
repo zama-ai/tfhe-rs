@@ -59,8 +59,8 @@ MILLISECONDS_IN_NANO = 1e6
 MICROSECONDS_IN_NANO = 1e3
 
 CWD = pathlib.Path(__file__).parent
-REPO_ROOT = CWD.parent
-PROFILE_DEFINITION_PATH = CWD.joinpath("regression.toml")
+REPO_ROOT = CWD.parent.parent
+PROFILE_DEFINITION_PATH = CWD.parent.joinpath("regression.toml")
 BENCH_TARGETS_PATH = REPO_ROOT.joinpath("tfhe-benchmark/Cargo.toml")
 # Files generated after parsing an issue comment
 GENERATED_COMMANDS_PATH = CWD.joinpath("perf_regression_generated_commands.json")
@@ -440,7 +440,7 @@ def write_backend_config_to_file(backend, profile):
     :return:
     """
     for filepart, content in [("backend", backend), ("profile", profile)]:
-        pathlib.Path(f"ci/perf_regression_slab_{filepart}_config.txt").write_text(
+        CWD.joinpath(f"perf_regression_slab_{filepart}_config.txt").write_text(
             f"{content}\n"
         )
 
@@ -457,7 +457,7 @@ def write_regression_config_to_file(tfhe_rs_backend, regression_profile):
         ("tfhe_rs_backend", tfhe_rs_backend),
         ("selected_profile", regression_profile),
     ]:
-        pathlib.Path(f"ci/perf_regression_{filepart}_config.txt").write_text(
+        CWD.joinpath(f"perf_regression_{filepart}_config.txt").write_text(
             f"{content}\n"
         )
 
@@ -525,7 +525,6 @@ class OperationPerformance:
             self.change_type = PerfChange.MajorImprovement
         elif self.head_branch_value < self.baseline_mean - minor_threshold:
             self.change_type = PerfChange.MinorImprovement
-
 
         return self.change_percentage, self.change_type
 

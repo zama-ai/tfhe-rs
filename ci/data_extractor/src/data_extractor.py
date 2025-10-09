@@ -7,9 +7,9 @@ It will output the filtered results in a file formatted as CSV.
 
 PostgreSQL connection configuration can be passed through a configuration file or via environment variables.
 When using the environment variables, make sure to set the following ones:
- * DATABASE_HOST
- * DATABASE_USER
- * DATABASE_PASSWORD
+ * DATA_EXTRACTOR_DATABASE_HOST
+ * DATA_EXTRACTOR_DATABASE_USER
+ * DATA_EXTRACTOR_DATABASE_PASSWORD
 
 Note that if provided, environment variables will take precedence over the configuration file.
 """
