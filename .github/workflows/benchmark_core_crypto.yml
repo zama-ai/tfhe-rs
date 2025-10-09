@@ -11,7 +11,10 @@ on:
         options:
           - classical
           - multi_bit
-          - both
+          - classical + multi_bit
+          - classical_documentation
+          - multi_bit_documentation
+          - classical_documentation + multi_bit_documentation
 
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 5a.m.
@@ -43,8 +46,10 @@ jobs:
       - name: Set parameters types
         if: github.event_name == 'workflow_dispatch'
         run: |
-          if [[ "${INPUTS_PARAM_TYPE}" == "both" ]]; then
+          if [[ "${INPUTS_PARAM_TYPE}" == "classical + multi_bit" ]]; then
             echo "PARAM_TYPE=[\"classical\", \"multi_bit\"]" >> "${GITHUB_ENV}"
+          elif [[ "${INPUTS_PARAM_TYPE}" == "classical_documentation + multi_bit_documentation" ]]; then
+            echo "PARAM_TYPE=[\"classical_documentation\", \"multi_bit_documentation\"]" >> "${GITHUB_ENV}"
           else
             echo "PARAM_TYPE=[\"${INPUTS_PARAM_TYPE}\"]" >> "${GITHUB_ENV}"
           fi
