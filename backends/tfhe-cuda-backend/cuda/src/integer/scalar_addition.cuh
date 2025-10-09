@@ -8,7 +8,6 @@
 
 #include "device.h"
 #include "helper_multi_gpu.h"
-#include "radix_ciphertext.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
 

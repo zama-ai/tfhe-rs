@@ -5,13 +5,13 @@
 #include "device.h"
 #include "integer.cuh"
 #include "integer/cmux.cuh"
+#include "integer/comparison.h"
 #include "integer/integer_utilities.h"
 #include "integer/negation.cuh"
 #include "integer/scalar_addition.cuh"
 #include "integer/subtraction.cuh"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
-#include "types/complex/operations.cuh"
 #include "utils/kernel_dimensions.cuh"
 
 // lwe_dimension + 1 threads

@@ -2,14 +2,11 @@
 #define CUDA_INTEGER_SCALAR_ROTATE_OPS_CUH
 
 #include "crypto/keyswitch.cuh"
-#include "device.h"
 #include "integer.cuh"
 #include "integer/integer_utilities.h"
+#include "integer/scalar_shifts.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
-#include "types/complex/operations.cuh"
-#include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_radix_scalar_rotate_kb(

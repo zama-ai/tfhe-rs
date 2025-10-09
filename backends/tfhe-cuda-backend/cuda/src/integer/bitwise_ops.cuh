@@ -4,12 +4,10 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.cuh"
+#include "integer/bitwise_ops.h"
 #include "integer/integer_utilities.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
-#include "polynomial/functions.cuh"
-#include "utils/kernel_dimensions.cuh"
-#include <omp.h>
 
 template <typename Torus>
 __host__ void host_integer_radix_bitop_kb(

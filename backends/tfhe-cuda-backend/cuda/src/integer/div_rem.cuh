@@ -6,19 +6,12 @@
 #include "integer/abs.cuh"
 #include "integer/cast.cuh"
 #include "integer/comparison.cuh"
+#include "integer/div_rem.h"
 #include "integer/integer.cuh"
 #include "integer/integer_utilities.h"
-#include "integer/negation.cuh"
 #include "integer/scalar_shifts.cuh"
-#include "linear_algebra.h"
-#include "pbs/programmable_bootstrap.h"
-#include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
+#include "integer/subtraction.cuh"
 #include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_div_rem_kb(

@@ -3,6 +3,7 @@
 
 #include "integer/integer_utilities.h"
 #include "integer/scalar_bitops.cuh"
+#include "integer/scalar_div.h"
 #include "integer/scalar_mul.cuh"
 #include "integer/scalar_shifts.cuh"
 #include "integer/subtraction.cuh"

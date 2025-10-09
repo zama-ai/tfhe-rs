@@ -1,6 +1,5 @@
 #include "integer/integer.cuh"
-#include "integer/negation.cuh"
-#include <linear_algebra.h>
+#include "integer/subtraction.cuh"
 
 void cuda_full_propagation_64_inplace(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI *input_blocks,

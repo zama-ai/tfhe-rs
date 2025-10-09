@@ -2,6 +2,7 @@
 #define ILOG2_CUH
 
 #include "integer.cuh"
+#include "integer/ilog2.h"
 #include "integer/integer_utilities.h"
 #include "multiplication.cuh"
 
