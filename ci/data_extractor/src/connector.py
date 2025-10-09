@@ -59,9 +59,9 @@ class PostgreConfig:
             setattr(self, option_name, attr_value)
 
     def _override_with_env(self):
-        self.host = os.environ.get("DATABASE_HOST", self.host)
-        self.user = os.environ.get("DATABASE_USER", self.user)
-        self.password = os.environ.get("DATABASE_PASSWORD", self.password)
+        self.host = os.environ.get("DATA_EXTRACTOR_DATABASE_HOST", self.host)
+        self.user = os.environ.get("DATA_EXTRACTOR_DATABASE_USER", self.user)
+        self.password = os.environ.get("DATA_EXTRACTOR_DATABASE_PASSWORD", self.password)
 
 
 class PostgreConnector:
