@@ -72,5 +72,6 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
                                      padding_block, allocate_gpu_memory);
       delete padding_block;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

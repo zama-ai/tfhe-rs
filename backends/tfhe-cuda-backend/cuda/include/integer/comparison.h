@@ -57,16 +57,16 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   }
 
   void release(CudaStreams streams) {
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_out, gpu_memory_allocated);
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_block_accumulated, gpu_memory_allocated);
     is_max_value->release(streams);
-    free(preallocated_h_lut);
     delete is_max_value;
     delete tmp_out;
     delete tmp_block_accumulated;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    free(preallocated_h_lut);
   }
 };
 
@@ -175,6 +175,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
     scalar_comparison_luts->release(streams);
     delete scalar_comparison_luts;
     scalar_comparison_luts = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -242,7 +243,6 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
   }
 
   void release(CudaStreams streams) {
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_x, gpu_memory_allocated);
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -256,6 +256,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
     delete tmp_x;
     delete tmp_y;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(preallocated_h_lut);
   }
 };
@@ -325,7 +326,6 @@ template <typename Torus> struct int_comparison_diff_buffer {
   }
 
   void release(CudaStreams streams) {
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_packed, gpu_memory_allocated);
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -340,6 +340,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
     delete tmp_packed;
     delete tmp_signs_a;
     delete tmp_signs_b;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(preallocated_h_lut1);
     free(preallocated_h_lut2);
   }

@@ -162,5 +162,6 @@ template <typename Torus> struct int_mul_memory {
     delete luts_array;
     delete sum_ciphertexts_mem;
     delete sc_prop_mem;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

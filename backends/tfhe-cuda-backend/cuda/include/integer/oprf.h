@@ -140,6 +140,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     delete this->plaintext_corrections;
     this->plaintext_corrections = nullptr;
 
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(this->h_lut_indexes);
     this->h_lut_indexes = nullptr;
   }

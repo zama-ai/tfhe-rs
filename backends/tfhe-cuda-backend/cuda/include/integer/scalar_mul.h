@@ -77,6 +77,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
     delete sc_prop_mem;
     delete all_shifted_buffer;
     release_buffers(streams);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 
   void release_buffers(CudaStreams streams) {
@@ -139,6 +140,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
                                    allocate_gpu_memory);
     delete tmp;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -194,5 +196,6 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
 
     extend_radix_mem->release(streams);
     delete extend_radix_mem;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

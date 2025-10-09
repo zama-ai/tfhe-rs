@@ -166,5 +166,6 @@ template <typename Torus> struct int_sub_and_propagate {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    neg_rhs_array, allocate_gpu_memory);
     delete neg_rhs_array;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

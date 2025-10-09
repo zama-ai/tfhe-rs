@@ -93,6 +93,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_ct, allocate_gpu_memory);
     delete tmp_ct;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -167,6 +168,7 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
                                    allocate_gpu_memory);
     delete cts;
     cts = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 template <typename Torus> struct int_ilog2_buffer {
@@ -338,5 +340,6 @@ template <typename Torus> struct int_ilog2_buffer {
     this->final_propagate_mem->release(streams);
     delete this->final_propagate_mem;
     this->final_propagate_mem = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

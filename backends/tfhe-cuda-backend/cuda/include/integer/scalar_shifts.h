@@ -184,7 +184,6 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     }
   }
   void release(CudaStreams streams) {
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(streams);
       delete buffer;
@@ -194,9 +193,9 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     if (!reuse_memory) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      tmp_rotated, gpu_memory_allocated);
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
       delete tmp_rotated;
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -353,9 +352,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
   }
 
   void release(CudaStreams streams) {
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    local_streams_1.release();
-    local_streams_2.release();
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_rotated, gpu_memory_allocated);
     for (auto &buffer : lut_buffers_bivariate) {
@@ -370,5 +366,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     lut_buffers_univariate.clear();
 
     delete tmp_rotated;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    local_streams_1.release();
+    local_streams_2.release();
   }
 };
