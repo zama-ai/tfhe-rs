@@ -4,7 +4,8 @@ use crate::core_crypto::backward_compatibility::fft_impl::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
+pub use crate::core_crypto::commons::parameters::PolynomialSize;
+use crate::core_crypto::commons::parameters::{FourierPolynomialSize, PolynomialCount};
 use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
@@ -19,7 +20,8 @@ use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
 use tfhe_fft::c64;
-use tfhe_fft::unordered::{Method, Plan};
+pub use tfhe_fft::ordered::FftAlgo;
+pub use tfhe_fft::unordered::{Method, Plan};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
@@ -103,6 +105,24 @@ type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<(Twisties, Plan)>>>>>;
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+pub fn setup_custom_fft_plan(plan: Plan) {
+    let base_n = FourierPolynomialSize(plan.fft_size());
+    let n = base_n.to_standard_polynomial_size();
+
+    let plan = Arc::new((Twisties::new(base_n.0), plan));
+
+    let global_plans = plans();
+
+    let mut write = global_plans.write().unwrap();
+
+    match write.entry(n.0) {
+        Entry::Occupied(mut occupied_entry) => occupied_entry.get_mut().set(plan).unwrap(),
+        Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(Arc::new(OnceLock::from(plan)));
+        }
+    }
 }
 
 /// Return the input slice, cast to the same type.
