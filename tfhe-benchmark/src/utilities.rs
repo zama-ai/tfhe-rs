@@ -575,28 +575,28 @@ mod cuda_utils {
     }
 
     /// Computing keys in their CPU flavor.
-    pub struct CpuKeys<T: UnsignedInteger> {
-        ksk: Option<LweKeyswitchKeyOwned<T>>,
+    pub struct CpuKeys<T: UnsignedInteger, KST: UnsignedInteger> {
+        ksk: Option<LweKeyswitchKeyOwned<KST>>,
         pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
         bsk: Option<LweBootstrapKeyOwned<T>>,
         multi_bit_bsk: Option<LweMultiBitBootstrapKeyOwned<T>>,
     }
 
-    impl<T: UnsignedInteger> CpuKeys<T> {
-        pub fn builder() -> CpuKeysBuilder<T> {
+    impl<T: UnsignedInteger, KST: UnsignedInteger> CpuKeys<T, KST> {
+        pub fn builder() -> CpuKeysBuilder<T, KST> {
             CpuKeysBuilder::new()
         }
     }
 
-    pub struct CpuKeysBuilder<T: UnsignedInteger> {
-        ksk: Option<LweKeyswitchKeyOwned<T>>,
+    pub struct CpuKeysBuilder<T: UnsignedInteger, KST: UnsignedInteger> {
+        ksk: Option<LweKeyswitchKeyOwned<KST>>,
         pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
         bsk: Option<LweBootstrapKeyOwned<T>>,
         multi_bit_bsk: Option<LweMultiBitBootstrapKeyOwned<T>>,
     }
 
-    impl<T: UnsignedInteger> CpuKeysBuilder<T> {
-        pub fn new() -> CpuKeysBuilder<T> {
+    impl<T: UnsignedInteger, KST: UnsignedInteger> CpuKeysBuilder<T, KST> {
+        pub fn new() -> CpuKeysBuilder<T, KST> {
             Self {
                 ksk: None,
                 pksk: None,
@@ -605,7 +605,7 @@ mod cuda_utils {
             }
         }
 
-        pub fn keyswitch_key(mut self, ksk: LweKeyswitchKeyOwned<T>) -> CpuKeysBuilder<T> {
+        pub fn keyswitch_key(mut self, ksk: LweKeyswitchKeyOwned<KST>) -> CpuKeysBuilder<T, KST> {
             self.ksk = Some(ksk);
             self
         }
@@ -613,12 +613,12 @@ mod cuda_utils {
         pub fn packing_keyswitch_key(
             mut self,
             pksk: LwePackingKeyswitchKeyOwned<T>,
-        ) -> CpuKeysBuilder<T> {
+        ) -> CpuKeysBuilder<T, KST> {
             self.pksk = Some(pksk);
             self
         }
 
-        pub fn bootstrap_key(mut self, bsk: LweBootstrapKeyOwned<T>) -> CpuKeysBuilder<T> {
+        pub fn bootstrap_key(mut self, bsk: LweBootstrapKeyOwned<T>) -> CpuKeysBuilder<T, KST> {
             self.bsk = Some(bsk);
             self
         }
@@ -626,12 +626,12 @@ mod cuda_utils {
         pub fn multi_bit_bootstrap_key(
             mut self,
             mb_bsk: LweMultiBitBootstrapKeyOwned<T>,
-        ) -> CpuKeysBuilder<T> {
+        ) -> CpuKeysBuilder<T, KST> {
             self.multi_bit_bsk = Some(mb_bsk);
             self
         }
 
-        pub fn build(self) -> CpuKeys<T> {
+        pub fn build(self) -> CpuKeys<T, KST> {
             CpuKeys {
                 ksk: self.ksk,
                 pksk: self.pksk,
@@ -640,7 +640,7 @@ mod cuda_utils {
             }
         }
     }
-    impl<T: UnsignedInteger> Default for CpuKeysBuilder<T> {
+    impl<T: UnsignedInteger, KST: UnsignedInteger> Default for CpuKeysBuilder<T, KST> {
         fn default() -> Self {
             Self::new()
         }
@@ -648,17 +648,17 @@ mod cuda_utils {
 
     /// Computing keys in their Cuda flavor.
     #[allow(dead_code)]
-    pub struct CudaLocalKeys<T: UnsignedInteger> {
-        pub ksk: Option<CudaLweKeyswitchKey<T>>,
+    pub struct CudaLocalKeys<T: UnsignedInteger, KST: UnsignedInteger> {
+        pub ksk: Option<CudaLweKeyswitchKey<KST>>,
         pub pksk: Option<CudaLwePackingKeyswitchKey<T>>,
         pub bsk: Option<CudaLweBootstrapKey>,
         pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey<T>>,
     }
 
     #[allow(dead_code)]
-    impl<T: UnsignedInteger> CudaLocalKeys<T> {
+    impl<T: UnsignedInteger, KST: UnsignedInteger> CudaLocalKeys<T, KST> {
         pub fn from_cpu_keys(
-            cpu_keys: &CpuKeys<T>,
+            cpu_keys: &CpuKeys<T, KST>,
             ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
             stream: &CudaStreams,
         ) -> Self {
@@ -681,10 +681,10 @@ mod cuda_utils {
     }
 
     /// Instantiate Cuda computing keys to each available GPU.
-    pub fn cuda_local_keys_core<T: UnsignedInteger>(
-        cpu_keys: &CpuKeys<T>,
+    pub fn cuda_local_keys_core<T: UnsignedInteger, KST: UnsignedInteger>(
+        cpu_keys: &CpuKeys<T, KST>,
         ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
-    ) -> Vec<CudaLocalKeys<T>> {
+    ) -> Vec<CudaLocalKeys<T, KST>> {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
         for i in 0..gpu_count {
