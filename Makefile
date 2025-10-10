@@ -87,6 +87,14 @@ install_rs_check_toolchain:
 	( echo "Unable to install $(RS_CHECK_TOOLCHAIN) toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
+.PHONY: install_rs_latest_nightly_toolchain # Install the nightly toolchain used to build docs using same version as docs.rs
+# We don't check that it exists, because we always want the latest
+# and the command below will install/update
+install_rs_latest_nightly_toolchain:
+	rustup toolchain install --profile default nightly  || \
+	( echo "Unable to install nightly  toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
+
 .PHONY: install_rs_build_toolchain # Install the toolchain used for builds
 install_rs_build_toolchain:
 	@( rustup toolchain list | grep -q "$(RS_BUILD_TOOLCHAIN)" && \
@@ -1153,7 +1161,7 @@ doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+	cargo +nightly doc \
 		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p tfhe
 
 .PHONY: docs # Build rust doc alias for doc
@@ -1697,7 +1705,7 @@ pcc_batch_1: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_t
 check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash test_tfhe_lints tfhe_lints \
 clippy_rustdoc
 
-.PHONY: pcc_batch_2 # duration: 6'10''
+.PHONY: pcc_batch_2 # duration: 6'10'' (shortest one, extend it with further checks)
 pcc_batch_2: clippy clippy_all_targets
 
 .PHONY: pcc_batch_3 # duration: 6'50''
@@ -1709,9 +1717,9 @@ pcc_batch_4: clippy_core clippy_js_wasm_api clippy_ws_tests clippy_bench
 .PHONY: pcc_batch_5 # duration: 7'20''
 pcc_batch_5: clippy_tfhe_lints check_compile_tests clippy_backward_compat_data
 
-.PHONY: pcc_batch_6  # duration: 4'50'' (shortest one, extend it with further checks)
+.PHONY: pcc_batch_6  # duration: 6'32''
 pcc_batch_6: clippy_boolean clippy_c_api clippy_tasks clippy_tfhe_csprng clippy_zk_pok \
-clippy_trivium clippy_versionable clippy_param_dedup
+clippy_trivium clippy_versionable clippy_param_dedup docs
 
 .PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)
 pcc_batch_7: check_compile_tests_c_api

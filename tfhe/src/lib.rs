@@ -76,7 +76,6 @@
     ),
     feature(avx512_target_feature, stdarch_x86_avx512)
 )]
-#![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 // Weird clippy lint triggering without any code location
 #![cfg_attr(test, allow(clippy::large_stack_arrays))]
