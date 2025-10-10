@@ -26,7 +26,7 @@ impl ShortintEngine {
         self.new_server_key_with_max_degree(cks, max_degree)
     }
 
-    pub(crate) fn get_thread_count_for_multi_bit_pbs(
+    pub fn get_thread_count_for_multi_bit_pbs(
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
