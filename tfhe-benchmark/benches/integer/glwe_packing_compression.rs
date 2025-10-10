@@ -492,11 +492,16 @@ mod cuda {
                         })
                         .collect_vec();
 
-                    let cuda_noise_squashing_compression_key =
+
+                    let cuda_noise_squashing_compression_key_vec = local_streams
+                        .iter()
+                        .map(|local_stream| {
                         CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
                             &noise_squashing_compression_key,
-                            &stream,
-                        );
+                            &local_stream,
+                        )
+                        })
+                        .collect_vec();
 
                     // Benchmark
                     let builders = (0..elements)
@@ -509,22 +514,21 @@ mod cuda {
                             );
                             let cuda_noise_squashing_key =
                                 &cuda_compression_key_vec[(i as usize) % local_streams.len()];
+                            let cuda_noise_squashing_compression_key = cuda_noise_squashing_compression_key_vec[(i as usize) % local_streams.len()];
                             let d_ns_ct = cuda_noise_squashing_key
                                 .squash_radix_ciphertext_noise(&cuda_sks, &d_ct.ciphertext, &stream)
                                 .unwrap();
                             let mut builder = CudaCompressedSquashedNoiseCiphertextList::builder();
                             builder.push(d_ns_ct, local_stream);
 
-                            builder
+                            (builder, cuda_noise_squashing_compression_key, local_stream)
                         })
                         .collect::<Vec<_>>();
 
                     bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                     bench_group.bench_function(&bench_id_pack, |b| {
                         b.iter(|| {
-                            builders.par_iter().enumerate().for_each(|(i, builder)| {
-                                let local_stream = &local_streams[i % local_streams.len()];
-
+                            builders.par_iter().for_each(|(builder, cuda_noise_squashing_compression_key, local_stream)| {
                                 builder.build(&cuda_noise_squashing_compression_key, local_stream);
                             })
                         })
@@ -532,10 +536,7 @@ mod cuda {
 
                     let compressed = builders
                         .iter()
-                        .enumerate()
-                        .map(|(i, builder)| {
-                            let local_stream = &local_streams[i % local_streams.len()];
-
+                        .map(|(builder, cuda_noise_squashing_compression_key, local_stream)| {
                             builder.build(&cuda_noise_squashing_compression_key, local_stream)
                         })
                         .collect::<Vec<_>>();
