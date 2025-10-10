@@ -365,13 +365,17 @@ pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     decomposed_scalar: &[T],
     has_at_least_one_set: &[T],
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<u64>,
+    keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -1736,13 +1740,17 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     radix_lwe: &mut CudaRadixCiphertext,
     clear_blocks: &CudaVec<T>,
     h_clear_blocks: &[T],
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -2102,14 +2110,18 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
     scalar_blocks: &CudaVec<T>,
     h_scalar_blocks: &[T],
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3032,7 +3044,11 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
+    T: UnsignedInteger,
+    B: Numeric,
+    KST: Numeric,
+>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     num_blocks_intermediate: u32,
@@ -3041,7 +3057,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, 
     has_at_least_one_set: &[T],
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
-    key_switching_key: &CudaVec<u64>,
+    key_switching_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -5916,7 +5932,11 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5925,7 +5945,7 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Nu
     input_lut: &[T],
     lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -6023,7 +6043,11 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Nu
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -6032,7 +6056,7 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<T: UnsignedInteger, 
     input_lut: &[T],
     lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -7250,14 +7274,18 @@ pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_noise_squashing<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
     output_noise_levels: &mut Vec<u64>,
     input: &CudaSlice<u64>,
     bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<u64>,
+    keyswitch_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -7369,12 +7397,12 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, B: Numeric
 /// that were inside that vector of compact list. Handling the input this way removes the need
 /// to process multiple compact lists separately, simplifying GPU-based operations. The variable
 /// name `lwe_flattened_compact_array_in` makes this intent explicit.
-pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<T>,
     lwe_flattened_compact_array_in: &CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
-    computing_ks_key: &CudaVec<T>,
+    computing_ks_key: &CudaVec<KST>,
     casting_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,

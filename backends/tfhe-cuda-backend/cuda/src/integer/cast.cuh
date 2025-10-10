@@ -68,12 +68,12 @@ __host__ uint64_t scratch_extend_radix_with_sign_msb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_extend_radix_with_sign_msb(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input,
     int_extend_radix_with_sign_msb_buffer<Torus> *mem_ptr,
-    uint32_t num_additional_blocks, void *const *bsks, Torus *const *ksks) {
+    uint32_t num_additional_blocks, void *const *bsks, KSTorus *const *ksks) {
 
   if (num_additional_blocks == 0) {
     PUSH_RANGE("cast/extend no addblocks")
