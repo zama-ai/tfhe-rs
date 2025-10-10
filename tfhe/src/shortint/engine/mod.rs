@@ -280,14 +280,14 @@ impl std::fmt::Display for EngineError {
 /// This structs actually implements the logics into its methods.
 pub struct ShortintEngine {
     /// A structure containing a single CSPRNG to generate secret key coefficients.
-    pub(crate) secret_generator: SecretRandomGenerator<DefaultRandomGenerator>,
+    pub secret_generator: SecretRandomGenerator<DefaultRandomGenerator>,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    pub(crate) encryption_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
+    pub encryption_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
     /// A seeder that can be called to generate 128 bits seeds, useful to create new
     /// [`EncryptionRandomGenerator`] to encrypt seeded types.
     pub(crate) seeder: DeterministicSeeder<DefaultRandomGenerator>,

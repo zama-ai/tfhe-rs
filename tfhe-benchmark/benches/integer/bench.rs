@@ -13,11 +13,174 @@ use rayon::prelude::*;
 use std::cell::LazyCell;
 use std::cmp::max;
 use std::env;
+use tfhe::core_crypto::algorithms::{
+    allocate_and_generate_new_binary_glwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key,
+};
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::atomic_pattern::{AtomicPattern, AtomicPatternMut};
+use tfhe::shortint::engine::ShortintEngine;
 use tfhe::{get_pbs_count, reset_pbs_count};
+
+pub struct ParamKS32MB {
+    param: (),
+}
+
+pub struct ClientKeyKS32MB {
+    lwe_secret_key: LweSecretKey<Vec<u32>>,
+    glwe_secret_key: GlweSecretKey<Vec<u64>>,
+}
+
+impl ClientKeyKS32MB {
+    pub fn new(params: ParamKS32MB) -> Self {
+        let lwe_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension,
+                engine.secret_generator,
+            );
+        });
+
+        Self {
+            lwe_secret_key,
+            glwe_secret_key: todo!(),
+        }
+    }
+
+    pub fn encrypt_shortint(&self, msg: u64) -> Cipertext {
+        todo!()
+    }
+
+    // tfhe/src/integer/ciphertext/base.rs:29
+    pub fn encrypt_radix(&self, msg: u64, block_count: usize) -> RadixCiphertext {
+        let blocks: Vec<Ciphertext> = todo!();
+
+        RadixCiphertext::from(blocks)
+    }
+}
+
+pub struct ServerKeyKS32MB {
+    lwe_ksk: (),
+    lwe_bsk: (),
+    is_2m128: bool,
+}
+
+impl ServerKeyKS32MB {
+    pub fn new(cks: &ClientKeyKS32MB) -> Self {
+        todo!()
+    }
+}
+
+impl AtomicPatternMut for ServerKeyKS32MB {
+    fn set_deterministic_execution(&mut self, new_deterministic_execution: bool) {
+        ()
+    }
+}
+
+// tfhe/src/shortint/atomic_pattern/standard.rs:133
+// tfhe/src/shortint/atomic_pattern/ks32.rs:123
+impl AtomicPattern for ServerKeyKS32MB {
+    fn ciphertext_lwe_dimension_for_key(
+        &self,
+        key_choice: tfhe::shortint::EncryptionKeyChoice,
+    ) -> tfhe::boolean::prelude::LweDimension {
+        todo!()
+    }
+
+    fn ciphertext_modulus_for_key(
+        &self,
+        key_choice: tfhe::shortint::EncryptionKeyChoice,
+    ) -> tfhe::shortint::CiphertextModulus {
+        todo!() // not required normally
+    }
+
+    fn ciphertext_decompression_method(&self) -> tfhe::core_crypto::prelude::MsDecompressionType {
+        todo!("not required")
+    }
+
+    fn apply_lookup_table_assign(
+        &self,
+        ct: &mut tfhe::shortint::Ciphertext,
+        acc: &tfhe::shortint::server_key::LookupTableOwned,
+    ) {
+        if is_2m128 {
+            todo("code bizarre");
+        } else {
+            todo!("KS32 + MB - PBS no modif");
+        }
+        // See KS32 shortint + Multi bit pbs
+        todo!()
+    }
+
+    fn apply_many_lookup_table(
+        &self,
+        ct: &tfhe::shortint::Ciphertext,
+        lut: &tfhe::shortint::server_key::ManyLookupTableOwned,
+    ) -> Vec<tfhe::shortint::Ciphertext> {
+        // See KS32 shortint + Multi bit pbs
+        todo!()
+    }
+
+    fn lookup_table_size(&self) -> tfhe::shortint::server_key::LookupTableSize {
+        // See KS32 shortint
+        todo!()
+    }
+
+    fn kind(&self) -> tfhe::shortint::AtomicPatternKind {
+        todo!() // maybe
+    }
+
+    fn generate_oblivious_pseudo_random(
+        &self,
+        seed: tfhe::Seed,
+        random_bits_count: u64,
+        full_bits_count: u64,
+    ) -> (
+        tfhe::core_crypto::prelude::LweCiphertextOwned<u64>,
+        tfhe::shortint::parameters::Degree,
+    ) {
+        todo!("not required")
+    }
+
+    fn deterministic_execution(&self) -> bool {
+        true
+    }
+
+    fn switch_modulus_and_compress(
+        &self,
+        ct: &tfhe::shortint::Ciphertext,
+    ) -> tfhe::shortint::ciphertext::CompressedModulusSwitchedCiphertext {
+        todo!("not required")
+    }
+
+    fn decompress_and_apply_lookup_table(
+        &self,
+        compressed_ct: &tfhe::shortint::ciphertext::CompressedModulusSwitchedCiphertext,
+        lut: &tfhe::shortint::server_key::LookupTableOwned,
+    ) -> tfhe::shortint::Ciphertext {
+        todo!("not required")
+    }
+}
+
+pub fn create_sk() {
+    let key = ServerKeyKS32MB::new();
+
+    let boxed: Box<dyn AtomicPattern> = Box::new(key);
+
+    // tfhe/src/shortint/engine/server_side.rs:21
+
+    let shortint_sk = tfhe::shortint::ServerKey::from_raw_parts(
+        boxed,
+        message_modulus,
+        carry_modulus,
+        max_degree,
+        max_noise_level, // MaxNoiseLevel(5) for 2_2
+    );
+
+    tfhe::integer::ServerKey::from_raw_parts(shortint_sk);
+}
 
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested
