@@ -3,7 +3,9 @@ use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
     CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
+};
 use itertools::Itertools;
 
 use crate::core_crypto::commons::generators::DeterministicSeeder;
@@ -351,6 +353,9 @@ impl CudaServerKey {
         }
 
         let message_bits_count = self.message_modulus.0.ilog2();
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
 
         unsafe {
             match &self.bootstrapping_key {
@@ -364,8 +369,8 @@ impl CudaServerKey {
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         LweBskGroupingFactor(0),
@@ -387,8 +392,8 @@ impl CudaServerKey {
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         d_bsk.grouping_factor,
@@ -484,6 +489,10 @@ impl CudaServerKey {
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(num_blocks_output as usize, streams);
 
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -496,12 +505,12 @@ impl CudaServerKey {
                         has_at_least_one_set.as_slice(),
                         num_input_random_bits as u32,
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         LweBskGroupingFactor(0),
@@ -523,12 +532,12 @@ impl CudaServerKey {
                         has_at_least_one_set.as_slice(),
                         num_input_random_bits as u32,
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         d_bsk.grouping_factor,
@@ -553,6 +562,9 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64 {
         let message_bits = self.message_modulus.0.ilog2();
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
@@ -561,8 +573,8 @@ impl CudaServerKey {
                 d_bsk.input_lwe_dimension,
                 d_bsk.glwe_dimension,
                 d_bsk.polynomial_size,
-                self.key_switching_key.decomposition_level_count(),
-                self.key_switching_key.decomposition_base_log(),
+                computing_ks_key.decomposition_level_count(),
+                computing_ks_key.decomposition_base_log(),
                 d_bsk.decomp_level_count,
                 d_bsk.decomp_base_log,
                 LweBskGroupingFactor(0),
@@ -579,8 +591,8 @@ impl CudaServerKey {
                 d_bsk.input_lwe_dimension,
                 d_bsk.glwe_dimension,
                 d_bsk.polynomial_size,
-                self.key_switching_key.decomposition_level_count(),
-                self.key_switching_key.decomposition_base_log(),
+                computing_ks_key.decomposition_level_count(),
+                computing_ks_key.decomposition_base_log(),
                 d_bsk.decomp_level_count,
                 d_bsk.decomp_base_log,
                 d_bsk.grouping_factor,

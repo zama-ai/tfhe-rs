@@ -12,7 +12,7 @@ use std::fmt::Debug;
 
 pub const NB_TESTS: usize = 10_000_000;
 
-fn valid_decomposers<T: UnsignedInteger>() -> Vec<SignedDecomposer<T>> {
+pub(crate) fn valid_decomposers<T: UnsignedInteger>() -> Vec<SignedDecomposer<T>> {
     let mut valid_decomposers = vec![];
     for base_log in (1..T::BITS).map(DecompositionBaseLog) {
         for level_count in (1..T::BITS).map(DecompositionLevelCount) {
