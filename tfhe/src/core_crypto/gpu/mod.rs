@@ -166,13 +166,13 @@ impl Drop for CudaStreams {
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
+pub unsafe fn programmable_bootstrap_async<KST: UnsignedInteger, T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<T>,
     lwe_out_indexes: &CudaVec<T>,
     test_vector: &CudaVec<T>,
     test_vector_indexes: &CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
+    lwe_array_in: &CudaVec<KST>,
     lwe_in_indexes: &CudaVec<T>,
     bootstrapping_key: &CudaVec<f64>,
     lwe_dimension: LweDimension,
@@ -193,45 +193,89 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
             PBSMSNoiseReductionType::Centered
         });
 
-    scratch_cuda_programmable_bootstrap_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        level.0 as u32,
-        num_samples,
-        true,
-        noise_reduction_type as u32,
-    );
+    if KST::BITS == 32 {
+        scratch_cuda_programmable_bootstrap_32_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_out_indexes.as_c_ptr(0),
-        test_vector.as_c_ptr(0),
-        test_vector_indexes.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        lwe_in_indexes.as_c_ptr(0),
-        bootstrapping_key.as_c_ptr(0),
-        pbs_buffer,
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        base_log.0 as u32,
-        level.0 as u32,
-        num_samples,
-        num_many_lut,
-        lut_stride,
-    );
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_32_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_out_indexes.as_c_ptr(0),
+            test_vector.as_c_ptr(0),
+            test_vector_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            lwe_in_indexes.as_c_ptr(0),
+            bootstrapping_key.as_c_ptr(0),
+            pbs_buffer,
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            base_log.0 as u32,
+            level.0 as u32,
+            num_samples,
+            num_many_lut,
+            lut_stride,
+        );
 
-    cleanup_cuda_programmable_bootstrap(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-    );
+        cleanup_cuda_programmable_bootstrap(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    } else if KST::BITS == 64 {
+        scratch_cuda_programmable_bootstrap_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_out_indexes.as_c_ptr(0),
+            test_vector.as_c_ptr(0),
+            test_vector_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            lwe_in_indexes.as_c_ptr(0),
+            bootstrapping_key.as_c_ptr(0),
+            pbs_buffer,
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            base_log.0 as u32,
+            level.0 as u32,
+            num_samples,
+            num_many_lut,
+            lut_stride,
+        );
+
+        cleanup_cuda_programmable_bootstrap(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    } else {
+        panic!("Unsupported PBS input bitwidth {}", KST::BITS);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -348,6 +392,7 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn programmable_bootstrap_multi_bit_async<
     T: UnsignedInteger,
+    KST: UnsignedInteger,
     B: Any + UnsignedInteger,
 >(
     streams: &CudaStreams,
@@ -355,7 +400,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<
     output_indexes: &CudaVec<T>,
     test_vector: &CudaVec<B>,
     test_vector_indexes: &CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
+    lwe_array_in: &CudaVec<KST>,
     input_indexes: &CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
     lwe_dimension: LweDimension,
@@ -406,42 +451,83 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<
             std::ptr::addr_of_mut!(pbs_buffer),
         );
     } else if TypeId::of::<B>() == TypeId::of::<u64>() {
-        scratch_cuda_multi_bit_programmable_bootstrap_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
-            num_samples,
-            true,
-        );
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            output_indexes.as_c_ptr(0),
-            test_vector.as_c_ptr(0),
-            test_vector_indexes.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
-            input_indexes.as_c_ptr(0),
-            bootstrapping_key.as_c_ptr(0),
-            pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
-            num_samples,
-            num_many_lut,
-            lut_stride,
-        );
-        cleanup_cuda_multi_bit_programmable_bootstrap(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
+        if TypeId::of::<KST>() == TypeId::of::<u32>() {
+            scratch_cuda_multi_bit_programmable_bootstrap_32_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+                glwe_dimension.0 as u32,
+                polynomial_size.0 as u32,
+                level.0 as u32,
+                num_samples,
+                true,
+            );
+            cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_32_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                output_indexes.as_c_ptr(0),
+                test_vector.as_c_ptr(0),
+                test_vector_indexes.as_c_ptr(0),
+                lwe_array_in.as_c_ptr(0),
+                input_indexes.as_c_ptr(0),
+                bootstrapping_key.as_c_ptr(0),
+                pbs_buffer,
+                lwe_dimension.0 as u32,
+                glwe_dimension.0 as u32,
+                polynomial_size.0 as u32,
+                grouping_factor.0 as u32,
+                base_log.0 as u32,
+                level.0 as u32,
+                num_samples,
+                num_many_lut,
+                lut_stride,
+            );
+            cleanup_cuda_multi_bit_programmable_bootstrap(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+            );
+        } else if TypeId::of::<KST>() == TypeId::of::<u64>() {
+            scratch_cuda_multi_bit_programmable_bootstrap_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+                glwe_dimension.0 as u32,
+                polynomial_size.0 as u32,
+                level.0 as u32,
+                num_samples,
+                true,
+            );
+            cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                output_indexes.as_c_ptr(0),
+                test_vector.as_c_ptr(0),
+                test_vector_indexes.as_c_ptr(0),
+                lwe_array_in.as_c_ptr(0),
+                input_indexes.as_c_ptr(0),
+                bootstrapping_key.as_c_ptr(0),
+                pbs_buffer,
+                lwe_dimension.0 as u32,
+                glwe_dimension.0 as u32,
+                polynomial_size.0 as u32,
+                grouping_factor.0 as u32,
+                base_log.0 as u32,
+                level.0 as u32,
+                num_samples,
+                num_many_lut,
+                lut_stride,
+            );
+            cleanup_cuda_multi_bit_programmable_bootstrap(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+            );
+        } else {
+            panic!("Unsupported MB PBS input torus size");
+        }
     } else {
         panic!("Unsupported torus size")
     }

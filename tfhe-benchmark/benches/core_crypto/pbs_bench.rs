@@ -978,7 +978,8 @@ mod cuda {
                 params.ciphertext_modulus.unwrap(),
             );
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
+            let cpu_keys: CpuKeys<Scalar, Scalar> =
+                CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
             let bench_id;
 
@@ -1236,7 +1237,7 @@ mod cuda {
                 params.ciphertext_modulus.unwrap(),
             );
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+            let cpu_keys: CpuKeys<Scalar, Scalar> = CpuKeysBuilder::new()
                 .multi_bit_bootstrap_key(multi_bit_bsk)
                 .build();
 
