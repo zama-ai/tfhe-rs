@@ -135,43 +135,43 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
   case 256:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<256>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 512:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<512>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 1024:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<1024>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 2048:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<2048>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 4096:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<4096>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 8192:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<8192>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 16384:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<16384>>(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
         (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   default:
@@ -225,7 +225,7 @@ void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
           "output's number of radix blocks")
   host_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
       CudaStreams(streams), radix_lwe_out, radix_lwe_vec, bsks,
-      (uint64_t **)(ksks), mem, radix_lwe_out->num_radix_blocks,
+      (uint32_t **)(ksks), mem, radix_lwe_out->num_radix_blocks,
       radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
 }
 

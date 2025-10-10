@@ -27,7 +27,7 @@ void cuda_sub_and_propagate_single_carry_kb_64_inplace(
   PUSH_RANGE("sub")
   host_sub_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
-      (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
+      (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks),
       requested_flag, uses_carry);
   POP_RANGE()
 }

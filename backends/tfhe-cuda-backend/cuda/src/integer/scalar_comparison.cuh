@@ -24,12 +24,12 @@ Torus is_x_less_than_y_given_input_borrow(Torus last_x_block,
   return output_sign_bit ^ overflow_flag;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void scalar_compare_radix_blocks_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI *lwe_array_in, Torus *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks) {
+    KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
   if (num_radix_blocks == 0)
     return;
@@ -82,13 +82,13 @@ __host__ void scalar_compare_radix_blocks_kb(
       streams, lwe_array_out, message_modulus, carry_modulus);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    KSTorus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -320,13 +320,13 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void integer_radix_signed_scalar_difference_check_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    KSTorus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -638,13 +638,13 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_difference_check_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    KSTorus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -666,12 +666,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_maxmin_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    void *const *bsks, KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
@@ -709,12 +709,12 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
       lwe_array_right, mem_ptr->cmux_buffer, bsks, ksks);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_equality_check_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    KSTorus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")

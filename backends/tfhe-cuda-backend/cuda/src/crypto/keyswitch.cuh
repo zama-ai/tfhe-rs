@@ -48,12 +48,12 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
 // in two parts, a constant part is calculated before the loop, and a variable
 // part is calculated inside the loop. This seems to help with the register
 // pressure as well.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void
 keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
           const Torus *__restrict__ lwe_array_in,
           const Torus *__restrict__ lwe_input_indexes,
-          const Torus *__restrict__ ksk, uint32_t lwe_dimension_in,
+          const KSTorus *__restrict__ ksk, uint32_t lwe_dimension_in,
           uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
   const int tid = threadIdx.x + blockIdx.y * blockDim.x;
   const int shmem_index = threadIdx.x + threadIdx.y * blockDim.x;
@@ -107,11 +107,11 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, Torus const *ksk, uint32_t lwe_dimension_in,
+    Torus const *lwe_input_indexes, KSTorus const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples) {
 
@@ -135,19 +135,19 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
   dim3 grid(num_samples, num_blocks_per_sample, 1);
   dim3 threads(num_threads_x, num_threads_y, 1);
 
-  keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
+  keyswitch<Torus, KSTorus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count);
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 void execute_keyswitch_async(CudaStreams streams,
                              const LweArrayVariant<Torus> &lwe_array_out,
                              const LweArrayVariant<Torus> &lwe_output_indexes,
                              const LweArrayVariant<Torus> &lwe_array_in,
                              const LweArrayVariant<Torus> &lwe_input_indexes,
-                             Torus *const *ksks, uint32_t lwe_dimension_in,
+                             KSTorus *const *ksks, uint32_t lwe_dimension_in,
                              uint32_t lwe_dimension_out, uint32_t base_log,
                              uint32_t level_count, uint32_t num_samples) {
 

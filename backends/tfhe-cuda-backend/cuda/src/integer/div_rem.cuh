@@ -37,7 +37,7 @@ __host__ void host_unsigned_integer_div_rem_kb_block_by_block_2_2(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
-    uint64_t *const *ksks, unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr) {
+    uint32_t *const *ksks, unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr) {
 
   if (streams.count() < 4) {
     PANIC("GPU count should be greater than 4 when using div_rem_2_2");
@@ -480,7 +480,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
-    uint64_t *const *ksks, unsigned_int_div_rem_memory<uint64_t> *mem_ptr) {
+    uint32_t *const *ksks, unsigned_int_div_rem_memory<uint64_t> *mem_ptr) {
 
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
@@ -910,7 +910,7 @@ __host__ void host_integer_div_rem_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, bool is_signed, void *const *bsks,
-    uint64_t *const *ksks, int_div_rem_memory<uint64_t> *int_mem_ptr) {
+    uint32_t *const *ksks, int_div_rem_memory<uint64_t> *int_mem_ptr) {
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
       remainder->num_radix_blocks != quotient->num_radix_blocks)

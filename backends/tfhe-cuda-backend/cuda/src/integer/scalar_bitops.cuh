@@ -4,12 +4,12 @@
 #include "integer/bitwise_ops.cuh"
 #include <omp.h>
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_bitop_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, Torus const *clear_blocks,
     Torus const *h_clear_blocks, uint32_t num_clear_blocks,
-    int_bitop_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks) {
+    int_bitop_buffer<Torus> *mem_ptr, void *const *bsks, KSTorus *const *ksks) {
 
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")

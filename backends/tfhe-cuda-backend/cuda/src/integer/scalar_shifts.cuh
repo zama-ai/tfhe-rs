@@ -24,11 +24,11 @@ __host__ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks, uint32_t num_blocks) {
+    KSTorus *const *ksks, uint32_t num_blocks) {
 
   if (lwe_array->num_radix_blocks < num_blocks)
     PANIC("Cuda error: input does not have enough blocks")
@@ -128,11 +128,11 @@ __host__ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;

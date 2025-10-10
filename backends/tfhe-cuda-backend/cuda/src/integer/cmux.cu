@@ -34,7 +34,7 @@ void cuda_cmux_integer_radix_ciphertext_kb_64(
   host_integer_radix_cmux_kb<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_condition, lwe_array_true,
       lwe_array_false, (int_cmux_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks));
+      (uint32_t **)(ksks));
   POP_RANGE()
 }
 

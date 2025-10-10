@@ -27,7 +27,7 @@ void cuda_bitop_integer_radix_ciphertext_kb_64(
 
   host_integer_radix_bitop_kb<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2,
-      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
+      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks));
 }
 
 void cleanup_cuda_integer_bitop(CudaStreamsFFI streams, int8_t **mem_ptr_void) {

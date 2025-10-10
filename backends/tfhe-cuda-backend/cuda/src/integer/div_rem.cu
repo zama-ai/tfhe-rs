@@ -30,7 +30,7 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
 
   host_integer_div_rem_kb<uint64_t>(CudaStreams(streams), quotient, remainder,
                                     numerator, divisor, is_signed, bsks,
-                                    (uint64_t **)(ksks), mem);
+                                    (uint32_t **)(ksks), mem);
   POP_RANGE()
 }
 

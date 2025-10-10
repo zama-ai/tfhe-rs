@@ -42,7 +42,7 @@ impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
 /// sends it to the server so it can compute homomorphic circuits.
 // #[derive(PartialEq, Serialize, Deserialize)]
 pub struct CudaServerKey {
-    pub key_switching_key: CudaLweKeyswitchKey<u64>,
+    pub key_switching_key: CudaLweKeyswitchKey<u32>,
     pub bootstrapping_key: CudaBootstrappingKey<u64>,
     // Size of the message buffer
     pub message_modulus: MessageModulus,

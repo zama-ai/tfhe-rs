@@ -11,7 +11,7 @@ void cuda_full_propagation_64_inplace(CudaStreamsFFI streams,
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
 
   host_full_propagate_inplace<uint64_t>(CudaStreams(streams), input_blocks,
-                                        buffer, (uint64_t **)(ksks), bsks,
+                                        buffer, (uint32_t **)(ksks), bsks,
                                         num_blocks);
 }
 
@@ -106,7 +106,7 @@ void cuda_propagate_single_carry_kb_64_inplace(
 
   host_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lwe_array, carry_out, carry_in,
-      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
+      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks),
       requested_flag, uses_carry);
 }
 
@@ -118,7 +118,7 @@ void cuda_add_and_propagate_single_carry_kb_64_inplace(
 
   host_add_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
-      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
+      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks),
       requested_flag, uses_carry);
 }
 
@@ -133,7 +133,7 @@ void cuda_integer_overflowing_sub_kb_64_inplace(
   host_integer_overflowing_sub<uint64_t>(
       CudaStreams(streams), lhs_array, lhs_array, rhs_array, overflow_block,
       input_borrow, (int_borrow_prop_memory<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, compute_overflow, uses_input_borrow);
+      (uint32_t **)ksks, compute_overflow, uses_input_borrow);
   POP_RANGE()
 }
 
@@ -216,7 +216,7 @@ void cuda_apply_univariate_lut_kb_64(
 
   host_apply_univariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks);
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint32_t **)(ksks), bsks);
 }
 
 void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
@@ -237,7 +237,7 @@ void cuda_apply_many_univariate_lut_kb_64(
 
   host_apply_many_univariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks,
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint32_t **)(ksks), bsks,
       num_many_lut, lut_stride);
 }
 
@@ -271,7 +271,7 @@ void cuda_apply_bivariate_lut_kb_64(
   host_apply_bivariate_lut_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe_1,
       input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
-      (uint64_t **)(ksks), bsks, num_radix_blocks, shift);
+      (uint32_t **)(ksks), bsks, num_radix_blocks, shift);
 }
 
 void cleanup_cuda_apply_bivariate_lut_kb_64(CudaStreamsFFI streams,
@@ -312,7 +312,7 @@ void cuda_integer_compute_prefix_sum_hillis_steele_64(
 
   host_compute_prefix_sum_hillis_steele<uint64_t>(
       CudaStreams(streams), output_radix_lwe, generates_or_propagates,
-      (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
+      (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks),
       num_radix_blocks);
 }
 
@@ -390,7 +390,7 @@ void cuda_apply_noise_squashing_kb(
   PUSH_RANGE("apply noise squashing")
   integer_radix_apply_noise_squashing_kb<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
+      (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks, (uint32_t **)ksks);
   POP_RANGE()
 }
 

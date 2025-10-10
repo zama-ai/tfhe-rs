@@ -27,7 +27,7 @@ void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
   host_integer_radix_shift_and_rotate_kb_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, lwe_shift,
       (int_shift_and_rotate_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks));
+      (uint32_t **)(ksks));
 }
 
 void cleanup_cuda_integer_radix_shift_and_rotate(CudaStreamsFFI streams,

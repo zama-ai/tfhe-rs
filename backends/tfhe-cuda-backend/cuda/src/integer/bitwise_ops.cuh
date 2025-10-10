@@ -11,12 +11,12 @@
 #include "utils/kernel_dimensions.cuh"
 #include <omp.h>
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_bitop_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&

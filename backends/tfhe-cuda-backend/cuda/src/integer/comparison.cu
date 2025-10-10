@@ -56,7 +56,7 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
   case NE:
     host_integer_radix_equality_check_kb<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        bsks, (uint64_t **)(ksks), num_radix_blocks);
+        bsks, (uint32_t **)(ksks), num_radix_blocks);
     break;
   case GT:
   case GE:
@@ -67,7 +67,7 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
             "even.")
     host_integer_radix_difference_check_kb<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
+        buffer->diff_buffer->operator_f, bsks, (uint32_t **)(ksks),
         num_radix_blocks);
     break;
   case MAX:
@@ -76,7 +76,7 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
       PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
     host_integer_radix_maxmin_kb<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        bsks, (uint64_t **)(ksks), num_radix_blocks);
+        bsks, (uint32_t **)(ksks), num_radix_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")
@@ -124,7 +124,7 @@ void cuda_integer_are_all_comparisons_block_true_kb_64(
 
   host_integer_are_all_comparisons_block_true_kb<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
-      (uint64_t **)(ksks), num_radix_blocks);
+      (uint32_t **)(ksks), num_radix_blocks);
 }
 
 void cleanup_cuda_integer_are_all_comparisons_block_true(
@@ -166,7 +166,7 @@ void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
 
   host_integer_is_at_least_one_comparisons_block_true_kb<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
-      (uint64_t **)(ksks), num_radix_blocks);
+      (uint32_t **)(ksks), num_radix_blocks);
 }
 
 void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(

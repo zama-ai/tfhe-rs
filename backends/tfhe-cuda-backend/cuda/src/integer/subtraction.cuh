@@ -27,12 +27,12 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 void host_sub_and_propagate_single_carry(
     CudaStreams streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *input_carries,
-    int_sub_and_propagate<Torus> *mem, void *const *bsks, Torus *const *ksks,
+    int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
   host_integer_radix_negation<Torus>(

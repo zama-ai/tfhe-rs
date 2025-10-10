@@ -26,7 +26,7 @@ void cuda_integer_abs_inplace_radix_ciphertext_kb_64(
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 
   host_integer_abs_kb<uint64_t>(CudaStreams(streams), ct, bsks,
-                                (uint64_t **)(ksks), mem, is_signed);
+                                (uint32_t **)(ksks), mem, is_signed);
 }
 
 void cleanup_cuda_integer_abs_inplace(CudaStreamsFFI streams,

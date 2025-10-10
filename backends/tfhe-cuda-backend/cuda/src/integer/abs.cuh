@@ -32,7 +32,7 @@ __host__ uint64_t scratch_cuda_integer_abs_kb(
 template <typename Torus>
 __host__ void
 host_integer_abs_kb(CudaStreams streams, CudaRadixCiphertextFFI *ct,
-                    void *const *bsks, uint64_t *const *ksks,
+                    void *const *bsks, uint32_t *const *ksks,
                     int_abs_buffer<uint64_t> *mem_ptr, bool is_signed) {
   if (!is_signed)
     return;

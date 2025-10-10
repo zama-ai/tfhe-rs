@@ -45,7 +45,7 @@ void cuda_extend_radix_with_sign_msb_64(CudaStreamsFFI streams,
   host_extend_radix_with_sign_msb<uint64_t>(
       CudaStreams(streams), output, input,
       (int_extend_radix_with_sign_msb_buffer<uint64_t> *)mem_ptr,
-      num_additional_blocks, bsks, (uint64_t **)ksks);
+      num_additional_blocks, bsks, (uint32_t **)ksks);
   POP_RANGE()
 }
 

@@ -10,7 +10,7 @@ void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
       CudaStreams(streams), lwe_array_out, lwe_array_input,
       static_cast<const uint64_t *>(clear_blocks),
       static_cast<const uint64_t *>(h_clear_blocks), num_clear_blocks,
-      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
+      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint32_t **)(ksks));
 }
 
 void update_degrees_after_scalar_bitand(uint64_t *output_degrees,

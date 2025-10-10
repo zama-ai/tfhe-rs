@@ -24,11 +24,11 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_rotate_kb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_rotate_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t n,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;

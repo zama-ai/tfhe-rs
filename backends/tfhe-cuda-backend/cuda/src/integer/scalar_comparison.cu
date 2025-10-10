@@ -49,7 +49,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     host_integer_radix_scalar_equality_check_kb<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks), buffer, bsks,
-        (uint64_t **)(ksks), num_radix_blocks, num_scalar_blocks);
+        (uint32_t **)(ksks), num_radix_blocks, num_scalar_blocks);
     break;
   case GT:
   case GE:
@@ -62,7 +62,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer,
-        buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
+        buffer->diff_buffer->operator_f, bsks, (uint32_t **)(ksks),
         num_radix_blocks, num_scalar_blocks);
     break;
   case MAX:
@@ -74,7 +74,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer, bsks,
-        (uint64_t **)(ksks), num_radix_blocks, num_scalar_blocks);
+        (uint32_t **)(ksks), num_radix_blocks, num_scalar_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")

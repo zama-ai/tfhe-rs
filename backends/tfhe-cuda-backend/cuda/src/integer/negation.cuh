@@ -126,7 +126,7 @@ __host__ uint64_t scratch_cuda_integer_overflowing_sub_kb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_overflowing_sub(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input_left,
@@ -134,7 +134,7 @@ __host__ void host_integer_overflowing_sub(
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow,
     int_borrow_prop_memory<uint64_t> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
+    KSTorus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
   PUSH_RANGE("overflowing sub")
   if (output->num_radix_blocks != input_left->num_radix_blocks ||
       output->num_radix_blocks != input_right->num_radix_blocks)

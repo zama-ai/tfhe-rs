@@ -28,7 +28,7 @@ void cuda_integer_unsigned_scalar_div_radix_kb_64(
 
   host_integer_unsigned_scalar_div_radix<uint64_t>(
       CudaStreams(streams), numerator_ct,
-      (int_unsigned_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
+      (int_unsigned_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint32_t **)ksks,
       scalar_divisor_ffi);
 }
 
@@ -72,7 +72,7 @@ void cuda_integer_signed_scalar_div_radix_kb_64(
 
   host_integer_signed_scalar_div_radix_kb<uint64_t>(
       CudaStreams(streams), numerator_ct,
-      (int_signed_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
+      (int_signed_scalar_div_mem<uint64_t> *)mem_ptr, bsks, (uint32_t **)ksks,
       scalar_divisor_ffi, numerator_bits);
 }
 
@@ -122,7 +122,7 @@ void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
   host_integer_unsigned_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,
       (int_unsigned_scalar_div_rem_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
+      (uint32_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
       decomposed_divisor, num_scalars_divisor, (uint64_t *)clear_blocks,
       (uint64_t *)h_clear_blocks, num_clear_blocks);
 }
@@ -172,7 +172,7 @@ void cuda_integer_signed_scalar_div_rem_radix_kb_64(
   host_integer_signed_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,
       (int_signed_scalar_div_rem_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
+      (uint32_t **)ksks, scalar_divisor_ffi, divisor_has_at_least_one_set,
       decomposed_divisor, num_scalars_divisor, numerator_bits);
 }
 

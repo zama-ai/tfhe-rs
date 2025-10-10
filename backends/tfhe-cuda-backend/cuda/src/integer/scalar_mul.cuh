@@ -41,11 +41,11 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
   return size_tracker;
 }
 
-template <typename T>
+template <typename T, typename KSTorus>
 __host__ void host_integer_scalar_mul_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     T const *decomposed_scalar, T const *has_at_least_one_set,
-    int_scalar_mul_buffer<T> *mem, void *const *bsks, T *const *ksks,
+    int_scalar_mul_buffer<T> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t message_modulus, uint32_t num_scalars) {
 
   auto num_radix_blocks = lwe_array->num_radix_blocks;
@@ -164,10 +164,10 @@ __host__ void host_integer_small_scalar_mul_radix(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_scalar_mul_high_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *ct,
-    int_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    int_scalar_mul_high_buffer<Torus> *mem_ptr, KSTorus *const *ksks,
     void *const *bsks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
@@ -187,7 +187,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
-          mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
+          mem_ptr->logical_scalar_shift_mem, bsks, (uint32_t **)ksks,
           tmp_ffi->num_radix_blocks);
 
     } else {
@@ -195,7 +195,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
       host_integer_scalar_mul_radix<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->decomposed_chosen_multiplier,
           scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
-          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
+          mem_ptr->scalar_mul_mem, bsks, (uint32_t **)ksks,
           mem_ptr->params.message_modulus, scalar_divisor_ffi->num_scalars);
     }
   }
@@ -203,10 +203,10 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
   host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_signed_scalar_mul_high_kb(
     CudaStreams streams, CudaRadixCiphertextFFI *ct,
-    int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, KSTorus *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, void *const *bsks) {
 
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
@@ -219,7 +219,7 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
 
   host_extend_radix_with_sign_msb<Torus>(
       streams, tmp_ffi, ct, mem_ptr->extend_radix_mem, ct->num_radix_blocks,
-      bsks, (uint64_t **)ksks);
+      bsks, (uint32_t **)ksks);
 
   if (scalar_divisor_ffi->active_bits != (uint32_t)0 &&
       !scalar_divisor_ffi->is_abs_chosen_multiplier_one &&
@@ -228,13 +228,13 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
-          mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
+          mem_ptr->logical_scalar_shift_mem, bsks, (uint32_t **)ksks,
           tmp_ffi->num_radix_blocks);
     } else {
       host_integer_scalar_mul_radix<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->decomposed_chosen_multiplier,
           scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
-          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
+          mem_ptr->scalar_mul_mem, bsks, (uint32_t **)ksks,
           mem_ptr->params.message_modulus, scalar_divisor_ffi->num_scalars);
     }
   }

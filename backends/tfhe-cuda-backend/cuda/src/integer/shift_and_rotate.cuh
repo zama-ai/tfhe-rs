@@ -24,12 +24,12 @@ __host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI const *lwe_shift,
     int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)

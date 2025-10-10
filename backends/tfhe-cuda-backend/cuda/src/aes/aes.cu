@@ -32,7 +32,7 @@ void cuda_integer_aes_ctr_encrypt_64(CudaStreamsFFI streams,
   host_integer_aes_ctr_encrypt<uint64_t>(
       CudaStreams(streams), output, iv, round_keys, counter_bits_le_all_blocks,
       num_aes_inputs, (int_aes_encrypt_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks);
+      (uint32_t **)ksks);
 }
 
 void cleanup_cuda_integer_aes_encrypt_64(CudaStreamsFFI streams,
@@ -74,7 +74,7 @@ void cuda_integer_key_expansion_64(CudaStreamsFFI streams,
 
   host_integer_key_expansion<uint64_t>(
       CudaStreams(streams), expanded_keys, key,
-      (int_key_expansion_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
+      (int_key_expansion_buffer<uint64_t> *)mem_ptr, bsks, (uint32_t **)ksks);
 }
 
 void cleanup_cuda_integer_key_expansion_64(CudaStreamsFFI streams,
