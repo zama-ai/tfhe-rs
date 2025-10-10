@@ -203,11 +203,11 @@ __global__ void tgemm(uint M, uint N, uint K, const Torus *A, const Torus *B,
 // This code is adapted by generalizing the 1d block-tiling
 // kernel from https://github.com/siboehm/SGEMM_CUDA
 // to any matrix dimension
-template <typename Torus, int BLOCK_SIZE, int THREADS>
+template <typename Torus, typename IndicesType, int BLOCK_SIZE, int THREADS>
 __global__ void tgemm_with_indices(uint M, uint N, uint K, const Torus *A,
                                    const Torus *B, uint stride_B, Torus *C,
                                    uint stride_C,
-                                   const Torus *__restrict__ C_indices) {
+                                   const IndicesType *__restrict__ C_indices) {
 
   const int BM = BLOCK_SIZE;
   const int BN = BLOCK_SIZE;
