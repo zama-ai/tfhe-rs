@@ -6,7 +6,9 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaAtomicPatternKeySwitchingKey, CudaServerKey,
+};
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu,
     cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
@@ -179,6 +181,12 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let CudaAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+            &self.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
         let full_prop_mem = if ct.block_carries_are_empty() {
             0
         } else {
@@ -189,8 +197,8 @@ impl CudaServerKey {
                         d_bsk.input_lwe_dimension(),
                         d_bsk.glwe_dimension(),
                         d_bsk.polynomial_size(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count(),
                         d_bsk.decomp_base_log(),
                         self.message_modulus,
@@ -206,8 +214,8 @@ impl CudaServerKey {
                         d_multibit_bsk.input_lwe_dimension(),
                         d_multibit_bsk.glwe_dimension(),
                         d_multibit_bsk.polynomial_size(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count(),
                         d_multibit_bsk.decomp_base_log(),
                         self.message_modulus,
@@ -228,8 +236,8 @@ impl CudaServerKey {
                     d_bsk.input_lwe_dimension(),
                     d_bsk.glwe_dimension(),
                     d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
+                    computing_ks_key.decomposition_level_count(),
+                    computing_ks_key.decomposition_base_log(),
                     d_bsk.decomp_level_count(),
                     d_bsk.decomp_base_log(),
                     num_blocks,
@@ -247,8 +255,8 @@ impl CudaServerKey {
                     d_multibit_bsk.input_lwe_dimension(),
                     d_multibit_bsk.glwe_dimension(),
                     d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
+                    computing_ks_key.decomposition_level_count(),
+                    computing_ks_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count(),
                     d_multibit_bsk.decomp_base_log(),
                     num_blocks,

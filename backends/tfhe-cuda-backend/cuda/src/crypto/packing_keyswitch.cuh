@@ -124,8 +124,10 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
   dim3 threads_decomp(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
 
   // decompose first level
-  decompose_vectorize_init<Torus><<<grid_decomp, threads_decomp, 0, stream>>>(
-      lwe_array_in, d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
+  decompose_vectorize_init<Torus, Torus>
+      <<<grid_decomp, threads_decomp, 0, stream>>>(lwe_array_in, d_mem_0,
+                                                   lwe_dimension, num_lwes,
+                                                   base_log, level_count);
   check_cuda_error(cudaGetLastError());
 
   // gemm to ks the individual LWEs to GLWEs
@@ -151,7 +153,7 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
   auto ksk_block_size = glwe_accumulator_size;
 
   for (int li = 1; li < level_count; ++li) {
-    decompose_vectorize_step_inplace<Torus>
+    decompose_vectorize_step_inplace<Torus, Torus>
         <<<grid_decomp, threads_decomp, 0, stream>>>(
             d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
     check_cuda_error(cudaGetLastError());

@@ -2544,7 +2544,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_keyswitch_lwe_ciphertext_vector_32(
+    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,
@@ -2560,25 +2560,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_keyswitch_gemm_lwe_ciphertext_vector_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        ksk: *const ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-        ks_tmp_buffer: *const ffi::c_void,
-        uses_trivial_indexes: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_keyswitch_lwe_ciphertext_vector_64(
+    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,
@@ -2604,6 +2586,42 @@ unsafe extern "C" {
         num_lwes: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_keyswitch_gemm_lwe_ciphertext_vector_64_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        ks_tmp_buffer: *const ffi::c_void,
+        uses_trivial_indexes: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_keyswitch_gemm_lwe_ciphertext_vector_64_32(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        ks_tmp_buffer: *const ffi::c_void,
+        uses_trivial_indexes: bool,
+    );
 }
 unsafe extern "C" {
     pub fn scratch_cuda_keyswitch_gemm_64(
@@ -2674,6 +2692,16 @@ unsafe extern "C" {
         gpu_index: u32,
         fp_ks_buffer: *mut *mut i8,
         gpu_memory_allocated: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_closest_representable_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        base_log: u32,
+        level_count: u32,
     );
 }
 unsafe extern "C" {

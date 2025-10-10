@@ -18,7 +18,9 @@ use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaRadixCiphertextInfo};
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaAtomicPatternKeySwitchingKey, CudaServerKey,
+};
 use crate::integer::gpu::{
     cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async, CudaStreams,
 };
@@ -417,10 +419,14 @@ impl AllocateLweKeyswitchResult for CudaServerKey {
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        let output_lwe_dimension = self
-            .key_switching_key
-            .output_key_lwe_size()
-            .to_lwe_dimension();
+        let output_lwe_dimension = match &self.key_switching_key {
+            CudaAtomicPatternKeySwitchingKey::Standard(std_key) => {
+                std_key.output_key_lwe_size().to_lwe_dimension()
+            }
+            CudaAtomicPatternKeySwitchingKey::KeySwitch32(ks32_key) => {
+                ks32_key.output_key_lwe_size().to_lwe_dimension()
+            }
+        };
         let lwe_ciphertext_count = LweCiphertextCount(1);
         let ciphertext_modulus = self.ciphertext_modulus;
 
@@ -444,12 +450,39 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaServerKey {
         side_resources: &mut Self::SideResources,
     ) {
         match (input, output) {
-            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U32(output_cuda_lwe)) => {
+                let CudaAtomicPatternKeySwitchingKey::KeySwitch32(computing_ks_key) =
+                    &self.key_switching_key
+                else {
+                    panic!("Expecting 32b KSK in Cuda noise simulation tests when LWE is 32b");
+                };
+
                 let input_indexes = CudaVec::new(1, &side_resources.streams, 0);
                 let output_indexes = CudaVec::new(1, &side_resources.streams, 0);
 
                 cuda_keyswitch_lwe_ciphertext(
-                    &self.key_switching_key,
+                    computing_ks_key,
+                    input_cuda_lwe,
+                    output_cuda_lwe,
+                    &input_indexes,
+                    &output_indexes,
+                    false,
+                    &side_resources.streams,
+                    false,
+                );
+            }
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                let CudaAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+                    &self.key_switching_key
+                else {
+                    panic!("Expecting 64b KSK in Cuda noise simulation tests when LWE is 64b");
+                };
+
+                let input_indexes = CudaVec::new(1, &side_resources.streams, 0);
+                let output_indexes = CudaVec::new(1, &side_resources.streams, 0);
+
+                cuda_keyswitch_lwe_ciphertext(
+                    computing_ks_key,
                     input_cuda_lwe,
                     output_cuda_lwe,
                     &input_indexes,
