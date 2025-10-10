@@ -15,7 +15,8 @@ use std::cmp::max;
 use std::env;
 use tfhe::core_crypto::algorithms::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, allocate_and_generate_new_lwe_keyswitch_key,
+    extract_lwe_sample_from_glwe_ciphertext, keyswitch_lwe_ciphertext_with_scalar_change,
 };
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
@@ -26,30 +27,53 @@ use tfhe::shortint::engine::ShortintEngine;
 use tfhe::{get_pbs_count, reset_pbs_count};
 
 pub struct ParamKS32MB {
-    param: (),
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
+    // pub log2_p_fail: f64,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
+    pub grouping_factor: LweBskGroupingFactor,
 }
 
 pub struct ClientKeyKS32MB {
     lwe_secret_key: LweSecretKey<Vec<u32>>,
     glwe_secret_key: GlweSecretKey<Vec<u64>>,
+    parameters: ParamKS32MB,
 }
 
 impl ClientKeyKS32MB {
-    pub fn new(params: ParamKS32MB) -> Self {
-        let lwe_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_lwe_secret_key(
+    pub fn new(params: &ParamKS32MB) -> Self {
+        let (lwe_secret_key, glwe_secret_key) = ShortintEngine::with_thread_local_mut(|engine| {
+            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension,
-                engine.secret_generator,
+                &mut engine.secret_generator,
             );
+            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut engine.secret_generator,
+            );
+            (lwe_sk, glwe_sk)
         });
 
         Self {
             lwe_secret_key,
-            glwe_secret_key: todo!(),
+            glwe_secret_key,
+            parameters: *params.to_owned(),
         }
     }
 
-    pub fn encrypt_shortint(&self, msg: u64) -> Cipertext {
+    pub fn encrypt_shortint(&self, msg: u64) -> Ciphertext {
         todo!()
     }
 
@@ -62,14 +86,50 @@ impl ClientKeyKS32MB {
 }
 
 pub struct ServerKeyKS32MB {
-    lwe_ksk: (),
-    lwe_bsk: (),
+    lwe_ksk: LweKeyswitchKeyOwned<u32>,
+    lwe_bsk: ShortintBootstrappingKey<u32>,
     is_2m128: bool,
 }
 
 impl ServerKeyKS32MB {
-    pub fn new(cks: &ClientKeyKS32MB) -> Self {
-        todo!()
+    pub fn new(cks: &ClientKeyKS32MB, is_2m128: bool) -> Self {
+        let params = &cks.parameters;
+
+        let in_key = cks.lwe_secret_key.as_view();
+
+        let out_key = &cks.glwe_secret_key;
+
+        let (key_switching_key, bootstrapping_key) = ShortintEngine::with_thread_local_mut(|engine| {
+
+            let bootstrapping_key_base = engine.new_multibit_bootstrapping_key(
+            &in_key,
+            &out_key,
+            params.glwe_noise_distribution,
+            params.pbs_base_log,
+            params.pbs_level,
+            params.grouping_factor,
+            params.ciphertext_modulus,
+        );
+
+        // Creation of the key switching key
+        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
+            &cks.glwe_secret_key.as_lwe_secret_key(),
+            &in_key,
+            params.ks_base_log,
+            params.ks_level,
+            params.lwe_noise_distribution,
+            CiphertextModulus32::new_native(),
+            &mut engine.encryption_generator,
+        );
+
+            (key_switching_key, bootstrapping_key_base)
+        });
+
+        Self {
+            lwe_ksk: key_switching_key,
+            lwe_bsk: bootstrapping_key,
+            is_2m128,
+        }
     }
 }
 
@@ -82,17 +142,14 @@ impl AtomicPatternMut for ServerKeyKS32MB {
 // tfhe/src/shortint/atomic_pattern/standard.rs:133
 // tfhe/src/shortint/atomic_pattern/ks32.rs:123
 impl AtomicPattern for ServerKeyKS32MB {
-    fn ciphertext_lwe_dimension_for_key(
-        &self,
-        key_choice: tfhe::shortint::EncryptionKeyChoice,
-    ) -> tfhe::boolean::prelude::LweDimension {
-        todo!()
+    fn ciphertext_lwe_dimension_for_key(&self, key_choice: EncryptionKeyChoice) -> LweDimension {
+        match key_choice {
+            EncryptionKeyChoice::Big => self.lwe_bsk.output_lwe_dimension(),
+            EncryptionKeyChoice::Small => self.lwe_bsk.input_lwe_dimension(),
+        }
     }
 
-    fn ciphertext_modulus_for_key(
-        &self,
-        key_choice: tfhe::shortint::EncryptionKeyChoice,
-    ) -> tfhe::shortint::CiphertextModulus {
+    fn ciphertext_modulus_for_key(&self, key_choice: EncryptionKeyChoice) -> CiphertextModulus {
         todo!() // not required normally
     }
 
@@ -102,25 +159,83 @@ impl AtomicPattern for ServerKeyKS32MB {
 
     fn apply_lookup_table_assign(
         &self,
-        ct: &mut tfhe::shortint::Ciphertext,
+        ct: &mut Ciphertext,
         acc: &tfhe::shortint::server_key::LookupTableOwned,
     ) {
-        if is_2m128 {
-            todo("code bizarre");
+        if self.is_2m128 {
+            todo!("code bizarre");
         } else {
-            todo!("KS32 + MB - PBS no modif");
+            ShortintEngine::with_thread_local_mut(|engine| {
+                let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                    self.intermediate_lwe_dimension(),
+                    self.intermediate_ciphertext_modulus(),
+                );
+
+                keyswitch_lwe_ciphertext_with_scalar_change(
+                    &self.lwe_ksk,
+                    &ct.ct,
+                    &mut ciphertext_buffer,
+                );
+
+                apply_programmable_bootstrap(
+                    &self.lwe_bsk,
+                    &ciphertext_buffer,
+                    &mut ct.ct,
+                    &acc.acc,
+                    buffers,
+                );
+            });
         }
-        // See KS32 shortint + Multi bit pbs
-        todo!()
     }
 
     fn apply_many_lookup_table(
         &self,
-        ct: &tfhe::shortint::Ciphertext,
+        ct: &Ciphertext,
         lut: &tfhe::shortint::server_key::ManyLookupTableOwned,
-    ) -> Vec<tfhe::shortint::Ciphertext> {
-        // See KS32 shortint + Multi bit pbs
-        todo!()
+    ) -> Vec<Ciphertext> {
+        let mut acc = lut.acc.clone();
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.ciphertext_lwe_dimension_for_key(EncryptionKeyChoice::Small),
+                self.lwe_ksk.ciphertext_modulus(),
+            );
+
+            // Compute a key switch
+            keyswitch_lwe_ciphertext_with_scalar_change(
+                &self.lwe_ksk,
+                &ct.ct,
+                &mut ciphertext_buffer,
+            );
+
+            apply_ms_blind_rotate(
+                &self.lwe_bsk,
+                &ciphertext_buffer.as_view(),
+                &mut acc,
+                buffers,
+            );
+        });
+
+        // The accumulator has been rotated, we can now proceed with the various sample extractions
+        let function_count = lut.function_count();
+        let mut outputs = Vec::with_capacity(function_count);
+
+        for (fn_idx, output_degree) in lut.per_function_output_degree.iter().enumerate() {
+            let monomial_degree = MonomialDegree(fn_idx * lut.sample_extraction_stride);
+            let mut output_shortint_ct = ct.clone();
+
+            extract_lwe_sample_from_glwe_ciphertext(
+                &acc,
+                &mut output_shortint_ct.ct,
+                monomial_degree,
+            );
+
+            output_shortint_ct.degree = *output_degree;
+            output_shortint_ct.set_noise_level_to_nominal();
+            outputs.push(output_shortint_ct);
+        }
+
+        outputs
     }
 
     fn lookup_table_size(&self) -> tfhe::shortint::server_key::LookupTableSize {
@@ -164,23 +279,111 @@ impl AtomicPattern for ServerKeyKS32MB {
     }
 }
 
-pub fn create_sk() {
-    let key = ServerKeyKS32MB::new();
+pub fn create_sk(cks: &ClientKeyKS32MB, is_2m128: bool) -> ServerKey {
+    let key = ServerKeyKS32MB::new(cks, is_2m128);
 
     let boxed: Box<dyn AtomicPattern> = Box::new(key);
 
     // tfhe/src/shortint/engine/server_side.rs:21
 
-    let shortint_sk = tfhe::shortint::ServerKey::from_raw_parts(
-        boxed,
-        message_modulus,
-        carry_modulus,
-        max_degree,
-        max_noise_level, // MaxNoiseLevel(5) for 2_2
+    let max_degree = MaxDegree::from_msg_carry_modulus(
+        cks.parameters.message_modulus,
+        cks.parameters.carry_modulus,
     );
 
-    tfhe::integer::ServerKey::from_raw_parts(shortint_sk);
+    let shortint_sk = tfhe::shortint::ServerKey::from_raw_parts(
+        *boxed,
+        cks.parameters.message_modulus,
+        cks.parameters.carry_modulus,
+        max_degree,
+        MaxNoiseLevel::new(5), // MaxNoiseLevel(5) for 2_2
+    );
+
+    ServerKey::from_raw_parts(shortint_sk)
 }
+
+const BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M40: ParamKS32MB = ParamKS32MB {
+    lwe_dimension: LweDimension(429),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(2.34899e-6)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        2.8452675e-15,
+    )),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(5),
+    ks_level: DecompositionLevelCount(3),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    // log2_p_fail: f64,
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+    grouping_factor: LweBskGroupingFactor(2),
+};
+
+const BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: ParamKS32MB = ParamKS32MB {
+    lwe_dimension: LweDimension(444),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(1.39987e-6)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        2.8452675e-15,
+    )),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(5),
+    ks_level: DecompositionLevelCount(3),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    // log2_p_fail: f64,
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+    grouping_factor: LweBskGroupingFactor(2),
+};
+
+const BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128: ParamKS32MB = ParamKS32MB {
+    lwe_dimension: LweDimension(457),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        8.93861971e-7,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        2.8452675e-15,
+    )),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(4),
+    ks_level: DecompositionLevelCount(4),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    // log2_p_fail: f64,
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+    grouping_factor: LweBskGroupingFactor(2),
+};
+
+const KS32_BENCHMARK_PARAM_SET: [(&str, ParamKS32MB, bool); 3] = [
+    (
+        "BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M40",
+        BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M40,
+        false,
+    ),
+    (
+        "BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64",
+        BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64,
+        false,
+    ),
+    (
+        "BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128",
+        BENCH_MULTI_BIT_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128,
+        true,
+    ),
+];
 
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested
@@ -520,6 +723,57 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             bit_size as u32,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
+    }
+
+    bench_group.finish()
+}
+
+fn bench_server_key_binary_function_clean_inputs_with_ks32<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    display_name: &str,
+    binary_op: F,
+) where
+    F: Fn(&ServerKey, &RadixCiphertext, &RadixCiphertext) + Sync,
+{
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param_name, param, is_2m128) in KS32_BENCHMARK_PARAM_SET.iter() {
+        let bench_id;
+
+        let bench_data = LazyCell::new(|| {
+            let cks = ClientKeyKS32MB::new(param);
+            let sks = create_sk(&cks, *is_2m128);
+
+            let clear_0 = gen_random_u256(&mut rng);
+            let clear_1 = gen_random_u256(&mut rng);
+
+            let ct_0 = cks.encrypt_radix(clear_0, num_block);
+            let ct_1 = cks.encrypt_radix(clear_1, num_block);
+            (sks, ct_0, ct_1)
+        });
+
+        bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
+            let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
+            b.iter(|| {
+                binary_op(sks, ct_0, ct_1);
+            })
+        });
+
+        // write_to_json::<u64, _>(
+        //     &bench_id,
+        //     param,
+        //     *param_name,
+        //     display_name,
+        //     &OperatorType::Atomic,
+        //     bit_size as u32,
+        //     vec![param.message_modulus.0.ilog2(); num_block],
+        // );
     }
 
     bench_group.finish()
@@ -1124,6 +1378,20 @@ macro_rules! define_server_key_bench_default_fn (
     }
 );
 
+macro_rules! define_server_key_bench_ks32_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_function_clean_inputs_with_ks32(
+                c,
+                concat!("integer::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, rhs);
+            })
+        }
+    }
+);
+
 macro_rules! define_server_key_bench_scalar_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
         fn $server_key_method(c: &mut Criterion) {
@@ -1177,16 +1445,20 @@ define_server_key_bench_fn!(method_name: smart_rotate_left_parallelized, display
 define_server_key_bench_fn!(method_name: smart_right_shift_parallelized, display_name: right_shift);
 define_server_key_bench_fn!(method_name: smart_left_shift_parallelized, display_name: left_shift);
 
-define_server_key_bench_default_fn!(method_name: add_parallelized, display_name: add);
+define_server_key_bench_ks32_fn!(method_name: add_parallelized, display_name: add);
+define_server_key_bench_ks32_fn!(method_name: mul_parallelized, display_name: mul);
+define_server_key_bench_ks32_fn!(method_name: bitand_parallelized, display_name: bitand);
+
+// define_server_key_bench_default_fn!(method_name: add_parallelized, display_name: add);
 define_server_key_bench_default_fn!(method_name: unsigned_overflowing_add_parallelized, display_name: overflowing_add);
 define_server_key_bench_default_fn!(method_name: sub_parallelized, display_name: sub);
 define_server_key_bench_default_fn!(method_name: unsigned_overflowing_sub_parallelized, display_name: overflowing_sub);
-define_server_key_bench_default_fn!(method_name: mul_parallelized, display_name: mul);
+// define_server_key_bench_default_fn!(method_name: mul_parallelized, display_name: mul);
 define_server_key_bench_default_fn!(method_name: unsigned_overflowing_mul_parallelized, display_name: overflowing_mul);
 define_server_key_bench_default_fn!(method_name: div_parallelized, display_name: div);
 define_server_key_bench_default_fn!(method_name: rem_parallelized, display_name: modulo);
 define_server_key_bench_default_fn!(method_name: div_rem_parallelized, display_name: div_mod);
-define_server_key_bench_default_fn!(method_name: bitand_parallelized, display_name: bitand);
+// define_server_key_bench_default_fn!(method_name: bitand_parallelized, display_name: bitand);
 define_server_key_bench_default_fn!(method_name: bitxor_parallelized, display_name: bitxor);
 define_server_key_bench_default_fn!(method_name: bitor_parallelized, display_name: bitor);
 define_server_key_bench_unary_default_fn!(method_name: bitnot, display_name: bitnot);
@@ -3110,6 +3382,22 @@ use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
+use tfhe::boolean::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweDimension, PolynomialSize, StandardDev,
+};
+use tfhe::core_crypto::entities::LweKeyswitchKeyOwned;
+use tfhe::core_crypto::prelude::{
+    GlweSecretKey, LweBskGroupingFactor, LweSecretKey, MonomialDegree,
+};
+use tfhe::shortint::ciphertext::MaxDegree;
+use tfhe::shortint::parameters::CiphertextModulus32;
+use tfhe::shortint::server_key::{
+    apply_ms_blind_rotate, apply_programmable_bootstrap, ShortintBootstrappingKey,
+};
+use tfhe::shortint::{
+    CarryModulus, Ciphertext, CiphertextModulus, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
+};
 
 #[cfg(feature = "hpu")]
 mod hpu {
@@ -3594,34 +3882,34 @@ criterion_group!(
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
+    // neg_parallelized,
+    // abs_parallelized,
     add_parallelized,
-    unsigned_overflowing_add_parallelized,
-    sub_parallelized,
-    unsigned_overflowing_sub_parallelized,
+    // unsigned_overflowing_add_parallelized,
+    // sub_parallelized,
+    // unsigned_overflowing_sub_parallelized,
     mul_parallelized,
-    unsigned_overflowing_mul_parallelized,
+    // unsigned_overflowing_mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
-    div_rem_parallelized,
+    // div_rem_parallelized,
     bitand_parallelized,
-    bitnot,
-    bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
-    ciphertexts_sum_parallelized,
-    leading_zeros_parallelized,
-    leading_ones_parallelized,
-    trailing_zeros_parallelized,
-    trailing_ones_parallelized,
-    ilog2_parallelized,
-    checked_ilog2_parallelized,
-    count_zeros_parallelized,
-    count_ones_parallelized,
+    // bitnot,
+    // bitor_parallelized,
+    // bitxor_parallelized,
+    // left_shift_parallelized,
+    // right_shift_parallelized,
+    // rotate_left_parallelized,
+    // rotate_right_parallelized,
+    // ciphertexts_sum_parallelized,
+    // leading_zeros_parallelized,
+    // leading_ones_parallelized,
+    // trailing_zeros_parallelized,
+    // trailing_ones_parallelized,
+    // ilog2_parallelized,
+    // checked_ilog2_parallelized,
+    // count_zeros_parallelized,
+    // count_ones_parallelized,
 );
 
 criterion_group!(
@@ -3931,11 +4219,11 @@ fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
             default_parallelized_ops();
-            default_parallelized_ops_comp();
-            default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp();
-            cast_ops();
-            oprf()
+            // default_parallelized_ops_comp();
+            // default_scalar_parallelized_ops();
+            // default_scalar_parallelized_ops_comp();
+            // cast_ops();
+            // oprf()
         }
         "fast_default" => {
             default_dedup_ops();
@@ -3973,11 +4261,11 @@ fn main() {
         }
         Err(_) => {
             default_parallelized_ops();
-            default_parallelized_ops_comp();
-            default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp();
-            cast_ops();
-            oprf()
+            // default_parallelized_ops_comp();
+            // default_scalar_parallelized_ops();
+            // default_scalar_parallelized_ops_comp();
+            // cast_ops();
+            // oprf()
         }
     };
 

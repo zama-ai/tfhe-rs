@@ -209,7 +209,7 @@ fn carry_extract_bench(c: &mut Criterion) {
         let bench_id = format!("shortint::carry_extract::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                let _ = sks.carry_extract(&ct_0);
+                let _ = sks.carry_egitxtract(&ct_0);
             })
         });
 

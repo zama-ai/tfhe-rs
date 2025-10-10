@@ -1414,7 +1414,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 }
 
-pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
+pub fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     lwe_in: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
@@ -1517,7 +1517,7 @@ pub(crate) fn apply_multi_bit_blind_rotate<OutputScalar, OutputCont, KeyCont>(
     );
 }
 
-pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar, OutputCont>(
+pub fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     lwe_in: &LweCiphertext<InputCont>,
     lwe_out: &mut LweCiphertext<OutputCont>,
