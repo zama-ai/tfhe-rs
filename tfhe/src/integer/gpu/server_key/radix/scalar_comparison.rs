@@ -6,7 +6,9 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaDynamicAtomicPatternKeySwitchingKey, CudaServerKey,
+};
 use crate::integer::gpu::{
     cuda_backend_unchecked_are_all_comparisons_block_true,
     cuda_backend_unchecked_is_at_least_one_comparisons_block_true,
@@ -167,6 +169,11 @@ impl CudaServerKey {
 
         let mut result =
             CudaBooleanBlock::from_cuda_radix_ciphertext(CudaRadixCiphertext::new(block, ct_info));
+        let CudaDynamicAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+            &self.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
 
         unsafe {
             match &self.bootstrapping_key {
@@ -178,19 +185,15 @@ impl CudaServerKey {
                         &d_scalar_blocks,
                         &scalar_blocks,
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         scalar_blocks.len() as u32,
@@ -209,19 +212,15 @@ impl CudaServerKey {
                         &d_scalar_blocks,
                         &scalar_blocks,
                         &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk.glwe_dimension,
                         d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         scalar_blocks.len() as u32,
@@ -320,6 +319,11 @@ impl CudaServerKey {
             unsafe { CudaVec::from_cpu_async(&scalar_blocks, streams, 0) };
 
         let mut result = ct.duplicate(streams);
+        let CudaDynamicAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+            &self.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
 
         unsafe {
             match &self.bootstrapping_key {
@@ -331,19 +335,15 @@ impl CudaServerKey {
                         &d_scalar_blocks,
                         &scalar_blocks,
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         scalar_blocks.len() as u32,
@@ -362,19 +362,15 @@ impl CudaServerKey {
                         &d_scalar_blocks,
                         &scalar_blocks,
                         &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk.glwe_dimension,
                         d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         scalar_blocks.len() as u32,
@@ -400,6 +396,12 @@ impl CudaServerKey {
     {
         let ct_res: T = self.create_trivial_radix(0, 1, streams);
         let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
+        let CudaDynamicAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+            &self.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -408,19 +410,15 @@ impl CudaServerKey {
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -434,19 +432,15 @@ impl CudaServerKey {
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
                         &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk.glwe_dimension,
                         d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
@@ -469,6 +463,12 @@ impl CudaServerKey {
     {
         let ct_res: T = self.create_trivial_radix(0, 1, streams);
         let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
+        let CudaDynamicAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+            &self.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -477,19 +477,15 @@ impl CudaServerKey {
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
                         &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk.glwe_dimension,
                         d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -503,19 +499,15 @@ impl CudaServerKey {
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
                         &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
+                        &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk.glwe_dimension,
                         d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,

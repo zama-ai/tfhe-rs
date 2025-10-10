@@ -10,7 +10,9 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
-use crate::integer::gpu::server_key::CudaBootstrappingKey;
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaDynamicAtomicPatternKeySwitchingKey,
+};
 use crate::integer::gpu::{cuda_backend_expand, PBSType};
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
@@ -404,7 +406,12 @@ impl CudaFlattenedVecCompactCiphertextList {
             let d_input = &self.d_flattened_vec;
             let casting_key = key.key_switching_key_material;
             let sks = key.dest_server_key;
-            let computing_ks_key = &key.dest_server_key.key_switching_key;
+
+            let CudaDynamicAtomicPatternKeySwitchingKey::Standard(computing_ks_key) =
+                &key.dest_server_key.key_switching_key
+            else {
+                panic!("Only the standard atomic pattern is supported on GPU")
+            };
 
             let casting_key_type: KsType = casting_key.destination_key.into();
 

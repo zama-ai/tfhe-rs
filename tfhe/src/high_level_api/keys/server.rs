@@ -487,7 +487,14 @@ impl CudaServerKey {
     }
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        &self.key.key.key_switching_key.d_vec.gpu_indexes
+        match &self.key.key.key_switching_key {
+            CudaDynamicAtomicPatternKeySwitchingKey::KeySwitch32(ksk_32) => {
+                ksk_32.d_vec.gpu_indexes.as_slice()
+            }
+            CudaDynamicAtomicPatternKeySwitchingKey::Standard(std_key) => {
+                std_key.d_vec.gpu_indexes.as_slice()
+            }
+        }
     }
     pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
         &self,
@@ -611,6 +618,8 @@ use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
 
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::server_key::CudaDynamicAtomicPatternKeySwitchingKey;
 
 impl ParameterSetConformant for ServerKey {
     type ParameterSet = IntegerServerKeyConformanceParams;

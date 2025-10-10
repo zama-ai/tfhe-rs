@@ -12,7 +12,6 @@
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 const int BLOCK_SIZE_DECOMP = 8;
@@ -46,10 +45,42 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
   return ptr;
 }
 
+template <typename T>
+__device__ T closest_repr(T input, uint32_t base_log, uint32_t level_count) {
+  T minus_2 = static_cast<T>(-2);
+  const T rep_bit_count = level_count * base_log;            // 32
+  const T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count; // 32
+  auto shift = (non_rep_bit_count - 1);                      // 31
+  T res = input >> shift;
+  res++;
+  res &= minus_2;
+  res <<= shift;
+  return res;
+}
+
+template <typename T>
+__global__ void closest_representable(const T *input, T *output,
+                                      uint32_t base_log, uint32_t level_count) {
+  output[0] = closest_repr(input[0], base_log, level_count);
+}
+
+template <typename T>
+__host__ void
+host_cuda_closest_representable(cudaStream_t stream, uint32_t gpu_index,
+                                const T *input, T *output, uint32_t base_log,
+                                uint32_t level_count) {
+  dim3 grid(1, 1, 1);
+  dim3 threads(1, 1, 1);
+
+  cuda_set_device(gpu_index);
+  closest_representable<<<grid, threads, 0, stream>>>(input, output, base_log,
+                                                      level_count);
+}
+
 // Initialize decomposition by performing rounding
 // and decomposing one level of an array of Torus LWEs. Only
 // decomposes the mask elements of the incoming LWEs.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
                                          uint32_t lwe_dimension,
                                          uint32_t num_lwe, uint32_t base_log,
@@ -76,7 +107,9 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
   Torus state = init_decomposer_state(a_i, base_log, level_count);
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
-  lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  KSTorus *kst_ptr_lwe_out = (KSTorus *)lwe_out;
+  kst_ptr_lwe_out[write_val_idx] =
+      decompose_one<Torus>(state, mod_b_mask, base_log);
   __syncthreads();
   lwe_out[write_state_idx] = state;
 }
@@ -86,7 +119,7 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
 // from num_lwe. The maximum index should be <= total_lwe. num_lwe is the number
 // of LWEs to decompose The output buffer should have space for num_lwe LWEs.
 // These will be sorted according to the input indices.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void decompose_vectorize_init_with_indices(
     Torus const *lwe_in, const Torus *__restrict__ lwe_input_indices,
     Torus *lwe_out, uint32_t lwe_dimension, uint32_t num_lwe, uint32_t base_log,
@@ -114,7 +147,9 @@ __global__ void decompose_vectorize_init_with_indices(
   Torus state = init_decomposer_state(a_i, base_log, level_count);
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
-  lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  KSTorus *kst_ptr_lwe_out = (KSTorus *)lwe_out;
+  kst_ptr_lwe_out[write_val_idx] =
+      decompose_one<Torus>(state, mod_b_mask, base_log);
   __syncthreads();
   lwe_out[write_state_idx] = state;
 }
@@ -122,7 +157,7 @@ __global__ void decompose_vectorize_init_with_indices(
 // Continue decomposition of an array of Torus elements in place. Supposes
 // that the array contains already decomposed elements and
 // computes the new decomposed level in place.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void
 decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
                                  uint32_t num_lwe, uint32_t base_log,
@@ -144,15 +179,22 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
 
-  buffer_in[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  KSTorus *kst_ptr_lwe_out = (KSTorus *)buffer_in;
+  kst_ptr_lwe_out[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
   __syncthreads();
   buffer_in[state_idx] = state;
 }
 
-template <typename Torus>
+/* LWEs inputs to the keyswitch function are stored as a_0,...,a_{lwe_dim},b,
+ * where a_i are mask elements and b is the message. We initialize
+ * the output keyswitched LWEs to 0, ..., 0, -b. The GEMM keyswitch is computed
+ * as:
+ * -(-b + sum(a_i A_KSK))
+ */
+template <typename Torus, typename KSTorus>
 __global__ void keyswitch_gemm_copy_negated_message_with_indices(
     const Torus *__restrict__ lwe_in,
-    const Torus *__restrict__ lwe_input_indices, Torus *__restrict__ lwe_out,
+    const Torus *__restrict__ lwe_input_indices, KSTorus *__restrict__ lwe_out,
     const Torus *__restrict__ lwe_output_indices,
 
     uint32_t lwe_dimension_in, uint32_t num_lwes, uint32_t lwe_dimension_out) {
@@ -165,16 +207,39 @@ __global__ void keyswitch_gemm_copy_negated_message_with_indices(
   uint32_t lwe_in_idx = lwe_input_indices[lwe_id];
   uint32_t lwe_out_idx = lwe_output_indices[lwe_id];
 
+  Torus body_in =
+      lwe_in[lwe_in_idx * (lwe_dimension_in + 1) + lwe_dimension_in];
+  Torus body_out;
+  if constexpr (std::is_same_v<KSTorus, Torus>) {
+    body_out = -body_in;
+  } else {
+    body_out = closest_repr(
+        lwe_in[lwe_in_idx * (lwe_dimension_in + 1) + lwe_dimension_in],
+        sizeof(KSTorus) * 8, 1);
+
+    // Power of two are encoded in the MSBs of the types so we need to scale
+    // the type to the other one without having to worry about the moduli
+    static_assert(sizeof(Torus) >= sizeof(KSTorus),
+                  "Cannot compile keyswitch with given input/output dtypes");
+    Torus input_to_output_scaling_factor =
+        (sizeof(Torus) - sizeof(KSTorus)) * 8;
+
+    auto rounded_downscaled_body =
+        (KSTorus)(body_out >> input_to_output_scaling_factor);
+
+    body_out = -rounded_downscaled_body;
+  }
   lwe_out[lwe_out_idx * (lwe_dimension_out + 1) + lwe_dimension_out] =
-      -lwe_in[lwe_in_idx * (lwe_dimension_in + 1) + lwe_dimension_in];
+      (KSTorus)body_out;
 }
 
-// Finishes the KS computation by negating all elements in the array
-// using output indices. The array contains -b + SUM(a_i x LWE_i)
-// and this final step computes b - SUM(a_i x LWE_i)
-template <typename Torus>
+// The GEMM keyswitch is computed as: -(-b + sum(a_i A_KSK)).
+// This function finishes the KS computation by negating all elements in the
+// array using output indices. The array contains -b + SUM(a_i x LWE_i) and this
+// final step computes b - SUM(a_i x LWE_i).
+template <typename Torus, typename KSTorus>
 __global__ void keyswitch_negate_with_output_indices(
-    Torus *buffer_in, const Torus *__restrict__ lwe_output_indices,
+    KSTorus *buffer_in, const Torus *__restrict__ lwe_output_indices,
     uint32_t lwe_size, uint32_t num_lwe) {
 
   // index of this LWE ct in the buffer
@@ -191,9 +256,9 @@ __global__ void keyswitch_negate_with_output_indices(
   buffer_in[val_idx] = -val;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void keyswitch_zero_output_with_output_indices(
-    Torus *buffer_in, const Torus *__restrict__ lwe_output_indices,
+    KSTorus *buffer_in, const Torus *__restrict__ lwe_output_indices,
     uint32_t lwe_size, uint32_t num_lwe) {
 
   // index of this LWE ct in the buffer
@@ -235,12 +300,12 @@ __global__ void keyswitch_zero_output_with_output_indices(
 // in two parts, a constant part is calculated before the loop, and a variable
 // part is calculated inside the loop. This seems to help with the register
 // pressure as well.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void
-keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
           const Torus *__restrict__ lwe_array_in,
           const Torus *__restrict__ lwe_input_indexes,
-          const Torus *__restrict__ ksk, uint32_t lwe_dimension_in,
+          const KSTorus *__restrict__ ksk, uint32_t lwe_dimension_in,
           uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
   const int tid = threadIdx.x + blockIdx.y * blockDim.x;
   const int shmem_index = threadIdx.x + threadIdx.y * blockDim.x;
@@ -252,12 +317,27 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
 
   if (tid <= lwe_dimension_out) {
 
-    Torus local_lwe_out = 0;
+    KSTorus local_lwe_out = 0;
     auto block_lwe_array_in = get_chunk(
         lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
 
     if (tid == lwe_dimension_out && threadIdx.y == 0) {
-      local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
+      if constexpr (std::is_same_v<KSTorus, Torus>) {
+        local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
+      } else {
+        auto new_body = closest_repr(block_lwe_array_in[lwe_dimension_in],
+                                     sizeof(KSTorus) * 8, 1);
+
+        // Power of two are encoded in the MSBs of the types so we need to scale
+        // the type to the other one without having to worry about the moduli
+        Torus input_to_output_scaling_factor =
+            (sizeof(Torus) - sizeof(KSTorus)) * 8;
+
+        auto rounded_downscaled_body =
+            (KSTorus)(new_body >> input_to_output_scaling_factor);
+
+        local_lwe_out = -rounded_downscaled_body;
+      }
     }
     const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
@@ -273,9 +353,10 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
       uint32_t offset = i * level_count * (lwe_dimension_out + 1);
       for (int j = 0; j < level_count; j++) {
 
-        Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
+        KSTorus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
         local_lwe_out +=
-            (Torus)ksk[tid + j * (lwe_dimension_out + 1) + offset] * decomposed;
+            (KSTorus)ksk[tid + j * (lwe_dimension_out + 1) + offset] *
+            decomposed;
       }
     }
 
@@ -294,13 +375,13 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_keyswitch_lwe_ciphertext_vector(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, Torus const *ksk, uint32_t lwe_dimension_in,
-    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples) {
+    Torus const *lwe_input_indexes, KSTorus const *ksk,
+    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
 
   cuda_set_device(gpu_index);
 
@@ -322,29 +403,36 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
   dim3 grid(num_samples, num_blocks_per_sample, 1);
   dim3 threads(num_threads_x, num_threads_y, 1);
 
-  keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
+  keyswitch<Torus, KSTorus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count);
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus>
+// The GEMM keyswitch is computed as: -(-b + sum(a_i A_KSK))
+template <typename Torus, typename KSTorus>
 __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indices, Torus const *lwe_array_in,
-    Torus const *lwe_input_indices, Torus const *ksk, uint32_t lwe_dimension_in,
-    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, Torus *fp_tmp_buffer, bool uses_trivial_indices) {
+    Torus const *lwe_input_indices, KSTorus const *ksk,
+    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, Torus *fp_tmp_buffer,
+    bool uses_trivial_indices) {
   cuda_set_device(gpu_index);
   check_cuda_error(cudaGetLastError());
 
-  auto d_mem_0 = fp_tmp_buffer; // keeps decomposed value
+  // fp_tmp_buffer contains 2x the space to store the input LWE masks without
+  // the body the first half can be interpreted with a smaller dtype when
+  // performing 64->32 KS the second half, storing decomposition state, must be
+  // interpreted as Torus* (usually 64b)
+  KSTorus *d_mem_0 =
+      (KSTorus *)fp_tmp_buffer; // keeps decomposed value (in KSTorus type)
 
   // Set the scratch buffer to 0 as it is used to accumulate
   // decomposition temporary results
   if (uses_trivial_indices) {
     cuda_memset_async(lwe_array_out, 0,
-                      num_samples * (lwe_dimension_out + 1) * sizeof(Torus),
+                      num_samples * (lwe_dimension_out + 1) * sizeof(KSTorus),
                       stream, gpu_index);
   } else {
     // gemm to ks the individual LWEs to GLWEs
@@ -352,7 +440,7 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
                    CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
     dim3 threads_zero(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
 
-    keyswitch_zero_output_with_output_indices<Torus>
+    keyswitch_zero_output_with_output_indices<Torus, KSTorus>
         <<<grid_zero, threads_zero, 0, stream>>>(
             lwe_array_out, lwe_output_indices, lwe_dimension_out + 1,
             num_samples);
@@ -364,8 +452,8 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
 
   // lwe_array_out is num_samples x (lwe_dimension_out + 1). copy the bodies
   // lwe_array_in[:,lwe_dimension_in] to lwe_array_out[:,lwe_dimension_out]
-  // and negate
-  keyswitch_gemm_copy_negated_message_with_indices<Torus>
+  // and negates them
+  keyswitch_gemm_copy_negated_message_with_indices<Torus, KSTorus>
       <<<grid_copy, threads_copy, 0, stream>>>(
           lwe_array_in, lwe_input_indices, lwe_array_out, lwe_output_indices,
           lwe_dimension_in, num_samples, lwe_dimension_out);
@@ -394,21 +482,21 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   dim3 threads_gemm(BLOCK_SIZE_GEMM_KS * THREADS_GEMM_KS);
 
   // decompose first level (skips the body in the input buffer)
-  decompose_vectorize_init_with_indices<Torus>
+  decompose_vectorize_init_with_indices<Torus, KSTorus>
       <<<grid_decomp, threads_decomp, 0, stream>>>(
           lwe_array_in, lwe_input_indices, fp_tmp_buffer, lwe_dimension_in,
           num_samples, base_log, level_count);
   check_cuda_error(cudaGetLastError());
 
   if (uses_trivial_indices) {
-    tgemm<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+    tgemm<KSTorus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
         <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
             num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
             ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1);
     check_cuda_error(cudaGetLastError());
 
   } else {
-    tgemm_with_indices<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+    tgemm_with_indices<KSTorus, Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
         <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
             num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
             ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1,
@@ -419,14 +507,14 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   auto ksk_block_size = (lwe_dimension_out + 1);
 
   for (int li = 1; li < level_count; ++li) {
-    decompose_vectorize_step_inplace<Torus>
+    decompose_vectorize_step_inplace<Torus, KSTorus>
         <<<grid_decomp, threads_decomp, 0, stream>>>(
             fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
             level_count);
     check_cuda_error(cudaGetLastError());
 
     if (uses_trivial_indices) {
-      tgemm<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+      tgemm<KSTorus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
           <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
               num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
               ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
@@ -434,7 +522,7 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
       check_cuda_error(cudaGetLastError());
 
     } else {
-      tgemm_with_indices<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+      tgemm_with_indices<KSTorus, Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
           <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
               num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
               ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
@@ -447,20 +535,22 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   dim3 grid_negate(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
                    CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
   dim3 threads_negate(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
-  // Negate all outputs in the LWE
-  keyswitch_negate_with_output_indices<Torus>
+
+  // Negate all outputs in the output LWEs. This is the final step in the GEMM
+  // keyswitch computed as: -(-b + sum(a_i A_KSK))
+  keyswitch_negate_with_output_indices<Torus, KSTorus>
       <<<grid_negate, threads_negate, 0, stream>>>(
           lwe_array_out, lwe_output_indices, lwe_dimension_out + 1,
           num_samples);
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 void execute_keyswitch_async(
     CudaStreams streams, const LweArrayVariant<Torus> &lwe_array_out,
     const LweArrayVariant<Torus> &lwe_output_indexes,
     const LweArrayVariant<Torus> &lwe_array_in,
-    const LweArrayVariant<Torus> &lwe_input_indexes, Torus *const *ksks,
+    const LweArrayVariant<Torus> &lwe_input_indexes, KSTorus *const *ksks,
     uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, bool uses_trivial_indices,
     const std::vector<ks_mem<Torus> *> &fp_tmp_buffer) {
