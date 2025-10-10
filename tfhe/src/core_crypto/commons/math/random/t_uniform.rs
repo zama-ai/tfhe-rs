@@ -46,7 +46,7 @@ impl<T: UnsignedInteger> TUniform<T> {
     /// representation of integers.
     pub const fn try_new(bound_log2: u32) -> Result<Self, &'static str> {
         if (bound_log2 + 2) as usize > T::BITS {
-            return Err("Cannot create TUnfirorm: \
+            return Err("Cannot create TUniform: \
             bound_log2 + 2 is greater than the current type's bit width");
         }
 

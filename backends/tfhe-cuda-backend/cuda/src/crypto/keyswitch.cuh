@@ -209,6 +209,17 @@ __global__ void keyswitch_zero_output_with_output_indices(
   buffer_in[val_idx] = 0;
 }
 
+template <typename T>
+__device__ T closest_repr(T input, uint32_t base_log, uint32_t level_count) {
+  const T rep_bit_count = level_count * base_log;            // 32
+  const T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count; // 32
+  auto shift = (non_rep_bit_count - 1);                      // 31
+  T res = input >> shift;
+  res++;
+  res &= -2;
+  res <<= shift;
+  return res;
+}
 /*
  * keyswitch kernel
  * Each thread handles a piece of the following equation:
@@ -235,12 +246,12 @@ __global__ void keyswitch_zero_output_with_output_indices(
 // in two parts, a constant part is calculated before the loop, and a variable
 // part is calculated inside the loop. This seems to help with the register
 // pressure as well.
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __global__ void
-keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
           const Torus *__restrict__ lwe_array_in,
           const Torus *__restrict__ lwe_input_indexes,
-          const Torus *__restrict__ ksk, uint32_t lwe_dimension_in,
+          const KSTorus *__restrict__ ksk, uint32_t lwe_dimension_in,
           uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
   const int tid = threadIdx.x + blockIdx.y * blockDim.x;
   const int shmem_index = threadIdx.x + threadIdx.y * blockDim.x;
@@ -252,12 +263,27 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
 
   if (tid <= lwe_dimension_out) {
 
-    Torus local_lwe_out = 0;
+    KSTorus local_lwe_out = 0;
     auto block_lwe_array_in = get_chunk(
         lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
 
     if (tid == lwe_dimension_out && threadIdx.y == 0) {
-      local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
+      if constexpr (std::is_same_v<KSTorus, Torus>) {
+        local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
+      } else {
+        auto new_body = closest_repr(block_lwe_array_in[lwe_dimension_in],
+                                     sizeof(KSTorus) * 8, 1);
+
+        // Power of two are encoded in the MSBs of the types so we need to scale
+        // the type to the other one without having to worry about the moduli
+        Torus input_to_output_scaling_factor =
+            (sizeof(Torus) - sizeof(KSTorus)) * 8;
+
+        auto rounded_downscaled_body =
+            (KSTorus)(new_body >> input_to_output_scaling_factor);
+
+        local_lwe_out = -rounded_downscaled_body;
+      }
     }
     const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
@@ -273,9 +299,10 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
       uint32_t offset = i * level_count * (lwe_dimension_out + 1);
       for (int j = 0; j < level_count; j++) {
 
-        Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
+        KSTorus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
         local_lwe_out +=
-            (Torus)ksk[tid + j * (lwe_dimension_out + 1) + offset] * decomposed;
+            (KSTorus)ksk[tid + j * (lwe_dimension_out + 1) + offset] *
+            decomposed;
       }
     }
 
@@ -294,13 +321,13 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_keyswitch_lwe_ciphertext_vector(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, Torus const *ksk, uint32_t lwe_dimension_in,
-    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples) {
+    Torus const *lwe_input_indexes, KSTorus const *ksk,
+    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
 
   cuda_set_device(gpu_index);
 
@@ -322,7 +349,7 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
   dim3 grid(num_samples, num_blocks_per_sample, 1);
   dim3 threads(num_threads_x, num_threads_y, 1);
 
-  keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
+  keyswitch<Torus, KSTorus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count);
   check_cuda_error(cudaGetLastError());
@@ -455,12 +482,12 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 void execute_keyswitch_async(
     CudaStreams streams, const LweArrayVariant<Torus> &lwe_array_out,
     const LweArrayVariant<Torus> &lwe_output_indexes,
     const LweArrayVariant<Torus> &lwe_array_in,
-    const LweArrayVariant<Torus> &lwe_input_indexes, Torus *const *ksks,
+    const LweArrayVariant<Torus> &lwe_input_indexes, KSTorus *const *ksks,
     uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, bool uses_trivial_indices,
     const std::vector<ks_mem<Torus> *> &fp_tmp_buffer) {

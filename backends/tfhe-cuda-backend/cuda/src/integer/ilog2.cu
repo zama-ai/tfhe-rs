@@ -31,7 +31,7 @@ void cuda_integer_count_of_consecutive_bits_64(
     CudaRadixCiphertextFFI const *input_ct, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
 
-  host_integer_count_of_consecutive_bits<uint64_t>(
+  host_integer_count_of_consecutive_bits<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct,
       (int_count_of_consecutive_bits_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks);
@@ -82,7 +82,7 @@ void cuda_integer_ilog2_64(
     CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
 
-  host_integer_ilog2<uint64_t>(
+  host_integer_ilog2<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct, trivial_ct_neg_n, trivial_ct_2,
       trivial_ct_m_minus_1_block, (int_ilog2_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks);

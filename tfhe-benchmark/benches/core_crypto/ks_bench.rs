@@ -13,6 +13,8 @@ use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::core_crypto::prelude::*;
 
+use tfhe::core_crypto::prelude::DynamicDistribution;
+
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
 fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     criterion: &mut Criterion,
@@ -328,6 +330,7 @@ mod cuda {
     use itertools::Itertools;
     use rayon::prelude::*;
     use serde::Serialize;
+    use tfhe::core_crypto::commons::math::random::BoundedDistribution;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::vec::GpuIndex;
@@ -339,7 +342,9 @@ mod cuda {
 
     use tfhe::core_crypto::prelude::*;
 
-    fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
+    fn cuda_keyswitch_classical_and_gemm<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
+    >(
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
@@ -583,8 +588,232 @@ mod cuda {
         }
     }
 
+    // Benchmarks KS32 for the classical KS kernel. Forces a 32-bit KSK during the benchmark.
+    fn cuda_keyswitch_ks32<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
+        criterion: &mut Criterion,
+        parameters: &[(String, CryptoParametersRecord<Scalar>)],
+    ) {
+        let bench_name = "core_crypto::cuda::keyswitch_32";
+        let mut bench_group = criterion.benchmark_group(bench_name);
+
+        // Create the PRNG
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+
+        for (name, params) in parameters.iter() {
+            let lwe_dimension = params.lwe_dimension.unwrap();
+            let glwe_dimension = params.glwe_dimension.unwrap();
+            let polynomial_size = params.polynomial_size.unwrap();
+            let ks_decomp_base_log = params.ks_base_log.unwrap();
+            let ks_decomp_level_count = params.ks_level.unwrap();
+
+            let lwe_sk_32: LweSecretKeyOwned<u32> = allocate_and_generate_new_binary_lwe_secret_key(
+                lwe_dimension,
+                &mut secret_generator,
+            );
+
+            let glwe_sk_32: GlweSecretKeyOwned<u32> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    glwe_dimension,
+                    polynomial_size,
+                    &mut secret_generator,
+                );
+
+            let lwe_sk_64: LweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_lwe_secret_key(
+                    lwe_dimension,
+                    &mut secret_generator,
+                );
+
+            let glwe_sk_64: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    glwe_dimension,
+                    polynomial_size,
+                    &mut secret_generator,
+                );
+
+            let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
+
+            let big_lwe_sk_32 = glwe_sk_32.into_lwe_secret_key();
+            let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+                &big_lwe_sk_32,
+                &lwe_sk_32,
+                ks_decomp_base_log,
+                ks_decomp_level_count,
+                tfhe::core_crypto::prelude::DynamicDistribution::<u32>::new_t_uniform(10),
+                CiphertextModulus::<u32>::new_native(),
+                &mut encryption_generator,
+            );
+
+            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+                .keyswitch_key(ksk_big_to_small)
+                .build();
+
+            let bench_id;
+
+            match get_bench_type() {
+                BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
+                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
+
+                    let ct = allocate_and_encrypt_new_lwe_ciphertext(
+                        &big_lwe_sk_64,
+                        Plaintext(Scalar::ONE),
+                        params.lwe_noise_distribution.unwrap(),
+                        CiphertextModulus::new_native(),
+                        &mut encryption_generator,
+                    );
+                    let mut ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &streams);
+
+                    let output_ct = LweCiphertext::<Vec<u32>>::new(
+                        0u32,
+                        lwe_sk_32.lwe_dimension().to_lwe_size(),
+                        CiphertextModulus::new_native(),
+                    );
+                    let mut output_ct_gpu =
+                        CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &streams);
+
+                    let h_indexes = [Scalar::ZERO];
+                    println!("Indexes : {:?}", h_indexes);
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
+
+                    bench_id = format!("{bench_name}::{name}");
+                    {
+                        bench_group.bench_function(&bench_id, |b| {
+                            b.iter(|| {
+                                cuda_keyswitch_lwe_ciphertext(
+                                    gpu_keys.ksk.as_ref().unwrap(),
+                                    &ct_gpu,
+                                    &mut output_ct_gpu,
+                                    &cuda_indexes.d_input,
+                                    &cuda_indexes.d_output,
+                                    true,
+                                    &streams,
+                                    false,
+                                );
+                                black_box(&mut ct_gpu);
+                            })
+                        });
+                    }
+                }
+                BenchmarkType::Throughput => {
+                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
+                    let gpu_count = get_number_of_gpus() as usize;
+
+                    bench_id = format!("{bench_name}::throughput::{name}");
+                    let blocks: usize = 1;
+                    let elements = 256; //throughput_num_threads(blocks, 1);
+                    let elements_per_stream = elements as usize / gpu_count;
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.sample_size(50);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams_core();
+
+                            let plaintext_list = PlaintextList::new(
+                                Scalar::ZERO,
+                                PlaintextCount(elements_per_stream),
+                            );
+
+                            let input_cts = (0..gpu_count)
+                                .map(|i| {
+                                    let mut input_ct_list = LweCiphertextList::new(
+                                        Scalar::ZERO,
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
+                                        LweCiphertextCount(elements_per_stream),
+                                        params.ciphertext_modulus.unwrap(),
+                                    );
+                                    encrypt_lwe_ciphertext_list(
+                                        &big_lwe_sk_64,
+                                        &mut input_ct_list,
+                                        &plaintext_list,
+                                        params.lwe_noise_distribution.unwrap(),
+                                        &mut encryption_generator,
+                                    );
+                                    let input_ks_list = LweCiphertextList::from_container(
+                                        input_ct_list.into_container(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
+                                        params.ciphertext_modulus.unwrap(),
+                                    );
+                                    CudaLweCiphertextList::from_lwe_ciphertext_list(
+                                        &input_ks_list,
+                                        &local_streams[i],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            let output_cts = (0..gpu_count)
+                                .map(|i| {
+                                    let output_ct_list = LweCiphertextList::<Vec<u32>>::new(
+                                        0u32,
+                                        lwe_sk_32.lwe_dimension().to_lwe_size(),
+                                        LweCiphertextCount(elements_per_stream),
+                                        CiphertextModulus::<u32>::new_native(),
+                                    );
+                                    CudaLweCiphertextList::from_lwe_ciphertext_list(
+                                        &output_ct_list,
+                                        &local_streams[i],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            let h_indexes = (0..(elements / gpu_count as u64))
+                                .map(CastFrom::cast_from)
+                                .collect::<Vec<_>>();
+                            let cuda_indexes_vec = (0..gpu_count)
+                                .map(|i| CudaIndexes::new(&h_indexes, &local_streams[i], 0))
+                                .collect::<Vec<_>>();
+                            local_streams.iter().for_each(|stream| stream.synchronize());
+
+                            (input_cts, output_cts, cuda_indexes_vec, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(input_cts, mut output_cts, cuda_indexes_vec, local_streams)| {
+                                (0..gpu_count)
+                                    .into_par_iter()
+                                    .zip(input_cts.par_iter())
+                                    .zip(output_cts.par_iter_mut())
+                                    .zip(local_streams.par_iter())
+                                    .for_each(|(((i, input_ct), output_ct), local_stream)| {
+                                        cuda_keyswitch_lwe_ciphertext(
+                                            gpu_keys_vec[i].ksk.as_ref().unwrap(),
+                                            input_ct,
+                                            output_ct,
+                                            &cuda_indexes_vec[i].d_input,
+                                            &cuda_indexes_vec[i].d_output,
+                                            true,
+                                            local_stream,
+                                            false,
+                                        );
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+            };
+
+            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+            write_to_json(
+                &bench_id,
+                *params,
+                name,
+                "ks",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
+    }
+
     fn cuda_packing_keyswitch<
-        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize + CastInto<u32>,
     >(
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
@@ -791,9 +1020,9 @@ mod cuda {
                                     .zip(local_streams.par_iter())
                                     .for_each(
                                         |(
-                                            ((i, input_lwe_list), output_glwe_list),
-                                            local_stream,
-                                        )| {
+                                             ((i, input_lwe_list), output_glwe_list),
+                                             local_stream,
+                                         )| {
                                             cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
                                                 gpu_keys_vec[i].pksk.as_ref().unwrap(),
                                                 input_lwe_list,
@@ -826,7 +1055,8 @@ mod cuda {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_ks32(&mut criterion, &benchmark_parameters());
         cuda_packing_keyswitch(&mut criterion, &benchmark_parameters());
     }
 
@@ -834,7 +1064,8 @@ mod cuda {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_ks32(&mut criterion, &benchmark_parameters());
     }
 
     pub fn cuda_multi_bit_ks_group() {
@@ -844,7 +1075,8 @@ mod cuda {
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
-        cuda_keyswitch(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_classical_and_gemm(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_ks32(&mut criterion, &multi_bit_parameters);
         cuda_packing_keyswitch(&mut criterion, &multi_bit_parameters);
     }
 
@@ -855,7 +1087,8 @@ mod cuda {
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
-        cuda_keyswitch(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_classical_and_gemm(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_ks32(&mut criterion, &multi_bit_parameters);
     }
 }
 

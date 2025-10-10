@@ -44,11 +44,11 @@ __host__ uint64_t scratch_cuda_scalar_mul(CudaStreams streams,
   return size_tracker;
 }
 
-template <typename T>
+template <typename T, typename KSTorus>
 __host__ void host_integer_scalar_mul_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     T const *decomposed_scalar, T const *has_at_least_one_set,
-    int_scalar_mul_buffer<T> *mem, void *const *bsks, T *const *ksks,
+    int_scalar_mul_buffer<T> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t message_modulus, uint32_t num_scalars) {
 
   auto num_radix_blocks = lwe_array->num_radix_blocks;
@@ -167,11 +167,11 @@ __host__ void host_integer_small_scalar_mul_radix(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void
 host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
                      int_scalar_mul_high_buffer<Torus> *mem_ptr,
-                     Torus *const *ksks, void *const *bsks,
+                     KSTorus *const *ksks, void *const *bsks,
                      const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
@@ -207,10 +207,10 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
   host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_signed_scalar_mul_high(
     CudaStreams streams, CudaRadixCiphertextFFI *ct,
-    int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, KSTorus *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, void *const *bsks) {
 
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {

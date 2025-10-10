@@ -73,6 +73,20 @@ impl CompressedKS32AtomicPatternServerKey {
         }
     }
 
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        SeededLweKeyswitchKeyOwned<u32>,
+        ShortintCompressedBootstrappingKey<u32>,
+    ) {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+        } = self;
+
+        (key_switching_key, bootstrapping_key)
+    }
+
     pub fn ciphertext_lwe_dimension(&self) -> LweDimension {
         // KS32 is always KeyswitchBootstrap, meaning Ciphertext is under the big LWE secret key
         self.key_switching_key.input_key_lwe_dimension()
