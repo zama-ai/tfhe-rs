@@ -42,20 +42,25 @@
 #   See ci/slab.toml file to have the list of all supported profiles.
 
 [gpu.default]
-target.integer-bench = ["mul", "div"]
-target.hlapi-dex = ["dex_swap"]
+target.integer = ["mul"]
+target.hlapi-dex = ["dex::swap_claim::no_cmux"]
 slab.backend = "hyperstack"
 slab.profile = "single-h100"
 env.fast_bench = "TRUE"
+env.bench_param_type = "MULTI_BIT"
 
 [gpu.multi-h100]
-target.integer-bench = ["mul", "div"]
+target.integer = ["mul", "div"]
 target.hlapi-dex = ["dex_swap"]
 slab.backend = "hyperstack"
 slab.profile = "multi-h100"
+env.fast_bench = "TRUE"
+env.bench_param_type = "MULTI_BIT"
 
 [cpu.default]
-target.integer-bench = ["add_parallelized", "mul_parallelized", "div_parallelized"]
+target.integer = ["add_parallelized"]
+target.hlapi-dex = ["dex::swap_claim::no_cmux"]
+target.hlapi-erc20 = ["transfer::whitepaper"]
 slab.backend = "aws"
 slab.profile = "bench"
 env.fast_bench = "TRUE"
