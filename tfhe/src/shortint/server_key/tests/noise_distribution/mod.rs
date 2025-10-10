@@ -26,3 +26,21 @@ pub fn should_run_short_pfail_tests_debug() -> bool {
         })
     })
 }
+
+pub fn should_load_dkg_keys() -> Option<std::path::PathBuf> {
+    static USE_DKG_KEYS: std::sync::OnceLock<Option<std::path::PathBuf>> =
+        std::sync::OnceLock::new();
+
+    USE_DKG_KEYS
+        .get_or_init(|| {
+            std::env::var("TFHE_RS_TESTS_NOISE_MEASUREMENT_USE_DKG_KEYS")
+                .map(|val| {
+                    let mut res = std::path::PathBuf::new();
+                    res.push(val);
+
+                    res
+                })
+                .ok()
+        })
+        .clone()
+}

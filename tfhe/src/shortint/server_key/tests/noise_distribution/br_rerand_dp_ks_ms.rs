@@ -8,7 +8,9 @@ use super::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
 };
-use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
+use super::{
+    should_load_dkg_keys, should_run_short_pfail_tests_debug, should_use_single_key_debug,
+};
 use crate::core_crypto::algorithms::glwe_sample_extraction::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::math::random::XofSeed;
@@ -17,7 +19,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::contiguous_entity_container::ContiguousEntityContainer;
 use crate::core_crypto::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::entities::{GlweCiphertext, LweCiphertextOwned};
+use crate::core_crypto::entities::{GlweCiphertext, LweCiphertextOwned, LweKeyswitchKeyOwned};
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListMeta, ReRandomizationSeed,
@@ -26,7 +28,10 @@ use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
+use crate::shortint::key_switching_key::{
+    KeySwitchingKeyBuildHelper, KeySwitchingKeyDestinationAtomicPattern, KeySwitchingKeyMaterial,
+    KeySwitchingKeyView,
+};
 use crate::shortint::list_compression::{CompressionPrivateKeys, DecompressionKey};
 use crate::shortint::parameters::test_params::{
     TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -37,7 +42,7 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, CompressionParameters,
+    CompactPublicKeyEncryptionParameters, CompressionParameters, EncryptionKeyChoice,
     ShortintCompactCiphertextListCastingMode, ShortintKeySwitchingParameters,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
@@ -647,18 +652,163 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
         cpk_params
     };
 
-    let cpk_private_key = CompactPrivateKey::new(cpk_params);
-    let cpk = CompactPublicKey::new(&cpk_private_key);
-    let cks = ClientKey::new(params);
-    let sks = ServerKey::new(&cks);
-    let comp_private_key = cks.new_compression_private_key(compression_params);
-    // TODO update once KS32 refactor is merged there are new primitives to make this easier to
-    // manage
-    let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+    let (cpk_private_key, cpk, cks, sks, comp_private_key, decomp_key, key_switching_key_material) =
+        should_load_dkg_keys().map_or_else(
+            || {
+                let cpk_private_key = CompactPrivateKey::new(cpk_params);
+                let cpk = CompactPublicKey::new(&cpk_private_key);
+                let cks = ClientKey::new(params);
+                let sks = ServerKey::new(&cks);
+                let comp_private_key = cks.new_compression_private_key(compression_params);
+                // TODO update once KS32 refactor is merged there are new primitives to make this
+                // easier to manage
+                let decomp_key =
+                    cks.new_decompression_key_with_params(&comp_private_key, compression_params);
 
-    let ksk_rerand_builder =
-        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
-    let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+                let ksk_rerand_builder = KeySwitchingKeyBuildHelper::new(
+                    (&cpk_private_key, None),
+                    (&cks, &sks),
+                    rerand_ksk_params,
+                );
+
+                let KeySwitchingKeyBuildHelper {
+                    key_switching_key_material,
+                    dest_server_key: _,
+                    src_server_key: _,
+                } = ksk_rerand_builder;
+
+                (
+                    cpk_private_key,
+                    cpk,
+                    cks,
+                    sks,
+                    comp_private_key,
+                    decomp_key,
+                    key_switching_key_material,
+                )
+            },
+            |path| {
+                use std::fs::File;
+                use std::io::prelude::*;
+                let path = path.as_path();
+
+                //     let key_path = prefix_path.join("cpk.bin");
+                //     let key_path = prefix_path.join("cks.bin");
+                //     let key_path = prefix_path.join("sns_sk.bin");
+                //     let key_path = prefix_path.join("comp_sk.bin");
+                //     let key_path = prefix_path.join("sns_comp_sk.bin");
+                //     let key_path = prefix_path.join("public_key.bin");
+                //     let key_path = prefix_path.join("sks.bin");
+                //     let key_path = prefix_path.join("ksk_enc.bin");
+                //     let key_path = prefix_path.join("comp_key.bin");
+                //     let key_path = prefix_path.join("decomp_key.bin");
+                //     let key_path = prefix_path.join("sns_key.bin");
+                //     let key_path = prefix_path.join("sns_comp_key.bin");
+                //     let key_path = prefix_path.join("rerand_ksk.bin");
+
+                let cpk_private_key = {
+                    let key_path = path.join("cpk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let cpk = {
+                    let key_path = path.join("public_key.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    let mut tmp: CompactPublicKey = bincode::deserialize(&buf).unwrap();
+
+                    // The KMS keys are correctly generated, but for the test we remove the casting
+                    // to do it manually for rerand
+                    // TODO: clean this up and make something that makes more sense
+                    tmp.parameters.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+                        params.atomic_pattern().pbs_order(),
+                    );
+
+                    tmp
+                };
+
+                let cks = {
+                    let key_path = path.join("cks.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let sks: ServerKey = {
+                    let key_path = path.join("sks.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let comp_private_key = {
+                    let key_path = path.join("comp_sk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let decomp_key = {
+                    let key_path = path.join("decomp_key.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                #[derive(serde::Deserialize)]
+                pub struct KeySwitchingKeyMaterialOld {
+                    pub(crate) key_switching_key: LweKeyswitchKeyOwned<u64>,
+                    pub(crate) cast_rshift: i8,
+                    pub(crate) destination_key: EncryptionKeyChoice,
+                }
+
+                let key_switching_key_material: KeySwitchingKeyMaterialOld = {
+                    let key_path = path.join("rerand_ksk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let key_switching_key_material = KeySwitchingKeyMaterial {
+                    key_switching_key: key_switching_key_material.key_switching_key,
+                    cast_rshift: key_switching_key_material.cast_rshift,
+                    destination_key: key_switching_key_material.destination_key,
+                    destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern::Standard,
+                };
+
+                (
+                    cpk_private_key,
+                    cpk,
+                    cks,
+                    sks,
+                    comp_private_key,
+                    decomp_key,
+                    key_switching_key_material,
+                )
+            },
+        );
+
+    let ksk_rerand: KeySwitchingKeyView<'_> = KeySwitchingKeyView {
+        key_switching_key_material: key_switching_key_material.as_view(),
+        dest_server_key: sks.as_view(),
+        src_server_key: None,
+    };
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
@@ -890,6 +1040,15 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail<P>(
 
     let (pfail_test_meta, params, compression_params) = {
         let mut ap_params: AtomicPatternParameters = params.into();
+        match &mut ap_params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                crate::shortint::PBSParameters::PBS(classic_pbsparameters) => {
+                    classic_pbsparameters.log2_p_fail = -129.16
+                }
+                crate::shortint::PBSParameters::MultiBitPBS(_) => todo!(),
+            },
+            AtomicPatternParameters::KeySwitch32(_) => todo!(),
+        }
 
         let original_message_modulus = ap_params.message_modulus();
         let original_carry_modulus = ap_params.carry_modulus();
@@ -926,18 +1085,177 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail<P>(
         (pfail_test_meta, ap_params, compression_params)
     };
 
-    let cpk_private_key = CompactPrivateKey::new(cpk_params);
-    let cpk = CompactPublicKey::new(&cpk_private_key);
-    let cks = ClientKey::new(params);
-    let sks = ServerKey::new(&cks);
-    let comp_private_key = cks.new_compression_private_key(compression_params);
-    // TODO update once KS32 refactor is merged there are new primitives to make this easier to
-    // manage
-    let decomp_key = cks.new_decompression_key_with_params(&comp_private_key, compression_params);
+    let (cpk_private_key, cpk, cks, sks, comp_private_key, decomp_key, key_switching_key_material) =
+        should_load_dkg_keys().map_or(
+            {
+                let cpk_private_key = CompactPrivateKey::new(cpk_params);
+                let cpk = CompactPublicKey::new(&cpk_private_key);
+                let cks = ClientKey::new(params);
+                let sks = ServerKey::new(&cks);
+                let comp_private_key = cks.new_compression_private_key(compression_params);
+                // TODO update once KS32 refactor is merged there are new primitives to make this
+                // easier to manage
+                let decomp_key =
+                    cks.new_decompression_key_with_params(&comp_private_key, compression_params);
 
-    let ksk_rerand_builder =
-        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
-    let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+                let ksk_rerand_builder = KeySwitchingKeyBuildHelper::new(
+                    (&cpk_private_key, None),
+                    (&cks, &sks),
+                    rerand_ksk_params,
+                );
+
+                let KeySwitchingKeyBuildHelper {
+                    key_switching_key_material,
+                    dest_server_key: _,
+                    src_server_key: _,
+                } = ksk_rerand_builder;
+
+                (
+                    cpk_private_key,
+                    cpk,
+                    cks,
+                    sks,
+                    comp_private_key,
+                    decomp_key,
+                    key_switching_key_material,
+                )
+            },
+            |path| {
+                use std::fs::File;
+                use std::io::prelude::*;
+                let path = path.as_path();
+
+                //     let key_path = prefix_path.join("cpk.bin");
+                //     let key_path = prefix_path.join("cks.bin");
+                //     let key_path = prefix_path.join("sns_sk.bin");
+                //     let key_path = prefix_path.join("comp_sk.bin");
+                //     let key_path = prefix_path.join("sns_comp_sk.bin");
+                //     let key_path = prefix_path.join("public_key.bin");
+                //     let key_path = prefix_path.join("sks.bin");
+                //     let key_path = prefix_path.join("ksk_enc.bin");
+                //     let key_path = prefix_path.join("comp_key.bin");
+                //     let key_path = prefix_path.join("decomp_key.bin");
+                //     let key_path = prefix_path.join("sns_key.bin");
+                //     let key_path = prefix_path.join("sns_comp_key.bin");
+                //     let key_path = prefix_path.join("rerand_ksk.bin");
+
+                let cpk_private_key = {
+                    let key_path = path.join("cpk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let cpk = {
+                    let key_path = path.join("public_key.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    let mut tmp: CompactPublicKey = bincode::deserialize(&buf).unwrap();
+
+                    // The KMS keys are correctly generated, but for the test we remove the casting
+                    // to do it manually for rerand
+                    // TODO: clean this up and make something that makes more sense
+                    tmp.parameters.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+                        params.atomic_pattern().pbs_order(),
+                    );
+
+                    tmp
+                };
+
+                let mut cks: ClientKey = {
+                    let key_path = path.join("cks.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                match &mut cks.atomic_pattern {
+                    AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                        match &mut standard_atomic_pattern_client_key.parameters {
+                            crate::shortint::PBSParameters::PBS(classic_pbsparameters) => {
+                                classic_pbsparameters.carry_modulus = params.carry_modulus()
+                            }
+                            crate::shortint::PBSParameters::MultiBitPBS(_) => todo!(),
+                        }
+                    }
+                    AtomicPatternClientKey::KeySwitch32(_) => todo!(),
+                }
+
+                let mut sks: ServerKey = {
+                    let key_path = path.join("sks.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                sks.carry_modulus = cks.parameters().carry_modulus();
+
+                let comp_private_key = {
+                    let key_path = path.join("comp_sk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let decomp_key = {
+                    let key_path = path.join("decomp_key.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                #[derive(serde::Deserialize)]
+                pub struct KeySwitchingKeyMaterialOld {
+                    pub(crate) key_switching_key: LweKeyswitchKeyOwned<u64>,
+                    pub(crate) cast_rshift: i8,
+                    pub(crate) destination_key: EncryptionKeyChoice,
+                }
+
+                let key_switching_key_material: KeySwitchingKeyMaterialOld = {
+                    let key_path = path.join("rerand_ksk.bin");
+                    let mut file = File::open(key_path).unwrap();
+                    let mut buf = vec![];
+                    file.read_to_end(&mut buf).unwrap();
+
+                    bincode::deserialize(&buf).unwrap()
+                };
+
+                let key_switching_key_material = KeySwitchingKeyMaterial {
+                    key_switching_key: key_switching_key_material.key_switching_key,
+                    cast_rshift: key_switching_key_material.cast_rshift,
+                    destination_key: key_switching_key_material.destination_key,
+                    destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern::Standard,
+                };
+
+                (
+                    cpk_private_key,
+                    cpk,
+                    cks,
+                    sks,
+                    comp_private_key,
+                    decomp_key,
+                    key_switching_key_material,
+                )
+            },
+        );
+
+    let ksk_rerand: KeySwitchingKeyView<'_> = KeySwitchingKeyView {
+        key_switching_key_material: key_switching_key_material.as_view(),
+        dest_server_key: sks.as_view(),
+        src_server_key: None,
+    };
 
     let max_scalar_mul = sks.max_noise_level.get();
 
