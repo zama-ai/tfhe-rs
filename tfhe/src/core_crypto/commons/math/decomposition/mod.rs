@@ -44,7 +44,7 @@ mod decomposer;
 mod iter;
 mod term;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 /// The level of a given term of a decomposition.
 ///
