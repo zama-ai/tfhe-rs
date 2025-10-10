@@ -1,7 +1,6 @@
 use benchmark::utilities::{hlapi_throughput_num_ops, write_to_json, BenchmarkType, OperatorType};
 use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
-use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
@@ -286,7 +285,7 @@ where
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
     rand::distributions::Standard: rand::distributions::Distribution<Key>,
-    Key: Numeric + DecomposableInto<u64> + Eq + Hash + CastInto<usize> + TypeDisplay,
+    Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
     Value: FheEncrypt<u128, ClientKey> + FheIntegerType + Clone + Send + Sync + TypeDisplay,
     Value::Id: FheUintId,
     FheKey: FheEncrypt<Key, ClientKey> + FheIntegerType + Send + Sync,

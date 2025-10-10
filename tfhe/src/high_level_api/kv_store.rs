@@ -13,7 +13,6 @@ use crate::integer::server_key::{
 use crate::prelude::CastInto;
 use crate::{FheBool, IntegerId, ReRandomizationMetadata, Tag};
 use std::fmt::Display;
-use std::hash::Hash;
 
 #[derive(Clone)]
 enum InnerKVStore<Key, T>
@@ -78,7 +77,7 @@ where
     /// Returns the old value if there was any
     pub fn insert_with_clear_key(&mut self, key: Key, value: T) -> Option<T>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|server_key| match (server_key, &mut self.inner) {
@@ -116,7 +115,7 @@ where
     /// if its not present
     pub fn update_with_clear_key(&mut self, key: &Key, value: T) -> Option<T>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|server_key| match (server_key, &mut self.inner) {
@@ -155,7 +154,7 @@ where
     /// be set when calling this function is order to set the Tag of the resulting ciphertext
     pub fn remove_with_clear_key(&mut self, key: &Key) -> Option<T>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|server_key| match (server_key, &mut self.inner) {
@@ -191,7 +190,7 @@ where
     /// be set when calling this function is order to set the Tag of the resulting ciphertext
     pub fn get_with_clear_key(&self, key: &Key) -> Option<T>
     where
-        Key: Eq + Hash,
+        Key: Ord,
     {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|server_key| match (server_key, &self.inner) {
@@ -227,7 +226,7 @@ where
 
 impl<Key, T> KVStore<Key, T>
 where
-    Key: Decomposable + CastInto<usize> + Hash + Eq,
+    Key: Decomposable + CastInto<usize> + Ord,
     T: FheIntegerType,
 {
     /// Gets the value corresponding to the encrypted key.
@@ -382,7 +381,7 @@ where
     /// Compressed the KVStore, making it serializable
     pub fn compress(&self) -> crate::Result<CompressedKVStore<Key, T>>
     where
-        Key: Copy + Display + Eq + Hash,
+        Key: Copy + Display + Ord,
         <T::Id as IntegerId>::InnerCpu: Compressible + Clone,
     {
         #[allow(unreachable_patterns)]
@@ -475,7 +474,7 @@ where
     pub fn decompress(&self) -> crate::Result<KVStore<Key, Value>>
     where
         <Value::Id as IntegerId>::InnerCpu: Expandable,
-        Key: Copy + Display + Eq + Hash,
+        Key: Copy + Display + Ord,
     {
         global_state::try_with_internal_keys(|key| match key {
             Some(InternalServerKey::Cpu(cpu_key)) => {
@@ -515,21 +514,19 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-    use std::hash::Hash;
-
     use crate::core_crypto::prelude::Numeric;
     use crate::high_level_api::kv_store::CompressedKVStore;
     use crate::prelude::*;
     use crate::{ClientKey, FheInt32, FheIntegerType, FheUint32, FheUint64, FheUint8, KVStore};
     use rand::prelude::*;
+    use std::collections::BTreeMap;
 
     fn create_kv_store<K, V, FheType>(
         num_keys: usize,
         ck: &ClientKey,
-    ) -> (KVStore<K, FheType>, HashMap<K, V>)
+    ) -> (KVStore<K, FheType>, BTreeMap<K, V>)
     where
-        K: Numeric + CastInto<usize> + Hash + Eq,
+        K: Numeric + CastInto<usize> + Ord,
         V: Numeric,
         rand::distributions::Standard:
             rand::distributions::Distribution<K> + rand::distributions::Distribution<V>,
@@ -539,7 +536,7 @@ mod test {
         let mut rng = rand::thread_rng();
 
         let mut kv_store = KVStore::new();
-        let mut clear_store = HashMap::new();
+        let mut clear_store = BTreeMap::new();
         while kv_store.len() != num_keys {
             let k = rng.gen::<K>();
             let v = rng.gen::<V>();
