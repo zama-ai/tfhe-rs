@@ -161,7 +161,7 @@ mod cuda {
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
     use itertools::Itertools;
     use std::cmp::max;
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
@@ -170,7 +170,9 @@ mod cuda {
     };
     use tfhe::integer::gpu::gen_keys_radix_gpu;
     use tfhe::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
+    use tfhe::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
     use tfhe::integer::noise_squashing::NoiseSquashingPrivateKey;
+    use tfhe::GpuIndex;
 
     fn gpu_glwe_packing(c: &mut Criterion) {
         let bench_name = "integer::cuda::packing_compression";
@@ -478,25 +480,34 @@ mod cuda {
                 BenchmarkType::Throughput => {
                     let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
                         .ceil() as usize;
-                    let elements = 100;
+                    let elements = 10;
                     bench_group.throughput(Throughput::Elements(elements));
 
                     // Encrypt
                     let local_streams = cuda_local_streams(num_block, elements as usize);
 
-                    let cuda_compression_key_vec = local_streams
-                        .iter()
-                        .map(|local_stream| {
+                    let num_gpus = get_number_of_gpus() as usize;
+
+                    let cuda_compression_key_vec: Vec<CudaNoiseSquashingKey> = (0..num_gpus)
+                        .into_par_iter()
+                        .map(|i| {
+                            let local_stream = &local_streams[i as usize % local_streams.len()];
                             compressed_noise_squashing_compression_key
                                 .decompress_to_cuda(local_stream)
                         })
-                        .collect_vec();
+                        .collect();
 
-                    let cuda_noise_squashing_compression_key =
-                        CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
-                            &noise_squashing_compression_key,
-                            &stream,
-                        );
+                    let cuda_noise_squashing_compression_key_vec: Vec<CudaNoiseSquashingCompressionKey> = (0
+                        ..num_gpus)
+                        .into_par_iter()
+                        .map(|i| {
+                            let local_stream = &local_streams[i as usize % local_streams.len()];
+                            CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
+                                &noise_squashing_compression_key,
+                                local_stream,
+                            )
+                        })
+                        .collect();
 
                     // Benchmark
                     let builders = (0..elements)
@@ -508,36 +519,38 @@ mod cuda {
                                 local_stream,
                             );
                             let cuda_noise_squashing_key =
-                                &cuda_compression_key_vec[(i as usize) % local_streams.len()];
+                                &cuda_compression_key_vec[(i as usize) % num_gpus];
+                            let cuda_noise_squashing_compression_key =
+                                &cuda_noise_squashing_compression_key_vec[(i as usize) % num_gpus];
                             let d_ns_ct = cuda_noise_squashing_key
                                 .squash_radix_ciphertext_noise(&cuda_sks, &d_ct.ciphertext, &stream)
                                 .unwrap();
                             let mut builder = CudaCompressedSquashedNoiseCiphertextList::builder();
                             builder.push(d_ns_ct, local_stream);
 
-                            builder
+                            (builder, cuda_noise_squashing_compression_key, local_stream)
                         })
                         .collect::<Vec<_>>();
 
                     bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                     bench_group.bench_function(&bench_id_pack, |b| {
                         b.iter(|| {
-                            builders.par_iter().enumerate().for_each(|(i, builder)| {
-                                let local_stream = &local_streams[i % local_streams.len()];
-
-                                builder.build(&cuda_noise_squashing_compression_key, local_stream);
-                            })
+                            builders.par_iter().for_each(
+                                |(builder, cuda_noise_squashing_compression_key, local_stream)| {
+                                    builder
+                                        .build(cuda_noise_squashing_compression_key, local_stream);
+                                },
+                            )
                         })
                     });
 
                     let compressed = builders
                         .iter()
-                        .enumerate()
-                        .map(|(i, builder)| {
-                            let local_stream = &local_streams[i % local_streams.len()];
-
-                            builder.build(&cuda_noise_squashing_compression_key, local_stream)
-                        })
+                        .map(
+                            |(builder, cuda_noise_squashing_compression_key, local_stream)| {
+                                builder.build(cuda_noise_squashing_compression_key, local_stream)
+                            },
+                        )
                         .collect::<Vec<_>>();
 
                     bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
