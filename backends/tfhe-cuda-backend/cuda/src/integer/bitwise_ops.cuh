@@ -22,13 +22,13 @@ __host__ uint64_t scratch_cuda_boolean_bitop(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_boolean_bitop(CudaStreams streams,
                                  CudaRadixCiphertextFFI *lwe_array_out,
                                  CudaRadixCiphertextFFI const *lwe_array_1,
                                  CudaRadixCiphertextFFI const *lwe_array_2,
                                  boolean_bitop_buffer<Torus> *mem_ptr,
-                                 void *const *bsks, Torus *const *ksks) {
+                                 void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -203,11 +203,11 @@ __host__ uint64_t scratch_cuda_boolean_bitnot(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_boolean_bitnot(CudaStreams streams,
                                   CudaRadixCiphertextFFI *lwe_array,
                                   boolean_bitnot_buffer<Torus> *mem_ptr,
-                                  void *const *bsks, Torus *const *ksks) {
+                                  void *const *bsks, KSTorus *const *ksks) {
   bool carries_empty = true;
   for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
     if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
@@ -228,13 +228,13 @@ __host__ void host_boolean_bitnot(CudaStreams streams,
   // this function calls `host_bitnot` with `ct_message_modulus = 2`
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_bitop(CudaStreams streams,
                          CudaRadixCiphertextFFI *lwe_array_out,
                          CudaRadixCiphertextFFI const *lwe_array_1,
                          CudaRadixCiphertextFFI const *lwe_array_2,
                          int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,
-                         Torus *const *ksks) {
+                         KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&

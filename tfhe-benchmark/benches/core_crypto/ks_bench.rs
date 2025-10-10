@@ -13,6 +13,10 @@ use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::core_crypto::prelude::*;
 
+use tfhe::core_crypto::prelude::{
+    DynamicDistribution,
+};
+
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
 fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     criterion: &mut Criterion,
@@ -328,6 +332,7 @@ mod cuda {
     use itertools::Itertools;
     use rayon::prelude::*;
     use serde::Serialize;
+    use tfhe::core_crypto::commons::math::random::BoundedDistribution;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::vec::GpuIndex;
@@ -361,24 +366,38 @@ mod cuda {
             let ks_decomp_base_log = params.ks_base_log.unwrap();
             let ks_decomp_level_count = params.ks_level.unwrap();
 
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+            let lwe_sk_32: LweSecretKeyOwned<u32> = allocate_and_generate_new_binary_lwe_secret_key(
                 lwe_dimension,
                 &mut secret_generator,
             );
 
-            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+            let glwe_sk_32: GlweSecretKeyOwned<u32> = allocate_and_generate_new_binary_glwe_secret_key(
                 glwe_dimension,
                 polynomial_size,
                 &mut secret_generator,
             );
-            let big_lwe_sk = glwe_sk.into_lwe_secret_key();
+
+            let lwe_sk_64: LweSecretKeyOwned<Scalar> = allocate_and_generate_new_binary_lwe_secret_key(
+                lwe_dimension,
+                &mut secret_generator,
+            );
+
+            let glwe_sk_64: GlweSecretKeyOwned<Scalar> = allocate_and_generate_new_binary_glwe_secret_key(
+                glwe_dimension,
+                polynomial_size,
+                &mut secret_generator,
+            );
+
+            let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
+
+            let big_lwe_sk_32 = glwe_sk_32.into_lwe_secret_key();
             let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-                &big_lwe_sk,
-                &lwe_sk,
+                &big_lwe_sk_32,
+                &lwe_sk_32,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
-                params.lwe_noise_distribution.unwrap(),
-                CiphertextModulus::new_native(),
+                tfhe::core_crypto::prelude::DynamicDistribution::<u32>::new_t_uniform(10),
+                CiphertextModulus::<u32>::new_native(),
                 &mut encryption_generator,
             );
 
@@ -394,7 +413,7 @@ mod cuda {
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
                     let ct = allocate_and_encrypt_new_lwe_ciphertext(
-                        &big_lwe_sk,
+                        &big_lwe_sk_64,
                         Plaintext(Scalar::ONE),
                         params.lwe_noise_distribution.unwrap(),
                         CiphertextModulus::new_native(),
@@ -402,15 +421,16 @@ mod cuda {
                     );
                     let mut ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &streams);
 
-                    let output_ct = LweCiphertext::new(
-                        Scalar::ZERO,
-                        lwe_sk.lwe_dimension().to_lwe_size(),
+                    let output_ct = LweCiphertext::<Vec<u32>>::new(
+                        0u32,
+                        lwe_sk_32.lwe_dimension().to_lwe_size(),
                         CiphertextModulus::new_native(),
                     );
                     let mut output_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &streams);
 
                     let h_indexes = [Scalar::ZERO];
+                    println!("Indexes : {:?}", h_indexes);
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
@@ -453,12 +473,12 @@ mod cuda {
                                 .map(|i| {
                                     let mut input_ct_list = LweCiphertextList::new(
                                         Scalar::ZERO,
-                                        big_lwe_sk.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
                                         params.ciphertext_modulus.unwrap(),
                                     );
                                     encrypt_lwe_ciphertext_list(
-                                        &big_lwe_sk,
+                                        &big_lwe_sk_64,
                                         &mut input_ct_list,
                                         &plaintext_list,
                                         params.lwe_noise_distribution.unwrap(),
@@ -466,7 +486,7 @@ mod cuda {
                                     );
                                     let input_ks_list = LweCiphertextList::from_container(
                                         input_ct_list.into_container(),
-                                        big_lwe_sk.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         params.ciphertext_modulus.unwrap(),
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext_list(
@@ -478,11 +498,11 @@ mod cuda {
 
                             let output_cts = (0..gpu_count)
                                 .map(|i| {
-                                    let output_ct_list = LweCiphertextList::new(
-                                        Scalar::ZERO,
-                                        lwe_sk.lwe_dimension().to_lwe_size(),
+                                    let output_ct_list = LweCiphertextList::<Vec<u32>>::new(
+                                        0u32,
+                                        lwe_sk_32.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
-                                        params.ciphertext_modulus.unwrap(),
+                                        CiphertextModulus::<u32>::new_native(),
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext_list(
                                         &output_ct_list,
@@ -541,7 +561,7 @@ mod cuda {
     }
 
     fn cuda_packing_keyswitch<
-        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize + CastInto<u32>,
     >(
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],

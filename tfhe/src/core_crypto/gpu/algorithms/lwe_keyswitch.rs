@@ -9,9 +9,9 @@ use crate::core_crypto::prelude::UnsignedInteger;
 /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until stream is synchronised
 pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar>(
-    lwe_keyswitch_key: &CudaLweKeyswitchKey<Scalar>,
+    lwe_keyswitch_key: &CudaLweKeyswitchKey<u32>,
     input_lwe_ciphertext: &CudaLweCiphertextList<Scalar>,
-    output_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    output_lwe_ciphertext: &mut CudaLweCiphertextList<u32>,
     input_indexes: &CudaVec<Scalar>,
     output_indexes: &CudaVec<Scalar>,
     streams: &CudaStreams,
@@ -86,9 +86,9 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar>(
 }
 
 pub fn cuda_keyswitch_lwe_ciphertext<Scalar>(
-    lwe_keyswitch_key: &CudaLweKeyswitchKey<Scalar>,
+    lwe_keyswitch_key: &CudaLweKeyswitchKey<u32>,
     input_lwe_ciphertext: &CudaLweCiphertextList<Scalar>,
-    output_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    output_lwe_ciphertext: &mut CudaLweCiphertextList<u32>,
     input_indexes: &CudaVec<Scalar>,
     output_indexes: &CudaVec<Scalar>,
     streams: &CudaStreams,
