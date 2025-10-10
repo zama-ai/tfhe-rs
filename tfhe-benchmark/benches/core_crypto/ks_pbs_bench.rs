@@ -509,12 +509,19 @@ mod cuda {
     };
     use tfhe::core_crypto::prelude::*;
 
-    fn cuda_ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
+    fn cuda_ks_pbs<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
+        KeyswitchScalar: UnsignedTorus + CastFrom<Scalar> + CastInto<usize>,
+    >(
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
-        let bench_name = "core_crypto::cuda::ks_pbs";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let bench_name = format!(
+            "core_crypto::cuda::ks_pbs::ks{}::pbs{}",
+            KeyswitchScalar::BITS,
+            Scalar::BITS
+        );
+        let mut bench_group = c.benchmark_group(bench_name.clone());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -533,28 +540,56 @@ mod cuda {
                 continue;
             }
 
-            // Create the LweSecretKey
-            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-                params.lwe_dimension.unwrap(),
-                &mut secret_generator,
-            );
-            let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            let lwe_noise_distribution_ksk = match params.lwe_noise_distribution.unwrap() {
+                DynamicDistribution::Gaussian(gaussian_lwe_noise_distribution) => {
+                    DynamicDistribution::<KeyswitchScalar>::new_gaussian(
+                        gaussian_lwe_noise_distribution.standard_dev(),
+                    )
+                }
+                DynamicDistribution::TUniform(uniform_lwe_noise_distribution) => {
+                    DynamicDistribution::<KeyswitchScalar>::new_t_uniform(
+                        match KeyswitchScalar::BITS {
+                            32 => uniform_lwe_noise_distribution.bound_log2() - 32,
+                            64 => uniform_lwe_noise_distribution.bound_log2(),
+                            _ => panic!("Unsupported Keyswitch scalar input dtype"),
+                        },
+                    )
+                }
+            };
+
+            let lwe_sk: LweSecretKeyOwned<KeyswitchScalar> =
+                allocate_and_generate_new_binary_lwe_secret_key(
+                    params.lwe_dimension.unwrap(),
+                    &mut secret_generator,
+                );
+
+            let glwe_sk: GlweSecretKeyOwned<KeyswitchScalar> =
                 allocate_and_generate_new_binary_glwe_secret_key(
                     params.glwe_dimension.unwrap(),
                     params.polynomial_size.unwrap(),
                     &mut secret_generator,
                 );
-            let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+            let big_lwe_sk = glwe_sk.into_lwe_secret_key();
 
             let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-                &output_lwe_secret_key,
-                &input_lwe_secret_key,
+                &big_lwe_sk,
+                &lwe_sk,
                 params.ks_base_log.unwrap(),
                 params.ks_level.unwrap(),
-                params.lwe_noise_distribution.unwrap(),
+                lwe_noise_distribution_ksk,
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
+
+            let glwe_sk_64: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    params.glwe_dimension.unwrap(),
+                    params.polynomial_size.unwrap(),
+                    &mut secret_generator,
+                );
+
+            let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
+            let ciphertext_modulus_out = CiphertextModulus::<KeyswitchScalar>::new_native();
 
             let bsk = LweBootstrapKey::new(
                 Scalar::ZERO,
@@ -566,7 +601,7 @@ mod cuda {
                 params.ciphertext_modulus.unwrap(),
             );
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+            let cpu_keys: CpuKeys<_, _> = CpuKeysBuilder::new()
                 .keyswitch_key(ksk_big_to_small)
                 .bootstrap_key(bsk)
                 .build();
@@ -580,7 +615,7 @@ mod cuda {
 
                     // Allocate a new LweCiphertext and encrypt our plaintext
                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
-                        &output_lwe_secret_key,
+                        &big_lwe_sk_64,
                         Plaintext(Scalar::ZERO),
                         params.lwe_noise_distribution.unwrap(),
                         params.ciphertext_modulus.unwrap(),
@@ -589,10 +624,10 @@ mod cuda {
                     let input_ks_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &streams);
 
-                    let output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
-                        Scalar::ZERO,
-                        input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                        params.ciphertext_modulus.unwrap(),
+                    let output_ks_ct: LweCiphertextOwned<KeyswitchScalar> = LweCiphertext::new(
+                        KeyswitchScalar::ZERO,
+                        lwe_sk.lwe_dimension().to_lwe_size(),
+                        ciphertext_modulus_out,
                     );
                     let mut output_ks_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &streams);
@@ -609,7 +644,7 @@ mod cuda {
                     // Allocate the LweCiphertext to store the result of the PBS
                     let output_pbs_ct = LweCiphertext::new(
                         Scalar::ZERO,
-                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_pbs_ct_gpu =
@@ -669,12 +704,12 @@ mod cuda {
                                 .map(|i| {
                                     let mut input_ks_list = LweCiphertextList::new(
                                         Scalar::ZERO,
-                                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
                                         params.ciphertext_modulus.unwrap(),
                                     );
                                     encrypt_lwe_ciphertext_list(
-                                        &output_lwe_secret_key,
+                                        &big_lwe_sk_64,
                                         &mut input_ks_list,
                                         &plaintext_list,
                                         params.lwe_noise_distribution.unwrap(),
@@ -690,10 +725,10 @@ mod cuda {
                             let output_ks_cts = (0..gpu_count)
                                 .map(|i| {
                                     let output_ks_list = LweCiphertextList::new(
-                                        Scalar::ZERO,
-                                        input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        KeyswitchScalar::ZERO,
+                                        lwe_sk.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
-                                        params.ciphertext_modulus.unwrap(),
+                                        ciphertext_modulus_out,
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext_list(
                                         &output_ks_list,
@@ -722,7 +757,7 @@ mod cuda {
                                 .map(|i| {
                                     let output_pbs_ct = LweCiphertextList::new(
                                         Scalar::ZERO,
-                                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
                                         params.ciphertext_modulus.unwrap(),
                                     );
@@ -820,12 +855,18 @@ mod cuda {
 
     fn cuda_multi_bit_ks_pbs<
         Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Default + Serialize + Sync,
+        KeyswitchScalar: UnsignedTorus + CastFrom<Scalar> + CastInto<usize>,
     >(
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
     ) {
-        let bench_name = "core_crypto::cuda::multi_bit_ks_pbs";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let bench_name = format!(
+            "core_crypto::cuda::multi_bit_ks_pbs::ks_pbs::ks{}::pbs{}",
+            KeyswitchScalar::BITS,
+            Scalar::BITS
+        );
+
+        let mut bench_group = c.benchmark_group(bench_name.clone());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -844,28 +885,56 @@ mod cuda {
                 continue;
             }
 
-            // Create the LweSecretKey
-            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-                params.lwe_dimension.unwrap(),
-                &mut secret_generator,
-            );
-            let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            let lwe_noise_distribution_ksk = match params.lwe_noise_distribution.unwrap() {
+                DynamicDistribution::Gaussian(gaussian_lwe_noise_distribution) => {
+                    DynamicDistribution::<KeyswitchScalar>::new_gaussian(
+                        gaussian_lwe_noise_distribution.standard_dev(),
+                    )
+                }
+                DynamicDistribution::TUniform(uniform_lwe_noise_distribution) => {
+                    DynamicDistribution::<KeyswitchScalar>::new_t_uniform(
+                        match KeyswitchScalar::BITS {
+                            32 => uniform_lwe_noise_distribution.bound_log2() - 32,
+                            64 => uniform_lwe_noise_distribution.bound_log2(),
+                            _ => panic!("Unsupported Keyswitch scalar input dtype"),
+                        },
+                    )
+                }
+            };
+
+            let lwe_sk: LweSecretKeyOwned<KeyswitchScalar> =
+                allocate_and_generate_new_binary_lwe_secret_key(
+                    params.lwe_dimension.unwrap(),
+                    &mut secret_generator,
+                );
+
+            let glwe_sk: GlweSecretKeyOwned<KeyswitchScalar> =
                 allocate_and_generate_new_binary_glwe_secret_key(
                     params.glwe_dimension.unwrap(),
                     params.polynomial_size.unwrap(),
                     &mut secret_generator,
                 );
-            let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+            let big_lwe_sk = glwe_sk.into_lwe_secret_key();
 
             let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-                &output_lwe_secret_key,
-                &input_lwe_secret_key,
+                &big_lwe_sk,
+                &lwe_sk,
                 params.ks_base_log.unwrap(),
                 params.ks_level.unwrap(),
-                params.lwe_noise_distribution.unwrap(),
+                lwe_noise_distribution_ksk,
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
+
+            let glwe_sk_64: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    params.glwe_dimension.unwrap(),
+                    params.polynomial_size.unwrap(),
+                    &mut secret_generator,
+                );
+
+            let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
+            let ciphertext_modulus_out = CiphertextModulus::<KeyswitchScalar>::new_native();
 
             let multi_bit_bsk = LweMultiBitBootstrapKey::new(
                 Scalar::ZERO,
@@ -878,7 +947,7 @@ mod cuda {
                 params.ciphertext_modulus.unwrap(),
             );
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+            let cpu_keys: CpuKeys<_, _> = CpuKeysBuilder::new()
                 .keyswitch_key(ksk_big_to_small)
                 .multi_bit_bootstrap_key(multi_bit_bsk)
                 .build();
@@ -892,7 +961,7 @@ mod cuda {
 
                     // Allocate a new LweCiphertext and encrypt our plaintext
                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
-                        &output_lwe_secret_key,
+                        &big_lwe_sk_64,
                         Plaintext(Scalar::ZERO),
                         params.lwe_noise_distribution.unwrap(),
                         params.ciphertext_modulus.unwrap(),
@@ -901,10 +970,10 @@ mod cuda {
                     let input_ks_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &streams);
 
-                    let output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
-                        Scalar::ZERO,
-                        input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                        params.ciphertext_modulus.unwrap(),
+                    let output_ks_ct: LweCiphertextOwned<KeyswitchScalar> = LweCiphertext::new(
+                        KeyswitchScalar::ZERO,
+                        lwe_sk.lwe_dimension().to_lwe_size(),
+                        ciphertext_modulus_out,
                     );
                     let mut output_ks_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &streams);
@@ -921,7 +990,7 @@ mod cuda {
                     // Allocate the LweCiphertext to store the result of the PBS
                     let output_pbs_ct = LweCiphertext::new(
                         Scalar::ZERO,
-                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_pbs_ct_gpu =
@@ -979,12 +1048,12 @@ mod cuda {
                                 .map(|i| {
                                     let mut input_ks_list = LweCiphertextList::new(
                                         Scalar::ZERO,
-                                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
                                         params.ciphertext_modulus.unwrap(),
                                     );
                                     encrypt_lwe_ciphertext_list(
-                                        &output_lwe_secret_key,
+                                        &big_lwe_sk_64,
                                         &mut input_ks_list,
                                         &plaintext_list,
                                         params.lwe_noise_distribution.unwrap(),
@@ -1000,10 +1069,10 @@ mod cuda {
                             let output_ks_cts = (0..gpu_count)
                                 .map(|i| {
                                     let output_ks_list = LweCiphertextList::new(
-                                        Scalar::ZERO,
-                                        input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        KeyswitchScalar::ZERO,
+                                        lwe_sk.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
-                                        params.ciphertext_modulus.unwrap(),
+                                        ciphertext_modulus_out,
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext_list(
                                         &output_ks_list,
@@ -1032,7 +1101,7 @@ mod cuda {
                                 .map(|i| {
                                     let output_pbs_ct = LweCiphertextList::new(
                                         Scalar::ZERO,
-                                        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                        big_lwe_sk_64.lwe_dimension().to_lwe_size(),
                                         LweCiphertextCount(elements_per_stream),
                                         params.ciphertext_modulus.unwrap(),
                                     );
@@ -1130,12 +1199,17 @@ mod cuda {
 
     pub fn cuda_ks_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_ks_pbs(&mut criterion, &benchmark_parameters());
+        cuda_ks_pbs::<u64, u32>(&mut criterion, &benchmark_parameters());
+        cuda_ks_pbs::<u64, u64>(&mut criterion, &benchmark_parameters());
     }
 
     pub fn cuda_multi_bit_ks_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_multi_bit_ks_pbs(
+        cuda_multi_bit_ks_pbs::<u64, u32>(
+            &mut criterion,
+            &multi_bit_benchmark_parameters_with_grouping(),
+        );
+        cuda_multi_bit_ks_pbs::<u64, u64>(
             &mut criterion,
             &multi_bit_benchmark_parameters_with_grouping(),
         );

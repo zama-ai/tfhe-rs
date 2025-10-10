@@ -35,12 +35,13 @@ namespace cg = cooperative_groups;
  *
  * Each y-block computes one element of the lwe_array_out.
  */
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename InputTorus, typename Torus, class params,
+          sharedMemDegree SMD>
 __global__ void device_programmable_bootstrap_cg(
     Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     const Torus *__restrict__ lut_vector,
     const Torus *__restrict__ lut_vector_indexes,
-    const Torus *__restrict__ lwe_array_in,
+    const InputTorus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes,
     const double2 *__restrict__ bootstrapping_key, double2 *join_buffer,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -79,7 +80,7 @@ __global__ void device_programmable_bootstrap_cg(
 
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
-  const Torus *block_lwe_array_in =
+  const InputTorus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
@@ -95,8 +96,8 @@ __global__ void device_programmable_bootstrap_cg(
 
   // Put "b" in [0, 2N[
   constexpr auto log_modulus = params::log2_degree + 1;
-  Torus b_hat = 0;
-  Torus correction = 0;
+  InputTorus b_hat = 0;
+  InputTorus correction = 0;
   if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
     correction = centered_binary_modulus_switch_body_correction_to_add(
         block_lwe_array_in, lwe_dimension, log_modulus);
@@ -113,7 +114,7 @@ __global__ void device_programmable_bootstrap_cg(
     __syncthreads();
 
     // Put "a" in [0, 2N[
-    Torus a_hat = 0;
+    InputTorus a_hat = 0;
     modulus_switch(block_lwe_array_in[i], a_hat, params::log2_degree + 1);
 
     // Perform ACC * (X^ä - 1)
@@ -193,7 +194,7 @@ __global__ void device_programmable_bootstrap_cg(
   }
 }
 
-template <typename Torus, typename params>
+template <typename InputTorus, typename Torus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_cg(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t lwe_dimension,
@@ -210,18 +211,18 @@ __host__ uint64_t scratch_programmable_bootstrap_cg(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -237,11 +238,11 @@ __host__ uint64_t scratch_programmable_bootstrap_cg(
 /*
  * Host wrapper
  */
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ void host_programmable_bootstrap_cg(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -293,26 +294,29 @@ __host__ void host_programmable_bootstrap_cg(
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, grid,
-        thds, (void **)kernel_args, 0, stream));
+        (void *)
+            device_programmable_bootstrap_cg<InputTorus, Torus, params, NOSM>,
+        grid, thds, (void **)kernel_args, 0, stream));
   } else if (max_shared_memory < full_sm) {
     kernel_args[13] = &partial_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        (void *)device_programmable_bootstrap_cg<InputTorus, Torus, params,
+                                                 PARTIALSM>,
         grid, thds, (void **)kernel_args, partial_sm, stream));
   } else {
     int no_dm = 0;
     kernel_args[13] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, grid,
-        thds, (void **)kernel_args, full_sm, stream));
+        (void *)
+            device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
+        grid, thds, (void **)kernel_args, full_sm, stream));
   }
 
   check_cuda_error(cudaGetLastError());
 }
 
 // Verify if the grid size satisfies the cooperative group constraints
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
     int glwe_dimension, int level_count, int num_samples,
     uint32_t max_shared_memory) {
@@ -338,30 +342,34 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
   if (max_shared_memory < partial_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, thds, 0);
+        (void *)
+            device_programmable_bootstrap_cg<InputTorus, Torus, params, NOSM>,
+        thds, 0);
   } else if (max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        (void *)device_programmable_bootstrap_cg<InputTorus, Torus, params,
+                                                 PARTIALSM>,
         thds, partial_sm);
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, thds,
-        full_sm);
+        (void *)
+            device_programmable_bootstrap_cg<InputTorus, Torus, params, FULLSM>,
+        thds, full_sm);
     check_cuda_error(cudaGetLastError());
   }
 
@@ -372,39 +380,39 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 }
 
 // Verify if the grid size satisfies the cooperative group constraints
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
   switch (polynomial_size) {
   case 256:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<256>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 512:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<512>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 1024:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<1024>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 2048:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<2048>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 4096:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<4096>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 8192:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<8192>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   case 16384:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
-                                       max_shared_memory);
+        InputTorus, Torus, AmortizedDegree<16384>>(
+        glwe_dimension, level_count, num_samples, max_shared_memory);
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"

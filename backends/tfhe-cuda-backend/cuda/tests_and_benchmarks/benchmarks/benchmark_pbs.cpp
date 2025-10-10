@@ -166,14 +166,15 @@ public:
 #if CUDA_ARCH >= 900
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+  if (!has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t,
+                                                                uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           pbs_level, cuda_get_max_shared_memory(0))) {
     st.SkipWithError("Configuration not supported for tbc operation");
     return;
   }
 
-  scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
+  scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t, uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
@@ -181,7 +182,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
-    cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t,
+                                                                    uint64_t>(
         stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
@@ -197,7 +199,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
+  if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit_64(
           glwe_dimension, polynomial_size, pbs_level,
           input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
     st.SkipWithError("Configuration not supported for fast operation");
@@ -254,7 +256,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
 #if CUDA_ARCH >= 900
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
+  if (!has_support_to_cuda_programmable_bootstrap_tbc<uint64_t, uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           pbs_level, cuda_get_max_shared_memory(0))) {
     st.SkipWithError("Configuration not supported for tbc operation");
@@ -269,7 +271,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
-    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
+    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t, uint64_t>(
         stream, gpu_index, (uint64_t *)d_lwe_ct_out_array,
         (uint64_t *)d_lwe_output_indexes, (uint64_t *)d_lut_pbs_identity,
         (uint64_t *)d_lut_pbs_indexes, (uint64_t *)d_lwe_ct_in_array,
@@ -286,7 +288,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
 
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
+  if (!has_support_to_cuda_programmable_bootstrap_cg<uint64_t, uint64_t>(
           glwe_dimension, polynomial_size, pbs_level,
           input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
     st.SkipWithError("Configuration not supported for fast operation");
@@ -301,7 +303,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
-    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
+    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t, uint64_t>(
         stream, gpu_index, (uint64_t *)d_lwe_ct_out_array,
         (uint64_t *)d_lwe_output_indexes, (uint64_t *)d_lut_pbs_identity,
         (uint64_t *)d_lut_pbs_indexes, (uint64_t *)d_lwe_ct_in_array,

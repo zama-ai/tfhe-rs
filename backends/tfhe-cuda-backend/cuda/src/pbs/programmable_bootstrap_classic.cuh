@@ -17,12 +17,13 @@
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
 
-template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
+template <typename InputTorus, typename Torus, class params,
+          sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one(
         const Torus *__restrict__ lut_vector,
         const Torus *__restrict__ lut_vector_indexes,
-        const Torus *__restrict__ lwe_array_in,
+        const InputTorus *__restrict__ lwe_array_in,
         const Torus *__restrict__ lwe_input_indexes, Torus *global_accumulator,
         double2 *global_join_buffer, uint32_t lwe_iteration,
         uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -55,7 +56,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
-  const Torus *block_lwe_array_in =
+  const InputTorus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
@@ -75,8 +76,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     // First iteration
     // Put "b" in [0, 2N[
     constexpr auto log_modulus = params::log2_degree + 1;
-    Torus b_hat = 0;
-    Torus correction = 0;
+    InputTorus b_hat = 0;
+    InputTorus correction = 0;
     if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
       correction = centered_binary_modulus_switch_body_correction_to_add(
           block_lwe_array_in, lwe_dimension, log_modulus);
@@ -86,6 +87,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
     // The y-dimension is used to select the element of the GLWE this block will
     // compute
+    // b_hat is cast from InputTorus (i.e. 64b or 32b) to uint32_t here
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                           params::degree / params::opt>(
         accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
@@ -100,7 +102,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 
   // Put "a" in [0, 2N[
-  Torus a_hat = 0;
+  InputTorus a_hat = 0;
   modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
                  params::log2_degree + 1); // 2 * params::log2_degree + 1);
 
@@ -307,7 +309,7 @@ uint64_t get_buffer_size_programmable_bootstrap(
   return buffer_size + buffer_size % sizeof(double2);
 }
 
-template <typename Torus, typename params>
+template <typename InputTorus, typename Torus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t lwe_dimension,
@@ -331,30 +333,38 @@ __host__ uint64_t scratch_programmable_bootstrap(
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, true>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, true>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               PARTIALSM, true>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, false>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               PARTIALSM, false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, false>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               PARTIALSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM, true>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               FULLSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM, true>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               FULLSM, true>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM, false>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               FULLSM, false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM, false>,
+        device_programmable_bootstrap_step_one<InputTorus, Torus, params,
+                                               FULLSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -398,10 +408,10 @@ __host__ uint64_t scratch_programmable_bootstrap(
   return size_tracker;
 }
 
-template <typename Torus, class params, bool first_iter>
+template <typename InputTorus, typename Torus, class params, bool first_iter>
 __host__ void execute_step_one(
     cudaStream_t stream, uint32_t gpu_index, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     Torus *global_accumulator, double2 *global_join_buffer,
     uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
@@ -416,21 +426,24 @@ __host__ void execute_step_one(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_one<Torus, params, NOSM, first_iter>
+    device_programmable_bootstrap_step_one<InputTorus, Torus, params, NOSM,
+                                           first_iter>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
             lwe_dimension, polynomial_size, base_log, level_count, d_mem,
             full_dm, noise_reduction_type);
   } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, first_iter>
+    device_programmable_bootstrap_step_one<InputTorus, Torus, params, PARTIALSM,
+                                           first_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
             lwe_dimension, polynomial_size, base_log, level_count, d_mem,
             partial_dm, noise_reduction_type);
   } else {
-    device_programmable_bootstrap_step_one<Torus, params, FULLSM, first_iter>
+    device_programmable_bootstrap_step_one<InputTorus, Torus, params, FULLSM,
+                                           first_iter>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             global_accumulator, global_join_buffer, lwe_iteration,
@@ -484,11 +497,11 @@ __host__ void execute_step_two(
 /*
  * Host wrapper to the programmable bootstrap
  */
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ void host_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -520,7 +533,7 @@ __host__ void host_programmable_bootstrap(
 
   for (int i = 0; i < lwe_dimension; i++) {
     if (i == 0) {
-      execute_step_one<Torus, params, true>(
+      execute_step_one<InputTorus, Torus, params, true>(
           stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, global_accumulator,
           global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
@@ -528,7 +541,7 @@ __host__ void host_programmable_bootstrap(
           partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one,
           noise_reduction_type);
     } else {
-      execute_step_one<Torus, params, false>(
+      execute_step_one<InputTorus, Torus, params, false>(
           stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, global_accumulator,
           global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,

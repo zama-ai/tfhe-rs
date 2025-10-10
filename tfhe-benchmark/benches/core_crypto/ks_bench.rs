@@ -415,7 +415,7 @@ mod cuda {
             let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
             let ciphertext_modulus_out = CiphertextModulus::<KeyswitchScalar>::new_native();
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+            let cpu_keys: CpuKeys<Scalar, KeyswitchScalar> = CpuKeysBuilder::new()
                 .keyswitch_key(ksk_big_to_small)
                 .build();
 
@@ -667,7 +667,8 @@ mod cuda {
                 &mut encryption_generator,
             );
 
-            let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().packing_keyswitch_key(pksk).build();
+            let cpu_keys: CpuKeys<Scalar, Scalar> =
+                CpuKeysBuilder::new().packing_keyswitch_key(pksk).build();
 
             let bench_id;
             match get_bench_type() {

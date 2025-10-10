@@ -535,7 +535,6 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   dim3 grid_negate(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
                    CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
   dim3 threads_negate(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
-
   // Negate all outputs in the output LWEs. This is the final step in the GEMM
   // keyswitch computed as: -(-b + sum(a_i A_KSK))
   keyswitch_negate_with_output_indices<Torus, KSTorus>

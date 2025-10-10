@@ -428,29 +428,29 @@ uint64_t get_buffer_size_programmable_bootstrap_cg(
   return buffer_size + buffer_size % sizeof(double2);
 }
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t polynomial_size,
                                                    uint32_t level_count,
                                                    uint32_t num_samples,
                                                    uint32_t max_shared_memory);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -458,11 +458,11 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t lut_stride);
 
 #if (CUDA_ARCH >= 900)
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -477,14 +477,14 @@ uint64_t scratch_cuda_programmable_bootstrap_tbc(
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 #endif
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 uint64_t scratch_cuda_programmable_bootstrap_cg(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 uint64_t scratch_cuda_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,

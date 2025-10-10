@@ -10,8 +10,8 @@ use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<InputScalar, Scalar>(
+    input: &CudaLweCiphertextList<InputScalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     lut_indexes: &CudaVec<Scalar>,
@@ -20,6 +20,7 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
     multi_bit_bsk: &CudaLweMultiBitBootstrapKey<Scalar>,
     streams: &CudaStreams,
 ) where
+    InputScalar: UnsignedTorus + CastInto<usize>,
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
 {
@@ -59,21 +60,22 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
         multi_bit_bsk.polynomial_size(),
     );
 
-    assert_eq!(
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
+    assert!(
+        input.ciphertext_modulus().associated_scalar_bits()
+            <= output.ciphertext_modulus().associated_scalar_bits(),
         "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
         input.ciphertext_modulus(),
         output.ciphertext_modulus(),
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        "Mismatched CiphertextModulus between output ({:?}) and accumulator ({:?})",
         input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
+
     assert_eq!(
         streams.gpu_indexes[0],
         multi_bit_bsk.d_vec.gpu_index(0),
@@ -144,8 +146,8 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<InputScalar, Scalar>(
+    input: &CudaLweCiphertextList<InputScalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     lut_indexes: &CudaVec<Scalar>,
@@ -154,6 +156,7 @@ pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
     multi_bit_bsk: &CudaLweMultiBitBootstrapKey<Scalar>,
     streams: &CudaStreams,
 ) where
+    InputScalar: UnsignedTorus + CastInto<usize>,
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
 {

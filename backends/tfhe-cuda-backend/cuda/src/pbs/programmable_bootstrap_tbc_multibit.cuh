@@ -18,13 +18,14 @@
 #include "types/complex/operations.cuh"
 #include <vector>
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename InputTorus, typename Torus, class params,
+          sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_tbc_accumulate(
         Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         const Torus *__restrict__ lut_vector,
         const Torus *__restrict__ lut_vector_indexes,
-        const Torus *__restrict__ lwe_array_in,
+        const InputTorus *__restrict__ lwe_array_in,
         const Torus *__restrict__ lwe_input_indexes,
         const double2 *__restrict__ keybundle_array, double2 *join_buffer,
         Torus *global_accumulator, uint32_t lwe_dimension,
@@ -67,7 +68,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // The first dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
-  const Torus *block_lwe_array_in =
+  const InputTorus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
@@ -87,7 +88,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   if (lwe_offset == 0) {
     // Put "b" in [0, 2N[
-    Torus b_hat = 0;
+    InputTorus b_hat = 0;
     modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
                    params::log2_degree + 1);
 
@@ -197,13 +198,14 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 //- Use a register based fft that uses the minimal synchronizations
 //- Register based fourier domain multiplication. Transfer fft's between blocks
 // instead of accumulator.
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename InputTorus, typename Torus, class params,
+          sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
         Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         const Torus *__restrict__ lut_vector,
         const Torus *__restrict__ lut_vector_indexes,
-        const Torus *__restrict__ lwe_array_in,
+        const InputTorus *__restrict__ lwe_array_in,
         const Torus *__restrict__ lwe_input_indexes,
         const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
         uint32_t lwe_dimension, uint32_t lwe_offset, uint32_t lwe_chunk_size,
@@ -247,7 +249,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // The first dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
-  const Torus *block_lwe_array_in =
+  const InputTorus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
@@ -266,7 +268,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   Torus reg_acc_rotated[params::opt];
   if (lwe_offset == 0) {
     // Put "b" in [0, 2N[
-    Torus b_hat = 0;
+    InputTorus b_hat = 0;
     modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
                    params::log2_degree + 1);
 
@@ -400,7 +402,7 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 
-template <typename Torus, typename params>
+template <typename InputTorus, typename Torus, typename params>
 __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
@@ -430,20 +432,22 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
 
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
+        device_multi_bit_programmable_bootstrap_keybundle<InputTorus, Torus,
+                                                          params, NOSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
     cudaFuncSetCacheConfig(
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
+        device_multi_bit_programmable_bootstrap_keybundle<InputTorus, Torus,
+                                                          params, NOSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
-                                                          FULLSM>,
+        device_multi_bit_programmable_bootstrap_keybundle<InputTorus, Torus,
+                                                          params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
     cudaFuncSetCacheConfig(
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
-                                                          FULLSM>,
+        device_multi_bit_programmable_bootstrap_keybundle<InputTorus, Torus,
+                                                          params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -451,58 +455,58 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
   if (max_shared_memory <
       partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               NOSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, NOSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize,
         minimum_sm_tbc_accumulate));
     cudaFuncSetCacheConfig(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               NOSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, NOSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory <
              full_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               PARTIALSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize,
         partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate));
     cudaFuncSetCacheConfig(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               PARTIALSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else {
     if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
           full_sm_tbc_accumulate + 2 * minimum_sm_tbc_accumulate));
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributePreferredSharedMemoryCarveout,
           cudaSharedmemCarveoutMaxShared));
       check_cuda_error(cudaFuncSetCacheConfig(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncCachePreferShared));
     } else {
       check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                                 FULLSM>,
+          device_multi_bit_programmable_bootstrap_tbc_accumulate<
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
           full_sm_tbc_accumulate + minimum_sm_tbc_accumulate));
       cudaFuncSetCacheConfig(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                                 FULLSM>,
+          device_multi_bit_programmable_bootstrap_tbc_accumulate<
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncCachePreferShared);
     }
     check_cuda_error(cudaGetLastError());
   }
 
-  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+  auto lwe_chunk_size = get_lwe_chunk_size<InputTorus, Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
       level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
@@ -513,10 +517,10 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
   return size_tracker;
 }
 
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ void execute_tbc_external_product_loop(
     cudaStream_t stream, uint32_t gpu_index, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
@@ -580,8 +584,8 @@ __host__ void execute_tbc_external_product_loop(
     config.dynamicSmemBytes = minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
         &config,
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               NOSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, NOSM>,
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
@@ -592,8 +596,8 @@ __host__ void execute_tbc_external_product_loop(
     config.dynamicSmemBytes = partial_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
         &config,
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               PARTIALSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, PARTIALSM>,
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
@@ -608,22 +612,22 @@ __host__ void execute_tbc_external_product_loop(
       config.dynamicSmemBytes = full_dm + 2 * minimum_dm;
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
           full_dm + 2 * minimum_dm));
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributePreferredSharedMemoryCarveout,
           cudaSharedmemCarveoutMaxShared));
       check_cuda_error(cudaFuncSetCacheConfig(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncCachePreferShared));
       check_cuda_error(cudaLaunchKernelEx(
           &config,
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, global_accumulator,
           lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input,
@@ -631,8 +635,8 @@ __host__ void execute_tbc_external_product_loop(
     } else {
       check_cuda_error(cudaLaunchKernelEx(
           &config,
-          device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                                 FULLSM>,
+          device_multi_bit_programmable_bootstrap_tbc_accumulate<
+              InputTorus, Torus, params, FULLSM>,
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
           global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
@@ -643,11 +647,11 @@ __host__ void execute_tbc_external_product_loop(
   }
 }
 
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ void host_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
@@ -660,13 +664,13 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
+    execute_compute_keybundle<InputTorus, Torus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, level_count, lwe_offset);
 
     // Accumulate
-    execute_tbc_external_product_loop<Torus, params>(
+    execute_tbc_external_product_loop<InputTorus, Torus, params>(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
@@ -691,7 +695,7 @@ bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
   }
 }
 
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t max_shared_memory) {
@@ -733,45 +737,45 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
   if (max_shared_memory <
       partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               NOSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, NOSM>,
         cudaFuncAttributeNonPortableClusterSizeAllowed, false));
     check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
         &cluster_size,
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               NOSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, NOSM>,
         &config));
   } else if (max_shared_memory <
              full_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               PARTIALSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, PARTIALSM>,
         cudaFuncAttributeNonPortableClusterSizeAllowed, false));
     check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
         &cluster_size,
-        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                               PARTIALSM>,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<
+            InputTorus, Torus, params, PARTIALSM>,
         &config));
   } else {
     if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributeNonPortableClusterSizeAllowed, false));
       check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
           &cluster_size,
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
+              InputTorus, Torus, params, FULLSM>,
           &config));
     } else {
       check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                                 FULLSM>,
+          device_multi_bit_programmable_bootstrap_tbc_accumulate<
+              InputTorus, Torus, params, FULLSM>,
           cudaFuncAttributeNonPortableClusterSizeAllowed, false));
       check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
           &cluster_size,
-          device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
-                                                                 FULLSM>,
+          device_multi_bit_programmable_bootstrap_tbc_accumulate<
+              InputTorus, Torus, params, FULLSM>,
           &config));
     }
   }
