@@ -25,6 +25,8 @@ pub(crate) mod lwe_programmable_bootstrapping;
 mod modulus_switch_compression;
 pub(crate) mod modulus_switch_noise_reduction;
 pub(crate) mod noise_distribution;
+#[cfg(feature = "gpu")]
+use crate::shortint::{CarryModulus, MaxNoiseLevel};
 
 pub struct TestResources {
     pub seeder: Box<dyn Seeder>,
@@ -224,6 +226,27 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
+};
+
+#[cfg(feature = "gpu")]
+pub const MULTI_BIT_2_2_2_KS32_PARAMS: MultiBitTestKS32Params<u64> = MultiBitTestKS32Params {
+    lwe_dimension: LweDimension(920),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(13),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(5),
+    message_modulus_log: MessageModulusLog(2),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    log2_p_fail: -134.345,
+    ciphertext_modulus: crate::shortint::CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+    grouping_factor: LweBskGroupingFactor(4),
+    deterministic_execution: false,
 };
 
 pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {

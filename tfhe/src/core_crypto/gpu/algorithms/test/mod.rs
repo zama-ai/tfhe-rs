@@ -60,6 +60,26 @@ macro_rules! create_gpu_multi_bit_parameterized_test{
         });
     };
 }
-
+macro_rules! create_gpu_multi_bit_ks32_parameterized_test{
+    ($name:ident { $($param:ident),* }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_gpu_ $name _ $param:lower>]() {
+                $name(&$param)
+            }
+            )*
+        }
+    };
+    ($name:ident)=> {
+        create_gpu_multi_bit_ks32_parameterized_test!($name
+        {
+            MULTI_BIT_2_2_2_KS32_PARAMS
+        });
+    };
+}
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-use {create_gpu_multi_bit_parameterized_test, create_gpu_parameterized_test};
+use {
+    create_gpu_multi_bit_ks32_parameterized_test, create_gpu_multi_bit_parameterized_test,
+    create_gpu_parameterized_test,
+};
