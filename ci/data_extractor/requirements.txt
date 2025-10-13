@@ -1,0 +1,4 @@
+psycopg2-binary==2.9.9
+py-markdown-table==1.3.0
+svg.py==1.5.0
+black
