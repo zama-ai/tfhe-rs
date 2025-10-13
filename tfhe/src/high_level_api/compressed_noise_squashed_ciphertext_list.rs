@@ -634,11 +634,11 @@ mod tests {
 
     #[test]
     fn test_compressed_squashed_noise_ciphertext_list() {
-        let params = V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_params =
-            V1_4_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            V1_5_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_compression_params =
-            V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            V1_5_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .enable_noise_squashing(noise_squashing_params)
@@ -692,11 +692,11 @@ mod tests {
     #[test]
     #[cfg(feature = "gpu")]
     fn test_gpu_compressed_squashed_noise_ciphertext_list() {
-        let params = V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_params =
-            V1_4_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            V1_5_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_compression_params =
-            V1_4_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            V1_5_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .enable_noise_squashing(noise_squashing_params)

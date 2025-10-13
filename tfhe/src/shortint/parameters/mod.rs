@@ -58,9 +58,10 @@ pub mod v1_1;
 pub mod v1_2;
 pub mod v1_3;
 pub mod v1_4;
+pub mod v1_5;
 // TODO, what do we do about this one ?
 pub use aliases::*;
-pub use v1_4 as current_params;
+pub use v1_5 as current_params;
 
 pub use super::atomic_pattern::{AtomicPatternKind, AtomicPatternParameters};
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;

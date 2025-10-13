@@ -323,21 +323,21 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::current_params::{
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     /// ```
     pub fn new<'input_key, InputEncryptionKey>(
@@ -469,21 +469,21 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::current_params::{
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     ///
     /// let cleartext = 1;
@@ -615,21 +615,21 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::current_params::{
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_4_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_4_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     ///
     /// let cleartext = 1;
