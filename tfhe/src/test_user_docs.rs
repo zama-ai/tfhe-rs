@@ -48,7 +48,11 @@ mod test_cpu_doc {
     );
     doctest!(
         "../docs/fhe-computation/advanced-features/upgrade-key-chain.md",
-        upgrade_key_chain
+        advanced_upgrade_key_chain
+    );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/rerand.md",
+        advanced_rerand
     );
 
     // COMPUTE
