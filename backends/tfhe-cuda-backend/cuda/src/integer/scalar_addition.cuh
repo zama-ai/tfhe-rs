@@ -53,6 +53,7 @@ __host__ void host_scalar_addition_inplace(
   for (uint i = 0; i < num_scalars; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + h_scalar_input[i];
   }
+  cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 }
 
 template <typename Torus>
@@ -93,6 +94,7 @@ __host__ void host_add_scalar_one_inplace(CudaStreams streams,
   for (uint i = 0; i < lwe_array->num_radix_blocks; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + 1;
   }
+  cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 }
 
 template <typename Torus>
@@ -134,5 +136,6 @@ __host__ void host_scalar_subtraction_inplace(
                                              input_lwe_ciphertext_count,
                                              lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
+  cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 }
 #endif

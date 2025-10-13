@@ -79,6 +79,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     this->carry_lut->release(streams);
     delete this->carry_lut;
     this->carry_lut = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -140,6 +141,7 @@ template <typename Torus> struct int_aes_round_workspaces {
                                    allocate_gpu_memory);
     delete this->vec_tmp_bit_buffer;
     this->vec_tmp_bit_buffer = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -206,12 +208,12 @@ template <typename Torus> struct int_aes_counter_workspaces {
     delete this->vec_trivial_b_bits_buffer;
     this->vec_trivial_b_bits_buffer = nullptr;
 
-    free(this->h_counter_bits_buffer);
     if (allocate_gpu_memory) {
       cuda_drop_async(this->d_counter_bits_buffer, streams.stream(0),
                       streams.gpu_index(0));
-      streams.synchronize();
     }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    free(this->h_counter_bits_buffer);
   }
 };
 
@@ -303,6 +305,7 @@ template <typename Torus> struct int_aes_main_workspaces {
                                    allocate_gpu_memory);
     delete this->batch_processing_buffer;
     this->batch_processing_buffer = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -366,6 +369,7 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     main_workspaces->release(streams, allocate_gpu_memory);
     delete main_workspaces;
     main_workspaces = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -434,6 +438,7 @@ template <typename Torus> struct int_key_expansion_buffer {
 
     this->aes_encrypt_buffer->release(streams);
     delete this->aes_encrypt_buffer;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
