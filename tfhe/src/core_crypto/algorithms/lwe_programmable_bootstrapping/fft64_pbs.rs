@@ -264,7 +264,7 @@ pub fn blind_rotate_assign_mem_optimized_requirement<OutputScalar>(
 ///
 /// ```text
 /// out <- out + glwe * ggsw
-/// ```rust
+/// ```
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`add_external_product_assign_mem_optimized`].
@@ -307,7 +307,7 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///
 /// ```text
 /// out <- out + glwe * ggsw
-/// ```rust
+/// ```
 ///
 /// # Example
 ///
@@ -338,8 +338,8 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///     &mut secret_generator,
 /// );
 ///
-/// // Create the plaintext, here we will multiply by 3
-/// let msg_ggsw = Plaintext(3u64);
+/// // Create the cleartext, here we will multiply by 3
+/// let msg_ggsw = Cleartext(3u64);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw = GgswCiphertext::new(
@@ -492,7 +492,7 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
 /// ```text
 /// ct1 <- ct1 - ct0
 /// ct0 <- ct1 * ggsw + ct0
-/// ```rust
+/// ```
 ///
 /// Therefore encrypting values other than 0 or 1 in the `ggsw` will yield a linear combination of
 /// `ct0` and `ct1`
@@ -507,7 +507,7 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
 ///         return ct1
 ///     else:
 ///         return ct0
-/// ```rust
+/// ```
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`cmux_assign_mem_optimized`].
