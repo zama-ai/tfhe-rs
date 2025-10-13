@@ -54,6 +54,7 @@
   * [Multi-threading with Rayon crate](fhe-computation/advanced-features/rayon-crate.md)
   * [Noise squashing](fhe-computation/advanced-features/noise-squashing.md)
   * [Key upgrade](fhe-computation/advanced-features/upgrade-key-chain.md)
+  * [Ciphertexts Rerandomization](fhe-computation/advanced-features/rerand.md)
 * [Tooling](fhe-computation/tooling/README.md)
   * [PBS statistics](fhe-computation/tooling/pbs-stats.md)
   * [Generic trait bounds](fhe-computation/tooling/trait-bounds.md)
