@@ -108,6 +108,10 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         }
     }
 
+    pub fn from_raw_parts(gen: RandomGenerator<G>) -> Self {
+        Self { gen }
+    }
+
     /// Create a new [`NoiseRandomGenerator`], using the provided seed
     pub fn new_from_seed(seed: impl Into<SeedKind>) -> Self {
         Self {
