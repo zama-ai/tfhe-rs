@@ -578,6 +578,7 @@ mod tests {
     use crate::integer::ciphertext::CompressedCiphertextListBuilder;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
+    use crate::shortint::parameters::v1_4::V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_MB_GPU;
     use crate::shortint::parameters::*;
     use crate::shortint::ShortintParameterSet;
     use rand::Rng;
@@ -739,6 +740,10 @@ mod tests {
             (
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                V1_4_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_MB_GPU,
             ),
             (
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
