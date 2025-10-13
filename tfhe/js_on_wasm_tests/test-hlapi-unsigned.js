@@ -80,7 +80,7 @@ test("hlapi_key_gen_big", (t) => {
 
 test("hlapi_key_gen_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -151,7 +151,7 @@ test("hlapi_compressed_public_client_uint8_big", (t) => {
 
 test("hlapi_public_key_encrypt_decrypt_uint32_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -178,7 +178,7 @@ test("hlapi_public_key_encrypt_decrypt_uint32_small", (t) => {
 
 test("hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -264,7 +264,7 @@ test("hlapi_client_key_encrypt_decrypt_uint128_big", (t) => {
 
 test("hlapi_client_key_encrypt_decrypt_uint128_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -365,7 +365,7 @@ test("hlapi_client_key_encrypt_decrypt_uint256_big", (t) => {
 
 test("hlapi_client_key_encrypt_decrypt_uint256_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -417,7 +417,7 @@ test("hlapi_client_key_encrypt_decrypt_uint256_small", (t) => {
 
 test("hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
@@ -445,7 +445,7 @@ test("hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small", (t) => {
 
 test("hlapi_public_key_encrypt_decrypt_uint256_small", (t) => {
   let params_name_small =
-    ShortintParametersName.V1_4_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 

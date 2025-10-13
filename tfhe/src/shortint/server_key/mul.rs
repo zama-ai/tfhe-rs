@@ -401,10 +401,10 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::current_params::V1_4_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::shortint::parameters::current_params::V1_5_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(V1_4_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (cks, sks) = gen_keys(V1_5_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     ///
     /// let msg = 2;
     ///
