@@ -41,7 +41,12 @@ jobs:
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
       slab-profile: ${{ steps.set_slab_details.outputs.profile }}
       hardware-name: ${{ steps.get_hardware_name.outputs.name }}
+      tfhe-backend: ${{ steps.set_regression_details.outputs.tfhe-backend }}
+      selected-regression-profile: ${{ steps.set_regression_details.outputs.selected-profile }}
       custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
+    permissions:
+      # Needed to react to benchmark command in issue comment
+      issues: write
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -49,23 +54,27 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Generate cpu benchmarks command from label
+      - name: Generate CPU benchmarks command from label
         if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-cpu'))
         run: |
           echo "DEFAULT_BENCH_OPTIONS=--backend cpu" >> "${GITHUB_ENV}"
 
-      - name: Generate cpu benchmarks command from label
+      - name: Generate GPU benchmarks command from label
         if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-gpu'))
         run: |
           echo "DEFAULT_BENCH_OPTIONS=--backend gpu" >> "${GITHUB_ENV}"
 
       # TODO add support for HPU backend
 
+      - name: Install Python requirements
+        run: |
+          python3 -m pip install -r ci/perf_regression/requirements.txt
+
       - name: Generate cargo commands and env from label
         if: github.event_name == 'pull_request'
         run: |
-          python3 ci/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
-          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
+          echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
       - name: Dump issue comment into file # To avoid possible code-injection
         if: github.event_name == 'issue_comment'
@@ -77,8 +86,15 @@ jobs:
       - name: Generate cargo commands and env
         if: github.event_name == 'issue_comment'
         run: |
-          python3 ci/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
-          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+
+      - name: Acknowledge issue comment
+        if: github.event_name == 'issue_comment'
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: +1
 
       - name: Set commands output
         id: set_commands
@@ -88,8 +104,8 @@ jobs:
       - name: Set Slab details outputs
         id: set_slab_details
         run: |
-          echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
-          echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "backend=$(cat ci/perf_regression/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "profile=$(cat ci/perf_regression/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
 
       - name: Get hardware name
         id: get_hardware_name
@@ -97,10 +113,16 @@ jobs:
           HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
+      - name: Set regression details outputs
+        id: set_regression_details
+        run: |
+          echo "tfhe-backend=$(cat ci/perf_regression/perf_regression_tfhe_rs_backend_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "selected-profile=$(cat ci/perf_regression/perf_regression_selected_profile_config.txt)" >> "${GITHUB_OUTPUT}"
+
       - name: Get custom env vars
         id: get_custom_env
         run: |
-          echo "custom_env=$(cat ci/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
+          echo "custom_env=$(cat ci/perf_regression/perf_regression_custom_env.sh)" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: benchmark_perf_regression/setup-instance
@@ -134,7 +156,6 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
@@ -154,14 +175,15 @@ jobs:
       cancel-in-progress: true
     timeout-minutes: 720  # 12 hours
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         command: ${{ fromJson(needs.prepare-benchmarks.outputs.commands) }}
     steps:
-      - name: Checkout tfhe-rs repo with tags
+      - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Needed to get commit hash
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
@@ -222,7 +244,7 @@ jobs:
 
       - name: Run regression benchmarks
         run: |
-          make  BENCH_CUSTOM_COMMAND="${BENCH_COMMAND}" bench_custom
+          make BENCH_CUSTOM_COMMAND="${BENCH_COMMAND}" bench_custom
         env:
           BENCH_COMMAND: ${{ matrix.command }}
 
@@ -231,6 +253,7 @@ jobs:
           python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "${HARDWARE_NAME}" \
+          --backend "${TFHE_BACKEND}" \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
@@ -238,15 +261,18 @@ jobs:
           --walk-subdirs \
           --name-suffix regression \
           --bench-type "${BENCH_TYPE}"
+  
+          echo "RESULTS_FILE_SHA=$(sha256sum "${RESULTS_FILENAME}" | cut -d " " -f1)" >> "${GITHUB_ENV}"
         env:
-          REF_NAME: ${{ github.ref_name }}
-          BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
           HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
+          TFHE_BACKEND: ${{ needs.prepare-benchmarks.outputs.tfhe-backend }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_regression
+          name: ${{ github.sha }}_regression_${{ env.RESULTS_FILE_SHA }} # RESULT_FILE_SHA is needed to avoid collision between matrix.command runs
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab
@@ -258,9 +284,81 @@ jobs:
           JOB_SECRET: ${{ secrets.JOB_SECRET }}
           SLAB_URL: ${{ secrets.SLAB_URL }}
 
+  check-regressions:
+    name: benchmark_perf_regression/check-regressions
+    needs: [ prepare-benchmarks, regression-benchmarks ]
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed to write a comment in a pull-request
+      pull-requests: write
+      # Needed to set up Python dependencies
+      contents: read
+    env:
+      REF_NAME: ${{ github.head_ref || github.ref_name }}
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Install recent Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Fetch data
+        run: |
+          python3 -m pip install -r ci/data_extractor/requirements.txt
+          python3 ci/data_extractor/src/data_extractor.py regression_data \
+          --generate-regression-json \
+          --regression-profiles ci/regression.toml \
+          --regression-selected-profile "${REGRESSION_PROFILE}" \
+          --backend "${TFHE_BACKEND}" \
+          --hardware "${HARDWARE_NAME}" \
+          --branch "${REF_NAME}" \
+          --time-span-days 60
+        env:
+          REGRESSION_PROFILE: ${{ needs.prepare-benchmarks.outputs.selected-regression-profile }}
+          TFHE_BACKEND: ${{ needs.prepare-benchmarks.outputs.tfhe-backend }}
+          HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
+          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATABASE_USER }}
+          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+
+      - name: Generate regression report
+        run: |
+          python3 -m pip install -r ci/perf_regression/requirements.txt
+          python3 ci/perf_regression/perf_regression.py check_regression \
+          --results-file regression_data.json \
+          --generate-report
+
+      - name: Write report in pull-request
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        with:
+          issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          body-path: ci/perf_regression/regression_report.md
+
+  comment-on-failure:
+    name: benchmark_perf_regression/comment-on-failure
+    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks, check-regressions ]
+    runs-on: ubuntu-latest
+    if: ${{ failure() && github.event_name == 'issue_comment' }}
+    continue-on-error: true
+    permissions:
+      # Needed to write a comment in a pull-request
+      pull-requests: write
+    steps:
+      - name: Write failure message
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            :x: Performance regression benchmark failed ([workflow run](${{ env.ACTION_RUN_URL }}))
+
   slack-notify:
     name: benchmark_perf_regression/slack-notify
-    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks ]
+    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks, check-regressions ]
     runs-on: ubuntu-latest
     if: ${{ failure() }}
     continue-on-error: true
@@ -268,10 +366,8 @@ jobs:
       - name: Send message
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
-          SLACK_COLOR: ${{ needs.regression-benchmarks.result }}
-          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ needs.regression-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
-
-  # TODO Add job for regression calculation
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: "Performance regression benchmarks failed. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: benchmark_perf_regression/teardown-instance
