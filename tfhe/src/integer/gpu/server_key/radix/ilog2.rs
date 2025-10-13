@@ -5,7 +5,7 @@ use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{count_of_consecutive_bits_async, ilog2_async, PBSType};
+use crate::integer::gpu::{cuda_backend_count_of_consecutive_bits, cuda_backend_ilog2, PBSType};
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 
 impl CudaServerKey {
@@ -40,7 +40,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                count_of_consecutive_bits_async(
+                cuda_backend_count_of_consecutive_bits(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),
@@ -63,7 +63,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                count_of_consecutive_bits_async(
+                cuda_backend_count_of_consecutive_bits(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),
@@ -279,7 +279,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                ilog2_async(
+                cuda_backend_ilog2(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),
@@ -306,7 +306,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                ilog2_async(
+                cuda_backend_ilog2(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),

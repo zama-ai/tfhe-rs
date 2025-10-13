@@ -14,8 +14,8 @@ __host__ void host_integer_prepare_count_of_consecutive_bits(
 
   auto tmp = mem_ptr->tmp_ct;
 
-  host_apply_univariate_lut_kb<Torus>(streams, tmp, ciphertext,
-                                      mem_ptr->univ_lut_mem, ksks, bsks);
+  host_apply_univariate_lut<Torus>(streams, tmp, ciphertext,
+                                   mem_ptr->univ_lut_mem, ksks, bsks);
 
   if (mem_ptr->direction == Leading) {
     host_radix_blocks_reverse_inplace<Torus>(streams, tmp);
@@ -72,7 +72,7 @@ __host__ void host_integer_count_of_consecutive_bits(
         output_start_index + 1, ct_prepared, i, i + 1);
   }
 
-  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
+  host_integer_partial_sum_ciphertexts_vec<Torus>(
       streams, output_ct, cts, bsks, ksks, mem_ptr->sum_mem, counter_num_blocks,
       ct_prepared->num_radix_blocks);
 
@@ -141,19 +141,19 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
 
   // Perform a partial sum of all the elements without carry propagation.
   //
-  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
+  host_integer_partial_sum_ciphertexts_vec<Torus>(
       streams, mem_ptr->sum_output_not_propagated, mem_ptr->sum_input_cts, bsks,
       ksks, mem_ptr->sum_mem, mem_ptr->counter_num_blocks,
       mem_ptr->input_num_blocks + 1);
 
   // Apply luts to the partial sum.
   //
-  host_apply_univariate_lut_kb<Torus>(streams, mem_ptr->message_blocks_not,
-                                      mem_ptr->sum_output_not_propagated,
-                                      mem_ptr->lut_message_not, ksks, bsks);
-  host_apply_univariate_lut_kb<Torus>(streams, mem_ptr->carry_blocks_not,
-                                      mem_ptr->sum_output_not_propagated,
-                                      mem_ptr->lut_carry_not, ksks, bsks);
+  host_apply_univariate_lut<Torus>(streams, mem_ptr->message_blocks_not,
+                                   mem_ptr->sum_output_not_propagated,
+                                   mem_ptr->lut_message_not, ksks, bsks);
+  host_apply_univariate_lut<Torus>(streams, mem_ptr->carry_blocks_not,
+                                   mem_ptr->sum_output_not_propagated,
+                                   mem_ptr->lut_carry_not, ksks, bsks);
 
   // Left-shift the bitwise-negated carry blocks by one position.
   //
@@ -190,7 +190,7 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
       2 * mem_ptr->counter_num_blocks, 3 * mem_ptr->counter_num_blocks,
       trivial_ct_2, 0, mem_ptr->counter_num_blocks);
 
-  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
+  host_integer_partial_sum_ciphertexts_vec<Torus>(
       streams, output_ct, mem_ptr->sum_input_cts, bsks, ksks, mem_ptr->sum_mem,
       mem_ptr->counter_num_blocks, 3);
 

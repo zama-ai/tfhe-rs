@@ -503,7 +503,7 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
 /// LUT In scalar bitops we use a number of blocks that may be lower or equal to
 /// the input and output numbers of blocks
 template <typename Torus>
-__host__ void integer_radix_apply_univariate_lookup_table_kb(
+__host__ void integer_radix_apply_univariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
     Torus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks) {
@@ -607,7 +607,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 }
 
 template <typename Torus>
-__host__ void integer_radix_apply_many_univariate_lookup_table_kb(
+__host__ void integer_radix_apply_many_univariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
     Torus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_many_lut,
@@ -710,7 +710,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
 }
 
 template <typename Torus>
-__host__ void integer_radix_apply_bivariate_lookup_table_kb(
+__host__ void integer_radix_apply_bivariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, void *const *bsks,
@@ -1279,7 +1279,7 @@ void host_compute_shifted_blocks_and_states(
   auto shifted_blocks_and_states = mem->shifted_blocks_and_states;
   auto luts_array_first_step = mem->luts_array_first_step;
 
-  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, shifted_blocks_and_states, lwe_array, bsks, ksks,
       luts_array_first_step, num_many_lut, lut_stride);
 
@@ -1347,7 +1347,7 @@ void host_resolve_group_carries_sequentially(
       as_radix_ciphertext_slice<Torus>(&shifted_group_resolved_carries,
                                        group_resolved_carries, 1,
                                        blocks_to_solve + 1);
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus>(
           streams, &shifted_group_resolved_carries,
           &shifted_group_resolved_carries, bsks, ksks, luts_sequential,
           blocks_to_solve);
@@ -1388,7 +1388,7 @@ void host_compute_prefix_sum_hillis_steele(
     auto prev_blocks = generates_or_propagates;
     int cur_total_blocks = num_radix_blocks - space;
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, &cur_blocks, &cur_blocks, prev_blocks, bsks, ksks, luts,
         cur_total_blocks, luts->params.message_modulus);
 
@@ -1426,11 +1426,11 @@ void host_compute_propagation_simulators_and_group_carries(
       block_states, num_radix_blocks, group_size);
 
   auto luts_array_second_step = mem->luts_array_second_step;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, propagation_cum_sums, propagation_cum_sums, bsks, ksks,
       luts_array_second_step, num_radix_blocks);
 
-  host_integer_radix_scalar_addition_inplace<Torus>(
+  host_scalar_addition_inplace<Torus>(
       streams, propagation_cum_sums, mem->scalar_array_cum_sum,
       mem->h_scalar_array_cum_sum, num_radix_blocks, message_modulus,
       carry_modulus);
@@ -1478,7 +1478,7 @@ void host_compute_shifted_blocks_and_borrow_states(
   auto shifted_blocks_and_borrow_states = mem->shifted_blocks_and_borrow_states;
   auto luts_array_first_step = mem->luts_array_first_step;
 
-  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, shifted_blocks_and_borrow_states, lwe_array, bsks, ksks,
       luts_array_first_step, num_many_lut, lut_stride);
 
@@ -1682,7 +1682,7 @@ extract_n_bits(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
           num_radix_blocks);
     }
   }
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, lwe_array_out, bsks, ksks, bit_extract->lut,
       effective_num_radix_blocks);
 }
@@ -1738,7 +1738,7 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
                          signs_a, num_sign_blocks, message_modulus);
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus>(
           streams, signs_a, signs_b, bsks, ksks, lut, num_sign_blocks / 2);
 
       if (num_sign_blocks % 2 == 1)
@@ -1768,7 +1768,7 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
 
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
                        signs_a, num_sign_blocks, message_modulus);
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, signs_array_out, signs_b, bsks, ksks, lut, 1);
 
   } else {
@@ -1786,13 +1786,13 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
         diff_buffer->preallocated_h_lut2);
     lut->broadcast_lut(lut->active_streams);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, signs_array_out, signs_a, bsks, ksks, lut, 1);
   }
 }
 
 template <typename Torus>
-uint64_t scratch_cuda_apply_univariate_lut_kb(
+uint64_t scratch_cuda_apply_univariate_lut(
     CudaStreams streams, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
@@ -1814,19 +1814,19 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
 }
 
 template <typename Torus>
-void host_apply_univariate_lut_kb(CudaStreams streams,
-                                  CudaRadixCiphertextFFI *radix_lwe_out,
-                                  CudaRadixCiphertextFFI const *radix_lwe_in,
-                                  int_radix_lut<Torus> *mem, Torus *const *ksks,
-                                  void *const *bsks) {
+void host_apply_univariate_lut(CudaStreams streams,
+                               CudaRadixCiphertextFFI *radix_lwe_out,
+                               CudaRadixCiphertextFFI const *radix_lwe_in,
+                               int_radix_lut<Torus> *mem, Torus *const *ksks,
+                               void *const *bsks) {
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, radix_lwe_out, radix_lwe_in, bsks, ksks, mem,
       radix_lwe_out->num_radix_blocks);
 }
 
 template <typename Torus>
-uint64_t scratch_cuda_apply_many_univariate_lut_kb(
+uint64_t scratch_cuda_apply_many_univariate_lut(
     CudaStreams streams, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t num_many_lut,
     uint64_t lut_degree, bool allocate_gpu_memory) {
@@ -1849,19 +1849,21 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
 }
 
 template <typename Torus>
-void host_apply_many_univariate_lut_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI const *radix_lwe_in, int_radix_lut<Torus> *mem,
-    Torus *const *ksks, void *const *bsks, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+void host_apply_many_univariate_lut(CudaStreams streams,
+                                    CudaRadixCiphertextFFI *radix_lwe_out,
+                                    CudaRadixCiphertextFFI const *radix_lwe_in,
+                                    int_radix_lut<Torus> *mem,
+                                    Torus *const *ksks, void *const *bsks,
+                                    uint32_t num_many_lut,
+                                    uint32_t lut_stride) {
 
-  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, radix_lwe_out, radix_lwe_in, bsks, ksks, mem, num_many_lut,
       lut_stride);
 }
 
 template <typename Torus>
-uint64_t scratch_cuda_apply_bivariate_lut_kb(
+uint64_t scratch_cuda_apply_bivariate_lut(
     CudaStreams streams, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
@@ -1883,21 +1885,21 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
 }
 
 template <typename Torus>
-void host_apply_bivariate_lut_kb(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *radix_lwe_out,
-                                 CudaRadixCiphertextFFI const *radix_lwe_in_1,
-                                 CudaRadixCiphertextFFI const *radix_lwe_in_2,
-                                 int_radix_lut<Torus> *mem, Torus *const *ksks,
-                                 void *const *bsks, uint32_t num_radix_blocks,
-                                 uint32_t shift) {
+void host_apply_bivariate_lut(CudaStreams streams,
+                              CudaRadixCiphertextFFI *radix_lwe_out,
+                              CudaRadixCiphertextFFI const *radix_lwe_in_1,
+                              CudaRadixCiphertextFFI const *radix_lwe_in_2,
+                              int_radix_lut<Torus> *mem, Torus *const *ksks,
+                              void *const *bsks, uint32_t num_radix_blocks,
+                              uint32_t shift) {
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  integer_radix_apply_bivariate_lookup_table<Torus>(
       streams, radix_lwe_out, radix_lwe_in_1, radix_lwe_in_2, bsks, ksks, mem,
       num_radix_blocks, shift);
 }
 
 template <typename Torus>
-uint64_t scratch_cuda_propagate_single_carry_kb_inplace(
+uint64_t scratch_cuda_propagate_single_carry_inplace(
     CudaStreams streams, int_sc_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
     bool allocate_gpu_memory) {
@@ -1992,7 +1994,7 @@ void host_propagate_single_carry(CudaStreams streams,
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), prepared_blocks,
         num_radix_blocks, num_radix_blocks + 1, &output_flag, 0, 1);
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, mem->output_flag, prepared_blocks, bsks, ksks,
         mem->lut_message_extract, num_radix_blocks + 1);
 
@@ -2004,7 +2006,7 @@ void host_propagate_single_carry(CudaStreams streams,
         mem->output_flag, num_radix_blocks, num_radix_blocks + 1);
   } else {
     auto message_extract = mem->lut_message_extract;
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lwe_array, prepared_blocks, bsks, ksks, message_extract,
         num_radix_blocks);
   }
@@ -2077,7 +2079,7 @@ void host_add_and_propagate_single_carry(
   auto block_states = mem->shifted_blocks_state_mem->block_states;
   if (requested_flag == outputFlag::FLAG_OVERFLOW) {
     auto lut_overflow_prep = mem->lut_overflow_flag_prep;
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, &output_flag, mem->last_lhs, mem->last_rhs, bsks, ksks,
         lut_overflow_prep, 1, lut_overflow_prep->params.message_modulus);
   } else if (requested_flag == outputFlag::FLAG_CARRY) {
@@ -2140,7 +2142,7 @@ void host_add_and_propagate_single_carry(
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), prepared_blocks,
         num_radix_blocks, num_radix_blocks + 1, &output_flag, 0, 1);
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, mem->output_flag, prepared_blocks, bsks, ksks,
         mem->lut_message_extract, num_radix_blocks + 1);
 
@@ -2152,7 +2154,7 @@ void host_add_and_propagate_single_carry(
         streams.stream(0), streams.gpu_index(0), carry_out, 0, 1,
         mem->output_flag, num_radix_blocks, num_radix_blocks + 1);
   } else {
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lhs_array, prepared_blocks, bsks, ksks,
         mem->lut_message_extract, num_radix_blocks);
   }
@@ -2227,8 +2229,8 @@ void host_single_borrow_propagate(CudaStreams streams,
                           (Torus *)prepared_blocks->ptr, shifted_blocks,
                           simulators, big_lwe_dimension, num_radix_blocks);
 
-  host_integer_radix_add_scalar_one_inplace<Torus>(
-      streams, prepared_blocks, message_modulus, carry_modulus);
+  host_add_scalar_one_inplace<Torus>(streams, prepared_blocks, message_modulus,
+                                     carry_modulus);
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     CudaRadixCiphertextFFI shifted_simulators;
@@ -2268,7 +2270,7 @@ void host_single_borrow_propagate(CudaStreams streams,
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     auto borrow_flag = mem->lut_borrow_flag;
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         mem->sub_streams_1, overflow_block, mem->overflow_block, bsks, ksks,
         borrow_flag, 1);
   }
@@ -2290,7 +2292,7 @@ void host_single_borrow_propagate(CudaStreams streams,
       mem->group_size);
 
   auto message_extract = mem->lut_message_extract;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       mem->sub_streams_2, lwe_array, prepared_blocks, bsks, ksks,
       message_extract, num_radix_blocks);
 
@@ -2308,7 +2310,7 @@ void host_single_borrow_propagate(CudaStreams streams,
 /// LUT In scalar bitops we use a number of blocks that may be lower or equal to
 /// the input and output numbers of blocks
 template <typename InputTorus>
-__host__ void integer_radix_apply_noise_squashing_kb(
+__host__ void integer_radix_apply_noise_squashing(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_noise_squashing_lut<InputTorus> *lut, void *const *bsks,

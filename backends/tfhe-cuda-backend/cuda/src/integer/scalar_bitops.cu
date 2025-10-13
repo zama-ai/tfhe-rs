@@ -1,12 +1,12 @@
 #include "integer/scalar_bitops.cuh"
 
-void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
+void cuda_scalar_bitop_ciphertext_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_input, void const *clear_blocks,
     void const *h_clear_blocks, uint32_t num_clear_blocks, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
 
-  host_integer_radix_scalar_bitop_kb<uint64_t>(
+  host_scalar_bitop<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_input,
       static_cast<const uint64_t *>(clear_blocks),
       static_cast<const uint64_t *>(h_clear_blocks), num_clear_blocks,

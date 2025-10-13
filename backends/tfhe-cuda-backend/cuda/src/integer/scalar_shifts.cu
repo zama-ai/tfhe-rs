@@ -1,6 +1,6 @@
 #include "scalar_shifts.cuh"
 
-uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+uint64_t scratch_cuda_logical_scalar_shift_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -14,7 +14,7 @@ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_radix_logical_scalar_shift_kb<uint64_t>(
+  return scratch_cuda_logical_scalar_shift<uint64_t>(
       CudaStreams(streams),
       (int_logical_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks, params,
       shift_type, allocate_gpu_memory);
@@ -24,17 +24,19 @@ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
 /// for the left scalar shift. It is constituted of a rotation, followed by
 /// the application of a PBS onto the rotated blocks up to num_blocks -
 /// rotations - 1 The remaining blocks are padded with zeros
-void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+void cuda_logical_scalar_shift_64_inplace(CudaStreamsFFI streams,
+                                          CudaRadixCiphertextFFI *lwe_array,
+                                          uint32_t shift, int8_t *mem_ptr,
+                                          void *const *bsks,
+                                          void *const *ksks) {
 
-  host_integer_radix_logical_scalar_shift_kb_inplace<uint64_t>(
+  host_logical_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
       (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks), lwe_array->num_radix_blocks);
 }
 
-uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+uint64_t scratch_cuda_arithmetic_scalar_shift_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -48,7 +50,7 @@ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_radix_arithmetic_scalar_shift_kb<uint64_t>(
+  return scratch_cuda_arithmetic_scalar_shift<uint64_t>(
       CudaStreams(streams),
       (int_arithmetic_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks,
       params, shift_type, allocate_gpu_memory);
@@ -61,18 +63,20 @@ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
 /// sign block, and a second PBS is also applied to it to compute the padding
 /// block, which is copied onto all remaining blocks instead of padding with
 /// zeros as would be done in the logical shift.
-void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+void cuda_arithmetic_scalar_shift_64_inplace(CudaStreamsFFI streams,
+                                             CudaRadixCiphertextFFI *lwe_array,
+                                             uint32_t shift, int8_t *mem_ptr,
+                                             void *const *bsks,
+                                             void *const *ksks) {
 
-  host_integer_radix_arithmetic_scalar_shift_kb_inplace<uint64_t>(
+  host_arithmetic_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));
 }
 
-void cleanup_cuda_integer_radix_logical_scalar_shift(CudaStreamsFFI streams,
-                                                     int8_t **mem_ptr_void) {
+void cleanup_cuda_logical_scalar_shift(CudaStreamsFFI streams,
+                                       int8_t **mem_ptr_void) {
 
   int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
       (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
@@ -82,8 +86,8 @@ void cleanup_cuda_integer_radix_logical_scalar_shift(CudaStreamsFFI streams,
   *mem_ptr_void = nullptr;
 }
 
-void cleanup_cuda_integer_radix_arithmetic_scalar_shift(CudaStreamsFFI streams,
-                                                        int8_t **mem_ptr_void) {
+void cleanup_cuda_arithmetic_scalar_shift(CudaStreamsFFI streams,
+                                          int8_t **mem_ptr_void) {
 
   int_arithmetic_scalar_shift_buffer<uint64_t> *mem_ptr =
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);

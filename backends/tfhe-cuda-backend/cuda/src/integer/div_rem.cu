@@ -1,6 +1,6 @@
 #include "integer/div_rem.cuh"
 
-uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_64(
     CudaStreamsFFI streams, bool is_signed, int8_t **mem_ptr,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -14,13 +14,13 @@ uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_div_rem_kb<uint64_t>(
+  return scratch_cuda_integer_div_rem<uint64_t>(
       CudaStreams(streams), is_signed, (int_div_rem_memory<uint64_t> **)mem_ptr,
       num_blocks, params, allocate_gpu_memory);
   POP_RANGE()
 }
 
-void cuda_integer_div_rem_radix_ciphertext_kb_64(
+void cuda_integer_div_rem_radix_ciphertext_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
@@ -28,9 +28,9 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
   PUSH_RANGE("div")
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 
-  host_integer_div_rem_kb<uint64_t>(CudaStreams(streams), quotient, remainder,
-                                    numerator, divisor, is_signed, bsks,
-                                    (uint64_t **)(ksks), mem);
+  host_integer_div_rem<uint64_t>(CudaStreams(streams), quotient, remainder,
+                                 numerator, divisor, is_signed, bsks,
+                                 (uint64_t **)(ksks), mem);
   POP_RANGE()
 }
 

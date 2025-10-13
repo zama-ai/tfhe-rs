@@ -35,7 +35,7 @@ __host__ void host_integer_unsigned_scalar_div_radix(
   }
 
   if (scalar_divisor_ffi->is_divisor_pow2) {
-    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+    host_logical_scalar_shift_inplace<Torus>(
         streams, numerator_ct, scalar_divisor_ffi->ilog2_divisor,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks,
         numerator_ct->num_radix_blocks);
@@ -63,15 +63,15 @@ __host__ void host_integer_unsigned_scalar_div_radix(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        numerator_cpy, numerator_ct);
 
-    host_integer_radix_scalar_mul_high_kb<Torus>(
-        streams, numerator_cpy, mem_ptr->scalar_mul_high_mem, ksks, bsks,
-        scalar_divisor_ffi);
+    host_scalar_mul_high<Torus>(streams, numerator_cpy,
+                                mem_ptr->scalar_mul_high_mem, ksks, bsks,
+                                scalar_divisor_ffi);
 
     host_sub_and_propagate_single_carry<Torus>(
         streams, numerator_ct, numerator_cpy, nullptr, nullptr,
         mem_ptr->sub_and_propagate_mem, bsks, ksks, FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+    host_logical_scalar_shift_inplace<Torus>(
         streams, numerator_ct, (uint32_t)1, mem_ptr->logical_scalar_shift_mem,
         bsks, ksks, numerator_ct->num_radix_blocks);
 
@@ -79,7 +79,7 @@ __host__ void host_integer_unsigned_scalar_div_radix(
         streams, numerator_ct, numerator_cpy, nullptr, nullptr,
         mem_ptr->scp_mem, bsks, ksks, FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+    host_logical_scalar_shift_inplace<Torus>(
         streams, numerator_ct, scalar_divisor_ffi->shift_post - (uint32_t)1,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks,
         numerator_ct->num_radix_blocks);
@@ -87,23 +87,23 @@ __host__ void host_integer_unsigned_scalar_div_radix(
     return;
   }
 
-  host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+  host_logical_scalar_shift_inplace<Torus>(
       streams, numerator_ct, scalar_divisor_ffi->shift_pre,
       mem_ptr->logical_scalar_shift_mem, bsks, ksks,
       numerator_ct->num_radix_blocks);
 
-  host_integer_radix_scalar_mul_high_kb<Torus>(streams, numerator_ct,
-                                               mem_ptr->scalar_mul_high_mem,
-                                               ksks, bsks, scalar_divisor_ffi);
+  host_scalar_mul_high<Torus>(streams, numerator_ct,
+                              mem_ptr->scalar_mul_high_mem, ksks, bsks,
+                              scalar_divisor_ffi);
 
-  host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+  host_logical_scalar_shift_inplace<Torus>(
       streams, numerator_ct, scalar_divisor_ffi->shift_post,
       mem_ptr->logical_scalar_shift_mem, bsks, ksks,
       numerator_ct->num_radix_blocks);
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_integer_signed_scalar_div_radix_kb(
+__host__ uint64_t scratch_integer_signed_scalar_div_radix(
     CudaStreams streams, int_radix_params params,
     int_signed_scalar_div_mem<Torus> **mem_ptr, uint32_t num_radix_blocks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi,
@@ -119,7 +119,7 @@ __host__ uint64_t scratch_integer_signed_scalar_div_radix_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_signed_scalar_div_radix_kb(
+__host__ void host_integer_signed_scalar_div_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
     int_signed_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
@@ -129,7 +129,7 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     if (scalar_divisor_ffi->is_divisor_negative) {
       CudaRadixCiphertextFFI *tmp = mem_ptr->tmp_ffi;
 
-      host_integer_radix_negation<Torus>(
+      host_negation<Torus>(
           streams, tmp, numerator_ct, mem_ptr->params.message_modulus,
           mem_ptr->params.carry_modulus, numerator_ct->num_radix_blocks);
 
@@ -152,11 +152,11 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        tmp, numerator_ct);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, tmp, scalar_divisor_ffi->chosen_multiplier_num_bits - 1,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+    host_logical_scalar_shift_inplace<Torus>(
         streams, tmp,
         numerator_bits - scalar_divisor_ffi->chosen_multiplier_num_bits,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks, tmp->num_radix_blocks);
@@ -165,7 +165,7 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
         streams, tmp, numerator_ct, nullptr, nullptr, mem_ptr->scp_mem, bsks,
         ksks, FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, tmp, scalar_divisor_ffi->chosen_multiplier_num_bits,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
@@ -173,11 +173,11 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        tmp, numerator_ct);
 
-    host_integer_radix_signed_scalar_mul_high_kb<Torus>(
-        streams, tmp, mem_ptr->scalar_mul_high_mem, ksks, scalar_divisor_ffi,
-        bsks);
+    host_signed_scalar_mul_high<Torus>(streams, tmp,
+                                       mem_ptr->scalar_mul_high_mem, ksks,
+                                       scalar_divisor_ffi, bsks);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, tmp, scalar_divisor_ffi->shift_post,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
@@ -185,7 +185,7 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        xsign, numerator_ct);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, xsign, numerator_bits - 1,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
@@ -198,15 +198,15 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        tmp, numerator_ct);
 
-    host_integer_radix_signed_scalar_mul_high_kb<Torus>(
-        streams, tmp, mem_ptr->scalar_mul_high_mem, ksks, scalar_divisor_ffi,
-        bsks);
+    host_signed_scalar_mul_high<Torus>(streams, tmp,
+                                       mem_ptr->scalar_mul_high_mem, ksks,
+                                       scalar_divisor_ffi, bsks);
 
     host_add_and_propagate_single_carry<Torus>(
         streams, tmp, numerator_ct, nullptr, nullptr, mem_ptr->scp_mem, bsks,
         ksks, FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, tmp, scalar_divisor_ffi->shift_post,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
@@ -214,7 +214,7 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        xsign, numerator_ct);
 
-    host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+    host_arithmetic_scalar_shift_inplace<Torus>(
         streams, xsign, numerator_bits - 1,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
@@ -224,7 +224,7 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
   }
 
   if (scalar_divisor_ffi->is_divisor_negative) {
-    host_integer_radix_negation<Torus>(
+    host_negation<Torus>(
         streams, numerator_ct, tmp, mem_ptr->params.message_modulus,
         mem_ptr->params.carry_modulus, numerator_ct->num_radix_blocks);
   } else {
@@ -270,9 +270,9 @@ __host__ void host_integer_unsigned_scalar_div_rem_radix(
 
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        remainder_ct, numerator_ct);
-    host_integer_radix_scalar_bitop_kb(
-        streams, remainder_ct, remainder_ct, clear_blocks, h_clear_blocks,
-        num_clear_blocks, mem_ptr->bitop_mem, bsks, ksks);
+    host_scalar_bitop(streams, remainder_ct, remainder_ct, clear_blocks,
+                      h_clear_blocks, num_clear_blocks, mem_ptr->bitop_mem,
+                      bsks, ksks);
 
   } else {
     if (!scalar_divisor_ffi->is_divisor_zero) {
@@ -328,9 +328,9 @@ __host__ void host_integer_signed_scalar_div_rem_radix(
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      numerator_ct, quotient_ct);
 
-  host_integer_signed_scalar_div_radix_kb(streams, quotient_ct,
-                                          mem_ptr->signed_div_mem, bsks, ksks,
-                                          scalar_divisor_ffi, numerator_bits);
+  host_integer_signed_scalar_div_radix(streams, quotient_ct,
+                                       mem_ptr->signed_div_mem, bsks, ksks,
+                                       scalar_divisor_ffi, numerator_bits);
 
   host_propagate_single_carry<Torus>(streams, quotient_ct, nullptr, nullptr,
                                      mem_ptr->scp_mem, bsks, ksks, FLAG_NONE,
@@ -341,10 +341,10 @@ __host__ void host_integer_signed_scalar_div_rem_radix(
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        remainder_ct, quotient_ct);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace(
-        streams, remainder_ct, scalar_divisor_ffi->ilog2_divisor,
-        mem_ptr->logical_scalar_shift_mem, bsks, ksks,
-        remainder_ct->num_radix_blocks);
+    host_logical_scalar_shift_inplace(streams, remainder_ct,
+                                      scalar_divisor_ffi->ilog2_divisor,
+                                      mem_ptr->logical_scalar_shift_mem, bsks,
+                                      ksks, remainder_ct->num_radix_blocks);
 
   } else if (!scalar_divisor_ffi->is_divisor_zero) {
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),

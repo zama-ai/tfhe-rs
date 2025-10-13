@@ -12,7 +12,7 @@ use crate::integer::gpu::ciphertext::squashed_noise::{
     CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext,
     CudaSquashedNoiseSignedRadixCiphertext,
 };
-use crate::integer::gpu::decompress_integer_radix_async_128;
+use crate::integer::gpu::cuda_backend_decompress_128;
 use crate::integer::gpu::list_compression::server_keys::{
     CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList,
 };
@@ -345,7 +345,7 @@ impl CudaCompressedSquashedNoiseCiphertextList {
         );
 
         unsafe {
-            decompress_integer_radix_async_128(
+            cuda_backend_decompress_128(
                 streams,
                 &mut output_lwe,
                 &self.packed_list,

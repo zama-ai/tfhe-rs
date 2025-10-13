@@ -9,7 +9,7 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_radix_scalar_rotate_kb(
+__host__ uint64_t scratch_cuda_scalar_rotate(
     CudaStreams streams, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
@@ -22,10 +22,11 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_rotate_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_rotate_kb_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t n,
-    int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+__host__ void
+host_scalar_rotate_inplace(CudaStreams streams,
+                           CudaRadixCiphertextFFI *lwe_array, uint32_t n,
+                           int_logical_scalar_shift_buffer<Torus> *mem,
+                           void *const *bsks, Torus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
@@ -68,7 +69,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, lwe_array, receiver_blocks, giver_blocks, bsks, ksks,
         lut_bivariate, num_blocks, lut_bivariate->params.message_modulus);
 
@@ -92,7 +93,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, lwe_array, receiver_blocks, giver_blocks, bsks, ksks,
         lut_bivariate, num_blocks, lut_bivariate->params.message_modulus);
   }

@@ -17,10 +17,9 @@
 #include <vector>
 
 template <typename Torus>
-__global__ void
-device_integer_radix_negation(Torus *output, Torus const *input,
-                              int32_t num_blocks, uint64_t lwe_dimension,
-                              uint64_t message_modulus, uint64_t delta) {
+__global__ void device_negation(Torus *output, Torus const *input,
+                                int32_t num_blocks, uint64_t lwe_dimension,
+                                uint64_t message_modulus, uint64_t delta) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < lwe_dimension + 1) {
     bool is_body = (tid == lwe_dimension);
@@ -49,10 +48,11 @@ device_integer_radix_negation(Torus *output, Torus const *input,
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_negation(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, uint64_t message_modulus,
-    uint64_t carry_modulus, uint32_t num_radix_blocks) {
+__host__ void host_negation(CudaStreams streams,
+                            CudaRadixCiphertextFFI *lwe_array_out,
+                            CudaRadixCiphertextFFI const *lwe_array_in,
+                            uint64_t message_modulus, uint64_t carry_modulus,
+                            uint32_t num_radix_blocks) {
   cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
@@ -80,7 +80,7 @@ __host__ void host_integer_radix_negation(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
+  device_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       static_cast<Torus *>(lwe_array_out->ptr),
       static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
       message_modulus, delta);

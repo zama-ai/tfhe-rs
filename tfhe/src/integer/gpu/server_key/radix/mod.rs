@@ -16,11 +16,12 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    apply_bivariate_lut_kb_async, apply_many_univariate_lut_kb_async,
-    apply_univariate_lut_kb_async, compute_prefix_sum_hillis_steele_async,
-    extend_radix_with_sign_msb_async, extend_radix_with_trivial_zero_blocks_msb_async,
-    full_propagate_assign_async, noise_squashing_async, propagate_single_carry_assign_async,
-    trim_radix_blocks_lsb_async, CudaServerKey, PBSType,
+    cuda_backend_apply_bivariate_lut, cuda_backend_apply_many_univariate_lut,
+    cuda_backend_apply_univariate_lut, cuda_backend_compute_prefix_sum_hillis_steele,
+    cuda_backend_extend_radix_with_sign_msb,
+    cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
+    cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
+    cuda_backend_trim_radix_blocks_lsb, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -239,7 +240,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                propagate_single_carry_assign_async(
+                cuda_backend_propagate_single_carry_assign(
                     streams,
                     ciphertext,
                     carry_out.as_mut(),
@@ -264,7 +265,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                propagate_single_carry_assign_async(
+                cuda_backend_propagate_single_carry_assign(
                     streams,
                     ciphertext,
                     carry_out.as_mut(),
@@ -302,7 +303,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    full_propagate_assign_async(
+                    cuda_backend_full_propagate_assign(
                         streams,
                         ciphertext,
                         &d_bsk.d_vec,
@@ -323,7 +324,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    full_propagate_assign_async(
+                    cuda_backend_full_propagate_assign(
                         streams,
                         ciphertext,
                         &d_multibit_bsk.d_vec,
@@ -507,7 +508,11 @@ impl CudaServerKey {
         };
 
         unsafe {
-            extend_radix_with_trivial_zero_blocks_msb_async(output.as_mut(), ct.as_ref(), streams);
+            cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
+                output.as_mut(),
+                ct.as_ref(),
+                streams,
+            );
         }
         output
     }
@@ -581,7 +586,7 @@ impl CudaServerKey {
             unsafe { self.create_trivial_zero_radix_async(output_num_blocks, streams) };
 
         unsafe {
-            trim_radix_blocks_lsb_async(output.as_mut(), ct.as_ref(), streams);
+            cuda_backend_trim_radix_blocks_lsb(output.as_mut(), ct.as_ref(), streams);
         }
 
         output
@@ -791,7 +796,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    apply_univariate_lut_kb_async(
+                    cuda_backend_apply_univariate_lut(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -819,7 +824,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    apply_univariate_lut_kb_async(
+                    cuda_backend_apply_univariate_lut(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -909,7 +914,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    apply_bivariate_lut_kb_async(
+                    cuda_backend_apply_bivariate_lut(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -939,7 +944,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    apply_bivariate_lut_kb_async(
+                    cuda_backend_apply_bivariate_lut(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -1088,7 +1093,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                apply_many_univariate_lut_kb_async(
+                cuda_backend_apply_many_univariate_lut(
                     streams,
                     &mut output_slice,
                     &mut output_degrees,
@@ -1118,7 +1123,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                apply_many_univariate_lut_kb_async(
+                cuda_backend_apply_many_univariate_lut(
                     streams,
                     &mut output_slice,
                     &mut output_degrees,
@@ -1229,7 +1234,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    compute_prefix_sum_hillis_steele_async(
+                    cuda_backend_compute_prefix_sum_hillis_steele(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -1259,7 +1264,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    compute_prefix_sum_hillis_steele_async(
+                    cuda_backend_compute_prefix_sum_hillis_steele(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -1324,7 +1329,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                extend_radix_with_sign_msb_async(
+                cuda_backend_extend_radix_with_sign_msb(
                     streams,
                     output.as_mut(),
                     ct.as_ref(),
@@ -1346,7 +1351,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                extend_radix_with_sign_msb_async(
+                cuda_backend_extend_radix_with_sign_msb(
                     streams,
                     output.as_mut(),
                     ct.as_ref(),
@@ -1638,7 +1643,7 @@ impl CudaServerKey {
         unsafe {
             match &d_bootstrapping_key {
                 CudaBootstrappingKey::Classic(bsk) => {
-                    noise_squashing_async(
+                    cuda_backend_noise_squashing(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,
@@ -1667,7 +1672,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(mb_bsk) => {
-                    noise_squashing_async(
+                    cuda_backend_noise_squashing(
                         streams,
                         &mut output_slice,
                         &mut output_degrees,

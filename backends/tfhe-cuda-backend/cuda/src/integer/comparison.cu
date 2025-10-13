@@ -1,6 +1,6 @@
 #include "integer/comparison.cuh"
 
-uint64_t scratch_cuda_integer_radix_comparison_kb_64(
+uint64_t scratch_cuda_comparison_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -18,7 +18,7 @@ uint64_t scratch_cuda_integer_radix_comparison_kb_64(
   switch (op_type) {
   case EQ:
   case NE:
-    size_tracker += scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+    size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
         num_radix_blocks, params, op_type, false, allocate_gpu_memory);
     break;
@@ -28,7 +28,7 @@ uint64_t scratch_cuda_integer_radix_comparison_kb_64(
   case LE:
   case MAX:
   case MIN:
-    size_tracker += scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+    size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
         num_radix_blocks, params, op_type, is_signed, allocate_gpu_memory);
     break;
@@ -37,11 +37,12 @@ uint64_t scratch_cuda_integer_radix_comparison_kb_64(
   return size_tracker;
 }
 
-void cuda_comparison_integer_radix_ciphertext_kb_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_1,
-    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+void cuda_comparison_ciphertext_64(CudaStreamsFFI streams,
+                                   CudaRadixCiphertextFFI *lwe_array_out,
+                                   CudaRadixCiphertextFFI const *lwe_array_1,
+                                   CudaRadixCiphertextFFI const *lwe_array_2,
+                                   int8_t *mem_ptr, void *const *bsks,
+                                   void *const *ksks) {
   PUSH_RANGE("comparison")
   if (lwe_array_1->num_radix_blocks != lwe_array_2->num_radix_blocks)
     PANIC("Cuda error: input num radix blocks must be the same")
@@ -54,9 +55,9 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
   switch (buffer->op) {
   case EQ:
   case NE:
-    host_integer_radix_equality_check_kb<uint64_t>(
-        CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        bsks, (uint64_t **)(ksks), num_radix_blocks);
+    host_equality_check<uint64_t>(CudaStreams(streams), lwe_array_out,
+                                  lwe_array_1, lwe_array_2, buffer, bsks,
+                                  (uint64_t **)(ksks), num_radix_blocks);
     break;
   case GT:
   case GE:
@@ -65,18 +66,18 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
     if (num_radix_blocks % 2 != 0)
       PANIC("Cuda error (comparisons): the number of radix blocks has to be "
             "even.")
-    host_integer_radix_difference_check_kb<uint64_t>(
-        CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
-        num_radix_blocks);
+    host_difference_check<uint64_t>(CudaStreams(streams), lwe_array_out,
+                                    lwe_array_1, lwe_array_2, buffer,
+                                    buffer->diff_buffer->operator_f, bsks,
+                                    (uint64_t **)(ksks), num_radix_blocks);
     break;
   case MAX:
   case MIN:
     if (num_radix_blocks % 2 != 0)
       PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
-    host_integer_radix_maxmin_kb<uint64_t>(
-        CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
-        bsks, (uint64_t **)(ksks), num_radix_blocks);
+    host_maxmin<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
+                          lwe_array_2, buffer, bsks, (uint64_t **)(ksks),
+                          num_radix_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")
@@ -95,7 +96,7 @@ void cleanup_cuda_integer_comparison(CudaStreamsFFI streams,
   POP_RANGE()
 }
 
-uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -109,12 +110,12 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+  return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
       num_radix_blocks, params, EQ, false, allocate_gpu_memory);
 }
 
-void cuda_integer_are_all_comparisons_block_true_kb_64(
+void cuda_integer_are_all_comparisons_block_true_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
@@ -122,7 +123,7 @@ void cuda_integer_are_all_comparisons_block_true_kb_64(
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
-  host_integer_are_all_comparisons_block_true_kb<uint64_t>(
+  host_integer_are_all_comparisons_block_true<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
       (uint64_t **)(ksks), num_radix_blocks);
 }
@@ -137,7 +138,7 @@ void cleanup_cuda_integer_are_all_comparisons_block_true(
   *mem_ptr_void = nullptr;
 }
 
-uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -151,12 +152,12 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+  return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
       num_radix_blocks, params, EQ, false, allocate_gpu_memory);
 }
 
-void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+void cuda_integer_is_at_least_one_comparisons_block_true_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
@@ -164,7 +165,7 @@ void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
-  host_integer_is_at_least_one_comparisons_block_true_kb<uint64_t>(
+  host_integer_is_at_least_one_comparisons_block_true<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
       (uint64_t **)(ksks), num_radix_blocks);
 }

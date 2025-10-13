@@ -401,7 +401,7 @@ host_integer_decompress(CudaStreams streams,
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_compress_integer_radix_ciphertext(
+__host__ uint64_t scratch_cuda_compress_ciphertext(
     CudaStreams streams, int_compression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params compression_params,
     uint32_t lwe_per_glwe, bool allocate_gpu_memory) {

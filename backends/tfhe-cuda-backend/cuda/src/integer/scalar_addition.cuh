@@ -12,9 +12,10 @@
 #include <stdio.h>
 
 template <typename Torus>
-__global__ void device_integer_radix_scalar_addition_inplace(
-    Torus *lwe_array, Torus const *scalar_input, int32_t num_blocks,
-    uint32_t lwe_dimension, uint64_t delta) {
+__global__ void
+device_scalar_addition_inplace(Torus *lwe_array, Torus const *scalar_input,
+                               int32_t num_blocks, uint32_t lwe_dimension,
+                               uint64_t delta) {
 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
@@ -24,7 +25,7 @@ __global__ void device_integer_radix_scalar_addition_inplace(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_addition_inplace(
+__host__ void host_scalar_addition_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     Torus const *scalar_input, Torus const *h_scalar_input,
     uint32_t num_scalars, uint32_t message_modulus, uint32_t carry_modulus) {
@@ -45,10 +46,9 @@ __host__ void host_integer_radix_scalar_addition_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_scalar_addition_inplace<Torus>
-      <<<grid, thds, 0, streams.stream(0)>>>((Torus *)lwe_array->ptr,
-                                             scalar_input, num_scalars,
-                                             lwe_array->lwe_dimension, delta);
+  device_scalar_addition_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
+      (Torus *)lwe_array->ptr, scalar_input, num_scalars,
+      lwe_array->lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
   for (uint i = 0; i < num_scalars; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + h_scalar_input[i];
@@ -56,9 +56,9 @@ __host__ void host_integer_radix_scalar_addition_inplace(
 }
 
 template <typename Torus>
-__global__ void device_integer_radix_add_scalar_one_inplace(
-    Torus *lwe_array, int32_t num_blocks, uint32_t lwe_dimension,
-    uint64_t delta) {
+__global__ void
+device_add_scalar_one_inplace(Torus *lwe_array, int32_t num_blocks,
+                              uint32_t lwe_dimension, uint64_t delta) {
 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
@@ -68,9 +68,10 @@ __global__ void device_integer_radix_add_scalar_one_inplace(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_add_scalar_one_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
-    uint32_t message_modulus, uint32_t carry_modulus) {
+__host__ void host_add_scalar_one_inplace(CudaStreams streams,
+                                          CudaRadixCiphertextFFI *lwe_array,
+                                          uint32_t message_modulus,
+                                          uint32_t carry_modulus) {
   cuda_set_device(streams.gpu_index(0));
 
   // Create a 1-dimensional grid of threads
@@ -85,10 +86,9 @@ __host__ void host_integer_radix_add_scalar_one_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_add_scalar_one_inplace<Torus>
-      <<<grid, thds, 0, streams.stream(0)>>>((Torus *)lwe_array->ptr,
-                                             lwe_array->num_radix_blocks,
-                                             lwe_array->lwe_dimension, delta);
+  device_add_scalar_one_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
+      (Torus *)lwe_array->ptr, lwe_array->num_radix_blocks,
+      lwe_array->lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
   for (uint i = 0; i < lwe_array->num_radix_blocks; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + 1;
@@ -96,9 +96,10 @@ __host__ void host_integer_radix_add_scalar_one_inplace(
 }
 
 template <typename Torus>
-__global__ void device_integer_radix_scalar_subtraction_inplace(
-    Torus *lwe_array, Torus *scalar_input, int32_t num_blocks,
-    uint32_t lwe_dimension, uint64_t delta) {
+__global__ void
+device_scalar_subtraction_inplace(Torus *lwe_array, Torus *scalar_input,
+                                  int32_t num_blocks, uint32_t lwe_dimension,
+                                  uint64_t delta) {
 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
@@ -110,7 +111,7 @@ __global__ void device_integer_radix_scalar_subtraction_inplace(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_subtraction_inplace(
+__host__ void host_scalar_subtraction_inplace(
     CudaStreams streams, Torus *lwe_array, Torus *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {
@@ -128,7 +129,7 @@ __host__ void host_integer_radix_scalar_subtraction_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_scalar_subtraction_inplace<Torus>
+  device_scalar_subtraction_inplace<Torus>
       <<<grid, thds, 0, streams.stream(0)>>>(lwe_array, scalar_input,
                                              input_lwe_ciphertext_count,
                                              lwe_dimension, delta);

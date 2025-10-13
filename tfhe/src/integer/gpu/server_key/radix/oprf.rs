@@ -12,7 +12,9 @@ use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
 
-use crate::integer::gpu::{get_grouped_oprf_size_on_gpu, grouped_oprf_async, CudaVec, PBSType};
+use crate::integer::gpu::{
+    cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf, CudaVec, PBSType,
+};
 
 impl CudaServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -372,7 +374,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                grouped_oprf_async(
+                cuda_backend_grouped_oprf(
                     streams,
                     result,
                     &d_seeded_lwe_input,
@@ -395,7 +397,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_bsk) => {
-                grouped_oprf_async(
+                cuda_backend_grouped_oprf(
                     streams,
                     result,
                     &d_seeded_lwe_input,
@@ -429,7 +431,7 @@ impl CudaServerKey {
         let message_bits = self.message_modulus.0.ilog2();
 
         match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => get_grouped_oprf_size_on_gpu(
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
                 streams,
                 1,
                 d_bsk.input_lwe_dimension,
@@ -447,7 +449,7 @@ impl CudaServerKey {
                 message_bits,
                 d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
-            CudaBootstrappingKey::MultiBit(d_bsk) => get_grouped_oprf_size_on_gpu(
+            CudaBootstrappingKey::MultiBit(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
                 streams,
                 1,
                 d_bsk.input_lwe_dimension,

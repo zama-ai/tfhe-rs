@@ -3,8 +3,8 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
+use crate::integer::gpu::cuda_backend_unchecked_negate;
 use crate::integer::gpu::server_key::CudaServerKey;
-use crate::integer::gpu::unchecked_negate_integer_radix_async;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 
 impl CudaServerKey {
@@ -70,7 +70,7 @@ impl CudaServerKey {
 
         let info = ctxt.as_ref().info.blocks.first().unwrap();
 
-        unchecked_negate_integer_radix_async(
+        cuda_backend_unchecked_negate(
             streams,
             ciphertext_out.as_mut(),
             ctxt.as_ref(),

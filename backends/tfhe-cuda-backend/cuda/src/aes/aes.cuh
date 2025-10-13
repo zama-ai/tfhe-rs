@@ -111,9 +111,9 @@ aes_flush_inplace(CudaStreams streams, CudaRadixCiphertextFFI *data,
                   int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
                   Torus *const *ksks) {
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, data, data, bsks, ksks, mem->luts->flush_lut,
-      data->num_radix_blocks);
+  integer_radix_apply_univariate_lookup_table<Torus>(streams, data, data, bsks,
+                                                     ksks, mem->luts->flush_lut,
+                                                     data->num_radix_blocks);
 }
 
 /**
@@ -126,8 +126,8 @@ __host__ __forceinline__ void aes_scalar_add_one_flush_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *data,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
-  host_integer_radix_add_scalar_one_inplace<Torus>(
-      streams, data, mem->params.message_modulus, mem->params.carry_modulus);
+  host_add_scalar_one_inplace<Torus>(streams, data, mem->params.message_modulus,
+                                     mem->params.carry_modulus);
 
   aes_flush_inplace(streams, data, mem, bsks, ksks);
 }
@@ -167,7 +167,7 @@ batch_vec_flush_inplace(CudaStreams streams, CudaRadixCiphertextFFI **targets,
                                        &dest_slice, targets[i]);
   }
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, &batch_out, &batch_in, bsks, ksks, mem->luts->flush_lut,
       batch_out.num_radix_blocks);
 
@@ -220,7 +220,7 @@ __host__ void batch_vec_and_inplace(CudaStreams streams,
                                        &dest_rhs_slice, rhs[i]);
   }
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  integer_radix_apply_bivariate_lookup_table<Torus>(
       streams, &batch_out, &batch_lhs, &batch_rhs, bsks, ksks,
       mem->luts->and_lut, batch_out.num_radix_blocks,
       mem->params.message_modulus);
@@ -358,9 +358,9 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
 
 #define ADD_ONE(target)                                                        \
   do {                                                                         \
-    host_integer_radix_add_scalar_one_inplace<Torus>(                          \
-        streams, target, mem->params.message_modulus,                          \
-        mem->params.carry_modulus);                                            \
+    host_add_scalar_one_inplace<Torus>(streams, target,                        \
+                                       mem->params.message_modulus,            \
+                                       mem->params.carry_modulus);             \
   } while (0)
 
   // Homomorphic S-Box Circuit Evaluation
@@ -1057,7 +1057,7 @@ __host__ void vectorized_aes_full_adder_inplace(
     // The carry_lut applies the function f(x) = (x >> 1) & 1, which
     // extracts the carry bit from the previous sum. The result is stored
     // in carry_vec for the next iteration (i+1).
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, carry_vec, sum_plus_carry_vec, bsks, ksks,
         mem->luts->carry_lut, num_aes_inputs);
 
@@ -1065,7 +1065,7 @@ __host__ void vectorized_aes_full_adder_inplace(
     // The flush_lut applies the function f(x) = x & 1, which extracts
     // the least significant bit of the sum. The result is written
     // directly into the state buffer, updating the IV in-place.
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, &a_i_vec, sum_plus_carry_vec, bsks, ksks, mem->luts->flush_lut,
         num_aes_inputs);
   }
@@ -1221,9 +1221,9 @@ __host__ void host_integer_key_expansion(CudaStreams streams,
           CudaRadixCiphertextFFI first_byte_bit_slice;
           as_radix_ciphertext_slice<Torus>(&first_byte_bit_slice,
                                            &rotated_word_buffer, bit, bit + 1);
-          host_integer_radix_add_scalar_one_inplace<Torus>(
-              streams, &first_byte_bit_slice, mem->params.message_modulus,
-              mem->params.carry_modulus);
+          host_add_scalar_one_inplace<Torus>(streams, &first_byte_bit_slice,
+                                             mem->params.message_modulus,
+                                             mem->params.carry_modulus);
         }
       }
 

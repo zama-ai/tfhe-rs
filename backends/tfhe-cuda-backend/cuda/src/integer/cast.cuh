@@ -78,8 +78,8 @@ __host__ void host_extend_radix_with_sign_msb(
       streams.stream(0), streams.gpu_index(0), mem_ptr->last_block, 0, 1, input,
       input_blocks - 1, input_blocks);
 
-  host_apply_univariate_lut_kb(streams, mem_ptr->padding_block,
-                               mem_ptr->last_block, mem_ptr->lut, ksks, bsks);
+  host_apply_univariate_lut(streams, mem_ptr->padding_block,
+                            mem_ptr->last_block, mem_ptr->lut, ksks, bsks);
 
   for (uint32_t i = 0; i < num_additional_blocks; ++i) {
     uint32_t dst_block_idx = input_blocks + i;

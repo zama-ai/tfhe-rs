@@ -100,7 +100,7 @@ fn resolve_ms_noise_reduction_config(
     )
 }
 
-pub fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
+pub(crate) fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
     CudaScalarDivisorFFI {
         decomposed_chosen_multiplier: std::ptr::null(),
         chosen_multiplier_has_at_least_one_set: std::ptr::null(),
@@ -268,20 +268,7 @@ where
         (cks, sks)
     };
 
-    // #[cfg(any(test, feature = "internal-keycache"))]
-    // {
-    //     if is_wopbs_only_params {
-    //         // TODO
-    //         // Keycache is broken for the wopbs only case, so generate keys instead
-    //         gen_keys_inner(shortint_parameters_set)
-    //     } else {
-    //         keycache::KEY_CACHE.get_from_params(shortint_parameters_set.pbs_parameters().
-    // unwrap())     }
-    // }
-    // #[cfg(all(not(test), not(feature = "internal-keycache")))]
-    // {
     gen_keys_inner(shortint_parameters_set, streams)
-    // }
 }
 
 /// Generate a couple of client and server keys with given parameters
@@ -319,7 +306,7 @@ where
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
+pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     scalar_input: &CudaVec<T>,
@@ -354,7 +341,7 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
         &mut lwe_array_degrees,
         &mut lwe_array_noise_levels,
     );
-    cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
+    cuda_scalar_addition_ciphertext_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_lwe_array,
         scalar_input.as_c_ptr(0),
@@ -371,7 +358,7 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     decomposed_scalar: &[T],
@@ -437,7 +424,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         .filter(|&&rhs_bit| rhs_bit == T::ONE)
         .count() as u32;
 
-    scratch_cuda_integer_scalar_mul_kb_64(
+    scratch_cuda_integer_scalar_mul_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -457,7 +444,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         noise_reduction_type as u32,
     );
 
-    cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
+    cuda_scalar_multiplication_ciphertext_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_lwe_array,
         decomposed_scalar.as_ptr().cast::<u64>(),
@@ -470,12 +457,12 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         num_scalars,
     );
 
-    cleanup_cuda_integer_radix_scalar_mul(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_scalar_mul(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(lwe_array, &cuda_ffi_lwe_array);
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
+pub(crate) fn cuda_backend_get_scalar_mul_size_on_gpu<T: UnsignedInteger>(
     streams: &CudaStreams,
     decomposed_scalar: &[T],
     message_modulus: MessageModulus,
@@ -504,7 +491,7 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
         .count() as u32;
 
     let size_tracker = unsafe {
-        scratch_cuda_integer_scalar_mul_kb_64(
+        scratch_cuda_integer_scalar_mul_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -526,13 +513,13 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
     };
 
     unsafe {
-        cleanup_cuda_integer_radix_scalar_mul(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_scalar_mul(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
+pub(crate) fn cuda_backend_get_scalar_div_size_on_gpu<Scalar>(
     streams: &CudaStreams,
     divisor: Scalar,
     message_modulus: MessageModulus,
@@ -605,7 +592,7 @@ where
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
-        scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        scratch_cuda_integer_unsigned_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -626,7 +613,7 @@ where
         )
     };
     unsafe {
-        cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        cleanup_cuda_integer_unsigned_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
         )
@@ -635,7 +622,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
+pub(crate) fn cuda_backend_get_signed_scalar_div_size_on_gpu<Scalar>(
     streams: &CudaStreams,
     divisor: Scalar,
     message_modulus: MessageModulus,
@@ -697,7 +684,7 @@ where
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
-        scratch_cuda_integer_signed_scalar_div_radix_kb_64(
+        scratch_cuda_integer_signed_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -718,7 +705,7 @@ where
         )
     };
     unsafe {
-        cleanup_cuda_integer_signed_scalar_div_radix_kb_64(
+        cleanup_cuda_integer_signed_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
         )
@@ -731,7 +718,7 @@ where
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn compress_integer_radix_async<
+pub(crate) unsafe fn cuda_backend_compress<
     InputTorus: UnsignedInteger,
     OutputTorus: UnsignedInteger,
 >(
@@ -839,7 +826,7 @@ pub unsafe fn compress_integer_radix_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_compression_size_on_gpu(
+pub(crate) fn cuda_backend_get_compression_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -884,7 +871,7 @@ pub fn get_compression_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn decompress_integer_radix_async_64<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<u64>,
     glwe_in: &CudaPackedGlweCiphertextList<u64>,
@@ -968,7 +955,7 @@ pub unsafe fn decompress_integer_radix_async_64<B: Numeric>(
 ///
 ///  128-bit decompression doesn't execute a PBS as the 64-bit does.
 ///  We have a different entry point because we don't need to carry a bsk to the backend.
-pub unsafe fn decompress_integer_radix_async_128(
+pub(crate) unsafe fn cuda_backend_decompress_128(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<u128>,
     glwe_in: &CudaPackedGlweCiphertextList<u128>,
@@ -1026,7 +1013,7 @@ pub unsafe fn decompress_integer_radix_async_128(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_decompression_size_on_gpu(
+pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -1074,7 +1061,7 @@ pub fn get_decompression_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_add_integer_radix_assign_async(
+pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
@@ -1148,7 +1135,7 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     is_boolean_left: bool,
@@ -1241,7 +1228,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_mult_radix_ciphertext_kb_64(
+    scratch_cuda_integer_mult_radix_ciphertext_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         is_boolean_left,
@@ -1261,7 +1248,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_mult_radix_ciphertext_kb_64(
+    cuda_integer_mult_radix_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_left,
@@ -1279,7 +1266,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_mul_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_mul_size_on_gpu(
     streams: &CudaStreams,
     is_boolean_left: bool,
     is_boolean_right: bool,
@@ -1301,7 +1288,7 @@ pub fn get_mul_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_mult_radix_ciphertext_kb_64(
+        scratch_cuda_integer_mult_radix_ciphertext_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             is_boolean_left,
@@ -1333,7 +1320,7 @@ pub fn get_mul_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
@@ -1426,7 +1413,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_radix_bitop_kb_64(
+    scratch_cuda_bitop_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1446,7 +1433,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         true,
         noise_reduction_type as u32,
     );
-    cuda_bitop_integer_radix_ciphertext_kb_64(
+    cuda_bitop_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_left,
@@ -1460,7 +1447,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_bitop_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -1482,7 +1469,7 @@ pub fn get_bitop_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_bitop_kb_64(
+        scratch_cuda_bitop_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -1514,10 +1501,7 @@ pub fn get_bitop_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe: &mut CudaRadixCiphertext,
     clear_blocks: &CudaVec<T>,
@@ -1583,7 +1567,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         &mut radix_lwe_degrees,
         &mut radix_lwe_noise_levels,
     );
-    scratch_cuda_integer_radix_bitop_kb_64(
+    scratch_cuda_bitop_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1603,7 +1587,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
+    cuda_scalar_bitop_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe,
         &raw const cuda_ffi_radix_lwe,
@@ -1619,7 +1603,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_bitop_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -1641,7 +1625,7 @@ pub fn get_scalar_bitop_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_bitop_kb_64(
+        scratch_cuda_bitop_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -1673,7 +1657,7 @@ pub fn get_scalar_bitop_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_left: &CudaRadixCiphertext,
@@ -1788,7 +1772,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         &mut radix_lwe_right_noise_levels,
     );
 
-    scratch_cuda_integer_radix_comparison_kb_64(
+    scratch_cuda_comparison_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1810,7 +1794,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         noise_reduction_type as u32,
     );
 
-    cuda_comparison_integer_radix_ciphertext_kb_64(
+    cuda_comparison_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_left,
@@ -1825,7 +1809,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_comparison_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -1848,7 +1832,7 @@ pub fn get_comparison_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_comparison_kb_64(
+        scratch_cuda_comparison_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -1881,7 +1865,7 @@ pub fn get_comparison_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
@@ -1978,7 +1962,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         &mut radix_lwe_in_degrees,
         &mut radix_lwe_in_noise_levels,
     );
-    scratch_cuda_integer_radix_comparison_kb_64(
+    scratch_cuda_comparison_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2000,7 +1984,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         noise_reduction_type as u32,
     );
 
-    cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
+    cuda_scalar_comparison_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
@@ -2021,7 +2005,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
@@ -2111,7 +2095,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_full_propagate_assign_size_on_gpu(
+pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
     streams: &CudaStreams,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
@@ -2159,7 +2143,7 @@ pub fn get_full_propagate_assign_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
@@ -2246,7 +2230,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_propagate_single_carry_kb_64_inplace(
+    scratch_cuda_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2266,7 +2250,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         true,
         noise_reduction_type as u32,
     );
-    cuda_propagate_single_carry_kb_64_inplace(
+    cuda_propagate_single_carry_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_input,
         &raw mut cuda_ffi_carry_out,
@@ -2283,7 +2267,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
+pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
@@ -2305,7 +2289,7 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let size_tracker = unsafe {
-        scratch_cuda_propagate_single_carry_kb_64_inplace(
+        scratch_cuda_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -2333,7 +2317,7 @@ pub(crate) fn get_propagate_single_carry_assign_async_size_on_gpu(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
+pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
@@ -2355,7 +2339,7 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let size_tracker = unsafe {
-        scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+        scratch_cuda_add_and_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -2387,7 +2371,10 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
@@ -2509,7 +2496,7 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
 
-    scratch_cuda_sub_and_propagate_single_carry_kb_64_inplace(
+    scratch_cuda_sub_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2530,7 +2517,7 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
         noise_reduction_type as u32,
     );
 
-    cuda_sub_and_propagate_single_carry_kb_64_inplace(
+    cuda_sub_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_lhs_input,
         &raw const cuda_ffi_rhs_input,
@@ -2554,7 +2541,10 @@ pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
@@ -2670,7 +2660,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+    scratch_cuda_add_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2690,7 +2680,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         true,
         noise_reduction_type as u32,
     );
-    cuda_add_and_propagate_single_carry_kb_64_inplace(
+    cuda_add_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_lhs_input,
         &raw const cuda_ffi_rhs_input,
@@ -2712,7 +2702,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     seeded_lwe_input: &CudaVec<u64>,
@@ -2780,7 +2770,7 @@ pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
         noise_reduction_type as u32,
     );
 
-    cuda_integer_grouped_oprf_async_64(
+    cuda_integer_grouped_oprf_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         seeded_lwe_input.as_c_ptr(0),
@@ -2795,7 +2785,7 @@ pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn get_grouped_oprf_size_on_gpu(
+pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     streams: &CudaStreams,
     num_blocks_to_process: u32,
     lwe_dimension: LweDimension,
@@ -2850,7 +2840,7 @@ pub(crate) fn get_grouped_oprf_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
     T: UnsignedInteger,
     B: Numeric,
     Scalar,
@@ -2992,7 +2982,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         .filter(|&&bit| bit == 1u64)
         .count() as u32;
 
-    scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
+    scratch_integer_unsigned_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3013,7 +3003,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         noise_reduction_type as u32,
     );
 
-    cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
+    cuda_integer_unsigned_scalar_div_rem_radix_64(
         streams.ffi(),
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
@@ -3029,7 +3019,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         min(clear_blocks.len() as u32, num_blocks),
     );
 
-    cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
+    cleanup_cuda_integer_unsigned_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3043,7 +3033,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     T: UnsignedInteger,
     B: Numeric,
     Scalar,
@@ -3170,7 +3160,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         .filter(|&&bit| bit == 1u64)
         .count() as u32;
 
-    scratch_integer_signed_scalar_div_rem_radix_kb_64(
+    scratch_integer_signed_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3191,7 +3181,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         noise_reduction_type as u32,
     );
 
-    cuda_integer_signed_scalar_div_rem_radix_kb_64(
+    cuda_integer_signed_scalar_div_rem_radix_64(
         streams.ffi(),
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
@@ -3205,7 +3195,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         numerator_bits,
     );
 
-    cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
+    cleanup_cuda_integer_signed_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3215,11 +3205,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn get_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
+pub(crate) fn cuda_backend_get_scalar_div_rem_size_on_gpu<Scalar>(
     streams: &CudaStreams,
     divisor: Scalar,
     message_modulus: MessageModulus,
@@ -3299,41 +3285,41 @@ where
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
-    let size_tracker = scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        &raw const scalar_divisor_ffi,
-        active_bits_divisor,
-        false,
-        noise_reduction_type as u32,
-    );
+    let size_tracker = unsafe {
+        scratch_integer_unsigned_scalar_div_rem_radix_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            &raw const scalar_divisor_ffi,
+            active_bits_divisor,
+            false,
+            noise_reduction_type as u32,
+        )
+    };
 
-    cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    unsafe {
+        cleanup_cuda_integer_unsigned_scalar_div_rem_radix_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
+pub(crate) fn cuda_backend_get_signed_scalar_div_rem_size_on_gpu<Scalar>(
     streams: &CudaStreams,
     divisor: Scalar,
     message_modulus: MessageModulus,
@@ -3400,31 +3386,35 @@ where
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
-    let size_tracker = scratch_integer_signed_scalar_div_rem_radix_kb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        &raw const scalar_divisor_ffi,
-        active_bits_divisor,
-        false,
-        noise_reduction_type as u32,
-    );
+    let size_tracker = unsafe {
+        scratch_integer_signed_scalar_div_rem_radix_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            &raw const scalar_divisor_ffi,
+            active_bits_divisor,
+            false,
+            noise_reduction_type as u32,
+        )
+    };
 
-    cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    unsafe {
+        cleanup_cuda_integer_signed_scalar_div_rem_radix_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 
     size_tracker
 }
@@ -3434,7 +3424,7 @@ where
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
     T: UnsignedInteger,
     B: Numeric,
     Scalar,
@@ -3565,7 +3555,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_noise_levels,
     );
 
-    scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
+    scratch_cuda_integer_unsigned_scalar_div_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3585,7 +3575,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         noise_reduction_type as u32,
     );
 
-    cuda_integer_unsigned_scalar_div_radix_kb_64(
+    cuda_integer_unsigned_scalar_div_radix_64(
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
@@ -3594,7 +3584,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         &raw const scalar_divisor_ffi,
     );
 
-    cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
+    cleanup_cuda_integer_unsigned_scalar_div_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3607,7 +3597,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     T: UnsignedInteger,
     B: Numeric,
     Scalar,
@@ -3708,7 +3698,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_noise_levels,
     );
 
-    scratch_cuda_integer_signed_scalar_div_radix_kb_64(
+    scratch_cuda_integer_signed_scalar_div_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3728,7 +3718,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         noise_reduction_type as u32,
     );
 
-    cuda_integer_signed_scalar_div_radix_kb_64(
+    cuda_integer_signed_scalar_div_radix_64(
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
@@ -3738,10 +3728,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         numerator_bits,
     );
 
-    cleanup_cuda_integer_signed_scalar_div_radix_kb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    cleanup_cuda_integer_signed_scalar_div_radix_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(numerator, &cuda_ffi_numerator);
 }
@@ -3751,7 +3738,7 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -3809,7 +3796,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         &mut radix_lwe_left_noise_levels,
     );
 
-    scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+    scratch_cuda_logical_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3829,7 +3816,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
+    cuda_logical_scalar_shift_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
@@ -3837,7 +3824,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -3846,7 +3833,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -3904,7 +3891,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         &mut radix_lwe_left_noise_levels,
     );
 
-    scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+    scratch_cuda_logical_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3924,7 +3911,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
+    cuda_logical_scalar_shift_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
@@ -3932,7 +3919,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -3941,7 +3928,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -3998,7 +3985,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         &mut radix_lwe_left_noise_levels,
     );
 
-    scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+    scratch_cuda_arithmetic_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -4018,7 +4005,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
+    cuda_arithmetic_scalar_shift_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
@@ -4026,10 +4013,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    cleanup_cuda_arithmetic_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4038,10 +4022,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
@@ -4120,7 +4101,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+    scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -4141,7 +4122,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+    cuda_shift_and_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -4149,7 +4130,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4158,7 +4139,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
@@ -4237,7 +4218,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+    scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -4258,7 +4239,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+    cuda_shift_and_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -4266,7 +4247,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4275,10 +4256,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
@@ -4362,7 +4340,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+    scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -4383,7 +4361,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+    cuda_shift_and_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -4391,7 +4369,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4400,10 +4378,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
@@ -4487,7 +4462,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+    scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -4508,7 +4483,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+    cuda_shift_and_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -4516,12 +4491,12 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_left_shift_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_scalar_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4542,7 +4517,7 @@ pub fn get_scalar_left_shift_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+        scratch_cuda_logical_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4564,16 +4539,13 @@ pub fn get_scalar_left_shift_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            streams.ffi(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
+        cleanup_cuda_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_logical_right_shift_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_scalar_logical_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4594,7 +4566,7 @@ pub fn get_scalar_logical_right_shift_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+        scratch_cuda_logical_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4616,16 +4588,13 @@ pub fn get_scalar_logical_right_shift_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            streams.ffi(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
+        cleanup_cuda_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_arithmetic_right_shift_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_scalar_arithmetic_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4646,7 +4615,7 @@ pub fn get_scalar_arithmetic_right_shift_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+        scratch_cuda_arithmetic_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4668,16 +4637,13 @@ pub fn get_scalar_arithmetic_right_shift_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-            streams.ffi(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
+        cleanup_cuda_arithmetic_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_right_shift_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4699,7 +4665,7 @@ pub fn get_right_shift_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4722,13 +4688,13 @@ pub fn get_right_shift_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_left_shift_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4750,7 +4716,7 @@ pub fn get_left_shift_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4773,13 +4739,13 @@ pub fn get_left_shift_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_rotate_right_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4801,7 +4767,7 @@ pub fn get_rotate_right_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4824,13 +4790,13 @@ pub fn get_rotate_right_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -4852,7 +4818,7 @@ pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -4875,7 +4841,7 @@ pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_and_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -4885,7 +4851,7 @@ pub fn get_rotate_left_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_condition: &CudaBooleanBlock,
@@ -5038,7 +5004,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         &mut condition_noise_levels,
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_cmux_kb_64(
+    scratch_cuda_cmux_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -5057,7 +5023,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         true,
         noise_reduction_type as u32,
     );
-    cuda_cmux_integer_radix_ciphertext_kb_64(
+    cuda_cmux_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_condition,
@@ -5067,12 +5033,12 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_cmux(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_cmux(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_cmux_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5093,7 +5059,7 @@ pub fn get_cmux_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_cmux_kb_64(
+        scratch_cuda_cmux_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -5114,7 +5080,7 @@ pub fn get_cmux_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_cmux(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_cmux(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -5124,7 +5090,7 @@ pub fn get_cmux_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -5184,7 +5150,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    scratch_cuda_integer_radix_scalar_rotate_kb_64(
+    scratch_cuda_scalar_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -5204,7 +5170,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_scalar_rotate_kb_64_inplace(
+    cuda_scalar_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         n,
@@ -5212,7 +5178,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -5221,7 +5187,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -5281,7 +5247,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    scratch_cuda_integer_radix_scalar_rotate_kb_64(
+    scratch_cuda_scalar_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -5301,7 +5267,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_scalar_rotate_kb_64_inplace(
+    cuda_scalar_rotate_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         n,
@@ -5309,12 +5275,12 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_rotate_left_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_scalar_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5335,7 +5301,7 @@ pub fn get_scalar_rotate_left_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
+        scratch_cuda_scalar_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -5357,13 +5323,13 @@ pub fn get_scalar_rotate_left_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
+pub(crate) fn get_scalar_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5384,7 +5350,7 @@ pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
+        scratch_cuda_scalar_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -5406,7 +5372,7 @@ pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_radix_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_scalar_rotate(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -5416,7 +5382,7 @@ pub fn get_scalar_rotate_right_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -5488,7 +5454,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         &mut radix_list_degrees,
         &mut radix_list_noise_levels,
     );
-    scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
+    scratch_cuda_partial_sum_ciphertexts_vec_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -5508,7 +5474,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
+    cuda_partial_sum_ciphertexts_vec_64(
         streams.ffi(),
         &raw mut cuda_ffi_result,
         &raw mut cuda_ffi_radix_list,
@@ -5516,10 +5482,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+    cleanup_cuda_partial_sum_ciphertexts_vec(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(result, &cuda_ffi_result);
 }
 
@@ -5528,7 +5491,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn extend_radix_with_sign_msb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_extend_radix_with_sign_msb<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     ct: &CudaRadixCiphertext,
@@ -5603,7 +5566,7 @@ pub unsafe fn extend_radix_with_sign_msb_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5673,7 +5636,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         num_blocks,
         (glwe_dimension.0 * polynomial_size.0) as u32,
     );
-    scratch_cuda_apply_univariate_lut_kb_64(
+    scratch_cuda_apply_univariate_lut_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -5693,7 +5656,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         true,
         noise_reduction_type as u32,
     );
-    cuda_apply_univariate_lut_kb_64(
+    cuda_apply_univariate_lut_64(
         streams.ffi(),
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input,
@@ -5701,7 +5664,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
     );
-    cleanup_cuda_apply_univariate_lut_kb_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_apply_univariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5709,7 +5672,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5780,7 +5743,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         num_blocks,
         (glwe_dimension.0 * polynomial_size.0) as u32,
     );
-    scratch_cuda_apply_many_univariate_lut_kb_64(
+    scratch_cuda_apply_many_univariate_lut_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -5801,7 +5764,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         true,
         noise_reduction_type as u32,
     );
-    cuda_apply_many_univariate_lut_kb_64(
+    cuda_apply_many_univariate_lut_64(
         streams.ffi(),
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input,
@@ -5811,7 +5774,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         num_many_lut,
         lut_stride,
     );
-    cleanup_cuda_apply_univariate_lut_kb_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_apply_univariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5819,7 +5782,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_apply_bivariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5905,7 +5868,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         num_blocks,
         (glwe_dimension.0 * polynomial_size.0) as u32,
     );
-    scratch_cuda_apply_bivariate_lut_kb_64(
+    scratch_cuda_apply_bivariate_lut_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -5925,7 +5888,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         true,
         noise_reduction_type as u32,
     );
-    cuda_apply_bivariate_lut_kb_64(
+    cuda_apply_bivariate_lut_64(
         streams.ffi(),
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input_1,
@@ -5936,7 +5899,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         num_blocks,
         shift,
     );
-    cleanup_cuda_apply_bivariate_lut_kb_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_apply_bivariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5944,7 +5907,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
@@ -6055,7 +6018,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         &mut remainder_degrees,
         &mut remainder_noise_levels,
     );
-    scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+    scratch_cuda_integer_div_rem_radix_ciphertext_64(
         streams.ffi(),
         is_signed,
         std::ptr::addr_of_mut!(mem_ptr),
@@ -6075,7 +6038,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_div_rem_radix_ciphertext_kb_64(
+    cuda_integer_div_rem_radix_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
@@ -6092,7 +6055,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_div_rem_integer_radix_kb_size_on_gpu(
+pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
     streams: &CudaStreams,
     is_signed: bool,
     message_modulus: MessageModulus,
@@ -6114,7 +6077,7 @@ pub fn get_div_rem_integer_radix_kb_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+        scratch_cuda_integer_div_rem_radix_ciphertext_64(
             streams.ffi(),
             is_signed,
             std::ptr::addr_of_mut!(mem_ptr),
@@ -6147,7 +6110,7 @@ pub fn get_div_rem_integer_radix_kb_size_on_gpu(
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until streams is synchronized.
 /// - `output_ct` must be allocated with enough blocks to store the result.
-pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output_ct: &mut CudaRadixCiphertext,
     input_ct: &CudaRadixCiphertext,
@@ -6216,7 +6179,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
     let cuda_ffi_input_ct =
         prepare_cuda_radix_ffi(input_ct, &mut input_degrees, &mut input_noise_levels);
 
-    scratch_integer_count_of_consecutive_bits_kb_64(
+    scratch_integer_count_of_consecutive_bits_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -6238,7 +6201,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
         noise_reduction_type as u32,
     );
 
-    cuda_integer_count_of_consecutive_bits_kb_64(
+    cuda_integer_count_of_consecutive_bits_64(
         streams.ffi(),
         &raw mut cuda_ffi_output_ct,
         &raw const cuda_ffi_input_ct,
@@ -6247,7 +6210,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
         keyswitch_key.ptr.as_ptr(),
     );
 
-    cleanup_cuda_integer_count_of_consecutive_bits_kb_64(
+    cleanup_cuda_integer_count_of_consecutive_bits_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -6261,7 +6224,7 @@ pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until streams is synchronized.
 /// - `output_ct` must be allocated with enough blocks to store the result.
-pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
@@ -6368,7 +6331,7 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
         &mut trivial_all_ones_block_noise_levels,
     );
 
-    scratch_integer_ilog2_kb_64(
+    scratch_integer_ilog2_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -6389,7 +6352,7 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
         noise_reduction_type as u32,
     );
 
-    cuda_integer_ilog2_kb_64(
+    cuda_integer_ilog2_64(
         streams.ffi(),
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input,
@@ -6401,7 +6364,7 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
         keyswitch_key.ptr.as_ptr(),
     );
 
-    cleanup_cuda_integer_ilog2_kb_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_integer_ilog2_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(output, &cuda_ffi_output);
 }
@@ -6411,7 +6374,10 @@ pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_compute_prefix_sum_hillis_steele<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -6525,46 +6491,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn reverse_blocks_inplace_async(
-    streams: &CudaStreams,
-    radix_lwe_output: &mut CudaRadixCiphertext,
-) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_output.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        radix_lwe_output.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    if radix_lwe_output.d_blocks.lwe_ciphertext_count().0 > 1 {
-        let mut radix_lwe_output_degrees = radix_lwe_output
-            .info
-            .blocks
-            .iter()
-            .map(|b| b.degree.0)
-            .collect();
-        let mut radix_lwe_output_noise_levels = radix_lwe_output
-            .info
-            .blocks
-            .iter()
-            .map(|b| b.noise_level.0)
-            .collect();
-        let mut cuda_ffi_radix_lwe_output = prepare_cuda_radix_ffi(
-            radix_lwe_output,
-            &mut radix_lwe_output_degrees,
-            &mut radix_lwe_output_noise_levels,
-        );
-        cuda_integer_reverse_blocks_64_inplace(streams.ffi(), &raw mut cuda_ffi_radix_lwe_output);
-        update_noise_degree(radix_lwe_output, &cuda_ffi_radix_lwe_output);
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -6677,7 +6604,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_integer_overflowing_sub_kb_64_inplace(
+    scratch_cuda_integer_overflowing_sub_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -6697,7 +6624,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_overflowing_sub_kb_64_inplace(
+    cuda_integer_overflowing_sub_64_inplace(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
@@ -6719,7 +6646,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     ct: &mut CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
@@ -6767,7 +6694,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut ct_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let mut cuda_ffi_ct = prepare_cuda_radix_ffi(ct, &mut ct_degrees, &mut ct_noise_levels);
-    scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+    scratch_cuda_integer_abs_inplace_radix_ciphertext_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         true,
@@ -6787,7 +6714,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+    cuda_integer_abs_inplace_radix_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_ct,
         mem_ptr,
@@ -6804,7 +6731,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async<
+pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_true<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -6892,7 +6819,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         &mut radix_lwe_in_degrees,
         &mut radix_lwe_in_noise_levels,
     );
-    scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+    scratch_cuda_integer_is_at_least_one_comparisons_block_true_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -6912,7 +6839,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         noise_reduction_type as u32,
     );
 
-    cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+    cuda_integer_is_at_least_one_comparisons_block_true_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
@@ -6934,7 +6861,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
+pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
     T: UnsignedInteger,
     B: Numeric,
 >(
@@ -7022,7 +6949,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         &mut radix_lwe_in_noise_levels,
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
+    scratch_cuda_integer_are_all_comparisons_block_true_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -7042,7 +6969,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         noise_reduction_type as u32,
     );
 
-    cuda_integer_are_all_comparisons_block_true_kb_64(
+    cuda_integer_are_all_comparisons_block_true_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
@@ -7066,7 +6993,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
-pub unsafe fn unchecked_negate_integer_radix_async(
+pub(crate) unsafe fn cuda_backend_unchecked_negate(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
@@ -7108,7 +7035,7 @@ pub unsafe fn unchecked_negate_integer_radix_async(
         &mut radix_lwe_in_noise_levels,
     );
 
-    cuda_negate_integer_radix_ciphertext_64(
+    cuda_negate_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
@@ -7123,7 +7050,7 @@ pub unsafe fn unchecked_negate_integer_radix_async(
 ///
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until streams is synchronized
-pub unsafe fn trim_radix_blocks_lsb_async(
+pub(crate) unsafe fn cuda_backend_trim_radix_blocks_lsb(
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     streams: &CudaStreams,
@@ -7150,7 +7077,7 @@ pub unsafe fn trim_radix_blocks_lsb_async(
 ///
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until streams is synchronized
-pub unsafe fn extend_radix_with_trivial_zero_blocks_msb_async(
+pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     streams: &CudaStreams,
@@ -7179,7 +7106,7 @@ pub unsafe fn extend_radix_with_trivial_zero_blocks_msb_async(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -7251,7 +7178,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
         (input_glwe_dimension.0 * input_polynomial_size.0) as u32,
     );
 
-    scratch_cuda_apply_noise_squashing_kb(
+    scratch_cuda_apply_noise_squashing(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         lwe_dimension.0 as u32,
@@ -7273,7 +7200,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
         noise_reduction_type as u32,
     );
 
-    cuda_apply_noise_squashing_kb(
+    cuda_apply_noise_squashing(
         streams.ffi(),
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input,
@@ -7282,7 +7209,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
         bootstrapping_key.ptr.as_ptr(),
     );
 
-    cleanup_cuda_apply_noise_squashing_kb(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -7297,7 +7224,7 @@ pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
 /// that were inside that vector of compact list. Handling the input this way removes the need
 /// to process multiple compact lists separately, simplifying GPU-based operations. The variable
 /// name `lwe_flattened_compact_array_in` makes this intent explicit.
-pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<T>,
     lwe_flattened_compact_array_in: &CudaVec<T>,
@@ -7409,10 +7336,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
@@ -7505,11 +7429,7 @@ pub unsafe fn unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
     streams: &CudaStreams,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
@@ -7561,10 +7481,7 @@ pub unsafe fn get_aes_ctr_encrypt_integer_radix_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_key_expansion_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
@@ -7641,11 +7558,7 @@ pub unsafe fn unchecked_key_expansion_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn get_key_expansion_integer_radix_size_on_gpu(
+pub(crate) unsafe fn cuda_backend_get_aes_key_expansion_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,

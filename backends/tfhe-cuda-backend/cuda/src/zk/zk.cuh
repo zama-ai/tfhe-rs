@@ -94,7 +94,7 @@ __host__ void host_expand_without_verification(
   into_radix_ciphertext(output, lwe_array_out, 2 * num_lwes, lwe_dimension);
   auto input = new CudaRadixCiphertextFFI;
   into_radix_ciphertext(input, lwe_array_input, 2 * num_lwes, lwe_dimension);
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, output, input, bsks, ksks, message_and_carry_extract_luts,
       2 * num_lwes);
 }

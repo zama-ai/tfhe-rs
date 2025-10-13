@@ -8,8 +8,8 @@ use crate::integer::gpu::server_key::CudaServerKey;
 
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    sub_and_propagate_single_carry_assign_async,
-    unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
+    cuda_backend_sub_and_propagate_single_carry_assign,
+    cuda_backend_unchecked_unsigned_overflowing_sub_assign, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::parameters::LweBskGroupingFactor;
@@ -264,7 +264,7 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
@@ -273,7 +273,7 @@ impl CudaServerKey {
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(ct_left, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -281,13 +281,8 @@ impl CudaServerKey {
             }
         };
 
-        let _carry = self.sub_and_propagate_single_carry_assign_async(
-            lhs,
-            rhs,
-            streams,
-            None,
-            OutputFlag::None,
-        );
+        let _carry =
+            self.sub_and_propagate_single_carry_assign(lhs, rhs, streams, None, OutputFlag::None);
     }
 
     pub fn get_sub_assign_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -314,22 +309,22 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 unsafe {
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
 
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
@@ -383,17 +378,18 @@ impl CudaServerKey {
         const INPUT_BORROW: Option<&CudaBooleanBlock> = None;
 
         let mut overflow_block: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(1, stream);
+            self.create_trivial_zero_radix_async(1, stream);
         let ciphertext = ct_res.as_mut();
         let uses_input_borrow = INPUT_BORROW.map_or(0u32, |_block| 1u32);
 
-        let aux_block: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
+        let aux_block: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix_async(1, stream);
         let in_carry_dvec =
             INPUT_BORROW.map_or_else(|| aux_block.as_ref(), |block| block.as_ref().as_ref());
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_overflowing_sub_assign(
                     stream,
                     ciphertext,
                     rhs.as_ref(),
@@ -418,7 +414,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_overflowing_sub_assign(
                     stream,
                     ciphertext,
                     rhs.as_ref(),
@@ -452,7 +448,7 @@ impl CudaServerKey {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronized
-    pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T>(
+    pub(crate) unsafe fn sub_and_propagate_single_carry_assign<T>(
         &self,
         lhs: &mut T,
         rhs: &T,
@@ -463,17 +459,17 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
+        let mut carry_out: T = self.create_trivial_zero_radix_async(1, streams);
 
         let num_blocks = lhs.as_mut().d_blocks.lwe_ciphertext_count().0 as u32;
         let uses_carry = input_carry.map_or(0u32, |_block| 1u32);
-        let aux_block: T = self.create_trivial_zero_radix(1, streams);
+        let aux_block: T = self.create_trivial_zero_radix_async(1, streams);
         let in_carry: &CudaRadixCiphertext =
             input_carry.map_or_else(|| aux_block.as_ref(), |block| block.0.as_ref());
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                sub_and_propagate_single_carry_assign_async(
+                cuda_backend_sub_and_propagate_single_carry_assign(
                     streams,
                     lhs.as_mut(),
                     rhs.as_ref(),
@@ -499,7 +495,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                sub_and_propagate_single_carry_assign_async(
+                cuda_backend_sub_and_propagate_single_carry_assign(
                     streams,
                     lhs.as_mut(),
                     rhs.as_ref(),

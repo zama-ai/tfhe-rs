@@ -1,6 +1,6 @@
 #include "integer/bitwise_ops.cuh"
 
-uint64_t scratch_cuda_integer_radix_bitop_kb_64(
+uint64_t scratch_cuda_bitop_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -14,20 +14,21 @@ uint64_t scratch_cuda_integer_radix_bitop_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_integer_radix_bitop_kb<uint64_t>(
+  return scratch_cuda_bitop<uint64_t>(
       CudaStreams(streams), (int_bitop_buffer<uint64_t> **)mem_ptr,
       lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
 }
 
-void cuda_bitop_integer_radix_ciphertext_kb_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_1,
-    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+void cuda_bitop_ciphertext_64(CudaStreamsFFI streams,
+                              CudaRadixCiphertextFFI *lwe_array_out,
+                              CudaRadixCiphertextFFI const *lwe_array_1,
+                              CudaRadixCiphertextFFI const *lwe_array_2,
+                              int8_t *mem_ptr, void *const *bsks,
+                              void *const *ksks) {
 
-  host_integer_radix_bitop_kb<uint64_t>(
-      CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2,
-      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
+  host_bitop<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
+                       lwe_array_2, (int_bitop_buffer<uint64_t> *)mem_ptr, bsks,
+                       (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_integer_bitop(CudaStreamsFFI streams, int8_t **mem_ptr_void) {

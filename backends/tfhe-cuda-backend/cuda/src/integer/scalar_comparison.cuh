@@ -25,11 +25,13 @@ Torus is_x_less_than_y_given_input_borrow(Torus last_x_block,
 }
 
 template <typename Torus>
-__host__ void scalar_compare_radix_blocks_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void scalar_compare_radix_blocks(CudaStreams streams,
+                                          CudaRadixCiphertextFFI *lwe_array_out,
+                                          CudaRadixCiphertextFFI *lwe_array_in,
+                                          Torus *scalar_blocks,
+                                          int_comparison_buffer<Torus> *mem_ptr,
+                                          void *const *bsks, Torus *const *ksks,
+                                          uint32_t num_radix_blocks) {
 
   if (num_radix_blocks == 0)
     return;
@@ -62,13 +64,13 @@ __host__ void scalar_compare_radix_blocks_kb(
                                      subtracted_blocks, lwe_array_in);
   // Subtract
   // Here we need the true lwe sub, not the one that comes from shortint.
-  host_integer_radix_scalar_subtraction_inplace<Torus>(
+  host_scalar_subtraction_inplace<Torus>(
       streams, (Torus *)subtracted_blocks->ptr, scalar_blocks,
       big_lwe_dimension, num_radix_blocks, message_modulus, carry_modulus);
 
   // Apply LUT to compare to 0
   auto sign_lut = mem_ptr->eq_buffer->is_non_zero_lut;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, subtracted_blocks, bsks, ksks, sign_lut,
       num_radix_blocks);
 
@@ -78,12 +80,12 @@ __host__ void scalar_compare_radix_blocks_kb(
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
   // modulus), 0, 1 So the output values after the addition will be: 0, 1, 2
-  host_integer_radix_add_scalar_one_inplace<Torus>(
-      streams, lwe_array_out, message_modulus, carry_modulus);
+  host_add_scalar_one_inplace<Torus>(streams, lwe_array_out, message_modulus,
+                                     carry_modulus);
 }
 
 template <typename Torus>
-__host__ void integer_radix_unsigned_scalar_difference_check_kb(
+__host__ void integer_radix_unsigned_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
@@ -148,7 +150,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     auto active_streams = streams.active_gpu_subset(1);
     lut->broadcast_lut(active_streams);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, bsks, ksks, lut, 1);
 
   } else if (num_scalar_blocks < num_radix_blocks) {
@@ -199,7 +201,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     // - 2 if lhs > rhs
 
     auto comparisons = mem_ptr->tmp_block_comparisons;
-    scalar_compare_radix_blocks_kb<Torus>(
+    scalar_compare_radix_blocks<Torus>(
         lsb_streams, comparisons, diff_buffer->tmp_packed, (Torus *)rhs.ptr,
         mem_ptr, bsks, ksks, num_lsb_radix_blocks);
 
@@ -242,7 +244,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     auto active_streams = streams.active_gpu_subset(1);
     lut->broadcast_lut(active_streams);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, lwe_array_out, lwe_array_lsb_out, &lwe_array_msb_out, bsks,
         ksks, lut, 1, lut->params.message_modulus);
 
@@ -276,7 +278,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       auto active_streams = streams.active_gpu_subset(1);
       one_block_lut->broadcast_lut(active_streams);
 
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array_out, lwe_array_in, bsks, ksks, one_block_lut, 1);
       one_block_lut->release(streams);
       delete one_block_lut;
@@ -305,7 +307,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       // - 1 if lhs == rhs
       // - 2 if lhs > rhs
       auto comparisons = mem_ptr->tmp_lwe_array_out;
-      scalar_compare_radix_blocks_kb<Torus>(
+      scalar_compare_radix_blocks<Torus>(
           streams, comparisons, diff_buffer->tmp_packed, (Torus *)rhs.ptr,
           mem_ptr, bsks, ksks, num_lsb_radix_blocks);
 
@@ -321,7 +323,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 }
 
 template <typename Torus>
-__host__ void integer_radix_signed_scalar_difference_check_kb(
+__host__ void integer_radix_signed_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
@@ -420,7 +422,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     auto active_streams = streams.active_gpu_subset(1);
     lut->broadcast_lut(active_streams);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, lwe_array_out, are_all_msb_zeros, &sign_block, bsks, ksks, lut,
         1, lut->params.message_modulus);
 
@@ -466,7 +468,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // - 2 if lhs > rhs
 
     auto comparisons = mem_ptr->tmp_block_comparisons;
-    scalar_compare_radix_blocks_kb<Torus>(
+    scalar_compare_radix_blocks<Torus>(
         lsb_streams, comparisons, diff_buffer->tmp_packed, (Torus *)rhs.ptr,
         mem_ptr, bsks, ksks, num_lsb_radix_blocks);
 
@@ -525,7 +527,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     CudaRadixCiphertextFFI sign_block;
     as_radix_ciphertext_slice<Torus>(
         &sign_block, &msb, num_msb_radix_blocks - 1, num_msb_radix_blocks);
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         msb_streams, &lwe_array_msb_out, &sign_block, &are_all_msb_zeros, bsks,
         ksks, signed_msb_lut, 1, signed_msb_lut->params.message_modulus);
     lsb_streams.synchronize();
@@ -568,7 +570,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       auto active_streams = streams.active_gpu_subset(1);
       one_block_lut->broadcast_lut(active_streams);
 
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array_out, lwe_array_in, bsks, ksks, one_block_lut, 1);
       one_block_lut->release(streams);
       delete one_block_lut;
@@ -606,7 +608,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       // - 0 if lhs < rhs
       // - 1 if lhs == rhs
       // - 2 if lhs > rhs
-      scalar_compare_radix_blocks_kb<Torus>(
+      scalar_compare_radix_blocks<Torus>(
           lsb_streams, lwe_array_ct_out, diff_buffer->tmp_packed,
           (Torus *)rhs.ptr, mem_ptr, bsks, ksks, num_lsb_radix_blocks);
       CudaRadixCiphertextFFI encrypted_sign_block;
@@ -622,7 +624,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
           scalar_sign_block, h_scalar_sign_block, 1, message_modulus,
           carry_modulus);
 
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      integer_radix_apply_bivariate_lookup_table<Torus>(
           msb_streams, &lwe_array_sign_out, &encrypted_sign_block,
           trivial_sign_block, bsks, ksks, mem_ptr->signed_lut, 1,
           mem_ptr->signed_lut->params.message_modulus);
@@ -639,7 +641,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_difference_check_kb(
+__host__ void host_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
@@ -654,12 +656,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
 
   if (mem_ptr->is_signed) {
     // is signed and scalar is positive
-    integer_radix_signed_scalar_difference_check_kb<Torus>(
+    integer_radix_signed_scalar_difference_check<Torus>(
         streams, lwe_array_out, lwe_array_in, scalar_blocks, h_scalar_blocks,
         mem_ptr, sign_handler_f, bsks, ksks, num_radix_blocks,
         num_scalar_blocks);
   } else {
-    integer_radix_unsigned_scalar_difference_check_kb<Torus>(
+    integer_radix_unsigned_scalar_difference_check<Torus>(
         streams, lwe_array_out, lwe_array_in, scalar_blocks, h_scalar_blocks,
         mem_ptr, sign_handler_f, bsks, ksks, num_radix_blocks,
         num_scalar_blocks);
@@ -667,12 +669,13 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_maxmin_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
-    uint32_t num_scalar_blocks) {
+__host__ void
+host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+                   CudaRadixCiphertextFFI const *lwe_array_in,
+                   Torus const *scalar_blocks, Torus const *h_scalar_blocks,
+                   int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+                   Torus *const *ksks, uint32_t num_radix_blocks,
+                   uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -688,7 +691,7 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
   // - 1 if lhs == rhs
   // - 2 if lhs > rhs
   auto sign = mem_ptr->tmp_lwe_array_out;
-  host_integer_radix_scalar_difference_check_kb<Torus>(
+  host_scalar_difference_check<Torus>(
       streams, sign, lwe_array_in, scalar_blocks, h_scalar_blocks, mem_ptr,
       mem_ptr->identity_lut_f, bsks, ksks, num_radix_blocks, num_scalar_blocks);
 
@@ -704,13 +707,13 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
 
   // Selector
   // CMUX for Max or Min
-  host_integer_radix_cmux_kb<Torus>(
-      streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, lwe_array_left,
-      lwe_array_right, mem_ptr->cmux_buffer, bsks, ksks);
+  host_cmux<Torus>(streams, lwe_array_out, mem_ptr->tmp_lwe_array_out,
+                   lwe_array_left, lwe_array_right, mem_ptr->cmux_buffer, bsks,
+                   ksks);
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_equality_check_kb(
+__host__ void host_scalar_equality_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -785,7 +788,7 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     // We use false cause we only will broadcast the indexes
     scalar_comparison_luts->broadcast_lut(active_streams, false);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         lsb_streams, mem_ptr->tmp_lwe_array_out, mem_ptr->tmp_packed_input,
         bsks, ksks, scalar_comparison_luts, num_halved_lsb_radix_blocks);
   }
