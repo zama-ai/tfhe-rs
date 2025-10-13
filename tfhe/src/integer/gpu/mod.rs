@@ -304,8 +304,9 @@ where
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
@@ -356,8 +357,9 @@ pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
@@ -716,8 +718,9 @@ where
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_compress<
     InputTorus: UnsignedInteger,
     OutputTorus: UnsignedInteger,
@@ -869,8 +872,9 @@ pub(crate) fn cuda_backend_get_compression_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<u64>,
@@ -950,8 +954,9 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 ///
 ///  128-bit decompression doesn't execute a PBS as the 64-bit does.
 ///  We have a different entry point because we don't need to carry a bsk to the backend.
@@ -1059,8 +1064,9 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
@@ -1133,8 +1139,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
@@ -1318,8 +1325,9 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
@@ -1499,8 +1507,9 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe: &mut CudaRadixCiphertext,
@@ -1655,8 +1664,9 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -1863,8 +1873,9 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -2003,8 +2014,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<T: UnsignedInteger
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
@@ -2141,8 +2153,9 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
@@ -2369,8 +2382,9 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -2539,8 +2553,9 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -2700,8 +2715,9 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -2838,8 +2854,9 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
     T: UnsignedInteger,
     B: Numeric,
@@ -3031,8 +3048,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -3422,8 +3440,9 @@ where
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -3595,8 +3614,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -3736,8 +3756,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -3831,8 +3852,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -3926,8 +3948,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -4020,8 +4043,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
@@ -4137,8 +4161,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
@@ -4254,8 +4279,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
@@ -4376,8 +4402,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
@@ -4849,8 +4876,9 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -5088,8 +5116,9 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -5185,8 +5214,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -5380,8 +5410,9 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -5489,8 +5520,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_extend_radix_with_sign_msb<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
@@ -5564,8 +5596,9 @@ pub(crate) unsafe fn cuda_backend_extend_radix_with_sign_msb<T: UnsignedInteger,
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -5670,8 +5703,9 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Nu
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -5780,8 +5814,9 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<T: UnsignedInteger, 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_apply_bivariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -5905,8 +5940,9 @@ pub(crate) unsafe fn cuda_backend_apply_bivariate_lut<T: UnsignedInteger, B: Num
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
@@ -6107,9 +6143,9 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronized.
-/// - `output_ct` must be allocated with enough blocks to store the result.
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output_ct: &mut CudaRadixCiphertext,
@@ -6221,9 +6257,9 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronized.
-/// - `output_ct` must be allocated with enough blocks to store the result.
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
@@ -6372,8 +6408,9 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_compute_prefix_sum_hillis_steele<
     T: UnsignedInteger,
     B: Numeric,
@@ -6489,8 +6526,9 @@ pub(crate) unsafe fn cuda_backend_compute_prefix_sum_hillis_steele<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -6644,8 +6682,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     ct: &mut CudaRadixCiphertext,
@@ -6729,8 +6768,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_true<
     T: UnsignedInteger,
     B: Numeric,
@@ -6859,8 +6899,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
     T: UnsignedInteger,
     B: Numeric,
@@ -6987,12 +7028,11 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
 }
 
 #[allow(clippy::too_many_arguments)]
-/// Assign negation of a vector of LWE ciphertexts representing an integer
-///
 /// # Safety
 ///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_negate(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -7048,8 +7088,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_negate(
 
 /// # Safety
 ///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronized
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_trim_radix_blocks_lsb(
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
@@ -7075,8 +7116,9 @@ pub(crate) unsafe fn cuda_backend_trim_radix_blocks_lsb(
 
 /// # Safety
 ///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronized
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
@@ -7104,8 +7146,9 @@ pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -7215,8 +7258,9 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, B: Numeric
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 ///
 ///
 /// In this method, the input `lwe_flattened_compact_array_in` represents a flattened compact list.
@@ -7334,8 +7378,9 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
@@ -7479,8 +7524,9 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
