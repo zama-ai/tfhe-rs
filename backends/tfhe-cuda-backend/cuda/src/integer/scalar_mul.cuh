@@ -30,10 +30,12 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
 }
 
 template <typename T>
-__host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
-    CudaStreams streams, int_scalar_mul_buffer<T> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    uint32_t num_scalar_bits, bool allocate_gpu_memory) {
+__host__ uint64_t scratch_cuda_scalar_mul(CudaStreams streams,
+                                          int_scalar_mul_buffer<T> **mem_ptr,
+                                          uint32_t num_radix_blocks,
+                                          int_radix_params params,
+                                          uint32_t num_scalar_bits,
+                                          bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_scalar_mul_buffer<T>(streams, params, num_radix_blocks,
@@ -67,9 +69,9 @@ __host__ void host_integer_scalar_mul_radix(
       copy_radix_ciphertext_slice_async<T>(
           streams.stream(0), streams.gpu_index(0), &shift_input, 0,
           num_radix_blocks, lwe_array, 0, num_radix_blocks);
-      host_integer_radix_logical_scalar_shift_kb_inplace<T>(
-          streams, &shift_input, shift_amount, mem->logical_scalar_shift_buffer,
-          bsks, ksks, num_radix_blocks);
+      host_logical_scalar_shift_inplace<T>(streams, &shift_input, shift_amount,
+                                           mem->logical_scalar_shift_buffer,
+                                           bsks, ksks, num_radix_blocks);
     } else {
       // create trivial assign for value = 0
       set_zero_radix_ciphertext_slice_async<T>(
@@ -111,7 +113,7 @@ __host__ void host_integer_scalar_mul_radix(
                                              streams.gpu_index(0), lwe_array, 0,
                                              num_radix_blocks);
   } else {
-    host_integer_partial_sum_ciphertexts_vec_kb<T>(
+    host_integer_partial_sum_ciphertexts_vec<T>(
         streams, lwe_array, all_shifted_buffer, bsks, ksks,
         mem->sum_ciphertexts_vec_mem, num_radix_blocks, j);
 
@@ -166,10 +168,11 @@ __host__ void host_integer_small_scalar_mul_radix(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_scalar_mul_high_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *ct,
-    int_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
-    void *const *bsks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
+__host__ void
+host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
+                     int_scalar_mul_high_buffer<Torus> *mem_ptr,
+                     Torus *const *ksks, void *const *bsks,
+                     const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
     set_zero_radix_ciphertext_slice_async<Torus>(
@@ -186,7 +189,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
       tmp_ffi->num_radix_blocks != 0) {
 
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
-      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+      host_logical_scalar_shift_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);
@@ -205,7 +208,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_signed_scalar_mul_high_kb(
+__host__ void host_signed_scalar_mul_high(
     CudaStreams streams, CudaRadixCiphertextFFI *ct,
     int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, void *const *bsks) {
@@ -227,7 +230,7 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
       tmp_ffi->num_radix_blocks != 0) {
 
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
-      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+      host_logical_scalar_shift_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);

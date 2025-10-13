@@ -8,9 +8,9 @@ use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
-    unchecked_are_all_comparisons_block_true_integer_radix_kb_async,
-    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async,
-    unchecked_scalar_comparison_integer_radix_kb_async, ComparisonType, PBSType,
+    cuda_backend_unchecked_are_all_comparisons_block_true,
+    cuda_backend_unchecked_is_at_least_one_comparisons_block_true,
+    cuda_backend_unchecked_scalar_comparison, ComparisonType, PBSType,
 };
 use crate::shortint::ciphertext::Degree;
 
@@ -124,7 +124,7 @@ impl CudaServerKey {
                 ComparisonType::GT | ComparisonType::GE | ComparisonType::NE => 1,
                 _ => 0,
             };
-            let ct_res: T = self.create_trivial_radix(value, 1, streams);
+            let ct_res: T = self.create_trivial_radix_async(value, 1, streams);
             return CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
         }
 
@@ -146,7 +146,7 @@ impl CudaServerKey {
                 ComparisonType::LT | ComparisonType::LE | ComparisonType::NE => 1,
                 _ => 0,
             };
-            let ct_res: T = self.create_trivial_radix(value, 1, streams);
+            let ct_res: T = self.create_trivial_radix_async(value, 1, streams);
             return CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
         }
 
@@ -173,7 +173,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_scalar_comparison_integer_radix_kb_async(
+                cuda_backend_unchecked_scalar_comparison(
                     streams,
                     result.as_mut().as_mut(),
                     ct.as_ref(),
@@ -204,7 +204,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_scalar_comparison_integer_radix_kb_async(
+                cuda_backend_unchecked_scalar_comparison(
                     streams,
                     result.as_mut().as_mut(),
                     ct.as_ref(),
@@ -261,9 +261,9 @@ impl CudaServerKey {
                     // Scalar is greater than the bounds, so ciphertext is smaller
                     let result: T = match op {
                         ComparisonType::LT | ComparisonType::LE => {
-                            self.create_trivial_radix(1, num_blocks, streams)
+                            self.create_trivial_radix_async(1, num_blocks, streams)
                         }
-                        _ => self.create_trivial_radix(
+                        _ => self.create_trivial_radix_async(
                             0,
                             ct.as_ref().d_blocks.lwe_ciphertext_count().0,
                             streams,
@@ -275,9 +275,9 @@ impl CudaServerKey {
                     // Scalar is smaller than the bounds, so ciphertext is bigger
                     let result: T = match op {
                         ComparisonType::GT | ComparisonType::GE => {
-                            self.create_trivial_radix(1, num_blocks, streams)
+                            self.create_trivial_radix_async(1, num_blocks, streams)
                         }
-                        _ => self.create_trivial_radix(
+                        _ => self.create_trivial_radix_async(
                             0,
                             ct.as_ref().d_blocks.lwe_ciphertext_count().0,
                             streams,
@@ -296,7 +296,8 @@ impl CudaServerKey {
                     ct, scalar, op, true, streams,
                 )
             } else {
-                let scalar_as_trivial = self.create_trivial_radix(scalar, num_blocks, streams);
+                let scalar_as_trivial =
+                    self.create_trivial_radix_async(scalar, num_blocks, streams);
                 self.unchecked_comparison_async(ct, &scalar_as_trivial, op, streams)
             }
         } else {
@@ -334,7 +335,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_scalar_comparison_integer_radix_kb_async(
+                cuda_backend_unchecked_scalar_comparison(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),
@@ -365,7 +366,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_scalar_comparison_integer_radix_kb_async(
+                cuda_backend_unchecked_scalar_comparison(
                     streams,
                     result.as_mut(),
                     ct.as_ref(),
@@ -412,7 +413,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
+                    cuda_backend_unchecked_are_all_comparisons_block_true(
                         streams,
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
@@ -438,7 +439,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
+                    cuda_backend_unchecked_are_all_comparisons_block_true(
                         streams,
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
@@ -482,7 +483,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
+                    cuda_backend_unchecked_is_at_least_one_comparisons_block_true(
                         streams,
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),
@@ -508,7 +509,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
+                    cuda_backend_unchecked_is_at_least_one_comparisons_block_true(
                         streams,
                         boolean_res.as_mut().as_mut(),
                         ct.as_ref(),

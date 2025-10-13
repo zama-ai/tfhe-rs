@@ -43,7 +43,7 @@ void cleanup_cuda_full_propagation(CudaStreamsFFI streams,
   *mem_ptr_void = nullptr;
 }
 
-uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
+uint64_t scratch_cuda_propagate_single_carry_64_inplace(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -56,12 +56,12 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_propagate_single_carry_kb_inplace<uint64_t>(
+  return scratch_cuda_propagate_single_carry_inplace<uint64_t>(
       CudaStreams(streams), (int_sc_prop_memory<uint64_t> **)mem_ptr,
       num_blocks, params, requested_flag, allocate_gpu_memory);
 }
 
-uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+uint64_t scratch_cuda_add_and_propagate_single_carry_64_inplace(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -74,12 +74,12 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_propagate_single_carry_kb_inplace<uint64_t>(
+  return scratch_cuda_propagate_single_carry_inplace<uint64_t>(
       CudaStreams(streams), (int_sc_prop_memory<uint64_t> **)mem_ptr,
       num_blocks, params, requested_flag, allocate_gpu_memory);
 }
 
-uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
+uint64_t scratch_cuda_integer_overflowing_sub_64_inplace(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -97,7 +97,7 @@ uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
       num_blocks, params, compute_overflow, allocate_gpu_memory);
 }
 
-void cuda_propagate_single_carry_kb_64_inplace(
+void cuda_propagate_single_carry_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
@@ -109,7 +109,7 @@ void cuda_propagate_single_carry_kb_64_inplace(
       requested_flag, uses_carry);
 }
 
-void cuda_add_and_propagate_single_carry_kb_64_inplace(
+void cuda_add_and_propagate_single_carry_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
@@ -121,7 +121,7 @@ void cuda_add_and_propagate_single_carry_kb_64_inplace(
       requested_flag, uses_carry);
 }
 
-void cuda_integer_overflowing_sub_kb_64_inplace(
+void cuda_integer_overflowing_sub_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array,
     CudaRadixCiphertextFFI *overflow_block,
@@ -168,7 +168,7 @@ void cleanup_cuda_integer_overflowing_sub(CudaStreamsFFI streams,
   POP_RANGE()
 }
 
-uint64_t scratch_cuda_apply_univariate_lut_kb_64(
+uint64_t scratch_cuda_apply_univariate_lut_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
@@ -182,13 +182,13 @@ uint64_t scratch_cuda_apply_univariate_lut_kb_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_cuda_apply_univariate_lut_kb<uint64_t>(
+  return scratch_cuda_apply_univariate_lut<uint64_t>(
       CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
 }
 
-uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
+uint64_t scratch_cuda_apply_many_univariate_lut_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
@@ -202,24 +202,25 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_cuda_apply_many_univariate_lut_kb<uint64_t>(
+  return scratch_cuda_apply_many_univariate_lut<uint64_t>(
       CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       num_many_lut, lut_degree, allocate_gpu_memory);
 }
 
-void cuda_apply_univariate_lut_kb_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
-    CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks) {
+void cuda_apply_univariate_lut_64(CudaStreamsFFI streams,
+                                  CudaRadixCiphertextFFI *output_radix_lwe,
+                                  CudaRadixCiphertextFFI const *input_radix_lwe,
+                                  int8_t *mem_ptr, void *const *ksks,
+                                  void *const *bsks) {
 
-  host_apply_univariate_lut_kb<uint64_t>(
+  host_apply_univariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
       (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks);
 }
 
-void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
-                                             int8_t **mem_ptr_void) {
+void cleanup_cuda_apply_univariate_lut_64(CudaStreamsFFI streams,
+                                          int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup univar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
@@ -228,19 +229,19 @@ void cleanup_cuda_apply_univariate_lut_kb_64(CudaStreamsFFI streams,
   POP_RANGE()
 }
 
-void cuda_apply_many_univariate_lut_kb_64(
+void cuda_apply_many_univariate_lut_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
-  host_apply_many_univariate_lut_kb<uint64_t>(
+  host_apply_many_univariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
       (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks,
       num_many_lut, lut_stride);
 }
 
-uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
+uint64_t scratch_cuda_apply_bivariate_lut_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
@@ -254,27 +255,27 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_cuda_apply_bivariate_lut_kb<uint64_t>(
+  return scratch_cuda_apply_bivariate_lut<uint64_t>(
       CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
 }
 
-void cuda_apply_bivariate_lut_kb_64(
+void cuda_apply_bivariate_lut_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe_1,
     CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
     uint32_t shift) {
 
-  host_apply_bivariate_lut_kb<uint64_t>(
+  host_apply_bivariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe_1,
       input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
       (uint64_t **)(ksks), bsks, num_radix_blocks, shift);
 }
 
-void cleanup_cuda_apply_bivariate_lut_kb_64(CudaStreamsFFI streams,
-                                            int8_t **mem_ptr_void) {
+void cleanup_cuda_apply_bivariate_lut_64(CudaStreamsFFI streams,
+                                         int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup bivar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
@@ -298,7 +299,7 @@ uint64_t scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_cuda_apply_bivariate_lut_kb<uint64_t>(
+  return scratch_cuda_apply_bivariate_lut<uint64_t>(
       CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
@@ -360,7 +361,7 @@ uint64_t scratch_cuda_apply_noise_squashing_mem(
   return size_tracker;
 }
 
-uint64_t scratch_cuda_apply_noise_squashing_kb(
+uint64_t scratch_cuda_apply_noise_squashing(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_glwe_dimension, uint32_t input_polynomial_size,
@@ -381,20 +382,21 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
       original_num_blocks, allocate_gpu_memory);
 }
 
-void cuda_apply_noise_squashing_kb(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
-    CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks) {
+void cuda_apply_noise_squashing(CudaStreamsFFI streams,
+                                CudaRadixCiphertextFFI *output_radix_lwe,
+                                CudaRadixCiphertextFFI const *input_radix_lwe,
+                                int8_t *mem_ptr, void *const *ksks,
+                                void *const *bsks) {
 
   PUSH_RANGE("apply noise squashing")
-  integer_radix_apply_noise_squashing_kb<uint64_t>(
+  integer_radix_apply_noise_squashing<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
       (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
   POP_RANGE()
 }
 
-void cleanup_cuda_apply_noise_squashing_kb(CudaStreamsFFI streams,
-                                           int8_t **mem_ptr_void) {
+void cleanup_cuda_apply_noise_squashing(CudaStreamsFFI streams,
+                                        int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup noise squashing")
   int_noise_squashing_lut<uint64_t> *mem_ptr =
       (int_noise_squashing_lut<uint64_t> *)(*mem_ptr_void);

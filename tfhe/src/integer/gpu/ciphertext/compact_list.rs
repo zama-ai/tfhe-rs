@@ -11,7 +11,7 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::{expand_async, PBSType};
+use crate::integer::gpu::{cuda_backend_expand, PBSType};
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CompactCiphertextListExpansionKind, Degree, LweBskGroupingFactor, NoiseLevel,
@@ -409,7 +409,7 @@ impl CudaFlattenedVecCompactCiphertextList {
 
             match &sks.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    expand_async(
+                    cuda_backend_expand(
                         streams,
                         &mut d_output,
                         d_input,
@@ -444,7 +444,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    expand_async(
+                    cuda_backend_expand(
                         streams,
                         &mut d_output,
                         d_input,

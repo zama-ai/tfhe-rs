@@ -11,7 +11,7 @@
 #include "scalar_mul.cuh"
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
+__host__ uint64_t scratch_cuda_shift_and_rotate(
     CudaStreams streams, int_shift_and_rotate_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory) {
@@ -23,11 +23,12 @@ __host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_shift_and_rotate_kb_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
-    CudaRadixCiphertextFFI const *lwe_shift,
-    int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+__host__ void
+host_shift_and_rotate_inplace(CudaStreams streams,
+                              CudaRadixCiphertextFFI *lwe_array,
+                              CudaRadixCiphertextFFI const *lwe_shift,
+                              int_shift_and_rotate_buffer<Torus> *mem,
+                              void *const *bsks, Torus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
@@ -158,7 +159,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // we have
     // control_bit|b|a
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, input_bits_a, mux_inputs, bsks, ksks, mux_lut, total_nb_bits);
   }
 
@@ -190,7 +191,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // To give back a clean ciphertext
     auto cleaning_lut = mem->cleaning_lut;
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lwe_array, lwe_array, bsks, ksks, cleaning_lut,
         num_radix_blocks);
   }

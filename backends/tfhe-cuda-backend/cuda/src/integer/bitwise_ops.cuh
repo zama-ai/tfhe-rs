@@ -10,11 +10,12 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
-__host__ void host_integer_radix_bitop_kb(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_1,
-    CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+__host__ void host_bitop(CudaStreams streams,
+                         CudaRadixCiphertextFFI *lwe_array_out,
+                         CudaRadixCiphertextFFI const *lwe_array_1,
+                         CudaRadixCiphertextFFI const *lwe_array_2,
+                         int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,
+                         Torus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -41,7 +42,7 @@ __host__ void host_integer_radix_bitop_kb(
                                 lwe_array_1->num_radix_blocks);
   }
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  integer_radix_apply_bivariate_lookup_table<Torus>(
       streams, lwe_array_out, lwe_array_1, lwe_array_2, bsks, ksks, lut,
       lwe_array_out->num_radix_blocks, lut->params.message_modulus);
 
@@ -50,10 +51,11 @@ __host__ void host_integer_radix_bitop_kb(
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_radix_bitop_kb(
-    CudaStreams streams, int_bitop_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
-    bool allocate_gpu_memory) {
+__host__ uint64_t scratch_cuda_bitop(CudaStreams streams,
+                                     int_bitop_buffer<Torus> **mem_ptr,
+                                     uint32_t num_radix_blocks,
+                                     int_radix_params params, BITOP_TYPE op,
+                                     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_bitop_buffer<Torus>(streams, op, params, num_radix_blocks,

@@ -8,8 +8,9 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
-    get_full_propagate_assign_size_on_gpu, get_propagate_single_carry_assign_async_size_on_gpu,
-    scalar_addition_integer_radix_assign_async, PBSType,
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
+    cuda_backend_scalar_addition_assign, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::prelude::CastInto;
@@ -97,7 +98,7 @@ impl CudaServerKey {
 
             // If the scalar is decomposed using less than the number of blocks our ciphertext
             // has, we just don't touch ciphertext's last blocks
-            scalar_addition_integer_radix_assign_async(
+            cuda_backend_scalar_addition_assign(
                 streams,
                 ct.as_mut(),
                 &d_decomposed_scalar,
@@ -208,23 +209,25 @@ impl CudaServerKey {
             0
         } else {
             match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => get_full_propagate_assign_size_on_gpu(
-                    streams,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                ),
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_get_full_propagate_assign_size_on_gpu(
+                        streams,
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    )
+                }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    get_full_propagate_assign_size_on_gpu(
+                    cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
                         d_multibit_bsk.input_lwe_dimension(),
                         d_multibit_bsk.glwe_dimension(),
@@ -246,7 +249,7 @@ impl CudaServerKey {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
         let single_carry_mem = match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                get_propagate_single_carry_assign_async_size_on_gpu(
+                cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
                     streams,
                     d_bsk.input_lwe_dimension(),
                     d_bsk.glwe_dimension(),
@@ -265,7 +268,7 @@ impl CudaServerKey {
                 )
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                get_propagate_single_carry_assign_async_size_on_gpu(
+                cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
                     streams,
                     d_multibit_bsk.input_lwe_dimension(),
                     d_multibit_bsk.glwe_dimension(),

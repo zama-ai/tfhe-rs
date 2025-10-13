@@ -10,7 +10,7 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb(
+__host__ uint64_t scratch_cuda_logical_scalar_shift(
     CudaStreams streams, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
@@ -23,7 +23,7 @@ __host__ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
+__host__ void host_logical_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks, uint32_t num_blocks) {
@@ -75,7 +75,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     size_t partial_block_count = num_blocks - rotations;
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, &partial_current_blocks, &partial_current_blocks,
         &partial_previous_blocks, bsks, ksks, lut_bivariate,
         partial_block_count, lut_bivariate->params.message_modulus);
@@ -106,7 +106,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     size_t partial_block_count = num_blocks - rotations;
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    integer_radix_apply_bivariate_lookup_table<Torus>(
         streams, partial_current_blocks, partial_current_blocks,
         &partial_next_blocks, bsks, ksks, lut_bivariate, partial_block_count,
         lut_bivariate->params.message_modulus);
@@ -114,7 +114,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
+__host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
     CudaStreams streams, int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
@@ -127,7 +127,7 @@ __host__ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
+__host__ void host_arithmetic_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks) {
@@ -197,7 +197,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         size_t partial_block_count = num_blocks - rotations;
         auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-        integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        integer_radix_apply_bivariate_lookup_table<Torus>(
             streams, partial_current_blocks, partial_current_blocks,
             &partial_next_blocks, bsks, ksks, lut_bivariate,
             partial_block_count, lut_bivariate->params.message_modulus);
@@ -207,7 +207,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       streams.synchronize();
       auto lut_univariate_padding_block =
           mem->lut_buffers_univariate[num_bits_in_block - 1];
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus>(
           mem->local_streams_1, &padding_block, &last_block_copy, bsks, ksks,
           lut_univariate_padding_block, 1);
       // Replace blocks 'pulled' from the left with the correct padding
@@ -221,7 +221,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       if (shift_within_block != 0) {
         auto lut_univariate_shift_last_block =
             mem->lut_buffers_univariate[shift_within_block - 1];
-        integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        integer_radix_apply_univariate_lookup_table<Torus>(
             mem->local_streams_2, &last_block, &last_block_copy, bsks, ksks,
             lut_univariate_shift_last_block, 1);
       }

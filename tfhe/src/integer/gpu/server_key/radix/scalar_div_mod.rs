@@ -6,14 +6,14 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    get_full_propagate_assign_size_on_gpu, get_scalar_div_integer_radix_kb_size_on_gpu,
-    get_scalar_div_rem_integer_radix_kb_size_on_gpu,
-    get_signed_scalar_div_integer_radix_kb_size_on_gpu,
-    get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu,
-    unchecked_signed_scalar_div_integer_radix_kb_assign_async,
-    unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async,
-    unchecked_unsigned_scalar_div_integer_radix_kb_assign_async,
-    unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async, CudaServerKey, PBSType,
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_scalar_div_rem_size_on_gpu, cuda_backend_get_scalar_div_size_on_gpu,
+    cuda_backend_get_signed_scalar_div_rem_size_on_gpu,
+    cuda_backend_get_signed_scalar_div_size_on_gpu,
+    cuda_backend_unchecked_signed_scalar_div_assign,
+    cuda_backend_unchecked_signed_scalar_div_rem_assign,
+    cuda_backend_unchecked_unsigned_scalar_div_assign,
+    cuda_backend_unchecked_unsigned_scalar_div_rem, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -106,7 +106,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_scalar_div_assign(
                     streams,
                     quotient.as_mut(),
                     divisor,
@@ -127,7 +127,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_scalar_div_assign(
                     streams,
                     quotient.as_mut(),
                     divisor,
@@ -281,7 +281,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_scalar_div_rem(
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
@@ -303,7 +303,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_unsigned_scalar_div_rem(
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
@@ -549,11 +549,11 @@ impl CudaServerKey {
     >= to the number of bits encrypted in the ciphertext"
         );
 
-        let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate_async(streams);
+        let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_signed_scalar_div_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_signed_scalar_div_assign(
                     streams,
                     quotient.as_mut(),
                     divisor,
@@ -574,7 +574,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_signed_scalar_div_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_signed_scalar_div_assign(
                     streams,
                     quotient.as_mut(),
                     divisor,
@@ -729,7 +729,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_signed_scalar_div_rem_assign(
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
@@ -751,7 +751,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_signed_scalar_div_rem_assign(
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
@@ -885,8 +885,7 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let (_, remainder) =
-            self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams);
+        let (_, remainder) = self.unchecked_signed_scalar_div_rem(numerator, divisor, streams);
 
         remainder
     }
@@ -992,23 +991,25 @@ encrypted bits: {numerator_bits}, scalar bits: {}
             0
         } else {
             match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => get_full_propagate_assign_size_on_gpu(
-                    streams,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                ),
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_get_full_propagate_assign_size_on_gpu(
+                        streams,
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    )
+                }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    get_full_propagate_assign_size_on_gpu(
+                    cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
                         d_multibit_bsk.input_lwe_dimension(),
                         d_multibit_bsk.glwe_dimension(),
@@ -1028,7 +1029,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         };
 
         let scalar_div_mem = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => get_scalar_div_integer_radix_kb_size_on_gpu(
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_scalar_div_size_on_gpu(
                 streams,
                 divisor,
                 self.message_modulus,
@@ -1046,7 +1047,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                get_scalar_div_integer_radix_kb_size_on_gpu(
+                cuda_backend_get_scalar_div_size_on_gpu(
                     streams,
                     divisor,
                     self.message_modulus,
@@ -1092,46 +1093,42 @@ encrypted bits: {numerator_bits}, scalar bits: {}
             Scalar::BITS
         );
 
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    get_scalar_div_rem_integer_radix_kb_size_on_gpu(
-                        streams,
-                        divisor,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        d_bsk.input_lwe_dimension,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        LweBskGroupingFactor(0),
-                        num_blocks,
-                        PBSType::Classical,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    )
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    get_scalar_div_rem_integer_radix_kb_size_on_gpu(
-                        streams,
-                        divisor,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        d_multibit_bsk.input_lwe_dimension,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        num_blocks,
-                        PBSType::MultiBit,
-                        None,
-                    )
-                }
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_scalar_div_rem_size_on_gpu(
+                streams,
+                divisor,
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                d_bsk.input_lwe_dimension,
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                LweBskGroupingFactor(0),
+                num_blocks,
+                PBSType::Classical,
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                cuda_backend_get_scalar_div_rem_size_on_gpu(
+                    streams,
+                    divisor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    num_blocks,
+                    PBSType::MultiBit,
+                    None,
+                )
             }
         }
     }
@@ -1174,27 +1171,25 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         );
 
         match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                get_signed_scalar_div_integer_radix_kb_size_on_gpu(
-                    streams,
-                    divisor,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    d_bsk.decomp_base_log,
-                    d_bsk.decomp_level_count,
-                    self.key_switching_key.decomposition_base_log(),
-                    self.key_switching_key.decomposition_level_count(),
-                    LweBskGroupingFactor(0),
-                    num_blocks,
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                )
-            }
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_signed_scalar_div_size_on_gpu(
+                streams,
+                divisor,
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                d_bsk.input_lwe_dimension,
+                d_bsk.decomp_base_log,
+                d_bsk.decomp_level_count,
+                self.key_switching_key.decomposition_base_log(),
+                self.key_switching_key.decomposition_level_count(),
+                LweBskGroupingFactor(0),
+                num_blocks,
+                PBSType::Classical,
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
+            ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                get_signed_scalar_div_integer_radix_kb_size_on_gpu(
+                cuda_backend_get_signed_scalar_div_size_on_gpu(
                     streams,
                     divisor,
                     self.message_modulus,
@@ -1236,46 +1231,44 @@ encrypted bits: {numerator_bits}, scalar bits: {}
 >= to the number of bits encrypted in the ciphertext"
         );
 
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu(
-                        streams,
-                        divisor,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        d_bsk.input_lwe_dimension,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        LweBskGroupingFactor(0),
-                        num_blocks,
-                        PBSType::Classical,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    )
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu(
-                        streams,
-                        divisor,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        d_multibit_bsk.input_lwe_dimension,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        num_blocks,
-                        PBSType::MultiBit,
-                        None,
-                    )
-                }
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                cuda_backend_get_signed_scalar_div_rem_size_on_gpu(
+                    streams,
+                    divisor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    num_blocks,
+                    PBSType::Classical,
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
+                )
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                cuda_backend_get_signed_scalar_div_rem_size_on_gpu(
+                    streams,
+                    divisor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    d_multibit_bsk.input_lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    num_blocks,
+                    PBSType::MultiBit,
+                    None,
+                )
             }
         }
     }

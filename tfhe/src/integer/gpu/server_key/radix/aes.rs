@@ -6,9 +6,9 @@ use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::{
-    get_aes_ctr_encrypt_integer_radix_size_on_gpu, get_key_expansion_integer_radix_size_on_gpu,
-    unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async,
-    unchecked_key_expansion_integer_radix_kb_assign_async, PBSType,
+    cuda_backend_aes_key_expansion, cuda_backend_get_aes_ctr_encrypt_size_on_gpu,
+    cuda_backend_get_aes_key_expansion_size_on_gpu, cuda_backend_unchecked_aes_ctr_encrypt,
+    PBSType,
 };
 use crate::integer::{RadixCiphertext, RadixClientKey};
 use crate::shortint::Ciphertext;
@@ -231,7 +231,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_aes_ctr_encrypt(
                     streams,
                     result.as_mut(),
                     iv.as_ref(),
@@ -256,7 +256,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_aes_ctr_encrypt_integer_radix_kb_assign_async(
+                cuda_backend_unchecked_aes_ctr_encrypt(
                     streams,
                     result.as_mut(),
                     iv.as_ref(),
@@ -308,7 +308,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64 {
         match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
                 streams,
                 num_aes_inputs as u32,
                 sbox_parallelism as u32,
@@ -326,7 +326,7 @@ impl CudaServerKey {
                 d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                get_aes_ctr_encrypt_integer_radix_size_on_gpu(
+                cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
                     streams,
                     num_aes_inputs as u32,
                     sbox_parallelism as u32,
@@ -371,7 +371,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_key_expansion_integer_radix_kb_assign_async(
+                cuda_backend_aes_key_expansion(
                     streams,
                     expanded_keys.as_mut(),
                     key.as_ref(),
@@ -392,7 +392,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_key_expansion_integer_radix_kb_assign_async(
+                cuda_backend_aes_key_expansion(
                     streams,
                     expanded_keys.as_mut(),
                     key.as_ref(),
@@ -428,7 +428,7 @@ impl CudaServerKey {
     ///   synchronization is required
     unsafe fn get_key_expansion_size_on_gpu_async(&self, streams: &CudaStreams) -> u64 {
         match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => get_key_expansion_integer_radix_size_on_gpu(
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_aes_key_expansion_size_on_gpu(
                 streams,
                 self.message_modulus,
                 self.carry_modulus,
@@ -444,7 +444,7 @@ impl CudaServerKey {
                 d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                get_key_expansion_integer_radix_size_on_gpu(
+                cuda_backend_get_aes_key_expansion_size_on_gpu(
                     streams,
                     self.message_modulus,
                     self.carry_modulus,

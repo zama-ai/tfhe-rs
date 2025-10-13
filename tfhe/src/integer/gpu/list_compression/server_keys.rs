@@ -15,8 +15,8 @@ use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphe
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async_64,
-    get_compression_size_on_gpu, get_decompression_size_on_gpu,
+    cuda_backend_compress, cuda_backend_decompress, cuda_backend_get_compression_size_on_gpu,
+    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu,
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
@@ -322,7 +322,7 @@ impl CudaCompressionKey {
         unsafe {
             let input_lwes = Self::flatten_async(ciphertexts, streams);
 
-            compress_integer_radix_async(
+            cuda_backend_compress(
                 streams,
                 &mut glwe_array_out,
                 &input_lwes,
@@ -355,7 +355,7 @@ impl CudaCompressionKey {
         let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
         let compressed_glwe_size = lwe_pksk.output_glwe_size();
 
-        get_compression_size_on_gpu(
+        cuda_backend_get_compression_size_on_gpu(
             streams,
             message_modulus,
             carry_modulus,
@@ -430,7 +430,7 @@ impl CudaDecompressionKey {
                 );
 
                 unsafe {
-                    decompress_integer_radix_async_64(
+                    cuda_backend_decompress(
                         streams,
                         &mut output_lwe,
                         packed_list,
@@ -515,7 +515,7 @@ impl CudaDecompressionKey {
                 );
                 let lwe_dimension = bsk.output_lwe_dimension();
 
-                get_decompression_size_on_gpu(
+                cuda_backend_get_decompression_size_on_gpu(
                     streams,
                     message_modulus,
                     carry_modulus,
@@ -570,7 +570,7 @@ impl CudaDecompressionKey {
                 );
                 let lwe_dimension = bsk.output_lwe_dimension();
 
-                get_decompression_size_on_gpu(
+                cuda_backend_get_decompression_size_on_gpu(
                     streams,
                     message_modulus,
                     carry_modulus,
@@ -712,7 +712,7 @@ impl CudaNoiseSquashingCompressionKey {
         unsafe {
             let input_lwes = Self::flatten_async(ciphertexts, streams);
 
-            compress_integer_radix_async(
+            cuda_backend_compress(
                 streams,
                 &mut glwe_array_out,
                 &input_lwes,

@@ -2,7 +2,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign_async, PBSType};
+use crate::integer::gpu::{cuda_backend_unchecked_signed_abs_assign, PBSType};
 
 impl CudaServerKey {
     /// # Safety
@@ -18,7 +18,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    unchecked_signed_abs_radix_kb_assign_async(
+                    cuda_backend_unchecked_signed_abs_assign(
                         streams,
                         ct.as_mut(),
                         &d_bsk.d_vec,
@@ -44,7 +44,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    unchecked_signed_abs_radix_kb_assign_async(
+                    cuda_backend_unchecked_signed_abs_assign(
                         streams,
                         ct.as_mut(),
                         &d_multibit_bsk.d_vec,

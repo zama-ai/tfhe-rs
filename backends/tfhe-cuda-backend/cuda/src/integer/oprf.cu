@@ -21,11 +21,11 @@ uint64_t scratch_cuda_integer_grouped_oprf_64(
       allocate_gpu_memory);
 }
 
-void cuda_integer_grouped_oprf_async_64(CudaStreamsFFI streams,
-                                        CudaRadixCiphertextFFI *radix_lwe_out,
-                                        const void *seeded_lwe_input,
-                                        uint32_t num_blocks_to_process,
-                                        int8_t *mem, void *const *bsks) {
+void cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
+                                  CudaRadixCiphertextFFI *radix_lwe_out,
+                                  const void *seeded_lwe_input,
+                                  uint32_t num_blocks_to_process, int8_t *mem,
+                                  void *const *bsks) {
 
   host_integer_grouped_oprf<uint64_t>(
       CudaStreams(streams), radix_lwe_out, (const uint64_t *)seeded_lwe_input,
