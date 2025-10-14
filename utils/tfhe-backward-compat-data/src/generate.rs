@@ -3,21 +3,11 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use bincode::Options;
+use semver::Version;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tfhe_0_11_versionable::Versionize as VersionizeTfhe_0_11;
-use tfhe_1_0_versionable::Versionize as VersionizeTfhe_1_0;
-use tfhe_1_1_versionable::Versionize as VersionizeTfhe_1_1;
-use tfhe_1_3_versionable::Versionize as VersionizeTfhe_1_3;
-use tfhe_1_4_versionable::Versionize as VersionizeTfhe_1_4;
-use tfhe_versionable::{Versionize as VersionizeTfhe_0_10, Versionize as VersionizeTfhe_0_8};
 
-use crate::{
-    data_dir, dir_for_version, TestClassicParameterSet, TestCompactPublicKeyEncryptionParameters,
-    TestCompressionParameterSet, TestDistribution, TestKS32ParameterSet, TestKeySwitchingParams,
-    TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
-    TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
-    TestNoiseSquashingParamsMultiBit, TestParameterSet,
-};
+use crate::*;
 
 pub const PRNG_SEED: u128 = 0xdeadbeef;
 
@@ -344,67 +334,195 @@ pub fn save_bcode<Data: Serialize, P: AsRef<Path>>(msg: &Data, path: P) {
     options.serialize_into(&mut file, msg).unwrap();
 }
 
-/// Stores the test data in `dir`, encoded in both cbor and bincode, using the right
-/// tfhe-versionable version
-macro_rules! define_store_versioned_test_fn {
-    ($fn_name:ident, $versionize_trait:ident) => {
-        pub fn $fn_name<Data: $versionize_trait, P: AsRef<Path>>(
-            msg: &Data,
-            dir: P,
-            test_filename: &str,
-        ) {
-            let versioned = msg.versionize();
+/// Stores the test data in `dir`, encoded in both cbor and bincode, using the provided versionize
+/// function
+pub fn generic_store_versioned_test<'a, Data: 'a, Vers: Serialize + 'a, P: AsRef<Path>>(
+    versionize: impl FnOnce(&'a Data) -> Vers,
+    msg: &'a Data,
+    dir: P,
+    test_filename: &str,
+) {
+    let versioned = versionize(msg);
 
-            // Store in cbor
-            let filename_cbor = format!("{}.cbor", test_filename);
-            save_cbor(&versioned, dir.as_ref().join(filename_cbor));
+    // Store in cbor
+    let filename_cbor = format!("{}.cbor", test_filename);
+    save_cbor(&versioned, dir.as_ref().join(filename_cbor));
 
-            // Store in bincode
-            let filename_bincode = format!("{}.bcode", test_filename);
-            save_bcode(&versioned, dir.as_ref().join(filename_bincode));
-        }
-    };
+    // Store in bincode
+    let filename_bincode = format!("{}.bcode", test_filename);
+    save_bcode(&versioned, dir.as_ref().join(filename_bincode));
 }
-define_store_versioned_test_fn!(store_versioned_test_tfhe_0_8, VersionizeTfhe_0_8);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_0_10, VersionizeTfhe_0_10);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_0_11, VersionizeTfhe_0_11);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_1_0, VersionizeTfhe_1_0);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_1_1, VersionizeTfhe_1_1);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_1_3, VersionizeTfhe_1_3);
-define_store_versioned_test_fn!(store_versioned_test_tfhe_1_4, VersionizeTfhe_1_4);
 
-/// Stores the auxiliary data in `dir`, encoded in cbor, using the right tfhe-versionable version
-macro_rules! define_store_versioned_auxiliary_fn {
-    ($fn_name:ident, $versionize_trait:ident) => {
-        pub fn $fn_name<Data: $versionize_trait, P: AsRef<Path>>(
-            msg: &Data,
-            dir: P,
-            test_filename: &str,
-        ) {
-            let versioned = msg.versionize();
+/// Stores the auxiliary data in `dir`, encoded in cbor, using the provided versionize function
+pub fn generic_store_versioned_auxiliary<'a, Data: 'a, Vers: Serialize + 'a, P: AsRef<Path>>(
+    versionize: impl FnOnce(&'a Data) -> Vers,
+    msg: &'a Data,
+    dir: P,
+    test_filename: &str,
+) {
+    let versioned = versionize(msg);
 
-            // Store in cbor
-            let filename_cbor = format!("{}.cbor", test_filename);
-            save_cbor(&versioned, dir.as_ref().join(filename_cbor));
-        }
-    };
+    // Store in cbor
+    let filename_cbor = format!("{}.cbor", test_filename);
+    save_cbor(&versioned, dir.as_ref().join(filename_cbor));
 }
-define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_8, VersionizeTfhe_0_8);
-define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_10, VersionizeTfhe_0_10);
-define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_11, VersionizeTfhe_0_11);
-define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_1_3, VersionizeTfhe_1_3);
-define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_1_4, VersionizeTfhe_1_4);
 
-pub fn store_metadata<Meta: Serialize, P: AsRef<Path>>(value: &Meta, path: P) {
+/// Store the test metadata vec for all modules into specific ron files
+pub fn store_metadata<P: AsRef<Path>>(testcases: Vec<Testcase>, base_data_dir: P) {
+    let mut sorted: Vec<_> = testcases
+        .iter()
+        .map(|data| {
+            let vers = major_minor_parse(&data.tfhe_version_min);
+            (vers, data)
+        })
+        .collect();
+    sorted.sort_by_key(|(vers, _)| vers.clone());
+    let sorted = sorted.iter().map(|(_, data)| *data);
+
+    let base_data_dir = base_data_dir.as_ref();
+    let shortint_testcases: Vec<Testcase> = sorted
+        .clone()
+        .filter(|test| test.tfhe_module == SHORTINT_MODULE_NAME)
+        .cloned()
+        .collect();
+
+    store_ron(
+        &shortint_testcases,
+        base_data_dir.join(format!("{SHORTINT_MODULE_NAME}.ron")),
+    );
+
+    let high_level_api_testcases: Vec<Testcase> = sorted
+        .filter(|test| test.tfhe_module == HL_MODULE_NAME)
+        .cloned()
+        .collect();
+
+    store_ron(
+        &high_level_api_testcases,
+        base_data_dir.join(format!("{HL_MODULE_NAME}.ron")),
+    );
+}
+
+fn store_ron<Meta: Serialize, P: AsRef<Path>>(value: &Meta, path: P) {
     let serialized = ron::ser::to_string_pretty(value, ron::ser::PrettyConfig::default()).unwrap();
     fs::write(path, serialized).unwrap();
+}
+
+fn load_ron<Meta: DeserializeOwned, P: AsRef<Path>>(path: P) -> Option<Meta> {
+    File::open(path)
+        .map(|f| ron::de::from_reader(f).unwrap())
+        .ok()
+}
+
+/// Update the metadata with data for a specific version.
+///
+/// All the metadata in the vec should be for the same TFHE-rs version.
+/// Old metadata for this version will be removed and replaced with new data.
+/// Old metadata for the other versions will not be modified.
+pub fn update_metadata_for_version<P: AsRef<Path>>(testcases: Vec<Testcase>, base_data_dir: P) {
+    let base_data_dir = base_data_dir.as_ref();
+    let shortint_testcases: Vec<Testcase> = testcases
+        .iter()
+        .filter(|test| test.tfhe_module == SHORTINT_MODULE_NAME)
+        .cloned()
+        .collect();
+
+    update_metadata_for_version_and_module(
+        &shortint_testcases,
+        base_data_dir.join(format!("{SHORTINT_MODULE_NAME}.ron")),
+    );
+
+    let high_level_api_testcases: Vec<Testcase> = testcases
+        .iter()
+        .filter(|test| test.tfhe_module == HL_MODULE_NAME)
+        .cloned()
+        .collect();
+
+    update_metadata_for_version_and_module(
+        &high_level_api_testcases,
+        base_data_dir.join(format!("{HL_MODULE_NAME}.ron")),
+    );
+}
+
+pub fn display_metadata(testcases: &[Testcase]) {
+    let serialized =
+        ron::ser::to_string_pretty(testcases, ron::ser::PrettyConfig::default()).unwrap();
+
+    println!("{serialized}")
+}
+
+pub fn load_metadata_from_str(data: &str) -> Vec<Testcase> {
+    ron::from_str(data).unwrap()
+}
+
+/// Parse a version number where only the major/minor is provided
+fn major_minor_parse(vers: &str) -> Version {
+    Version::parse(&format!("{}.0", vers)).unwrap()
+}
+
+fn update_metadata_for_version_and_module<P: AsRef<Path>>(new_data: &[Testcase], path: P) {
+    let loaded: Vec<Testcase> = load_ron(&path).unwrap_or(Vec::new());
+    let Some(updated_vers) = new_data
+        .first()
+        .map(|data| major_minor_parse(&data.tfhe_version_min))
+    else {
+        return;
+    };
+
+    let parsed = loaded.iter().map(|data| {
+        let vers = major_minor_parse(&data.tfhe_version_min);
+        (vers, data)
+    });
+
+    let filtered = parsed.filter(|(vers, _)| vers != &updated_vers);
+
+    let mut complete: Vec<_> = filtered
+        .chain(new_data.iter().map(|data| {
+            let vers = major_minor_parse(&data.tfhe_version_min);
+            assert_eq!(
+                updated_vers, vers,
+                "update_metadata_for_version should be called with data from a single version.\n\
+Expected {updated_vers}, got {vers}"
+            );
+            (vers, data)
+        }))
+        .collect();
+
+    complete.sort_by_key(|(vers, _)| vers.clone());
+
+    let sorted: Vec<_> = complete.into_iter().map(|(_, data)| data).collect();
+    store_ron(&sorted, path);
+}
+
+/// Generates all the data for the provided version and returns the vec of metadata
+pub fn gen_all_data<Vers: TfhersVersion>(base_data_dir: &Path) -> Vec<Testcase> {
+    Vers::seed_prng(PRNG_SEED);
+
+    let shortint_tests = Vers::gen_shortint_data(base_data_dir);
+
+    let mut tests: Vec<Testcase> = shortint_tests
+        .iter()
+        .map(|metadata| Testcase {
+            tfhe_version_min: Vers::VERSION_NUMBER.to_string(),
+            tfhe_module: SHORTINT_MODULE_NAME.to_string(),
+            metadata: metadata.clone(),
+        })
+        .collect();
+
+    let hl_tests = Vers::gen_hl_data(base_data_dir);
+
+    tests.extend(hl_tests.iter().map(|metadata| Testcase {
+        tfhe_version_min: Vers::VERSION_NUMBER.to_string(),
+        tfhe_module: HL_MODULE_NAME.to_string(),
+        metadata: metadata.clone(),
+    }));
+
+    tests
 }
 
 pub trait TfhersVersion {
     const VERSION_NUMBER: &'static str;
 
-    fn data_dir() -> PathBuf {
-        let base_data_dir = data_dir(env!("CARGO_MANIFEST_DIR"));
+    fn data_dir<P: AsRef<Path>>(base_data_dir: P) -> PathBuf {
         dir_for_version(base_data_dir, Self::VERSION_NUMBER)
     }
 
@@ -416,11 +534,11 @@ pub trait TfhersVersion {
     /// This should create tfhe-rs shortint types, versionize them and store them into the version
     /// specific directory. The metadata for the generated tests should be returned in the same
     /// order that the tests will be run.
-    fn gen_shortint_data() -> Vec<TestMetadata>;
+    fn gen_shortint_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata>;
 
     /// Generates data for the "high_level_api" module for this version.
     /// This should create tfhe-rs HL types, versionize them and store them into the version
     /// specific directory. The metadata for the generated tests should be returned in the same
     /// order that the tests will be run.
-    fn gen_hl_data() -> Vec<TestMetadata>;
+    fn gen_hl_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata>;
 }

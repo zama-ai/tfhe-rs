@@ -24,6 +24,8 @@ BENCH_PARAMS_SET?=default
 BENCH_CUSTOM_COMMAND:=
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
+BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
+CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 WASM_PACK_VERSION="0.13.1"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
@@ -507,7 +509,7 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 	@# Some old crates are x86 specific, only run in that case
 	@if uname -a | grep -q x86; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
-			-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all-targets \
+			-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all --all-targets \
 			-- --no-deps -D warnings; \
 	else \
 		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
@@ -1146,8 +1148,16 @@ test_tfhe_lints: install_cargo_dylint
 	rustup toolchain install && \
 	cargo test
 
-# The backward compat data repo holds historical binary data but also rust code to generate and load them.
-# Here we use the "patch" functionality of Cargo to make sure the repo used for the data is the same as the one used for the code.
+# The backward compat data folder holds historical binary data but also rust code to generate and load them.
+.PHONY: gen_backward_compat_data # Re-generate backward compatibility data
+gen_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+	$(BACKWARD_COMPAT_DATA_DIR)/gen_data.sh $(BACKWARD_COMPAT_DATA_GEN_VERSION)
+
+# Instantiate a new backward data crate for the current TFHE-rs version, if it does not already exists
+.PHONY: new_backward_compat_crate
+new_backward_compat_crate: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+	cd $(BACKWARD_COMPAT_DATA_DIR) && cargo run -p add_new_version -- --tfhe-version $(CURRENT_TFHE_VERSION)
+
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci: install_rs_build_toolchain
 	TFHE_BACKWARD_COMPAT_DATA_DIR="../$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
