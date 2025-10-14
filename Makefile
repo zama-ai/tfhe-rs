@@ -72,6 +72,12 @@ define COVERAGE_EXCLUDED_FILES
 --exclude-files tfhe/examples/utilities/*
 endef
 
+# Prints out recipe name at the beginning of the execution and print it out again at the end if a failure occurs.
+define run_recipe_with_details
+	@echo "Running recipe: $1"
+	@$(MAKE) $1 --no-print-directory || { echo "Recipe '$@' failed"; exit 1; }
+endef
+
 .PHONY: rs_check_toolchain # Echo the rust toolchain used for checks
 rs_check_toolchain:
 	@echo $(RS_CHECK_TOOLCHAIN)
@@ -1701,39 +1707,89 @@ pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc
 #
 
 .PHONY: pcc_batch_1 # duration: 6'10''
-pcc_batch_1: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash test_tfhe_lints tfhe_lints \
-clippy_rustdoc
+pcc_batch_1:
+	$(call run_recipe_with_details,no_tfhe_typo)
+	$(call run_recipe_with_details,no_dbg_log)
+	$(call run_recipe_with_details,check_parameter_export_ok)
+	$(call run_recipe_with_details,check_fmt)
+	$(call run_recipe_with_details,check_typos)
+	$(call run_recipe_with_details,lint_doc)
+	$(call run_recipe_with_details,check_md_docs_are_tested)
+	$(call run_recipe_with_details,check_intra_md_links)
+	$(call run_recipe_with_details,check_doc_paths_use_dash)
+	$(call run_recipe_with_details,test_tfhe_lints)
+	$(call run_recipe_with_details,tfhe_lints)
+	$(call run_recipe_with_details,clippy_rustdoc)
 
 .PHONY: pcc_batch_2 # duration: 6'10'' (shortest one, extend it with further checks)
-pcc_batch_2: clippy clippy_all_targets
+pcc_batch_2:
+	$(call run_recipe_with_details,clippy)
+	$(call run_recipe_with_details,clippy_all_targets)
 
 .PHONY: pcc_batch_3 # duration: 6'50''
-pcc_batch_3: clippy_shortint clippy_integer
+pcc_batch_3:
+	$(call run_recipe_with_details,clippy_shortint)
+	$(call run_recipe_with_details,clippy_integer)
 
 .PHONY: pcc_batch_4 # duration: 7'40''
-pcc_batch_4: clippy_core clippy_js_wasm_api clippy_ws_tests clippy_bench
+pcc_batch_4:
+	$(call run_recipe_with_details,clippy_core)
+	$(call run_recipe_with_details,clippy_js_wasm_api)
+	$(call run_recipe_with_details,clippy_ws_tests)
+	$(call run_recipe_with_details,clippy_bench)
 
 .PHONY: pcc_batch_5 # duration: 7'20''
-pcc_batch_5: clippy_tfhe_lints check_compile_tests clippy_backward_compat_data
+pcc_batch_5:
+	$(call run_recipe_with_details,clippy_tfhe_lints)
+	$(call run_recipe_with_details,check_compile_tests)
+	$(call run_recipe_with_details,clippy_backward_compat_data)
 
 .PHONY: pcc_batch_6  # duration: 6'32''
-pcc_batch_6: clippy_boolean clippy_c_api clippy_tasks clippy_tfhe_csprng clippy_zk_pok \
-clippy_trivium clippy_versionable clippy_param_dedup docs
+pcc_batch_6:
+	$(call run_recipe_with_details,clippy_boolean)
+	$(call run_recipe_with_details,clippy_c_api)
+	$(call run_recipe_with_details,clippy_tasks)
+	$(call run_recipe_with_details,clippy_tfhe_csprng)
+	$(call run_recipe_with_details,clippy_zk_pok)
+	$(call run_recipe_with_details,clippy_trivium)
+	$(call run_recipe_with_details,clippy_versionable)
+	$(call run_recipe_with_details,clippy_param_dedup)
+	$(call run_recipe_with_details,docs)
 
 .PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)
-pcc_batch_7: check_compile_tests_c_api
+pcc_batch_7:
+	$(call run_recipe_with_details,check_compile_tests_c_api)
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
-pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
-clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu test_integer_hl_test_gpu_check_warnings
+pcc_gpu:
+	$(call run_recipe_with_details,check_rust_bindings_did_not_change)
+	$(call run_recipe_with_details,clippy_rustdoc_gpu)
+	$(call run_recipe_with_details,clippy_gpu)
+	$(call run_recipe_with_details,clippy_cuda_backend)
+	$(call run_recipe_with_details,clippy_bench_gpu)
+	$(call run_recipe_with_details,check_compile_tests_benches_gpu)
+	$(call run_recipe_with_details,test_integer_hl_test_gpu_check_warnings)
 
 .PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
-pcc_hpu: clippy_hpu clippy_hpu_backend clippy_hpu_mockup test_integer_hpu_mockup_ci_fast
+pcc_hpu:
+	$(call run_recipe_with_details,clippy_hpu)
+	$(call run_recipe_with_details,clippy_hpu_backend)
+	$(call run_recipe_with_details,clippy_hpu_mockup)
+	$(call run_recipe_with_details,test_integer_hpu_mockup_ci_fast)
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash clippy_fast check_compile_tests
+fpcc:
+	$(call run_recipe_with_details,no_tfhe_typo)
+	$(call run_recipe_with_details,no_dbg_log)
+	$(call run_recipe_with_details,check_parameter_export_ok)
+	$(call run_recipe_with_details,check_fmt)
+	$(call run_recipe_with_details,check_typos)
+	$(call run_recipe_with_details,lint_doc)
+	$(call run_recipe_with_details,check_md_docs_are_tested)
+	$(call run_recipe_with_details,check_intra_md_links)
+	$(call run_recipe_with_details,check_doc_paths_use_dash)
+	$(call run_recipe_with_details,clippy_fast)
+	$(call run_recipe_with_details,check_compile_tests)
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt fmt_js
