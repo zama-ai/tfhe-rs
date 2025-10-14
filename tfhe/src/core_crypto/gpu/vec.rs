@@ -1,6 +1,6 @@
 use super::get_number_of_gpus;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
@@ -471,19 +471,16 @@ impl<T: Numeric> CudaVec<T> {
 //
 // clippy complains that we impl Send on CudaVec while CudaPtr is non Send.
 // This is ok for us, as CudaPtr is meant to be a wrapper type that serves
-// as distinguishing ptr that points to cuda memory from pointers pointing to
+// as distinguishing pointers that point to cuda memory from pointers pointing to
 // CPU memory.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T> Send for CudaVec<T> where T: Send + Numeric {}
 unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 
 impl<T: Numeric> Drop for CudaVec<T> {
-    /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
         for (i, &ptr) in self.ptr.iter().enumerate() {
-            // Synchronizes the device to be sure no stream is still using this pointer
             let gpu_index = self.gpu_indexes[i];
-            synchronize_device(gpu_index.0);
             unsafe { cuda_drop(ptr, gpu_index.0) };
         }
     }
