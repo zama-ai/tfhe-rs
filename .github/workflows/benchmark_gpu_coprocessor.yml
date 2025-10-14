@@ -232,8 +232,9 @@ jobs:
           ls
           pwd
           cp ./host-contracts/.env.example ./host-contracts/.env
-          npm --prefix ./host-contracts ci --include=optional
-          cd host-contracts && npm install && npm run deploy:emptyProxies && npx hardhat compile
+          cd ./host-contracts 
+          npm ci --include=optional
+          npm install && npm run deploy:emptyProxies && npx hardhat compile
         working-directory: fhevm/
 
       - name: Profile erc20 no-cmux benchmark on GPU
