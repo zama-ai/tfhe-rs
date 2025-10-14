@@ -121,6 +121,7 @@ int main(void) {
   client_key_destroy(client_key);
   public_key_destroy(public_key);
   server_key_destroy(server_key);
+  unset_server_key();
 
   return EXIT_SUCCESS;
 }
