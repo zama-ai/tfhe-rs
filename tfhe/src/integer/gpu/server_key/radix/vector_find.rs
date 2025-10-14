@@ -1610,7 +1610,7 @@ impl CudaServerKey {
                     )
                 };
             }
-            let temp = unsafe { aggregated_vector.duplicate_async(streams) };
+            let temp = aggregated_vector.duplicate(streams);
 
             unsafe {
                 self.apply_lookup_table_async(
@@ -1643,7 +1643,7 @@ impl CudaServerKey {
         let mut carry_ct: T =
             unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 
-        let temp = unsafe { aggregated_vector.duplicate_async(streams) };
+        let temp = aggregated_vector.duplicate(streams);
         unsafe {
             self.apply_lookup_table_async(
                 carry_ct.as_mut(),

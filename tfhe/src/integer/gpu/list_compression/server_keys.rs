@@ -220,7 +220,7 @@ impl CudaCompressionKey {
         }
     }
 
-    unsafe fn flatten_async(
+    fn flatten(
         ciphertexts_slice: &[CudaRadixCiphertext],
         streams: &CudaStreams,
     ) -> CudaLweCiphertextList<u64> {
@@ -238,24 +238,31 @@ impl CudaCompressionKey {
 
         let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
 
-        let mut d_vec = CudaVec::new_async(
-            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-            streams,
-            0,
-        );
+        let mut d_vec = unsafe {
+            CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+                streams,
+                0,
+            )
+        };
         let mut offset: usize = 0;
         for ciphertext in ciphertexts_slice {
-            let dest_ptr = d_vec
-                .as_mut_c_ptr(0)
-                .add(offset * std::mem::size_of::<u64>());
+            let dest_ptr = unsafe {
+                d_vec
+                    .as_mut_c_ptr(0)
+                    .add(offset * std::mem::size_of::<u64>())
+            };
             let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
-            cuda_memcpy_async_gpu_to_gpu(
-                dest_ptr,
-                ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
-                size as u64,
-                streams.ptr[0],
-                streams.gpu_indexes[0].get(),
-            );
+            unsafe {
+                cuda_memcpy_async_gpu_to_gpu(
+                    dest_ptr,
+                    ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
+                    size as u64,
+                    streams.ptr[0],
+                    streams.gpu_indexes[0].get(),
+                );
+            }
+            streams.synchronize();
 
             offset += ciphertext.d_blocks.0.d_vec.len;
         }
@@ -319,9 +326,8 @@ impl CudaCompressionKey {
             }),
         };
 
+        let input_lwes = Self::flatten(ciphertexts, streams);
         unsafe {
-            let input_lwes = Self::flatten_async(ciphertexts, streams);
-
             cuda_backend_compress(
                 streams,
                 &mut glwe_array_out,
@@ -337,9 +343,9 @@ impl CudaCompressionKey {
                 self.lwe_per_glwe.0 as u32,
                 num_lwes as u32,
             );
+        }
 
-            streams.synchronize();
-        };
+        streams.synchronize();
 
         glwe_array_out
     }
@@ -605,7 +611,7 @@ impl CudaNoiseSquashingCompressionKey {
         }
     }
 
-    unsafe fn flatten_async(
+    fn flatten(
         ciphertexts_slice: &[CudaSquashedNoiseRadixCiphertext],
         streams: &CudaStreams,
     ) -> CudaLweCiphertextList<u128> {
@@ -623,25 +629,31 @@ impl CudaNoiseSquashingCompressionKey {
 
         let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
 
-        let mut d_vec = CudaVec::new_async(
-            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-            streams,
-            0,
-        );
+        let mut d_vec = unsafe {
+            CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+                streams,
+                0,
+            )
+        };
         let mut offset: usize = 0;
         for ciphertext in ciphertexts_slice {
-            let dest_ptr = d_vec
-                .as_mut_c_ptr(0)
-                .add(offset * std::mem::size_of::<u128>());
+            let dest_ptr = unsafe {
+                d_vec
+                    .as_mut_c_ptr(0)
+                    .add(offset * std::mem::size_of::<u128>())
+            };
             let size = ciphertext.packed_d_blocks.0.d_vec.len * std::mem::size_of::<u128>();
-            cuda_memcpy_async_gpu_to_gpu(
-                dest_ptr,
-                ciphertext.packed_d_blocks.0.d_vec.as_c_ptr(0),
-                size as u64,
-                streams.ptr[0],
-                streams.gpu_indexes[0].get(),
-            );
-
+            unsafe {
+                cuda_memcpy_async_gpu_to_gpu(
+                    dest_ptr,
+                    ciphertext.packed_d_blocks.0.d_vec.as_c_ptr(0),
+                    size as u64,
+                    streams.ptr[0],
+                    streams.gpu_indexes[0].get(),
+                );
+            }
+            streams.synchronize();
             offset += ciphertext.packed_d_blocks.0.d_vec.len;
         }
 
@@ -709,9 +721,8 @@ impl CudaNoiseSquashingCompressionKey {
             }),
         };
 
+        let input_lwes = Self::flatten(ciphertexts, streams);
         unsafe {
-            let input_lwes = Self::flatten_async(ciphertexts, streams);
-
             cuda_backend_compress(
                 streams,
                 &mut glwe_array_out,

@@ -402,7 +402,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
@@ -475,7 +475,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
@@ -548,7 +548,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
@@ -621,7 +621,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
@@ -687,7 +687,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
@@ -762,7 +762,7 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate_async(streams);
+            tmp = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };

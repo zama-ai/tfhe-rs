@@ -283,6 +283,7 @@ impl CudaFlattenedVecCompactCiphertextList {
             }
             d_flattened_d_vec
         };
+        streams.synchronize();
 
         Self {
             d_flattened_vec: d_flattened_d_vec,

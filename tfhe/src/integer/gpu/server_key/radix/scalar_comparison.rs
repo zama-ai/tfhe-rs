@@ -331,7 +331,7 @@ impl CudaServerKey {
 
         let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
 
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -590,7 +590,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -671,7 +671,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -911,7 +911,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -952,7 +952,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -993,7 +993,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -1033,7 +1033,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -1186,7 +1186,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };
@@ -1222,7 +1222,7 @@ impl CudaServerKey {
         let lhs = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp_lhs = ct.duplicate_async(streams);
+            tmp_lhs = ct.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_lhs, streams);
             &tmp_lhs
         };

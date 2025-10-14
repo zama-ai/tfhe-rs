@@ -59,7 +59,7 @@ impl CudaServerKey {
         ct: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_bitnot_assign(&mut result, streams);
         result
     }
@@ -180,7 +180,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.unchecked_bitand_assign(&mut result, ct_right, streams);
         result
     }
@@ -440,7 +440,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.unchecked_bitor_assign(&mut result, ct_right, streams);
         result
     }
@@ -506,7 +506,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.unchecked_bitxor_assign(&mut result, ct_right, streams);
         result
     }
@@ -572,7 +572,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.bitand_assign(&mut result, ct_right, streams);
         result
     }
@@ -596,7 +596,7 @@ impl CudaServerKey {
             ) {
                 (true, true) => (ct_left, ct_right),
                 (true, false) => {
-                    tmp_rhs = ct_right.duplicate_async(streams);
+                    tmp_rhs = ct_right.duplicate(streams);
                     self.full_propagate_assign_async(&mut tmp_rhs, streams);
                     (ct_left, &tmp_rhs)
                 }
@@ -605,7 +605,7 @@ impl CudaServerKey {
                     (ct_left, ct_right)
                 }
                 (false, false) => {
-                    tmp_rhs = ct_right.duplicate_async(streams);
+                    tmp_rhs = ct_right.duplicate(streams);
 
                     self.full_propagate_assign_async(ct_left, streams);
                     self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -677,7 +677,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.bitor_assign(&mut result, ct_right, streams);
         result
     }
@@ -700,7 +700,7 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
@@ -709,7 +709,7 @@ impl CudaServerKey {
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(ct_left, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -781,7 +781,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.bitxor_assign(&mut result, ct_right, streams);
         result
     }
@@ -804,7 +804,7 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
@@ -813,7 +813,7 @@ impl CudaServerKey {
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(ct_left, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -877,7 +877,7 @@ impl CudaServerKey {
     /// assert_eq!(dec, !msg % 256);
     /// ```
     pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, streams: &CudaStreams) -> T {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.bitnot_assign(&mut result, streams);
         result
     }

@@ -76,7 +76,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = unsafe { ct.duplicate_async(streams) };
+        let mut res = ct.duplicate(streams);
         if T::IS_SIGNED {
             unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
         }
@@ -134,7 +134,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = unsafe { ct.duplicate_async(streams) };
+        let mut res = ct.duplicate(streams);
         if !ct.block_carries_are_empty() {
             unsafe { self.full_propagate_assign_async(&mut res, streams) };
         }
