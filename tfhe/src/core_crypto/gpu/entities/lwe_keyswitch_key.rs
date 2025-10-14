@@ -7,9 +7,8 @@ use crate::core_crypto::gpu::{
 };
 use crate::core_crypto::prelude::{
     lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
-    UnsignedInteger,
+    UnsignedInteger, CastInto
 };
-use crate::prelude::{CastFrom, CastInto};
 use itertools::Itertools;
 use std::any::TypeId;
 
@@ -49,7 +48,9 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
         );
 
         if TypeId::of::<T>() == TypeId::of::<O>() {
-            panic!("Forced KSK to u32 not working!");
+            if (std::mem::size_of::<T>() == 8) {
+                panic!("Forced KSK to u32 not working!");
+            }
             unsafe {
                 let casted = unsafe {
                     std::slice::from_raw_parts(

@@ -187,7 +187,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
-          mem_ptr->logical_scalar_shift_mem, bsks, (uint32_t **)ksks,
+          mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);
 
     } else {
@@ -195,7 +195,7 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
       host_integer_scalar_mul_radix<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->decomposed_chosen_multiplier,
           scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
-          mem_ptr->scalar_mul_mem, bsks, (uint32_t **)ksks,
+          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
           mem_ptr->params.message_modulus, scalar_divisor_ffi->num_scalars);
     }
   }
@@ -219,7 +219,7 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
 
   host_extend_radix_with_sign_msb<Torus>(
       streams, tmp_ffi, ct, mem_ptr->extend_radix_mem, ct->num_radix_blocks,
-      bsks, (uint32_t **)ksks);
+      bsks, (uint64_t **)ksks);
 
   if (scalar_divisor_ffi->active_bits != (uint32_t)0 &&
       !scalar_divisor_ffi->is_abs_chosen_multiplier_one &&
@@ -228,13 +228,13 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
-          mem_ptr->logical_scalar_shift_mem, bsks, (uint32_t **)ksks,
+          mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);
     } else {
       host_integer_scalar_mul_radix<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->decomposed_chosen_multiplier,
           scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
-          mem_ptr->scalar_mul_mem, bsks, (uint32_t **)ksks,
+          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
           mem_ptr->params.message_modulus, scalar_divisor_ffi->num_scalars);
     }
   }

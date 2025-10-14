@@ -486,13 +486,13 @@ pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn keyswitch_async<T: UnsignedInteger>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_out: &mut CudaVec<u32>,
     lwe_out_indexes: &CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
     lwe_in_indexes: &CudaVec<T>,
     input_lwe_dimension: LweDimension,
     output_lwe_dimension: LweDimension,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<u32>,
     base_log: DecompositionBaseLog,
     l_gadget: DecompositionLevelCount,
     num_samples: u32,

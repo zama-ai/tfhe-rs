@@ -602,14 +602,14 @@ mod cuda_utils {
     /// Computing keys in their Cuda flavor.
     #[allow(dead_code)]
     pub struct CudaLocalKeys<T: UnsignedInteger> {
-        pub ksk: Option<CudaLweKeyswitchKey<T>>,
+        pub ksk: Option<CudaLweKeyswitchKey<u32>>,
         pub pksk: Option<CudaLwePackingKeyswitchKey<T>>,
         pub bsk: Option<CudaLweBootstrapKey>,
         pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey<T>>,
     }
 
     #[allow(dead_code)]
-    impl<T: UnsignedInteger> CudaLocalKeys<T> {
+    impl<T: UnsignedInteger> CudaLocalKeys<T> where T: CastInto<u32> {
         pub fn from_cpu_keys(
             cpu_keys: &CpuKeys<T>,
             ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
@@ -634,10 +634,10 @@ mod cuda_utils {
     }
 
     /// Instantiate Cuda computing keys to each available GPU.
-    pub fn cuda_local_keys_core<T: UnsignedInteger>(
+    pub fn cuda_local_keys_core<T: UnsignedInteger> (
         cpu_keys: &CpuKeys<T>,
         ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
-    ) -> Vec<CudaLocalKeys<T>> {
+    ) -> Vec<CudaLocalKeys<T>> where T: CastInto<u32> {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
         for i in 0..gpu_count {
@@ -740,6 +740,7 @@ mod cuda_utils {
     #[allow(unused_imports)]
     #[cfg(feature = "integer")]
     pub use cuda_integer_utils::*;
+    use tfhe::core_crypto::prelude::CastInto;
 }
 
 #[cfg(feature = "gpu")]

@@ -41,13 +41,13 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples) {
-  host_keyswitch_lwe_ciphertext_vector<uint64_t>(
+  host_keyswitch_lwe_ciphertext_vector<uint64_t, uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
-      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint32_t *>(lwe_array_out),
       static_cast<const uint64_t *>(lwe_output_indexes),
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
-      static_cast<const uint64_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
+      static_cast<const uint32_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
       base_log, level_count, num_samples);
 }
 
