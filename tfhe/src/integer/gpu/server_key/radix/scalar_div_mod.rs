@@ -102,7 +102,7 @@ impl CudaServerKey {
             Scalar::BITS
         );
 
-        let mut quotient = unsafe { numerator.duplicate_async(streams) };
+        let mut quotient = numerator.duplicate(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -219,7 +219,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };
@@ -270,8 +270,7 @@ impl CudaServerKey {
             Scalar::BITS
         );
 
-        let mut quotient: CudaUnsignedRadixCiphertext =
-            unsafe { numerator.duplicate_async(streams) };
+        let mut quotient: CudaUnsignedRadixCiphertext = numerator.duplicate(streams);
         let mut remainder: CudaUnsignedRadixCiphertext = unsafe {
             self.create_trivial_zero_radix_async(
                 numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
@@ -398,7 +397,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };
@@ -501,7 +500,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };
@@ -672,7 +671,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };
@@ -721,7 +720,7 @@ impl CudaServerKey {
 >= to the number of bits encrypted in the ciphertext"
         );
 
-        let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate_async(streams);
+        let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate(streams);
         let mut remainder: CudaSignedRadixCiphertext = self.create_trivial_zero_radix_async(
             numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
             streams,
@@ -846,7 +845,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };
@@ -956,7 +955,7 @@ impl CudaServerKey {
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_numerator, streams);
             &tmp_numerator
         };

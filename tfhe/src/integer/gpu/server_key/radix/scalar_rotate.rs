@@ -26,7 +26,7 @@ impl CudaServerKey {
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
     {
-        let mut result = ct.duplicate_async(stream);
+        let mut result = ct.duplicate(stream);
         self.unchecked_scalar_rotate_left_assign_async(&mut result, n, stream);
         result
     }
@@ -135,7 +135,7 @@ impl CudaServerKey {
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
     {
-        let mut result = ct.duplicate_async(stream);
+        let mut result = ct.duplicate(stream);
         self.unchecked_scalar_rotate_right_assign_async(&mut result, n, stream);
         result
     }

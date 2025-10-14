@@ -106,7 +106,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_bitand_assign(&mut result, rhs, streams);
         result
     }
@@ -131,7 +131,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_bitor_assign(&mut result, rhs, streams);
         result
     }
@@ -161,7 +161,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_bitxor_assign(&mut result, rhs, streams);
         result
     }
@@ -216,7 +216,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_bitand_assign(&mut result, rhs, streams);
         result
     }
@@ -256,7 +256,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_bitor_assign(&mut result, rhs, streams);
         result
     }
@@ -296,7 +296,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_bitxor_assign(&mut result, rhs, streams);
         result
     }

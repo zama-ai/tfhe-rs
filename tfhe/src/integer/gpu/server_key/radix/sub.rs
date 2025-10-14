@@ -78,7 +78,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = ct_left.duplicate_async(streams);
+        let mut result = ct_left.duplicate(streams);
         self.unchecked_sub_assign_async(&mut result, ct_right, streams);
         result
     }
@@ -229,7 +229,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = ct_left.duplicate_async(streams);
+        let mut result = ct_left.duplicate(streams);
         self.sub_assign_async(&mut result, ct_right, streams);
         result
     }
@@ -372,7 +372,7 @@ impl CudaServerKey {
         rhs: &CudaUnsignedRadixCiphertext,
         stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
-        let mut ct_res = lhs.duplicate_async(stream);
+        let mut ct_res = lhs.duplicate(stream);
 
         let compute_overflow = true;
         const INPUT_BORROW: Option<&CudaBooleanBlock> = None;
@@ -578,22 +578,22 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 unsafe {
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
 
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);

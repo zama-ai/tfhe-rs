@@ -58,7 +58,7 @@ impl CudaServerKey {
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_mul_assign(&mut result, scalar, streams);
         result
     }
@@ -222,7 +222,7 @@ impl CudaServerKey {
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_mul_assign(&mut result, scalar, streams);
         result
     }

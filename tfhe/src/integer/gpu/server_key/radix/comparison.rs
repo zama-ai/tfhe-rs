@@ -277,18 +277,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -487,18 +487,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -666,18 +666,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -774,18 +774,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -898,18 +898,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -1022,18 +1022,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -1129,7 +1129,7 @@ impl CudaServerKey {
             ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
-        let mut result = ct_left.duplicate_async(streams);
+        let mut result = ct_left.duplicate(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1225,7 +1225,7 @@ impl CudaServerKey {
             ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
-        let mut result = ct_left.duplicate_async(streams);
+        let mut result = ct_left.duplicate(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1316,18 +1316,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -1363,18 +1363,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_left.duplicate_async(streams);
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_lhs = ct_left.duplicate(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);

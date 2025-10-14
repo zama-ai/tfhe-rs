@@ -72,7 +72,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.add_assign(&mut result, ct_right, streams);
         result
     }
@@ -104,7 +104,7 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
@@ -113,7 +113,7 @@ impl CudaServerKey {
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(streams);
+                tmp_rhs = ct_right.duplicate(streams);
 
                 self.full_propagate_assign_async(ct_left, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -281,7 +281,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        let mut result = ct_left.duplicate(streams);
         self.unchecked_add_assign(&mut result, ct_right, streams);
         result
     }
@@ -482,7 +482,7 @@ impl CudaServerKey {
             return None;
         }
 
-        let mut result = unsafe { ciphertexts[0].duplicate_async(streams) };
+        let mut result = ciphertexts[0].duplicate(streams);
 
         if ciphertexts.len() == 1 {
             streams.synchronize();
@@ -585,22 +585,22 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 unsafe {
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
 
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
@@ -649,7 +649,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         let output_flag = OutputFlag::from_signedness(CudaUnsignedRadixCiphertext::IS_SIGNED);
 
-        let mut ct_res = lhs.duplicate_async(stream);
+        let mut ct_res = lhs.duplicate(stream);
         let mut carry_out: CudaUnsignedRadixCiphertext = self
             .add_and_propagate_single_carry_assign_async(
                 &mut ct_res,
@@ -685,7 +685,7 @@ impl CudaServerKey {
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
         let output_flag = OutputFlag::from_signedness(CudaSignedRadixCiphertext::IS_SIGNED);
 
-        let mut ct_res = lhs.duplicate_async(stream);
+        let mut ct_res = lhs.duplicate(stream);
         let carry_out: CudaSignedRadixCiphertext = self
             .add_and_propagate_single_carry_assign_async(
                 &mut ct_res,
@@ -754,22 +754,22 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 unsafe {
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
                 unsafe {
-                    tmp_lhs = ct_left.duplicate_async(stream);
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_lhs = ct_left.duplicate(stream);
+                    tmp_rhs = ct_right.duplicate(stream);
 
                     self.full_propagate_assign_async(&mut tmp_lhs, stream);
                     self.full_propagate_assign_async(&mut tmp_rhs, stream);

@@ -97,7 +97,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.unchecked_rotate_right_assign_async(&mut result, rotate, streams);
         result
     }
@@ -218,7 +218,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.unchecked_rotate_left_assign_async(&mut result, rotate, streams);
         result
     }
@@ -273,18 +273,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, rotate),
             (true, false) => {
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_rhs = rotate.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(streams);
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -292,7 +292,7 @@ impl CudaServerKey {
             }
         };
 
-        let mut result = lhs.duplicate_async(streams);
+        let mut result = lhs.duplicate(streams);
         self.unchecked_rotate_right_assign_async(&mut result, rhs, streams);
         result
     }
@@ -318,18 +318,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, rotate),
             (true, false) => {
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_rhs = rotate.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(streams);
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -427,18 +427,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, rotate),
             (true, false) => {
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_rhs = rotate.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(streams);
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
@@ -446,7 +446,7 @@ impl CudaServerKey {
             }
         };
 
-        let mut result = lhs.duplicate_async(streams);
+        let mut result = lhs.duplicate(streams);
         self.unchecked_rotate_left_assign_async(&mut result, rhs, streams);
         result
     }
@@ -472,18 +472,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, rotate),
             (true, false) => {
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_rhs = rotate.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(streams);
-                tmp_rhs = rotate.duplicate_async(streams);
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 self.full_propagate_assign_async(&mut tmp_rhs, streams);
