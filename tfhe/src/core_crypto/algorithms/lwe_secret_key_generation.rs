@@ -1,6 +1,8 @@
 //! Module containing primitives pertaining to the generation of
 //! [`LWE secret keys`](`LweSecretKey`).
 
+use std::ops::RangeInclusive;
+
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::*;
@@ -61,4 +63,73 @@ pub fn generate_binary_lwe_secret_key<Scalar, InCont, Gen>(
     Gen: ByteRandomGenerator,
 {
     generator.fill_slice_with_random_uniform_binary(lwe_secret_key.as_mut());
+}
+
+/// Fill an [`LWE secret key`](`LweSecretKey`) with uniformly random binary coefficients.
+///
+/// The hamming weight of the secret key will be in: `(1-pmax)*len..=pmax*len`
+/// where pmax is in ]0.5, 1.0]
+///
+/// # Panics
+///
+/// Panics if pmax <= 0.5 or pmax > 1.0
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+/// let pmax = 0.7;
+/// let mut lwe_secret_key = LweSecretKey::new_empty_key(0u64, lwe_dimension);
+///
+/// generate_binary_lwe_secret_key_with_bounded_hamming_weight(
+///     &mut lwe_secret_key,
+///     &mut secret_generator,
+///     pmax,
+/// );
+///
+/// // Check all coefficients are not zero as we just generated a new key
+/// assert!(!lwe_secret_key.as_ref().iter().all(|&elt| elt == 0));
+/// ```
+pub fn generate_binary_lwe_secret_key_with_bounded_hamming_weight<Scalar, InCont, Gen>(
+    lwe_secret_key: &mut LweSecretKey<InCont>,
+    generator: &mut SecretRandomGenerator<Gen>,
+    pmax: f64,
+) where
+    Scalar: RandomGenerable<UniformBinary> + UnsignedInteger,
+    InCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        0.5 < pmax && pmax <= 1.0,
+        "pmax parameter must be in ]0.5, 1.0]"
+    );
+
+    let bounds = RangeInclusive::new(
+        ((1.0 - pmax) * lwe_secret_key.lwe_dimension().0 as f64) as u128,
+        (pmax * lwe_secret_key.lwe_dimension().0 as f64) as u128,
+    );
+
+    loop {
+        generator.fill_slice_with_random_uniform_binary_bits(lwe_secret_key.as_mut());
+        let hamming_weight = lwe_secret_key
+            .as_ref()
+            .iter()
+            .copied()
+            .map(|bit| -> u128 { bit.cast_into() })
+            .sum::<u128>();
+
+        if bounds.contains(&hamming_weight) {
+            break;
+        }
+    }
 }
