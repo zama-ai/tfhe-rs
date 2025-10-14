@@ -413,7 +413,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T {
         if num_blocks == 0 {
-            return ct.duplicate_async(streams);
+            return ct.duplicate(streams);
         }
         let new_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 + num_blocks;
         let ciphertext_modulus = ct.as_ref().d_blocks.ciphertext_modulus();
@@ -650,7 +650,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T {
         if num_blocks == 0 {
-            return ct.duplicate_async(streams);
+            return ct.duplicate(streams);
         }
         let new_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 - num_blocks;
         let ciphertext_modulus = ct.as_ref().d_blocks.ciphertext_modulus();

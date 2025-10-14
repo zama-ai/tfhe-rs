@@ -269,15 +269,7 @@ impl SquashNoise for FheBool {
                     .ok_or(UninitializedNoiseSquashing)?;
 
                 let cuda_block = CudaBooleanBlock(match self.ciphertext.on_gpu(streams) {
-                    MaybeCloned::Borrowed(gpu_ct) => {
-                        unsafe {
-                            // SAFETY
-                            // The gpu_ct is a ref, meaning it belongs to the thing
-                            // that is being iterated on, so it will stay alive for the
-                            // whole function
-                            gpu_ct.duplicate_async(streams)
-                        }
-                    }
+                    MaybeCloned::Borrowed(gpu_ct) => gpu_ct.duplicate(streams),
                     MaybeCloned::Cloned(gpu_ct) => gpu_ct,
                 });
                 let cuda_squashed_block = noise_squashing_key.squash_boolean_block_noise(

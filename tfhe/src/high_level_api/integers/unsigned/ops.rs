@@ -183,42 +183,30 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                {
-                    let streams = &cuda_key.streams;
-                    let cts = iter
-                        .map(|fhe_uint| {
-                            match fhe_uint.ciphertext.on_gpu(streams) {
-                                MaybeCloned::Borrowed(gpu_ct) => {
-                                    unsafe {
-                                        // SAFETY
-                                        // The gpu_ct is a ref, meaning it belongs to the thing
-                                        // that is being iterated on, so it will stay alive for the
-                                        // whole function
-                                        gpu_ct.duplicate_async(streams)
-                                    }
-                                }
-                                MaybeCloned::Cloned(gpu_ct) => gpu_ct,
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                let streams = &cuda_key.streams;
+                let cts = iter
+                    .map(|fhe_uint| match fhe_uint.ciphertext.on_gpu(streams) {
+                        MaybeCloned::Borrowed(gpu_ct) => gpu_ct.duplicate(streams),
+                        MaybeCloned::Cloned(gpu_ct) => gpu_ct,
+                    })
+                    .collect::<Vec<_>>();
 
-                    let inner = cuda_key
-                        .key
-                        .key
-                        .sum_ciphertexts(cts, streams)
-                        .unwrap_or_else(|| {
-                            cuda_key.key.key.create_trivial_radix(
-                                0,
-                                Id::num_blocks(cuda_key.message_modulus()),
-                                streams,
-                            )
-                        });
-                    Self::new(
-                        inner,
-                        cuda_key.tag.clone(),
-                        ReRandomizationMetadata::default(),
-                    )
-                }
+                let inner = cuda_key
+                    .key
+                    .key
+                    .sum_ciphertexts(cts, streams)
+                    .unwrap_or_else(|| {
+                        cuda_key.key.key.create_trivial_radix(
+                            0,
+                            Id::num_blocks(cuda_key.message_modulus()),
+                            streams,
+                        )
+                    });
+                Self::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {

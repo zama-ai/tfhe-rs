@@ -66,7 +66,7 @@ impl CudaServerKey {
         ctxt: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut ciphertext_out = ctxt.duplicate_async(streams);
+        let mut ciphertext_out = ctxt.duplicate(streams);
 
         let info = ctxt.as_ref().info.blocks.first().unwrap();
 
@@ -148,7 +148,7 @@ impl CudaServerKey {
         let ct = if ctxt.block_carries_are_empty() {
             ctxt
         } else {
-            tmp_ctxt = ctxt.duplicate_async(streams);
+            tmp_ctxt = ctxt.duplicate(streams);
             self.full_propagate_assign_async(&mut tmp_ctxt, streams);
             &mut tmp_ctxt
         };
@@ -172,9 +172,9 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let mut ct = if ctxt.block_carries_are_empty() {
-            ctxt.duplicate_async(streams)
+            ctxt.duplicate(streams)
         } else {
-            let mut ct = ctxt.duplicate_async(streams);
+            let mut ct = ctxt.duplicate(streams);
             self.full_propagate_assign_async(&mut ct, streams);
             ct
         };

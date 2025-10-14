@@ -116,7 +116,7 @@ impl CudaServerKey {
             if true_ct.block_carries_are_empty() {
                 true_ct
             } else {
-                tmp_true_ct = true_ct.duplicate_async(stream);
+                tmp_true_ct = true_ct.duplicate(stream);
                 self.full_propagate_assign_async(&mut tmp_true_ct, stream);
                 &tmp_true_ct
             }
@@ -126,7 +126,7 @@ impl CudaServerKey {
             if false_ct.block_carries_are_empty() {
                 false_ct
             } else {
-                tmp_false_ct = false_ct.duplicate_async(stream);
+                tmp_false_ct = false_ct.duplicate(stream);
                 self.full_propagate_assign_async(&mut tmp_false_ct, stream);
                 &tmp_false_ct
             }

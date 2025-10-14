@@ -56,7 +56,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_sub_assign(&mut result, scalar, streams);
         result
     }
@@ -135,7 +135,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_sub_assign(&mut result, scalar, streams);
         result
     }
@@ -233,7 +233,7 @@ impl CudaServerKey {
     {
         let mut tmp_lhs;
         unsafe {
-            tmp_lhs = ct_left.duplicate_async(streams);
+            tmp_lhs = ct_left.duplicate(streams);
             if !tmp_lhs.block_carries_are_empty() {
                 self.full_propagate_assign_async(&mut tmp_lhs, streams);
             }

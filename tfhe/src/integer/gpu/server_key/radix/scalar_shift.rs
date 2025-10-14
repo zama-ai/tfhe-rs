@@ -28,7 +28,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_left_shift_assign_async(&mut result, shift, streams);
         result
     }
@@ -174,7 +174,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_right_shift_assign_async(&mut result, shift, streams);
         result
     }
@@ -398,7 +398,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.scalar_right_shift_assign_async(&mut result, shift, streams);
         result
     }
@@ -486,7 +486,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(streams);
+        let mut result = ct.duplicate(streams);
         self.scalar_left_shift_assign_async(&mut result, shift, streams);
         result
     }
