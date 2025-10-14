@@ -1,0 +1,20 @@
+[package]
+name = "generate_1_3"
+edition = "2024"
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+clap.workspace = true
+
+# TFHE-rs
+tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.3.0", features = [
+    "boolean",
+    "integer",
+    "shortint",
+    "zk-pok",
+    "experimental-force_fft_algo_dif4",
+] }
+tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.3.0" }
+
+tfhe-backward-compat-data = { path = "../.." }

@@ -13,13 +13,13 @@ use std::str::FromStr;
 
 use cargo_toml::Manifest;
 use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat, TestFailure, TestResult};
-use tfhe_backward_compat_data::{data_dir, dir_for_version, TestType, Testcase};
+use tfhe_backward_compat_data::{dir_for_version, TestType, Testcase};
 use tfhe_versionable::Unversionize;
 
 fn test_data_dir() -> PathBuf {
     // Try to load the test data from the user provided environment variable or default to a
     // hardcoded path
-    let root_dir = if let Ok(dir_str) = env::var("TFHE_BACKWARD_COMPAT_DATA_DIR") {
+    let mut root_dir = if let Ok(dir_str) = env::var("TFHE_BACKWARD_COMPAT_DATA_DIR") {
         PathBuf::from_str(&dir_str).unwrap()
     } else {
         PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
@@ -33,7 +33,8 @@ fn test_data_dir() -> PathBuf {
         panic!("Wrong backward compat data folder: {}", root_dir.display())
     }
 
-    data_dir(root_dir)
+    root_dir.push("data");
+    root_dir
 }
 
 fn tfhe_manifest_dir() -> PathBuf {
