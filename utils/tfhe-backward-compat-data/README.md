@@ -22,12 +22,25 @@ This test will load the data stored in this folder, try to convert them to the l
 ## Data generation
 First you need to make sure that you have pulled the LFS data (see above).
 
-To re-generate the data, run the binary target for this project: `cargo run --release`. The prng is seeded with a fixed seed, so the data should be identical.
+To re-generate all the data, run the following command:
+```
+make gen_backward_compat_data
+```
+You can generate the data only for a specific TFHE-rs version using an environment variable:
+```
+TFHE_VERSION=1.4 make gen_backward_compat_data
+```
 
 ## Adding a test for an existing type
-To add a new test for a type that is already tested, you need to create a const global variable with the metadata for that test. The type of metadata depends on the type being tested (for example, the metadata for a test of the `ClientKey` from the `high_level_api` is `HlClientKey`). Then go to the `data_vvv.rs` file (where "vvv" is the TFHE-rs version of the tested data) and update the `gen_xxx_data` method (where "xxx" is the API layer of your test (hl, shortint, integer,...)). In this method, create the object you want to test and serialize it using the `store_versioned_test` macro. Add the metadata of your test to the vector returned by this method.
+To add a new test for a type that is already tested, you need to update the file named `crates/generate_vvv/src/lib.rs` file (where "vvv" is the TFHE-rs version of the tested data). See [here](#adding-a-new-tfhe-rs-version) if the corresponding crate does not exist yet.
 
-The test will be automatically selected when you run TFHE-rs `make test_backward_compatibility`.
+First, create a const global variable with the metadata for that test. The type of metadata depends on the type being tested (for example, the metadata for a test of the `ClientKey` from the `high_level_api` is `HlClientKey`). Then update the `gen_xxx_data` method (where "xxx" is the API layer of your test (hl, shortint, integer,...)). In this method, create the object you want to test and serialize it using the `store_versioned_test` function.
+
+If the test requires auxiliary data that is not itself tested (for example a `ClientKey` to check that values are correct), store them using the `store_versioned_auxiliary` function. This can be skipped if this auxiliary data is already stored from another test.
+
+Finally, add the metadata of your test to the vector returned by this method.
+
+The new test will be automatically selected when you run TFHE-rs `make test_backward_compatibility`.
 
 ### Example
 ```rust
@@ -40,7 +53,7 @@ const HL_CT1_TEST: HlCiphertextTest = HlCiphertextTest {
     clear_value: 0,
 };
 
-impl TfhersVersion for V0_6 {
+impl TfhersVersion for V0_8 {
     // ...
     // Impl of trait
     // ...
@@ -51,12 +64,15 @@ impl TfhersVersion for V0_6 {
             // ...
 
             // 2. Create the type
-            let ct1 = fheint8::encrypt(HL_CT1_TEST.clear_value, &hl_client_key);
+            let ct1 = FheInt8::encrypt(HL_CT1_TEST.clear_value, &hl_client_key);
 
             // 3. Store it
-            store_versioned_test!(&ct1, &dir, &HL_CT1_TEST.test_filename);
+            store_versioned_test(&ct1, &dir, &HL_CT1_TEST.test_filename);
 
-            // 4. Return the metadata
+            // 4. Store the client key that will be needed when running the test
+            store_versioned_auxiliary(&hl_client_key, &dir, &HL_CT1_TEST.key_filename);
+
+            // 5. Return the metadata
             vec![
                 TestMetadata::HlCiphertext(HL_CT1_TEST),
                 // ...
@@ -73,7 +89,7 @@ impl TfhersVersion for V0_6 {
 ### In this folder
 To add a test for a type that has not yet been tested, you should create a new type that implements the `TestType` trait. The type should also store the metadata needed for the test, and be serializable. By convention, its name should start with the API layer being tested. The metadata can be anything that can be used to check that the correct value is retrieved after deserialization. However, it should not use a TFHE-rs internal type.
 
-Once the type is created, it should be added to the `TestMetadata` enum. You can then add a new testcase using the procedure in the previous paragraph.
+Once the type is created, it should be added to the `TestMetadata` enum. You can then add a new testcase using the procedure in the previous section.
 
 #### Example
 ```rust
@@ -114,7 +130,7 @@ pub enum TestMetadata {
 ```
 
 ### In TFHE-rs
-In TFHE-rs, you should update the test driver (in `tests/backward_compatibility/`) to handle your new test type. To do this, create a function that loads and unversionizes the message, and then checks its value against the metadata provided:
+In TFHE-rs, you should update the test driver (in `tests/backward_compatibility/`) to handle your new test type. To do this, create a function that loads and unversionizes the message, and then checks its value against the provided metadata:
 
 #### Example
 ```rust
@@ -188,15 +204,16 @@ impl TestedModule for Hl {
 }
 ```
 
-## Adding a new tfhe-rs release
-To add data for a new released version of tfhe-rs, you should first add a dependency to that version in the `Cargo.toml` of this project. This dependency should only be enabled with the `generate` feature to avoid conflicts during testing.
-
-You should then implement the `TfhersVersion` trait for this version. You can use the code in `data_0_6.rs` as an example.
-
-## Using the test data
-The data is stored using git-lfs, but they are not pulled by default. You need to pull them by running:
+## Adding a new tfhe-rs version
+The backward data generation uses a different crate for each version, to avoid having multiple TFHE-rs dependencies.
+To instantiate the crate for the current TFHE-rs version, simply run the following command:
 ```
-make pull_backward_compat_data
+make new_backward_compat_crate
 ```
+This will create a new folder in `utils/tfhe-backward-compat-data/crates/` with a templated crate for the new version.
 
-To be able to parse the metadata and check if the loaded data is valid, you should add this crate as a dependency with the `load` feature enabled.
+To complete it, you must simply replace the `// <TODO>` comments with your data generating code:
+1. In `src/utils.rs`, copy the `ConvertParams` impl blocks from the previous version. Adapt them to the parameter types of the current version.
+2. Update `src/lib.rs`. In this file, complete the `seed_prng` method that should seed the shortint and boolean prng for this version. Then, add your data generation using the procedure defined [above](#adding-a-test-for-an-existing-type)
+
+Once this version has been properly released, update the `Cargo.toml` to use the git tag of the release instead of the relative path for the `tfhe` crate dependency.

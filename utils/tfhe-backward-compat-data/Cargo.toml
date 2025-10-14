@@ -1,106 +1,26 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+default-members = ["crates/generate"]
+
+[workspace.package]
+version = "0.9.0"
+license = "BSD-3-Clause-Clear"
+
+[workspace.dependencies]
+clap = { version = "4.5", features = ["derive"] }
+
 [package]
 name = "tfhe-backward-compat-data"
-version = "0.8.0"
-license = "BSD-3-Clause-Clear"
-edition = "2021"
+edition = "2024"
+license.workspace = true
+version.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# This is a list of tfhe-rs versions we will generate data for. This list will grow over time.
-# They are only activated when generating data, with the binary target and the "generate" feature.
-tfhe_0_8 = { version = "0.8", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "x86_64-unix",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", optional = true }
-tfhe_0_10 = { version = "0.10", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "x86_64-unix",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", optional = true }
-tfhe_0_11 = { version = "0.11.2", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", optional = true }
-tfhe_1_0 = { version = "=1.0.0", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", optional = true }
-
-# From here on we need to use git tag dependencies because versions are semver compatibles
-tfhe_1_1 = { git = "https://github.com/zama-ai/tfhe-rs.git", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", tag = "tfhe-rs-1.1.0", optional = true }
-tfhe_1_3 = { git = "https://github.com/zama-ai/tfhe-rs.git", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", tag = "tfhe-rs-1.3.0", optional = true }
-tfhe_1_4 = { path = "../../tfhe", features = [
-    "boolean",
-    "integer",
-    "shortint",
-    "zk-pok",
-    "experimental-force_fft_algo_dif4",
-], package = "tfhe", optional = true }
-
-
-# TFHE-rs 0.8 and 0.10 use the same version of versionable
-tfhe-versionable = { version = "0.3.2", optional = true, package = "tfhe-versionable" }
-tfhe_0_11-versionable = { version = "0.4.0", optional = true, package = "tfhe-versionable" }
-tfhe_1_0-versionable = { version = "0.5.0", optional = true, package = "tfhe-versionable" }
-tfhe_1_1-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.1.0", optional = true, package = "tfhe-versionable" }
-tfhe_1_3-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.3.0", optional = true, package = "tfhe-versionable" }
-tfhe_1_4-versionable = { path = "../../utils/tfhe-versionable", optional = true, package = "tfhe-versionable" }
-
-
-# other deps
 serde = { version = "1.0", features = ["derive"] }
-strum = { version = "0.26", features = ["derive"] }
-semver = { version = "1.0", optional = true }
 ron = { version = "0.8", features = ["integer128"] }
 ciborium = "0.2"
 bincode = "1.3"
-
-[[bin]]
-name = "tfhe-backward-compat-data"
-required-features = ["generate"]
-
-[features]
-default = ["generate"]
-
-generate = [
-    "dep:tfhe_0_8",
-    "dep:tfhe_0_10",
-    "dep:tfhe_0_11",
-    "dep:tfhe_1_0",
-    "dep:tfhe_1_1",
-    "dep:tfhe_1_3",
-    "dep:tfhe_1_4",
-    "dep:tfhe-versionable",
-    "dep:tfhe_0_11-versionable",
-    "dep:tfhe_1_0-versionable",
-    "dep:tfhe_1_1-versionable",
-    "dep:tfhe_1_3-versionable",
-    "dep:tfhe_1_4-versionable",
-]
-load = ["dep:semver"]
+strum = { version = "0.26", features = ["derive"] }
+semver = { version = "1.0" }
