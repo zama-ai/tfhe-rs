@@ -216,10 +216,6 @@ required-features = ["integer"]
 name = "pbs_count"
 required-features = ["integer", "pbs-stats"]
 
-[[example]]
-name = "dist_tuniform"
-required-features = ["integer", "internal-keycache"]
-
 # Start of Hpu related section
 [[example]]
 name = "hpu_hlapi"
