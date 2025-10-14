@@ -25,6 +25,7 @@
   * [Integer](fhe-computation/types/integer.md)
   * [Strings](fhe-computation/types/strings.md)
   * [Array](fhe-computation/types/array.md)
+  * [KVStore](fhe-computation/types/kv-store.md)
 * [Operations](fhe-computation/operations/README.md)
   * [Arithmetic operations](fhe-computation/operations/arithmetic-operations.md)
   * [Bitwise operations](fhe-computation/operations/bitwise-operations.md)
