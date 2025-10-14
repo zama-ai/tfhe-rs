@@ -12,6 +12,8 @@
   ami_path="${AMI_PATH}/ami.ko"
   qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-1"
   qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-2"
+  # set force_reload to "true" if you want bitstream to be loaded even if ID is the same
+  force_reload="false"
 
 [rtl]
   bpip_use = true

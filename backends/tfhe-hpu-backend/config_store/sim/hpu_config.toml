@@ -22,7 +22,6 @@
   ]
   heap_size = 16384
 
-
   lut_mem = 256
   lut_pc = {Hbm={pc=34}}
 
