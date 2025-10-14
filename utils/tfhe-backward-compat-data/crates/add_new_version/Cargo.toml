@@ -1,0 +1,12 @@
+[package]
+name = "add_new_version"
+edition = "2024"
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+clap.workspace = true
+minijinja = { version = "1.0", features = ["loader"] }
+serde = { version = "1.0", features = ["derive"] }
+cargo_toml = "0.22"
+semver.workspace = true

@@ -1,0 +1,102 @@
+mod utils;
+use utils::*;
+
+use std::fs::create_dir_all;
+use std::path::Path;
+
+use tfhe_backward_compat_data::generate::*;
+use tfhe_backward_compat_data::*;
+
+// <TODO> To complete this file, you can use examples in the data generation crates for
+// <TODO> other versions.
+
+// <TODO> Here you can add constants that defines the metadata for your data tests.
+// <TODO> The metadata should use one of the types inside the `TestMetadata` enum in
+// <TODO> `tfhe-backward-compat-data/src/lib.rs`.
+// <TODO> Feel free to add a new variant if none of the existing one cover your needs.
+// <TODO>
+// <TODO> Example:
+// <TODO> const SHORTINT_CLIENT_KEY_FILENAME: &str = "client_key";
+// <TODO>
+// <TODO> const SHORTINT_CLIENTKEY_TEST: ShortintClientKeyTest = ShortintClientKeyTest {
+// <TODO>     test_filename: Cow::Borrowed(SHORTINT_CLIENT_KEY_FILENAME),
+// <TODO>     parameters: VALID_TEST_PARAMS,
+// <TODO> };
+// <TODO> const SHORTINT_CT_TEST: ShortintCiphertextTest = ShortintCiphertextTest {
+// <TODO>     test_filename: Cow::Borrowed("ct"),
+// <TODO>     key_filename: Cow::Borrowed(SHORTINT_CLIENT_KEY_FILENAME),
+// <TODO>     clear_value: 0,
+// <TODO> };
+
+pub struct V{{ tfhe_version_underscored }};
+
+impl TfhersVersion for V{{ tfhe_version_underscored }} {
+    const VERSION_NUMBER: &'static str = "{{ tfhe_version_short }}";
+
+    fn seed_prng(seed: u128) {
+        // <TODO> Include here the code required to seed the prng for this version of TFHE-rs.
+        // <TODO> This might require: seeding shortint and boolean engines
+        // <TODO>
+        // <TODO> Example:
+        // <TODO> let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+        // <TODO> let shortint_engine = ShortintEngine::new_from_seeder(&mut seeder);
+        // <TODO> ShortintEngine::with_thread_local_mut(|local_engine| {
+        // <TODO>     let _ = std::mem::replace(local_engine, shortint_engine);
+        // <TODO> });
+        // <TODO>
+        // <TODO> let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
+        // <TODO> BooleanEngine::replace_thread_local(boolean_engine);
+        todo!()
+    }
+
+    // <TODO> You now need to generate the data for the shortint and hl layer. This means:
+    // <TODO> - Create the TFHE-rs objects you want to test from the metadata defined above
+    // <TODO> - Store them using `store_versioned_test`
+    // <TODO> - If the test needs some auxiliary data (such as a client key), store it with
+    // <TODO>   `store_versioned_auxiliary`
+    // <TODO> - Returns all the metadata in a Vec
+    // <TODO>
+    // <TODO> Example:
+    // <TODO> fn gen_shortint_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata> {
+    // <TODO>     let dir = Self::data_dir(base_data_dir).join(SHORTINT_MODULE_NAME);
+    // <TODO>     create_dir_all(&dir).unwrap();
+    // <TODO>
+    // <TODO>     // generate a client key
+    // <TODO>     let shortint_client_key =
+    // <TODO>         shortint::ClientKey::new(SHORTINT_CLIENTKEY_TEST.parameters.convert());
+    // <TODO>
+    // <TODO>     store_versioned_test(
+    // <TODO>         &shortint_client_key,
+    // <TODO>         &dir,
+    // <TODO>         &SHORTINT_CLIENTKEY_TEST.test_filename,
+    // <TODO>     );
+    // <TODO>
+    // <TODO>     // generate a ciphertext
+    // <TODO>     let ct = shortint_client_key.encrypt(SHORTINT_CT_TEST.clear_value);
+    // <TODO>
+    // <TODO>     // Serialize it
+    // <TODO>     store_versioned_test(&ct, &dir, &SHORTINT_CT_TEST.test_filename);
+    // <TODO>
+    // <TODO>     vec![
+    // <TODO>         TestMetadata::ShortintClientKey(SHORTINT_CLIENTKEY_TEST),
+    // <TODO>         TestMetadata::ShortintCiphertext(SHORTINT_CT_TEST),
+    // <TODO>     ]
+    // <TODO> }
+    fn gen_shortint_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata> {
+        // <TODO> Remove this if you do not generate shortint data for this version
+        let dir = Self::data_dir(base_data_dir).join(SHORTINT_MODULE_NAME);
+        create_dir_all(&dir).unwrap();
+
+        // <TODO> Add shortint data here
+        Vec::new()
+    }
+
+    fn gen_hl_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata> {
+        // <TODO> Remove this if you do not generate hl data for this version
+        let dir = Self::data_dir(base_data_dir).join(HL_MODULE_NAME);
+        create_dir_all(&dir).unwrap();
+
+        // <TODO> Add hl data here
+        Vec::new()
+    }
+}
