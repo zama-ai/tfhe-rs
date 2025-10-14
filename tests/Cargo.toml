@@ -7,9 +7,7 @@ publish = false
 [dev-dependencies]
 tfhe = { path = "../tfhe" }
 tfhe-versionable = { path = "../utils/tfhe-versionable" }
-tfhe-backward-compat-data = { path = "../utils/tfhe-backward-compat-data", default-features = false, features = [
-    "load",
-] }
+tfhe-backward-compat-data = { path = "../utils/tfhe-backward-compat-data" }
 rand = { workspace = true }
 cargo_toml = "0.22"
 

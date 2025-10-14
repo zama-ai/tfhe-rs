@@ -1,190 +1,35 @@
+mod utils;
+use utils::*;
+
 use std::borrow::Cow;
 use std::fs::create_dir_all;
+use std::path::Path;
 
-use tfhe_0_8::boolean::engine::BooleanEngine;
-use tfhe_0_8::core_crypto::commons::generators::DeterministicSeeder;
-use tfhe_0_8::core_crypto::commons::math::random::RandomGenerator;
-use tfhe_0_8::core_crypto::prelude::{
-    ActivatedRandomGenerator, CiphertextModulusLog, LweCiphertextCount, TUniform,
-};
-use tfhe_0_8::integer::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize, StandardDev,
-};
-use tfhe_0_8::prelude::*;
-use tfhe_0_8::shortint::engine::ShortintEngine;
-use tfhe_0_8::shortint::parameters::list_compression::CompressionParameters;
-use tfhe_0_8::shortint::parameters::LweBskGroupingFactor;
-use tfhe_0_8::shortint::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,
-    MessageModulus, MultiBitPBSParameters, PBSParameters,
-};
-use tfhe_0_8::zk::{CompactPkeCrs, ZkComputeLoad, ZkMSBZeroPaddingBitCount};
-use tfhe_0_8::{
+use tfhe::boolean::engine::BooleanEngine;
+use tfhe::core_crypto::commons::generators::DeterministicSeeder;
+use tfhe::core_crypto::commons::math::random::RandomGenerator;
+use tfhe::core_crypto::prelude::{ActivatedRandomGenerator, LweDimension, TUniform};
+use tfhe::prelude::*;
+use tfhe::shortint::engine::ShortintEngine;
+use tfhe::shortint::CiphertextModulus;
+use tfhe::zk::{CompactPkeCrs, ZkComputeLoad, ZkMSBZeroPaddingBitCount};
+use tfhe::{
     generate_keys, set_server_key, shortint, ClientKey, CompactCiphertextList, CompactPublicKey,
     CompressedCiphertextListBuilder, CompressedCompactPublicKey, CompressedFheBool,
     CompressedFheInt8, CompressedFheUint8, CompressedPublicKey, ConfigBuilder, FheBool, FheInt8,
     FheUint8, ProvenCompactCiphertextList, PublicKey, Seed, ServerKey,
 };
 
-use crate::generate::{
-    store_versioned_auxiliary_tfhe_0_8, store_versioned_test_tfhe_0_8, TfhersVersion,
-    INSECURE_SMALL_PK_TEST_PARAMS, PRNG_SEED, VALID_TEST_PARAMS, VALID_TEST_PARAMS_TUNIFORM,
-    VALID_TEST_PARAMS_TUNIFORM_COMPRESSION,
+use tfhe_backward_compat_data::generate::{
+    TfhersVersion, INSECURE_SMALL_PK_TEST_PARAMS, PRNG_SEED, VALID_TEST_PARAMS,
+    VALID_TEST_PARAMS_TUNIFORM, VALID_TEST_PARAMS_TUNIFORM_COMPRESSION,
 };
-use crate::{
+use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
     HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlSignedCiphertextTest,
-    PkeZkProofAuxiliaryInfo, ShortintCiphertextTest, ShortintClientKeyTest,
-    TestClassicParameterSet, TestCompressionParameterSet, TestDistribution, TestMetadata,
-    TestMultiBitParameterSet, TestParameterSet, ZkPkePublicParamsTest, HL_MODULE_NAME,
-    SHORTINT_MODULE_NAME,
+    PkeZkProofAuxiliaryInfo, ShortintCiphertextTest, ShortintClientKeyTest, TestDistribution,
+    TestMetadata, ZkPkePublicParamsTest, HL_MODULE_NAME, SHORTINT_MODULE_NAME,
 };
-
-macro_rules! store_versioned_test {
-    ($msg:expr, $dir:expr, $test_filename:expr $(,)? ) => {
-        store_versioned_test_tfhe_0_8($msg, $dir, $test_filename)
-    };
-}
-
-macro_rules! store_versioned_auxiliary {
-    ($msg:expr, $dir:expr, $test_filename:expr $(,)? ) => {
-        store_versioned_auxiliary_tfhe_0_8($msg, $dir, $test_filename)
-    };
-}
-
-impl From<TestDistribution> for DynamicDistribution<u64> {
-    fn from(value: TestDistribution) -> Self {
-        match value {
-            TestDistribution::Gaussian { stddev } => {
-                DynamicDistribution::new_gaussian_from_std_dev(StandardDev(stddev))
-            }
-            TestDistribution::TUniform { bound_log2 } => {
-                DynamicDistribution::TUniform(TUniform::new(bound_log2))
-            }
-        }
-    }
-}
-
-impl From<TestClassicParameterSet> for ClassicPBSParameters {
-    fn from(value: TestClassicParameterSet) -> Self {
-        ClassicPBSParameters {
-            lwe_dimension: LweDimension(value.lwe_dimension),
-            glwe_dimension: GlweDimension(value.glwe_dimension),
-            polynomial_size: PolynomialSize(value.polynomial_size),
-            lwe_noise_distribution: value.lwe_noise_distribution.into(),
-            glwe_noise_distribution: value.glwe_noise_distribution.into(),
-            pbs_base_log: DecompositionBaseLog(value.pbs_base_log),
-            pbs_level: DecompositionLevelCount(value.pbs_level),
-            ks_base_log: DecompositionBaseLog(value.ks_base_log),
-            ks_level: DecompositionLevelCount(value.ks_level),
-            message_modulus: MessageModulus(value.message_modulus),
-            carry_modulus: CarryModulus(value.carry_modulus),
-            max_noise_level: MaxNoiseLevel::new(value.max_noise_level),
-            log2_p_fail: value.log2_p_fail,
-            ciphertext_modulus: CiphertextModulus::try_new(value.ciphertext_modulus).unwrap(),
-            encryption_key_choice: {
-                match &*value.encryption_key_choice {
-                    "big" => EncryptionKeyChoice::Big,
-                    "small" => EncryptionKeyChoice::Small,
-                    _ => panic!("Invalid encryption key choice"),
-                }
-            },
-        }
-    }
-}
-
-impl From<TestMultiBitParameterSet> for MultiBitPBSParameters {
-    fn from(value: TestMultiBitParameterSet) -> Self {
-        let TestMultiBitParameterSet {
-            lwe_dimension,
-            glwe_dimension,
-            polynomial_size,
-            lwe_noise_distribution,
-            glwe_noise_distribution,
-            pbs_base_log,
-            pbs_level,
-            ks_base_log,
-            ks_level,
-            message_modulus,
-            ciphertext_modulus,
-            carry_modulus,
-            max_noise_level,
-            log2_p_fail,
-            encryption_key_choice,
-            grouping_factor,
-        } = value;
-
-        MultiBitPBSParameters {
-            lwe_dimension: LweDimension(lwe_dimension),
-            glwe_dimension: GlweDimension(glwe_dimension),
-            polynomial_size: PolynomialSize(polynomial_size),
-            lwe_noise_distribution: lwe_noise_distribution.into(),
-            glwe_noise_distribution: glwe_noise_distribution.into(),
-            pbs_base_log: DecompositionBaseLog(pbs_base_log),
-            pbs_level: DecompositionLevelCount(pbs_level),
-            ks_base_log: DecompositionBaseLog(ks_base_log),
-            ks_level: DecompositionLevelCount(ks_level),
-            message_modulus: MessageModulus(message_modulus),
-            carry_modulus: CarryModulus(carry_modulus),
-            max_noise_level: MaxNoiseLevel::new(max_noise_level),
-            log2_p_fail,
-            ciphertext_modulus: CiphertextModulus::try_new(ciphertext_modulus).unwrap(),
-            encryption_key_choice: {
-                match &*encryption_key_choice {
-                    "big" => EncryptionKeyChoice::Big,
-                    "small" => EncryptionKeyChoice::Small,
-                    _ => panic!("Invalid encryption key choice"),
-                }
-            },
-            grouping_factor: LweBskGroupingFactor(grouping_factor),
-            deterministic_execution: false,
-        }
-    }
-}
-
-impl From<TestParameterSet> for PBSParameters {
-    fn from(value: TestParameterSet) -> Self {
-        match value {
-            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
-                PBSParameters::PBS(test_classic_parameter_set.into())
-            }
-            TestParameterSet::TestMultiBitParameterSet(test_parameter_set_multi_bit) => {
-                PBSParameters::MultiBitPBS(test_parameter_set_multi_bit.into())
-            }
-            TestParameterSet::TestKS32ParameterSet(_) => {
-                panic!("unsupported ks32 parameters for this version")
-            }
-        }
-    }
-}
-
-impl From<TestCompressionParameterSet> for CompressionParameters {
-    fn from(value: TestCompressionParameterSet) -> Self {
-        let TestCompressionParameterSet {
-            br_level,
-            br_base_log,
-            packing_ks_level,
-            packing_ks_base_log,
-            packing_ks_polynomial_size,
-            packing_ks_glwe_dimension,
-            lwe_per_glwe,
-            storage_log_modulus,
-            packing_ks_key_noise_distribution,
-        } = value;
-        Self {
-            br_level: DecompositionLevelCount(br_level),
-            br_base_log: DecompositionBaseLog(br_base_log),
-            packing_ks_level: DecompositionLevelCount(packing_ks_level),
-            packing_ks_base_log: DecompositionBaseLog(packing_ks_base_log),
-            packing_ks_polynomial_size: PolynomialSize(packing_ks_polynomial_size),
-            packing_ks_glwe_dimension: GlweDimension(packing_ks_glwe_dimension),
-            lwe_per_glwe: LweCiphertextCount(lwe_per_glwe),
-            storage_log_modulus: CiphertextModulusLog(storage_log_modulus),
-            packing_ks_key_noise_distribution: packing_ks_key_noise_distribution.into(),
-        }
-    }
-}
 
 // Shortint test constants
 const SHORTINT_CLIENT_KEY_FILENAME: &str = "client_key";
@@ -427,14 +272,15 @@ impl TfhersVersion for V0_8 {
         BooleanEngine::replace_thread_local(boolean_engine);
     }
 
-    fn gen_shortint_data() -> Vec<TestMetadata> {
-        let dir = Self::data_dir().join(SHORTINT_MODULE_NAME);
+    fn gen_shortint_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata> {
+        let dir = Self::data_dir(base_data_dir).join(SHORTINT_MODULE_NAME);
         create_dir_all(&dir).unwrap();
 
         // generate a client key
-        let shortint_client_key = shortint::ClientKey::new(SHORTINT_CLIENTKEY_TEST.parameters);
+        let shortint_client_key =
+            shortint::ClientKey::new(SHORTINT_CLIENTKEY_TEST.parameters.convert());
 
-        store_versioned_test!(
+        store_versioned_test(
             &shortint_client_key,
             &dir,
             &SHORTINT_CLIENTKEY_TEST.test_filename,
@@ -445,8 +291,8 @@ impl TfhersVersion for V0_8 {
         let ct2 = shortint_client_key.encrypt(SHORTINT_CT2_TEST.clear_value);
 
         // Serialize them
-        store_versioned_test!(&ct1, &dir, &SHORTINT_CT1_TEST.test_filename);
-        store_versioned_test!(&ct2, &dir, &SHORTINT_CT2_TEST.test_filename);
+        store_versioned_test(&ct1, &dir, &SHORTINT_CT1_TEST.test_filename);
+        store_versioned_test(&ct2, &dir, &SHORTINT_CT2_TEST.test_filename);
 
         vec![
             TestMetadata::ShortintClientKey(SHORTINT_CLIENTKEY_TEST),
@@ -455,8 +301,8 @@ impl TfhersVersion for V0_8 {
         ]
     }
 
-    fn gen_hl_data() -> Vec<TestMetadata> {
-        let dir = Self::data_dir().join(HL_MODULE_NAME);
+    fn gen_hl_data<P: AsRef<Path>>(base_data_dir: P) -> Vec<TestMetadata> {
+        let dir = Self::data_dir(base_data_dir).join(HL_MODULE_NAME);
         create_dir_all(&dir).unwrap();
 
         let mut all_tests = vec![];
@@ -464,40 +310,42 @@ impl TfhersVersion for V0_8 {
         {
             // generate keys
             let config =
-                ConfigBuilder::with_custom_parameters(HL_CLIENTKEY_TEST.parameters).build();
+                ConfigBuilder::with_custom_parameters(HL_CLIENTKEY_TEST.parameters.convert())
+                    .build();
             let (hl_client_key, hl_server_key) = generate_keys(config);
 
             // Here we use specific parameters to generate a smaller public key.
             // WARNING: these parameters are completely insecure
             let params_pk = INSECURE_SMALL_PK_TEST_PARAMS;
-            let client_key_for_pk =
-                ClientKey::generate(ConfigBuilder::with_custom_parameters(params_pk).build());
+            let client_key_for_pk = ClientKey::generate(
+                ConfigBuilder::with_custom_parameters(params_pk.convert()).build(),
+            );
 
             let pub_key = PublicKey::new(&client_key_for_pk);
             let compressed_pub_key = CompressedPublicKey::new(&hl_client_key);
             let compact_pub_key = CompactPublicKey::new(&hl_client_key);
             let compressed_compact_pub_key = CompressedCompactPublicKey::new(&hl_client_key);
 
-            store_versioned_test!(&hl_client_key, &dir, &HL_CLIENTKEY_TEST.test_filename);
+            store_versioned_test(&hl_client_key, &dir, &HL_CLIENTKEY_TEST.test_filename);
 
-            store_versioned_test!(&pub_key, &dir, &HL_LEGACY_PUBKEY_TEST.test_filename);
-            store_versioned_auxiliary!(
+            store_versioned_test(&pub_key, &dir, &HL_LEGACY_PUBKEY_TEST.test_filename);
+            store_versioned_auxiliary(
                 &client_key_for_pk,
                 &dir,
                 &HL_LEGACY_PUBKEY_TEST.client_key_filename,
             );
 
-            store_versioned_test!(
+            store_versioned_test(
                 &compressed_pub_key,
                 &dir,
                 &HL_COMPRESSED_LEGACY_PUBKEY_TEST.test_filename,
             );
-            store_versioned_test!(
+            store_versioned_test(
                 &compact_pub_key,
                 &dir,
                 &HL_COMPACT_PUBKEY_TEST.test_filename,
             );
-            store_versioned_test!(
+            store_versioned_test(
                 &compressed_compact_pub_key,
                 &dir,
                 &HL_COMPRESSED_COMPACT_PUBKEY_TEST.test_filename,
@@ -547,40 +395,40 @@ impl TfhersVersion for V0_8 {
             );
 
             // Serialize them
-            store_versioned_test!(&ct1, &dir, &HL_CT1_TEST.test_filename);
-            store_versioned_test!(&ct2, &dir, &HL_CT2_TEST.test_filename);
-            store_versioned_test!(
+            store_versioned_test(&ct1, &dir, &HL_CT1_TEST.test_filename);
+            store_versioned_test(&ct2, &dir, &HL_CT2_TEST.test_filename);
+            store_versioned_test(
                 &compressed_ct1,
                 &dir,
                 &HL_COMPRESSED_SEEDED_CT_TEST.test_filename,
             );
-            store_versioned_test!(
+            store_versioned_test(
                 &compressed_ct2,
                 &dir,
                 &HL_COMPRESSED_CT_MODSWITCHED_TEST.test_filename,
             );
 
-            store_versioned_test!(&ct1_signed, &dir, &HL_SIGNED_CT1_TEST.test_filename);
-            store_versioned_test!(&ct2_signed, &dir, &HL_SIGNED_CT2_TEST.test_filename);
-            store_versioned_test!(
+            store_versioned_test(&ct1_signed, &dir, &HL_SIGNED_CT1_TEST.test_filename);
+            store_versioned_test(&ct2_signed, &dir, &HL_SIGNED_CT2_TEST.test_filename);
+            store_versioned_test(
                 &compressed_ct1_signed,
                 &dir,
                 &HL_SIGNED_COMPRESSED_SEEDED_CT_TEST.test_filename,
             );
-            store_versioned_test!(
+            store_versioned_test(
                 &compressed_ct2_signed,
                 &dir,
                 &HL_SIGNED_COMPRESSED_CT_MODSWITCHED_TEST.test_filename,
             );
 
-            store_versioned_test!(&bool1, &dir, &HL_BOOL1_TEST.test_filename);
-            store_versioned_test!(&bool2, &dir, &HL_BOOL2_TEST.test_filename);
-            store_versioned_test!(
+            store_versioned_test(&bool1, &dir, &HL_BOOL1_TEST.test_filename);
+            store_versioned_test(&bool2, &dir, &HL_BOOL2_TEST.test_filename);
+            store_versioned_test(
                 &compressed_bool1,
                 &dir,
                 &HL_COMPRESSED_BOOL_SEEDED_TEST.test_filename,
             );
-            store_versioned_test!(
+            store_versioned_test(
                 &compressed_bool2,
                 &dir,
                 &HL_COMPRESSED_BOOL_MODSWITCHED_TEST.test_filename,
@@ -611,8 +459,8 @@ impl TfhersVersion for V0_8 {
         {
             // Generate a compact public key needed to create a compact list
             let config =
-                tfhe_0_8::ConfigBuilder::with_custom_parameters(VALID_TEST_PARAMS_TUNIFORM)
-                    .enable_compression(VALID_TEST_PARAMS_TUNIFORM_COMPRESSION.into())
+                tfhe::ConfigBuilder::with_custom_parameters(VALID_TEST_PARAMS_TUNIFORM.convert())
+                    .enable_compression(VALID_TEST_PARAMS_TUNIFORM_COMPRESSION.convert())
                     .build();
             let hl_client_key = ClientKey::generate(config);
             let hl_server_key = ServerKey::new(&hl_client_key);
@@ -633,19 +481,19 @@ impl TfhersVersion for V0_8 {
             .unwrap();
 
             // Store the associated client key to be able to decrypt the ciphertexts in the list
-            store_versioned_auxiliary!(
+            store_versioned_auxiliary(
                 &hl_client_key,
                 &dir,
-                &HL_PROVEN_COMPACTLIST_TEST.key_filename
+                &HL_PROVEN_COMPACTLIST_TEST.key_filename,
             );
 
-            store_versioned_auxiliary!(
+            store_versioned_auxiliary(
                 &compact_pub_key,
                 &dir,
                 &HL_PROVEN_COMPACTLIST_TEST
                     .proof_info
                     .unwrap()
-                    .public_key_filename
+                    .public_key_filename,
             );
 
             let mut proven_builder = ProvenCompactCiphertextList::builder(&compact_pub_key);
@@ -667,13 +515,13 @@ impl TfhersVersion for V0_8 {
                 )
                 .unwrap();
 
-            store_versioned_test!(
+            store_versioned_test(
                 crs.public_params(),
                 &dir,
                 &ZK_PKE_PUBLIC_PARAMS_TEST.test_filename,
             );
 
-            store_versioned_test!(
+            store_versioned_test(
                 &proven_list_packed,
                 &dir,
                 &HL_PROVEN_COMPACTLIST_TEST.test_filename,
@@ -710,19 +558,19 @@ impl TfhersVersion for V0_8 {
                 ));
             let compressed_list = compressed_builder.build().unwrap();
 
-            store_versioned_test!(
+            store_versioned_test(
                 &compact_list_packed,
                 &dir,
                 &HL_PACKED_COMPACTLIST_TEST.test_filename,
             );
-            store_versioned_test!(&compact_list, &dir, &HL_COMPACTLIST_TEST.test_filename);
-            store_versioned_test!(
+            store_versioned_test(&compact_list, &dir, &HL_COMPACTLIST_TEST.test_filename);
+            store_versioned_test(
                 &compressed_list,
                 &dir,
                 &HL_COMPRESSED_LIST_TEST.test_filename,
             );
 
-            store_versioned_test!(
+            store_versioned_test(
                 &hl_client_key,
                 &dir,
                 &HL_CLIENTKEY_WITH_COMPRESSION_TEST.test_filename,
