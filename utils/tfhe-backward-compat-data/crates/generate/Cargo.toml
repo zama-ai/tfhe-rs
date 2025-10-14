@@ -1,0 +1,11 @@
+[package]
+name = "generate"
+edition = "2024"
+license.workspace = true
+version.workspace = true
+
+
+[dependencies]
+clap.workspace = true
+
+tfhe-backward-compat-data = { path = "../.." }

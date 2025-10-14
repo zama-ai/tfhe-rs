@@ -1,35 +1,15 @@
+pub mod generate;
+pub mod load;
+
 use core::f64;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-#[cfg(feature = "load")]
 use semver::{Prerelease, Version, VersionReq};
-#[cfg(feature = "load")]
 use std::fmt::Display;
 use strum::Display;
 
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "generate")]
-pub mod data_0_10;
-#[cfg(feature = "generate")]
-pub mod data_0_11;
-#[cfg(feature = "generate")]
-pub mod data_0_8;
-#[cfg(feature = "generate")]
-pub mod data_1_0;
-#[cfg(feature = "generate")]
-pub mod data_1_1;
-#[cfg(feature = "generate")]
-pub mod data_1_3;
-#[cfg(feature = "generate")]
-pub mod data_1_4;
-#[cfg(feature = "generate")]
-pub mod generate;
-#[cfg(feature = "load")]
-pub mod load;
-
-const DATA_DIR: &str = "data";
 
 pub const SHORTINT_MODULE_NAME: &str = "shortint";
 pub const HL_MODULE_NAME: &str = "high_level_api";
@@ -206,13 +186,6 @@ pub fn dir_for_version<P: AsRef<Path>>(data_dir: P, version: &str) -> PathBuf {
     path
 }
 
-pub fn data_dir<P: AsRef<Path>>(root: P) -> PathBuf {
-    let mut path = PathBuf::from(root.as_ref());
-    path.push(DATA_DIR);
-
-    path
-}
-
 pub trait TestType {
     /// The tfhe-rs module where this type reside
     fn module(&self) -> String;
@@ -224,7 +197,6 @@ pub trait TestType {
     /// (they will be inferred)
     fn test_filename(&self) -> String;
 
-    #[cfg(feature = "load")]
     fn success(&self, format: load::DataFormat) -> load::TestSuccess {
         load::TestSuccess {
             module: self.module(),
@@ -234,7 +206,6 @@ pub trait TestType {
         }
     }
 
-    #[cfg(feature = "load")]
     fn failure<E: Display>(&self, error: E, format: load::DataFormat) -> load::TestFailure {
         load::TestFailure {
             module: self.module(),
@@ -309,7 +280,7 @@ impl TestParameterSet {
         Self::TestMultiBitParameterSet(value)
     }
 
-    const fn polynomial_size(&self) -> usize {
+    pub const fn polynomial_size(&self) -> usize {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.polynomial_size
@@ -323,7 +294,7 @@ impl TestParameterSet {
         }
     }
 
-    const fn glwe_dimension(&self) -> usize {
+    pub const fn glwe_dimension(&self) -> usize {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.glwe_dimension
@@ -336,7 +307,8 @@ impl TestParameterSet {
             }
         }
     }
-    const fn lwe_noise_distribution(&self) -> TestDistribution {
+
+    pub const fn lwe_noise_distribution(&self) -> TestDistribution {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.lwe_noise_distribution
@@ -349,7 +321,8 @@ impl TestParameterSet {
             }
         }
     }
-    const fn ciphertext_modulus(&self) -> u128 {
+
+    pub const fn ciphertext_modulus(&self) -> u128 {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.ciphertext_modulus
@@ -362,7 +335,8 @@ impl TestParameterSet {
             }
         }
     }
-    const fn message_modulus(&self) -> usize {
+
+    pub const fn message_modulus(&self) -> usize {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.message_modulus
@@ -375,7 +349,8 @@ impl TestParameterSet {
             }
         }
     }
-    const fn carry_modulus(&self) -> usize {
+
+    pub const fn carry_modulus(&self) -> usize {
         match self {
             TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
                 test_classic_parameter_set.carry_modulus
@@ -715,7 +690,6 @@ pub struct Testcase {
     pub metadata: TestMetadata,
 }
 
-#[cfg(feature = "load")]
 impl Testcase {
     pub fn is_valid_for_version(&self, version: &str) -> bool {
         let mut tfhe_version = Version::parse(version).unwrap();
