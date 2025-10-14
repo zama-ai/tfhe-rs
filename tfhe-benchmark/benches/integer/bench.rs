@@ -3488,7 +3488,10 @@ criterion_group!(
     eq_parallelized,
     gt_parallelized,
     if_then_else_parallelized,
-    flip_parallelized
+    flip_parallelized,
+    neg_parallelized,
+    leading_zeros_parallelized,
+    ilog2_parallelized,
 );
 
 criterion_group!(
