@@ -6,15 +6,23 @@ pub struct ClientKey(pub(crate) crate::high_level_api::ClientKey);
 pub struct PublicKey(pub(crate) crate::high_level_api::PublicKey);
 pub struct CompactPublicKey(pub(crate) crate::high_level_api::CompactPublicKey);
 pub struct CompressedCompactPublicKey(pub(crate) crate::high_level_api::CompressedCompactPublicKey);
+
+/// ServerKey that contains all necessary sub-keys for computations
+///
+/// The ServerKey uses a shared ownership model via reference counting
 pub struct ServerKey(pub(crate) crate::high_level_api::ServerKey);
+
 /// Compressed version of the ServerKey
 ///
 /// Allows to save storage space and transfer time.
+///
 /// Also, the CompressedServerKey is the key format that allows to select
 /// the target hardware of the actual ServerKey when decompressing it.
 pub struct CompressedServerKey(pub(crate) crate::high_level_api::CompressedServerKey);
 
 /// ServerKey that lives on a Cuda GPU
+///
+/// The CudaServerKey uses a shared ownership model via reference counting
 #[cfg(feature = "gpu")]
 pub struct CudaServerKey(pub(crate) crate::high_level_api::CudaServerKey);
 
@@ -48,6 +56,10 @@ impl_safe_deserialize_on_type!(CompressedCompactPublicKey);
 impl_safe_deserialize_on_type!(ServerKey);
 impl_safe_deserialize_on_type!(CompressedServerKey);
 
+/// Generates a pair of ClientKey and ServerKey using the config
+///
+/// This moves/takes ownership of the config, meaning it MUST NOT
+/// be used of freed after.
 #[no_mangle]
 pub unsafe extern "C" fn generate_keys(
     config: *mut super::config::Config,
@@ -70,6 +82,12 @@ pub unsafe extern "C" fn generate_keys(
     })
 }
 
+/// Sets the given ServerKey into local storage.
+///
+/// Computations done after this call will use the given server key
+///
+/// This increases the reference count of the key, so the caller should still
+/// destroy the `server_key` and also use `unset_server_key` to fully delete it.
 #[no_mangle]
 pub unsafe extern "C" fn set_server_key(server_key: *const ServerKey) -> c_int {
     catch_panic(|| {
@@ -97,6 +115,9 @@ pub unsafe extern "C" fn set_cuda_server_key(server_key: *const CudaServerKey) -
     })
 }
 
+/// Removes the current server key that is in the local storage
+///
+/// No-op if no server key is present
 #[no_mangle]
 pub unsafe extern "C" fn unset_server_key() -> c_int {
     catch_panic(|| {

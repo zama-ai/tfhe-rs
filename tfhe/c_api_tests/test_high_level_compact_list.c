@@ -124,6 +124,7 @@ int cpk_use_case(Config *config) {
   server_key_destroy(server_key);
   compact_public_key_destroy(public_key);
   compact_ciphertext_list_destroy(compact_list);
+  unset_server_key();
 
   return ok;
 }
