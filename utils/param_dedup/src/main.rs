@@ -272,7 +272,11 @@ fn main() {
                     if let syn::Item::Const(param) = item {
                         let ident_string = param.ident.to_string();
 
-                        if ident_string.starts_with(&param_ident_prefix) {
+                        // If the expr is a path, it means it's already an alias, so skip the
+                        // processing if that's the case
+                        if ident_string.starts_with(&param_ident_prefix)
+                            && !matches!(param.expr.as_ref(), &syn::Expr::Path(_))
+                        {
                             println!("Processing: {ident_string}");
                         } else {
                             println!("Skipped: {ident_string}");
@@ -342,11 +346,6 @@ fn main() {
         let content = fs::read_to_string(&file_to_process).unwrap();
         let mut syn_file = syn::parse_file(&content).unwrap();
 
-        let const_items_count = syn_file
-            .items
-            .iter()
-            .filter(|x| matches!(x, syn::Item::Const(_)))
-            .count();
         let mut modified_item_count = 0;
         let mut param_types = HashSet::new();
 
@@ -392,9 +391,20 @@ fn main() {
             }
         }
 
+        // We check if all const items in the file already are assigned a path, meaning all are
+        // already aliases
+        let all_const_items_are_aliases = syn_file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                syn::Item::Const(item_const) => Some(item_const),
+                _ => None,
+            })
+            .all(|item_const| matches!(item_const.expr.as_ref(), &syn::Expr::Path(_)));
+
         // All const items have been mapped to old parameters, so we can remove all imports except
         // for the parameter types used in the file
-        if modified_item_count == const_items_count && modified_item_count > 0 {
+        if all_const_items_are_aliases {
             // Remove all use statements
             syn_file.items.retain(|x| !matches!(x, syn::Item::Use(_)));
 
