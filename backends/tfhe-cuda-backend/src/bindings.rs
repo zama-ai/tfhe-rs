@@ -1547,6 +1547,50 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_grouped_oprf_custom_range_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks_to_process: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        message_bits_per_block: u32,
+        total_random_bits: u32,
+        num_scalar_bits: u32,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_grouped_oprf_custom_range_64(
+        streams: CudaStreamsFFI,
+        radix_lwe_out: *mut CudaRadixCiphertextFFI,
+        num_blocks_intermediate: u32,
+        seeded_lwe_input: *const ffi::c_void,
+        decomposed_scalar: *const u64,
+        has_at_least_one_set: *const u64,
+        num_scalars: u32,
+        shift: u32,
+        mem: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_grouped_oprf_custom_range_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_integer_ilog2_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

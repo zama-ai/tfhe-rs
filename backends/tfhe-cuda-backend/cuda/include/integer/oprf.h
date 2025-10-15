@@ -1,6 +1,9 @@
 #pragma once
 #include "integer_utilities.h"
 
+template <typename Torus> struct int_scalar_mul_buffer;
+template <typename Torus> struct int_logical_scalar_shift_buffer;
+
 template <typename Torus> struct int_grouped_oprf_memory {
   int_radix_params params;
   bool allocate_gpu_memory;
@@ -143,5 +146,63 @@ template <typename Torus> struct int_grouped_oprf_memory {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(this->h_lut_indexes);
     this->h_lut_indexes = nullptr;
+  }
+};
+
+template <typename Torus> struct int_grouped_oprf_custom_range_memory {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_grouped_oprf_memory<Torus> *grouped_oprf_memory;
+  int_scalar_mul_buffer<Torus> *scalar_mul_buffer;
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
+  CudaRadixCiphertextFFI *tmp_oprf_output;
+
+  int_grouped_oprf_custom_range_memory(
+      CudaStreams streams, int_radix_params params,
+      uint32_t num_blocks_to_process, uint32_t message_bits_per_block,
+      uint64_t total_random_bits, uint32_t num_scalar_bits,
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
+        streams, params, num_blocks_to_process, message_bits_per_block,
+        total_random_bits, allocate_gpu_memory, size_tracker);
+
+    this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus>(
+        streams, params, num_blocks_to_process, num_scalar_bits,
+        allocate_gpu_memory, true, size_tracker);
+
+    this->logical_scalar_shift_buffer =
+        new int_logical_scalar_shift_buffer<Torus>(
+            streams, RIGHT_SHIFT, params, num_blocks_to_process,
+            allocate_gpu_memory, size_tracker);
+
+    this->tmp_oprf_output = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_oprf_output,
+        num_blocks_to_process, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams) {
+    this->scalar_mul_buffer->release(streams);
+    delete this->scalar_mul_buffer;
+    this->scalar_mul_buffer = nullptr;
+
+    this->logical_scalar_shift_buffer->release(streams);
+    delete this->logical_scalar_shift_buffer;
+    this->logical_scalar_shift_buffer = nullptr;
+
+    this->grouped_oprf_memory->release(streams);
+    delete this->grouped_oprf_memory;
+    this->grouped_oprf_memory = nullptr;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_oprf_output,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_oprf_output;
+    this->tmp_oprf_output = nullptr;
   }
 };

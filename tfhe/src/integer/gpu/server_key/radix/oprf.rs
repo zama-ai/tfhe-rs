@@ -4,17 +4,19 @@ use crate::integer::gpu::ciphertext::{
     CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use itertools::Itertools;
 
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::{DefaultRandomGenerator, LweBskGroupingFactor};
 
 use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
 
-pub use tfhe_csprng::seeders::{Seed, Seeder};
-
+use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::gpu::{
-    cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf, CudaVec, PBSType,
+    cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
+    cuda_backend_grouped_oprf_custom_range, CudaVec, PBSType,
 };
+pub use tfhe_csprng::seeders::{Seed, Seeder};
 
 impl CudaServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -420,6 +422,149 @@ impl CudaServerKey {
                 );
             }
         }
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
+        &self,
+        seed: Seed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: u64,
+        num_blocks_output: u64,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        assert!(
+            self.message_modulus.0.is_power_of_two(),
+            "Message modulus must be a power of two"
+        );
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+
+        assert!(
+            !excluded_upper_bound.is_power_of_two(),
+            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
+        );
+
+        let num_bits_output = num_blocks_output * message_bits_count;
+        assert!(
+            (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
+            "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(={excluded_upper_bound})"
+        );
+
+        let post_mul_num_bits =
+            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
+
+        let num_blocks_intermediate = post_mul_num_bits.div_ceil(message_bits_count);
+
+        let decomposer =
+            BlockDecomposer::with_early_stop_at_zero(excluded_upper_bound, 1).iter_as::<u8>();
+        let mut has_at_least_one_set = vec![0u64; message_bits_count as usize];
+        for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                has_at_least_one_set[i % message_bits_count as usize] = 1;
+            }
+        }
+        let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(excluded_upper_bound, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+
+        let (input_lwe_dimension, polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
+            }
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
+            }
+        };
+        let in_lwe_size = input_lwe_dimension.to_lwe_size();
+
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+        let seeds: Vec<Seed> = (0..num_blocks_intermediate)
+            .map(|_| deterministic_seeder.seed())
+            .collect();
+
+        let h_seeded_lwe_list: Vec<u64> = seeds
+            .into_iter()
+            .flat_map(|seed| {
+                raw_seeded_msed_to_lwe(
+                    &create_random_from_seed_modulus_switched::<u64>(
+                        seed,
+                        in_lwe_size,
+                        polynomial_size.to_blind_rotation_input_modulus_log(),
+                    ),
+                    self.ciphertext_modulus,
+                )
+                .into_container()
+            })
+            .collect();
+
+        let mut d_seeded_lwe_input =
+            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
+        unsafe { d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0) };
+        streams.synchronize();
+
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(num_blocks_intermediate as usize, streams);
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_grouped_oprf_custom_range(
+                        streams,
+                        result.as_mut(),
+                        num_blocks_intermediate as u32,
+                        &d_seeded_lwe_input,
+                        decomposed_scalar.as_slice(),
+                        has_at_least_one_set.as_slice(),
+                        num_input_random_bits as u32,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.input_lwe_dimension,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        message_bits_count as u32,
+                        post_mul_num_bits as u32,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_bsk) => {
+                    cuda_backend_grouped_oprf_custom_range(
+                        streams,
+                        result.as_mut(),
+                        num_blocks_intermediate as u32,
+                        &d_seeded_lwe_input,
+                        decomposed_scalar.as_slice(),
+                        has_at_least_one_set.as_slice(),
+                        num_input_random_bits as u32,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.input_lwe_dimension,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        d_bsk.grouping_factor,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        message_bits_count as u32,
+                        post_mul_num_bits as u32,
+                        None,
+                    );
+                }
+            }
+        }
+
+        streams.synchronize();
+        result
     }
 
     // Getter for the GPU memory usage of OPRF.

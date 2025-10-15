@@ -3,6 +3,8 @@
 
 #include "integer/integer.cuh"
 #include "integer/oprf.h"
+#include "integer/scalar_mul.cuh"
+#include "integer/scalar_shifts.cuh"
 
 template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf(
@@ -86,6 +88,66 @@ void host_integer_grouped_oprf(CudaStreams streams,
                        radix_lwe_out, mem_ptr->plaintext_corrections,
                        num_blocks_to_process, mem_ptr->params.message_modulus,
                        mem_ptr->params.carry_modulus);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_integer_grouped_oprf_custom_range(
+    CudaStreams streams, int_grouped_oprf_custom_range_memory<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_blocks_to_process,
+    uint32_t message_bits_per_block, uint64_t total_random_bits,
+    uint32_t num_scalar_bits, bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_grouped_oprf_custom_range_memory<Torus>(
+      streams, params, num_blocks_to_process, message_bits_per_block,
+      total_random_bits, num_scalar_bits, allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+void host_integer_grouped_oprf_custom_range(
+    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
+    uint32_t num_blocks_intermediate, const Torus *seeded_lwe_input,
+    const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
+    uint32_t num_scalars, uint32_t shift,
+    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  uint32_t num_blocks_output = radix_lwe_out->num_radix_blocks;
+
+  if (num_blocks_output < num_blocks_intermediate) {
+    num_blocks_intermediate = num_blocks_output;
+  }
+
+  CudaRadixCiphertextFFI intermediate_slice;
+  as_radix_ciphertext_slice<Torus>(&intermediate_slice, radix_lwe_out, 0,
+                                   num_blocks_intermediate);
+
+  host_integer_grouped_oprf<Torus>(streams, mem_ptr->tmp_oprf_output,
+                                   seeded_lwe_input, num_blocks_intermediate,
+                                   mem_ptr->grouped_oprf_memory, bsks);
+
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), &intermediate_slice, 0,
+      num_blocks_intermediate, mem_ptr->tmp_oprf_output, 0,
+      num_blocks_intermediate);
+
+  host_integer_scalar_mul_radix<Torus>(
+      streams, &intermediate_slice, decomposed_scalar, has_at_least_one_set,
+      mem_ptr->scalar_mul_buffer, bsks, ksks, mem_ptr->params.message_modulus,
+      num_scalars);
+
+  host_logical_scalar_shift_inplace<Torus>(streams, &intermediate_slice, shift,
+                                           mem_ptr->logical_scalar_shift_buffer,
+                                           bsks, ksks, num_blocks_intermediate);
+
+  if (num_blocks_output > num_blocks_intermediate) {
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), radix_lwe_out,
+        num_blocks_intermediate, num_blocks_output);
+  }
+  radix_lwe_out->num_radix_blocks = num_blocks_output;
 }
 
 #endif
