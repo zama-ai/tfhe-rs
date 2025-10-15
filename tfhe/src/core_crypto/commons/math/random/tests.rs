@@ -444,6 +444,7 @@ pub fn dkw_cdf_bands_width_formula(sample_size: f64, alpha: f64) -> f64 {
 }
 
 // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#The_DKW_inequality
+#[allow(unused)]
 pub fn dkw_alpha_from_epsilon(sample_size: f64, epsilon: f64) -> f64 {
     2.0 * (-epsilon * epsilon * (2.0 * sample_size)).exp()
 }
