@@ -89,12 +89,12 @@ parser.add_argument(
     dest="bench_type",
     choices=["latency", "throughput"],
     default="latency",
-    help="Compute and append number of operations per second and"
-    "operations per dollar",
+    help="Fetch results for latency or throughput benchmarks",
 )
 parser.add_argument(
     "--backend",
     dest="backend",
+    choices=["cpu", "gpu", "hpu"],
     default="cpu",
     help="Backend on which benchmarks have run",
 )

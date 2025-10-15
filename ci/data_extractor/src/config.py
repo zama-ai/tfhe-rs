@@ -1,7 +1,7 @@
 import argparse
 import pathlib
 
-from benchmark_specs import Backend, Layer, PBSKind
+from benchmark_specs import Backend, BenchType, Layer, PBSKind
 
 
 class UserConfig:
@@ -30,6 +30,8 @@ class UserConfig:
 
         self.bench_date = input_args.bench_date
         self.time_span_days = input_args.time_span_days
+
+        self.bench_type = BenchType.from_str(input_args.bench_type.lower())
 
         self.layer = Layer.from_str(input_args.layer.lower())
         self.pbs_kind = PBSKind.from_str(input_args.pbs_kind)
