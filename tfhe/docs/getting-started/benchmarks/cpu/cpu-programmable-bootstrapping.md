@@ -8,12 +8,7 @@ All CPU benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped wi
 
 The next tables show the execution time of a single programmable bootstrapping as well as keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameters set are given. The configuration is tfhe-fft + AVX-512.
 
-Note that these benchmarks use Gaussian parameters. `MB-PBS` stands for multi-bit programmable bootstrapping. 
-
-
-## P-fail: $$2^{-40}$$
-
-![](../../../.gitbook/assets/cpu-pbs-benchmark-tuniform-2m40.svg)
+Note that these benchmarks use Gaussian parameters. `MB-PBS` stands for multi-bit programmable bootstrapping with a grouping factor set to 4.
 
 ## P-fail: $$2^{-64}$$
 
