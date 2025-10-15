@@ -2801,6 +2801,110 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    num_blocks_intermediate: u32,
+    seeded_lwe_input: &CudaVec<u64>,
+    decomposed_scalar: &[T],
+    has_at_least_one_set: &[T],
+    shift: u32,
+    bootstrapping_key: &CudaVec<B>,
+    key_switching_key: &CudaVec<u64>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    message_bits_per_block: u32,
+    total_random_bits: u32,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
+    );
+    assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], key_switching_key.gpu_index(0));
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let num_scalars = decomposed_scalar.len() as u32;
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out =
+        prepare_cuda_radix_ffi(radix_lwe_out, &mut out_degrees, &mut out_noise_levels);
+
+    scratch_cuda_integer_grouped_oprf_custom_range_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        radix_lwe_out.d_blocks.0.d_vec.len() as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        message_bits_per_block,
+        total_random_bits,
+        num_scalars,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_grouped_oprf_custom_range_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_radix_lwe_out,
+        num_blocks_intermediate,
+        seeded_lwe_input.as_c_ptr(0),
+        decomposed_scalar.as_ptr().cast::<u64>(),
+        has_at_least_one_set.as_ptr().cast::<u64>(),
+        num_scalars,
+        shift,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        key_switching_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_grouped_oprf_custom_range_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     streams: &CudaStreams,
     num_blocks_to_process: u32,
