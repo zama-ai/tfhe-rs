@@ -39,7 +39,6 @@ __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
 
   negation<T><<<grid, thds, 0, stream>>>(output, input, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 #endif // CUDA_NEGATE_H

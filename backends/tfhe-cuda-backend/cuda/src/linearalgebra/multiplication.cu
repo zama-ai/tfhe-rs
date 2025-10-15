@@ -17,6 +17,7 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
       static_cast<const uint32_t *>(lwe_array_in),
       static_cast<const uint32_t *>(cleartext_array_in), input_lwe_dimension,
       input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 /*
  * Perform the multiplication of a u64 input LWE ciphertext vector with a u64
@@ -58,6 +59,7 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(cleartext_array_in), input_lwe_dimension,
       input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 void scratch_wrapping_polynomial_mul_one_to_many_64(void *stream,

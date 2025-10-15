@@ -13,6 +13,7 @@ void cuda_negate_lwe_ciphertext_vector_32(
                           static_cast<uint32_t *>(lwe_array_out),
                           static_cast<const uint32_t *>(lwe_array_in),
                           input_lwe_dimension, input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 /*
@@ -46,4 +47,5 @@ void cuda_negate_lwe_ciphertext_vector_64(
                           static_cast<uint64_t *>(lwe_array_out),
                           static_cast<const uint64_t *>(lwe_array_in),
                           input_lwe_dimension, input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
