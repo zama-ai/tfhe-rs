@@ -537,8 +537,8 @@ mod integer_params {
                 #[cfg(feature = "hpu")]
                 let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
                 #[cfg(not(feature = "hpu"))]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
-
+                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into()];
+                
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
                     params_and_bit_sizes,
