@@ -6,10 +6,18 @@ import xml.dom.minidom
 from collections.abc import Callable
 
 import svg
-from benchmark_specs import (ALL_RUST_TYPES, Backend, BenchDetails,
-                             CoreCryptoOperation, ErrorFailureProbability,
-                             Layer, NoiseDistribution, OperandType, PBSKind,
-                             RustType)
+from benchmark_specs import (
+    ALL_RUST_TYPES,
+    Backend,
+    BenchDetails,
+    CoreCryptoOperation,
+    ErrorFailureProbability,
+    Layer,
+    NoiseDistribution,
+    OperandType,
+    PBSKind,
+    RustType,
+)
 from py_markdown_table.markdown_table import markdown_table
 
 
@@ -259,12 +267,6 @@ class GenericFormatter:
                     f"{prefix}_if_then_else_parallelized",
                 ]
             case Backend.GPU:
-                match operand_type:
-                    case OperandType.CipherText:
-                        prefix = "cuda"
-                    case OperandType.PlainText:
-                        prefix = "cuda_scalar"
-
                 operations = [
                     f"{prefix}_neg",
                     f"{prefix}_add",
@@ -277,6 +279,42 @@ class GenericFormatter:
                     f"{prefix}_left_shift",
                     f"{prefix}_rotate_left",
                     f"{prefix}_leading_zeros",
+                    f"{prefix}_ilog2",
+                    f"{prefix}_if_then_else",
+                ]
+            case Backend.HPU:
+                operations = [
+                    f"{prefix}_neg",
+                    (
+                        f"{prefix}_add"
+                        if operand_type == OperandType.CipherText
+                        else f"{prefix}_adds"
+                    ),
+                    (
+                        f"{prefix}_mul"
+                        if operand_type == OperandType.CipherText
+                        else f"{prefix}_muls"
+                    ),
+                    f"{prefix}_cmp_eq",
+                    f"{prefix}_cmp_gt",
+                    f"{prefix}_max",
+                    f"{prefix}_bw_and",
+                    (
+                        f"{prefix}_div"
+                        if operand_type == OperandType.CipherText
+                        else f"{prefix}_divs"
+                    ),
+                    (
+                        f"{prefix}_shift_l"
+                        if operand_type == OperandType.CipherText
+                        else f"{prefix}_shifts_l"
+                    ),
+                    (
+                        f"{prefix}_rot_l"
+                        if operand_type == OperandType.CipherText
+                        else f"{prefix}_rots_l"
+                    ),
+                    f"{prefix}_lead0",
                     f"{prefix}_ilog2",
                     f"{prefix}_if_then_else",
                 ]
@@ -309,7 +347,7 @@ class GenericFormatter:
         first_column_header = "Operation \\ Size"
 
         # Adapt list to plaintext benchmarks results.
-        if operand_type == OperandType.PlainText:
+        if operand_type == OperandType.PlainText and self.backend != Backend.HPU:
             operations.insert(8, f"{prefix}_div_parallelized")
             operations.insert(9, f"{prefix}_rem_parallelized")
             operations.pop(7)  # Remove div_rem_parallelized
@@ -397,8 +435,6 @@ class GenericFormatter:
             NoiseDistribution.TUniform,
         ]
 
-        operation_displays = [op.value for op in OPERATIONS_DISPLAYS]
-
         sorted_results = self._build_results_dict(
             supported_pfails,
             noise_distributions,
@@ -428,6 +464,12 @@ class GenericFormatter:
                 ) and param_definition.pbs_kind != PBSKind.MultiBit:
                     # Skip this operation since a multi-bit operation cannot be done with any other parameters type.
                     continue
+                elif (
+                    formatted_name == CoreCryptoOperation.PBS
+                    or formatted_name == CoreCryptoOperation.KeySwitchPBS
+                ) and param_definition.pbs_kind != PBSKind.Classical:
+                    # Skip this operation since a classical operation cannot be done with any other parameters type.
+                    continue
 
                 grouping_factor = param_definition.grouping_factor
                 if (
@@ -436,10 +478,7 @@ class GenericFormatter:
                 ):
                     continue
 
-                if (
-                    param_definition.details["variation"]
-                    or param_definition.details["trailing_details"]
-                ):
+                if param_definition.details["variation"] not in ["", "BENCH"]:
                     continue
 
                 try:
@@ -474,10 +513,10 @@ class GenericFormatter:
 # ---------------------------
 
 OPERATIONS_DISPLAYS = [
-    #CoreCryptoOperation.KeySwitch, # Uncomment this line to get keyswitch in the tables
+    # CoreCryptoOperation.KeySwitch, # Uncomment this line to get keyswitch in the tables
     CoreCryptoOperation.PBS,
     CoreCryptoOperation.MultiBitPBS,
-    CoreCryptoOperation.KeyswitchPBS,
+    CoreCryptoOperation.KeySwitchPBS,
     CoreCryptoOperation.KeySwitchMultiBitPBS,
 ]
 
