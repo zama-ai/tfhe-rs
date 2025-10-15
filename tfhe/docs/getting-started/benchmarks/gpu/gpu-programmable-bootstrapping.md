@@ -6,10 +6,6 @@ This document details the GPU performance benchmarks of programmable bootstrappi
 All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm with a grouping factor set to 4.
 {% endhint %}
 
-## P-fail: $$2^{-40}$$
-
-![](../../../.gitbook/assets/gpu-pbs-benchmark-tuniform-2m40.svg)
-
 ## P-fail: $$2^{-64}$$
 
 ![](../../../.gitbook/assets/gpu-pbs-benchmark-tuniform-2m64.svg)
