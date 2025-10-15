@@ -10,8 +10,11 @@ SECONDS_IN_NANO = 1e9
 MILLISECONDS_IN_NANO = 1e6
 MICROSECONDS_IN_NANO = 1e3
 
+THOUSAND_ELEMENTS = 1e3
+MILLION_ELEMENTS = 1e6
 
-def convert_value_to_readable_text(value: int, max_digits: int = 3) -> str:
+
+def convert_latency_value_to_readable_text(value: int, max_digits: int = 3) -> str:
     """
     Convert timing in nanoseconds to the highest unit usable.
 
@@ -34,6 +37,37 @@ def convert_value_to_readable_text(value: int, max_digits: int = 3) -> str:
 
     power_of_10 = math.floor(math.log10(converted_parts[0]))
     rounding_digit = max_digits - (power_of_10 + 1)
+    if converted_parts[0] >= 100.0:
+        rounding_digit = None
+
+    return f"{round(converted_parts[0], rounding_digit)} {converted_parts[1]}"
+
+
+def convert_throughput_value_to_readable_text(value: int, max_digits: int = 3):
+    """
+    Convert timing in elements per second to the highest unit usable.
+
+    :param value: timing value
+    :type value: int
+    :param max_digits: number of digits to keep in the final representation of the value
+    :type max_digits: int, optional
+
+    :return: human-readable value with unit
+    :rtype:str
+    """
+    if value > MILLION_ELEMENTS:
+        converted_parts = (value / MILLION_ELEMENTS), "M.ops/s"
+    elif value > THOUSAND_ELEMENTS:
+        converted_parts = (value / THOUSAND_ELEMENTS), "k.ops/s"
+    else:
+        converted_parts = value, "ops/s"
+
+    if converted_parts[0] > 0:
+        power_of_10 = math.floor(math.log10(converted_parts[0]))
+        rounding_digit = max_digits - (power_of_10 + 1)
+    else:
+        rounding_digit = None
+
     if converted_parts[0] >= 100.0:
         rounding_digit = None
 
