@@ -3222,11 +3222,11 @@ mod hpu {
     // Shift/Rot -----------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: shift_r,
-        display_name: shift_right
+        display_name: right_shift
     );
     define_hpu_bench_default_fn!(
         iop_name: shift_l,
-        display_name: shift_left
+        display_name: left_shift
     );
     define_hpu_bench_default_fn!(
         iop_name: rot_r,
@@ -3247,11 +3247,11 @@ mod hpu {
     // Scalar Shift/Rot -----------------------------------------------------------
     define_hpu_bench_default_fn_scalar!(
         iop_name: shifts_r,
-        display_name: shift_right
+        display_name: right_shift
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: shifts_l,
-        display_name: shift_left
+        display_name: left_shift
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: rots_r,
