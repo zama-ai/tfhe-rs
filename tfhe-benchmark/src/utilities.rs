@@ -350,7 +350,8 @@ const BENCH_BIT_SIZES: [usize; 7] = [4, 8, 16, 32, 64, 128, 256];
 #[cfg(feature = "gpu")]
 const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
 const HPU_BENCH_BIT_SIZES: [usize; 5] = [8, 16, 32, 64, 128];
-const MULTI_BIT_CPU_SIZES: [usize; 5] = [8, 16, 32, 40, 64];
+const MULTI_BIT_CPU_SIZES: [usize; 2] = [128, 256];
+// const MULTI_BIT_CPU_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
 
 /// User configuration in which benchmarks must be run.
 #[derive(Default)]
