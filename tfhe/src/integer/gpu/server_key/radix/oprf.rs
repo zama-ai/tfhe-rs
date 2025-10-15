@@ -502,7 +502,7 @@ impl CudaServerKey {
         streams.synchronize();
 
         let mut result: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(num_blocks_intermediate as usize, streams);
+            self.create_trivial_zero_radix(num_blocks_output as usize, streams);
 
         unsafe {
             match &self.bootstrapping_key {
@@ -563,7 +563,6 @@ impl CudaServerKey {
             }
         }
 
-        streams.synchronize();
         result
     }
 

@@ -157,32 +157,37 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   int_scalar_mul_buffer<Torus> *scalar_mul_buffer;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
   CudaRadixCiphertextFFI *tmp_oprf_output;
+  uint32_t num_random_input_blocks;
 
   int_grouped_oprf_custom_range_memory(
       CudaStreams streams, int_radix_params params,
-      uint32_t num_blocks_to_process, uint32_t message_bits_per_block,
-      uint64_t total_random_bits, uint32_t num_scalar_bits,
+      uint32_t num_blocks_intermediate, uint32_t message_bits_per_block,
+      uint64_t num_input_random_bits, uint32_t num_scalar_bits,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
+    this->num_random_input_blocks =
+        (num_input_random_bits + message_bits_per_block - 1) /
+        message_bits_per_block;
+
     this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
-        streams, params, num_blocks_to_process, message_bits_per_block,
-        total_random_bits, allocate_gpu_memory, size_tracker);
+        streams, params, this->num_random_input_blocks, message_bits_per_block,
+        num_input_random_bits, allocate_gpu_memory, size_tracker);
 
     this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus>(
-        streams, params, num_blocks_to_process, num_scalar_bits,
+        streams, params, num_blocks_intermediate, num_scalar_bits,
         allocate_gpu_memory, true, size_tracker);
 
     this->logical_scalar_shift_buffer =
         new int_logical_scalar_shift_buffer<Torus>(
-            streams, RIGHT_SHIFT, params, num_blocks_to_process,
+            streams, RIGHT_SHIFT, params, num_blocks_intermediate,
             allocate_gpu_memory, size_tracker);
 
     this->tmp_oprf_output = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_oprf_output,
-        num_blocks_to_process, params.big_lwe_dimension, size_tracker,
+        num_blocks_intermediate, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
   }
 
@@ -204,5 +209,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
                                    this->allocate_gpu_memory);
     delete this->tmp_oprf_output;
     this->tmp_oprf_output = nullptr;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
