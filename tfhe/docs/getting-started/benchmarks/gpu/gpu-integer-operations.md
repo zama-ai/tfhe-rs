@@ -11,13 +11,25 @@ The cryptographic parameters `PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_P
 ## Pfail: $$2^{-128}$$
 ### 8xH100-SXM5
 Below come the results for the execution on eight H100 using SXM technology.
-The following table shows the performance when the inputs of the benchmarked operation are encrypted:
+The following tables show the performance when the inputs of the benchmarked operation are encrypted:
+
+### Latency
 
 ![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-ciphertext.svg)
 
-The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+### Throughput
+
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-ciphertext-throughput.svg)
+
+The following tables show the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+
+### Latency
 
 ![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-plaintext.svg)
+
+### Throughput
+
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-plaintext-throughput.svg)
 
 ## Reproducing TFHE-rs benchmarks
 
