@@ -62,7 +62,6 @@ __host__ void host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index,
   plaintext_addition<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>
@@ -84,7 +83,6 @@ __host__ void host_addition_plaintext_scalar(
   plaintext_addition_scalar<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>
@@ -138,7 +136,6 @@ host_addition(cudaStream_t stream, uint32_t gpu_index,
         input_1->noise_levels[i] + input_2->noise_levels[i];
     CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>
@@ -233,7 +230,6 @@ __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
   subtraction<T>
       <<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>
@@ -273,7 +269,6 @@ __host__ void host_subtraction_plaintext(cudaStream_t stream,
   radix_body_subtraction_inplace<T><<<grid, thds, 0, stream>>>(
       output, plaintext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>

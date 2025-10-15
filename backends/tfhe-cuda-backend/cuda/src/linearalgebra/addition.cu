@@ -11,6 +11,7 @@ void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
     PANIC("Cuda error: input and output num radix blocks must be the same")
   host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
                           input_1, input_2, output->num_radix_blocks, 0, 0);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 /*
@@ -49,6 +50,7 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
     PANIC("Cuda error: input and output num radix blocks must be the same")
   host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
                           input_1, input_2, output->num_radix_blocks, 0, 0);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 /*
@@ -67,6 +69,7 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
       static_cast<const uint32_t *>(lwe_array_in),
       static_cast<const uint32_t *>(plaintext_array_in), input_lwe_dimension,
       input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 /*
  * Perform the addition of a u64 input LWE ciphertext vector with a u64 input
@@ -108,6 +111,7 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(plaintext_array_in), input_lwe_dimension,
       input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 /*
@@ -146,4 +150,5 @@ void cuda_add_lwe_ciphertext_vector_plaintext_64(
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<const uint64_t *>(lwe_array_in), plaintext_in,
       input_lwe_dimension, input_lwe_ciphertext_count);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }

@@ -50,7 +50,6 @@ __host__ void host_cleartext_vec_multiplication(
   cleartext_vec_multiplication<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, cleartext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 template <typename T>
