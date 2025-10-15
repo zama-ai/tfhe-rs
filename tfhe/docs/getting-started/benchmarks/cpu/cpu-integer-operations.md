@@ -12,13 +12,25 @@ The following tables benchmark the execution time of some operation sets using `
 
 ## Pfail: $$2^{-128}$$
 
-The next table shows the operation timings on CPU when all inputs are encrypted:
+The next tables show the operation timings on CPU when all inputs are encrypted:
+
+### Latency
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext.svg)
 
-The next table shows the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
+### Throughput
+
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext-throughput.svg)
+
+The next tables show the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
+
+### Latency
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext.svg)
+
+### Throughput
+
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext-throughput.svg)
 
 All timings are based on parallelized Radix-based integer operations where each block is encrypted using the default parameters `PARAM_MESSAGE_2_CARRY_2_KS_PBS`. To ensure predictable timings, we perform operations in the `default` mode, which ensures that the input and output encoding are similar (i.e., the carries are always emptied).
 
