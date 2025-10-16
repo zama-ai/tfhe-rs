@@ -3,7 +3,7 @@ RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 RS_BUILD_TOOLCHAIN:=stable
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
-MIN_RUST_VERSION:=1.65
+MIN_RUST_VERSION:=1.89
 WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '=' -f 2 | xargs)
 NODE_VERSION=22.6
 AVX512_SUPPORT?=OFF

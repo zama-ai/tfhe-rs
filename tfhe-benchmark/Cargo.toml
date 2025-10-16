@@ -7,7 +7,7 @@ documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "tfhe-benchmark: Performances measurements facility for tfhe-rs."
-rust-version = "1.84"
+rust-version = "1.89"
 publish = false
 
 [lib]

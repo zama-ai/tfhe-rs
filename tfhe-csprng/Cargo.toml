@@ -9,7 +9,7 @@ documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
-rust-version = "1.72"
+rust-version = "1.89"
 
 [dependencies]
 aes = "0.8.2"
