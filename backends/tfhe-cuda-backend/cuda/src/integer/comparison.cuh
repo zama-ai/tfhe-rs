@@ -76,6 +76,13 @@ __host__ void are_all_comparisons_block_true(
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
+  if (num_radix_blocks == 0) {
+    set_single_scalar_trivial_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array_out, 1,
+        message_modulus, carry_modulus);
+    return;
+  }
+
   auto are_all_block_true_buffer =
       mem_ptr->eq_buffer->are_all_block_true_buffer;
   auto tmp_out = are_all_block_true_buffer->tmp_out;
