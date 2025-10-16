@@ -39,6 +39,7 @@ pub fn minimal_lwe_variance_for_132_bits_security_tuniform(
     ))
 }
 
+#[allow(clippy::manual_midpoint)]
 pub fn minimal_variance_for_132_bits_security_gaussian_impl(
     lwe_dimension: f64,
     modulus: f64,
