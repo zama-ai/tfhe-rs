@@ -619,7 +619,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let false_ct = cks.encrypt_radix(clear_1, num_block);
 
-                let condition = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
 
                 reset_pbs_count();
                 sks.if_then_else_parallelized(&condition, &true_ct, &false_ct);
@@ -634,7 +634,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -727,7 +727,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let false_ct = cks.encrypt_radix(clear_1, num_block);
 
-                let condition = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
 
                 reset_pbs_count();
                 sks.flip_parallelized(&condition, &true_ct, &false_ct);
@@ -742,7 +742,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -1961,7 +1961,7 @@ mod cuda {
                     let ct_then = cks.encrypt_radix(clear_0, num_block);
                     let clear_1 = gen_random_u256(&mut rng);
                     let ct_else = cks.encrypt_radix(clear_1, num_block);
-                    let ct_cond = cpu_sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let ct_cond = cks.encrypt_bool(rng.gen_bool(0.5));
 
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
