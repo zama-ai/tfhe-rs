@@ -6,8 +6,8 @@ use crate::shortint::ciphertext::{CompressedCiphertextList, CompressedCiphertext
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_standard_blind_rotate, generate_lookup_table_with_output_encoding,
-    unchecked_scalar_mul_assign, LookupTableSize,
+    apply_multi_bit_blind_rotate, apply_standard_blind_rotate,
+    generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableSize,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -208,32 +208,57 @@ impl DecompressionKey {
             monomial_degree,
         );
 
-        let intermediate_lwe = lwe_ciphertext_modulus_switch(
-            intermediate_lwe.as_view(),
-            self.out_polynomial_size()
-                .to_blind_rotation_input_modulus_log(),
-        );
+        let mut glwe_out = decompression_rescale.acc.clone();
+
+        let log_modulus = self
+            .out_polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => {
+                let msed_lwe =
+                    lwe_ciphertext_modulus_switch(intermediate_lwe.as_view(), log_modulus);
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    let buffers = engine.get_computation_buffers();
+
+                    apply_standard_blind_rotate(
+                        blind_rotate_key,
+                        &msed_lwe,
+                        &mut glwe_out,
+                        buffers,
+                    );
+                });
+            }
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                thread_count,
+                ..
+            } => {
+                let multi_bit_msed_lwe = StandardMultiBitModulusSwitchedCt {
+                    input: intermediate_lwe.as_view(),
+                    log_modulus,
+                    grouping_factor: multi_bit_blind_rotate_key.grouping_factor(),
+                };
+
+                apply_multi_bit_blind_rotate(
+                    &multi_bit_msed_lwe,
+                    &mut glwe_out,
+                    multi_bit_blind_rotate_key,
+                    *thread_count,
+                    true,
+                );
+            }
+        }
 
         let mut output_br = LweCiphertext::new(
             0,
-            self.blind_rotate_key.output_lwe_dimension().to_lwe_size(),
+            self.output_lwe_dimension().to_lwe_size(),
             ciphertext_modulus,
         );
 
-        ShortintEngine::with_thread_local_mut(|engine| {
-            let buffers = engine.get_computation_buffers();
-
-            let mut glwe_out = decompression_rescale.acc.clone();
-
-            apply_standard_blind_rotate(
-                &self.blind_rotate_key,
-                &intermediate_lwe,
-                &mut glwe_out,
-                buffers,
-            );
-
-            extract_lwe_sample_from_glwe_ciphertext(&glwe_out, &mut output_br, MonomialDegree(0));
-        });
+        extract_lwe_sample_from_glwe_ciphertext(&glwe_out, &mut output_br, MonomialDegree(0));
 
         Ok(Ciphertext::new(
             output_br,

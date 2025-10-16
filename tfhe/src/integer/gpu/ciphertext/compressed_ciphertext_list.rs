@@ -614,7 +614,7 @@ mod tests {
 
         // How many uints of NUM_BLOCKS we have to push in the list to ensure it
         // internally has more than one packed GLWE
-        let max_nb_messages: usize = 1 + 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
+        let max_nb_messages: usize = 1 + 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 
         let mut rng = rand::thread_rng();
         let message_modulus: u128 = radix_cks.parameters().message_modulus().0 as u128;
@@ -754,7 +754,7 @@ mod tests {
             let (cuda_compression_key, cuda_decompression_key) = radix_cks
                 .new_cuda_compression_decompression_keys(&private_compression_key, &streams);
 
-            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
+            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 
             let mut rng = rand::thread_rng();
 

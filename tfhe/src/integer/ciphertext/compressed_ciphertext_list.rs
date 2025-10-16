@@ -277,7 +277,7 @@ mod tests {
         ] {
             let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
-            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
+            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 
             let private_compression_key = cks.new_compression_private_key(comp_params);
 

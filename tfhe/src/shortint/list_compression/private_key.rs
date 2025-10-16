@@ -4,7 +4,9 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
     allocate_and_generate_new_lwe_packing_keyswitch_key,
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
-    par_allocate_and_generate_new_seeded_lwe_bootstrap_key, GlweSecretKey, GlweSecretKeyOwned,
+    par_allocate_and_generate_new_seeded_lwe_bootstrap_key,
+    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key, GlweSecretKey,
+    GlweSecretKeyOwned,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionPrivateKeysVersions, NoiseSquashingCompressionPrivateKeyVersions,
@@ -43,7 +45,7 @@ impl CompressionPrivateKeys {
         let compression_params = &self.params;
 
         assert!(
-            compression_params.storage_log_modulus.0
+            compression_params.storage_log_modulus().0
                 <= pbs_params
                     .polynomial_size()
                     .to_blind_rotation_input_modulus_log()
@@ -55,9 +57,9 @@ impl CompressionPrivateKeys {
             allocate_and_generate_new_lwe_packing_keyswitch_key(
                 &glwe_secret_key.as_lwe_secret_key(),
                 &self.post_packing_ks_key,
-                compression_params.packing_ks_base_log,
-                compression_params.packing_ks_level,
-                compression_params.packing_ks_key_noise_distribution,
+                compression_params.packing_ks_base_log(),
+                compression_params.packing_ks_level(),
+                compression_params.packing_ks_key_noise_distribution(),
                 pbs_params.ciphertext_modulus(),
                 &mut engine.encryption_generator,
             )
@@ -65,8 +67,8 @@ impl CompressionPrivateKeys {
 
         CompressionKey {
             packing_key_switching_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-            storage_log_modulus: compression_params.storage_log_modulus,
+            lwe_per_glwe: compression_params.lwe_per_glwe(),
+            storage_log_modulus: compression_params.storage_log_modulus(),
         }
     }
     pub(crate) fn new_compressed_compression_key(
@@ -86,9 +88,9 @@ impl CompressionPrivateKeys {
             allocate_and_generate_new_seeded_lwe_packing_keyswitch_key(
                 &glwe_secret_key.as_lwe_secret_key(),
                 &self.post_packing_ks_key,
-                compression_params.packing_ks_base_log,
-                compression_params.packing_ks_level,
-                compression_params.packing_ks_key_noise_distribution,
+                compression_params.packing_ks_base_log(),
+                compression_params.packing_ks_level(),
+                compression_params.packing_ks_key_noise_distribution(),
                 pbs_params.ciphertext_modulus(),
                 &mut engine.seeder,
             )
@@ -96,8 +98,8 @@ impl CompressionPrivateKeys {
 
         CompressedCompressionKey {
             packing_key_switching_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-            storage_log_modulus: compression_params.storage_log_modulus,
+            lwe_per_glwe: compression_params.lwe_per_glwe(),
+            storage_log_modulus: compression_params.storage_log_modulus(),
         }
     }
 
@@ -124,20 +126,52 @@ impl CompressionPrivateKeys {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_classic_bootstrapping_key(
-                &self.post_packing_ks_key.as_lwe_secret_key(),
-                glwe_secret_key,
-                pbs_params.glwe_noise_distribution(),
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.ciphertext_modulus(),
-            )
-        });
+        match compression_params {
+            CompressionParameters::Classic(classic_compression_parameters) => {
+                let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    engine.new_classic_bootstrapping_key(
+                        &self.post_packing_ks_key.as_lwe_secret_key(),
+                        glwe_secret_key,
+                        pbs_params.glwe_noise_distribution(),
+                        classic_compression_parameters.br_base_log,
+                        classic_compression_parameters.br_level,
+                        pbs_params.ciphertext_modulus(),
+                    )
+                });
 
-        DecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+                DecompressionKey::Classic {
+                    blind_rotate_key,
+                    lwe_per_glwe: classic_compression_parameters.lwe_per_glwe,
+                }
+            }
+            CompressionParameters::MultiBit(multi_bit_compression_parameters) => {
+                let multi_bit_blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    engine.new_multibit_bootstrapping_key(
+                        &self.post_packing_ks_key.as_lwe_secret_key(),
+                        glwe_secret_key,
+                        pbs_params.glwe_noise_distribution(),
+                        multi_bit_compression_parameters.br_base_log,
+                        multi_bit_compression_parameters.br_level,
+                        multi_bit_compression_parameters.decompression_grouping_factor,
+                        pbs_params.ciphertext_modulus(),
+                    )
+                });
+
+                let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                    pbs_params.lwe_dimension(),
+                    pbs_params.glwe_dimension(),
+                    pbs_params.polynomial_size(),
+                    pbs_params.pbs_base_log(),
+                    pbs_params.pbs_level(),
+                    multi_bit_compression_parameters.decompression_grouping_factor,
+                );
+
+                DecompressionKey::MultiBit {
+                    multi_bit_blind_rotate_key,
+                    lwe_per_glwe: multi_bit_compression_parameters.lwe_per_glwe,
+                    thread_count,
+                }
+            }
         }
     }
 
@@ -154,21 +188,44 @@ impl CompressionPrivateKeys {
 
         let compression_params = &self.params;
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                &self.post_packing_ks_key.as_lwe_secret_key(),
-                glwe_secret_key,
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.glwe_noise_distribution(),
-                pbs_params.ciphertext_modulus(),
-                &mut engine.seeder,
-            )
-        });
+        match compression_params {
+            CompressionParameters::Classic(classic_compression_parameters) => {
+                let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                        &self.post_packing_ks_key.as_lwe_secret_key(),
+                        glwe_secret_key,
+                        classic_compression_parameters.br_base_log,
+                        classic_compression_parameters.br_level,
+                        pbs_params.glwe_noise_distribution(),
+                        pbs_params.ciphertext_modulus(),
+                        &mut engine.seeder,
+                    )
+                });
 
-        CompressedDecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+                CompressedDecompressionKey::Classic {
+                    blind_rotate_key,
+                    lwe_per_glwe: classic_compression_parameters.lwe_per_glwe,
+                }
+            }
+            CompressionParameters::MultiBit(multi_bit_compression_parameters) => {
+                let multi_bit_blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                        &self.post_packing_ks_key.as_lwe_secret_key(),
+                        glwe_secret_key,
+                        multi_bit_compression_parameters.br_base_log,
+                        multi_bit_compression_parameters.br_level,
+                        pbs_params.glwe_noise_distribution(),
+                        multi_bit_compression_parameters.decompression_grouping_factor,
+                        pbs_params.ciphertext_modulus(),
+                        &mut engine.seeder,
+                    )
+                });
+
+                CompressedDecompressionKey::MultiBit {
+                    multi_bit_blind_rotate_key,
+                    lwe_per_glwe: multi_bit_compression_parameters.lwe_per_glwe,
+                }
+            }
         }
     }
 }
@@ -186,8 +243,8 @@ impl ClientKey {
 
         let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_binary_glwe_secret_key(
-                params.packing_ks_glwe_dimension,
-                params.packing_ks_polynomial_size,
+                params.packing_ks_glwe_dimension(),
+                params.packing_ks_polynomial_size(),
                 &mut engine.secret_generator,
             )
         });
