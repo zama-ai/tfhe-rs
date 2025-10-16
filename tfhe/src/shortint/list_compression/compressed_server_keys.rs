@@ -4,11 +4,12 @@ use super::{
     NoiseSquashingCompressionKey,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    par_convert_standard_lwe_bootstrap_key_to_fourier, CiphertextModulusLog,
-    FourierLweBootstrapKey, LweCiphertextCount, LwePackingKeyswitchKeyConformanceParams,
-    SeededLweBootstrapKeyOwned, SeededLwePackingKeyswitchKey,
+    par_convert_standard_lwe_bootstrap_key_to_fourier,
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier, CiphertextModulus,
+    CiphertextModulusLog, FourierLweBootstrapKey, FourierLweMultiBitBootstrapKey, GlweSize,
+    LweCiphertextCount, LwePackingKeyswitchKeyConformanceParams, PolynomialSize,
+    SeededLweBootstrapKeyOwned, SeededLweMultiBitBootstrapKeyOwned, SeededLwePackingKeyswitchKey,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressedCompressionKeyVersions, CompressedDecompressionKeyVersions,
@@ -44,32 +45,120 @@ impl CompressedCompressionKey {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedDecompressionKeyVersions)]
-pub struct CompressedDecompressionKey {
-    pub blind_rotate_key: SeededLweBootstrapKeyOwned<u64>,
-    pub lwe_per_glwe: LweCiphertextCount,
+pub enum CompressedDecompressionKey {
+    Classic {
+        blind_rotate_key: SeededLweBootstrapKeyOwned<u64>,
+        lwe_per_glwe: LweCiphertextCount,
+    },
+    MultiBit {
+        multi_bit_blind_rotate_key: SeededLweMultiBitBootstrapKeyOwned<u64>,
+        lwe_per_glwe: LweCiphertextCount,
+    },
 }
 
 impl CompressedDecompressionKey {
+    pub fn glwe_size(&self) -> GlweSize {
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.glwe_size(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.glwe_size(),
+        }
+    }
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.polynomial_size(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.polynomial_size(),
+        }
+    }
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<u64> {
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.ciphertext_modulus(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.ciphertext_modulus(),
+        }
+    }
+
     pub fn decompress(&self) -> DecompressionKey {
-        let blind_rotate_key = self
-            .blind_rotate_key
-            .as_view()
-            .par_decompress_into_lwe_bootstrap_key();
+        match self {
+            Self::Classic {
+                blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let blind_rotate_key = blind_rotate_key
+                    .as_view()
+                    .par_decompress_into_lwe_bootstrap_key();
 
-        let mut fourier_bsk = FourierLweBootstrapKey::new(
-            blind_rotate_key.input_lwe_dimension(),
-            blind_rotate_key.glwe_size(),
-            blind_rotate_key.polynomial_size(),
-            blind_rotate_key.decomposition_base_log(),
-            blind_rotate_key.decomposition_level_count(),
-        );
+                let mut fourier_bsk = FourierLweBootstrapKey::new(
+                    blind_rotate_key.input_lwe_dimension(),
+                    blind_rotate_key.glwe_size(),
+                    blind_rotate_key.polynomial_size(),
+                    blind_rotate_key.decomposition_base_log(),
+                    blind_rotate_key.decomposition_level_count(),
+                );
 
-        // Conversion to fourier domain
-        par_convert_standard_lwe_bootstrap_key_to_fourier(&blind_rotate_key, &mut fourier_bsk);
+                // Conversion to fourier domain
+                par_convert_standard_lwe_bootstrap_key_to_fourier(
+                    &blind_rotate_key,
+                    &mut fourier_bsk,
+                );
 
-        DecompressionKey {
-            blind_rotate_key: fourier_bsk,
-            lwe_per_glwe: self.lwe_per_glwe,
+                DecompressionKey::Classic {
+                    blind_rotate_key: fourier_bsk,
+                    lwe_per_glwe: *lwe_per_glwe,
+                }
+            }
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let multi_bit_blind_rotate_key = multi_bit_blind_rotate_key
+                    .as_view()
+                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                let mut fourier_bsk = FourierLweMultiBitBootstrapKey::new(
+                    multi_bit_blind_rotate_key.input_lwe_dimension(),
+                    multi_bit_blind_rotate_key.glwe_size(),
+                    multi_bit_blind_rotate_key.polynomial_size(),
+                    multi_bit_blind_rotate_key.decomposition_base_log(),
+                    multi_bit_blind_rotate_key.decomposition_level_count(),
+                    multi_bit_blind_rotate_key.grouping_factor(),
+                );
+
+                // Conversion to fourier domain
+                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+                    &multi_bit_blind_rotate_key,
+                    &mut fourier_bsk,
+                );
+
+                let thread_count =
+                    crate::shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                        fourier_bsk.input_lwe_dimension(),
+                        fourier_bsk.glwe_size().to_glwe_dimension(),
+                        fourier_bsk.polynomial_size(),
+                        fourier_bsk.decomposition_base_log(),
+                        fourier_bsk.decomposition_level_count(),
+                        fourier_bsk.grouping_factor(),
+                    );
+
+                DecompressionKey::MultiBit {
+                    multi_bit_blind_rotate_key: fourier_bsk,
+                    lwe_per_glwe: *lwe_per_glwe,
+                    thread_count,
+                }
+            }
         }
     }
 }
@@ -119,14 +208,30 @@ impl ParameterSetConformant for CompressedDecompressionKey {
     type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self {
-            blind_rotate_key,
-            lwe_per_glwe,
-        } = self;
+        match self {
+            Self::Classic {
+                blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let Ok(params) = parameter_set.try_into() else {
+                    return false;
+                };
 
-        let params: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
+                blind_rotate_key.is_conformant(&params)
+                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
+            }
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let Ok(params) = parameter_set.try_into() else {
+                    return false;
+                };
 
-        blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
+                multi_bit_blind_rotate_key.is_conformant(&params)
+                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
+            }
+        }
     }
 }
 

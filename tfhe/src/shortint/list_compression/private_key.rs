@@ -4,7 +4,9 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
     allocate_and_generate_new_lwe_packing_keyswitch_key,
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
-    par_allocate_and_generate_new_seeded_lwe_bootstrap_key, GlweSecretKey, GlweSecretKeyOwned,
+    par_allocate_and_generate_new_seeded_lwe_bootstrap_key,
+    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key, GlweSecretKey,
+    GlweSecretKeyOwned,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionPrivateKeysVersions, NoiseSquashingCompressionPrivateKeyVersions,
@@ -124,20 +126,50 @@ impl CompressionPrivateKeys {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_classic_bootstrapping_key(
-                &self.post_packing_ks_key.as_lwe_secret_key(),
-                glwe_secret_key,
-                pbs_params.glwe_noise_distribution(),
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.ciphertext_modulus(),
-            )
-        });
+        #[allow(clippy::option_if_let_else)]
+        if let Some(grouping_factor) = compression_params.decompression_grouping_factor {
+            let multi_bit_blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                engine.new_multibit_bootstrapping_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    pbs_params.glwe_noise_distribution(),
+                    compression_params.br_base_log,
+                    compression_params.br_level,
+                    grouping_factor,
+                    pbs_params.ciphertext_modulus(),
+                )
+            });
 
-        DecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+            let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                pbs_params.lwe_dimension(),
+                pbs_params.glwe_dimension(),
+                pbs_params.polynomial_size(),
+                pbs_params.pbs_base_log(),
+                pbs_params.pbs_level(),
+                grouping_factor,
+            );
+
+            DecompressionKey::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+                thread_count,
+            }
+        } else {
+            let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                engine.new_classic_bootstrapping_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    pbs_params.glwe_noise_distribution(),
+                    compression_params.br_base_log,
+                    compression_params.br_level,
+                    pbs_params.ciphertext_modulus(),
+                )
+            });
+
+            DecompressionKey::Classic {
+                blind_rotate_key,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+            }
         }
     }
 
@@ -154,21 +186,42 @@ impl CompressionPrivateKeys {
 
         let compression_params = &self.params;
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                &self.post_packing_ks_key.as_lwe_secret_key(),
-                glwe_secret_key,
-                compression_params.br_base_log,
-                compression_params.br_level,
-                pbs_params.glwe_noise_distribution(),
-                pbs_params.ciphertext_modulus(),
-                &mut engine.seeder,
-            )
-        });
+        #[allow(clippy::option_if_let_else)]
+        if let Some(grouping_factor) = compression_params.decompression_grouping_factor {
+            let multi_bit_blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    compression_params.br_base_log,
+                    compression_params.br_level,
+                    pbs_params.glwe_noise_distribution(),
+                    grouping_factor,
+                    pbs_params.ciphertext_modulus(),
+                    &mut engine.seeder,
+                )
+            });
 
-        CompressedDecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+            CompressedDecompressionKey::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+            }
+        } else {
+            let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+                par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                    &self.post_packing_ks_key.as_lwe_secret_key(),
+                    glwe_secret_key,
+                    compression_params.br_base_log,
+                    compression_params.br_level,
+                    pbs_params.glwe_noise_distribution(),
+                    pbs_params.ciphertext_modulus(),
+                    &mut engine.seeder,
+                )
+            });
+
+            CompressedDecompressionKey::Classic {
+                blind_rotate_key,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+            }
         }
     }
 }

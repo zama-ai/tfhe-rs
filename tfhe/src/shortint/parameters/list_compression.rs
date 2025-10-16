@@ -1,7 +1,7 @@
 use crate::shortint::backward_compatibility::parameters::list_compression::CompressionParametersVersions;
 use crate::shortint::parameters::{
     CiphertextModulusLog, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
-    GlweDimension, LweCiphertextCount, PolynomialSize,
+    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, PolynomialSize,
 };
 
 use std::fmt::Debug;
@@ -19,4 +19,5 @@ pub struct CompressionParameters {
     pub lwe_per_glwe: LweCiphertextCount,
     pub storage_log_modulus: CiphertextModulusLog,
     pub packing_ks_key_noise_distribution: DynamicDistribution<u64>,
+    pub decompression_grouping_factor: Option<LweBskGroupingFactor>,
 }
