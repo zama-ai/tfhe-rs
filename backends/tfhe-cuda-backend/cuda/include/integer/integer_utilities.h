@@ -336,6 +336,8 @@ struct int_radix_lut_custom_input_output {
   std::vector<InputTorus *> lwe_after_ks_vec;
   std::vector<OutputTorus *> lwe_after_pbs_vec;
   std::vector<InputTorus *> lwe_trivial_indexes_vec;
+  std::vector<InputTorus *>
+      ks_tmp_buf_vec; // buffers on each GPU to store keyswitch temporary data
   std::vector<InputTorus *> lwe_aligned_vec;
 
   bool gpu_memory_allocated;
@@ -439,6 +441,20 @@ struct int_radix_lut_custom_input_output {
     multi_gpu_copy_array_async(active_streams, lwe_trivial_indexes_vec,
                                lwe_trivial_indexes, num_radix_blocks,
                                allocate_gpu_memory);
+
+    for (auto i = 0; i < active_streams.count(); ++i) {
+      uint64_t sub_size_tracker = 0;
+      uint64_t buffer_size = num_radix_blocks * params.small_lwe_dimension *
+                             sizeof(InputTorus) * 2;
+      auto *gpu_ks_buffer = (InputTorus *)cuda_malloc_with_size_tracking_async(
+          buffer_size, active_streams.stream(i), active_streams.gpu_index(i),
+          sub_size_tracker, allocate_gpu_memory);
+
+      if (i == 0) {
+        size_tracker += sub_size_tracker;
+      }
+      ks_tmp_buf_vec.push_back(gpu_ks_buffer);
+    }
   }
 
   void setup_mem_reuse(uint32_t num_radix_blocks,
@@ -458,6 +474,8 @@ struct int_radix_lut_custom_input_output {
     lwe_after_ks_vec = base_lut_object->lwe_after_ks_vec;
     lwe_after_pbs_vec = base_lut_object->lwe_after_pbs_vec;
     lwe_trivial_indexes_vec = base_lut_object->lwe_trivial_indexes_vec;
+
+    ks_tmp_buf_vec = base_lut_object->ks_tmp_buf_vec;
 
     mem_reuse = true;
   }
@@ -860,6 +878,12 @@ struct int_radix_lut_custom_input_output {
               active_streams.gpu_index(0), gpu_memory_allocated);
         }
         lwe_aligned_vec.clear();
+      }
+
+      for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
+        cuda_drop_with_size_tracking_async(
+            ks_tmp_buf_vec[i], active_streams.stream(i),
+            active_streams.gpu_index(i), gpu_memory_allocated);
       }
     }
     free(h_lut_indexes);
