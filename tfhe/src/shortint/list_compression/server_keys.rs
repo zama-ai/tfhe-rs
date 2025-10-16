@@ -29,18 +29,53 @@ pub struct CompressionKey {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DecompressionKeyVersions)]
-pub struct DecompressionKey {
-    pub blind_rotate_key: FourierLweBootstrapKeyOwned,
-    pub lwe_per_glwe: LweCiphertextCount,
+pub enum DecompressionKey {
+    Classic {
+        blind_rotate_key: FourierLweBootstrapKeyOwned,
+        lwe_per_glwe: LweCiphertextCount,
+    },
+    MultiBit {
+        multi_bit_blind_rotate_key: FourierLweMultiBitBootstrapKeyOwned,
+        lwe_per_glwe: LweCiphertextCount,
+        thread_count: ThreadCount,
+    },
 }
 
 impl DecompressionKey {
     pub fn out_glwe_size(&self) -> GlweSize {
-        self.blind_rotate_key.glwe_size()
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.glwe_size(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.glwe_size(),
+        }
     }
 
     pub fn out_polynomial_size(&self) -> PolynomialSize {
-        self.blind_rotate_key.polynomial_size()
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.polynomial_size(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.polynomial_size(),
+        }
+    }
+
+    pub fn output_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic {
+                blind_rotate_key, ..
+            } => blind_rotate_key.output_lwe_dimension(),
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                ..
+            } => multi_bit_blind_rotate_key.output_lwe_dimension(),
+        }
     }
 }
 
@@ -81,6 +116,7 @@ pub struct CompressionKeyConformanceParams {
     pub storage_log_modulus: CiphertextModulusLog,
     pub uncompressed_polynomial_size: PolynomialSize,
     pub uncompressed_glwe_dimension: GlweDimension,
+    pub decompression_grouping_factor: Option<LweBskGroupingFactor>,
     pub cipherext_modulus: CiphertextModulus<u64>,
 }
 
@@ -88,18 +124,26 @@ impl From<(AtomicPatternParameters, CompressionParameters)> for CompressionKeyCo
     fn from(
         (ap_params, compression_params): (AtomicPatternParameters, CompressionParameters),
     ) -> Self {
+        let decompression_grouping_factor = match compression_params {
+            CompressionParameters::Classic(_) => None,
+            CompressionParameters::MultiBit(multi_bit_compression_parameters) => {
+                Some(multi_bit_compression_parameters.decompression_grouping_factor)
+            }
+        };
+
         Self {
-            br_level: compression_params.br_level,
-            br_base_log: compression_params.br_base_log,
-            packing_ks_level: compression_params.packing_ks_level,
-            packing_ks_base_log: compression_params.packing_ks_base_log,
-            packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size,
-            packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-            storage_log_modulus: compression_params.storage_log_modulus,
+            br_level: compression_params.br_level(),
+            br_base_log: compression_params.br_base_log(),
+            packing_ks_level: compression_params.packing_ks_level(),
+            packing_ks_base_log: compression_params.packing_ks_base_log(),
+            packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size(),
+            packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension(),
+            lwe_per_glwe: compression_params.lwe_per_glwe(),
+            storage_log_modulus: compression_params.storage_log_modulus(),
             uncompressed_polynomial_size: ap_params.polynomial_size(),
             uncompressed_glwe_dimension: ap_params.glwe_dimension(),
             cipherext_modulus: ap_params.ciphertext_modulus(),
+            decompression_grouping_factor,
         }
     }
 }
@@ -135,19 +179,39 @@ impl ParameterSetConformant for DecompressionKey {
     type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self {
-            blind_rotate_key,
-            lwe_per_glwe,
-        } = self;
+        match self {
+            Self::Classic {
+                blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let Ok(params) = parameter_set.try_into() else {
+                    return false;
+                };
 
-        let params: LweBootstrapKeyConformanceParams<u64> = parameter_set.into();
+                blind_rotate_key.is_conformant(&params)
+                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
+            }
+            Self::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe,
+                thread_count,
+            } => {
+                let Ok(params) = parameter_set.try_into() else {
+                    return false;
+                };
 
-        blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
+                multi_bit_blind_rotate_key.is_conformant(&params)
+                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
+                    && thread_count.0 > 0
+            }
+        }
     }
 }
 
-impl From<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
-    fn from(value: &CompressionKeyConformanceParams) -> Self {
+impl TryFrom<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
+    type Error = String;
+
+    fn try_from(value: &CompressionKeyConformanceParams) -> Result<Self, String> {
         let CompressionKeyConformanceParams {
             br_level,
             br_base_log,
@@ -155,10 +219,15 @@ impl From<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams
             packing_ks_glwe_dimension,
             uncompressed_polynomial_size,
             uncompressed_glwe_dimension,
+            decompression_grouping_factor,
             ..
         } = value;
 
-        Self {
+        if decompression_grouping_factor.is_some() {
+            return Err("Expected classic PBS decompression conformance parameters, found multi bit parameters".to_owned());
+        }
+
+        Ok(Self {
             decomp_base_log: *br_base_log,
             decomp_level_count: *br_level,
             input_lwe_dimension: packing_ks_glwe_dimension
@@ -166,7 +235,39 @@ impl From<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams
             output_glwe_size: uncompressed_glwe_dimension.to_glwe_size(),
             polynomial_size: *uncompressed_polynomial_size,
             ciphertext_modulus: value.cipherext_modulus,
-        }
+        })
+    }
+}
+
+impl TryFrom<&CompressionKeyConformanceParams> for MultiBitBootstrapKeyConformanceParams<u64> {
+    type Error = String;
+
+    fn try_from(value: &CompressionKeyConformanceParams) -> Result<Self, String> {
+        let CompressionKeyConformanceParams {
+            br_level,
+            br_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            uncompressed_polynomial_size,
+            uncompressed_glwe_dimension,
+            decompression_grouping_factor,
+            ..
+        } = value;
+
+        let Some(grouping_factor) = decompression_grouping_factor.as_ref() else {
+            return Err("Expected multi bit PBS decompression conformance parameters, found classic parameters".to_owned());
+        };
+
+        Ok(Self {
+            decomp_base_log: *br_base_log,
+            decomp_level_count: *br_level,
+            input_lwe_dimension: packing_ks_glwe_dimension
+                .to_equivalent_lwe_dimension(*packing_ks_polynomial_size),
+            output_glwe_size: uncompressed_glwe_dimension.to_glwe_size(),
+            polynomial_size: *uncompressed_polynomial_size,
+            ciphertext_modulus: value.cipherext_modulus,
+            grouping_factor: *grouping_factor,
+        })
     }
 }
 
