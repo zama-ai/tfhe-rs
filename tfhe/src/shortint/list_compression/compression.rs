@@ -6,8 +6,8 @@ use crate::shortint::ciphertext::{CompressedCiphertextList, CompressedCiphertext
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_standard_blind_rotate, generate_lookup_table_with_output_encoding,
-    unchecked_scalar_mul_assign, LookupTableSize,
+    apply_multi_bit_blind_rotate, apply_standard_blind_rotate,
+    generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableSize,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -216,7 +216,7 @@ impl DecompressionKey {
 
         let mut output_br = LweCiphertext::new(
             0,
-            self.blind_rotate_key.output_lwe_dimension().to_lwe_size(),
+            self.output_lwe_dimension().to_lwe_size(),
             ciphertext_modulus,
         );
 
@@ -225,12 +225,37 @@ impl DecompressionKey {
 
             let mut glwe_out = decompression_rescale.acc.clone();
 
-            apply_standard_blind_rotate(
-                &self.blind_rotate_key,
-                &intermediate_lwe,
-                &mut glwe_out,
-                buffers,
-            );
+            match self {
+                Self::Classic {
+                    blind_rotate_key, ..
+                } => {
+                    apply_standard_blind_rotate(
+                        blind_rotate_key,
+                        &intermediate_lwe,
+                        &mut glwe_out,
+                        buffers,
+                    );
+                }
+                Self::MultiBit {
+                    multi_bit_blind_rotate_key,
+                    thread_count,
+                    ..
+                } => {
+                    let modulus_switched_lwe_ciphertext_as_multi_bit =
+                        ModulusSwitchedLweCiphertextAsMultiBit {
+                            modulus_switched_lwe_ciphertext: intermediate_lwe,
+                            grouping_factor: multi_bit_blind_rotate_key.grouping_factor(),
+                        };
+
+                    apply_multi_bit_blind_rotate(
+                        &modulus_switched_lwe_ciphertext_as_multi_bit,
+                        &mut glwe_out,
+                        multi_bit_blind_rotate_key,
+                        *thread_count,
+                        true,
+                    );
+                }
+            }
 
             extract_lwe_sample_from_glwe_ciphertext(&glwe_out, &mut output_br, MonomialDegree(0));
         });

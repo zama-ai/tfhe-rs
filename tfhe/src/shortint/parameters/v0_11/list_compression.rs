@@ -14,4 +14,5 @@ pub const V0_11_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionPa
         lwe_per_glwe: LweCiphertextCount(256),
         storage_log_modulus: CiphertextModulusLog(12),
         packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
+        decompression_grouping_factor: None,
     };
