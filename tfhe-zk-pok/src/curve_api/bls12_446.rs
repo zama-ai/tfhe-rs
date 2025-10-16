@@ -1,5 +1,5 @@
 use super::*;
-
+use std::time::Instant;
 /// multiply EC point with scalar (= exponentiation in multiplicative notation)
 fn mul_zp<T: Copy + Zero + Add<Output = T> + Group>(x: T, scalar: Zp) -> T {
     let zero = T::zero();
@@ -314,8 +314,9 @@ mod g2 {
     impl G2Affine {
         #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G2 {
+            let start = Instant::now();
             // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
-            G2 {
+            let result = G2 {
                 inner: crate::curve_446::g2::G2Projective::msm(
                     unsafe {
                         &*(bases as *const [G2Affine] as *const [crate::curve_446::g2::G2Affine])
@@ -323,7 +324,14 @@ mod g2 {
                     unsafe { &*(scalars as *const [Zp] as *const [crate::curve_446::Fr]) },
                 )
                 .unwrap(),
-            }
+            };
+            println!(
+                "multi_mul_scalar: {} bases, {} scalars, {:.2} ms",
+                bases.len(),
+                scalars.len(),
+                start.elapsed().as_secs_f64() * 1000.0
+            );
+            result
         }
 
         pub fn validate(&self) -> bool {

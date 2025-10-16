@@ -97,6 +97,12 @@ harness = false
 required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
+name = "glwe_packing_compression_128b-integer-bench"
+path = "benches/integer/glwe_packing_compression_128b.rs"
+harness = false
+required-features = ["integer", "pbs-stats", "internal-keycache"]
+
+[[bench]]
 name = "integer-bench"
 path = "benches/integer/bench.rs"
 harness = false
