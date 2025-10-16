@@ -39,9 +39,9 @@ impl RadixClientKey {
             allocate_and_generate_new_lwe_packing_keyswitch_key(
                 &std_cks.large_lwe_secret_key(),
                 &private_compression_key.post_packing_ks_key,
-                compression_params.packing_ks_base_log,
-                compression_params.packing_ks_level,
-                compression_params.packing_ks_key_noise_distribution,
+                compression_params.packing_ks_base_log(),
+                compression_params.packing_ks_level(),
+                compression_params.packing_ks_key_noise_distribution(),
                 self.parameters().ciphertext_modulus(),
                 &mut engine.encryption_generator,
             )
@@ -50,8 +50,8 @@ impl RadixClientKey {
         let glwe_compression_key = CompressionKey {
             key: crate::shortint::list_compression::CompressionKey {
                 packing_key_switching_key,
-                lwe_per_glwe: compression_params.lwe_per_glwe,
-                storage_log_modulus: private_compression_key.params.storage_log_modulus,
+                lwe_per_glwe: compression_params.lwe_per_glwe(),
+                storage_log_modulus: private_compression_key.params.storage_log_modulus(),
             },
         };
 
@@ -63,11 +63,11 @@ impl RadixClientKey {
             0u64,
             self.parameters().glwe_dimension().to_glwe_size(),
             self.parameters().polynomial_size(),
-            private_compression_key.params.br_base_log,
-            private_compression_key.params.br_level,
+            private_compression_key.params.br_base_log(),
+            private_compression_key.params.br_level(),
             compression_params
-                .packing_ks_glwe_dimension
-                .to_equivalent_lwe_dimension(compression_params.packing_ks_polynomial_size),
+                .packing_ks_glwe_dimension()
+                .to_equivalent_lwe_dimension(compression_params.packing_ks_polynomial_size()),
             self.parameters().ciphertext_modulus(),
         );
 
@@ -89,7 +89,7 @@ impl RadixClientKey {
 
         let cuda_decompression_key = CudaDecompressionKey {
             blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+            lwe_per_glwe: compression_params.lwe_per_glwe(),
             glwe_dimension: self.parameters().glwe_dimension(),
             polynomial_size: self.parameters().polynomial_size(),
             message_modulus: self.parameters().message_modulus(),

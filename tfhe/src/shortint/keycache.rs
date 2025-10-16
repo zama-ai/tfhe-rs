@@ -470,7 +470,8 @@ named_params_impl!(CompressionParameters =>
 fn comp_params_default_name(params: &CompressionParameters) -> String {
     format!(
         "COMP_PARAM_CUSTOM_BR_LEVEL_{}_NOISE_DISTRIB_{}",
-        params.br_level.0, params.packing_ks_key_noise_distribution
+        params.br_level().0,
+        params.packing_ks_key_noise_distribution()
     )
 }
 

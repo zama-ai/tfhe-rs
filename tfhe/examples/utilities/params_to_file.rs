@@ -164,18 +164,18 @@ impl ParamDetails<u64> for CompressionParameters {
     }
 
     fn glwe_dimension(&self) -> GlweDimension {
-        self.packing_ks_glwe_dimension
+        self.packing_ks_glwe_dimension()
     }
 
     fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         panic!("lwe_noise_distribution not applicable for compression parameters")
     }
     fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
-        self.packing_ks_key_noise_distribution
+        self.packing_ks_key_noise_distribution()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
-        self.packing_ks_polynomial_size
+        self.packing_ks_polynomial_size()
     }
 
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
