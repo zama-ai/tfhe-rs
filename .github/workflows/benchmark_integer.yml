@@ -115,7 +115,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        command: [ integer, integer_multi_bit]
+        command: [integer_multi_bit]
         op_flavor: ${{ fromJson(needs.prepare-matrix.outputs.op_flavor) }}
         bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
