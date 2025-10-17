@@ -1301,6 +1301,7 @@ dieharder_csprng: install_dieharder build_tfhe_csprng
 
 .PHONY: clippy_bench # Run clippy lints on tfhe-benchmark
 clippy_bench: install_rs_check_toolchain
+	! (grep --recursive "trivial" tfhe-benchmark && echo "trivial found in benches")
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
