@@ -325,7 +325,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let condition = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let condition = cks.encrypt_bool(rng.gen_bool(0.5));
                     let true_ct = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let false_ct = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
@@ -344,7 +344,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
-                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let cond = cks.encrypt_bool(rng.gen_bool(0.5));
                 let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                 let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
@@ -358,7 +358,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -2113,7 +2113,7 @@ mod cuda {
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
-                    let cond = cpu_sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let cond = cks.encrypt_bool(rng.gen_bool(0.5));
                     let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
