@@ -47,22 +47,18 @@ pub mod cuda {
                     const SBOX_PARALLELISM: usize = 16;
                     let bench_id = format!("{param_name}::{NUM_AES_INPUTS}_input_encryption");
 
-                    let round_keys = unsafe { sks.key_expansion_async(&d_key, &streams) };
-                    streams.synchronize();
+                    let round_keys = sks.key_expansion(&d_key, &streams);
 
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
-                            unsafe {
-                                black_box(sks.aes_encrypt_async(
-                                    &d_iv,
-                                    &round_keys,
-                                    0,
-                                    NUM_AES_INPUTS,
-                                    SBOX_PARALLELISM,
-                                    &streams,
-                                ));
-                            }
-                            streams.synchronize();
+                            black_box(sks.aes_encrypt(
+                                &d_iv,
+                                &round_keys,
+                                0,
+                                NUM_AES_INPUTS,
+                                SBOX_PARALLELISM,
+                                &streams,
+                            ));
                         })
                     });
 
@@ -82,10 +78,7 @@ pub mod cuda {
 
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
-                            unsafe {
-                                black_box(sks.key_expansion_async(&d_key, &streams));
-                            }
-                            streams.synchronize();
+                            black_box(sks.key_expansion(&d_key, &streams));
                         })
                     });
 
@@ -118,22 +111,18 @@ pub mod cuda {
                 let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
                 let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
-                let round_keys = unsafe { sks.key_expansion_async(&d_key, &streams) };
-                streams.synchronize();
+                let round_keys = sks.key_expansion(&d_key, &streams);
 
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
-                        unsafe {
-                            black_box(sks.aes_encrypt_async(
-                                &d_iv,
-                                &round_keys,
-                                0,
-                                NUM_AES_INPUTS,
-                                SBOX_PARALLELISM,
-                                &streams,
-                            ));
-                        }
-                        streams.synchronize();
+                        black_box(sks.aes_encrypt(
+                            &d_iv,
+                            &round_keys,
+                            0,
+                            NUM_AES_INPUTS,
+                            SBOX_PARALLELISM,
+                            &streams,
+                        ));
                     })
                 });
 

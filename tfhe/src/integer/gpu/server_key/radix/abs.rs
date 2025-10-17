@@ -5,11 +5,7 @@ use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{cuda_backend_unchecked_signed_abs_assign, PBSType};
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
-    pub unsafe fn unchecked_abs_assign_async<T>(&self, ct: &mut T, streams: &CudaStreams)
+    pub fn unchecked_abs_assign<T>(&self, ct: &mut T, streams: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -78,9 +74,8 @@ impl CudaServerKey {
     {
         let mut res = ct.duplicate(streams);
         if T::IS_SIGNED {
-            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
+            self.unchecked_abs_assign(&mut res, streams);
         }
-        streams.synchronize();
         res
     }
 
@@ -139,9 +134,8 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut res, streams);
         }
         if T::IS_SIGNED {
-            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
+            self.unchecked_abs_assign(&mut res, streams);
         }
-        streams.synchronize();
         res
     }
 }

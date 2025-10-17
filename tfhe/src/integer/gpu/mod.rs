@@ -7708,7 +7708,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn cuda_backend_get_aes_key_expansion_size_on_gpu(
+pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -7726,7 +7726,7 @@ pub(crate) unsafe fn cuda_backend_get_aes_key_expansion_size_on_gpu(
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let size = {
+    let size = unsafe {
         scratch_cuda_integer_key_expansion_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
