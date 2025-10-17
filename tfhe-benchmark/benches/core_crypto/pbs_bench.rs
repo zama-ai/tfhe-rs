@@ -3,13 +3,12 @@ use benchmark::params::{
     multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
 };
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord,
-    OperatorType,
+    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
+    CryptoParametersRecord, OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
-use std::env;
 use tfhe::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use tfhe::core_crypto::prelude::*;
 
@@ -1461,6 +1460,11 @@ pub fn pbs_group() {
     mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters());
 }
 
+pub fn pbs_group_documentation() {
+    let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
+    mem_optimized_pbs(&mut criterion, &benchmark_parameters());
+}
+
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
     multi_bit_pbs(
@@ -1475,37 +1479,40 @@ pub fn multi_bit_pbs_group() {
     );
 }
 
+pub fn multi_bit_pbs_group_documentation() {
+    let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
+    multi_bit_pbs(
+        &mut criterion,
+        &multi_bit_benchmark_parameters_with_grouping(),
+        true,
+    );
+}
+
 #[cfg(feature = "gpu")]
-fn go_through_gpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => cuda_pbs_group(),
-        "multi_bit" => cuda_multi_bit_pbs_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+fn go_through_gpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical => cuda_pbs_group(),
+        ParamType::ClassicalDocumentation => cuda_pbs_group(),
+        ParamType::MultiBit => cuda_multi_bit_pbs_group(),
+        ParamType::MultiBitDocumentation => cuda_multi_bit_pbs_group(),
     };
 }
 
 #[cfg(not(feature = "gpu"))]
-fn go_through_cpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => pbs_group(),
-        "multi_bit" => multi_bit_pbs_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+fn go_through_cpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical => pbs_group(),
+        ParamType::ClassicalDocumentation => pbs_group_documentation(),
+        ParamType::MultiBit => multi_bit_pbs_group(),
+        ParamType::MultiBitDocumentation => multi_bit_pbs_group_documentation(),
     }
 }
 
 fn main() {
-    match env::var("__TFHE_RS_PARAM_TYPE") {
-        Ok(val) => {
-            #[cfg(feature = "gpu")]
-            go_through_gpu_bench_groups(&val);
-            #[cfg(not(feature = "gpu"))]
-            go_through_cpu_bench_groups(&val);
-        }
-        Err(_) => {
-            pbs_group();
-            multi_bit_pbs_group()
-        }
-    };
+    #[cfg(feature = "gpu")]
+    go_through_gpu_bench_groups();
+    #[cfg(not(feature = "gpu"))]
+    go_through_cpu_bench_groups();
 
     Criterion::default().configure_from_args().final_summary();
 }

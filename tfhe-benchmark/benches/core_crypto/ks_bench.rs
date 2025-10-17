@@ -4,14 +4,13 @@ use benchmark::params::{
     benchmark_compression_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
 };
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord,
-    OperatorType,
+    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
+    CryptoParametersRecord, OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::Serialize;
-use std::env;
 use tfhe::core_crypto::prelude::*;
 
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
@@ -788,6 +787,13 @@ mod cuda {
         cuda_packing_keyswitch(&mut criterion, &benchmark_parameters());
     }
 
+    pub fn cuda_ks_group_documentation() {
+        let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
+            .measurement_time(std::time::Duration::from_secs(60))
+            .configure_from_args();
+        cuda_keyswitch(&mut criterion, &benchmark_parameters());
+    }
+
     pub fn cuda_multi_bit_ks_group() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
@@ -798,10 +804,23 @@ mod cuda {
         cuda_keyswitch(&mut criterion, &multi_bit_parameters);
         cuda_packing_keyswitch(&mut criterion, &multi_bit_parameters);
     }
+
+    pub fn cuda_multi_bit_ks_group_documentation() {
+        let mut criterion: Criterion<_> =
+            (Criterion::default().sample_size(2000)).configure_from_args();
+        let multi_bit_parameters = multi_bit_benchmark_parameters()
+            .into_iter()
+            .map(|(string, params, _)| (string, params))
+            .collect_vec();
+        cuda_keyswitch(&mut criterion, &multi_bit_parameters);
+    }
 }
 
 #[cfg(feature = "gpu")]
-use cuda::{cuda_ks_group, cuda_multi_bit_ks_group};
+use cuda::{
+    cuda_ks_group, cuda_ks_group_documentation, cuda_multi_bit_ks_group,
+    cuda_multi_bit_ks_group_documentation,
+};
 
 pub fn ks_group() {
     let mut criterion: Criterion<_> = (Criterion::default()
@@ -846,39 +865,32 @@ pub fn packing_ks_group() {
 }
 
 #[cfg(feature = "gpu")]
-fn go_through_gpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => cuda_ks_group(),
-        "multi_bit" => cuda_multi_bit_ks_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+fn go_through_gpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical => cuda_ks_group(),
+        ParamType::ClassicalDocumentation => cuda_ks_group_documentation(),
+        ParamType::MultiBit => cuda_multi_bit_ks_group(),
+        ParamType::MultiBitDocumentation => cuda_multi_bit_ks_group_documentation(),
     };
 }
 
 #[cfg(not(feature = "gpu"))]
-fn go_through_cpu_bench_groups(val: &str) {
-    match val.to_lowercase().as_str() {
-        "classical" => {
+fn go_through_cpu_bench_groups() {
+    match get_param_type() {
+        ParamType::Classical => {
             ks_group();
             packing_ks_group()
         }
-        "multi_bit" => multi_bit_ks_group(),
-        _ => panic!("unknown benchmark operations flavor"),
+        ParamType::ClassicalDocumentation => ks_group(),
+        ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_group(),
     }
 }
 
 fn main() {
-    match env::var("__TFHE_RS_PARAM_TYPE") {
-        Ok(val) => {
-            #[cfg(feature = "gpu")]
-            go_through_gpu_bench_groups(&val);
-            #[cfg(not(feature = "gpu"))]
-            go_through_cpu_bench_groups(&val);
-        }
-        Err(_) => {
-            ks_group();
-            packing_ks_group()
-        }
-    };
+    #[cfg(feature = "gpu")]
+    go_through_gpu_bench_groups();
+    #[cfg(not(feature = "gpu"))]
+    go_through_cpu_bench_groups();
 
     Criterion::default().configure_from_args().final_summary();
 }
