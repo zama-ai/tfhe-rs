@@ -20,25 +20,33 @@ impl CompressedDecompressionKey {
         ciphertext_modulus: CiphertextModulus<u64>,
         streams: &CudaStreams,
     ) -> CudaDecompressionKey {
-        let h_bootstrap_key = self
-            .key
-            .blind_rotate_key
-            .as_view()
-            .par_decompress_into_lwe_bootstrap_key();
+        match &self.key {
+            crate::shortint::list_compression::CompressedDecompressionKey::Classic {
+                blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let h_bootstrap_key = blind_rotate_key
+                    .as_view()
+                    .par_decompress_into_lwe_bootstrap_key();
 
-        let d_bootstrap_key =
-            CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, None, streams);
+                let d_bootstrap_key =
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, None, streams);
 
-        let blind_rotate_key = CudaBootstrappingKey::Classic(d_bootstrap_key);
+                let blind_rotate_key = CudaBootstrappingKey::Classic(d_bootstrap_key);
 
-        CudaDecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: self.key.lwe_per_glwe,
-            glwe_dimension,
-            polynomial_size,
-            message_modulus,
-            carry_modulus,
-            ciphertext_modulus,
+                CudaDecompressionKey {
+                    blind_rotate_key,
+                    lwe_per_glwe: *lwe_per_glwe,
+                    glwe_dimension,
+                    polynomial_size,
+                    message_modulus,
+                    carry_modulus,
+                    ciphertext_modulus,
+                }
+            }
+            crate::shortint::list_compression::CompressedDecompressionKey::MultiBit { .. } => {
+                todo!()
+            }
         }
     }
 }

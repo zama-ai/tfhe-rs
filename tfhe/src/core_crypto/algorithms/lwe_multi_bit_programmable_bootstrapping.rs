@@ -18,6 +18,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
 
 use aligned_vec::ABox;
 use itertools::Itertools;
@@ -73,6 +74,59 @@ pub trait MultiBitModulusSwitchedLweCiphertext: Sync {
         &self,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_;
+}
+
+pub struct ModulusSwitchedLweCiphertextAsMultiBit<MsedCt: ModulusSwitchedLweCiphertext<usize>> {
+    pub modulus_switched_lwe_ciphertext: MsedCt,
+    pub grouping_factor: LweBskGroupingFactor,
+}
+
+impl<MsedCt: ModulusSwitchedLweCiphertext<usize> + Sync> MultiBitModulusSwitchedLweCiphertext
+    for ModulusSwitchedLweCiphertextAsMultiBit<MsedCt>
+{
+    fn lwe_dimension(&self) -> LweDimension {
+        self.modulus_switched_lwe_ciphertext.lwe_dimension()
+    }
+
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
+    }
+
+    fn switched_modulus_input_lwe_body(&self) -> usize {
+        self.modulus_switched_lwe_ciphertext.body()
+    }
+
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let grouping_factor = self.grouping_factor;
+
+        let modulus = 1 << self.modulus_switched_lwe_ciphertext.log_modulus().0;
+
+        let msed_masks: Vec<_> = self
+            .modulus_switched_lwe_ciphertext
+            .mask()
+            .skip(index * grouping_factor.0)
+            .take(grouping_factor.0)
+            .collect();
+
+        assert_eq!(msed_masks.len(), grouping_factor.0);
+
+        (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
+            let mut monomial_degree = 0;
+            for (&mask_element, selection_bit) in msed_masks
+                .iter()
+                .zip_eq(selection_bit(grouping_factor, power_set_index))
+            {
+                monomial_degree += selection_bit * mask_element;
+
+                monomial_degree %= modulus;
+            }
+
+            monomial_degree
+        })
+    }
 }
 
 pub struct StandardMultiBitModulusSwitchedCt<

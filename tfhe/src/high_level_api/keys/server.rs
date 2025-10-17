@@ -364,16 +364,11 @@ impl CompressedServerKey {
         > = match &self.integer_key.decompression_key {
             // Convert decompression_key in the (cpu) integer keyset to the GPU if it's defined
             Some(decompression_key) => {
-                let polynomial_size = decompression_key.key.blind_rotate_key.polynomial_size();
-                let glwe_dimension = decompression_key
-                    .key
-                    .blind_rotate_key
-                    .glwe_size()
-                    .to_glwe_dimension();
+                let polynomial_size = decompression_key.key.polynomial_size();
+                let glwe_dimension = decompression_key.key.glwe_size().to_glwe_dimension();
                 let message_modulus = key.message_modulus;
                 let carry_modulus = key.carry_modulus;
-                let ciphertext_modulus =
-                    decompression_key.key.blind_rotate_key.ciphertext_modulus();
+                let ciphertext_modulus = decompression_key.key.ciphertext_modulus();
                 Some(decompression_key.decompress_to_cuda(
                     glwe_dimension,
                     polynomial_size,

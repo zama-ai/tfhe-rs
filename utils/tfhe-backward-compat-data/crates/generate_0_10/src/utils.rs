@@ -180,7 +180,11 @@ impl ConvertParams<CompressionParameters> for TestCompressionParameterSet {
             lwe_per_glwe,
             storage_log_modulus,
             packing_ks_key_noise_distribution,
+            decompression_grouping_factor,
         } = self;
+
+        assert!(decompression_grouping_factor.is_none());
+
         CompressionParameters {
             br_level: DecompositionLevelCount(br_level),
             br_base_log: DecompositionBaseLog(br_base_log),

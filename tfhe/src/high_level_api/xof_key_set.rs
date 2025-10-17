@@ -15,6 +15,7 @@ use crate::shortint::atomic_pattern::{
     AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
 };
 
+use crate::shortint::list_compression::CompressedDecompressionKey;
 use crate::shortint::noise_squashing::atomic_pattern::ks32::KS32AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::atomic_pattern::standard::StandardAtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
@@ -399,7 +400,7 @@ impl integer::compression_keys::CompressedDecompressionKey {
         );
 
         Self {
-            key: shortint::list_compression::CompressedDecompressionKey {
+            key: shortint::list_compression::CompressedDecompressionKey::Classic {
                 blind_rotate_key: core_bsk,
                 lwe_per_glwe: compression_params.lwe_per_glwe,
             },
@@ -411,20 +412,54 @@ impl integer::compression_keys::CompressedDecompressionKey {
         generator: &mut MaskRandomGenerator<Gen>,
     ) -> integer::compression_keys::DecompressionKey
     where
-        Gen: ByteRandomGenerator,
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
-        let compressed_blind_rot_key = &self.key.blind_rotate_key;
+        match &self.key {
+            CompressedDecompressionKey::Classic {
+                blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let core_fourier_bsk =
+                    par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
+                        blind_rotate_key,
+                        generator,
+                    );
 
-        let core_fourier_bsk = par_decompress_bootstrap_key_to_fourier_with_pre_seeded_generator(
-            compressed_blind_rot_key,
-            generator,
-        );
+                integer::compression_keys::DecompressionKey {
+                    key: shortint::list_compression::DecompressionKey::Classic {
+                        blind_rotate_key: core_fourier_bsk,
+                        lwe_per_glwe: *lwe_per_glwe,
+                    },
+                }
+            }
+            CompressedDecompressionKey::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let core_fourier_bsk =
+                    par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_fourier_with_pre_seeded_generator(
+                        multi_bit_blind_rotate_key,
+                        generator,
+                    );
 
-        integer::compression_keys::DecompressionKey {
-            key: shortint::list_compression::DecompressionKey {
-                blind_rotate_key: core_fourier_bsk,
-                lwe_per_glwe: self.key.lwe_per_glwe,
-            },
+                let thread_count =
+                    shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                        core_fourier_bsk.input_lwe_dimension(),
+                        core_fourier_bsk.glwe_size().to_glwe_dimension(),
+                        core_fourier_bsk.polynomial_size(),
+                        core_fourier_bsk.decomposition_base_log(),
+                        core_fourier_bsk.decomposition_level_count(),
+                        core_fourier_bsk.grouping_factor(),
+                    );
+
+                integer::compression_keys::DecompressionKey {
+                    key: shortint::list_compression::DecompressionKey::MultiBit {
+                        multi_bit_blind_rotate_key: core_fourier_bsk,
+                        lwe_per_glwe: *lwe_per_glwe,
+                        thread_count,
+                    },
+                }
+            }
         }
     }
 }

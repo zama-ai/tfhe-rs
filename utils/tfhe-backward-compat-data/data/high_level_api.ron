@@ -796,4 +796,53 @@
             compressed: false,
         )),
     ),
+    (
+        tfhe_version_min: "1.5",
+        tfhe_module: "high_level_api",
+        metadata: HlClientKey((
+            test_filename: "client_key",
+            parameters: TestClassicParameterSet((
+                lwe_dimension: 2,
+                glwe_dimension: 1,
+                polynomial_size: 2048,
+                lwe_noise_distribution: TUniform(
+                    bound_log2: 45,
+                ),
+                glwe_noise_distribution: TUniform(
+                    bound_log2: 17,
+                ),
+                pbs_base_log: 23,
+                pbs_level: 1,
+                ks_base_log: 4,
+                ks_level: 4,
+                message_modulus: 4,
+                ciphertext_modulus: 18446744073709551616,
+                carry_modulus: 4,
+                max_noise_level: 5,
+                log2_p_fail: -129.15284804376165,
+                encryption_key_choice: "big",
+                modulus_switch_noise_reduction_params: CenteredMeanNoiseReduction,
+            )),
+        )),
+    ),
+    (
+        tfhe_version_min: "1.5",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "compressed_server_key",
+            client_key_filename: "client_key.cbor",
+            rerand_cpk_filename: None,
+            compressed: true,
+        )),
+    ),
+    (
+        tfhe_version_min: "1.5",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "server_key_with_compression",
+            client_key_filename: "client_key.cbor",
+            rerand_cpk_filename: None,
+            compressed: false,
+        )),
+    ),
 ]

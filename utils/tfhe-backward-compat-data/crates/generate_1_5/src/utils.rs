@@ -3,17 +3,12 @@ use std::path::Path;
 use tfhe::core_crypto::prelude::{
     CiphertextModulusLog, LweCiphertextCount, TUniform, UnsignedInteger,
 };
-use tfhe::shortint::PBSParameters;
-use tfhe::shortint::parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, CompressionParameters,
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
-    GlweDimension, LweBskGroupingFactor, LweDimension, MaxNoiseLevel, MessageModulus,
-    MultiBitPBSParameters, PolynomialSize, StandardDev,
-};
-use tfhe_versionable::Versionize;
-
+use tfhe::shortint::parameters::*;
+use tfhe::shortint::prelude::ModulusSwitchType;
+use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
+use tfhe_versionable::Versionize;
 
 pub(crate) fn store_versioned_test<Data: Versionize + 'static, P: AsRef<Path>>(
     msg: &Data,
@@ -74,7 +69,7 @@ impl ConvertParams<ClassicPBSParameters> for TestClassicParameterSet {
             max_noise_level,
             log2_p_fail,
             encryption_key_choice,
-            modulus_switch_noise_reduction_params: _,
+            modulus_switch_noise_reduction_params,
         } = self;
 
         ClassicPBSParameters {
@@ -99,6 +94,41 @@ impl ConvertParams<ClassicPBSParameters> for TestClassicParameterSet {
                     _ => panic!("Invalid encryption key choice"),
                 }
             },
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.convert(),
+        }
+    }
+}
+
+impl ConvertParams<ModulusSwitchNoiseReductionParams> for TestModulusSwitchNoiseReductionParams {
+    fn convert(self) -> ModulusSwitchNoiseReductionParams {
+        let TestModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
+        ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: LweCiphertextCount(modulus_switch_zeros_count),
+            ms_bound: NoiseEstimationMeasureBound(ms_bound),
+            ms_r_sigma_factor: RSigmaFactor(ms_r_sigma_factor),
+            ms_input_variance: Variance(ms_input_variance),
+        }
+    }
+}
+
+impl ConvertParams<ModulusSwitchType> for TestModulusSwitchType {
+    fn convert(self) -> ModulusSwitchType {
+        match self {
+            TestModulusSwitchType::Standard => ModulusSwitchType::Standard,
+            TestModulusSwitchType::DriftTechniqueNoiseReduction(
+                test_modulus_switch_noise_reduction_params,
+            ) => ModulusSwitchType::DriftTechniqueNoiseReduction(
+                test_modulus_switch_noise_reduction_params.convert(),
+            ),
+            TestModulusSwitchType::CenteredMeanNoiseReduction => {
+                ModulusSwitchType::CenteredMeanNoiseReduction
+            }
         }
     }
 }
@@ -183,8 +213,6 @@ impl ConvertParams<CompressionParameters> for TestCompressionParameterSet {
             decompression_grouping_factor,
         } = self;
 
-        assert!(decompression_grouping_factor.is_none());
-
         CompressionParameters {
             br_level: DecompositionLevelCount(br_level),
             br_base_log: DecompositionBaseLog(br_base_log),
@@ -195,6 +223,7 @@ impl ConvertParams<CompressionParameters> for TestCompressionParameterSet {
             lwe_per_glwe: LweCiphertextCount(lwe_per_glwe),
             storage_log_modulus: CiphertextModulusLog(storage_log_modulus),
             packing_ks_key_noise_distribution: packing_ks_key_noise_distribution.convert(),
+            decompression_grouping_factor: decompression_grouping_factor.map(LweBskGroupingFactor),
         }
     }
 }
