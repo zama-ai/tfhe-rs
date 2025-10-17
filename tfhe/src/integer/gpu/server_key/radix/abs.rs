@@ -136,7 +136,7 @@ impl CudaServerKey {
     {
         let mut res = ct.duplicate(streams);
         if !ct.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(&mut res, streams) };
+            self.full_propagate_assign(&mut res, streams);
         }
         if T::IS_SIGNED {
             unsafe { self.unchecked_abs_assign_async(&mut res, streams) };

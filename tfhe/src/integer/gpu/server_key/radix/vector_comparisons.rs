@@ -140,17 +140,14 @@ impl CudaServerKey {
         let mut comparison_blocks: CudaUnsignedRadixCiphertext =
             self.create_trivial_radix(0, num_radix_blocks, streams);
 
-        unsafe {
-            self.apply_bivariate_lookup_table_async(
-                comparison_blocks.as_mut(),
-                &packed_lhs,
-                &packed_rhs,
-                &block_equality_lut,
-                0..num_radix_blocks,
-                streams,
-            );
-            streams.synchronize();
-        }
+        self.apply_bivariate_lookup_table(
+            comparison_blocks.as_mut(),
+            &packed_lhs,
+            &packed_rhs,
+            &block_equality_lut,
+            0..num_radix_blocks,
+            streams,
+        );
         self.unchecked_are_all_comparisons_block_true(&comparison_blocks, streams)
     }
 
@@ -248,7 +245,7 @@ impl CudaServerKey {
             for ct in lhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_lhs.push(temp_ct);
             }
@@ -263,7 +260,7 @@ impl CudaServerKey {
             for ct in rhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_rhs.push(temp_ct);
             }
@@ -399,7 +396,7 @@ impl CudaServerKey {
             for ct in lhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_lhs.push(temp_ct);
             }
@@ -414,7 +411,7 @@ impl CudaServerKey {
             for ct in rhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_rhs.push(temp_ct);
             }

@@ -194,11 +194,11 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
 
         self.unchecked_scalar_add_assign_async(ct, scalar, streams);
-        let _carry = self.propagate_single_carry_assign_async(ct, streams, None, OutputFlag::None);
+        let _carry = self.propagate_single_carry_assign(ct, streams, None, OutputFlag::None);
     }
 
     pub fn get_scalar_add_assign_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64
@@ -326,7 +326,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + CastInto<u64>,
     {
         if !ct_left.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(ct_left, stream) };
+            self.full_propagate_assign(ct_left, stream);
         }
         self.unchecked_unsigned_overflowing_scalar_add_assign(ct_left, scalar, stream)
     }
@@ -358,11 +358,7 @@ impl CudaServerKey {
     {
         self.unchecked_scalar_add_assign(ct_left, scalar, stream);
         let mut carry_out;
-        unsafe {
-            carry_out =
-                self.propagate_single_carry_assign_async(ct_left, stream, None, OutputFlag::Carry);
-        }
-        stream.synchronize();
+        carry_out = self.propagate_single_carry_assign(ct_left, stream, None, OutputFlag::Carry);
 
         let num_scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
@@ -427,7 +423,7 @@ impl CudaServerKey {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
         if !tmp_lhs.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(&mut tmp_lhs, streams) };
+            self.full_propagate_assign(&mut tmp_lhs, streams);
         }
 
         let trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(

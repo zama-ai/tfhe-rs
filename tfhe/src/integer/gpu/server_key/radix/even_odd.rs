@@ -40,7 +40,7 @@ impl CudaServerKey {
                 }],
             },
         };
-        self.apply_lookup_table_async(&mut single_block, radix, &lut, 0..1, streams);
+        self.apply_lookup_table(&mut single_block, radix, &lut, 0..1, streams);
         CudaBooleanBlock::from_cuda_radix_ciphertext(single_block)
     }
 
@@ -106,7 +106,7 @@ impl CudaServerKey {
                 }],
             },
         };
-        self.apply_lookup_table_async(&mut single_block, radix, &lut, 0..1, streams);
+        self.apply_lookup_table(&mut single_block, radix, &lut, 0..1, streams);
         CudaBooleanBlock::from_cuda_radix_ciphertext(single_block)
     }
 

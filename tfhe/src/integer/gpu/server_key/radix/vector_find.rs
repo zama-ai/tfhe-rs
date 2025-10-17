@@ -95,7 +95,10 @@ impl CudaServerKey {
                 .d_vec
                 .as_mut_slice(0..lwe_size, 0)
                 .unwrap();
-            unsafe { slice_out.copy_from_gpu_async(&slice_in, streams, 0) };
+            unsafe {
+                slice_out.copy_from_gpu_async(&slice_in, streams, 0);
+                streams.synchronize();
+            }
             let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(radix_ct.into_inner());
 
             unpacked_selectors.push(boolean_block);
@@ -168,9 +171,8 @@ impl CudaServerKey {
             //
             // Thus in that case, the returned value is always 0 regardless of ct's value,
             // but we still have to see if the input matched something
-            let zero_ct: CudaUnsignedRadixCiphertext = unsafe {
-                self.create_trivial_zero_radix_async(num_blocks_to_represent_values, streams)
-            };
+            let zero_ct: CudaUnsignedRadixCiphertext =
+                self.create_trivial_zero_radix(num_blocks_to_represent_values, streams);
             let out_block =
                 self.unchecked_is_at_least_one_comparisons_block_true(&blocks_ct, streams);
             return (zero_ct, out_block);
@@ -247,7 +249,7 @@ impl CudaServerKey {
             self.unchecked_match_value(ct, matches, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut clone, streams) };
+            self.full_propagate_assign(&mut clone, streams);
             self.unchecked_match_value(&clone, matches, streams)
         }
     }
@@ -361,7 +363,7 @@ impl CudaServerKey {
             self.unchecked_match_value_or(ct, matches, or_value, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut clone, streams) };
+            self.full_propagate_assign(&mut clone, streams);
             self.unchecked_match_value_or(&clone, matches, or_value, streams)
         }
     }
@@ -441,7 +443,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -455,7 +457,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
 
@@ -541,7 +543,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -629,7 +631,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
+            self.full_propagate_assign(&mut tmp_ct, streams);
             &tmp_ct
         };
         self.unchecked_is_in_clears(ct, clears, streams)
@@ -729,7 +731,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
+            self.full_propagate_assign(&mut tmp_ct, streams);
             streams.synchronize();
             &tmp_ct
         };
@@ -856,7 +858,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
+            self.full_propagate_assign(&mut tmp_ct, streams);
             streams.synchronize();
             &tmp_ct
         };
@@ -961,7 +963,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -975,7 +977,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
         self.unchecked_index_of(cts, value, streams)
@@ -1078,7 +1080,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1207,7 +1209,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1339,7 +1341,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1353,7 +1355,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
         self.unchecked_first_index_of(cts, value, streams)
@@ -1433,8 +1435,7 @@ impl CudaServerKey {
             self.generate_many_lookup_table(fns.as_slice())
         };
 
-        let blocks_cmps =
-            unsafe { self.apply_many_lookup_table_async(ct.as_ref(), &luts, streams) };
+        let blocks_cmps = self.apply_many_lookup_table(ct.as_ref(), &luts, streams);
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
@@ -1448,7 +1449,7 @@ impl CudaServerKey {
                     .collect::<Vec<_>>();
 
                 let mut d_ct_res: CudaUnsignedRadixCiphertext =
-                    unsafe { self.create_trivial_zero_radix_async(num_blocks, streams) };
+                    self.create_trivial_zero_radix(num_blocks, streams);
                 // Here we jump between the results of the many luts to build the final result
                 for (block_index, block_value) in cmps.iter().enumerate() {
                     let mut dest_slice = d_ct_res
@@ -1466,7 +1467,10 @@ impl CudaServerKey {
                         .d_vec
                         .as_mut_slice(block_index * lwe_size..lwe_size * (block_index + 1), 0)
                         .unwrap();
-                    unsafe { dest_slice.copy_from_gpu_async(&src_slice, streams, 0) };
+                    unsafe {
+                        dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
+                        streams.synchronize();
+                    }
                 }
                 self.unchecked_are_all_comparisons_block_true(&d_ct_res, streams)
             })
@@ -1541,13 +1545,7 @@ impl CudaServerKey {
                             })
                             .collect::<Vec<_>>();
                         let luts = self.generate_many_lookup_table(fns.as_slice());
-                        unsafe {
-                            self.apply_many_lookup_table_async(
-                                &selector.0.ciphertext,
-                                &luts,
-                                streams,
-                            )
-                        }
+                        self.apply_many_lookup_table(&selector.0.ciphertext, &luts, streams)
                     })
                     .collect::<Vec<_>>();
                 //Ideally in the previous step we would have operated all blocks at once, but since
@@ -1595,76 +1593,62 @@ impl CudaServerKey {
             .lwe_dimension
             .to_lwe_size()
             .0;
-        let mut aggregated_vector: T =
-            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
+        let mut aggregated_vector: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
 
         //iterate over num_chunks
         for chunk_idx in 0..(num_chunks - 1) {
             for ct_idx in 0..chunk_size {
                 let one_hot_idx = chunk_idx * chunk_size + ct_idx;
-                unsafe {
-                    self.unchecked_add_assign_async(
-                        &mut aggregated_vector,
-                        &one_hot_vector[one_hot_idx],
-                        streams,
-                    )
-                };
+                self.unchecked_add_assign(
+                    &mut aggregated_vector,
+                    &one_hot_vector[one_hot_idx],
+                    streams,
+                );
             }
             let temp = aggregated_vector.duplicate(streams);
 
-            unsafe {
-                self.apply_lookup_table_async(
-                    aggregated_vector.as_mut(),
-                    temp.as_ref(),
-                    &identity_lut,
-                    0..num_ct_blocks,
-                    streams,
-                )
-            };
+            self.apply_lookup_table(
+                aggregated_vector.as_mut(),
+                temp.as_ref(),
+                &identity_lut,
+                0..num_ct_blocks,
+                streams,
+            );
         }
         let last_chunk_size = one_hot_vector.len() - (num_chunks - 1) * chunk_size;
         for ct_idx in 0..last_chunk_size {
             let one_hot_idx = (num_chunks - 1) * chunk_size + ct_idx;
-            unsafe {
-                self.unchecked_add_assign_async(
-                    &mut aggregated_vector,
-                    &one_hot_vector[one_hot_idx],
-                    streams,
-                )
-            };
+            self.unchecked_add_assign(
+                &mut aggregated_vector,
+                &one_hot_vector[one_hot_idx],
+                streams,
+            );
         }
 
         let message_extract_lut =
             self.generate_lookup_table(|x| (x % self.message_modulus.0) % self.message_modulus.0);
         let carry_extract_lut = self.generate_lookup_table(|x| x / self.message_modulus.0);
-        let mut message_ct: T =
-            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
+        let mut message_ct: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
 
-        let mut carry_ct: T =
-            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
+        let mut carry_ct: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
 
         let temp = aggregated_vector.duplicate(streams);
-        unsafe {
-            self.apply_lookup_table_async(
-                carry_ct.as_mut(),
-                temp.as_ref(),
-                &carry_extract_lut,
-                0..num_ct_blocks,
-                streams,
-            )
-        };
-        unsafe {
-            self.apply_lookup_table_async(
-                message_ct.as_mut(),
-                temp.as_ref(),
-                &message_extract_lut,
-                0..num_ct_blocks,
-                streams,
-            )
-        };
+        self.apply_lookup_table(
+            carry_ct.as_mut(),
+            temp.as_ref(),
+            &carry_extract_lut,
+            0..num_ct_blocks,
+            streams,
+        );
+        self.apply_lookup_table(
+            message_ct.as_mut(),
+            temp.as_ref(),
+            &message_extract_lut,
+            0..num_ct_blocks,
+            streams,
+        );
 
-        let mut output_ct: T =
-            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks * 2, streams) };
+        let mut output_ct: T = self.create_trivial_zero_radix(num_ct_blocks * 2, streams);
 
         // unpacked_blocks
         for index in 0..num_ct_blocks {
@@ -1702,7 +1686,10 @@ impl CudaServerKey {
                 .as_mut_slice(index * lwe_size..(index + 1) * lwe_size, 0)
                 .unwrap();
 
-            unsafe { output_mut_slice1.copy_from_gpu_async(&message_mut_slice, streams, 0) };
+            unsafe {
+                output_mut_slice1.copy_from_gpu_async(&message_mut_slice, streams, 0);
+                streams.synchronize();
+            }
         }
         for index in 0..num_ct_blocks {
             let output_ct_inner = output_ct.as_mut();
@@ -1742,9 +1729,11 @@ impl CudaServerKey {
                 .as_mut_slice(index * lwe_size..(index + 1) * lwe_size, 0)
                 .unwrap();
 
-            unsafe { output_mut_slice2.copy_from_gpu_async(&carry_mut_slice, streams, 0) };
+            unsafe {
+                output_mut_slice2.copy_from_gpu_async(&carry_mut_slice, streams, 0);
+                streams.synchronize();
+            };
         }
-        streams.synchronize();
         output_ct
     }
 
@@ -1770,19 +1759,16 @@ impl CudaServerKey {
             }
         });
 
-        let mut first_true: T =
-            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
+        let mut first_true: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
 
         let mut clone_ct = values.duplicate(streams);
-        unsafe {
-            self.compute_prefix_sum_hillis_steele_async(
-                first_true.as_mut(),
-                clone_ct.as_mut(),
-                &lut_fn,
-                0..num_ct_blocks,
-                streams,
-            );
-        }
+        self.compute_prefix_sum_hillis_steele(
+            first_true.as_mut(),
+            clone_ct.as_mut(),
+            &lut_fn,
+            0..num_ct_blocks,
+            streams,
+        );
 
         let lut = self.generate_lookup_table(|x| {
             let x = x % self.message_modulus.0;
@@ -1794,16 +1780,13 @@ impl CudaServerKey {
         });
 
         let cloned_ct = first_true.duplicate(streams);
-        unsafe {
-            self.apply_lookup_table_async(
-                first_true.as_mut(),
-                cloned_ct.as_ref(),
-                &lut,
-                0..num_ct_blocks,
-                streams,
-            );
-        }
-        streams.synchronize();
+        self.apply_lookup_table(
+            first_true.as_mut(),
+            cloned_ct.as_ref(),
+            &lut,
+            0..num_ct_blocks,
+            streams,
+        );
         first_true
     }
 }

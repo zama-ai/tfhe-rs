@@ -217,18 +217,18 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 tmp_rhs = ct_right.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                self.full_propagate_assign_async(ct_left, streams);
+                self.full_propagate_assign(ct_left, streams);
                 (ct_left, ct_right)
             }
             (false, false) => {
                 tmp_rhs = ct_right.duplicate(streams);
 
-                self.full_propagate_assign_async(ct_left, streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(ct_left, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
         };

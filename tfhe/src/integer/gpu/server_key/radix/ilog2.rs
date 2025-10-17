@@ -36,7 +36,7 @@ impl CudaServerKey {
             (num_bits_in_ciphertext.ilog2() + 1).div_ceil(self.message_modulus.0.ilog2()) as usize;
 
         let mut result: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
+            self.create_trivial_zero_radix(counter_num_blocks, streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -245,7 +245,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self.create_trivial_zero_radix_async(0, streams);
+            return self.create_trivial_zero_radix(0, streams);
         }
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
@@ -256,26 +256,26 @@ impl CudaServerKey {
             .expect("Number of bits encrypted exceeds u32::MAX");
 
         if num_bits_in_ciphertext == 0 {
-            return self.create_trivial_zero_radix_async(1, streams);
+            return self.create_trivial_zero_radix(1, streams);
         }
 
         let counter_num_blocks = ((num_bits_in_ciphertext - 1).ilog2() + 1 + 1)
             .div_ceil(self.message_modulus.0.ilog2()) as usize;
 
-        let trivial_ct_neg_n: CudaSignedRadixCiphertext = self.create_trivial_radix_async(
+        let trivial_ct_neg_n: CudaSignedRadixCiphertext = self.create_trivial_radix(
             -(num_bits_in_ciphertext as i32 - 1i32),
             counter_num_blocks,
             streams,
         );
 
         let trivial_ct_2: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(2u32, counter_num_blocks, streams);
+            self.create_trivial_radix(2u32, counter_num_blocks, streams);
 
         let trivial_ct_m_minus_1_block: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
+            self.create_trivial_radix(self.message_modulus.0 - 1, 1, streams);
 
         let mut result: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
+            self.create_trivial_zero_radix(counter_num_blocks, streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -403,7 +403,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
         self.unchecked_trailing_zeros_async(ct, streams)
@@ -476,7 +476,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
         self.unchecked_trailing_ones_async(ct, streams)
@@ -549,7 +549,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
         self.unchecked_leading_zeros_async(ct, streams)
@@ -622,7 +622,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
         self.unchecked_leading_ones_async(ct, streams)
@@ -688,7 +688,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
 
@@ -763,7 +763,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp, streams);
+            self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
 

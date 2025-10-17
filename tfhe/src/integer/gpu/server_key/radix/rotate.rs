@@ -274,20 +274,20 @@ impl CudaServerKey {
             (true, true) => (ct, rotate),
             (true, false) => {
                 tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
                 tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
                 (&tmp_lhs, rotate)
             }
             (false, false) => {
                 tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (&tmp_lhs, &tmp_rhs)
             }
         };
@@ -319,20 +319,20 @@ impl CudaServerKey {
             (true, true) => (ct, rotate),
             (true, false) => {
                 tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
                 tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, rotate)
             }
             (false, false) => {
                 tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (&mut tmp_lhs, &tmp_rhs)
             }
         };
@@ -428,20 +428,20 @@ impl CudaServerKey {
             (true, true) => (ct, rotate),
             (true, false) => {
                 tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
                 tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
                 (&tmp_lhs, rotate)
             }
             (false, false) => {
                 tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (&tmp_lhs, &tmp_rhs)
             }
         };
@@ -473,20 +473,20 @@ impl CudaServerKey {
             (true, true) => (ct, rotate),
             (true, false) => {
                 tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
                 tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, rotate)
             }
             (false, false) => {
                 tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-                self.full_propagate_assign_async(&mut tmp_rhs, streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
                 (&mut tmp_lhs, &tmp_rhs)
             }
         };

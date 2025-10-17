@@ -171,6 +171,13 @@ impl<T: Numeric> CudaVec<T> {
         res
     }
 
+    pub fn memset(&mut self, value: u64, streams: &CudaStreams, stream_index: u32) {
+        unsafe {
+            self.memset_async(value, streams, stream_index);
+        }
+        streams.synchronize();
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must

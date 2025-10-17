@@ -112,24 +112,20 @@ impl CudaServerKey {
         let mut tmp_true_ct;
         let mut tmp_false_ct;
 
-        let true_ct = unsafe {
-            if true_ct.block_carries_are_empty() {
-                true_ct
-            } else {
-                tmp_true_ct = true_ct.duplicate(stream);
-                self.full_propagate_assign_async(&mut tmp_true_ct, stream);
-                &tmp_true_ct
-            }
+        let true_ct = if true_ct.block_carries_are_empty() {
+            true_ct
+        } else {
+            tmp_true_ct = true_ct.duplicate(stream);
+            self.full_propagate_assign(&mut tmp_true_ct, stream);
+            &tmp_true_ct
         };
 
-        let false_ct = unsafe {
-            if false_ct.block_carries_are_empty() {
-                false_ct
-            } else {
-                tmp_false_ct = false_ct.duplicate(stream);
-                self.full_propagate_assign_async(&mut tmp_false_ct, stream);
-                &tmp_false_ct
-            }
+        let false_ct = if false_ct.block_carries_are_empty() {
+            false_ct
+        } else {
+            tmp_false_ct = false_ct.duplicate(stream);
+            self.full_propagate_assign(&mut tmp_false_ct, stream);
+            &tmp_false_ct
         };
 
         self.unchecked_if_then_else(condition, true_ct, false_ct, stream)
