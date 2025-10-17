@@ -263,6 +263,20 @@ pub const VALID_TEST_PARAMS_TUNIFORM_COMPRESSION: TestCompressionParameterSet =
         decompression_grouping_factor: None,
     };
 
+pub const INSECURE_TEST_PARAMS_TUNIFORM_COMPRESSION_MULTIBIT: TestCompressionParameterSet =
+    TestCompressionParameterSet {
+        br_level: 1,
+        br_base_log: 22,
+        packing_ks_level: 2,
+        packing_ks_base_log: 6,
+        packing_ks_polynomial_size: 256,
+        packing_ks_glwe_dimension: 1,
+        lwe_per_glwe: 256,
+        storage_log_modulus: 12,
+        packing_ks_key_noise_distribution: TestDistribution::TUniform { bound_log2: 20 },
+        decompression_grouping_factor: Some(4),
+    };
+
 /// Invalid parameter set to test the limits
 pub const INVALID_TEST_PARAMS: TestClassicParameterSet = TestClassicParameterSet {
     lwe_dimension: usize::MAX,
