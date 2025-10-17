@@ -9,6 +9,7 @@ pub struct Config(pub(in crate::c_api) crate::high_level_api::Config);
 impl_destroy_on_type!(ConfigBuilder);
 impl_destroy_on_type!(Config);
 
+/// Create a ConfigBuilder with default parameters
 #[no_mangle]
 pub unsafe extern "C" fn config_builder_default(result: *mut *mut ConfigBuilder) -> c_int {
     catch_panic(|| {
@@ -20,6 +21,7 @@ pub unsafe extern "C" fn config_builder_default(result: *mut *mut ConfigBuilder)
     })
 }
 
+/// Clone the `input` builder into the `result`
 #[no_mangle]
 pub unsafe extern "C" fn config_builder_clone(
     input: *const ConfigBuilder,
@@ -67,7 +69,10 @@ pub unsafe extern "C" fn use_dedicated_compact_public_key_parameters(
     })
 }
 
-/// Takes ownership of the builder
+/// Builds a Config using the builder
+///
+/// This moves/takes ownership of the builder, meaning
+/// it MUST NOT be used or freed after this call.
 #[no_mangle]
 pub unsafe extern "C" fn config_builder_build(
     builder: *mut ConfigBuilder,
@@ -96,5 +101,17 @@ pub unsafe extern "C" fn config_builder_enable_compression(
             .0
             .enable_compression(compression_parameters.0);
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
+    })
+}
+
+/// Clone the `input` Config into the `result`
+#[no_mangle]
+pub unsafe extern "C" fn config_clone(input: *const Config, result: *mut *mut Config) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        let copied = get_ref_checked(input).unwrap().0;
+
+        *result = Box::into_raw(Box::new(Config(copied)));
     })
 }
