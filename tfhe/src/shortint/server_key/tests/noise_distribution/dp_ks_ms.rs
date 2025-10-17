@@ -120,89 +120,6 @@ where
     )
 }
 
-#[allow(clippy::too_many_arguments)]
-fn dp_ks_any_ms_classic_pbs<
-    InputCt,
-    ScalarMulResult,
-    KsResult,
-    DriftTechniqueResult,
-    MsResult,
-    PbsResult,
-    DPScalar,
-    KsKey,
-    DriftKey,
-    Bsk,
-    Accumulator,
-    Resources,
->(
-    input: InputCt,
-    scalar: DPScalar,
-    ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key: Option<&DriftKey>,
-    bsk: &Bsk,
-    br_input_modulus_log: CiphertextModulusLog,
-    accumulator: &Accumulator,
-    side_resources: &mut Resources,
-) -> (
-    InputCt,
-    ScalarMulResult,
-    KsResult,
-    Option<DriftTechniqueResult>,
-    MsResult,
-    PbsResult,
-)
-where
-    // InputCt needs to be multipliable by the given scalar
-    InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
-    // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
-        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
-    KsResult: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
-        + StandardModSwitch<MsResult, SideResources = Resources>
-        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
-            Output = MsResult,
-            SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
-    // We need to be able to allocate the result and apply drift technique + mod switch it
-    DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
-            AfterDriftOutput = DriftTechniqueResult,
-            AfterMsOutput = MsResult,
-            SideResources = Resources,
-        > + DriftTechniqueStandardModSwitch<
-            KsResult,
-            DriftTechniqueResult,
-            MsResult,
-            SideResources = Resources,
-        >,
-    // The accumulator has the information about the output size and modulus, therefore it is the
-    // one to allocate the blind rotation result
-    Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
-    // We need to be able to apply the PBS
-    Bsk: LweClassicFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
-{
-    let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_any_ms(
-        input,
-        scalar,
-        ksk,
-        modulus_switch_configuration,
-        mod_switch_noise_reduction_key,
-        br_input_modulus_log,
-        side_resources,
-    );
-
-    let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk.lwe_classic_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
-    (
-        input,
-        after_dp,
-        ks_result,
-        drift_technique_result,
-        ms_result,
-        pbs_result,
-    )
-}
-
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
 fn sanity_check_encrypt_dp_ks_pbs<P>(params: P)
@@ -229,24 +146,25 @@ where
         let input_zero = cks.encrypt(0);
         let input_zero_as_lwe = DynLwe::U64(input_zero.ct.clone());
 
-        let (_input, _after_dp, _after_ks, _before_ms, _after_ms, after_pbs) =
-            dp_ks_any_ms_classic_pbs(
-                input_zero_as_lwe,
-                max_scalar_mul,
-                &sks,
-                noise_simulation_modulus_switch_config,
-                drift_key,
-                &sks,
-                br_input_modulus_log,
-                &id_lut,
-                &mut (),
-            );
+        let (_input, _after_dp, _after_ks, _before_ms, after_ms) = dp_ks_any_ms(
+            input_zero_as_lwe,
+            max_scalar_mul,
+            &sks,
+            noise_simulation_modulus_switch_config,
+            drift_key,
+            br_input_modulus_log,
+            &mut (),
+        );
+
+        // Complete the AP by computing the PBS to match shortint
+        let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
+        sks.lwe_classic_fft_pbs(&after_ms, &mut pbs_result, &id_lut, &mut ());
 
         let mut shortint_res =
             sks.unchecked_scalar_mul(&input_zero, max_scalar_mul.try_into().unwrap());
         sks.apply_lookup_table_assign(&mut shortint_res, &id_lut);
 
-        assert_eq!(after_pbs.into_lwe_64().as_view(), shortint_res.ct.as_view());
+        assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
 }
 

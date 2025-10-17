@@ -111,101 +111,6 @@ where
     )
 }
 
-#[allow(clippy::too_many_arguments)]
-/// This function is used for sanity checks given we can't drop down to same level of details in the
-/// shortint implementations.
-pub fn br_dp_ks_any_ms_pbs<
-    InputCt,
-    PBSResult,
-    ScalarMulResult,
-    KsResult,
-    DriftTechniqueResult,
-    MsResult,
-    PBSKey,
-    DPScalar,
-    KsKey,
-    DriftKey,
-    Accumulator,
-    Resources,
->(
-    input: InputCt,
-    bsk: &PBSKey,
-    scalar: DPScalar,
-    ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key: Option<&DriftKey>,
-    accumulator: &Accumulator,
-    br_input_modulus_log: CiphertextModulusLog,
-    side_resources: &mut Resources,
-) -> (
-    InputCt,
-    PBSResult,
-    ScalarMulResult,
-    KsResult,
-    Option<DriftTechniqueResult>,
-    MsResult,
-    PBSResult,
-)
-where
-    // We need to be able to allocate the result and bootstrap the Input and the mod switch output
-    Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    PBSKey: LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>
-        + LweClassicFftBootstrap<MsResult, PBSResult, Accumulator, SideResources = Resources>,
-    // Result of the PBS/Blind rotate needs to be multipliable by the scalar
-    PBSResult: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
-    // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
-        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
-    KsResult: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
-        + StandardModSwitch<MsResult, SideResources = Resources>
-        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
-            Output = MsResult,
-            SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
-    // We need to be able to allocate the result and apply drift technique + mod switch it
-    DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
-            AfterDriftOutput = DriftTechniqueResult,
-            AfterMsOutput = MsResult,
-            SideResources = Resources,
-        > + DriftTechniqueStandardModSwitch<
-            KsResult,
-            DriftTechniqueResult,
-            MsResult,
-            SideResources = Resources,
-        >,
-{
-    let (input, input_pbs_result, after_dp, ks_result, drift_technique_result, ms_result) =
-        br_dp_ks_any_ms(
-            input,
-            bsk,
-            scalar,
-            ksk,
-            modulus_switch_configuration,
-            mod_switch_noise_reduction_key,
-            accumulator,
-            br_input_modulus_log,
-            side_resources,
-        );
-
-    let mut output_pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk.lwe_classic_fft_pbs(
-        &ms_result,
-        &mut output_pbs_result,
-        accumulator,
-        side_resources,
-    );
-
-    (
-        input,
-        input_pbs_result,
-        after_dp,
-        ks_result,
-        drift_technique_result,
-        ms_result,
-        output_pbs_result,
-    )
-}
-
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
 fn sanity_check_encrypt_br_dp_ks_pbs<P>(params: P)
@@ -231,25 +136,22 @@ where
     for _ in 0..10 {
         let input_zero_as_lwe = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
 
-        let (
-            _input,
-            input_pbs_result,
-            _after_dp,
-            _ks_result,
-            _drift_technique_result,
-            _ms_result,
-            output_pbs_result,
-        ) = br_dp_ks_any_ms_pbs(
-            input_zero_as_lwe,
-            &sks,
-            max_scalar_mul,
-            &sks,
-            noise_simulation_modulus_switch_config,
-            drift_key,
-            &id_lut,
-            br_input_modulus_log,
-            &mut (),
-        );
+        let (_input, input_pbs_result, _after_dp, _ks_result, _drift_technique_result, ms_result) =
+            br_dp_ks_any_ms(
+                input_zero_as_lwe,
+                &sks,
+                max_scalar_mul,
+                &sks,
+                noise_simulation_modulus_switch_config,
+                drift_key,
+                &id_lut,
+                br_input_modulus_log,
+                &mut (),
+            );
+
+        // Complete the AP by computing the PBS to match shortint
+        let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
+        sks.lwe_classic_fft_pbs(&ms_result, &mut pbs_result, &id_lut, &mut ());
 
         // Shortint APIs are not granular enough to compare ciphertexts at the MS level
         // and inject arbitrary LWEs as input to the blind rotate step of the PBS.
@@ -271,10 +173,7 @@ where
         sks.unchecked_scalar_mul_assign(&mut shortint_res, max_scalar_mul.try_into().unwrap());
         sks.apply_lookup_table_assign(&mut shortint_res, &id_lut);
 
-        assert_eq!(
-            output_pbs_result.into_lwe_64().as_view(),
-            shortint_res.ct.as_view()
-        );
+        assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
 }
 
