@@ -149,13 +149,12 @@ impl CudaServerKey {
             ctxt
         } else {
             tmp_ctxt = ctxt.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_ctxt, streams);
+            self.full_propagate_assign(&mut tmp_ctxt, streams);
             &mut tmp_ctxt
         };
 
         let mut res = self.unchecked_neg_async(ct, streams);
-        let _carry =
-            self.propagate_single_carry_assign_async(&mut res, streams, None, OutputFlag::None);
+        let _carry = self.propagate_single_carry_assign(&mut res, streams, None, OutputFlag::None);
         res
     }
 
@@ -175,7 +174,7 @@ impl CudaServerKey {
             ctxt.duplicate(streams)
         } else {
             let mut ct = ctxt.duplicate(streams);
-            self.full_propagate_assign_async(&mut ct, streams);
+            self.full_propagate_assign(&mut ct, streams);
             ct
         };
 

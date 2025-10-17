@@ -220,7 +220,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -271,12 +271,10 @@ impl CudaServerKey {
         );
 
         let mut quotient: CudaUnsignedRadixCiphertext = numerator.duplicate(streams);
-        let mut remainder: CudaUnsignedRadixCiphertext = unsafe {
-            self.create_trivial_zero_radix_async(
-                numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
-                streams,
-            )
-        };
+        let mut remainder: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(
+            numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
+            streams,
+        );
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -398,7 +396,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -501,7 +499,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -595,12 +593,8 @@ impl CudaServerKey {
             }
         }
 
-        let _carry = self.propagate_single_carry_assign_async(
-            &mut quotient,
-            streams,
-            None,
-            OutputFlag::None,
-        );
+        let _carry =
+            self.propagate_single_carry_assign(&mut quotient, streams, None, OutputFlag::None);
 
         quotient
     }
@@ -672,7 +666,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -721,7 +715,7 @@ impl CudaServerKey {
         );
 
         let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate(streams);
-        let mut remainder: CudaSignedRadixCiphertext = self.create_trivial_zero_radix_async(
+        let mut remainder: CudaSignedRadixCiphertext = self.create_trivial_zero_radix(
             numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
             streams,
         );
@@ -846,7 +840,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -956,7 +950,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 

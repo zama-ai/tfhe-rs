@@ -162,11 +162,11 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
 
         self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
-        let _carry = self.propagate_single_carry_assign_async(ct, streams, None, OutputFlag::None);
+        let _carry = self.propagate_single_carry_assign(ct, streams, None, OutputFlag::None);
     }
 
     pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
@@ -232,11 +232,9 @@ impl CudaServerKey {
         Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
     {
         let mut tmp_lhs;
-        unsafe {
-            tmp_lhs = ct_left.duplicate(streams);
-            if !tmp_lhs.block_carries_are_empty() {
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-            }
+        tmp_lhs = ct_left.duplicate(streams);
+        if !tmp_lhs.block_carries_are_empty() {
+            self.full_propagate_assign(&mut tmp_lhs, streams);
         }
 
         let trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(

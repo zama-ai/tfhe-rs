@@ -241,7 +241,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
 
         self.unchecked_scalar_mul_assign_async(ct, scalar, streams);

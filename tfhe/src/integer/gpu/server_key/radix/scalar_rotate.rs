@@ -236,7 +236,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(ct, stream) };
+            self.full_propagate_assign(ct, stream);
         }
 
         unsafe { self.unchecked_scalar_rotate_left_assign_async(ct, n, stream) };
@@ -250,7 +250,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(ct, stream) };
+            self.full_propagate_assign(ct, stream);
         }
 
         unsafe { self.unchecked_scalar_rotate_right_assign_async(ct, n, stream) };
