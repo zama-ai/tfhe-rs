@@ -1341,14 +1341,14 @@ bench_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_signed_integer_gpu # Run benchmarks for signed integer on GPU backend
 bench_signed_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
@@ -1371,14 +1371,14 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
-	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
-	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
@@ -1402,7 +1402,7 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_signed_integer_multi_bit_gpu # Run benchmarks for signed integer on GPU backend using multi-bit parameters
 bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -1410,7 +1410,7 @@ bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
@@ -1452,7 +1452,7 @@ bench_ks_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
@@ -1466,7 +1466,7 @@ bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
 bench_ks_pbs: install_rs_check_toolchain
@@ -1480,7 +1480,7 @@ bench_ks_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
 bench_pbs128: install_rs_check_toolchain
@@ -1494,7 +1494,7 @@ bench_pbs128_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs128-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
@@ -1536,7 +1536,7 @@ bench_hlapi: install_rs_check_toolchain
 bench_hlapi_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_hpu: install_rs_check_toolchain
@@ -1557,7 +1557,7 @@ bench_hlapi_erc20: install_rs_check_toolchain
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
@@ -1569,7 +1569,7 @@ bench_hlapi_dex: install_rs_check_toolchain
 bench_hlapi_dex_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
@@ -1597,7 +1597,7 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off -- --quick
 
 
 .PHONY: bench_custom # Run benchmarks with a user-defined command
