@@ -54,6 +54,22 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Acknowledge issue comment
+        if: github.event_name == 'issue_comment'
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: '+1'
+
+      - name: Display workflow run URL
+        if: github.event_name == 'issue_comment'
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            User triggered performance regression benchmark.
+            Workflow run URL: ${{ env.ACTION_RUN_URL }}
+
       - name: Generate CPU benchmarks command from label
         if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-cpu'))
         run: |
@@ -88,13 +104,6 @@ jobs:
         run: |
           python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
           echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
-
-      - name: Acknowledge issue comment
-        if: github.event_name == 'issue_comment'
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
-        with:
-          comment-id: ${{ github.event.comment.id }}
-          reactions: +1
 
       - name: Set commands output
         id: set_commands
