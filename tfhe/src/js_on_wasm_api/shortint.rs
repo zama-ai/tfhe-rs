@@ -400,12 +400,16 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
 
             // wasm bindgen does not support methods on enums
             #[wasm_bindgen]
-            pub fn shortint_params_name(param: ShortintParametersName) -> String {
+            pub fn shortint_params_name(param: Option<ShortintParametersName>) -> Result<String, JsError> {
+                let Some(param) = param else {
+                    return Err(JsError::new("invalid variant for ShortintParametersName"));
+                };
+
                 match param {
-                    ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 => "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128".to_string(),
+                    ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 => Ok("PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128".to_string()),
                     $(
                         $(
-                            ShortintParametersName::[<$version:upper _ $param_base_name $pfail:upper>] => stringify!([<$version:upper _ $param_base_name $pfail:upper>]).to_string(),
+                            ShortintParametersName::[<$version:upper _ $param_base_name $pfail:upper>] => Ok(stringify!([<$version:upper _ $param_base_name $pfail:upper>]).to_string()),
                         )*
                     )*
                 }
@@ -414,15 +418,18 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
             #[wasm_bindgen]
             impl ShortintParameters {
                 #[wasm_bindgen(constructor)]
-                pub fn new(name: ShortintParametersName) -> Self {
+                pub fn new(name: Option<ShortintParametersName>) -> Result<Self, JsError> {
+                    let Some(name) = name else {
+                        return Err(JsError::new("invalid variant for ShortintParametersName"));
+                    };
                     match name {
                         ShortintParametersName::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 => {
-                            Self(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                            Ok(Self(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128))
                         },
                         $(
                             $(
                                 ShortintParametersName::[<$version:upper _ $param_base_name $pfail:upper>] => {
-                                    Self([<$version:upper _ $param_base_name $pfail:upper>])
+                                    Ok(Self([<$version:upper _ $param_base_name $pfail:upper>]))
                                 }
                             )*
                         )*
