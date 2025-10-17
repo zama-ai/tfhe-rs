@@ -149,6 +149,7 @@ pub struct TestCompressionParameterSet {
     pub packing_ks_glwe_dimension: usize,
     pub lwe_per_glwe: usize,
     pub storage_log_modulus: usize,
+    pub decompression_grouping_factor: Option<usize>,
     pub packing_ks_key_noise_distribution: TestDistribution,
 }
 

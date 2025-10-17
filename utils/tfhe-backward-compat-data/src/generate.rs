@@ -260,6 +260,7 @@ pub const VALID_TEST_PARAMS_TUNIFORM_COMPRESSION: TestCompressionParameterSet =
         lwe_per_glwe: 256,
         storage_log_modulus: 12,
         packing_ks_key_noise_distribution: TestDistribution::TUniform { bound_log2: 42 },
+        decompression_grouping_factor: None,
     };
 
 /// Invalid parameter set to test the limits
