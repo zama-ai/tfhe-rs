@@ -8,11 +8,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_div_rem_assign_async<T>(
+    pub fn unchecked_div_rem_assign<T>(
         &self,
         quotient: &mut T,
         remainder: &mut T,
@@ -24,84 +20,70 @@ impl CudaServerKey {
     {
         // TODO add asserts from `unchecked_div_rem_parallelized`
         let num_blocks = divisor.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_div_rem_assign(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    numerator.as_ref(),
-                    divisor.as_ref(),
-                    T::IS_SIGNED,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    num_blocks,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_div_rem_assign(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    numerator.as_ref(),
-                    divisor.as_ref(),
-                    T::IS_SIGNED,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    num_blocks,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
-            }
-        }
-    }
-
-    pub fn unchecked_div_rem_assign<T>(
-        &self,
-        quotient: &mut T,
-        remainder: &mut T,
-        numerator: &T,
-        divisor: &T,
-        streams: &CudaStreams,
-    ) where
-        T: CudaIntegerRadixCiphertext,
-    {
         unsafe {
-            self.unchecked_div_rem_assign_async(quotient, remainder, numerator, divisor, streams);
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_div_rem_assign(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        numerator.as_ref(),
+                        divisor.as_ref(),
+                        T::IS_SIGNED,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_blocks,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_div_rem_assign(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        numerator.as_ref(),
+                        divisor.as_ref(),
+                        T::IS_SIGNED,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_blocks,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
         }
-        streams.synchronize();
     }
 
     pub fn unchecked_div_rem<T>(&self, numerator: &T, divisor: &T, streams: &CudaStreams) -> (T, T)
@@ -111,16 +93,7 @@ impl CudaServerKey {
         let mut quotient = numerator.duplicate(streams);
         let mut remainder = numerator.duplicate(streams);
 
-        unsafe {
-            self.unchecked_div_rem_assign_async(
-                &mut quotient,
-                &mut remainder,
-                numerator,
-                divisor,
-                streams,
-            );
-        }
-        streams.synchronize();
+        self.unchecked_div_rem_assign(&mut quotient, &mut remainder, numerator, divisor, streams);
         (quotient, remainder)
     }
 
@@ -195,10 +168,7 @@ impl CudaServerKey {
             }
         };
 
-        unsafe {
-            self.unchecked_div_rem_assign_async(quotient, remainder, numerator, divisor, streams);
-        }
-        streams.synchronize();
+        self.unchecked_div_rem_assign(quotient, remainder, numerator, divisor, streams);
     }
 
     pub fn div<T>(&self, numerator: &T, divisor: &T, streams: &CudaStreams) -> T
