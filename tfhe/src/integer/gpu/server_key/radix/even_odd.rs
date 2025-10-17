@@ -9,15 +9,7 @@ use crate::integer::gpu::server_key::CudaServerKey;
 use crate::shortint::parameters::{AtomicPatternKind, Degree, NoiseLevel};
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_is_even_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock
+    pub fn unchecked_is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -44,46 +36,16 @@ impl CudaServerKey {
         CudaBooleanBlock::from_cuda_radix_ciphertext(single_block)
     }
 
-    pub fn unchecked_is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.unchecked_is_even_async(ct, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn is_even_async<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
+    pub fn is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
         // Since the check is done on the first bit of the first block
         // no need to worry about carries
-        self.unchecked_is_even_async(ct, streams)
+        self.unchecked_is_even(ct, streams)
     }
 
-    pub fn is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.is_even_async(ct, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_is_odd_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock
+    pub fn unchecked_is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -110,34 +72,12 @@ impl CudaServerKey {
         CudaBooleanBlock::from_cuda_radix_ciphertext(single_block)
     }
 
-    pub fn unchecked_is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.unchecked_is_odd_async(ct, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn is_odd_async<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
+    pub fn is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
         // Since the check is done on the first bit of the first block
         // no need to worry about carries
-        self.unchecked_is_odd_async(ct, streams)
-    }
-
-    pub fn is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.is_odd_async(ct, streams) };
-        streams.synchronize();
-        result
+        self.unchecked_is_odd(ct, streams)
     }
 }

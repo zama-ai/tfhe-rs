@@ -14,11 +14,7 @@ impl CudaServerKey {
     /// The returned Ciphertexts has a variable size
     /// i.e. It contains just the minimum number of block
     /// needed to represent the maximum possible number of bits.
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub(crate) unsafe fn count_consecutive_bits_async<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn count_consecutive_bits<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
         direction: Direction,
@@ -38,52 +34,54 @@ impl CudaServerKey {
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(counter_num_blocks, streams);
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_count_of_consecutive_bits(
-                    streams,
-                    result.as_mut(),
-                    ct.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    direction as u32,
-                    bit_value as u32,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_count_of_consecutive_bits(
-                    streams,
-                    result.as_mut(),
-                    ct.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    direction as u32,
-                    bit_value as u32,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_count_of_consecutive_bits(
+                        streams,
+                        result.as_mut(),
+                        ct.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        direction as u32,
+                        bit_value as u32,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_count_of_consecutive_bits(
+                        streams,
+                        result.as_mut(),
+                        ct.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        direction as u32,
+                        bit_value as u32,
+                        None,
+                    );
+                }
             }
         }
 
@@ -105,24 +103,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.unchecked_trailing_zeros_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_trailing_zeros_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::Zero, streams)
+        self.count_consecutive_bits(ct, Direction::Trailing, BitValue::Zero, streams)
     }
 
     /// See [Self::trailing_ones]
@@ -136,24 +117,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.unchecked_trailing_ones_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_trailing_ones_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::One, streams)
+        self.count_consecutive_bits(ct, Direction::Trailing, BitValue::One, streams)
     }
 
     /// See [Self::leading_zeros]
@@ -167,24 +131,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.unchecked_leading_zeros_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_leading_zeros_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::Zero, streams)
+        self.count_consecutive_bits(ct, Direction::Leading, BitValue::Zero, streams)
     }
 
     /// See [Self::leading_ones]
@@ -198,24 +145,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.unchecked_leading_ones_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_leading_ones_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::One, streams)
+        self.count_consecutive_bits(ct, Direction::Leading, BitValue::One, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -224,23 +154,6 @@ impl CudaServerKey {
     ///
     /// Expects ct to have clean carries
     pub fn unchecked_ilog2<T>(&self, ct: &T, streams: &CudaStreams) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let res = unsafe { self.unchecked_ilog2_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_ilog2_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -277,60 +190,62 @@ impl CudaServerKey {
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(counter_num_blocks, streams);
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_ilog2(
-                    streams,
-                    result.as_mut(),
-                    ct.as_ref(),
-                    trivial_ct_neg_n.as_ref(),
-                    trivial_ct_2.as_ref(),
-                    trivial_ct_m_minus_1_block.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    LweBskGroupingFactor(0),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    input_num_blocks as u32,
-                    counter_num_blocks as u32,
-                    num_bits_in_ciphertext,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_ilog2(
-                    streams,
-                    result.as_mut(),
-                    ct.as_ref(),
-                    trivial_ct_neg_n.as_ref(),
-                    trivial_ct_2.as_ref(),
-                    trivial_ct_m_minus_1_block.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    d_multibit_bsk.grouping_factor,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    input_num_blocks as u32,
-                    counter_num_blocks as u32,
-                    num_bits_in_ciphertext,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_ilog2(
+                        streams,
+                        result.as_mut(),
+                        ct.as_ref(),
+                        trivial_ct_neg_n.as_ref(),
+                        trivial_ct_2.as_ref(),
+                        trivial_ct_m_minus_1_block.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        LweBskGroupingFactor(0),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        input_num_blocks as u32,
+                        counter_num_blocks as u32,
+                        num_bits_in_ciphertext,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_ilog2(
+                        streams,
+                        result.as_mut(),
+                        ct.as_ref(),
+                        trivial_ct_neg_n.as_ref(),
+                        trivial_ct_2.as_ref(),
+                        trivial_ct_m_minus_1_block.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        d_multibit_bsk.grouping_factor,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        input_num_blocks as u32,
+                        counter_num_blocks as u32,
+                        num_bits_in_ciphertext,
+                        None,
+                    );
+                }
             }
         }
         result
@@ -381,23 +296,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.trailing_zeros_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn trailing_zeros_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -406,7 +304,7 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_trailing_zeros_async(ct, streams)
+        self.unchecked_trailing_zeros(ct, streams)
     }
 
     /// Returns the number of trailing ones in the binary representation of `ct`
@@ -454,23 +352,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.trailing_ones_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn trailing_ones_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -479,7 +360,7 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_trailing_ones_async(ct, streams)
+        self.unchecked_trailing_ones(ct, streams)
     }
 
     /// Returns the number of leading zeros in the binary representation of `ct`
@@ -527,23 +408,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.leading_zeros_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn leading_zeros_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -552,7 +416,7 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_leading_zeros_async(ct, streams)
+        self.unchecked_leading_zeros(ct, streams)
     }
 
     /// Returns the number of leading ones in the binary representation of `ct`
@@ -600,23 +464,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.leading_ones_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn leading_ones_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -625,7 +472,7 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_leading_ones_async(ct, streams)
+        self.unchecked_leading_ones(ct, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -666,23 +513,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.ilog2_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn ilog2_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -692,7 +522,7 @@ impl CudaServerKey {
             &tmp
         };
 
-        self.unchecked_ilog2_async(ct, streams)
+        self.unchecked_ilog2(ct, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -741,23 +571,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe { self.checked_ilog2_async(ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn checked_ilog2_async<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
@@ -767,9 +580,6 @@ impl CudaServerKey {
             &tmp
         };
 
-        (
-            self.ilog2_async(ct, streams),
-            self.scalar_gt_async(ct, 0, streams),
-        )
+        (self.ilog2(ct, streams), self.scalar_gt(ct, 0, streams))
     }
 }

@@ -9,11 +9,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_if_then_else_async<T: CudaIntegerRadixCiphertext>(
+    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
         condition: &CudaBooleanBlock,
         true_ct: &T,
@@ -89,19 +85,6 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
-        &self,
-        condition: &CudaBooleanBlock,
-        true_ct: &T,
-        false_ct: &T,
-        stream: &CudaStreams,
-    ) -> T {
-        let result =
-            unsafe { self.unchecked_if_then_else_async(condition, true_ct, false_ct, stream) };
-        stream.synchronize();
-        result
-    }
-
     pub fn if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
         condition: &CudaBooleanBlock,
@@ -130,6 +113,7 @@ impl CudaServerKey {
 
         self.unchecked_if_then_else(condition, true_ct, false_ct, stream)
     }
+
     pub fn get_if_then_else_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         _condition: &CudaBooleanBlock,

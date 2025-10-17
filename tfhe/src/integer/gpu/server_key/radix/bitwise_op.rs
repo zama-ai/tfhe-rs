@@ -64,11 +64,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
         streams: &CudaStreams,
@@ -83,9 +79,13 @@ impl CudaServerKey {
         let shift_plaintext = self.encoding().encode(Cleartext(u64::from(scalar))).0;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
-        let mut d_decomposed_scalar =
-            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0);
-        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+
+        let mut d_decomposed_scalar = unsafe {
+            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
+        };
+        unsafe {
+            d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+        }
 
         cuda_lwe_ciphertext_plaintext_add_assign(
             &mut ct.as_mut().d_blocks,
@@ -95,7 +95,7 @@ impl CudaServerKey {
         ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
 
-    pub(crate) unsafe fn unchecked_boolean_bitnot_assign_async(
+    pub fn unchecked_boolean_bitnot_assign(
         &self,
         ct: &mut CudaBooleanBlock,
         streams: &CudaStreams,
@@ -108,9 +108,12 @@ impl CudaServerKey {
         let shift_plaintext = self.encoding().encode(Cleartext(1u64)).0;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
-        let mut d_decomposed_scalar =
-            CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0);
-        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+        let mut d_decomposed_scalar = unsafe {
+            CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
+        };
+        unsafe {
+            d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+        }
 
         cuda_lwe_ciphertext_plaintext_add_assign(
             &mut ct.0.as_mut().d_blocks,
@@ -118,17 +121,6 @@ impl CudaServerKey {
             streams,
         );
         // Neither noise level nor the degree changes
-    }
-
-    pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct: &mut T,
-        streams: &CudaStreams,
-    ) {
-        unsafe {
-            self.unchecked_bitnot_assign_async(ct, streams);
-        }
-        streams.synchronize();
     }
 
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -185,11 +177,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_bitop_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitop_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -207,62 +195,64 @@ impl CudaServerKey {
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_bitop_assign(
-                    streams,
-                    ct_left.as_mut(),
-                    ct_right.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    op,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_bitop_assign(
-                    streams,
-                    ct_left.as_mut(),
-                    ct_right.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    op,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_bitop_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        op,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_bitop_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        op,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
             }
         }
     }
@@ -385,10 +375,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) {
-        unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::And, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(ct_left, ct_right, BitOpType::And, streams);
     }
 
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
@@ -451,10 +438,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) {
-        unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Or, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(ct_left, ct_right, BitOpType::Or, streams);
     }
 
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
@@ -517,10 +501,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) {
-        unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Xor, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(ct_left, ct_right, BitOpType::Xor, streams);
     }
 
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -577,11 +558,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn bitand_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub fn bitand_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -611,19 +588,7 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
         };
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::And, streams);
-    }
-
-    pub fn bitand_assign<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct_left: &mut T,
-        ct_right: &T,
-        streams: &CudaStreams,
-    ) {
-        unsafe {
-            self.bitand_assign_async(ct_left, ct_right, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(lhs, rhs, BitOpType::And, streams);
     }
 
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
@@ -680,11 +645,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn bitor_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub fn bitor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -715,19 +676,7 @@ impl CudaServerKey {
             }
         };
 
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Or, streams);
-    }
-
-    pub fn bitor_assign<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct_left: &mut T,
-        ct_right: &T,
-        streams: &CudaStreams,
-    ) {
-        unsafe {
-            self.bitor_assign_async(ct_left, ct_right, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(lhs, rhs, BitOpType::Or, streams);
     }
 
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
@@ -784,11 +733,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn bitxor_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub fn bitxor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -819,19 +764,7 @@ impl CudaServerKey {
             }
         };
 
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Xor, streams);
-    }
-
-    pub fn bitxor_assign<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct_left: &mut T,
-        ct_right: &T,
-        streams: &CudaStreams,
-    ) {
-        unsafe {
-            self.bitxor_assign_async(ct_left, ct_right, streams);
-        }
-        streams.synchronize();
+        self.unchecked_bitop_assign(lhs, rhs, BitOpType::Xor, streams);
     }
 
     /// Computes homomorphically bitnot for an encrypted integer value.
@@ -880,28 +813,14 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct: &mut T,
-        streams: &CudaStreams,
-    ) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, streams: &CudaStreams) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }
 
-        self.unchecked_bitnot_assign_async(ct, streams);
+        self.unchecked_bitnot_assign(ct, streams);
     }
 
-    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, streams: &CudaStreams) {
-        unsafe {
-            self.bitnot_assign_async(ct, streams);
-        }
-        streams.synchronize();
-    }
     pub fn get_bitand_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
@@ -910,6 +829,7 @@ impl CudaServerKey {
     ) -> u64 {
         self.get_bitop_size_on_gpu(ct_left, ct_right, BitOpType::And, streams)
     }
+
     pub fn get_bitor_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
@@ -918,6 +838,7 @@ impl CudaServerKey {
     ) -> u64 {
         self.get_bitop_size_on_gpu(ct_left, ct_right, BitOpType::Or, streams)
     }
+
     pub fn get_bitxor_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,

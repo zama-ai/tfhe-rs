@@ -52,32 +52,19 @@ impl CudaServerKey {
         ctxt: &T,
         streams: &CudaStreams,
     ) -> T {
-        let result = unsafe { self.unchecked_neg_async(ctxt, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_neg_async<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ctxt: &T,
-        streams: &CudaStreams,
-    ) -> T {
         let mut ciphertext_out = ctxt.duplicate(streams);
 
         let info = ctxt.as_ref().info.blocks.first().unwrap();
 
-        cuda_backend_unchecked_negate(
-            streams,
-            ciphertext_out.as_mut(),
-            ctxt.as_ref(),
-            info.message_modulus.0 as u32,
-            info.carry_modulus.0 as u32,
-        );
-
+        unsafe {
+            cuda_backend_unchecked_negate(
+                streams,
+                ciphertext_out.as_mut(),
+                ctxt.as_ref(),
+                info.message_modulus.0 as u32,
+                info.carry_modulus.0 as u32,
+            );
+        }
         ciphertext_out
     }
 
@@ -121,28 +108,6 @@ impl CudaServerKey {
     /// assert_eq!(modulus - msg, dec);
     /// ```
     pub fn neg<T: CudaIntegerRadixCiphertext>(&self, ctxt: &T, streams: &CudaStreams) -> T {
-        let result = unsafe { self.neg_async(ctxt, streams) };
-        streams.synchronize();
-        result
-    }
-
-    pub fn get_neg_size_on_gpu<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ctxt: &T,
-        streams: &CudaStreams,
-    ) -> u64 {
-        self.get_scalar_add_size_on_gpu(ctxt, streams)
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn neg_async<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ctxt: &T,
-        streams: &CudaStreams,
-    ) -> T {
         let mut tmp_ctxt;
 
         let ct = if ctxt.block_carries_are_empty() {
@@ -153,20 +118,20 @@ impl CudaServerKey {
             &mut tmp_ctxt
         };
 
-        let mut res = self.unchecked_neg_async(ct, streams);
+        let mut res = self.unchecked_neg(ct, streams);
         let _carry = self.propagate_single_carry_assign(&mut res, streams, None, OutputFlag::None);
         res
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn overflowing_neg_async<T>(
+    pub fn get_neg_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ctxt: &T,
         streams: &CudaStreams,
-    ) -> (T, CudaBooleanBlock)
+    ) -> u64 {
+        self.get_scalar_add_size_on_gpu(ctxt, streams)
+    }
+
+    pub fn overflowing_neg<T>(&self, ctxt: &T, streams: &CudaStreams) -> (T, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -178,7 +143,7 @@ impl CudaServerKey {
             ct
         };
 
-        self.bitnot_assign_async(&mut ct, streams);
+        self.bitnot_assign(&mut ct, streams);
 
         if T::IS_SIGNED {
             let tmp = CudaSignedRadixCiphertext {
@@ -192,18 +157,9 @@ impl CudaServerKey {
                 ciphertext: ct.into_inner(),
             };
             let mut overflowed = self.unsigned_overflowing_scalar_add_assign(&mut tmp, 1, streams);
-            self.unchecked_boolean_bitnot_assign_async(&mut overflowed, streams);
+            self.unchecked_boolean_bitnot_assign(&mut overflowed, streams);
             let result = T::from(tmp.into_inner());
             (result, overflowed)
         }
-    }
-
-    pub fn overflowing_neg<T>(&self, ctxt: &T, streams: &CudaStreams) -> (T, CudaBooleanBlock)
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.overflowing_neg_async(ctxt, streams) };
-        streams.synchronize();
-        result
     }
 }

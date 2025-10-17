@@ -297,7 +297,7 @@ impl CudaServerKey {
                 )
             } else {
                 let scalar_as_trivial = self.create_trivial_radix(scalar, num_blocks, streams);
-                self.unchecked_comparison_async(ct, &scalar_as_trivial, op, streams)
+                self.unchecked_comparison(ct, &scalar_as_trivial, op, streams)
             }
         } else {
             // Unsigned
