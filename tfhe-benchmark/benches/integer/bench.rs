@@ -727,7 +727,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let false_ct = cks.encrypt_radix(clear_1, num_block);
 
-                let condition = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
 
                 reset_pbs_count();
                 sks.flip_parallelized(&condition, &true_ct, &false_ct);
@@ -742,7 +742,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -3488,7 +3488,10 @@ criterion_group!(
     eq_parallelized,
     gt_parallelized,
     if_then_else_parallelized,
-    flip_parallelized
+    flip_parallelized,
+    neg_parallelized,
+    leading_zeros_parallelized,
+    ilog2_parallelized,
 );
 
 criterion_group!(

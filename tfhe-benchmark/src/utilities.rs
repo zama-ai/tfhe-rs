@@ -470,7 +470,7 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
 
 // Given an `Op` this returns how many more ops should be done in parallel
 // to saturate the CPU and have a better throughput measurement
-#[cfg(feature = "integer")]
+#[cfg(all(feature = "integer", feature = "pbs-stats"))]
 pub fn hlapi_throughput_num_ops<Op>(op: Op, cks: &tfhe::ClientKey) -> usize
 where
     Op: FnOnce(),
