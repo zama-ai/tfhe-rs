@@ -657,6 +657,10 @@ criterion_group!(
     eq_parallelized,
     gt_parallelized,
     signed_if_then_else_parallelized,
+    signed_flip_parallelized,
+    neg_parallelized,
+    leading_zeros_parallelized,
+    ilog2_parallelized,
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -1008,6 +1012,114 @@ fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> ScalarType {
             return scalar;
         }
     }
+}
+
+fn signed_flip_parallelized(c: &mut Criterion) {
+    let bench_name = "integer::flip_parallelized";
+    let display_name = "flip";
+
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        let param_name = param.name();
+
+        let bench_id;
+
+        match get_bench_type() {
+            BenchmarkType::Latency => {
+                let bench_data = LazyCell::new(|| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let clear_0 = gen_random_i256(&mut rng);
+                    let clear_1 = gen_random_i256(&mut rng);
+                    let clear_cond = rng.gen_bool(0.5);
+
+                    let true_ct = cks.encrypt_signed_radix(clear_0, num_block);
+                    let false_ct = cks.encrypt_signed_radix(clear_1, num_block);
+                    let condition = cks.encrypt_bool(clear_cond);
+
+                    (sks, condition, true_ct, false_ct)
+                });
+
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (sks, condition, true_ct, false_ct) =
+                        (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
+
+                    b.iter(|| sks.flip_parallelized(condition, true_ct, false_ct))
+                });
+            }
+            BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_0 = gen_random_i256(&mut rng);
+                let true_ct = cks.encrypt_signed_radix(clear_0, num_block);
+
+                let clear_1 = gen_random_i256(&mut rng);
+                let false_ct = cks.encrypt_signed_radix(clear_1, num_block);
+
+                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
+
+                reset_pbs_count();
+                sks.flip_parallelized(&condition, &true_ct, &false_ct);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
+                let elements = throughput_num_threads(num_block, pbs_count);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let setup_encrypted_values = || {
+                        let cts_cond = (0..elements)
+                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
+                            .collect::<Vec<_>>();
+
+                        let cts_then = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+                        let cts_else = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+
+                        (cts_cond, cts_then, cts_else)
+                    };
+
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(cts_cond, cts_then, cts_else)| {
+                            cts_cond
+                                .par_iter()
+                                .zip(cts_then.par_iter())
+                                .zip(cts_else.par_iter())
+                                .for_each(|((condition, true_ct), false_ct)| {
+                                    sks.flip_parallelized(condition, true_ct, false_ct);
+                                })
+                        },
+                        criterion::BatchSize::SmallInput,
+                    );
+                });
+            }
+        }
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus().0.ilog2(); num_block],
+        );
+    }
+
+    bench_group.finish()
 }
 
 macro_rules! define_server_key_bench_binary_scalar_clean_inputs_fn (
