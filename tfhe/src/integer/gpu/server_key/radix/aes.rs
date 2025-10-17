@@ -133,18 +133,15 @@ impl CudaServerKey {
                 self.get_aes_encrypt_size_on_gpu(num_aes_inputs, parallelism, streams);
 
             if check_valid_cuda_malloc(aes_encrypt_size, streams.gpu_indexes[0]) {
-                let round_keys = unsafe { self.key_expansion_async(key, streams) };
-                let res = unsafe {
-                    self.aes_encrypt_async(
-                        iv,
-                        &round_keys,
-                        start_counter,
-                        num_aes_inputs,
-                        parallelism,
-                        streams,
-                    )
-                };
-                streams.synchronize();
+                let round_keys = self.key_expansion(key, streams);
+                let res = self.aes_encrypt(
+                    iv,
+                    &round_keys,
+                    start_counter,
+                    num_aes_inputs,
+                    parallelism,
+                    streams,
+                );
                 return res;
             }
             parallelism /= 2;
@@ -176,26 +173,18 @@ impl CudaServerKey {
             self.get_aes_encrypt_size_on_gpu(num_aes_inputs, sbox_parallelism, streams);
         check_valid_cuda_malloc_assert_oom(aes_encrypt_size, gpu_index);
 
-        let round_keys = unsafe { self.key_expansion_async(key, streams) };
-        let res = unsafe {
-            self.aes_encrypt_async(
-                iv,
-                &round_keys,
-                start_counter,
-                num_aes_inputs,
-                sbox_parallelism,
-                streams,
-            )
-        };
-        streams.synchronize();
-        res
+        let round_keys = self.key_expansion(key, streams);
+        self.aes_encrypt(
+            iv,
+            &round_keys,
+            start_counter,
+            num_aes_inputs,
+            sbox_parallelism,
+            streams,
+        )
     }
 
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
-    pub unsafe fn aes_encrypt_async(
+    pub fn aes_encrypt(
         &self,
         iv: &CudaUnsignedRadixCiphertext,
         round_keys: &CudaUnsignedRadixCiphertext,
@@ -229,79 +218,64 @@ impl CudaServerKey {
             result.as_ref().d_blocks.lwe_ciphertext_count().0
         );
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_aes_ctr_encrypt(
-                    streams,
-                    result.as_mut(),
-                    iv.as_ref(),
-                    round_keys.as_ref(),
-                    start_counter,
-                    num_aes_inputs as u32,
-                    sbox_parallelism as u32,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_aes_ctr_encrypt(
-                    streams,
-                    result.as_mut(),
-                    iv.as_ref(),
-                    round_keys.as_ref(),
-                    start_counter,
-                    num_aes_inputs as u32,
-                    sbox_parallelism as u32,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_aes_ctr_encrypt(
+                        streams,
+                        result.as_mut(),
+                        iv.as_ref(),
+                        round_keys.as_ref(),
+                        start_counter,
+                        num_aes_inputs as u32,
+                        sbox_parallelism as u32,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_aes_ctr_encrypt(
+                        streams,
+                        result.as_mut(),
+                        iv.as_ref(),
+                        round_keys.as_ref(),
+                        start_counter,
+                        num_aes_inputs as u32,
+                        sbox_parallelism as u32,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
         result
     }
 
-    fn get_aes_encrypt_size_on_gpu(
-        &self,
-        num_aes_inputs: usize,
-        sbox_parallelism: usize,
-        streams: &CudaStreams,
-    ) -> u64 {
-        let size = unsafe {
-            self.get_aes_encrypt_size_on_gpu_async(num_aes_inputs, sbox_parallelism, streams)
-        };
-        streams.synchronize();
-        size
-    }
-
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
-    unsafe fn get_aes_encrypt_size_on_gpu_async(
+    pub fn get_aes_encrypt_size_on_gpu(
         &self,
         num_aes_inputs: usize,
         sbox_parallelism: usize,
@@ -347,11 +321,7 @@ impl CudaServerKey {
         }
     }
 
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
-    pub unsafe fn key_expansion_async(
+    pub fn key_expansion(
         &self,
         key: &CudaUnsignedRadixCiphertext,
         streams: &CudaStreams,
@@ -369,64 +339,56 @@ impl CudaServerKey {
             key.as_ref().d_blocks.lwe_ciphertext_count().0
         );
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_aes_key_expansion(
-                    streams,
-                    expanded_keys.as_mut(),
-                    key.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_aes_key_expansion(
-                    streams,
-                    expanded_keys.as_mut(),
-                    key.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_aes_key_expansion(
+                        streams,
+                        expanded_keys.as_mut(),
+                        key.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_aes_key_expansion(
+                        streams,
+                        expanded_keys.as_mut(),
+                        key.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
         expanded_keys
     }
 
-    fn get_key_expansion_size_on_gpu(&self, streams: &CudaStreams) -> u64 {
-        let size = unsafe { self.get_key_expansion_size_on_gpu_async(streams) };
-        streams.synchronize();
-        size
-    }
-
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
-    unsafe fn get_key_expansion_size_on_gpu_async(&self, streams: &CudaStreams) -> u64 {
+    pub fn get_key_expansion_size_on_gpu(&self, streams: &CudaStreams) -> u64 {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_aes_key_expansion_size_on_gpu(
                 streams,
