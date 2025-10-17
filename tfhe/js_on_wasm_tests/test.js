@@ -7,11 +7,22 @@ const {
   BooleanParameterSet,
   ShortintParametersName,
   ShortintParameters,
+  shortint_params_name,
 } = require("../pkg");
 
 function genRandomBigIntWithBytes(byteCount) {
   return BigInt("0x" + crypto.randomBytes(byteCount).toString("hex"));
 }
+
+test("invalid variant of ShortintParametersName", (t) => {
+  assert.throws(() => {
+    shortint_params_name(ShortintParametersName.IDontExist);
+  });
+
+  assert.throws(() => {
+    new ShortintParameters(ShortintParametersName.IDontExist);
+  });
+});
 
 // Boolean tests
 test("boolean_encrypt_decrypt", (t) => {
