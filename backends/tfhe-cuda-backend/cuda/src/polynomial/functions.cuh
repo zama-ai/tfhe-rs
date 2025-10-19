@@ -160,6 +160,33 @@ __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial(
 }
 
 /*
+ * Receives num_poly  concatenated polynomials of type T. For each:
+ *
+ * Performs result_acc = acc * (X^ä - 1) - acc
+ * takes single buffer as input and returns a single rotated buffer
+ * result_acc must be in registers
+ * acc must be in shared memory
+ *  By default, it works on a single polynomial.
+ */
+template <typename T, int elems_per_thread, int block_size>
+__device__ void multiply_by_monomial_negacyclic_and_sub_polynomial_in_regs(
+    T *acc, T *result_acc, uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  int tid = threadIdx.x;
+  for (int i = 0; i < elems_per_thread; i++) {
+    if (j < degree) {
+      int x = tid - j + SEL(0, degree, tid < j);
+      result_acc[i] = SEL(1, -1, tid < j) * acc[x] - acc[tid];
+    } else {
+      int32_t jj = j - degree;
+      int x = tid - jj + SEL(0, degree, tid < jj);
+      result_acc[i] = SEL(-1, 1, tid < jj) * acc[x] - acc[tid];
+    }
+    tid += block_size;
+  }
+}
+
+/*
  * Receives num_poly  concatenated polynomials of type T. For each performs a
  * rounding to increase accuracy of the PBS. Calculates inplace.
  *
@@ -248,6 +275,31 @@ __device__ void add_to_torus_2_2_params(double2 *m_values, Torus *result) {
 
     result[i] = torus_real;
     result[i + params::opt / 2] = torus_imag;
+
+    tid = tid + params::degree / params::opt;
+  }
+}
+/**
+ * In case of 2_2_classical PBS, this method should accumulate the result.
+ * and the result is stored in shared memory
+ */
+template <typename Torus, class params>
+__device__ void add_to_torus_2_2_params_using_shared(double2 *m_values,
+                                                     Torus *result) {
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    double double_real = m_values[i].x;
+    double double_imag = m_values[i].y;
+
+    Torus torus_real = 0;
+    typecast_double_round_to_torus<Torus>(double_real, torus_real);
+
+    Torus torus_imag = 0;
+    typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
+
+    result[tid] += torus_real;
+    result[tid + params::degree / 2] += torus_imag;
 
     tid = tid + params::degree / params::opt;
   }
