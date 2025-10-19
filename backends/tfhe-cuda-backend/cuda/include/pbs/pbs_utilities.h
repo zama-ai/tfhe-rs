@@ -52,6 +52,14 @@ uint64_t get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
 }
 
 template <typename Torus>
+uint64_t get_buffer_size_full_sm_programmable_bootstrap_tbc_2_2_params(
+    uint32_t polynomial_size) {
+  // In the first implementation with 2-2 params, we need up to 5 polynomials in
+  // shared memory we can optimize this later
+  return sizeof(Torus) * polynomial_size * 5;
+}
+
+template <typename Torus>
 uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;

@@ -43,9 +43,8 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(
                                       max_shared_memory);
   case 2048:
     return supports_thread_block_clusters_on_classic_programmable_bootstrap<
-        Torus, AmortizedDegree<2048>>(num_samples, glwe_dimension,
-                                      polynomial_size, level_count,
-                                      max_shared_memory);
+        Torus, Degree<2048>>(num_samples, glwe_dimension, polynomial_size,
+                             level_count, max_shared_memory);
   case 4096:
     return supports_thread_block_clusters_on_classic_programmable_bootstrap<
         Torus, AmortizedDegree<4096>>(num_samples, glwe_dimension,
@@ -96,7 +95,7 @@ uint64_t scratch_cuda_programmable_bootstrap_tbc(
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
   case 2048:
-    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<2048>>(
+    return scratch_programmable_bootstrap_tbc<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
@@ -159,7 +158,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 2048:
-    host_programmable_bootstrap_tbc<Torus, AmortizedDegree<2048>>(
+    host_programmable_bootstrap_tbc<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
