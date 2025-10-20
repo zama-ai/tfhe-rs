@@ -61,23 +61,6 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_sub_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let negated_scalar = scalar.twos_complement_negation();
-        self.unchecked_scalar_add_assign_async(ct, negated_scalar, streams);
-    }
-
     pub fn unchecked_scalar_sub_assign<Scalar, T>(
         &self,
         ct: &mut T,
@@ -87,10 +70,8 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
-        }
-        streams.synchronize();
+        let negated_scalar = scalar.twos_complement_negation();
+        self.unchecked_scalar_add_assign(ct, negated_scalar, streams);
     }
 
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
@@ -148,16 +129,8 @@ impl CudaServerKey {
         self.get_scalar_sub_assign_size_on_gpu(ct, streams)
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_sub_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
+    pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
+    where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -165,19 +138,8 @@ impl CudaServerKey {
             self.full_propagate_assign(ct, streams);
         }
 
-        self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
+        self.unchecked_scalar_sub_assign(ct, scalar, streams);
         let _carry = self.propagate_single_carry_assign(ct, streams, None, OutputFlag::None);
-    }
-
-    pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
-    where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.scalar_sub_assign_async(ct, scalar, streams);
-        }
-        streams.synchronize();
     }
 
     pub fn get_scalar_sub_assign_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64

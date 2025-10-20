@@ -13,100 +13,6 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_left_shift_async<Scalar, T>(
-        &self,
-        ct: &T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_scalar_left_shift_assign_async(&mut result, shift, streams);
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_left_shift_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_scalar_left_shift_assign(
-                    streams,
-                    ct.as_mut(),
-                    u32::cast_from(shift),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_scalar_left_shift_assign(
-                    streams,
-                    ct.as_mut(),
-                    u32::cast_from(shift),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
-            }
-        }
-    }
-
     /// Computes homomorphically a left shift by a scalar.
     ///
     /// The result is returned as a new ciphertext.
@@ -154,36 +60,12 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.unchecked_scalar_left_shift_async(ct, shift, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_right_shift_async<Scalar, T>(
-        &self,
-        ct: &T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut result = ct.duplicate(streams);
-        self.unchecked_scalar_right_shift_assign_async(&mut result, shift, streams);
+        self.unchecked_scalar_left_shift_assign(&mut result, shift, streams);
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_right_shift_assign_async<Scalar, T>(
+    pub fn unchecked_scalar_left_shift_assign<Scalar, T>(
         &self,
         ct: &mut T,
         shift: Scalar,
@@ -195,65 +77,10 @@ impl CudaServerKey {
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
-        if T::IS_SIGNED {
+        unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
-                        streams,
-                        ct.as_mut(),
-                        u32::cast_from(shift),
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
-                        streams,
-                        ct.as_mut(),
-                        u32::cast_from(shift),
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        None,
-                    );
-                }
-            }
-        } else {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_scalar_logical_right_shift_assign(
+                    cuda_backend_unchecked_scalar_left_shift_assign(
                         streams,
                         ct.as_mut(),
                         u32::cast_from(shift),
@@ -280,7 +107,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_scalar_logical_right_shift_assign(
+                    cuda_backend_unchecked_scalar_left_shift_assign(
                         streams,
                         ct.as_mut(),
                         u32::cast_from(shift),
@@ -357,16 +184,141 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.unchecked_scalar_right_shift_async(ct, shift, streams) };
-        streams.synchronize();
+        let mut result = ct.duplicate(streams);
+        self.unchecked_scalar_right_shift_assign(&mut result, shift, streams);
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_right_shift_assign_async<Scalar, T>(
+    pub fn unchecked_scalar_right_shift_assign<Scalar, T>(
+        &self,
+        ct: &mut T,
+        shift: Scalar,
+        streams: &CudaStreams,
+    ) where
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
+        T: CudaIntegerRadixCiphertext,
+    {
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        unsafe {
+            if T::IS_SIGNED {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
+                            streams,
+                            ct.as_mut(),
+                            u32::cast_from(shift),
+                            &d_bsk.d_vec,
+                            &self.key_switching_key.d_vec,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            d_bsk.glwe_dimension,
+                            d_bsk.polynomial_size,
+                            self.key_switching_key
+                                .input_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key
+                                .output_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key.decomposition_level_count(),
+                            self.key_switching_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count,
+                            d_bsk.decomp_base_log,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
+                            streams,
+                            ct.as_mut(),
+                            u32::cast_from(shift),
+                            &d_multibit_bsk.d_vec,
+                            &self.key_switching_key.d_vec,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            d_multibit_bsk.glwe_dimension,
+                            d_multibit_bsk.polynomial_size,
+                            self.key_switching_key
+                                .input_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key
+                                .output_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key.decomposition_level_count(),
+                            self.key_switching_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count,
+                            d_multibit_bsk.decomp_base_log,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            None,
+                        );
+                    }
+                }
+            } else {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_unchecked_scalar_logical_right_shift_assign(
+                            streams,
+                            ct.as_mut(),
+                            u32::cast_from(shift),
+                            &d_bsk.d_vec,
+                            &self.key_switching_key.d_vec,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            d_bsk.glwe_dimension,
+                            d_bsk.polynomial_size,
+                            self.key_switching_key
+                                .input_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key
+                                .output_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key.decomposition_level_count(),
+                            self.key_switching_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count,
+                            d_bsk.decomp_base_log,
+                            lwe_ciphertext_count.0 as u32,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_unchecked_scalar_logical_right_shift_assign(
+                            streams,
+                            ct.as_mut(),
+                            u32::cast_from(shift),
+                            &d_multibit_bsk.d_vec,
+                            &self.key_switching_key.d_vec,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            d_multibit_bsk.glwe_dimension,
+                            d_multibit_bsk.polynomial_size,
+                            self.key_switching_key
+                                .input_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key
+                                .output_key_lwe_size()
+                                .to_lwe_dimension(),
+                            self.key_switching_key.decomposition_level_count(),
+                            self.key_switching_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count,
+                            d_multibit_bsk.decomp_base_log,
+                            lwe_ciphertext_count.0 as u32,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            None,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn scalar_right_shift_assign<Scalar, T>(
         &self,
         ct: &mut T,
         shift: Scalar,
@@ -380,27 +332,7 @@ impl CudaServerKey {
             self.full_propagate_assign(ct, streams);
         }
 
-        self.unchecked_scalar_right_shift_assign_async(ct, shift, streams);
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_right_shift_async<Scalar, T>(
-        &self,
-        ct: &T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.scalar_right_shift_assign_async(&mut result, shift, streams);
-        result
+        self.unchecked_scalar_right_shift_assign(ct, shift, streams);
     }
 
     /// Computes homomorphically a right shift by a scalar.
@@ -445,49 +377,8 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.scalar_right_shift_async(ct, shift, streams) };
-        streams.synchronize();
-        result
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_left_shift_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_assign(ct, streams);
-        }
-
-        self.unchecked_scalar_left_shift_assign_async(ct, shift, streams);
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_left_shift_async<Scalar, T>(
-        &self,
-        ct: &T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut result = ct.duplicate(streams);
-        self.scalar_left_shift_assign_async(&mut result, shift, streams);
+        self.scalar_right_shift_assign(&mut result, shift, streams);
         result
     }
 
@@ -533,8 +424,8 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.scalar_left_shift_async(ct, shift, streams) };
-        streams.synchronize();
+        let mut result = ct.duplicate(streams);
+        self.scalar_left_shift_assign(&mut result, shift, streams);
         result
     }
 
@@ -552,104 +443,7 @@ impl CudaServerKey {
             self.full_propagate_assign(ct, streams);
         }
 
-        unsafe {
-            self.unchecked_scalar_left_shift_assign_async(ct, shift, streams);
-        };
-        streams.synchronize();
-    }
-
-    pub fn scalar_right_shift_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_assign(ct, streams);
-        }
-
-        unsafe {
-            self.unchecked_scalar_right_shift_assign_async(ct, shift, streams);
-        };
-        streams.synchronize();
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_right_shift_logical_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        shift: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_scalar_logical_right_shift_assign(
-                    streams,
-                    ct.as_mut(),
-                    u32::cast_from(shift),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_scalar_logical_right_shift_assign(
-                    streams,
-                    ct.as_mut(),
-                    u32::cast_from(shift),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
-            }
-        }
+        self.unchecked_scalar_left_shift_assign(ct, shift, streams);
     }
 
     pub fn get_scalar_left_shift_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64

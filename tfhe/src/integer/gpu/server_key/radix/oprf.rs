@@ -51,11 +51,7 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let result = unsafe {
-            self.generate_oblivious_pseudo_random_unbounded_integer_async(seed, num_blocks, streams)
-        };
-        streams.synchronize();
-        result
+        self.generate_oblivious_pseudo_random_unbounded_integer(seed, num_blocks, streams)
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -97,24 +93,20 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let result = unsafe {
-            let message_bits_count = self.message_modulus.0.ilog2() as u64;
-            let range_log_size = message_bits_count * num_blocks;
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let range_log_size = message_bits_count * num_blocks;
 
-            assert!(
+        assert!(
                 random_bits_count <= range_log_size,
                 "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
             );
 
-            self.generate_oblivious_pseudo_random_bounded_integer_async(
-                seed,
-                random_bits_count,
-                num_blocks,
-                streams,
-            )
-        };
-        streams.synchronize();
-        result
+        self.generate_oblivious_pseudo_random_bounded_integer(
+            seed,
+            random_bits_count,
+            num_blocks,
+            streams,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -150,11 +142,7 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        let result = unsafe {
-            self.generate_oblivious_pseudo_random_unbounded_integer_async(seed, num_blocks, streams)
-        };
-        streams.synchronize();
-        result
+        self.generate_oblivious_pseudo_random_unbounded_integer(seed, num_blocks, streams)
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -198,28 +186,24 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        let result = unsafe {
-            let message_bits_count = self.message_modulus.0.ilog2() as u64;
-            let range_log_size = message_bits_count * num_blocks;
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let range_log_size = message_bits_count * num_blocks;
 
-            #[allow(clippy::int_plus_one)]
-            {
-                assert!(
-                    random_bits_count + 1 <= range_log_size,
-                    "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
-                    random_bits_count, range_log_size - 1, range_log_size - 1,
-                );
-            }
+        #[allow(clippy::int_plus_one)]
+        {
+            assert!(
+                random_bits_count + 1 <= range_log_size,
+                "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
+                random_bits_count, range_log_size - 1, range_log_size - 1,
+            );
+        }
 
-            self.generate_oblivious_pseudo_random_bounded_integer_async(
-                seed,
-                random_bits_count,
-                num_blocks,
-                streams,
-            )
-        };
-        streams.synchronize();
-        result
+        self.generate_oblivious_pseudo_random_bounded_integer(
+            seed,
+            random_bits_count,
+            num_blocks,
+            streams,
+        )
     }
 
     // Generic interface to generate a single-block oblivious pseudo-random integer.
@@ -246,22 +230,13 @@ impl CudaServerKey {
             "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
         );
 
-        let result = unsafe {
-            self.generate_oblivious_pseudo_random_bounded_integer_async(
-                seed,
-                random_bits_count,
-                1,
-                streams,
-            )
-        };
-        streams.synchronize();
-        result
+        self.generate_oblivious_pseudo_random_bounded_integer(seed, random_bits_count, 1, streams)
     }
 
     // Generic internal implementation for unbounded pseudo-random generation.
     // It calls the core implementation with parameters for the unbounded case.
     //
-    unsafe fn generate_oblivious_pseudo_random_unbounded_integer_async<T>(
+    fn generate_oblivious_pseudo_random_unbounded_integer<T>(
         &self,
         seed: Seed,
         num_blocks: u64,
@@ -280,7 +255,7 @@ impl CudaServerKey {
             return result;
         }
 
-        self.generate_multiblocks_oblivious_pseudo_random_async(
+        self.generate_multiblocks_oblivious_pseudo_random(
             result.as_mut(),
             seed,
             num_blocks,
@@ -294,7 +269,7 @@ impl CudaServerKey {
     // Generic internal implementation for bounded pseudo-random generation.
     // It calls the core implementation with parameters for the bounded case.
     //
-    unsafe fn generate_oblivious_pseudo_random_bounded_integer_async<T>(
+    fn generate_oblivious_pseudo_random_bounded_integer<T>(
         &self,
         seed: Seed,
         random_bits_count: u64,
@@ -318,7 +293,7 @@ impl CudaServerKey {
             return result;
         }
 
-        self.generate_multiblocks_oblivious_pseudo_random_async(
+        self.generate_multiblocks_oblivious_pseudo_random(
             result.as_mut(),
             seed,
             num_active_blocks,
@@ -331,7 +306,7 @@ impl CudaServerKey {
     // Core private implementation that calls the OPRF backend.
     // This function contains the main logic for both bounded and unbounded generation.
     //
-    unsafe fn generate_multiblocks_oblivious_pseudo_random_async(
+    fn generate_multiblocks_oblivious_pseudo_random(
         &self,
         result: &mut CudaRadixCiphertext,
         seed: Seed,
@@ -369,57 +344,62 @@ impl CudaServerKey {
             })
             .collect();
 
-        let mut d_seeded_lwe_input = CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0);
-        d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
+        let mut d_seeded_lwe_input =
+            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
+        unsafe {
+            d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
+        }
 
         let message_bits_count = self.message_modulus.0.ilog2();
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_grouped_oprf(
-                    streams,
-                    result,
-                    &d_seeded_lwe_input,
-                    num_active_blocks as u32,
-                    &d_bsk.d_vec,
-                    d_bsk.input_lwe_dimension,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    message_bits_count,
-                    total_random_bits as u32,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_bsk) => {
-                cuda_backend_grouped_oprf(
-                    streams,
-                    result,
-                    &d_seeded_lwe_input,
-                    num_active_blocks as u32,
-                    &d_bsk.d_vec,
-                    d_bsk.input_lwe_dimension,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    d_bsk.grouping_factor,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    message_bits_count,
-                    total_random_bits as u32,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_grouped_oprf(
+                        streams,
+                        result,
+                        &d_seeded_lwe_input,
+                        num_active_blocks as u32,
+                        &d_bsk.d_vec,
+                        d_bsk.input_lwe_dimension,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        message_bits_count,
+                        total_random_bits as u32,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_bsk) => {
+                    cuda_backend_grouped_oprf(
+                        streams,
+                        result,
+                        &d_seeded_lwe_input,
+                        num_active_blocks as u32,
+                        &d_bsk.d_vec,
+                        d_bsk.input_lwe_dimension,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        d_bsk.grouping_factor,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        message_bits_count,
+                        total_random_bits as u32,
+                        None,
+                    );
+                }
             }
         }
     }
