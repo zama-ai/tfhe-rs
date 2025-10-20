@@ -3,15 +3,19 @@
 void extend_radix_with_trivial_zero_blocks_msb_64(
     CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
     CudaStreamsFFI streams) {
-  host_extend_radix_with_trivial_zero_blocks_msb<uint64_t>(
-      output, input, CudaStreams(streams));
+  auto cuda_streams = CudaStreams(streams);
+  host_extend_radix_with_trivial_zero_blocks_msb<uint64_t>(output, input,
+                                                           cuda_streams);
+  cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
 void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
                               CudaRadixCiphertextFFI const *input,
                               CudaStreamsFFI streams) {
 
-  host_trim_radix_blocks_lsb<uint64_t>(output, input, CudaStreams(streams));
+  auto cuda_streams = CudaStreams(streams);
+  host_trim_radix_blocks_lsb<uint64_t>(output, input, cuda_streams);
+  cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
 uint64_t scratch_cuda_extend_radix_with_sign_msb_64(

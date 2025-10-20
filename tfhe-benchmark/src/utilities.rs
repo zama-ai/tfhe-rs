@@ -660,17 +660,17 @@ mod cuda_utils {
     impl<T: Numeric> CudaIndexes<T> {
         pub fn new(indexes: &[T], stream: &CudaStreams, stream_index: u32) -> Self {
             let length = indexes.len();
-            let mut d_input = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
-            let mut d_output = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
-            let mut d_lut = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+            let mut d_input = CudaVec::<T>::new(length, stream, stream_index);
+            let mut d_output = CudaVec::<T>::new(length, stream, stream_index);
+            let mut d_lut = CudaVec::<T>::new(length, stream, stream_index);
             let zeros = vec![T::ZERO; length];
 
             unsafe {
                 d_input.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
                 d_output.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
                 d_lut.copy_from_cpu_async(zeros.as_ref(), stream, stream_index);
+                stream.synchronize();
             }
-            stream.synchronize();
 
             Self {
                 d_input,
