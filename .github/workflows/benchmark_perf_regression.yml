@@ -45,8 +45,8 @@ jobs:
       selected-regression-profile: ${{ steps.set_regression_details.outputs.selected-profile }}
       custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
     permissions:
-      # Needed to react to benchmark command in issue comment
-      issues: write
+      # Needed to write a comment in a pull-request
+      pull-requests: write
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
