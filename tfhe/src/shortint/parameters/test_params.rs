@@ -1,13 +1,11 @@
 use super::current_params::*;
 use super::{
-    AtomicPatternParameters, KeySwitch32PBSParameters, NoiseSquashingCompressionParameters,
-    NoiseSquashingParameters,
+    AtomicPatternParameters, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
+    CompressionParameters, KeySwitch32PBSParameters, MultiBitPBSParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
-
-use super::{
-    ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MultiBitPBSParameters, ShortintKeySwitchingParameters,
-};
+use crate::core_crypto::prelude::*;
+use crate::shortint::parameters::list_compression::MultiBitCompressionParameters;
 
 /// Alias for the type of parameters used by tests
 pub type TestParameters = AtomicPatternParameters;
@@ -231,3 +229,17 @@ pub const TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFOR
 
 pub const TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     NoiseSquashingParameters = V1_5_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const TEST_PARAM_COMP_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_MB_GPU: CompressionParameters =
+    CompressionParameters::MultiBit(MultiBitCompressionParameters {
+        packing_ks_level: DecompositionLevelCount(3),
+        packing_ks_base_log: DecompositionBaseLog(4),
+        packing_ks_polynomial_size: PolynomialSize(256),
+        packing_ks_glwe_dimension: GlweDimension(4),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
+        lwe_per_glwe: LweCiphertextCount(256),
+        storage_log_modulus: CiphertextModulusLog(12),
+        br_level: DecompositionLevelCount(1),
+        br_base_log: DecompositionBaseLog(22),
+        decompression_grouping_factor: LweBskGroupingFactor(4),
+    });
