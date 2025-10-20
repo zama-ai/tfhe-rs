@@ -44,10 +44,10 @@ crate::impl_fw!("Llt" [
 
     // NB: fallback to ilp
     // TODO: Add dedicated llt implementation
-    ROTS_R => fw_impl::ilp::iop_rotate_scalar_right;
-    ROTS_L => fw_impl::ilp::iop_rotate_scalar_left;
-    SHIFTS_R => fw_impl::ilp::iop_shift_scalar_right;
-    SHIFTS_L => fw_impl::ilp::iop_shift_scalar_left;
+    ROTS_R => fw_impl::llt::iop_rotate_scalar_right;
+    ROTS_L => fw_impl::llt::iop_rotate_scalar_left;
+    SHIFTS_R => fw_impl::llt::iop_shift_scalar_right;
+    SHIFTS_L => fw_impl::llt::iop_shift_scalar_left;
 
     // NB: fallback to ilp
     // TODO: Add dedicated llt implementation
@@ -297,6 +297,70 @@ pub fn iop_rotate_left(prog: &mut Program) {
 
     // Add Comment header
     prog.push_comment("ROT_L Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::RotLeft, dst, src, rot_amount).add_to_prog(prog);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_scalar_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = VarCell::from_vec(prog.iop_template_var(OperandKind::Dst, 0));
+    // Src -> Operand
+    let src = VarCell::from_vec(prog.iop_template_var(OperandKind::Src, 0));
+    // ShiftAmount -> Operand
+    let amount = VarCell::from_vec(prog.iop_template_var(OperandKind::Imm, 0));
+
+    // Add Comment header
+    prog.push_comment("SHIFT_R Operand::Dst Operand::Src Immediate::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::ShiftRight, dst, src, amount).add_to_prog(prog);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_scalar_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = VarCell::from_vec(prog.iop_template_var(OperandKind::Dst, 0));
+    // Src -> Operand
+    let src = VarCell::from_vec(prog.iop_template_var(OperandKind::Src, 0));
+    // ShiftAmount -> Operand
+    let amount = VarCell::from_vec(prog.iop_template_var(OperandKind::Imm, 0));
+
+    // Add Comment header
+    prog.push_comment("SHIFT_L Operand::Dst Operand::Src Immediate::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::ShiftLeft, dst, src, amount).add_to_prog(prog);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_scalar_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = VarCell::from_vec(prog.iop_template_var(OperandKind::Dst, 0));
+    // Src -> Operand
+    let src = VarCell::from_vec(prog.iop_template_var(OperandKind::Src, 0));
+    // ShiftAmount -> Operand
+    let rot_amount = VarCell::from_vec(prog.iop_template_var(OperandKind::Imm, 0));
+
+    // Add Comment header
+    prog.push_comment("ROT_R Operand::Dst Operand::Src Immediate::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::RotRight, dst, src, rot_amount).add_to_prog(prog);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_scalar_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = VarCell::from_vec(prog.iop_template_var(OperandKind::Dst, 0));
+    // Src -> Operand
+    let src = VarCell::from_vec(prog.iop_template_var(OperandKind::Src, 0));
+    // ShiftAmount -> Operand
+    let rot_amount = VarCell::from_vec(prog.iop_template_var(OperandKind::Imm, 0));
+
+    // Add Comment header
+    prog.push_comment("ROT_L Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic rotx function
     iop_shiftrotx(prog, ShiftKind::RotLeft, dst, src, rot_amount).add_to_prog(prog);
 }
