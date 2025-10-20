@@ -70,24 +70,6 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable,
-    {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
         let numerator_bits = self.message_modulus.0.ilog2()
@@ -104,48 +86,50 @@ impl CudaServerKey {
 
         let mut quotient = numerator.duplicate(streams);
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_unsigned_scalar_div_assign(
-                    streams,
-                    quotient.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_unsigned_scalar_div_assign(
-                    streams,
-                    quotient.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_unsigned_scalar_div_assign(
+                        streams,
+                        quotient.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_unsigned_scalar_div_assign(
+                        streams,
+                        quotient.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
 
@@ -197,24 +181,6 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -224,31 +190,10 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_scalar_div_async(numerator, divisor, streams)
+        self.unchecked_scalar_div(numerator, divisor, streams)
     }
 
     pub fn unchecked_scalar_div_rem<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
-        let (quotient, remainder) =
-            unsafe { self.unchecked_scalar_div_rem_async(numerator, divisor, streams) };
-
-        streams.synchronize();
-
-        (quotient, remainder)
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
         divisor: Scalar,
@@ -276,50 +221,52 @@ impl CudaServerKey {
             streams,
         );
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_unsigned_scalar_div_rem(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_unsigned_scalar_div_rem(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_unsigned_scalar_div_rem(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_unsigned_scalar_div_rem(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
 
@@ -373,24 +320,6 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -400,7 +329,7 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_scalar_div_rem_async(numerator, divisor, streams)
+        self.unchecked_scalar_div_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_scalar_rem<Scalar>(
@@ -412,26 +341,7 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
-        self.unchecked_scalar_div_rem_async(numerator, divisor, streams)
-            .1
+        self.unchecked_scalar_div_rem(numerator, divisor, streams).1
     }
 
     /// Computes homomorphically a division between a ciphertext and a scalar.
@@ -476,24 +386,6 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -503,29 +395,10 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_scalar_rem_async(numerator, divisor, streams)
+        self.unchecked_scalar_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_div<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let res = unsafe { self.unchecked_signed_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_div_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -548,48 +421,50 @@ impl CudaServerKey {
 
         let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate(streams);
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_signed_scalar_div_assign(
-                    streams,
-                    quotient.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_signed_scalar_div_assign(
-                    streams,
-                    quotient.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_signed_scalar_div_assign(
+                        streams,
+                        quotient.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_signed_scalar_div_assign(
+                        streams,
+                        quotient.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
 
@@ -642,25 +517,6 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -670,30 +526,10 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_div_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_div(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_div_rem<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let res =
-            unsafe { self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -720,53 +556,54 @@ impl CudaServerKey {
             streams,
         );
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_signed_scalar_div_rem_assign(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_signed_scalar_div_rem_assign(
-                    streams,
-                    quotient.as_mut(),
-                    remainder.as_mut(),
-                    divisor,
-                    &self.key_switching_key.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_signed_scalar_div_rem_assign(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_signed_scalar_div_rem_assign(
+                        streams,
+                        quotient.as_mut(),
+                        remainder.as_mut(),
+                        divisor,
+                        &self.key_switching_key.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        None,
+                    );
+                }
             }
         }
-
         (quotient, remainder)
     }
 
@@ -816,25 +653,6 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -844,31 +662,10 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_div_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_rem<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let remainder =
-            unsafe { self.unchecked_signed_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-
-        remainder
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -926,25 +723,6 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
@@ -954,7 +732,7 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_rem_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_rem(numerator, divisor, streams)
     }
 
     pub fn get_scalar_div_size_on_gpu<Scalar>(

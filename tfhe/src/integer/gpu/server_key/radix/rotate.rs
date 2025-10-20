@@ -9,11 +9,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_rotate_right_assign_async<T>(
+    pub fn unchecked_rotate_right_assign<T>(
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -24,82 +20,66 @@ impl CudaServerKey {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let is_signed = T::IS_SIGNED;
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_rotate_right_assign(
-                    streams,
-                    ct.as_mut(),
-                    rotate.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    is_signed,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_rotate_right_assign(
-                    streams,
-                    ct.as_mut(),
-                    rotate.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    is_signed,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_rotate_right_assign(
+                        streams,
+                        ct.as_mut(),
+                        rotate.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        is_signed,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_rotate_right_assign(
+                        streams,
+                        ct.as_mut(),
+                        rotate.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        is_signed,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
             }
         }
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_rotate_right_async<T>(
-        &self,
-        ct: &T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_rotate_right_assign_async(&mut result, rotate, streams);
-        result
     }
 
     pub fn unchecked_rotate_right<T>(
@@ -111,129 +91,8 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.unchecked_rotate_right_async(ct, rotate, streams) };
-        streams.synchronize();
-        result
-    }
-
-    pub fn unchecked_rotate_right_assign<T>(
-        &self,
-        ct: &mut T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) where
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.unchecked_rotate_right_assign_async(ct, rotate, streams);
-        }
-        streams.synchronize();
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_rotate_left_assign_async<T>(
-        &self,
-        ct: &mut T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-        let is_signed = T::IS_SIGNED;
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_rotate_left_assign(
-                    streams,
-                    ct.as_mut(),
-                    rotate.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    is_signed,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_rotate_left_assign(
-                    streams,
-                    ct.as_mut(),
-                    rotate.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    is_signed,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
-            }
-        }
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_rotate_left_async<T>(
-        &self,
-        ct: &T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut result = ct.duplicate(streams);
-        self.unchecked_rotate_left_assign_async(&mut result, rotate, streams);
-        result
-    }
-
-    pub fn unchecked_rotate_left<T>(
-        &self,
-        ct: &T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let result = unsafe { self.unchecked_rotate_left_async(ct, rotate, streams) };
-        streams.synchronize();
+        self.unchecked_rotate_right_assign(&mut result, rotate, streams);
         result
     }
 
@@ -245,17 +104,72 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let is_signed = T::IS_SIGNED;
+
         unsafe {
-            self.unchecked_rotate_left_assign_async(ct, rotate, streams);
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_rotate_left_assign(
+                        streams,
+                        ct.as_mut(),
+                        rotate.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        is_signed,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_rotate_left_assign(
+                        streams,
+                        ct.as_mut(),
+                        rotate.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        is_signed,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
         }
-        streams.synchronize();
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn rotate_right_async<T>(
+    pub fn unchecked_rotate_left<T>(
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -264,80 +178,9 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
-        let mut tmp_rhs: CudaUnsignedRadixCiphertext;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            rotate.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, rotate),
-            (true, false) => {
-                tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&tmp_lhs, rotate)
-            }
-            (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
-                tmp_rhs = rotate.duplicate(streams);
-
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        let mut result = lhs.duplicate(streams);
-        self.unchecked_rotate_right_assign_async(&mut result, rhs, streams);
+        let mut result = ct.duplicate(streams);
+        self.unchecked_rotate_left_assign(&mut result, rotate, streams);
         result
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn rotate_right_assign_async<T>(
-        &self,
-        ct: &mut T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut tmp_lhs: T;
-        let mut tmp_rhs: CudaUnsignedRadixCiphertext;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            rotate.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, rotate),
-            (true, false) => {
-                tmp_rhs = rotate.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
-            }
-            (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
-                tmp_rhs = rotate.duplicate(streams);
-
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_rotate_right_assign_async(lhs, rhs, streams);
     }
 
     /// Computes homomorphically a right rotate by an encrypted amount
@@ -388,36 +231,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.rotate_right_async(ct, rotate, streams) };
-        streams.synchronize();
-        result
-    }
-
-    pub fn rotate_right_assign<T>(
-        &self,
-        ct: &mut T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) where
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe { self.rotate_right_assign_async(ct, rotate, streams) };
-        streams.synchronize();
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn rotate_left_async<T>(
-        &self,
-        ct: &T,
-        rotate: &CudaUnsignedRadixCiphertext,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -447,15 +260,11 @@ impl CudaServerKey {
         };
 
         let mut result = lhs.duplicate(streams);
-        self.unchecked_rotate_left_assign_async(&mut result, rhs, streams);
+        self.unchecked_rotate_right_assign(&mut result, rhs, streams);
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn rotate_left_assign_async<T>(
+    pub fn rotate_right_assign<T>(
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -491,7 +300,7 @@ impl CudaServerKey {
             }
         };
 
-        self.unchecked_rotate_left_assign_async(lhs, rhs, streams);
+        self.unchecked_rotate_right_assign(lhs, rhs, streams);
     }
 
     /// Computes homomorphically a right rotate by an encrypted amount
@@ -542,10 +351,39 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.rotate_left_async(ct, rotate, streams) };
-        streams.synchronize();
+        let mut tmp_lhs: T;
+        let mut tmp_rhs: CudaUnsignedRadixCiphertext;
+
+        let (lhs, rhs) = match (
+            ct.block_carries_are_empty(),
+            rotate.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct, rotate),
+            (true, false) => {
+                tmp_rhs = rotate.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
+                (ct, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ct.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                (&tmp_lhs, rotate)
+            }
+            (false, false) => {
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
+
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        let mut result = lhs.duplicate(streams);
+        self.unchecked_rotate_left_assign(&mut result, rhs, streams);
         result
     }
+
     pub fn rotate_left_assign<T>(
         &self,
         ct: &mut T,
@@ -554,8 +392,35 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.rotate_left_assign_async(ct, rotate, streams) };
-        streams.synchronize();
+        let mut tmp_lhs: T;
+        let mut tmp_rhs: CudaUnsignedRadixCiphertext;
+
+        let (lhs, rhs) = match (
+            ct.block_carries_are_empty(),
+            rotate.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct, rotate),
+            (true, false) => {
+                tmp_rhs = rotate.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
+                (ct, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ct.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                (&mut tmp_lhs, rotate)
+            }
+            (false, false) => {
+                tmp_lhs = ct.duplicate(streams);
+                tmp_rhs = rotate.duplicate(streams);
+
+                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(&mut tmp_rhs, streams);
+                (&mut tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_rotate_left_assign(lhs, rhs, streams);
     }
 
     pub fn get_rotate_left_size_on_gpu<T: CudaIntegerRadixCiphertext>(

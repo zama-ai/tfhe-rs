@@ -69,11 +69,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_add_assign_async<Scalar, T>(
+    pub fn unchecked_scalar_add_assign<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
@@ -84,45 +80,31 @@ impl CudaServerKey {
     {
         if scalar != Scalar::ZERO {
             let bits_in_message = self.message_modulus.0.ilog2();
-            let mut d_decomposed_scalar = CudaVec::<u64>::new_async(
-                ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-                streams,
-                0,
-            );
+            let mut d_decomposed_scalar = unsafe {
+                CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
+            };
             let decomposed_scalar =
                 BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
                     .iter_as::<u64>()
                     .take(d_decomposed_scalar.len())
                     .collect::<Vec<_>>();
-            d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams, 0);
-
+            unsafe {
+                d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams, 0);
+            }
             // If the scalar is decomposed using less than the number of blocks our ciphertext
             // has, we just don't touch ciphertext's last blocks
-            cuda_backend_scalar_addition_assign(
-                streams,
-                ct.as_mut(),
-                &d_decomposed_scalar,
-                &decomposed_scalar,
-                decomposed_scalar.len() as u32,
-                self.message_modulus.0 as u32,
-                self.carry_modulus.0 as u32,
-            );
+            unsafe {
+                cuda_backend_scalar_addition_assign(
+                    streams,
+                    ct.as_mut(),
+                    &d_decomposed_scalar,
+                    &decomposed_scalar,
+                    decomposed_scalar.len() as u32,
+                    self.message_modulus.0 as u32,
+                    self.carry_modulus.0 as u32,
+                );
+            }
         }
-    }
-
-    pub fn unchecked_scalar_add_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.unchecked_scalar_add_assign_async(ct, scalar, streams);
-        }
-        streams.synchronize();
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
@@ -180,16 +162,8 @@ impl CudaServerKey {
         self.get_scalar_add_assign_size_on_gpu(ct, streams)
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_add_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
+    pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
+    where
         Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -197,7 +171,7 @@ impl CudaServerKey {
             self.full_propagate_assign(ct, streams);
         }
 
-        self.unchecked_scalar_add_assign_async(ct, scalar, streams);
+        self.unchecked_scalar_add_assign(ct, scalar, streams);
         let _carry = self.propagate_single_carry_assign(ct, streams, None, OutputFlag::None);
     }
 
@@ -288,17 +262,6 @@ impl CudaServerKey {
             }
         };
         full_prop_mem.max(single_carry_mem)
-    }
-
-    pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
-    where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.scalar_add_assign_async(ct, scalar, streams);
-        }
-        streams.synchronize();
     }
 
     pub fn unsigned_overflowing_scalar_add<Scalar>(

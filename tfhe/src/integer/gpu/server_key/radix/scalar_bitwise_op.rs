@@ -10,11 +10,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_bitop_assign_async<Scalar, T>(
+    pub fn unchecked_scalar_bitop_assign<Scalar, T>(
         &self,
         ct: &mut T,
         rhs: Scalar,
@@ -32,66 +28,67 @@ impl CudaServerKey {
             .map(|x| x as u64)
             .collect::<Vec<_>>();
 
-        let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_scalar_bitop_assign(
-                    streams,
-                    ct.as_mut(),
-                    &clear_blocks,
-                    &h_clear_blocks,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    op,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_scalar_bitop_assign(
-                    streams,
-                    ct.as_mut(),
-                    &clear_blocks,
-                    &h_clear_blocks,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    op,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
+        let clear_blocks = unsafe { CudaVec::from_cpu_async(&h_clear_blocks, streams, 0) };
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_scalar_bitop_assign(
+                        streams,
+                        ct.as_mut(),
+                        &clear_blocks,
+                        &h_clear_blocks,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        op,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_scalar_bitop_assign(
+                        streams,
+                        ct.as_mut(),
+                        &clear_blocks,
+                        &h_clear_blocks,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        op,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
             }
         }
     }
@@ -120,10 +117,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, streams);
-        }
-        streams.synchronize();
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarAnd, streams);
     }
 
     pub fn unchecked_scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
@@ -145,10 +139,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, streams);
-        }
-        streams.synchronize();
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarOr, streams);
     }
 
     pub fn unchecked_scalar_bitxor<Scalar, T>(
@@ -175,29 +166,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, streams);
-        }
-        streams.synchronize();
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_bitand_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_assign(ct, streams);
-        }
-        self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, streams);
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarXor, streams);
     }
 
     pub fn scalar_bitand_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
@@ -205,10 +174,10 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            self.scalar_bitand_assign_async(ct, rhs, streams);
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_assign(ct, streams);
         }
-        streams.synchronize();
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarAnd, streams);
     }
 
     pub fn scalar_bitand<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
@@ -221,34 +190,15 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_bitor_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
+    pub fn scalar_bitor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
+    where
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }
-        self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, streams);
-    }
-
-    pub fn scalar_bitor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
-    where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.scalar_bitor_assign_async(ct, rhs, streams);
-        }
-        streams.synchronize();
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarOr, streams);
     }
 
     pub fn scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
@@ -261,34 +211,15 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_bitxor_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
+    pub fn scalar_bitxor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
+    where
         Scalar: DecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }
-        self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, streams);
-    }
-
-    pub fn scalar_bitxor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
-    where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.scalar_bitxor_assign_async(ct, rhs, streams);
-        }
-        streams.synchronize();
+        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarXor, streams);
     }
 
     pub fn scalar_bitxor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T

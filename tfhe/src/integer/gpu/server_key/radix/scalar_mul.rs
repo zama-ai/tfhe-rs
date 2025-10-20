@@ -63,11 +63,7 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn unchecked_scalar_mul_assign_async<Scalar, T>(
+    pub fn unchecked_scalar_mul_assign<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
@@ -77,7 +73,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if scalar == Scalar::ZERO {
-            ct.as_mut().d_blocks.0.d_vec.memset_async(0, streams, 0);
+            ct.as_mut().d_blocks.0.d_vec.memset(0, streams, 0);
             return;
         }
 
@@ -90,7 +86,7 @@ impl CudaServerKey {
         if scalar.is_power_of_two() {
             // Shifting cost one bivariate PBS so its always faster
             // than multiplying
-            self.unchecked_scalar_left_shift_assign_async(ct, scalar.ilog2() as u64, streams);
+            self.unchecked_scalar_left_shift_assign(ct, scalar.ilog2() as u64, streams);
             return;
         }
         let msg_bits = self.message_modulus.0.ilog2() as usize;
@@ -112,73 +108,60 @@ impl CudaServerKey {
             return;
         }
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_unchecked_scalar_mul(
-                    streams,
-                    ct.as_mut(),
-                    decomposed_scalar.as_slice(),
-                    has_at_least_one_set.as_slice(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_bsk.decomp_base_log,
-                    d_bsk.decomp_level_count,
-                    self.key_switching_key.decomposition_base_log(),
-                    self.key_switching_key.decomposition_level_count(),
-                    decomposed_scalar.len() as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_unchecked_scalar_mul(
-                    streams,
-                    ct.as_mut(),
-                    decomposed_scalar.as_slice(),
-                    has_at_least_one_set.as_slice(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.decomp_level_count,
-                    self.key_switching_key.decomposition_base_log(),
-                    self.key_switching_key.decomposition_level_count(),
-                    decomposed_scalar.len() as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    None,
-                );
-            }
-        }
-    }
-
-    pub fn unchecked_scalar_mul_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
         unsafe {
-            self.unchecked_scalar_mul_assign_async(ct, scalar, streams);
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_scalar_mul(
+                        streams,
+                        ct.as_mut(),
+                        decomposed_scalar.as_slice(),
+                        has_at_least_one_set.as_slice(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.decomp_base_log,
+                        d_bsk.decomp_level_count,
+                        self.key_switching_key.decomposition_base_log(),
+                        self.key_switching_key.decomposition_level_count(),
+                        decomposed_scalar.len() as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_scalar_mul(
+                        streams,
+                        ct.as_mut(),
+                        decomposed_scalar.as_slice(),
+                        has_at_least_one_set.as_slice(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.decomp_level_count,
+                        self.key_switching_key.decomposition_base_log(),
+                        self.key_switching_key.decomposition_level_count(),
+                        decomposed_scalar.len() as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
         }
-        streams.synchronize();
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -227,16 +210,8 @@ impl CudaServerKey {
         result
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub unsafe fn scalar_mul_assign_async<Scalar, T>(
-        &self,
-        ct: &mut T,
-        scalar: Scalar,
-        streams: &CudaStreams,
-    ) where
+    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
+    where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -244,19 +219,9 @@ impl CudaServerKey {
             self.full_propagate_assign(ct, streams);
         }
 
-        self.unchecked_scalar_mul_assign_async(ct, scalar, streams);
+        self.unchecked_scalar_mul_assign(ct, scalar, streams);
     }
 
-    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
-    where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        unsafe {
-            self.scalar_mul_assign_async(ct, scalar, streams);
-        }
-        streams.synchronize();
-    }
     pub fn get_scalar_mul_size_on_gpu<Scalar, T>(
         &self,
         ct: &T,
