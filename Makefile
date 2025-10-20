@@ -1380,14 +1380,14 @@ bench_integer_hpu: install_rs_check_toolchain
 bench_integer_compression: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench	integer-glwe_packing_compression \
+	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench	integer-glwe_packing_compression \
+	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_zk_gpu
@@ -1441,20 +1441,20 @@ bench_integer_zk: install_rs_check_toolchain
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench shortint-bench \
+	--bench shortint \
 	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_shortint_oprf # Run benchmarks for shortint
 bench_shortint_oprf: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench oprf-shortint-bench \
+	--bench shortint-oprf \
 	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_boolean # Run benchmarks for boolean
 bench_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench boolean-bench \
+	--bench boolean \
 	--features=boolean,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
