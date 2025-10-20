@@ -1,5 +1,7 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -13,6 +15,7 @@ use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 struct ProofConfig {
     crs_size: usize,
@@ -31,8 +34,7 @@ impl ProofConfig {
 fn default_proof_config() -> Vec<ProofConfig> {
     vec![
         ProofConfig::new(64usize, &[64usize]),
-        ProofConfig::new(640, &[640]),
-        ProofConfig::new(2048, &[2048, 4 * 64usize]),
+        ProofConfig::new(2048, &[4 * 64, 10 * 64, 2048]),
         ProofConfig::new(4096, &[4096]),
     ]
 }
@@ -44,10 +46,12 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 }
 
 fn zk_throughput_num_elements() -> u64 {
-    // The number of usable threads for verification is limited to 32 in the lib.
-    let max_threads = 32;
-    // We add 1 to be sure we saturate the target machine.
-    let usable_cpu_threads = (rayon::current_num_threads() as u64 / max_threads).max(1) + 1;
+    // Zk verify uses pools of 32 threads for a single verification
+    let pool_size = 32;
+    let pool_count = (rayon::current_num_threads() as u64 / pool_size).max(1);
+
+    // We send batches of proof large enough to be sure starvation is not an issue
+    let usable_cpu_threads = pool_count * 64;
 
     #[cfg(feature = "gpu")]
     {
@@ -142,9 +146,10 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                             });
                         }
                         BenchmarkType::Throughput => {
-                            let elements = zk_throughput_num_elements() * 2; // This value, found empirically, ensure saturation of current target
-                                                                             // machine
-                            bench_group.throughput(Throughput::Elements(elements));
+                            // The zk proof is currently not pooled, so we simply use the number of
+                            // threads as heuristic for the batch size
+                            let elements = (rayon::current_num_threads() / num_block).max(1) + 1;
+                            bench_group.throughput(Throughput::Elements(elements as u64));
 
                             bench_id = format!(
                                 "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
@@ -364,9 +369,6 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         BenchmarkType::Throughput => {
                             // In throughput mode object sizes are not recorded.
 
-                            let elements = zk_throughput_num_elements();
-                            bench_group.throughput(Throughput::Elements(elements));
-
                             bench_id_verify = format!(
                             "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
@@ -375,10 +377,18 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         );
 
                             println!("Generating proven ciphertexts list ({zk_load})... ");
-                            let cts = (0..elements)
+
+                            let verify_elements = zk_throughput_num_elements();
+                            let messages = (0..verify_elements)
                                 .map(|_| {
                                     let input_msg = rng.gen::<u64>();
-                                    let messages = vec![input_msg; fhe_uint_count];
+                                    vec![input_msg; fhe_uint_count]
+                                })
+                                .collect::<Vec<_>>();
+
+                            let cts = messages
+                                .par_iter()
+                                .map(|messages| {
                                     tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                         .extend(messages.iter().copied())
                                         .build_with_proof_packed(&crs, &metadata, compute_load)
@@ -386,6 +396,20 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 })
                                 .collect::<Vec<_>>();
 
+                            reset_pbs_count();
+                            cts[0].verify_and_expand(
+                                &crs,
+                                &pk,
+                                &metadata,
+                                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                                    casting_key.as_view(),
+                                ),
+                            ).unwrap();
+                            let pbs_count = get_pbs_count().max(1);
+                            let expand_elements = throughput_num_threads(num_block, pbs_count);
+                            let verify_expand_elements = expand_elements.min(verify_elements);
+
+                            bench_group.throughput(Throughput::Elements(verify_elements));
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
                                     cts.par_iter().for_each(|ct1| {
@@ -394,6 +418,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 });
                             });
 
+                            bench_group.throughput(Throughput::Elements(verify_expand_elements));
                             bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                             b.iter(|| {
                                 cts.par_iter().for_each(|ct1| {
