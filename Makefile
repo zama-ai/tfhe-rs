@@ -1736,6 +1736,7 @@ pcc_batch_1:
 pcc_batch_2:
 	$(call run_recipe_with_details,clippy)
 	$(call run_recipe_with_details,clippy_all_targets)
+	$(call run_recipe_with_details,check_fmt_js)
 
 .PHONY: pcc_batch_3 # duration: 6'50''
 pcc_batch_3:
