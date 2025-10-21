@@ -1676,7 +1676,7 @@ impl NoiseSimulationLweFourierBsk {
 }
 
 impl NoiseSimulationLwePackingKeyswitchKey {
-    pub fn new_from_params(
+    pub fn new_from_noise_squashing_parameters(
         noise_squashing_params: NoiseSquashingParameters,
         noise_squashing_compression_params: NoiseSquashingCompressionParameters,
     ) -> Self {
