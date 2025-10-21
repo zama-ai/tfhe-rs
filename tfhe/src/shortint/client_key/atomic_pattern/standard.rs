@@ -251,7 +251,21 @@ impl StandardAtomicPatternClientKey {
         &self,
         private_compression_key: &CompressionPrivateKeys,
     ) -> CompressionKey {
-        private_compression_key.new_compression_key(&self.glwe_secret_key, self.parameters())
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_compression_key_with_engine(private_compression_key, engine)
+        })
+    }
+
+    pub(crate) fn new_compression_key_with_engine(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        engine: &mut ShortintEngine,
+    ) -> CompressionKey {
+        private_compression_key.new_compression_key_with_engine(
+            &self.glwe_secret_key,
+            self.parameters(),
+            engine,
+        )
     }
 
     pub fn new_compressed_compression_key(
