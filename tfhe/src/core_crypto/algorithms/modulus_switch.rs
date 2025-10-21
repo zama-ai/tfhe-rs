@@ -106,6 +106,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult, AllocateStandardModSwitchResult,
     CenteredBinaryShiftedStandardModSwitch, StandardModSwitch,
 };
+use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextOwned};
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardModSwitchResult
     for LweCiphertext<C>
@@ -203,6 +204,58 @@ impl<
             *out = inp << (Scalar::BITS - output_modulus_log.0);
         }
         *out_body.data = lwe_mod_switched.body() << (Scalar::BITS - output_modulus_log.0);
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardModSwitchResult
+    for GlweCiphertext<C>
+{
+    type Output = GlweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_standard_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // We will mod switch but we keep the current modulus as the noise is interesting in the
+        // context of the input modulus
+        Self::Output::new(
+            Scalar::ZERO,
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        OutputCont: ContainerMut<Element = Scalar>,
+    > StandardModSwitch<GlweCiphertext<OutputCont>> for GlweCiphertext<InputCont>
+{
+    type SideResources = ();
+
+    fn standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut GlweCiphertext<OutputCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert!(self
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus());
+        assert_eq!(self.glwe_size(), output.glwe_size());
+        assert_eq!(self.polynomial_size(), output.polynomial_size());
+        // Mod switched but the noise is to be interpreted with respect to the input modulus, as
+        // strictly the operation adding the noise is the rounding under the original modulus
+        assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
+
+        for (inp, out) in self.as_ref().iter().zip(output.as_mut().iter_mut()) {
+            let msed = modulus_switch(*inp, output_modulus_log);
+            // Shift in MSBs to match the power of 2 encoding in core
+            *out = msed << (Scalar::BITS - output_modulus_log.0);
+        }
     }
 }
 
