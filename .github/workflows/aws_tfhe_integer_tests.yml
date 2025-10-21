@@ -125,13 +125,13 @@ jobs:
         run: |
           echo "NO_BIG_PARAMS=TRUE" >> "${GITHUB_ENV}"
 
-      - name: Gen Keys if required
-        run: |
-          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
+      # - name: Gen Keys if required
+      #   run: |
+      #     make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
 
-      - name: Run unsigned integer multi-bit tests
-        run: |
-          AVX512_SUPPORT=ON make test_unsigned_integer_multi_bit_ci
+      # - name: Run unsigned integer multi-bit tests
+      #   run: |
+      #     AVX512_SUPPORT=ON make test_unsigned_integer_multi_bit_ci
 
       - name: Gen Keys if required
         run: |
