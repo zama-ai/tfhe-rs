@@ -8,11 +8,11 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus,
+    NoiseSimulationNoiseDistribution, NoiseSimulationNoiseDistributionKind,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweSize, LweDimension,
-    PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::container::Container;
 use crate::core_crypto::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKey;
@@ -22,9 +22,9 @@ pub struct NoiseSimulationLwePackingKeyswitchKey {
     input_lwe_dimension: LweDimension,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    output_glwe_size: GlweSize,
+    output_glwe_dimension: GlweDimension,
     output_polynomial_size: PolynomialSize,
-    noise_distribution: DynamicDistribution<u128>,
+    noise_distribution: NoiseSimulationNoiseDistribution,
     modulus: NoiseSimulationModulus,
 }
 
@@ -33,16 +33,16 @@ impl NoiseSimulationLwePackingKeyswitchKey {
         input_lwe_dimension: LweDimension,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
-        output_glwe_size: GlweSize,
+        output_glwe_dimension: GlweDimension,
         output_polynomial_size: PolynomialSize,
-        noise_distribution: DynamicDistribution<u128>,
+        noise_distribution: NoiseSimulationNoiseDistribution,
         modulus: NoiseSimulationModulus,
     ) -> Self {
         Self {
             input_lwe_dimension,
             decomp_base_log,
             decomp_level_count,
-            output_glwe_size,
+            output_glwe_dimension,
             output_polynomial_size,
             noise_distribution,
             modulus,
@@ -57,7 +57,7 @@ impl NoiseSimulationLwePackingKeyswitchKey {
             input_lwe_dimension,
             decomp_base_log,
             decomp_level_count,
-            output_glwe_size,
+            output_glwe_dimension,
             output_polynomial_size,
             noise_distribution: _,
             modulus,
@@ -66,7 +66,7 @@ impl NoiseSimulationLwePackingKeyswitchKey {
         let pksk_input_lwe_dimension = pksk.input_key_lwe_dimension();
         let pksk_decomp_base_log = pksk.decomposition_base_log();
         let pksk_decomp_level_count = pksk.decomposition_level_count();
-        let pksk_output_glwe_size = pksk.output_glwe_size();
+        let pksk_output_glwe_dimension = pksk.output_key_glwe_dimension();
         let pksk_output_polynomial_size = pksk.output_key_polynomial_size();
         let pksk_modulus =
             NoiseSimulationModulus::from_ciphertext_modulus(pksk.ciphertext_modulus());
@@ -74,7 +74,7 @@ impl NoiseSimulationLwePackingKeyswitchKey {
         input_lwe_dimension == pksk_input_lwe_dimension
             && decomp_base_log == pksk_decomp_base_log
             && decomp_level_count == pksk_decomp_level_count
-            && output_glwe_size == pksk_output_glwe_size
+            && output_glwe_dimension == pksk_output_glwe_dimension
             && output_polynomial_size == pksk_output_polynomial_size
             && modulus == pksk_modulus
     }
@@ -91,15 +91,15 @@ impl NoiseSimulationLwePackingKeyswitchKey {
         self.decomp_level_count
     }
 
-    pub fn output_glwe_size(&self) -> GlweSize {
-        self.output_glwe_size
+    pub fn output_glwe_dimension(&self) -> GlweDimension {
+        self.output_glwe_dimension
     }
 
     pub fn output_polynomial_size(&self) -> PolynomialSize {
         self.output_polynomial_size
     }
 
-    pub fn noise_distribution(&self) -> DynamicDistribution<u128> {
+    pub fn noise_distribution(&self) -> NoiseSimulationNoiseDistribution {
         self.noise_distribution
     }
 
@@ -117,7 +117,7 @@ impl AllocateLwePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
-            self.output_glwe_size().to_glwe_dimension(),
+            self.output_glwe_dimension(),
             self.output_polynomial_size(),
             Variance(f64::NAN),
             self.modulus,
@@ -137,43 +137,44 @@ impl LwePackingKeyswitch<[&NoiseSimulationLwe], NoiseSimulationGlwe>
         _side_resources: &mut Self::SideResources,
     ) {
         let mut input_iter = input.iter();
-        let input = input_iter.next().unwrap();
+        let first_input = input_iter.next().unwrap();
 
-        let mut lwe_to_pack = 1;
+        // Check first input is compatible with us
+        assert_eq!(first_input.lwe_dimension(), self.input_lwe_dimension());
+        // Check all inputs are the same as first input
+        assert!(input_iter.all(|x| x == first_input));
 
-        assert!(input_iter.inspect(|_| lwe_to_pack += 1).all(|x| x == input));
+        let lwe_to_pack = input.len() as f64;
 
-        assert_eq!(input.lwe_dimension(), self.input_lwe_dimension());
-
-        let packing_ks_additive_var = match self.noise_distribution() {
-            DynamicDistribution::Gaussian(_) => {
+        let packing_ks_additive_var = match self.noise_distribution().kind() {
+            NoiseSimulationNoiseDistributionKind::Gaussian => {
                 packing_keyswitch_additive_variance_132_bits_security_gaussian(
                     self.input_lwe_dimension(),
-                    self.output_glwe_size().to_glwe_dimension(),
+                    self.output_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    lwe_to_pack.into(),
+                    lwe_to_pack,
                     self.modulus().as_f64(),
                 )
             }
-            DynamicDistribution::TUniform(_) => {
+            NoiseSimulationNoiseDistributionKind::TUniform => {
                 packing_keyswitch_additive_variance_132_bits_security_tuniform(
                     self.input_lwe_dimension(),
-                    self.output_glwe_size().to_glwe_dimension(),
+                    self.output_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    lwe_to_pack.into(),
+                    lwe_to_pack,
                     self.modulus().as_f64(),
                 )
             }
         };
 
         *output = NoiseSimulationGlwe::new(
-            self.output_glwe_size().to_glwe_dimension(),
+            self.output_glwe_dimension(),
             self.output_polynomial_size(),
-            Variance(input.variance().0 + packing_ks_additive_var.0),
+            Variance(first_input.variance().0 + packing_ks_additive_var.0),
             self.modulus(),
         );
     }

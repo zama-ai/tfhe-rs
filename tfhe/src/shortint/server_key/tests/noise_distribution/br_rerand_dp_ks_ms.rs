@@ -233,7 +233,7 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper(
     let br_input_modulus_log = sks.br_input_modulus_log();
     let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
-    let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(cks, 0, &mut engine);
+    let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(cks, msg, &mut engine);
 
     let cpk_ct_zero_rerand = {
         let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
