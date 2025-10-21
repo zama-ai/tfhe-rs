@@ -10,6 +10,7 @@ class Backend(enum.StrEnum):
 
     CPU = "cpu"
     GPU = "gpu"
+    HPU = "hpu"
 
     @staticmethod
     def from_str(backend_name):
@@ -18,6 +19,8 @@ class Backend(enum.StrEnum):
                 return Backend.CPU
             case "gpu":
                 return Backend.GPU
+            case "hpu":
+                return Backend.HPU
             case _:
                 raise NotImplementedError
 
@@ -83,7 +86,7 @@ class CoreCryptoOperation(enum.StrEnum):
     KeySwitch = "KS"
     PBS = "PBS"
     MultiBitPBS = "MB-PBS"
-    KeyswitchPBS = "KS - PBS"
+    KeySwitchPBS = "KS - PBS"
     KeySwitchMultiBitPBS = "KS - MB-PBS"
 
     @staticmethod
@@ -96,7 +99,7 @@ class CoreCryptoOperation(enum.StrEnum):
             case "multi_bit_pbs" | "multi_bit_deterministic_pbs":
                 return CoreCryptoOperation.MultiBitPBS
             case "ks_pbs":
-                return CoreCryptoOperation.KeyswitchPBS
+                return CoreCryptoOperation.KeySwitchPBS
             case "multi_bit_ks_pbs" | "multi_bit_deterministic_ks_pbs":
                 return CoreCryptoOperation.KeySwitchMultiBitPBS
             case _:
@@ -119,7 +122,7 @@ class CoreCryptoOperation(enum.StrEnum):
                 return "pbs"
             case CoreCryptoOperation.MultiBitPBS:
                 return "pbs"
-            case CoreCryptoOperation.KeyswitchPBS:
+            case CoreCryptoOperation.KeySwitchPBS:
                 return "ks-pbs"
             case CoreCryptoOperation.KeySwitchMultiBitPBS:
                 return "ks-pbs"
@@ -234,6 +237,21 @@ class ErrorFailureProbability(enum.IntEnum):
                 raise ValueError(
                     f"error failure probability str conversion '{self}' not supported yet"
                 )
+
+
+class BenchType(enum.Enum):
+    Latency = 0
+    Throughput = 1
+
+    @staticmethod
+    def from_str(bench_type):
+        match bench_type.lower():
+            case "latency":
+                return BenchType.Latency
+            case "throughput":
+                return BenchType.Throughput
+            case _:
+                raise ValueError(f"BenchType '{bench_type}' not supported")
 
 
 class ParamsDefinition:
@@ -449,7 +467,7 @@ class BenchDetails:
 
         match self.layer:
             case Layer.Integer:
-                op_name_index = 2 if parts[1] == "cuda" else 1
+                op_name_index = 2 if parts[1] in ["cuda", "hpu"] else 1
                 if parts[op_name_index] == "signed":
                     op_name_index += 1
                     self.sign_flavor = SignFlavor.Signed
@@ -470,7 +488,7 @@ class BenchDetails:
             case Layer.CoreCrypto:
                 self.operation_name = parts[2] if parts[1] == "cuda" else parts[1]
             case Layer.HLApi:
-                if parts[1] == "cuda":
+                if parts[1] in ["cuda", "hpu"]:
                     self.operation_name = "::".join(parts[2:-1])
                 else:
                     self.operation_name = "::".join(parts[1:-1])
