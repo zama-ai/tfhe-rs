@@ -695,10 +695,11 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk128 =
         NoiseSimulationLweFourier128Bsk::new_from_parameters(params, noise_squashing_params);
-    let noise_simulation_packing_key = NoiseSimulationLwePackingKeyswitchKey::new_from_params(
-        noise_squashing_params,
-        noise_squashing_compression_params,
-    );
+    let noise_simulation_packing_key =
+        NoiseSimulationLwePackingKeyswitchKey::new_from_noise_squashing_parameters(
+            noise_squashing_params,
+            noise_squashing_compression_params,
+        );
 
     let modulus_switch_config = noise_squashing_key.noise_simulation_modulus_switch_config();
 
