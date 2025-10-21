@@ -40,6 +40,17 @@ impl CompressionPrivateKeys {
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
         pbs_params: ShortintParameterSet,
     ) -> CompressionKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.new_compression_key_with_engine(glwe_secret_key, pbs_params, engine)
+        })
+    }
+
+    pub(crate) fn new_compression_key_with_engine(
+        &self,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        pbs_params: ShortintParameterSet,
+        engine: &mut ShortintEngine,
+    ) -> CompressionKey {
         assert_eq!(
             pbs_params.encryption_key_choice(),
             EncryptionKeyChoice::Big,
@@ -57,17 +68,15 @@ impl CompressionPrivateKeys {
             "Compression parameters say to store more bits than useful"
         );
 
-        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &glwe_secret_key.as_lwe_secret_key(),
-                &self.post_packing_ks_key,
-                compression_params.packing_ks_base_log(),
-                compression_params.packing_ks_level(),
-                compression_params.packing_ks_key_noise_distribution(),
-                pbs_params.ciphertext_modulus(),
-                &mut engine.encryption_generator,
-            )
-        });
+        let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &glwe_secret_key.as_lwe_secret_key(),
+            &self.post_packing_ks_key,
+            compression_params.packing_ks_base_log(),
+            compression_params.packing_ks_level(),
+            compression_params.packing_ks_key_noise_distribution(),
+            pbs_params.ciphertext_modulus(),
+            &mut engine.encryption_generator,
+        );
 
         CompressionKey {
             packing_key_switching_key,
@@ -75,6 +84,7 @@ impl CompressionPrivateKeys {
             storage_log_modulus: compression_params.storage_log_modulus(),
         }
     }
+
     pub(crate) fn new_compressed_compression_key(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,

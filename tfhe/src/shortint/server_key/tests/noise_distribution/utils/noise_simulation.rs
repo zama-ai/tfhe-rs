@@ -30,7 +30,7 @@ use crate::shortint::key_switching_key::{
     KeySwitchingKeyDestinationAtomicPattern, KeySwitchingKeyView,
 };
 use crate::shortint::list_compression::{
-    CompressionPrivateKeys, DecompressionKey, NoiseSquashingCompressionKey,
+    CompressionKey, CompressionPrivateKeys, DecompressionKey, NoiseSquashingCompressionKey,
 };
 use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::{
@@ -140,6 +140,33 @@ impl DynLwe {
             Self::U32(_) => panic!("Tried getting a u32 LweCiphertext as u128."),
             Self::U64(_) => panic!("Tried getting a u64 LweCiphertext as u128."),
             Self::U128(lwe_ciphertext) => lwe_ciphertext.as_view(),
+        }
+    }
+
+    #[track_caller]
+    pub fn as_ref_32(&self) -> &LweCiphertextOwned<u32> {
+        match self {
+            Self::U32(lwe_ciphertext) => lwe_ciphertext,
+            Self::U64(_) => panic!("Tried getting a u64 LweCiphertext as u32."),
+            Self::U128(_) => panic!("Tried getting a u128 LweCiphertext as u32."),
+        }
+    }
+
+    #[track_caller]
+    pub fn as_ref_64(&self) -> &LweCiphertextOwned<u64> {
+        match self {
+            Self::U32(_) => panic!("Tried getting a u32 LweCiphertext as u64."),
+            Self::U64(lwe_ciphertext) => lwe_ciphertext,
+            Self::U128(_) => panic!("Tried getting a u128 LweCiphertext as u64."),
+        }
+    }
+
+    #[track_caller]
+    pub fn as_ref_128(&self) -> &LweCiphertextOwned<u128> {
+        match self {
+            Self::U32(_) => panic!("Tried getting a u32 LweCiphertext as u128."),
+            Self::U64(_) => panic!("Tried getting a u64 LweCiphertext as u128."),
+            Self::U128(lwe_ciphertext) => lwe_ciphertext,
         }
     }
 }
@@ -321,6 +348,17 @@ impl ClientKey {
         modulus_log: CiphertextModulusLog,
         msg: u64,
     ) -> DynLwe {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            self.encrypt_noiseless_pbs_input_dyn_lwe_with_engine(modulus_log, msg, engine)
+        })
+    }
+
+    pub fn encrypt_noiseless_pbs_input_dyn_lwe_with_engine(
+        &self,
+        modulus_log: CiphertextModulusLog,
+        msg: u64,
+        engine: &mut ShortintEngine,
+    ) -> DynLwe {
         match &self.atomic_pattern {
             AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
                 let params = standard_atomic_pattern_client_key.parameters;
@@ -331,15 +369,13 @@ impl ClientKey {
                     padding_bit: PaddingBit::Yes,
                 };
 
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    DynLwe::U64(encrypt_new_noiseless_lwe(
-                        &standard_atomic_pattern_client_key.lwe_secret_key,
-                        CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
-                        msg,
-                        &encoding,
-                        &mut engine.encryption_generator,
-                    ))
-                })
+                DynLwe::U64(encrypt_new_noiseless_lwe(
+                    &standard_atomic_pattern_client_key.lwe_secret_key,
+                    CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
+                    msg,
+                    &encoding,
+                    &mut engine.encryption_generator,
+                ))
             }
             AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
                 let params = ks32_atomic_pattern_client_key.parameters;
@@ -350,15 +386,13 @@ impl ClientKey {
                     padding_bit: PaddingBit::Yes,
                 };
 
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    DynLwe::U32(encrypt_new_noiseless_lwe(
-                        &ks32_atomic_pattern_client_key.lwe_secret_key,
-                        CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
-                        msg.try_into().unwrap(),
-                        &encoding,
-                        &mut engine.encryption_generator,
-                    ))
-                })
+                DynLwe::U32(encrypt_new_noiseless_lwe(
+                    &ks32_atomic_pattern_client_key.lwe_secret_key,
+                    CiphertextModulus::try_new_power_of_2(modulus_log.0).unwrap(),
+                    msg.try_into().unwrap(),
+                    &encoding,
+                    &mut engine.encryption_generator,
+                ))
             }
         }
     }
@@ -1351,6 +1385,35 @@ impl LweKeyswitch<DynLwe, DynLwe> for KeySwitchingKeyView<'_> {
     }
 }
 
+impl AllocateLwePackingKeyswitchResult for CompressionKey {
+    type Output = GlweCiphertextOwned<u64>;
+    type SideResources = ();
+
+    fn allocate_lwe_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        self.packing_key_switching_key
+            .allocate_lwe_packing_keyswitch_result(side_resources)
+    }
+}
+
+impl LwePackingKeyswitch<[&DynLwe], GlweCiphertextOwned<u64>> for CompressionKey {
+    type SideResources = ();
+
+    fn keyswitch_lwes_and_pack_in_glwe(
+        &self,
+        input: &[&DynLwe],
+        output: &mut GlweCiphertextOwned<u64>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let input: Vec<_> = input.iter().map(|x| x.as_ref_64()).collect();
+
+        self.packing_key_switching_key
+            .keyswitch_lwes_and_pack_in_glwe(&input, output, side_resources);
+    }
+}
+
 impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
     type SideResources = ();
 
@@ -1688,15 +1751,40 @@ impl NoiseSimulationLwePackingKeyswitchKey {
             squashing_lwe_dim,
             noise_squashing_compression_params.packing_ks_base_log,
             noise_squashing_compression_params.packing_ks_level,
-            noise_squashing_compression_params
-                .packing_ks_glwe_dimension
-                .to_glwe_size(),
+            noise_squashing_compression_params.packing_ks_glwe_dimension,
             noise_squashing_compression_params.packing_ks_polynomial_size,
-            noise_squashing_compression_params.packing_ks_key_noise_distribution,
+            NoiseSimulationNoiseDistribution::U128(
+                noise_squashing_compression_params.packing_ks_key_noise_distribution,
+            ),
             NoiseSimulationModulus::from_ciphertext_modulus(
                 noise_squashing_compression_params.ciphertext_modulus,
             ),
         )
+    }
+
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        compression_params: CompressionParameters,
+    ) -> Self {
+        let params_big_lwe_dim = params
+            .glwe_dimension()
+            .to_equivalent_lwe_dimension(params.polynomial_size());
+
+        Self::new(
+            params_big_lwe_dim,
+            compression_params.packing_ks_base_log(),
+            compression_params.packing_ks_level(),
+            compression_params.packing_ks_glwe_dimension(),
+            compression_params.packing_ks_polynomial_size(),
+            NoiseSimulationNoiseDistribution::U64(
+                compression_params.packing_ks_key_noise_distribution(),
+            ),
+            NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+        )
+    }
+
+    pub fn matches_actual_shortint_comp_key(&self, comp_key: &CompressionKey) -> bool {
+        self.matches_actual_pksk(&comp_key.packing_key_switching_key)
     }
 }
 
