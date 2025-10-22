@@ -3187,7 +3187,7 @@ where
         binary_random_vector,
         mask_noise,
         body_noise,
-    } = encrypt_lwe_compact_ciphertext_list_with_compact_public_key_impl(
+    } = par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key_impl(
         lwe_compact_public_key,
         output,
         &encoded,
