@@ -9,4 +9,5 @@ All CPU benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped wi
 {% endhint %}
 
 * [Integer operations](cpu-integer-operations.md)
+* [ERC20](cpu-erc20.md)
 * [Programmable Bootstrapping](cpu-programmable-bootstrapping.md)
