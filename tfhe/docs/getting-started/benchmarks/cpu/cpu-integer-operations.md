@@ -14,21 +14,21 @@ The following tables benchmark the execution time of some operation sets using `
 
 The next tables show the operation timings on CPU when all inputs are encrypted:
 
-### Latency
+### Encrypted/encrypted operations latency
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext.svg)
 
-### Throughput
+### Encrypted/encrypted operations throughput
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext-throughput.svg)
 
 The next tables show the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
 
-### Latency
+### Encrypted/clear operations latency
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext.svg)
 
-### Throughput
+### Encrypted/clear operations throughput
 
 ![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext-throughput.svg)
 
