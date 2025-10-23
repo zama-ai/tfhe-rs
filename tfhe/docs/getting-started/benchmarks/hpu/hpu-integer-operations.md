@@ -13,21 +13,21 @@ Below are the results for the execution on a single Alveo v80 board.
 
 The following tables show the performance when the inputs of the benchmarked operation are encrypted:
 
-### Latency
+### Encrypted/encrypted operations latency
 
 ![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-ciphertext.svg)
 
-### Throughput
+### Encrypted/encrypted operations throughput
 
 ![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-ciphertext-throughput.svg)
 
 The following tables show the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-### Latency
+### Encrypted/clear operations latency
 
 ![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-plaintext.svg)
 
-### Throughput
+### Encrypted/clear operations throughput
 
 ![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-plaintext-throughput.svg)
 
