@@ -64,7 +64,6 @@ unsafe extern "C" {
         log_modulus: u32,
     );
 }
-
 unsafe extern "C" {
     pub fn cuda_glwe_sample_extract_128(
         stream: *mut ffi::c_void,
@@ -1607,7 +1606,6 @@ unsafe extern "C" {
         carry_modulus: u32,
     );
 }
-
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: CudaStreamsFFI,
@@ -1733,6 +1731,14 @@ unsafe extern "C" {
     pub fn cleanup_cuda_integer_decompress_radix_ciphertext_128(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_extract_glwe_128(
+        streams: CudaStreamsFFI,
+        glwe_array_out: *mut ffi::c_void,
+        glwe_list: *const CudaPackedGlweCiphertextListFFI,
+        glwe_index: u32,
     );
 }
 unsafe extern "C" {

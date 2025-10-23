@@ -28,6 +28,8 @@ use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
+use crate::integer::gpu::extract_glwe_async;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 
 #[derive(Debug)]
 pub struct CudaCompressionKey {
@@ -196,6 +198,30 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             data: self.data.duplicate(streams),
             meta: self.meta,
         }
+    }
+    pub fn extract_glwe(
+        &self,
+        glwe_index: usize,
+        streams: &CudaStreams,
+    ) -> CudaGlweCiphertextList<T> {
+        let mut output_cuda_glwe_list = CudaGlweCiphertextList::new(
+            self.meta.as_ref().unwrap().glwe_dimension,
+            self.meta.as_ref().unwrap().polynomial_size,
+            GlweCiphertextCount(1),
+            self.meta.as_ref().unwrap().ciphertext_modulus,
+            streams,
+        );
+
+        unsafe {
+            extract_glwe_async(
+                streams,
+                &mut output_cuda_glwe_list,
+                &self,
+                glwe_index as u32,
+            );
+        }
+        streams.synchronize();
+        output_cuda_glwe_list
     }
 }
 

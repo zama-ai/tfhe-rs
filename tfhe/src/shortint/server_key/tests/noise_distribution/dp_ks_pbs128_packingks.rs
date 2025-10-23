@@ -143,7 +143,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn dp_ks_any_ms_standard_pbs128_packing_ks<
+pub fn dp_ks_any_ms_standard_pbs128_packing_ks<
     InputCt,
     ScalarMulResult,
     KsResult,

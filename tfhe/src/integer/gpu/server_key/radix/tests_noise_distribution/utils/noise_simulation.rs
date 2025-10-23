@@ -498,3 +498,68 @@ impl LweClassicFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
         }
     }
 }
+
+// Add LweClassicFft128Bootstrap implementation for NoiseSquashingKey
+impl AllocateLweBootstrapResult for CudaGlweCiphertextList<u128> {
+    type Output = CudaDynLwe;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_bootstrap_result(&self, side_resources: &Self::SideResources) -> Self::Output {
+        // For PBS result with u128 GLWE, we output u128 LWE
+        let lwe_dimension = LweDimension(self.glwe_dimension().0 * self.polynomial_size().0);
+
+        let cuda_lwe = CudaLweCiphertextList::<u128>::new(
+            lwe_dimension,
+            LweCiphertextCount(self.glwe_ciphertext_count().0),
+            self.ciphertext_modulus(),
+            &side_resources.streams,
+        );
+        CudaDynLwe::U128(cuda_lwe)
+    }
+}
+
+// Implement LweClassicFft128Bootstrap for CudaNoiseSquashingKey using 128-bit PBS CUDA function
+impl
+    crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweClassicFft128Bootstrap<
+        CudaDynLwe,
+        CudaDynLwe,
+        CudaGlweCiphertextList<u128>,
+    > for crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_classic_fft_128_pbs(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u128>,
+        side_resources: &Self::SideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext_async;
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
+                // Get the bootstrap key from self - it's already u128 type
+                let bsk = match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => d_bsk,
+                    CudaBootstrappingKey::MultiBit(_) => {
+                        panic!("MultiBit bootstrapping keys are not supported for 128-bit PBS");
+                    }
+                };
+
+                unsafe {
+                    cuda_programmable_bootstrap_128_lwe_ciphertext_async(
+                        input_cuda_lwe,
+                        output_cuda_lwe,
+                        accumulator,
+                        bsk,
+                        &side_resources.streams,
+                    );
+                    side_resources.streams.synchronize();
+                }
+            }
+            _ => panic!("128-bit PBS expects U64 input and U128 output for CudaDynLwe"),
+        }
+    }
+}
