@@ -1,8 +1,9 @@
 use super::utils::noise_simulation::*;
 use super::utils::traits::*;
 use super::utils::{
-    mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
-    DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
+    expected_pfail_for_precision, mean_and_variance_check, normality_check, pfail_check,
+    precision_with_padding, DecryptionAndNoiseResult, NoiseSample, PfailAndPrecision,
+    PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::shortint::atomic_pattern::AtomicPattern;
@@ -17,7 +18,8 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, CiphertextModulusLog, CompressionParameters, Variance,
+    AtomicPatternParameters, CarryModulus, CiphertextModulusLog, CompressionParameters,
+    MessageModulus, PBSParameters, Variance,
 };
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::{PaddingBit, ShortintEncoding};
@@ -305,15 +307,15 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper(
             .collect(),
         DecryptionAndNoiseResult::new_from_glwe(
             &after_packing,
-            &compression_glwe_secret_key,
-            compression_private_key.params.lwe_per_glwe,
+            compression_glwe_secret_key,
+            compression_private_key.params.lwe_per_glwe(),
             msg,
             &compression_encoding,
         ),
         DecryptionAndNoiseResult::new_from_glwe(
             &after_ms,
-            &compression_glwe_secret_key,
-            compression_private_key.params.lwe_per_glwe,
+            compression_glwe_secret_key,
+            compression_private_key.params.lwe_per_glwe(),
             msg,
             &compression_encoding,
         ),
@@ -519,7 +521,7 @@ where
         "after_ms",
         0.0,
         after_ms_sim.variance_per_occupied_slot(),
-        comp_params.packing_ks_key_noise_distribution,
+        comp_params.packing_ks_key_noise_distribution(),
         after_ms_sim
             .glwe_dimension()
             .to_equivalent_lwe_dimension(after_ms_sim.polynomial_size()),
@@ -552,23 +554,105 @@ where
     P: Into<AtomicPatternParameters>,
 {
     let (pfail_test_meta, params) = {
-        let mut ap_params: AtomicPatternParameters = params.into();
+        let mut params: AtomicPatternParameters = params.into();
 
-        let original_message_modulus = ap_params.message_modulus();
-        let original_carry_modulus = ap_params.carry_modulus();
+        let original_message_modulus = params.message_modulus();
+        let original_carry_modulus = params.carry_modulus();
 
         // For now only allow 2_2 parameters, and see later for heuristics to use
         assert_eq!(original_message_modulus.0, 4);
         assert_eq!(original_carry_modulus.0, 4);
 
-        // Update parameters to fail more frequently by inflating the carry modulus, allows to keep
-        // the max multiplication without risks of message overflow
-        let (original_pfail_and_precision, new_expected_pfail_and_precision) =
-            update_ap_params_for_pfail(
-                &mut ap_params,
-                original_message_modulus,
-                CarryModulus(1 << 4),
+        let noise_simulation_bsk =
+            NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+        let noise_simulation_packing_key =
+            NoiseSimulationLwePackingKeyswitchKey::new_from_comp_parameters(params, comp_params);
+
+        // The multiplication done in the compression is made to move the message up at the top of
+        // the carry space, multiplying by the carry modulus achieves that
+        let dp_scalar = params.carry_modulus().0;
+
+        let noise_simulation_accumulator = NoiseSimulationGlwe::new(
+            noise_simulation_bsk.output_glwe_size().to_glwe_dimension(),
+            noise_simulation_bsk.output_polynomial_size(),
+            Variance(0.0),
+            noise_simulation_bsk.modulus(),
+        );
+
+        let lwe_per_glwe = comp_params.lwe_per_glwe();
+        let storage_modulus_log = comp_params.storage_log_modulus();
+
+        let (_before_packing_sim, _after_packing_sim, after_ms_sim) = {
+            let noise_simulation = NoiseSimulationLwe::new(
+                params.lwe_dimension(),
+                Variance(0.0),
+                NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
             );
+            br_dp_packing_ks_ms(
+                vec![noise_simulation; lwe_per_glwe.0],
+                &noise_simulation_bsk,
+                &noise_simulation_accumulator,
+                dp_scalar,
+                &noise_simulation_packing_key,
+                storage_modulus_log,
+                &mut vec![(); lwe_per_glwe.0],
+            )
+        };
+
+        let expected_variance_after_storage = after_ms_sim.variance_per_occupied_slot();
+
+        let compression_carry_mod = CarryModulus(1);
+        let compression_message_mod = original_message_modulus;
+        let compression_precision_with_padding =
+            precision_with_padding(compression_message_mod, compression_carry_mod);
+        let expected_pfail_for_storage = expected_pfail_for_precision(
+            compression_precision_with_padding,
+            expected_variance_after_storage,
+        );
+
+        let original_pfail_and_precision = PfailAndPrecision::new(
+            expected_pfail_for_storage,
+            compression_message_mod,
+            compression_carry_mod,
+        );
+
+        let updated_message_mod = MessageModulus(1 << 6);
+        let updated_carry_mod = compression_carry_mod;
+
+        let updated_precision_with_padding =
+            precision_with_padding(updated_message_mod, updated_carry_mod);
+
+        let new_expected_pfail_for_storage = expected_pfail_for_precision(
+            updated_precision_with_padding,
+            expected_variance_after_storage,
+        );
+
+        let new_expected_pfail_and_precision = PfailAndPrecision::new(
+            new_expected_pfail_for_storage,
+            updated_message_mod,
+            updated_carry_mod,
+        );
+
+        // Here we update the message modulus only:
+        // - because the message modulus matches for the compression encoding and compute encoding
+        // - so that the carry modulus stays the same and we apply the same dot product as normal
+        //   for 2_2
+        // - so that the effective encoding after the storage is the one we used to evaluate the
+        //   pfail
+        // TODO: do something about this
+        match &mut params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(classic_pbsparameters) => {
+                    classic_pbsparameters.message_modulus = updated_message_mod
+                }
+                PBSParameters::MultiBitPBS(multi_bit_pbsparameters) => {
+                    multi_bit_pbsparameters.message_modulus = updated_message_mod
+                }
+            },
+            AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+                key_switch32_pbsparameters.message_modulus = updated_message_mod
+            }
+        }
 
         let pfail_test_meta = if should_run_short_pfail_tests_debug() {
             let expected_fails = 200;
@@ -586,7 +670,7 @@ where
             )
         };
 
-        (pfail_test_meta, ap_params)
+        (pfail_test_meta, params)
     };
 
     let cks = ClientKey::new(params);

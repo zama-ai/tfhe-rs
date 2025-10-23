@@ -1661,12 +1661,12 @@ impl NoiseSimulationLwePackingKeyswitchKey {
 
         Self::new(
             params_big_lwe_dim,
-            compression_params.packing_ks_base_log,
-            compression_params.packing_ks_level,
-            compression_params.packing_ks_glwe_dimension,
-            compression_params.packing_ks_polynomial_size,
+            compression_params.packing_ks_base_log(),
+            compression_params.packing_ks_level(),
+            compression_params.packing_ks_glwe_dimension(),
+            compression_params.packing_ks_polynomial_size(),
             NoiseSimulationNoiseDistribution::U64(
-                compression_params.packing_ks_key_noise_distribution,
+                compression_params.packing_ks_key_noise_distribution(),
             ),
             NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
         )
