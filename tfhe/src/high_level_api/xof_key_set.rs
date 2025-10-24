@@ -26,7 +26,7 @@ use crate::shortint::server_key::{
 use crate::{
     integer, shortint, CompactPublicKey, CompressedCompactPublicKey,
     CompressedReRandomizationKeySwitchingKey, CompressedServerKey, ReRandomizationKeySwitchingKey,
-    ServerKey, Tag,
+    ServerKey,
 };
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
@@ -74,6 +74,7 @@ mod cfg_test_imports {
     pub(super) use tfhe_csprng::seeders::Seed;
 
     pub(super) use crate::high_level_api::keys::ReRandomizationKeyGenerationInfo;
+    pub(super) use crate::Tag;
 }
 #[cfg(test)]
 use cfg_test_imports::*;
@@ -192,7 +193,7 @@ impl CompressedXofKeySet {
             noise_squashing_key,
             noise_squashing_compression_key,
             integer_cpk_re_rand_ksk,
-            Tag::default(),
+            self.compressed_server_key.tag,
         );
 
         Ok(XofKeySet {
@@ -252,6 +253,7 @@ impl CompressedCompactPublicKey {
     fn generate_with_pre_seeded_generator<Gen>(
         private_key: &CompactPrivateKey,
         generator: &mut EncryptionRandomGenerator<Gen>,
+        tag: Tag,
     ) -> Self
     where
         Gen: ByteRandomGenerator,
@@ -279,7 +281,7 @@ impl CompressedCompactPublicKey {
                     private_key.0.key.parameters(),
                 ),
             ),
-            Tag::default(),
+            tag,
         )
     }
 
@@ -306,7 +308,7 @@ impl CompressedCompactPublicKey {
 
         let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
         let integer_pk = integer::CompactPublicKey::from_raw_parts(shortint_pk);
-        CompactPublicKey::from_raw_parts(integer_pk, Tag::default())
+        CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
     }
 }
 
@@ -1402,6 +1404,7 @@ mod test {
                 CompressedCompactPublicKey::generate_with_pre_seeded_generator(
                     dedicated_pk_key,
                     &mut encryption_rand_gen,
+                    ck.tag.clone(),
                 );
 
             let glwe_secret_key = match &shortint_client_key.atomic_pattern {
@@ -1585,7 +1588,7 @@ mod test {
                 noise_squashing_bs_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_key_switching_key_material,
-                Tag::default(),
+                ck.tag.clone(),
             );
 
             Ok(Self {
@@ -1616,7 +1619,8 @@ mod test {
             .enable_ciphertext_re_randomization(re_rand_ksk_params)
             .build();
 
-        let cks = ClientKey::generate(config);
+        let mut cks = ClientKey::generate(config);
+        cks.tag_mut().set_data(b"classic 2_2");
 
         let mut seeder = new_seeder();
         let pub_seed = XofSeed::new_u128(
@@ -1629,6 +1633,8 @@ mod test {
         );
 
         let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), compressed_key_set.compressed_server_key.tag());
         test_xof_key_set(&compressed_key_set, config, &cks);
     }
 
@@ -1652,7 +1658,8 @@ mod test {
             .enable_ciphertext_re_randomization(re_rand_ksk_params)
             .build();
 
-        let cks = ClientKey::generate(config);
+        let mut cks = ClientKey::generate(config);
+        cks.tag_mut().set_data(b"ks32 big pke");
 
         let mut seeder = new_seeder();
         let pub_seed = XofSeed::new_u128(
@@ -1665,6 +1672,8 @@ mod test {
         );
 
         let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), compressed_key_set.compressed_server_key.tag());
         test_xof_key_set(&compressed_key_set, config, &cks);
     }
 
@@ -1688,7 +1697,8 @@ mod test {
             .enable_ciphertext_re_randomization(re_rand_ksk_params)
             .build();
 
-        let cks = ClientKey::generate(config);
+        let mut cks = ClientKey::generate(config);
+        cks.tag_mut().set_data(b"ks32 small pke");
 
         let mut seeder = new_seeder();
         let pub_seed = XofSeed::new_u128(
@@ -1701,6 +1711,8 @@ mod test {
         );
 
         let compressed_key_set = CompressedXofKeySet::with_seed(pub_seed, priv_seed, &cks).unwrap();
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), compressed_key_set.compressed_server_key.tag());
         test_xof_key_set(&compressed_key_set, config, &cks);
     }
 
@@ -1717,6 +1729,8 @@ mod test {
             crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
                 .unwrap();
 
+        let expected_pk_tag = compressed_key_set.compressed_public_key.tag().clone();
+        let expected_sk_tag = compressed_key_set.compressed_server_key.tag().clone();
         let key_set = compressed_key_set.decompress().unwrap();
 
         let size_limit = 1 << 32;
@@ -1726,6 +1740,8 @@ mod test {
             crate::safe_serialization::safe_deserialize(data.as_slice(), size_limit).unwrap();
 
         let (pk, sk) = key_set.into_raw_parts();
+        assert_eq!(pk.tag(), &expected_pk_tag);
+        assert_eq!(sk.tag(), &expected_sk_tag);
 
         assert!(sk.is_conformant(&config.into()));
 
