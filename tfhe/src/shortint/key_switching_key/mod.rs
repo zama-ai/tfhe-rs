@@ -111,6 +111,7 @@ impl KeySwitchingKeyMaterial {
             key_switching_key: &self.key_switching_key,
             cast_rshift: self.cast_rshift,
             destination_key: self.destination_key,
+            destination_atomic_pattern: self.destination_atomic_pattern,
         }
     }
 }
@@ -251,6 +252,7 @@ pub struct KeySwitchingKeyMaterialView<'key> {
     pub(crate) key_switching_key: &'key LweKeyswitchKeyOwned<u64>,
     pub(crate) cast_rshift: i8,
     pub(crate) destination_key: EncryptionKeyChoice,
+    pub(crate) destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -269,14 +271,30 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
     where
         InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
     {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            Self::new_with_engine(input_key_pair, output_key_pair, params, engine)
+        })
+    }
+
+    pub(crate) fn new_with_engine<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&'keys ServerKey>),
+        output_key_pair: (&'keys ClientKey, &'keys ServerKey),
+        params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
+    {
         let input_secret_key: SecretEncryptionKeyView<'_> = input_key_pair.0.into();
 
         let output_cks = output_key_pair.0;
 
         // Creation of the key switching key
-        let key_switching_key = output_cks
-            .atomic_pattern
-            .new_keyswitching_key(&input_secret_key, params);
+        let key_switching_key = output_cks.atomic_pattern.new_keyswitching_key_with_engine(
+            &input_secret_key,
+            params,
+            engine,
+        );
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
@@ -311,6 +329,21 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
             },
             dest_server_key,
             src_server_key: input_key_pair.1,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn as_key_switching_key_view(&self) -> KeySwitchingKeyView<'_> {
+        let Self {
+            key_switching_key_material,
+            dest_server_key,
+            src_server_key,
+        } = self;
+
+        KeySwitchingKeyView {
+            key_switching_key_material: key_switching_key_material.as_view(),
+            dest_server_key: *dest_server_key,
+            src_server_key: *src_server_key,
         }
     }
 }

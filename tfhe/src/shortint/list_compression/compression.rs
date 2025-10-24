@@ -7,7 +7,8 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_multi_bit_blind_rotate, apply_standard_blind_rotate,
-    generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableSize,
+    generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableOwned,
+    LookupTableSize,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -134,6 +135,33 @@ impl CompressionKey {
 }
 
 impl DecompressionKey {
+    pub(crate) fn rescaling_lut(
+        &self,
+        ciphertext_modulus: CiphertextModulus<u64>,
+        effective_compression_message_modulus: MessageModulus,
+        effective_compression_carry_modulus: CarryModulus,
+        output_message_modulus: MessageModulus,
+        output_carry_modulus: CarryModulus,
+    ) -> LookupTableOwned {
+        let lut_size = LookupTableSize::new(self.out_glwe_size(), self.out_polynomial_size());
+
+        generate_lookup_table_with_output_encoding(
+            lut_size,
+            ciphertext_modulus,
+            // Input moduli are the effective compression ones
+            effective_compression_message_modulus,
+            effective_compression_carry_modulus,
+            // Output moduli are directly the ones stored in the list
+            output_message_modulus,
+            output_carry_modulus,
+            // Here we do not divide by message_modulus
+            // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits space, we
+            // want to keep the original 2 bits value in the 4 bits space, so we apply the identity
+            // and the encoding will rescale it for us.
+            |x| x,
+        )
+    }
+
     pub fn unpack(
         &self,
         packed: &CompressedCiphertextList,
@@ -166,22 +194,13 @@ impl DecompressionKey {
         let compression_cleartext_modulus = encryption_cleartext_modulus / meta.message_modulus.0;
         let effective_compression_message_modulus = MessageModulus(compression_cleartext_modulus);
         let effective_compression_carry_modulus = CarryModulus(1);
-        let lut_size = LookupTableSize::new(self.out_glwe_size(), self.out_polynomial_size());
 
-        let decompression_rescale = generate_lookup_table_with_output_encoding(
-            lut_size,
+        let decompression_rescale = self.rescaling_lut(
             meta.ciphertext_modulus,
-            // Input moduli are the effective compression ones
             effective_compression_message_modulus,
             effective_compression_carry_modulus,
-            // Output moduli are directly the ones stored in the list
             meta.message_modulus,
             meta.carry_modulus,
-            // Here we do not divide by message_modulus
-            // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits space, we
-            // want to keep the original 2 bits value in the 4 bits space, so we apply the identity
-            // and the encoding will rescale it for us.
-            |x| x,
         );
 
         let polynomial_size = packed.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
