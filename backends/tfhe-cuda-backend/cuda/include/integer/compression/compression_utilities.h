@@ -92,10 +92,6 @@ template <typename Torus> struct int_decompression {
 
     // rescale is only needed on 64-bit decompression
     if constexpr (std::is_same_v<Torus, uint64_t>) {
-      decompression_rescale_lut = new int_radix_lut<Torus>(
-          streams, encryption_params, 1, num_blocks_to_decompress,
-          allocate_gpu_memory, size_tracker);
-
       // Rescale is done using an identity LUT
       // Here we do not divide by message_modulus
       // Example: in the 2_2 case we are mapping a 2-bit message onto a 4-bit
