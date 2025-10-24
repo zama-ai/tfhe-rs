@@ -3,6 +3,8 @@
 mod aes;
 mod oprf;
 
+mod rerand;
+
 use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::{
     get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,

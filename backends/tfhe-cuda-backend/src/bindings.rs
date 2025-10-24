@@ -1756,6 +1756,32 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_rerand_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        lwe_ciphertext_count: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_rerand_64(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut ffi::c_void,
+        lwe_flattened_encryptions_of_zero_compact_array_in: *const ffi::c_void,
+        mem_ptr: *mut i8,
+        ksk: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_rerand(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_aes_encrypt_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
