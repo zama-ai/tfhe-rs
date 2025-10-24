@@ -1708,7 +1708,23 @@ where
                 Ok(())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_cuda_key) => panic!("GPU does not support CPKReRandomize."),
+            InternalServerKey::Cuda(cuda_key) => {
+                let Some(re_randomization_key) = cuda_key.re_randomization_cpk_casting_key() else {
+                    return Err(UninitializedReRandKey.into());
+                };
+
+                let streams = &cuda_key.streams;
+                self.ciphertext.as_gpu_mut(streams).re_randomize(
+                    &compact_public_key.key.key,
+                    re_randomization_key,
+                    seed,
+                    streams,
+                )?;
+
+                self.re_randomization_metadata_mut().clear();
+
+                Ok(())
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("HPU does not support CPKReRandomize.")

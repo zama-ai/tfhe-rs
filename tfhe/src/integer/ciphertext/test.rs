@@ -115,7 +115,7 @@ fn test_ciphertext_re_randomization_after_compression() {
 
         assert_ne!(decompressed, re_randomized);
 
-        let decrypted: i128 = cks.decrypt_signed_radix(&decompressed);
+        let decrypted: i128 = cks.decrypt_signed_radix(&re_randomized);
         assert_eq!(decrypted, message);
     }
 

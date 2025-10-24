@@ -1,15 +1,8 @@
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::key_switching_key::KeySwitchingKey;
-use crate::shortint::EncryptionKeyChoice;
-
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct CudaKeySwitchingKeyMaterial {
-    pub(crate) lwe_keyswitch_key: CudaLweKeyswitchKey<u64>,
-    pub(crate) destination_key: EncryptionKeyChoice,
-}
+use crate::integer::key_switching_key::{KeySwitchingKey, KeySwitchingKeyMaterialView};
+pub use crate::shortint::key_switching_key::CudaKeySwitchingKeyMaterial;
 
 #[allow(dead_code)]
 pub struct CudaKeySwitchingKey<'key> {
@@ -27,9 +20,30 @@ impl CudaKeySwitchingKeyMaterial {
             &key_switching_key_material.key_switching_key,
             streams,
         );
+        let cast_rshift = key_switching_key_material.cast_rshift;
+
         Self {
             lwe_keyswitch_key: d_lwe_keyswich_key,
             destination_key: key_switching_key_material.destination_key,
+            cast_rshift,
+        }
+    }
+
+    pub fn from_key_switching_key_material(
+        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        streams: &CudaStreams,
+    ) -> Self {
+        let lwe_keyswitch_key = CudaLweKeyswitchKey::from_lwe_keyswitch_key(
+            key_switching_key_material.material.key_switching_key,
+            streams,
+        );
+        let destination_key = key_switching_key_material.material.destination_key;
+        let cast_rshift = key_switching_key_material.material.cast_rshift;
+
+        Self {
+            lwe_keyswitch_key,
+            cast_rshift,
+            destination_key,
         }
     }
 }

@@ -353,8 +353,9 @@ pub struct IntegerServerKey {
     pub(crate) decompression_key: Option<DecompressionKey>,
     pub(crate) noise_squashing_key: Option<NoiseSquashingKey>,
     pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub(crate) cpk_re_randomization_key_switching_key_material:
-        Option<ReRandomizationKeySwitchingKey>,
+    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
+        ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    >,
 }
 
 impl IntegerServerKey {
@@ -489,6 +490,29 @@ pub struct IntegerCudaServerKey {
     pub(crate) noise_squashing_compression_key: Option<
         crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
     >,
+    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
+        ReRandomizationKeySwitchingKey<
+            crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial,
+        >,
+    >,
+}
+
+#[cfg(feature = "gpu")]
+impl IntegerCudaServerKey {
+    pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
+        &self,
+    ) -> Option<&crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial> {
+        self.cpk_re_randomization_key_switching_key_material
+            .as_ref()
+            .and_then(|key| match key {
+                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                    self.cpk_key_switching_key_material.as_ref()
+                }
+                ReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
+                    Some(key_switching_key_material)
+                }
+            })
+    }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]

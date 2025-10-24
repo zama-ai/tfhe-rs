@@ -68,7 +68,11 @@ impl ServerKey {
         Option<DecompressionKey>,
         Option<NoiseSquashingKey>,
         Option<NoiseSquashingCompressionKey>,
-        Option<ReRandomizationKeySwitchingKey>,
+        Option<
+            ReRandomizationKeySwitchingKey<
+                crate::integer::key_switching_key::KeySwitchingKeyMaterial,
+            >,
+        >,
         Tag,
     ) {
         let IntegerServerKey {
@@ -103,7 +107,11 @@ impl ServerKey {
         decompression_key: Option<DecompressionKey>,
         noise_squashing_key: Option<NoiseSquashingKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-        cpk_re_randomization_key_switching_key_material: Option<ReRandomizationKeySwitchingKey>,
+        cpk_re_randomization_key_switching_key_material: Option<
+            ReRandomizationKeySwitchingKey<
+                crate::integer::key_switching_key::KeySwitchingKeyMaterial,
+            >,
+        >,
         tag: Tag,
     ) -> Self {
         Self {
@@ -349,8 +357,35 @@ impl CompressedServerKey {
                 CudaKeySwitchingKeyMaterial {
                     lwe_keyswitch_key: d_ksk,
                     destination_key: ksk_material.material.destination_key,
+                    cast_rshift: ksk_material.material.cast_rshift,
                 }
             });
+
+        let cpk_re_randomization_key_switching_key_material = self
+            .integer_key
+            .cpk_re_randomization_key_switching_key_material
+            .as_ref()
+            .map(
+                |cpk_re_randomization_ksk_material| match cpk_re_randomization_ksk_material {
+                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                    }
+                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(dedicated_ksk) => {
+                        let ksk_material = dedicated_ksk.decompress();
+                        let d_ksk = CudaLweKeyswitchKey::from_lwe_keyswitch_key(
+                            &ksk_material.material.key_switching_key,
+                            &streams,
+                        );
+                        let d_ksk_material = CudaKeySwitchingKeyMaterial {
+                            lwe_keyswitch_key: d_ksk,
+                            destination_key: ksk_material.material.destination_key,
+                            cast_rshift: ksk_material.material.cast_rshift,
+                        };
+
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(d_ksk_material)
+                    }
+                },
+            );
 
         let compression_key: Option<
             crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
@@ -411,6 +446,7 @@ impl CompressedServerKey {
                 decompression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
+                cpk_re_randomization_key_switching_key_material,
             }),
             tag: self.tag.clone(),
             streams,
@@ -452,6 +488,11 @@ impl CudaServerKey {
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
         &self.key.key.key_switching_key.d_vec.gpu_indexes
+    }
+    pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
+        &self,
+    ) -> Option<&CudaKeySwitchingKeyMaterial> {
+        self.key.re_randomization_cpk_casting_key()
     }
 }
 

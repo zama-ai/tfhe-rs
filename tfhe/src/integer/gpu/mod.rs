@@ -9,6 +9,8 @@ pub mod zk;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaStreams, PBSMSNoiseReductionType};
@@ -5169,6 +5171,69 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_rerand_assign<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaLweCiphertextList<T>,
+    zero_lwes: &CudaLweCompactCiphertextList<T>,
+    keyswitch_key: &CudaLweKeyswitchKey<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        zero_lwes.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        zero_lwes.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.d_vec.gpu_index(0).get(),
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_rerand_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        true,
+    );
+    cuda_rerand_64(
+        streams.ffi(),
+        lwe_array.0.d_vec.as_mut_c_ptr(0),
+        zero_lwes.0.d_vec.as_c_ptr(0),
+        mem_ptr,
+        keyswitch_key.d_vec.ptr.as_ptr(),
+    );
+    cleanup_cuda_rerand(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+}
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
     streams: &CudaStreams,

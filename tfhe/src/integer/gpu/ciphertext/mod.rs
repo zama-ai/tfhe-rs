@@ -3,6 +3,7 @@ pub mod compact_list;
 pub mod compressed_ciphertext_list;
 pub mod compressed_noise_squashed_ciphertext_list;
 pub mod info;
+pub mod re_randomization;
 pub mod squashed_noise;
 
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;

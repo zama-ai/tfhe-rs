@@ -7,7 +7,19 @@
 //! - Then a pbs is done to update the encoding, if the parameters do not have the same precision.
 //!   This allows to apply a user provided function at the same time.
 
+use super::atomic_pattern::AtomicPatternServerKey;
+use super::backward_compatibility::key_switching_key::{
+    CompressedKeySwitchingKeyMaterialVersions, CompressedKeySwitchingKeyVersions,
+    KeySwitchingKeyDestinationAtomicPatternVersions, KeySwitchingKeyMaterialVersions,
+    KeySwitchingKeyVersions,
+};
+use super::server_key::{
+    KS32ServerKeyView, ServerKeyView, ShortintBootstrappingKey, StandardServerKeyView,
+};
+use super::AtomicPatternKind;
 use crate::conformance::ParameterSetConformant;
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, CastFrom, CastInto, Cleartext, LweCiphertext, LweCiphertextOwned,
     LweKeyswitchKeyConformanceParams, LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned,
@@ -27,17 +39,6 @@ use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
-
-use super::atomic_pattern::AtomicPatternServerKey;
-use super::backward_compatibility::key_switching_key::{
-    CompressedKeySwitchingKeyMaterialVersions, CompressedKeySwitchingKeyVersions,
-    KeySwitchingKeyDestinationAtomicPatternVersions, KeySwitchingKeyMaterialVersions,
-    KeySwitchingKeyVersions,
-};
-use super::server_key::{
-    KS32ServerKeyView, ServerKeyView, ShortintBootstrappingKey, StandardServerKeyView,
-};
-use super::AtomicPatternKind;
 
 #[cfg(test)]
 mod test;
@@ -253,6 +254,15 @@ pub struct KeySwitchingKeyMaterialView<'key> {
     pub(crate) cast_rshift: i8,
     pub(crate) destination_key: EncryptionKeyChoice,
     pub(crate) destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+pub struct CudaKeySwitchingKeyMaterial {
+    pub(crate) lwe_keyswitch_key: CudaLweKeyswitchKey<u64>,
+    pub(crate) cast_rshift: i8,
+    pub(crate) destination_key: EncryptionKeyChoice,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
