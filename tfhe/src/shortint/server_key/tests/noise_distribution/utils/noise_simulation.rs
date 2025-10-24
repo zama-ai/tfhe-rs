@@ -462,13 +462,13 @@ impl AllocateLweKeyswitchResult for ServerKey {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NoiseSimulationModulusSwitchConfig {
+pub enum NoiseSimulationModulusSwitchConfig<'key, DriftKey> {
     Standard,
-    DriftTechniqueNoiseReduction,
+    DriftTechniqueNoiseReduction(&'key DriftKey),
     CenteredMeanNoiseReduction,
 }
 
-impl NoiseSimulationModulusSwitchConfig {
+impl NoiseSimulationModulusSwitchConfig<'_> {
     pub fn expected_average_after_ms(self, polynomial_size: PolynomialSize) -> f64 {
         match self {
             Self::Standard => 0.0f64,
@@ -476,22 +476,6 @@ impl NoiseSimulationModulusSwitchConfig {
             Self::CenteredMeanNoiseReduction => {
                 // Half case subtracted before entering the blind rotate
                 -1.0f64 / (4.0 * polynomial_size.0 as f64)
-            }
-        }
-    }
-}
-
-impl<Scalar: UnsignedInteger> From<&ModulusSwitchConfiguration<Scalar>>
-    for NoiseSimulationModulusSwitchConfig
-{
-    fn from(value: &ModulusSwitchConfiguration<Scalar>) -> Self {
-        match value {
-            ModulusSwitchConfiguration::Standard => Self::Standard,
-            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => {
-                Self::DriftTechniqueNoiseReduction
-            }
-            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
-                Self::CenteredMeanNoiseReduction
             }
         }
     }
@@ -518,14 +502,26 @@ impl ServerKey {
         }
     }
 
-    pub fn noise_simulation_modulus_switch_config(&self) -> NoiseSimulationModulusSwitchConfig {
+    pub fn noise_simulation_modulus_switch_config(
+        &self,
+    ) -> NoiseSimulationModulusSwitchConfig<Self> {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk: _,
                         modulus_switch_noise_reduction_key,
-                    } => modulus_switch_noise_reduction_key.into(),
+                    } => match modulus_switch_noise_reduction_key {
+                        ModulusSwitchConfiguration::Standard => {
+                            NoiseSimulationModulusSwitchConfig::Standard
+                        }
+                        ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => {
+                            NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction(self)
+                        }
+                        ModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
+                            NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
+                        }
+                    },
                     ShortintBootstrappingKey::MultiBit { .. } => {
                         todo!("Unsupported ShortintBootstrappingKey::MultiBit for noise simulation")
                     }
@@ -536,7 +532,17 @@ impl ServerKey {
                     ShortintBootstrappingKey::Classic {
                         bsk: _,
                         modulus_switch_noise_reduction_key,
-                    } => modulus_switch_noise_reduction_key.into(),
+                    } => match modulus_switch_noise_reduction_key {
+                        ModulusSwitchConfiguration::Standard => {
+                            NoiseSimulationModulusSwitchConfig::Standard
+                        }
+                        ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => {
+                            NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction(self)
+                        }
+                        ModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
+                            NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
+                        }
+                    },
                     ShortintBootstrappingKey::MultiBit { .. } => {
                         todo!("Unsupported ShortintBootstrappingKey::MultiBit for noise simulation")
                     }
