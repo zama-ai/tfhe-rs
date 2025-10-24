@@ -1390,6 +1390,13 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_integer_compression_128b_gpu
+bench_integer_compression_128b_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench	glwe_packing_compression_128b-integer-bench \
+	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
+
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
