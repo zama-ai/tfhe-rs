@@ -797,4 +797,4 @@ if __name__ == "__main__":
             except Exception:
                 sys.exit(4)
 
-# TODO Add unittests primarly to check if commands and env generated are correct.
+# TODO Add unittests primarily to check if commands and env generated are correct.
