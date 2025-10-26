@@ -279,7 +279,7 @@ jobs:
           BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: ${{ github.sha }}_regression_${{ env.RESULTS_FILE_SHA }} # RESULT_FILE_SHA is needed to avoid collision between matrix.command runs
           path: ${{ env.RESULTS_FILENAME }}
