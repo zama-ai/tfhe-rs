@@ -22,11 +22,11 @@ use tfhe_zk_pok::proofs::pke::{
 };
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commit_v2, crs_gen as crs_gen_v2, prove as prove_v2, verify as verify_v2,
-    PkeV2HashMode, Proof as ProofV2, PublicCommit as PublicCommitV2,
+    PkeV2SupportedHashConfig, Proof as ProofV2, PublicCommit as PublicCommitV2,
 };
 
 pub use tfhe_zk_pok::curve_api::Compressible;
-pub use tfhe_zk_pok::proofs::pke_v2::PkeV2HashMode as ZkPkeV2HashMode;
+pub use tfhe_zk_pok::proofs::pke_v2::PkeV2SupportedHashConfig as ZkPkeV2SupportedHashConfig;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
@@ -48,7 +48,7 @@ impl CastInto<usize> for ZkComputeLoad {
     }
 }
 
-impl CastInto<usize> for PkeV2HashMode {
+impl CastInto<usize> for ZkPkeV2SupportedHashConfig {
     fn cast_into(self) -> usize {
         self as usize
     }
@@ -104,7 +104,7 @@ impl ParameterSetConformant for ProofV1<Curve> {
 /// Used to explicitly reject [`ProofV2`] proofs that come with specific config
 pub struct CompactPkeV2ProofConformanceParams {
     accepted_compute_load: EnumSet<ZkComputeLoad>,
-    accepted_hash_mode: EnumSet<PkeV2HashMode>,
+    accepted_hash_config: EnumSet<PkeV2SupportedHashConfig>,
 }
 
 impl Default for CompactPkeV2ProofConformanceParams {
@@ -120,14 +120,14 @@ impl CompactPkeV2ProofConformanceParams {
         accepted_compute_load.insert(ZkComputeLoad::Proof);
         accepted_compute_load.insert(ZkComputeLoad::Verify);
 
-        let mut accepted_hash_mode = EnumSet::new();
-        accepted_hash_mode.insert(PkeV2HashMode::BackwardCompat);
-        accepted_hash_mode.insert(PkeV2HashMode::Classical);
-        accepted_hash_mode.insert(PkeV2HashMode::Compact);
+        let mut accepted_hash_config = EnumSet::new();
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_4_0);
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_7_0);
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_8_0);
 
         Self {
             accepted_compute_load,
-            accepted_hash_mode,
+            accepted_hash_config,
         }
     }
 
@@ -138,18 +138,18 @@ impl CompactPkeV2ProofConformanceParams {
 
         Self {
             accepted_compute_load,
-            accepted_hash_mode: self.accepted_hash_mode,
+            ..self
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]
-    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
-        let mut accepted_hash_mode = self.accepted_hash_mode;
-        accepted_hash_mode.remove(forbidden_hash_mode);
+    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]
+    pub fn forbid_hash_config(self, forbidden_hash_config: ZkPkeV2SupportedHashConfig) -> Self {
+        let mut accepted_hash_config = self.accepted_hash_config;
+        accepted_hash_config.remove(forbidden_hash_config);
 
         Self {
-            accepted_compute_load: self.accepted_compute_load,
-            accepted_hash_mode,
+            accepted_hash_config,
+            ..self
         }
     }
 }
@@ -161,7 +161,9 @@ impl ParameterSetConformant for ProofV2<Curve> {
         parameter_set
             .accepted_compute_load
             .contains(self.compute_load())
-            && parameter_set.accepted_hash_mode.contains(self.hash_mode())
+            && parameter_set
+                .accepted_hash_config
+                .contains(self.hash_config())
             && self.is_usable()
     }
 }
@@ -192,13 +194,13 @@ impl CompactPkeProofConformanceParams {
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
-    /// proofs
-    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]. This has no effect on
+    /// PkeV1 proofs
+    pub fn forbid_hash_config(self, forbidden_hash_config: ZkPkeV2SupportedHashConfig) -> Self {
         match self {
             // There is no hash mode to configure in PkeV1
             Self::PkeV1(params) => Self::PkeV1(params),
-            Self::PkeV2(params) => Self::PkeV2(params.forbid_hash_mode(forbidden_hash_mode)),
+            Self::PkeV2(params) => Self::PkeV2(params.forbid_hash_config(forbidden_hash_config)),
         }
     }
 }
