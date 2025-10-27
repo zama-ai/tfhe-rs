@@ -89,6 +89,42 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
   buffer_in[state_idx] = state;
 }
 
+template <typename Torus>
+__global__ void keyswitch_gemm_copy_message(const Torus *lwe_in, Torus *lwe_out,
+                                            uint32_t lwe_dimension_in,
+                                            uint32_t num_lwes,
+                                            uint32_t lwe_dimension_out) {
+
+  uint32_t lwe_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (lwe_id >= num_lwes)
+    return;
+
+  lwe_out[lwe_id * (lwe_dimension_out + 1) + lwe_dimension_out] =
+      -lwe_in[lwe_id * (lwe_dimension_in + 1) + lwe_dimension_in];
+}
+
+// Continue decomposition of an array of Torus elements in place. Supposes
+// that the array contains already decomposed elements and
+// computes the new decomposed level in place.
+template <typename Torus>
+__global__ void keyswitch_negate(Torus *buffer_in, uint32_t lwe_size,
+                                 uint32_t num_lwe) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_sample_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_size)
+    return;
+
+  auto val_idx = lwe_idx * lwe_size + lwe_sample_idx;
+
+  Torus val = buffer_in[val_idx];
+  buffer_in[val_idx] = -val;
+}
+
 /*
  * keyswitch kernel
  * Each thread handles a piece of the following equation:
@@ -209,7 +245,38 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-__host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
+void print_2d_csv_to_file(const std::vector<Torus> &v, int col_size,
+                          const char *fname) {
+  FILE *fp = fopen(fname, "wt");
+  for (int i = 0; i < v.size() / col_size; ++i) {
+    for (int j = 0; j < col_size; ++j) {
+      fprintf(fp, "%lu%c", v[i * col_size + j],
+              (j == col_size - 1) ? '\n' : ',');
+    }
+  }
+  fclose(fp);
+}
+
+template <typename Torus>
+__host__ void dump_2d_gpu_to_file(const Torus *ptr, int row_size, int col_size,
+                                  const char *fname_prefix, int rand_prefix,
+                                  cudaStream_t stream, uint32_t gpu_index) {
+#ifndef NDEBUG
+  std::vector<Torus> buf_cpu(row_size * col_size);
+
+  char fname[256];
+  sprintf(fname, "%s_%d_%d_%d.csv", fname_prefix, row_size, col_size,
+          rand_prefix);
+
+  cuda_memcpy_async_to_cpu((void *)&buf_cpu[0], ptr,
+                           buf_cpu.size() * sizeof(Torus), stream, gpu_index);
+  cuda_synchronize_device(gpu_index);
+  print_2d_csv_to_file(buf_cpu, col_size, fname);
+#endif
+}
+
+template <typename Torus>
+__host__ int host_gemm_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *ksk, uint32_t lwe_dimension_in,
@@ -218,37 +285,38 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   cuda_set_device(gpu_index);
   check_cuda_error(cudaGetLastError());
 
+  int prefix = rand() % 2048;
+
   auto d_mem_0 = fp_tmp_buffer; // keeps decomposed value
-  auto d_mem_1 =
-      fp_tmp_buffer + num_samples * lwe_dimension_out; // keeps decomposer state
 
   // Set the scratch buffer to 0 as it is used to accumulate
   // decomposition temporary results
   cuda_memset_async(lwe_array_out, 0,
-                    num_samples * lwe_dimension_out * sizeof(Torus), stream,
-                    gpu_index);
+                    num_samples * (lwe_dimension_out + 1) * sizeof(Torus),
+                    stream, gpu_index);
   check_cuda_error(cudaGetLastError());
+
+  dim3 grid_copy(CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+  dim3 threads_copy(BLOCK_SIZE_DECOMP);
+
+  // lwe_array_out is num_samples x (lwe_dimension_out + 1). copy the bodies
+  // lwe_array_in[:,lwe_dimension_in] to lwe_array_out[:,lwe_dimension_out]
+  // and negate
+  keyswitch_gemm_copy_message<Torus><<<grid_copy, threads_copy, 0, stream>>>(
+      lwe_array_in, lwe_array_out, lwe_dimension_in, num_samples,
+      lwe_dimension_out);
+  check_cuda_error(cudaGetLastError());
+
+  dump_2d_gpu_to_file(lwe_array_out, num_samples, lwe_dimension_out + 1,
+                      "lwe_out_only_body", prefix, stream, gpu_index);
 
   // decompose LWEs
   // don't decompose LWE body - the LWE has lwe_size + 1 elements. The last
   // element, the body is ignored by rounding down the number of blocks assuming
   // here that the LWE dimension is a multiple of the block size
   dim3 grid_decomp(CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP),
-                   CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+                   CEIL_DIV(lwe_dimension_in, BLOCK_SIZE_DECOMP));
   dim3 threads_decomp(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
-
-  // decompose first level
-  decompose_vectorize_init<Torus><<<grid_decomp, threads_decomp, 0, stream>>>(
-      lwe_array_in, fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
-      level_count);
-  check_cuda_error(cudaGetLastError());
-
-  // gemm to ks the individual LWEs to GLWEs
-  dim3 grid_gemm(CEIL_DIV(lwe_dimension_out, BLOCK_SIZE_GEMM),
-                 CEIL_DIV(num_samples, BLOCK_SIZE_GEMM));
-  dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
-
-  auto stride_KSK_buffer = lwe_dimension_out * level_count;
 
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
   // Shared memory requirement is 4096, 8192, and 16384 bytes respectively for
@@ -257,25 +325,78 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   GPU_ASSERT(shared_mem_size <= 1024 * sizeof(Torus),
              "GEMM kernel error: shared memory required might be too large");
 
-  tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-      num_samples, lwe_dimension_out, lwe_dimension_in, d_mem_0, ksk,
-      stride_KSK_buffer, lwe_array_out, lwe_dimension_out);
+  auto stride_KSK_buffer = (lwe_dimension_out + 1) * level_count;
+
+  // gemm to ks the individual LWEs to GLWEs
+  dim3 grid_gemm(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_GEMM),
+                 CEIL_DIV(num_samples, BLOCK_SIZE_GEMM));
+  dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
+
+  // decompose first level (skips the body in the input buffer)
+  decompose_vectorize_init<Torus><<<grid_decomp, threads_decomp, 0, stream>>>(
+      lwe_array_in, fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
+      level_count);
   check_cuda_error(cudaGetLastError());
 
-  auto ksk_block_size = lwe_dimension_out * level_count;
+  dump_2d_gpu_to_file(d_mem_0, num_samples, lwe_dimension_in, "decomp_init",
+                      prefix, stream, gpu_index);
+  dump_2d_gpu_to_file(d_mem_0 + num_samples * lwe_dimension_in, num_samples,
+                      lwe_dimension_in, "state_init", prefix, stream,
+                      gpu_index);
+
+  tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+      num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0, ksk,
+      stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1);
+  check_cuda_error(cudaGetLastError());
+
+  dump_2d_gpu_to_file(lwe_array_out, num_samples, lwe_dimension_out + 1,
+                      "tgemm0", prefix, stream, gpu_index);
+
+  auto ksk_block_size = (lwe_dimension_out + 1); // * level_count;
 
   for (int li = 1; li < level_count; ++li) {
     decompose_vectorize_step_inplace<Torus>
         <<<grid_decomp, threads_decomp, 0, stream>>>(
-            d_mem_0, lwe_dimension_in, num_samples, base_log, level_count);
+            fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
+            level_count);
     check_cuda_error(cudaGetLastError());
 
+    char spref[256];
+    sprintf(spref, "decomp_%d", li);
+    dump_2d_gpu_to_file(d_mem_0, num_samples, lwe_dimension_in, spref, prefix,
+                        stream, gpu_index);
+    sprintf(spref, "state_%d", li);
+    dump_2d_gpu_to_file(d_mem_0 + num_samples * lwe_dimension_in, num_samples,
+                        lwe_dimension_in, spref, prefix, stream, gpu_index);
+
     tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-        num_samples, lwe_dimension_out, lwe_dimension_in, d_mem_0,
+        num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
         ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
-        lwe_dimension_out);
+        lwe_dimension_out + 1);
     check_cuda_error(cudaGetLastError());
   }
+
+  dump_2d_gpu_to_file(lwe_array_out, num_samples, lwe_dimension_out + 1,
+                      "before_negate", prefix, stream, gpu_index);
+
+  // gemm to ks the individual LWEs to GLWEs
+  dim3 grid_negate(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
+                   CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+  dim3 threads_negate(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
+  // Negate all outputs in the LWE
+  keyswitch_negate<Torus><<<grid_negate, threads_negate, 0, stream>>>(
+      lwe_array_out, lwe_dimension_out + 1, num_samples);
+  check_cuda_error(cudaGetLastError());
+
+  dump_2d_gpu_to_file(lwe_array_in, num_samples, lwe_dimension_in + 1, "lwe_in",
+                      prefix, stream, gpu_index);
+  dump_2d_gpu_to_file(ksk, lwe_dimension_in,
+                      level_count * (lwe_dimension_out + 1), "ksk", prefix,
+                      stream, gpu_index);
+  dump_2d_gpu_to_file(lwe_array_out, num_samples, lwe_dimension_out + 1,
+                      "lwe_out", prefix, stream, gpu_index);
+
+  return prefix;
 }
 
 template <typename Torus>
@@ -305,13 +426,27 @@ void execute_keyswitch_async(CudaStreams streams,
 
     if (uses_trivial_indices) {
       // Compute Keyswitch
-      host_gemm_keyswitch_lwe_ciphertext_vector<Torus>(
+      int prefix = host_gemm_keyswitch_lwe_ciphertext_vector<Torus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
           lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
           fp_tmp_buffer[i]);
 
+      dump_2d_gpu_to_file(current_lwe_array_out, num_samples,
+                          lwe_dimension_out + 1, "my_lwe_out", prefix,
+                          streams.stream(i), streams.gpu_index(i));
+
+      // Compute Keyswitch
+      host_keyswitch_lwe_ciphertext_vector<Torus>(
+          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+          current_lwe_output_indexes, current_lwe_array_in,
+          current_lwe_input_indexes, ksks[i], lwe_dimension_in,
+          lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
+
+      dump_2d_gpu_to_file(current_lwe_array_out, num_samples,
+                          lwe_dimension_out + 1, "orig_lwe_out", prefix,
+                          streams.stream(i), streams.gpu_index(i));
     } else {
       // Compute Keyswitch
       host_keyswitch_lwe_ciphertext_vector<Torus>(

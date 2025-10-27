@@ -444,8 +444,10 @@ struct int_radix_lut_custom_input_output {
 
     for (auto i = 0; i < active_streams.count(); ++i) {
       uint64_t sub_size_tracker = 0;
-      uint64_t buffer_size = num_radix_blocks * params.small_lwe_dimension *
-                             sizeof(InputTorus) * 2;
+      uint64_t buffer_size =
+          num_radix_blocks *
+          std::max(params.small_lwe_dimension, params.big_lwe_dimension) *
+          sizeof(InputTorus) * 2;
       auto *gpu_ks_buffer = (InputTorus *)cuda_malloc_with_size_tracking_async(
           buffer_size, active_streams.stream(i), active_streams.gpu_index(i),
           sub_size_tracker, allocate_gpu_memory);
