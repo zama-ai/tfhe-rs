@@ -361,10 +361,10 @@ pub struct EnvConfig {
 
 impl EnvConfig {
     pub fn new() -> Self {
-        let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
-            Ok(val) => val.to_lowercase() == "multi_bit",
-            Err(_) => false,
-        };
+        let is_multi_bit = matches!(
+            get_param_type(),
+            ParamType::MultiBit | ParamType::MultiBitDocumentation
+        );
 
         let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
             Ok(val) => val.to_lowercase() == "true",
@@ -415,6 +415,33 @@ impl BenchmarkType {
 
 pub fn get_bench_type() -> &'static BenchmarkType {
     BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap())
+}
+
+pub static PARAM_TYPE: OnceLock<ParamType> = OnceLock::new();
+
+pub enum ParamType {
+    Classical,
+    MultiBit,
+    // Variants dedicated to documentation illustration.
+    ClassicalDocumentation,
+    MultiBitDocumentation,
+}
+
+impl ParamType {
+    pub fn from_env() -> Result<Self, String> {
+        let raw_value = env::var("__TFHE_RS_PARAM_TYPE").unwrap_or("classical".to_string());
+        match raw_value.to_lowercase().as_str() {
+            "classical" => Ok(ParamType::Classical),
+            "multi_bit" => Ok(ParamType::MultiBit),
+            "classical_documentation" => Ok(ParamType::ClassicalDocumentation),
+            "multi_bit_documentation" => Ok(ParamType::MultiBitDocumentation),
+            _ => Err(format!("parameters type '{raw_value}' is not supported")),
+        }
+    }
+}
+
+pub fn get_param_type() -> &'static ParamType {
+    PARAM_TYPE.get_or_init(|| ParamType::from_env().unwrap())
 }
 
 /// Generate a number of threads to use to saturate current machine for throughput measurements.

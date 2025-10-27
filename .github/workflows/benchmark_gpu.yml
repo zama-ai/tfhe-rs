@@ -59,7 +59,10 @@ on:
         options:
           - classical
           - multi_bit
-          - both
+          - classical + multi_bit
+          - classical_documentation
+          - multi_bit_documentation
+          - classical_documentation + multi_bit_documentation
 
 
 permissions: {}
