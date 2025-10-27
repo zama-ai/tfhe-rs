@@ -8,9 +8,14 @@ pub mod shortint_params_aliases {
         MultiBitPBSParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
         ShortintKeySwitchingParameters,
     };
+
     // KS PBS Gaussian
+    #[cfg(not(feature = "gpu"))]
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
         V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    #[cfg(feature = "gpu")]
+    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
+        V1_5_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
         V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =

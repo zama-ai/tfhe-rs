@@ -15,6 +15,7 @@ pub use classic::compact_pk::gaussian::p_fail_2_minus_128::pbs_ks::*;
 pub use classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use classic::compact_pk::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use classic::gaussian::p_fail_2_minus_128::ks_pbs::*;
+pub use classic::gaussian::p_fail_2_minus_128::ks_pbs_gpu::*;
 pub use classic::gaussian::p_fail_2_minus_128::pbs_ks::*;
 pub use classic::gaussian::p_fail_2_minus_40::ks_pbs::*;
 pub use classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
