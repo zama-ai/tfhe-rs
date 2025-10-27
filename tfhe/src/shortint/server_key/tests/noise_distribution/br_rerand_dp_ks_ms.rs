@@ -1,8 +1,7 @@
 use super::dp_ks_ms::any_ms;
 use super::utils::noise_simulation::{
-    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
-    NoiseSimulationModulusSwitchConfig,
+    DynLwe, NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -73,8 +72,7 @@ pub fn br_rerand_dp_ks_any_ms<
     ksk_rerand: &KsKeyRerand,
     scalar: DPScalar,
     ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key: Option<&DriftKey>,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig<&DriftKey>,
     decomp_accumulator: &Accumulator,
     br_input_modulus_log: CiphertextModulusLog,
     side_resources: &mut Resources,
@@ -139,7 +137,6 @@ where
     let (drift_technique_result, ms_result) = any_ms(
         &ks_result,
         modulus_switch_configuration,
-        mod_switch_noise_reduction_key,
         br_input_modulus_log,
         side_resources,
     );
@@ -234,12 +231,7 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper(
         };
 
     let br_input_modulus_log = sks.br_input_modulus_log();
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
     let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(cks, 0, &mut engine);
 
@@ -280,8 +272,7 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper(
         ksk_rerand,
         scalar_for_multiplication,
         sks,
-        noise_simulation_modulus_switch_config,
-        drift_key,
+        modulus_switch_config,
         &decomp_rescale_lut,
         br_input_modulus_log,
         &mut (),
@@ -631,31 +622,20 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_ksk_rerand =
         NoiseSimulationLweKeyswitchKey::new_from_cpk_params(cpk_params, rerand_ksk_params, params);
-    let noise_simulation_drift_key =
-        NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_modulus_switch_config =
+        NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_decomp_bsk =
         NoiseSimulationLweFourierBsk::new_from_comp_parameters(params, compression_params);
 
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let compute_br_input_modulus_log = sks.br_input_modulus_log();
     let expected_average_after_ms =
-        noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
-
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+        modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
     assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
     assert!(noise_simulation_ksk_rerand.matches_actual_shortint_keyswitching_key(&ksk_rerand));
-    match (noise_simulation_drift_key, drift_key) {
-        (Some(noise_simulation_drift_key), Some(drift_key)) => {
-            assert!(noise_simulation_drift_key.matches_actual_shortint_server_key(drift_key))
-        }
-        (None, None) => (),
-        _ => panic!("Inconsistent Drift Key configuration"),
-    }
+    assert!(noise_simulation_modulus_switch_config
+        .matches_shortint_server_key_modulus_switch_config(modulus_switch_config));
     assert!(noise_simulation_decomp_bsk.matches_actual_shortint_decomp_key(&decomp_key));
 
     let max_scalar_mul = sks.max_noise_level.get();
@@ -691,8 +671,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
             &noise_simulation_ksk_rerand,
             max_scalar_mul,
             &noise_simulation_ksk,
-            noise_simulation_modulus_switch_config,
-            noise_simulation_drift_key.as_ref(),
+            noise_simulation_modulus_switch_config.as_ref(),
             &noise_simulation_accumulator,
             compute_br_input_modulus_log,
             &mut (),
@@ -738,8 +717,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise<P>(
             &ksk_rerand,
             max_scalar_mul,
             &sks,
-            noise_simulation_modulus_switch_config,
-            drift_key,
+            modulus_switch_config,
             &decomp_rescale_lut,
             compute_br_input_modulus_log,
             &mut (),
@@ -980,14 +958,8 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs<P>(
         KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), rerand_ksk_params);
     let ksk_rerand: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
 
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let compute_br_input_modulus_log = sks.br_input_modulus_log();
-
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
 
     let max_scalar_mul = sks.max_noise_level.get();
 
@@ -1095,8 +1067,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs<P>(
             &ksk_rerand,
             max_scalar_mul,
             &sks,
-            noise_simulation_modulus_switch_config,
-            drift_key,
+            modulus_switch_config,
             &decomp_rescale_lut,
             compute_br_input_modulus_log,
             &mut (),

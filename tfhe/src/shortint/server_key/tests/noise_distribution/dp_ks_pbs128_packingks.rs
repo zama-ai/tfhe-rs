@@ -43,8 +43,7 @@ fn dp_ks_any_ms_standard_pbs128<
     input: InputCt,
     scalar: DPScalar,
     ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key_128: Option<&DriftKey>,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig<&DriftKey>,
     bsk_128: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
@@ -93,7 +92,6 @@ where
     let (drift_technique_result, ms_result) = any_ms(
         &ks_result,
         modulus_switch_configuration,
-        mod_switch_noise_reduction_key_128,
         br_input_modulus_log,
         side_resources,
     );
@@ -131,8 +129,7 @@ fn dp_ks_any_ms_standard_pbs128_packing_ks<
     input: Vec<InputCt>,
     scalar: DPScalar,
     ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key_128: Option<&DriftKey>,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig<&DriftKey>,
     bsk_128: &Bsk,
     br_input_modulus_log: CiphertextModulusLog,
     accumulator: &Accumulator,
@@ -199,7 +196,6 @@ where
                     scalar,
                     ksk,
                     modulus_switch_configuration,
-                    mod_switch_noise_reduction_key_128,
                     bsk_128,
                     br_input_modulus_log,
                     accumulator,
@@ -260,15 +256,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
 
     let lwe_per_glwe = noise_squashing_compression_key.lwe_per_glwe();
 
-    let noise_simulation_modulus_switch_config =
-        noise_squashing_key.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => {
-            Some(&noise_squashing_key)
-        }
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = noise_squashing_key.noise_simulation_modulus_switch_config();
 
     let br_input_modulus_log = noise_squashing_key.br_input_modulus_log();
 
@@ -304,8 +292,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
         input_zero_as_lwe,
         max_scalar_mul,
         &sks,
-        noise_simulation_modulus_switch_config,
-        drift_key,
+        modulus_switch_config,
         &noise_squashing_key,
         br_input_modulus_log,
         &id_lut,
@@ -427,15 +414,8 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         )
     };
 
-    let noise_simulation_modulus_switch_config =
-        noise_squashing_key.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => {
-            Some(noise_squashing_key)
-        }
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = noise_squashing_key.noise_simulation_modulus_switch_config();
+
     let bsk_polynomial_size = noise_squashing_key.polynomial_size();
     let bsk_glwe_size = noise_squashing_key.glwe_size();
     let br_input_modulus_log = noise_squashing_key.br_input_modulus_log();
@@ -470,8 +450,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         inputs,
         scalar_for_multiplication,
         sks,
-        noise_simulation_modulus_switch_config,
-        drift_key,
+        modulus_switch_config,
         noise_squashing_key,
         br_input_modulus_log,
         &id_lut,
@@ -712,8 +691,8 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
-    let noise_simulation_drift_key =
-        NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_modulus_switch_config =
+        NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk128 =
         NoiseSimulationLweFourier128Bsk::new_from_parameters(params, noise_squashing_params);
     let noise_simulation_packing_key = NoiseSimulationLwePackingKeyswitchKey::new_from_params(
@@ -721,26 +700,11 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         noise_squashing_compression_params,
     );
 
-    let noise_simulation_modulus_switch_config =
-        noise_squashing_key.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => {
-            Some(&noise_squashing_key)
-        }
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = noise_squashing_key.noise_simulation_modulus_switch_config();
 
     assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
-    match (noise_simulation_drift_key, drift_key) {
-        (Some(noise_simulation_drift_key), Some(drift_key)) => {
-            assert!(
-                noise_simulation_drift_key.matches_actual_shortint_noise_squashing_key(drift_key)
-            )
-        }
-        (None, None) => (),
-        _ => panic!("Inconsistent Drift Key configuration"),
-    }
+    assert!(noise_simulation_modulus_switch_config
+        .matches_shortint_noise_squashing_modulus_switch_config(modulus_switch_config));
     assert!(
         noise_simulation_bsk128.matches_actual_shortint_noise_squashing_key(&noise_squashing_key)
     );
@@ -766,8 +730,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
             vec![noise_simulation; noise_squashing_compression_key.lwe_per_glwe().0],
             max_scalar_mul,
             &noise_simulation_ksk,
-            noise_simulation_modulus_switch_config,
-            noise_simulation_drift_key.as_ref(),
+            noise_simulation_modulus_switch_config.as_ref(),
             &noise_simulation_bsk128,
             br_input_modulus_log,
             &noise_simulation_accumulator,

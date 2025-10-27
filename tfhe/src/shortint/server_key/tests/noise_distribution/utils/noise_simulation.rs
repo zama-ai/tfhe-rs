@@ -462,36 +462,129 @@ impl AllocateLweKeyswitchResult for ServerKey {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NoiseSimulationModulusSwitchConfig {
+pub enum NoiseSimulationModulusSwitchConfig<DriftKey> {
     Standard,
-    DriftTechniqueNoiseReduction,
+    DriftTechniqueNoiseReduction(DriftKey),
     CenteredMeanNoiseReduction,
 }
 
-impl NoiseSimulationModulusSwitchConfig {
-    pub fn expected_average_after_ms(self, polynomial_size: PolynomialSize) -> f64 {
-        match self {
-            Self::Standard => 0.0f64,
-            Self::DriftTechniqueNoiseReduction => 0.0f64,
-            Self::CenteredMeanNoiseReduction => {
-                // Half case subtracted before entering the blind rotate
-                -1.0f64 / (4.0 * polynomial_size.0 as f64)
+impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
+    pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
+        let drift_key =
+            NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
+
+        match params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(classic_pbsparameters) => {
+                    match classic_pbsparameters.modulus_switch_noise_reduction_params {
+                        ModulusSwitchType::Standard => Self::Standard,
+                        ModulusSwitchType::DriftTechniqueNoiseReduction(_) => {
+                            Self::DriftTechniqueNoiseReduction(
+                                drift_key.expect("Invalid drift key configuration"),
+                            )
+                        }
+                        ModulusSwitchType::CenteredMeanNoiseReduction => {
+                            Self::CenteredMeanNoiseReduction
+                        }
+                    }
+                }
+                PBSParameters::MultiBitPBS(_) => {
+                    panic!(
+                        "Unsupported ShortintBootstrappingKey::MultiBit \
+                        for NoiseSimulationModulusSwitchConfig"
+                    )
+                }
+            },
+            AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+                match &key_switch32_pbsparameters.modulus_switch_noise_reduction_params {
+                    ModulusSwitchType::Standard => Self::Standard,
+                    ModulusSwitchType::DriftTechniqueNoiseReduction(_) => {
+                        Self::DriftTechniqueNoiseReduction(
+                            drift_key.expect("Invalid drift key configuration"),
+                        )
+                    }
+                    ModulusSwitchType::CenteredMeanNoiseReduction => {
+                        Self::CenteredMeanNoiseReduction
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn matches_shortint_server_key_modulus_switch_config(
+        &self,
+        shortint_config: NoiseSimulationModulusSwitchConfig<&ServerKey>,
+    ) -> bool {
+        match (self, shortint_config) {
+            (Self::Standard, NoiseSimulationModulusSwitchConfig::Standard) => true,
+            (
+                Self::DriftTechniqueNoiseReduction(noise_sim),
+                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction(sks),
+            ) => noise_sim.matches_actual_shortint_server_key(sks),
+            (
+                Self::CenteredMeanNoiseReduction,
+                NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction,
+            ) => true,
+            _ => false,
+        }
+    }
+
+    pub fn matches_shortint_noise_squashing_modulus_switch_config(
+        &self,
+        shortint_config: NoiseSimulationModulusSwitchConfig<&NoiseSquashingKey>,
+    ) -> bool {
+        match (self, shortint_config) {
+            (Self::Standard, NoiseSimulationModulusSwitchConfig::Standard) => true,
+            (
+                Self::DriftTechniqueNoiseReduction(noise_sim),
+                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction(sns),
+            ) => noise_sim.matches_actual_shortint_noise_squashing_key(sns),
+            (
+                Self::CenteredMeanNoiseReduction,
+                NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction,
+            ) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
+    fn new_from_config_and_key<Scalar: UnsignedInteger>(
+        config: &ModulusSwitchConfiguration<Scalar>,
+        key: DriftKey,
+    ) -> Self {
+        match config {
+            ModulusSwitchConfiguration::Standard => Self::Standard,
+            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => {
+                Self::DriftTechniqueNoiseReduction(key)
+            }
+            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
+                Self::CenteredMeanNoiseReduction
             }
         }
     }
 }
 
-impl<Scalar: UnsignedInteger> From<&ModulusSwitchConfiguration<Scalar>>
-    for NoiseSimulationModulusSwitchConfig
-{
-    fn from(value: &ModulusSwitchConfiguration<Scalar>) -> Self {
-        match value {
-            ModulusSwitchConfiguration::Standard => Self::Standard,
-            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => {
-                Self::DriftTechniqueNoiseReduction
+impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
+    pub fn as_ref(&self) -> NoiseSimulationModulusSwitchConfig<&DriftKey> {
+        match self {
+            Self::Standard => NoiseSimulationModulusSwitchConfig::Standard,
+            Self::DriftTechniqueNoiseReduction(key) => {
+                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction(key)
             }
-            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => {
-                Self::CenteredMeanNoiseReduction
+            Self::CenteredMeanNoiseReduction => {
+                NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
+            }
+        }
+    }
+
+    pub fn expected_average_after_ms(self, polynomial_size: PolynomialSize) -> f64 {
+        match self {
+            Self::Standard => 0.0f64,
+            Self::DriftTechniqueNoiseReduction(_) => 0.0f64,
+            Self::CenteredMeanNoiseReduction => {
+                // Half case subtracted before entering the blind rotate
+                -1.0f64 / (4.0 * polynomial_size.0 as f64)
             }
         }
     }
@@ -518,16 +611,21 @@ impl ServerKey {
         }
     }
 
-    pub fn noise_simulation_modulus_switch_config(&self) -> NoiseSimulationModulusSwitchConfig {
+    pub fn noise_simulation_modulus_switch_config(
+        &self,
+    ) -> NoiseSimulationModulusSwitchConfig<&Self> {
         match &self.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk: _,
                         modulus_switch_noise_reduction_key,
-                    } => modulus_switch_noise_reduction_key.into(),
+                    } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
+                        modulus_switch_noise_reduction_key,
+                        self,
+                    ),
                     ShortintBootstrappingKey::MultiBit { .. } => {
-                        todo!("Unsupported ShortintBootstrappingKey::MultiBit for noise simulation")
+                        panic!("MultiBit ServerKey does not support the drift technique")
                     }
                 }
             }
@@ -536,9 +634,12 @@ impl ServerKey {
                     ShortintBootstrappingKey::Classic {
                         bsk: _,
                         modulus_switch_noise_reduction_key,
-                    } => modulus_switch_noise_reduction_key.into(),
+                    } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
+                        modulus_switch_noise_reduction_key,
+                        self,
+                    ),
                     ShortintBootstrappingKey::MultiBit { .. } => {
-                        todo!("Unsupported ShortintBootstrappingKey::MultiBit for noise simulation")
+                        panic!("MultiBit ServerKey does not support the drift technique")
                     }
                 }
             }
@@ -839,7 +940,9 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
 }
 
 impl NoiseSquashingKey {
-    pub fn noise_simulation_modulus_switch_config(&self) -> NoiseSimulationModulusSwitchConfig {
+    pub fn noise_simulation_modulus_switch_config(
+        &self,
+    ) -> NoiseSimulationModulusSwitchConfig<&Self> {
         match self.atomic_pattern() {
             AtomicPatternNoiseSquashingKey::Standard(
                 standard_atomic_pattern_noise_squashing_key,
@@ -847,7 +950,10 @@ impl NoiseSquashingKey {
                 Shortint128BootstrappingKey::Classic {
                     bsk: _,
                     modulus_switch_noise_reduction_key,
-                } => modulus_switch_noise_reduction_key.into(),
+                } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
+                    modulus_switch_noise_reduction_key,
+                    self,
+                ),
                 Shortint128BootstrappingKey::MultiBit { .. } => {
                     panic!("MultiBit ServerKey does not support the drift technique")
                 }
@@ -858,7 +964,10 @@ impl NoiseSquashingKey {
                 Shortint128BootstrappingKey::Classic {
                     bsk: _,
                     modulus_switch_noise_reduction_key,
-                } => modulus_switch_noise_reduction_key.into(),
+                } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
+                    modulus_switch_noise_reduction_key,
+                    self,
+                ),
                 Shortint128BootstrappingKey::MultiBit { .. } => {
                     panic!("MultiBit ServerKey does not support the drift technique")
                 }
