@@ -4,7 +4,14 @@ import os
 import pathlib
 
 import psycopg2
-from benchmark_specs import BenchDetails, Layer, OperandType, PBSKind
+from benchmark_specs import (
+    BenchDetails,
+    Backend,
+    BenchType,
+    Layer,
+    OperandType,
+    PBSKind,
+)
 from config import UserConfig
 from exceptions import NoDataFound
 
@@ -179,10 +186,14 @@ class PostgreConnector:
         filters.append(f"b.name = '{branch}'")
 
         name_suffix = f"\\{name_suffix}"
-        if backend == "cpu":
-            filters.append(f"test.name LIKE '{layer}::%{name_suffix}'")
-        elif backend == "gpu":
-            filters.append(f"test.name LIKE '{layer}::cuda::%{name_suffix}'")
+        match backend:
+            case Backend.CPU:
+                filters.append(f"test.name LIKE '{layer}::%{name_suffix}'")
+            case Backend.GPU:
+                filters.append(f"test.name LIKE '{layer}::cuda::%{name_suffix}'")
+            case Backend.HPU:
+                name_suffix = f"_mean"
+                filters.append(f"test.name LIKE '{layer}::hpu::%{name_suffix}'")
 
         if version:
             filters.append(f"pv.name = '{version}'")
@@ -212,8 +223,11 @@ class PostgreConnector:
             ]
             filters.append("({})".format(" OR ".join(conditions)))
 
-        # Throughput is not supported yet
-        filters.append("test.name NOT SIMILAR TO '%::throughput::%'")
+        match user_config.bench_type:
+            case BenchType.Latency:
+                filters.append("test.name NOT SIMILAR TO '%::throughput::%'")
+            case BenchType.Throughput:
+                filters.append("test.name LIKE '%::throughput::%'")
 
         select_parts = (
             "SELECT",

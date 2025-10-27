@@ -18,13 +18,12 @@ import argparse
 import datetime
 import formatter
 import sys
-from formatter import (CSVFormatter, GenericFormatter, MarkdownFormatter,
-                       SVGFormatter)
+from formatter import CSVFormatter, GenericFormatter, MarkdownFormatter, SVGFormatter
 
 import config
 import connector
 import regression
-from benchmark_specs import Backend, Layer, OperandType, PBSKind, RustType
+from benchmark_specs import BenchType, Layer, OperandType, RustType
 
 import utils
 
@@ -87,7 +86,7 @@ parser.add_argument(
 parser.add_argument(
     "--backend",
     dest="backend",
-    choices=["cpu", "gpu"],
+    choices=["cpu", "gpu", "hpu"],
     default="cpu",
     help="Backend on which benchmarks have run",
 )
@@ -117,6 +116,13 @@ parser.add_argument(
     type=int,
     default=30,
     help="Numbers of days prior of `bench_date` we search for results in the database",
+)
+parser.add_argument(
+    "--bench-type",
+    dest="bench_type",
+    choices=["latency", "throughput"],
+    default="latency",
+    help="Type of benchmark to filter against",
 )
 parser.add_argument(
     "--regression-profiles",
@@ -212,13 +218,17 @@ def perform_hardware_comparison(
 
         results.append(res)
 
+        match user_config.bench_type:
+            case BenchType.Latency:
+                conversion_func = utils.convert_latency_value_to_readable_text
+            case BenchType.Throughput:
+                conversion_func = utils.convert_throughput_value_to_readable_text
+
         output_filename = "".join(
             [user_config.output_file, "_", hw, "_", operand_type.lower(), ".csv"]
         )
         csv_formatter = CSVFormatter(layer, user_config.backend, user_config.pbs_kind)
-        formatted_data = csv_formatter.format_data(
-            res, utils.convert_value_to_readable_text
-        )
+        formatted_data = csv_formatter.format_data(res, conversion_func)
         utils.write_to_csv(
             csv_formatter.generate_csv(formatted_data),
             output_filename,
@@ -289,12 +299,18 @@ def perform_data_extraction(
         print(f"Failed to fetch benchmark data: {err}")
         sys.exit(2)
 
+    match user_config.bench_type:
+        case BenchType.Latency:
+            conversion_func = utils.convert_latency_value_to_readable_text
+        case BenchType.Throughput:
+            conversion_func = utils.convert_throughput_value_to_readable_text
+
     generic_formatter = GenericFormatter(
         layer, user_config.backend, user_config.pbs_kind, user_config.grouping_factor
     )
     formatted_results = generic_formatter.format_data(
         res,
-        utils.convert_value_to_readable_text,
+        conversion_func,
     )
 
     file_suffix = f"_{operand_type.lower()}"
