@@ -58,9 +58,33 @@ env.fast_bench = "TRUE"
 env.bench_param_type = "MULTI_BIT"
 
 [cpu.default]
-target.integer = ["add_parallelized"]
-target.hlapi-dex = ["dex::swap_claim::no_cmux"]
-target.hlapi-erc20 = ["transfer::whitepaper"]
+target.integer = [
+    "add_parallelized",
+    "mul_parallelized",
+    "div_rem_parallelized",
+    "bitand_parallelized",
+    "bitnot",
+    "left_shift_parallelized",
+    "rotate_left_parallelized",
+    "max_parallelized",
+    "eq_parallelized",
+    "gt_parallelized",
+    "if_then_else_parallelized",
+    "flip_parallelized",
+    "neg_parallelized",
+    "leading_zeros_parallelized",
+    "ilog2_parallelized",
+]
+target.hlapi-dex = [
+    "swap_request::whitepaper",
+    "swap_request::no_cmux",
+    "swap_claim::whitepaper",
+    "swap_claim::no_cmux"
+]
+target.hlapi-erc20 = ["transfer::whitepaper", "transfer::no_cmux"]
+target.shortint = ["bitand"]
+target.core_crypto-ks = ["keyswitch"]
+target.core_crypto-pbs = [ "pbs_mem_optimized"]
 slab.backend = "aws"
 slab.profile = "bench"
 env.fast_bench = "TRUE"
