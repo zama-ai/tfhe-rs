@@ -1,3 +1,4 @@
+use super::dp_ks_ms::any_ms;
 use super::should_use_single_key_debug;
 use super::utils::noise_simulation::*;
 use super::utils::traits::*;
@@ -89,45 +90,13 @@ where
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
     ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
 
-    let (drift_technique_result, ms_result) = match (
+    let (drift_technique_result, ms_result) = any_ms(
+        &ks_result,
         modulus_switch_configuration,
         mod_switch_noise_reduction_key_128,
-    ) {
-        (
-            NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
-            Some(mod_switch_noise_reduction_key_128),
-        ) => {
-            let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key_128
-                .allocate_drift_technique_standard_mod_switch_result(side_resources);
-            mod_switch_noise_reduction_key_128.drift_technique_and_standard_mod_switch(
-                br_input_modulus_log,
-                &ks_result,
-                &mut drift_technique_result,
-                &mut ms_result,
-                side_resources,
-            );
-
-            (Some(drift_technique_result), ms_result)
-        }
-        (NoiseSimulationModulusSwitchConfig::Standard, None) => {
-            let mut ms_result = ks_result.allocate_standard_mod_switch_result(side_resources);
-            ks_result.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
-
-            (None, ms_result)
-        }
-        (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
-            let mut ms_result = ks_result
-                .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
-            ks_result.centered_binary_shifted_and_standard_mod_switch(
-                br_input_modulus_log,
-                &mut ms_result,
-                side_resources,
-            );
-
-            (None, ms_result)
-        }
-        _ => panic!("Inconsistent modulus switch and drift key configuration"),
-    };
+        br_input_modulus_log,
+        side_resources,
+    );
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
     bsk_128.lwe_classic_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);

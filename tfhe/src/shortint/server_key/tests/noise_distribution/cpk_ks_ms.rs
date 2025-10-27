@@ -1,3 +1,4 @@
+use super::dp_ks_ms::any_ms;
 use super::utils::noise_simulation::{
     DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
@@ -72,43 +73,13 @@ where
     ksk_ds.lwe_keyswitch(&input, &mut ks_result, side_resources);
 
     // MS
-    let (drift_technique_result, ms_result) =
-        match (modulus_switch_configuration, mod_switch_noise_reduction_key) {
-            (
-                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
-                Some(mod_switch_noise_reduction_key),
-            ) => {
-                let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key
-                    .allocate_drift_technique_standard_mod_switch_result(side_resources);
-                mod_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
-                    br_input_modulus_log,
-                    &ks_result,
-                    &mut drift_technique_result,
-                    &mut ms_result,
-                    side_resources,
-                );
-
-                (Some(drift_technique_result), ms_result)
-            }
-            (NoiseSimulationModulusSwitchConfig::Standard, None) => {
-                let mut ms_result = ks_result.allocate_standard_mod_switch_result(side_resources);
-                ks_result.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
-
-                (None, ms_result)
-            }
-            (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
-                let mut ms_result = ks_result
-                    .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
-                ks_result.centered_binary_shifted_and_standard_mod_switch(
-                    br_input_modulus_log,
-                    &mut ms_result,
-                    side_resources,
-                );
-
-                (None, ms_result)
-            }
-            _ => panic!("Inconsistent modulus switch and drift key configuration"),
-        };
+    let (drift_technique_result, ms_result) = any_ms(
+        &ks_result,
+        modulus_switch_configuration,
+        mod_switch_noise_reduction_key,
+        br_input_modulus_log,
+        side_resources,
+    );
 
     (input, ks_result, drift_technique_result, ms_result)
 }

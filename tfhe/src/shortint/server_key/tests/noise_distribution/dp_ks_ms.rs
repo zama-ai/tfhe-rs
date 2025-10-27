@@ -20,6 +20,70 @@ use crate::shortint::server_key::tests::parameterized_test::create_parameterized
 use crate::shortint::server_key::ServerKey;
 use rayon::prelude::*;
 
+pub fn any_ms<InputCt, DriftTechniqueResult, MsResult, DriftKey, Resources>(
+    input: &InputCt,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
+    mod_switch_noise_reduction_key: Option<&DriftKey>,
+    br_input_modulus_log: CiphertextModulusLog,
+    side_resources: &mut Resources,
+) -> (Option<DriftTechniqueResult>, MsResult)
+where
+    InputCt: AllocateStandardModSwitchResult<Output = MsResult, SideResources = Resources>
+        + StandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateCenteredBinaryShiftedStandardModSwitchResult<
+            Output = MsResult,
+            SideResources = Resources,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+    // We need to be able to allocate the result and apply drift technique + mod switch it
+    DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
+            AfterDriftOutput = DriftTechniqueResult,
+            AfterMsOutput = MsResult,
+            SideResources = Resources,
+        > + DriftTechniqueStandardModSwitch<
+            InputCt,
+            DriftTechniqueResult,
+            MsResult,
+            SideResources = Resources,
+        >,
+{
+    match (modulus_switch_configuration, mod_switch_noise_reduction_key) {
+        (
+            NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
+            Some(mod_switch_noise_reduction_key),
+        ) => {
+            let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key
+                .allocate_drift_technique_standard_mod_switch_result(side_resources);
+            mod_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
+                br_input_modulus_log,
+                input,
+                &mut drift_technique_result,
+                &mut ms_result,
+                side_resources,
+            );
+
+            (Some(drift_technique_result), ms_result)
+        }
+        (NoiseSimulationModulusSwitchConfig::Standard, None) => {
+            let mut ms_result = input.allocate_standard_mod_switch_result(side_resources);
+            input.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
+
+            (None, ms_result)
+        }
+        (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
+            let mut ms_result =
+                input.allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
+            input.centered_binary_shifted_and_standard_mod_switch(
+                br_input_modulus_log,
+                &mut ms_result,
+                side_resources,
+            );
+
+            (None, ms_result)
+        }
+        _ => panic!("Inconsistent modulus switch and drift key configuration"),
+    }
+}
+
 pub fn dp_ks_any_ms<
     InputCt,
     ScalarMulResult,
@@ -73,43 +137,13 @@ where
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
     ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
 
-    let (drift_technique_result, ms_result) =
-        match (modulus_switch_configuration, mod_switch_noise_reduction_key) {
-            (
-                NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction,
-                Some(mod_switch_noise_reduction_key),
-            ) => {
-                let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key
-                    .allocate_drift_technique_standard_mod_switch_result(side_resources);
-                mod_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
-                    br_input_modulus_log,
-                    &ks_result,
-                    &mut drift_technique_result,
-                    &mut ms_result,
-                    side_resources,
-                );
-
-                (Some(drift_technique_result), ms_result)
-            }
-            (NoiseSimulationModulusSwitchConfig::Standard, None) => {
-                let mut ms_result = ks_result.allocate_standard_mod_switch_result(side_resources);
-                ks_result.standard_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
-
-                (None, ms_result)
-            }
-            (NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction, None) => {
-                let mut ms_result = ks_result
-                    .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources);
-                ks_result.centered_binary_shifted_and_standard_mod_switch(
-                    br_input_modulus_log,
-                    &mut ms_result,
-                    side_resources,
-                );
-
-                (None, ms_result)
-            }
-            _ => panic!("Inconsistent modulus switch and drift key configuration"),
-        };
+    let (drift_technique_result, ms_result) = any_ms(
+        &ks_result,
+        modulus_switch_configuration,
+        mod_switch_noise_reduction_key,
+        br_input_modulus_log,
+        side_resources,
+    );
 
     (
         input,
