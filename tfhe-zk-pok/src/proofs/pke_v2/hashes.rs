@@ -5,7 +5,7 @@ use tfhe_versionable::Versionize;
 
 /// Scalar generation using the hash random oracle
 use crate::{
-    backward_compatibility::pke_v2::PkeV2HashModeVersions,
+    backward_compatibility::pke_v2::{PkeV2HashModeVersions, PkeV2SupportedHashConfigVersions},
     curve_api::{Curve, FieldOps},
     proofs::pke_v2::{compute_crs_params, inf_norm_bound_to_euclidean_squared},
 };
@@ -37,6 +37,196 @@ pub enum PkeV2HashMode {
     /// - generates only y1 as a hash and derives y = [1, y1, y1^2,...]
     /// - only hash R in phi
     Compact = 2,
+}
+
+#[derive(Debug, Clone, Copy)]
+/// How the position of bits proven to be 0 is encoded
+pub enum PkeV2ProvenZeroBitsEncoding {
+    /// Light encoding where we only store the number of msb bits, that is the same for all slots
+    MsbZeroBitsCountOnly = 0,
+    /// Flexible encoding that allows to define any bit in any slot as being proven to be 0
+    AnyBitAnySlot = 1,
+}
+
+impl PkeV2ProvenZeroBitsEncoding {
+    pub fn encode_proven_zero_bits(
+        &self,
+        msb_zero_padding_bit_count: u64,
+        t: u64,
+        k: usize,
+    ) -> Vec<u8> {
+        match self {
+            PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly => {
+                msb_zero_padding_bit_count.to_le_bytes().to_vec()
+            }
+            PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot => {
+                encode_proven_zero_bits_anybit_anyslot(msb_zero_padding_bit_count, t, k)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// The kind of norm bound that is hashed in the statement.
+pub enum PkeV2HashedBoundType {
+    /// Hash the square of the derived L2/Euclidean norm that is used for the proof
+    SquaredEuclideanNorm = 0,
+    /// Hash the infinite norm given as input by the prover
+    InfinityNorm = 1,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PkeV2HashConfig {
+    pub(crate) mode: PkeV2HashMode,
+    pub(crate) proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding,
+    pub(crate) hashed_bound_type: PkeV2HashedBoundType,
+    /// Should we also hash the value of k with the statement
+    pub(crate) hash_k: bool,
+}
+
+impl PkeV2HashConfig {
+    pub fn mode(&self) -> PkeV2HashMode {
+        self.mode
+    }
+
+    pub fn proven_zero_bits_encoding(&self) -> PkeV2ProvenZeroBitsEncoding {
+        self.proven_zero_bits_encoding
+    }
+
+    pub fn hashed_bound(&self) -> PkeV2HashedBoundType {
+        self.hashed_bound_type
+    }
+
+    pub fn hash_k(&self) -> bool {
+        self.hash_k
+    }
+}
+
+/// List of hash config that were used for a given version of this crate
+///
+/// This is stored in the proof so that we only support a specific subset of all possible config.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(PkeV2SupportedHashConfigVersions)]
+pub enum PkeV2SupportedHashConfig {
+    V0_4_0 = 0,
+    V0_7_0 = 1,
+    V0_8_0 = 2,
+}
+
+const PKEV2_HASH_CONFIG_V0_4_0: PkeV2HashConfig = PkeV2HashConfig {
+    mode: PkeV2HashMode::BackwardCompat,
+    proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+    hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
+    hash_k: false,
+};
+
+const PKEV2_HASH_CONFIG_V0_7_0: PkeV2HashConfig = PkeV2HashConfig {
+    mode: PkeV2HashMode::Compact,
+    proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+    hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
+    hash_k: false,
+};
+
+const PKEV2_HASH_CONFIG_V0_8_0: PkeV2HashConfig = PkeV2HashConfig {
+    mode: PkeV2HashMode::Compact,
+    proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot,
+    hashed_bound_type: PkeV2HashedBoundType::InfinityNorm,
+    hash_k: true,
+};
+
+impl Default for PkeV2SupportedHashConfig {
+    // Default hashing configuration used for proofs. This can be updated for performance or
+    // compliance reasons as long as we still handle the previous version for backward
+    // compatibility.
+    fn default() -> Self {
+        Self::V0_8_0
+    }
+}
+
+impl From<PkeV2SupportedHashConfig> for PkeV2HashConfig {
+    fn from(value: PkeV2SupportedHashConfig) -> Self {
+        match value {
+            PkeV2SupportedHashConfig::V0_4_0 => PKEV2_HASH_CONFIG_V0_4_0,
+            PkeV2SupportedHashConfig::V0_7_0 => PKEV2_HASH_CONFIG_V0_7_0,
+            PkeV2SupportedHashConfig::V0_8_0 => PKEV2_HASH_CONFIG_V0_8_0,
+        }
+    }
+}
+
+/// Encode the bits proven to be 0 in a plaintext list.
+///
+/// Today, the proof only allows to prove msb to be 0, and the same number of msb is used for every
+/// slots. This function encodes the number of 0 bits in a more future proof way. This allows in the
+/// future to prove any bit in any slot to be 0 without having to change the encoding.
+///
+/// For example, for a list of 6 elements, composed of 4 bits of plaintext that can take any value
+/// and 1 bit of padding that is proven to be 0, we have:
+/// -> k = 6, t = 2**5, msb_zero_padding_bit_count = 1
+/// -> the base value to be encoded is 0b01111 (1 zero bit + 4 free bits). In lsb to msb this is
+///    11110.
+/// -> By copying the base value in lsb to msb 6 times, we get the following bit string:
+///    bit: 11110|11110|11110|11110|11110|11110
+///    pos: 01234 56789 abcde f ...
+/// -> that is decomposed in bytes:
+///    bit: 11110111 10111101 11101111 01111000
+///    pos: 01234567 89abcdef ...
+/// -> in the usual msb to lsb notation, the resulting bytes are:
+///    bit: 0b11101111 0b10111101 0b11110111 0b11110
+///    pos:   76543210   fedcba98   ...
+fn encode_proven_zero_bits_anybit_anyslot(
+    msb_zero_padding_bit_count: u64,
+    t: u64,
+    k: usize,
+) -> Vec<u8> {
+    let t_log2 = t.ilog2();
+
+    assert!(msb_zero_padding_bit_count <= t_log2 as u64);
+    assert!(k < u32::MAX as usize);
+
+    let msb_zero_padding_bit_count = msb_zero_padding_bit_count as u32;
+    let k = k as u32;
+
+    let effective_t_log2 = t_log2 - msb_zero_padding_bit_count;
+
+    // true since t is a u64
+    assert!(effective_t_log2 <= 64);
+
+    // This is the base value that will be encoded for all slots. For example, for 4 bits of
+    // plaintext and one bit of padding proven to be 0, this will be 0b01111.
+    // This value is stored in a u64 to support plaintext + padding size > 8.
+    let encoded_base = if effective_t_log2 == 64 {
+        u64::MAX
+    } else {
+        !(u64::MAX << effective_t_log2)
+    };
+
+    let number_bits_to_pack = k * t_log2;
+    let packed_byte_len = number_bits_to_pack.div_ceil(u8::BITS);
+    let mut packed = Vec::with_capacity(packed_byte_len as usize);
+
+    // A temporary buffer of 128 bits that is used to store `encoded_base` + a remainder of at
+    // most 7 bits.
+    let mut bit_buffer: u128 = 0;
+    let mut bits_in_buffer = 0;
+
+    for _ in 0..k {
+        // Add new bits to the temporary buffer
+        bit_buffer |= (encoded_base as u128) << bits_in_buffer;
+        bits_in_buffer += t_log2;
+
+        // Dump the temporary buffer into the byte vec until there is less that a full byte left
+        while bits_in_buffer >= u8::BITS {
+            packed.push(bit_buffer as u8);
+            bit_buffer >>= u8::BITS;
+            bits_in_buffer -= u8::BITS;
+        }
+    }
+
+    if bits_in_buffer > 0 {
+        packed.push(bit_buffer as u8);
+    }
+
+    packed
 }
 
 impl PkeV2HashMode {
@@ -164,7 +354,7 @@ impl<'a> RHash<'a> {
         C_hat_e_bytes: &'a [u8],
         C_e_bytes: &'a [u8],
         C_r_tilde_bytes: &'a [u8],
-        mode: PkeV2HashMode,
+        config: PkeV2HashConfig,
     ) -> (Box<[i8]>, Self) {
         let (
             &PublicParams {
@@ -196,12 +386,30 @@ impl<'a> RHash<'a> {
             bound_type,
         );
 
+        let encoded_zero_bits = config.proven_zero_bits_encoding.encode_proven_zero_bits(
+            msbs_zero_padding_bit_count,
+            t_input,
+            k,
+        );
+
+        let hashed_bound = match config.hashed_bound_type {
+            PkeV2HashedBoundType::SquaredEuclideanNorm => B_squared.to_le_bytes().to_vec(),
+            PkeV2HashedBoundType::InfinityNorm => B_inf.to_le_bytes().to_vec(),
+        };
+
+        let hashed_k = if config.hash_k {
+            k.to_le_bytes().to_vec()
+        } else {
+            Vec::new()
+        };
+
         let x_bytes = [
             q.to_le_bytes().as_slice(),
             (d as u64).to_le_bytes().as_slice(),
-            B_squared.to_le_bytes().as_slice(),
+            hashed_k.as_slice(),
+            &hashed_bound,
             t_input.to_le_bytes().as_slice(),
-            msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
+            encoded_zero_bits.as_slice(),
             &*a.iter()
                 .flat_map(|&x| x.to_le_bytes())
                 .collect::<Box<[_]>>(),
@@ -257,7 +465,7 @@ impl<'a> RHash<'a> {
             })
             .collect::<Box<[i8]>>();
 
-        let R_bytes = mode.encode_R(&R);
+        let R_bytes = config.mode.encode_R(&R);
 
         (
             R,
@@ -275,7 +483,7 @@ impl<'a> RHash<'a> {
                     n,
                     k,
                     d,
-                    mode,
+                    mode: config.mode,
                 },
 
                 R_bytes,
@@ -1175,5 +1383,33 @@ impl<'a> ZHash<'a> {
         );
 
         chi
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_proven_zero_bits_encoding() {
+        // Test the most common case
+        let res = encode_proven_zero_bits_anybit_anyslot(1, 1 << 5, 6);
+        // base value is 0b01111 (msb to lsb)
+        // -> 11110 * 6 (lsb to msb)
+        // -> 11110|11110|11110|11110|11110|11110 (lsb to msb)
+        // -> 11110111 10111101 11101111 01111000 (lsb to msb)
+        // -> 0b11101111 0b10111101 0b11110111 0b11110 (msb to lsb)
+        let expected = vec![0b11101111, 0b10111101, 0b11110111, 0b11110];
+        assert_eq!(expected, res);
+
+        // Test a case where plaintext modulus log is > 8
+        let res = encode_proven_zero_bits_anybit_anyslot(2, 1 << 9, 3);
+        // base value is 0b001111111 (msb to lsb)
+        // 111111100 * 3 (lsb to msb)
+        // 111111100|111111100|111111100 (lsb to msb)
+        // 11111110 01111111 00111111 10000000 (lsb to msb)
+        // 0b1111111, 0b11111110, 0b11111100, 0b1 (msb to lsb)
+        let expected = vec![0b1111111, 0b11111110, 0b11111100, 0b1];
+        assert_eq!(expected, res);
     }
 }

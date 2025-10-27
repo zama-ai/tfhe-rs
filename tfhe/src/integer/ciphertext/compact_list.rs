@@ -24,7 +24,7 @@ use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{
-    CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2HashMode,
+    CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2SupportedHashConfig,
     ZkVerificationOutcome,
 };
 use std::num::NonZero;
@@ -1147,13 +1147,13 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
-    /// proofs
-    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]. This has no effect on
+    /// PkeV1 proofs
+    pub fn forbid_hash_config(self, forbidden_hash_config: ZkPkeV2SupportedHashConfig) -> Self {
         Self {
             zk_conformance_params: self
                 .zk_conformance_params
-                .forbid_hash_mode(forbidden_hash_mode),
+                .forbid_hash_config(forbidden_hash_config),
             ..self
         }
     }
