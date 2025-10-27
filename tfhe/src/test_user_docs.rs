@@ -15,6 +15,12 @@ mod test_cpu_doc {
         configuration_rust_configuration
     );
 
+    // BENCHMARKS
+    doctest!(
+        "../docs/getting-started/benchmarks/cpu/cpu-erc20.md",
+        benchmarks_cpu_erc20
+    );
+
     // FHE COMPUTATION
 
     // ADVANCED FEATURES
