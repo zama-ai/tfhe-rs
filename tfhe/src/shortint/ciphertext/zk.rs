@@ -12,7 +12,7 @@ use crate::shortint::parameters::{
 use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkeProofConformanceParams, ZkComputeLoad,
-    ZkMSBZeroPaddingBitCount, ZkPkeV2HashMode, ZkVerificationOutcome,
+    ZkMSBZeroPaddingBitCount, ZkPkeV2SupportedHashConfig, ZkVerificationOutcome,
 };
 
 use rayon::prelude::*;
@@ -240,13 +240,13 @@ impl ProvenCompactCiphertextListConformanceParams {
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
-    /// proofs
-    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]. This has no effect on
+    /// PkeV1 proofs
+    pub fn forbid_hash_config(self, forbidden_hash_config: ZkPkeV2SupportedHashConfig) -> Self {
         Self {
             zk_conformance_params: self
                 .zk_conformance_params
-                .forbid_hash_mode(forbidden_hash_mode),
+                .forbid_hash_config(forbidden_hash_config),
             ..self
         }
     }
@@ -328,7 +328,7 @@ mod tests {
         ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
     };
     use crate::zk::{
-        CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2HashMode,
+        CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2SupportedHashConfig,
     };
     use rand::random;
 
@@ -498,10 +498,9 @@ mod tests {
 
         assert!(!proven_ct.is_conformant(&no_cl_verif_conformance_params));
 
-        // By default, zk proofs use compact hash mode.
-        let no_compact_hash_conformance_params =
-            conformance_params.forbid_hash_mode(ZkPkeV2HashMode::Compact);
+        let no_default_hash_config_conformance_params =
+            conformance_params.forbid_hash_config(ZkPkeV2SupportedHashConfig::default());
 
-        assert!(!proven_ct.is_conformant(&no_compact_hash_conformance_params));
+        assert!(!proven_ct.is_conformant(&no_default_hash_config_conformance_params));
     }
 }
