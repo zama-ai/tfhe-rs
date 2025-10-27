@@ -278,7 +278,8 @@ where
     G::G2: Compressible,
 {
     V0(CompressedProofV0<G>),
-    V1(CompressedProof<G>),
+    V1(CompressedProofV1<G>),
+    V2(CompressedProof<G>),
 }
 
 #[derive(VersionsDispatch)]
