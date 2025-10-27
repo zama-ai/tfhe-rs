@@ -845,4 +845,24 @@
             compressed: false,
         )),
     ),
+    (
+        tfhe_version_min: "1.5",
+        tfhe_module: "high_level_api",
+        metadata: HlHeterogeneousCiphertextList((
+            test_filename: "hl_proven_list_zkv2_1_5",
+            key_filename: "client_key_for_zk",
+            compressed: false,
+            proof_info: Some((
+                public_key_filename: "public_key",
+                params_filename: "zk_pke_crs",
+                metadata: "2vdrawkcab",
+            )),
+            clear_values: [
+                17,
+            ],
+            data_kinds: [
+                Unsigned,
+            ],
+        )),
+    ),
 ]
