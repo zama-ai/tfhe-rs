@@ -5,7 +5,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::{
     glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
-    GlweCiphertextCount, LweCiphertextCount, PolynomialSize, UnsignedInteger,
+    GlweCiphertextCount, LweBskGroupingFactor, LweCiphertextCount, PolynomialSize, UnsignedInteger,
 };
 use crate::error;
 use crate::integer::ciphertext::{DataKind, NoiseSquashingCompressionKey};
@@ -16,7 +16,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_compress, cuda_backend_decompress, cuda_backend_get_compression_size_on_gpu,
-    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu,
+    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu, PBSType,
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
@@ -420,7 +420,7 @@ impl CudaDecompressionKey {
         let carry_modulus = self.carry_modulus;
         let ciphertext_modulus = self.ciphertext_modulus;
 
-        match &self.blind_rotate_key {
+        let output_lwe = match &self.blind_rotate_key {
             CudaBootstrappingKey::Classic(bsk) => {
                 assert!(
                     bsk.ms_noise_reduction_configuration.is_none(),
@@ -450,39 +450,70 @@ impl CudaDecompressionKey {
                         lwe_dimension,
                         bsk.decomp_base_log(),
                         bsk.decomp_level_count(),
+                        LweBskGroupingFactor(0),
+                        PBSType::Classical,
                         indexes_array.as_slice(),
                         indexes_array_len.0 as u32,
                     );
                 }
-
-                streams.synchronize();
-
-                let degree = match kind {
-                    DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
-                        Degree::new(message_modulus.0 - 1)
-                    }
-                    DataKind::Boolean => Degree::new(1),
-                };
-
-                let first_block_info = CudaBlockInfo {
-                    degree,
-                    message_modulus,
-                    carry_modulus,
-                    atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                    noise_level: NoiseLevel::NOMINAL,
-                };
-
-                let blocks = vec![first_block_info; output_lwe.0.lwe_ciphertext_count.0];
-
-                Ok(CudaRadixCiphertext {
-                    d_blocks: output_lwe,
-                    info: CudaRadixCiphertextInfo { blocks },
-                })
+                output_lwe
             }
-            CudaBootstrappingKey::MultiBit(_) => {
-                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
+            CudaBootstrappingKey::MultiBit(bsk) => {
+                let lwe_dimension = bsk.output_lwe_dimension();
+
+                let mut output_lwe = CudaLweCiphertextList::new(
+                    lwe_dimension,
+                    indexes_array_len,
+                    ciphertext_modulus,
+                    streams,
+                );
+
+                unsafe {
+                    cuda_backend_decompress(
+                        streams,
+                        &mut output_lwe,
+                        packed_list,
+                        &bsk.d_vec,
+                        message_modulus,
+                        carry_modulus,
+                        encryption_glwe_dimension,
+                        encryption_polynomial_size,
+                        compression_glwe_dimension,
+                        compression_polynomial_size,
+                        lwe_dimension,
+                        bsk.decomp_base_log(),
+                        bsk.decomp_level_count(),
+                        bsk.grouping_factor,
+                        PBSType::MultiBit,
+                        indexes_array.as_slice(),
+                        indexes_array_len.0 as u32,
+                    );
+                }
+                output_lwe
             }
-        }
+        };
+
+        let degree = match kind {
+            DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
+                Degree::new(message_modulus.0 - 1)
+            }
+            DataKind::Boolean => Degree::new(1),
+        };
+
+        let first_block_info = CudaBlockInfo {
+            degree,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+            noise_level: NoiseLevel::NOMINAL,
+        };
+
+        let blocks = vec![first_block_info; output_lwe.0.lwe_ciphertext_count.0];
+
+        Ok(CudaRadixCiphertext {
+            d_blocks: output_lwe,
+            info: CudaRadixCiphertextInfo { blocks },
+        })
     }
     pub fn get_gpu_list_unpack_size_on_gpu(
         &self,
@@ -532,11 +563,29 @@ impl CudaDecompressionKey {
                     lwe_dimension,
                     bsk.decomp_base_log(),
                     bsk.decomp_level_count(),
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
                     indexes_array_len.0 as u32,
                 )
             }
-            CudaBootstrappingKey::MultiBit(_) => {
-                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
+            CudaBootstrappingKey::MultiBit(bsk) => {
+                let lwe_dimension = bsk.output_lwe_dimension();
+
+                cuda_backend_get_decompression_size_on_gpu(
+                    streams,
+                    message_modulus,
+                    carry_modulus,
+                    encryption_glwe_dimension,
+                    encryption_polynomial_size,
+                    compression_glwe_dimension,
+                    compression_polynomial_size,
+                    lwe_dimension,
+                    bsk.decomp_base_log(),
+                    bsk.decomp_level_count(),
+                    bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    indexes_array_len.0 as u32,
+                )
             }
         }
     }
@@ -587,11 +636,29 @@ impl CudaDecompressionKey {
                     lwe_dimension,
                     bsk.decomp_base_log(),
                     bsk.decomp_level_count(),
+                    LweBskGroupingFactor(0),
+                    PBSType::Classical,
                     indexes_array_len.0 as u32,
                 )
             }
-            CudaBootstrappingKey::MultiBit(_) => {
-                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
+            CudaBootstrappingKey::MultiBit(bsk) => {
+                let lwe_dimension = bsk.output_lwe_dimension();
+
+                cuda_backend_get_decompression_size_on_gpu(
+                    streams,
+                    message_modulus,
+                    carry_modulus,
+                    encryption_glwe_dimension,
+                    encryption_polynomial_size,
+                    compression_glwe_dimension,
+                    compression_polynomial_size,
+                    lwe_dimension,
+                    bsk.decomp_base_log(),
+                    bsk.decomp_level_count(),
+                    bsk.grouping_factor,
+                    PBSType::MultiBit,
+                    indexes_array_len.0 as u32,
+                )
             }
         }
     }

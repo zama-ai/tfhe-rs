@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, GlweDimension, PolynomialSize};
 use crate::integer::compression_keys::{
@@ -44,8 +45,30 @@ impl CompressedDecompressionKey {
                     ciphertext_modulus,
                 }
             }
-            crate::shortint::list_compression::CompressedDecompressionKey::MultiBit { .. } => {
-                todo!()
+            crate::shortint::list_compression::CompressedDecompressionKey::MultiBit {
+                multi_bit_blind_rotate_key,
+                lwe_per_glwe,
+            } => {
+                let h_bootstrap_key = multi_bit_blind_rotate_key
+                    .as_view()
+                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                let d_bootstrap_key = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
+                    &h_bootstrap_key,
+                    streams,
+                );
+
+                let blind_rotate_key = CudaBootstrappingKey::MultiBit(d_bootstrap_key);
+
+                CudaDecompressionKey {
+                    blind_rotate_key,
+                    lwe_per_glwe: *lwe_per_glwe,
+                    glwe_dimension,
+                    polynomial_size,
+                    message_modulus,
+                    carry_modulus,
+                    ciphertext_modulus,
+                }
             }
         }
     }
