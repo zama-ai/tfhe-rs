@@ -15,6 +15,14 @@ on:
           - classical_documentation
           - multi_bit_documentation
           - classical_documentation + multi_bit_documentation
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
 
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 5a.m.
@@ -42,6 +50,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       param_type: ${{ steps.set_param_type.outputs.param_type }}
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
     steps:
       - name: Set parameters types
         if: github.event_name == 'workflow_dispatch'
@@ -61,10 +70,32 @@ jobs:
         run: |
           echo "PARAM_TYPE=[\"classical\"]" >> "${GITHUB_ENV}"
 
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
+          fi
+        env:
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+
+      - name: Default benchmark type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+
       - name: Set parameters types output
         id: set_param_type
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "param_type=${{ toJSON(env.PARAM_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: benchmark_core_crypto/setup-instance
@@ -98,6 +129,7 @@ jobs:
       max-parallel: 1
       matrix:
         param_type: ${{ fromJSON(needs.prepare-matrix.outputs.param_type) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -130,6 +162,7 @@ jobs:
           make bench_ks
         env:
           BENCH_PARAM_TYPE: ${{ matrix.param_type }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse results
         run: |
