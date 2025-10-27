@@ -20,7 +20,7 @@ mod hashes;
 
 use hashes::RHash;
 
-pub use hashes::PkeV2HashMode;
+pub use hashes::*;
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
@@ -370,7 +370,7 @@ pub struct Proof<G: Curve> {
     pub(crate) pi: G::G1,
     pub(crate) pi_kzg: G::G1,
     pub(crate) compute_load_proof_fields: Option<ComputeLoadProofFields<G>>,
-    pub(crate) hash_mode: PkeV2HashMode,
+    pub(crate) hash_config: PkeV2HashConfig,
 }
 
 impl<G: Curve> Proof<G> {
@@ -393,7 +393,7 @@ impl<G: Curve> Proof<G> {
             pi,
             pi_kzg,
             ref compute_load_proof_fields,
-            hash_mode: _,
+            hash_config: _,
         } = self;
 
         C_hat_e.validate_projective()
@@ -421,8 +421,8 @@ impl<G: Curve> Proof<G> {
         }
     }
 
-    pub fn hash_mode(&self) -> PkeV2HashMode {
-        self.hash_mode
+    pub fn hash_config(&self) -> PkeV2HashConfig {
+        self.hash_config
     }
 }
 
@@ -471,7 +471,7 @@ where
     pub(crate) pi: CompressedG1<G>,
     pub(crate) pi_kzg: CompressedG1<G>,
     pub(crate) compute_load_proof_fields: Option<CompressedComputeLoadProofFields<G>>,
-    pub(crate) hash_mode: PkeV2HashMode,
+    pub(crate) hash_config: PkeV2HashConfig,
 }
 
 #[derive(Serialize, Deserialize, Versionize)]
@@ -512,7 +512,7 @@ where
             pi,
             pi_kzg,
             compute_load_proof_fields,
-            hash_mode,
+            hash_config,
         } = self;
 
         CompressedProof {
@@ -534,7 +534,7 @@ where
                     C_hat_w: C_hat_w.compress(),
                 },
             ),
-            hash_mode: *hash_mode,
+            hash_config: *hash_config,
         }
     }
 
@@ -552,7 +552,7 @@ where
             pi,
             pi_kzg,
             compute_load_proof_fields,
-            hash_mode,
+            hash_config,
         } = compressed;
 
         Ok(Proof {
@@ -580,7 +580,7 @@ where
             } else {
                 None
             },
-            hash_mode,
+            hash_config,
         })
     }
 }
@@ -831,7 +831,7 @@ pub fn prove<G: Curve>(
         metadata,
         load,
         seed,
-        PkeV2HashMode::Compact,
+        PkeV2HashConfig::default(),
         ProofSanityCheckMode::Panic,
     )
 }
@@ -842,7 +842,7 @@ fn prove_impl<G: Curve>(
     metadata: &[u8],
     load: ComputeLoad,
     seed: &[u8],
-    hash_mode: PkeV2HashMode,
+    hash_config: PkeV2HashConfig,
     sanity_check_mode: ProofSanityCheckMode,
 ) -> Proof<G> {
     _ = load;
@@ -987,7 +987,7 @@ fn prove_impl<G: Curve>(
         C_hat_e_bytes.as_ref(),
         C_e_bytes.as_ref(),
         C_r_tilde_bytes.as_ref(),
-        hash_mode,
+        hash_config,
     );
     let R = |i: usize, j: usize| R[i + j * 128];
 
@@ -1606,7 +1606,7 @@ fn prove_impl<G: Curve>(
         pi,
         pi_kzg,
         compute_load_proof_fields,
-        hash_mode,
+        hash_config,
     }
 }
 
@@ -1743,7 +1743,7 @@ pub fn verify_impl<G: Curve>(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
-        hash_mode,
+        hash_config,
     } = proof;
 
     let pairing = G::Gt::pairing;
@@ -1811,7 +1811,7 @@ pub fn verify_impl<G: Curve>(
         C_hat_e_bytes.as_ref(),
         C_e_bytes.as_ref(),
         C_r_tilde_bytes.as_ref(),
-        hash_mode,
+        hash_config,
     );
     let R = |i: usize, j: usize| R[i + j * 128];
 
@@ -2342,14 +2342,23 @@ mod tests {
             );
 
             for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                for hash_mode in [PkeV2HashMode::BackwardCompat, PkeV2HashMode::Classical] {
+                for hash_mode in [
+                    PkeV2HashMode::BackwardCompat,
+                    PkeV2HashMode::Classical,
+                    PkeV2HashMode::Compact,
+                ] {
+                    let hash_config = PkeV2HashConfig {
+                        mode: hash_mode,
+                        proven_zero_bits_encoding:
+                            PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+                    };
                     let proof = prove_impl(
                         (&public_param, &public_commit),
                         &private_commit,
                         &testcase.metadata,
                         load,
                         &seed.to_le_bytes(),
-                        hash_mode,
+                        hash_config,
                         ProofSanityCheckMode::Panic,
                     );
 
@@ -2378,7 +2387,7 @@ mod tests {
         crs: &PublicParams<Curve>,
         load: ComputeLoad,
         seed: &[u8],
-        hash_mode: PkeV2HashMode,
+        hash_config: PkeV2HashConfig,
         sanity_check_mode: ProofSanityCheckMode,
     ) -> VerificationResult {
         let (public_commit, private_commit) = commit(
@@ -2399,7 +2408,7 @@ mod tests {
             &testcase.metadata,
             load,
             seed,
-            hash_mode,
+            hash_config,
             sanity_check_mode,
         );
 
@@ -2417,15 +2426,23 @@ mod tests {
         testcase_name: &str,
         crs: &PublicParams<Curve>,
         seed: &[u8],
-        hash_mode: PkeV2HashMode,
+        hash_config: PkeV2HashConfig,
         sanity_check_mode: ProofSanityCheckMode,
         expected_result: VerificationResult,
     ) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             assert_eq!(
-                prove_and_verify(testcase, ct, crs, load, seed, hash_mode, sanity_check_mode),
+                prove_and_verify(
+                    testcase,
+                    ct,
+                    crs,
+                    load,
+                    seed,
+                    hash_config,
+                    sanity_check_mode
+                ),
                 expected_result,
-                "Testcase {testcase_name} {hash_mode:?} hash with load {load} failed"
+                "Testcase {testcase_name} {hash_config:?} hash with load {load} failed"
             )
         }
     }
@@ -2691,7 +2708,7 @@ mod tests {
                 &format!("{name}_crs"),
                 &crs,
                 &seed.to_le_bytes(),
-                PkeV2HashMode::Compact,
+                PkeV2HashConfig::default(),
                 ProofSanityCheckMode::Ignore,
                 expected_result,
             );
@@ -2701,7 +2718,7 @@ mod tests {
                 &format!("{name}_crs_max_k"),
                 &crs_max_k,
                 &seed.to_le_bytes(),
-                PkeV2HashMode::Compact,
+                PkeV2HashConfig::default(),
                 ProofSanityCheckMode::Ignore,
                 expected_result,
             );
@@ -2795,7 +2812,7 @@ mod tests {
                 test_name,
                 &public_param,
                 &seed.to_le_bytes(),
-                PkeV2HashMode::Compact,
+                PkeV2HashConfig::default(),
                 ProofSanityCheckMode::Panic,
                 VerificationResult::Reject,
             );
@@ -3056,7 +3073,7 @@ mod tests {
             "testcase_bad_delta",
             &crs,
             &seed.to_le_bytes(),
-            PkeV2HashMode::Compact,
+            PkeV2HashConfig::default(),
             ProofSanityCheckMode::Panic,
             VerificationResult::Reject,
         );
@@ -3098,7 +3115,7 @@ mod tests {
                 &format!("testcase_big_params_{bound:?}"),
                 &crs,
                 &seed.to_le_bytes(),
-                PkeV2HashMode::Compact,
+                PkeV2HashConfig::default(),
                 ProofSanityCheckMode::Panic,
                 VerificationResult::Accept,
             );

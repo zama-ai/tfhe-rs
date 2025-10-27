@@ -22,11 +22,13 @@ use tfhe_zk_pok::proofs::pke::{
 };
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commit_v2, crs_gen as crs_gen_v2, prove as prove_v2, verify as verify_v2,
-    PkeV2HashMode, Proof as ProofV2, PublicCommit as PublicCommitV2,
+    PkeV2HashMode, PkeV2ProvenZeroBitsEncoding, Proof as ProofV2, PublicCommit as PublicCommitV2,
 };
 
 pub use tfhe_zk_pok::curve_api::Compressible;
-pub use tfhe_zk_pok::proofs::pke_v2::PkeV2HashMode as ZkPkeV2HashMode;
+pub use tfhe_zk_pok::proofs::pke_v2::{
+    PkeV2HashMode as ZkPkeV2HashMode, PkeV2ProvenZeroBitsEncoding as ZkPkeV2ProvenZeroBitsEncoding,
+};
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
@@ -48,7 +50,13 @@ impl CastInto<usize> for ZkComputeLoad {
     }
 }
 
-impl CastInto<usize> for PkeV2HashMode {
+impl CastInto<usize> for ZkPkeV2HashMode {
+    fn cast_into(self) -> usize {
+        self as usize
+    }
+}
+
+impl CastInto<usize> for ZkPkeV2ProvenZeroBitsEncoding {
     fn cast_into(self) -> usize {
         self as usize
     }
@@ -105,6 +113,7 @@ impl ParameterSetConformant for ProofV1<Curve> {
 pub struct CompactPkeV2ProofConformanceParams {
     accepted_compute_load: EnumSet<ZkComputeLoad>,
     accepted_hash_mode: EnumSet<PkeV2HashMode>,
+    accepted_proven_zero_bits_encoding: EnumSet<PkeV2ProvenZeroBitsEncoding>,
 }
 
 impl Default for CompactPkeV2ProofConformanceParams {
@@ -125,9 +134,15 @@ impl CompactPkeV2ProofConformanceParams {
         accepted_hash_mode.insert(PkeV2HashMode::Classical);
         accepted_hash_mode.insert(PkeV2HashMode::Compact);
 
+        let mut accepted_proven_zero_bits_encoding = EnumSet::new();
+        accepted_proven_zero_bits_encoding
+            .insert(PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly);
+        accepted_proven_zero_bits_encoding.insert(PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot);
+
         Self {
             accepted_compute_load,
             accepted_hash_mode,
+            accepted_proven_zero_bits_encoding,
         }
     }
 
@@ -138,7 +153,7 @@ impl CompactPkeV2ProofConformanceParams {
 
         Self {
             accepted_compute_load,
-            accepted_hash_mode: self.accepted_hash_mode,
+            ..self
         }
     }
 
@@ -148,8 +163,22 @@ impl CompactPkeV2ProofConformanceParams {
         accepted_hash_mode.remove(forbidden_hash_mode);
 
         Self {
-            accepted_compute_load: self.accepted_compute_load,
             accepted_hash_mode,
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2ProvenZeroBitsEncoding`]
+    pub fn forbid_proven_zero_bits_encoding(
+        self,
+        forbidden_proven_zero_bits_encoding: ZkPkeV2ProvenZeroBitsEncoding,
+    ) -> Self {
+        let mut accepted_proven_zero_bits_encoding = self.accepted_proven_zero_bits_encoding;
+        accepted_proven_zero_bits_encoding.remove(forbidden_proven_zero_bits_encoding);
+
+        Self {
+            accepted_proven_zero_bits_encoding,
+            ..self
         }
     }
 }
@@ -161,7 +190,12 @@ impl ParameterSetConformant for ProofV2<Curve> {
         parameter_set
             .accepted_compute_load
             .contains(self.compute_load())
-            && parameter_set.accepted_hash_mode.contains(self.hash_mode())
+            && parameter_set
+                .accepted_hash_mode
+                .contains(self.hash_config().mode())
+            && parameter_set
+                .accepted_proven_zero_bits_encoding
+                .contains(self.hash_config().proven_zero_bits_encoding())
             && self.is_usable()
     }
 }
@@ -199,6 +233,21 @@ impl CompactPkeProofConformanceParams {
             // There is no hash mode to configure in PkeV1
             Self::PkeV1(params) => Self::PkeV1(params),
             Self::PkeV2(params) => Self::PkeV2(params.forbid_hash_mode(forbidden_hash_mode)),
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2ProvenZeroBitsEncoding`]. This has no effect
+    /// on PkeV1 proofs
+    pub fn forbid_proven_zero_bits_encoding(
+        self,
+        forbidden_proven_zero_bits_encoding: ZkPkeV2ProvenZeroBitsEncoding,
+    ) -> Self {
+        match self {
+            // There is no encoding to configure in PkeV1
+            Self::PkeV1(params) => Self::PkeV1(params),
+            Self::PkeV2(params) => Self::PkeV2(
+                params.forbid_proven_zero_bits_encoding(forbidden_proven_zero_bits_encoding),
+            ),
         }
     }
 }

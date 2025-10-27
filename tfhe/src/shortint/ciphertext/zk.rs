@@ -12,7 +12,8 @@ use crate::shortint::parameters::{
 use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkeProofConformanceParams, ZkComputeLoad,
-    ZkMSBZeroPaddingBitCount, ZkPkeV2HashMode, ZkVerificationOutcome,
+    ZkMSBZeroPaddingBitCount, ZkPkeV2HashMode, ZkPkeV2ProvenZeroBitsEncoding,
+    ZkVerificationOutcome,
 };
 
 use rayon::prelude::*;
@@ -247,6 +248,20 @@ impl ProvenCompactCiphertextListConformanceParams {
             zk_conformance_params: self
                 .zk_conformance_params
                 .forbid_hash_mode(forbidden_hash_mode),
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2ProvenZeroBitsEncoding`]. This has no effect
+    /// on PkeV1 proofs
+    pub fn forbid_proven_zero_bits_encoding(
+        self,
+        forbidden_proven_zero_bits_encoding: ZkPkeV2ProvenZeroBitsEncoding,
+    ) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_proven_zero_bits_encoding(forbidden_proven_zero_bits_encoding),
             ..self
         }
     }
