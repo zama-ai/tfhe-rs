@@ -1,8 +1,7 @@
 use super::dp_ks_ms::dp_ks_any_ms;
 use super::utils::noise_simulation::{
-    NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
-    NoiseSimulationModulusSwitchConfig,
+    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -49,8 +48,7 @@ pub fn br_dp_ks_any_ms<
     bsk: &PBSKey,
     scalar: DPScalar,
     ksk: &KsKey,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key: Option<&DriftKey>,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig<&DriftKey>,
     accumulator: &Accumulator,
     br_input_modulus_log: CiphertextModulusLog,
     side_resources: &mut Resources,
@@ -96,7 +94,6 @@ where
         scalar,
         ksk,
         modulus_switch_configuration,
-        mod_switch_noise_reduction_key,
         br_input_modulus_log,
         side_resources,
     );
@@ -126,12 +123,7 @@ where
     let id_lut = sks.generate_lookup_table(|x| x);
 
     let br_input_modulus_log = sks.br_input_modulus_log();
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
     for _ in 0..10 {
         let input_zero_as_lwe = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
@@ -142,8 +134,7 @@ where
                 &sks,
                 max_scalar_mul,
                 &sks,
-                noise_simulation_modulus_switch_config,
-                drift_key,
+                modulus_switch_config,
                 &id_lut,
                 br_input_modulus_log,
                 &mut (),
@@ -210,12 +201,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper(
     };
 
     let br_input_modulus_log = sks.br_input_modulus_log();
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
     let ct = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
 
@@ -226,8 +212,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper(
         sks,
         scalar_for_multiplication,
         sks,
-        noise_simulation_modulus_switch_config,
-        drift_key,
+        modulus_switch_config,
         &id_lut,
         br_input_modulus_log,
         &mut (),
@@ -418,30 +403,19 @@ where
 
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
-    let noise_simulation_drift_key =
-        NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_modulus_switch_config =
+        NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk =
         NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
 
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let br_input_modulus_log = sks.br_input_modulus_log();
     let expected_average_after_ms =
-        noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
-
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+        modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
     assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
-    match (noise_simulation_drift_key, drift_key) {
-        (Some(noise_simulation_drift_key), Some(drift_key)) => {
-            assert!(noise_simulation_drift_key.matches_actual_shortint_server_key(drift_key))
-        }
-        (None, None) => (),
-        _ => panic!("Inconsistent Drift Key configuration"),
-    }
+    assert!(noise_simulation_modulus_switch_config
+        .matches_shortint_server_key_modulus_switch_config(modulus_switch_config));
     assert!(noise_simulation_bsk.matches_actual_shortint_server_key(&sks));
 
     let max_scalar_mul = sks.max_noise_level.get();
@@ -464,8 +438,7 @@ where
             &noise_simulation_bsk,
             max_scalar_mul,
             &noise_simulation_ksk,
-            noise_simulation_modulus_switch_config,
-            noise_simulation_drift_key.as_ref(),
+            noise_simulation_modulus_switch_config.as_ref(),
             &noise_simulation_accumulator,
             br_input_modulus_log,
             &mut (),
@@ -483,8 +456,7 @@ where
             &sks,
             max_scalar_mul,
             &sks,
-            noise_simulation_modulus_switch_config,
-            drift_key,
+            modulus_switch_config,
             &id_lut,
             br_input_modulus_log,
             &mut (),

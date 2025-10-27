@@ -1,7 +1,6 @@
 use super::dp_ks_ms::any_ms;
 use super::utils::noise_simulation::{
-    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
-    NoiseSimulationModulusSwitchConfig,
+    DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -44,8 +43,7 @@ pub fn cpk_ks_any_ms<
 >(
     input: InputCt,
     ksk_ds: &KsKeyDs,
-    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig,
-    mod_switch_noise_reduction_key: Option<&DriftKey>,
+    modulus_switch_configuration: NoiseSimulationModulusSwitchConfig<&DriftKey>,
     br_input_modulus_log: CiphertextModulusLog,
     side_resources: &mut Resources,
 ) -> (InputCt, KsResult, Option<DriftTechniqueResult>, MsResult)
@@ -76,7 +74,6 @@ where
     let (drift_technique_result, ms_result) = any_ms(
         &ks_result,
         modulus_switch_configuration,
-        mod_switch_noise_reduction_key,
         br_input_modulus_log,
         side_resources,
     );
@@ -141,12 +138,7 @@ fn cpk_ks_any_ms_inner_helper(
     };
 
     let br_input_modulus_log = sks.br_input_modulus_log();
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
     let ct = {
         let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
@@ -165,8 +157,7 @@ fn cpk_ks_any_ms_inner_helper(
     let (input, after_ks_ds, after_drift, after_ms) = cpk_ks_any_ms(
         ct,
         ksk_ds,
-        noise_simulation_modulus_switch_config,
-        drift_key,
+        modulus_switch_config,
         br_input_modulus_log,
         &mut (),
     );
@@ -365,37 +356,25 @@ fn noise_check_encrypt_cpk_ks_ms_noise<P>(
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_ksk_ds =
         NoiseSimulationLweKeyswitchKey::new_from_cpk_params(cpk_params, ksk_ds_params, params);
-    let noise_simulation_drift_key =
-        NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_modulus_switch_config =
+        NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
 
-    let noise_simulation_modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let compute_br_input_modulus_log = sks.br_input_modulus_log();
     let expected_average_after_ms =
-        noise_simulation_modulus_switch_config.expected_average_after_ms(params.polynomial_size());
-
-    let drift_key = match noise_simulation_modulus_switch_config {
-        NoiseSimulationModulusSwitchConfig::Standard => None,
-        NoiseSimulationModulusSwitchConfig::DriftTechniqueNoiseReduction => Some(&sks),
-        NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction => None,
-    };
+        modulus_switch_config.expected_average_after_ms(params.polynomial_size());
 
     assert!(noise_simulation_ksk.matches_actual_shortint_server_key(&sks));
     assert!(noise_simulation_ksk_ds.matches_actual_shortint_keyswitching_key(&ksk_ds));
-    match (noise_simulation_drift_key, drift_key) {
-        (Some(noise_simulation_drift_key), Some(drift_key)) => {
-            assert!(noise_simulation_drift_key.matches_actual_shortint_server_key(drift_key))
-        }
-        (None, None) => (),
-        _ => panic!("Inconsistent Drift Key configuration"),
-    }
+    assert!(noise_simulation_modulus_switch_config
+        .matches_shortint_server_key_modulus_switch_config(modulus_switch_config));
 
     let (_input_sim, _after_ks_ds_sim, _after_drift_sim, after_ms_sim) = {
         let noise_simulation_input = NoiseSimulationLwe::encrypt_with_cpk(&cpk);
         cpk_ks_any_ms(
             noise_simulation_input,
             &noise_simulation_ksk_ds,
-            noise_simulation_modulus_switch_config,
-            noise_simulation_drift_key.as_ref(),
+            noise_simulation_modulus_switch_config.as_ref(),
             compute_br_input_modulus_log,
             &mut (),
         )
@@ -417,8 +396,7 @@ fn noise_check_encrypt_cpk_ks_ms_noise<P>(
         let (_input, _after_ks_ds, _before_ms, after_ms) = cpk_ks_any_ms(
             sample_input,
             &ksk_ds,
-            noise_simulation_modulus_switch_config,
-            drift_key,
+            modulus_switch_config,
             compute_br_input_modulus_log,
             &mut (),
         );
