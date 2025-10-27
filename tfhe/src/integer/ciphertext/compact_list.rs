@@ -25,7 +25,7 @@ use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{
     CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2HashMode,
-    ZkPkeV2ProvenZeroBitsEncoding, ZkVerificationOutcome,
+    ZkPkeV2HashedBoundType, ZkPkeV2ProvenZeroBitsEncoding, ZkVerificationOutcome,
 };
 use std::num::NonZero;
 
@@ -1168,6 +1168,20 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
             zk_conformance_params: self
                 .zk_conformance_params
                 .forbid_proven_zero_bits_encoding(forbidden_proven_zero_bits_encoding),
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashedBoundType`]. This has no effect on
+    /// PkeV1 proofs
+    pub fn forbid_hashed_bound_type(
+        self,
+        forbidden_hashed_bound_type: ZkPkeV2HashedBoundType,
+    ) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_hashed_bound_type(forbidden_hashed_bound_type),
             ..self
         }
     }

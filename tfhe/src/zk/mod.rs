@@ -22,12 +22,14 @@ use tfhe_zk_pok::proofs::pke::{
 };
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commit_v2, crs_gen as crs_gen_v2, prove as prove_v2, verify as verify_v2,
-    PkeV2HashMode, PkeV2ProvenZeroBitsEncoding, Proof as ProofV2, PublicCommit as PublicCommitV2,
+    PkeV2HashMode, PkeV2HashedBoundType, PkeV2ProvenZeroBitsEncoding, Proof as ProofV2,
+    PublicCommit as PublicCommitV2,
 };
 
 pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::pke_v2::{
-    PkeV2HashMode as ZkPkeV2HashMode, PkeV2ProvenZeroBitsEncoding as ZkPkeV2ProvenZeroBitsEncoding,
+    PkeV2HashMode as ZkPkeV2HashMode, PkeV2HashedBoundType as ZkPkeV2HashedBoundType,
+    PkeV2ProvenZeroBitsEncoding as ZkPkeV2ProvenZeroBitsEncoding,
 };
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
@@ -57,6 +59,12 @@ impl CastInto<usize> for ZkPkeV2HashMode {
 }
 
 impl CastInto<usize> for ZkPkeV2ProvenZeroBitsEncoding {
+    fn cast_into(self) -> usize {
+        self as usize
+    }
+}
+
+impl CastInto<usize> for ZkPkeV2HashedBoundType {
     fn cast_into(self) -> usize {
         self as usize
     }
@@ -114,6 +122,7 @@ pub struct CompactPkeV2ProofConformanceParams {
     accepted_compute_load: EnumSet<ZkComputeLoad>,
     accepted_hash_mode: EnumSet<PkeV2HashMode>,
     accepted_proven_zero_bits_encoding: EnumSet<PkeV2ProvenZeroBitsEncoding>,
+    accepted_hashed_bound_type: EnumSet<PkeV2HashedBoundType>,
 }
 
 impl Default for CompactPkeV2ProofConformanceParams {
@@ -139,10 +148,15 @@ impl CompactPkeV2ProofConformanceParams {
             .insert(PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly);
         accepted_proven_zero_bits_encoding.insert(PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot);
 
+        let mut accepted_hashed_bound_type = EnumSet::new();
+        accepted_hashed_bound_type.insert(PkeV2HashedBoundType::SquaredEuclideanNorm);
+        accepted_hashed_bound_type.insert(PkeV2HashedBoundType::InfiniteNorm);
+
         Self {
             accepted_compute_load,
             accepted_hash_mode,
             accepted_proven_zero_bits_encoding,
+            accepted_hashed_bound_type,
         }
     }
 
@@ -181,6 +195,20 @@ impl CompactPkeV2ProofConformanceParams {
             ..self
         }
     }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashedBoundType`]
+    pub fn forbid_hashed_bound_type(
+        self,
+        forbidden_hashed_bound_type: ZkPkeV2HashedBoundType,
+    ) -> Self {
+        let mut accepted_hashed_bound_type = self.accepted_hashed_bound_type;
+        accepted_hashed_bound_type.remove(forbidden_hashed_bound_type);
+
+        Self {
+            accepted_hashed_bound_type,
+            ..self
+        }
+    }
 }
 
 impl ParameterSetConformant for ProofV2<Curve> {
@@ -196,6 +224,9 @@ impl ParameterSetConformant for ProofV2<Curve> {
             && parameter_set
                 .accepted_proven_zero_bits_encoding
                 .contains(self.hash_config().proven_zero_bits_encoding())
+            && parameter_set
+                .accepted_hashed_bound_type
+                .contains(self.hash_config().hashed_bound())
             && self.is_usable()
     }
 }
@@ -248,6 +279,21 @@ impl CompactPkeProofConformanceParams {
             Self::PkeV2(params) => Self::PkeV2(
                 params.forbid_proven_zero_bits_encoding(forbidden_proven_zero_bits_encoding),
             ),
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashedBoundType`]. This has no effect on
+    /// PkeV1 proofs
+    pub fn forbid_hashed_bound_type(
+        self,
+        forbidden_hashed_bound_type: ZkPkeV2HashedBoundType,
+    ) -> Self {
+        match self {
+            // There is no hash mode to configure in PkeV1
+            Self::PkeV1(params) => Self::PkeV1(params),
+            Self::PkeV2(params) => {
+                Self::PkeV2(params.forbid_hashed_bound_type(forbidden_hashed_bound_type))
+            }
         }
     }
 }

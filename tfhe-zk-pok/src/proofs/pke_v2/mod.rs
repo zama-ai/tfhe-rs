@@ -2351,6 +2351,7 @@ mod tests {
                         mode: hash_mode,
                         proven_zero_bits_encoding:
                             PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+                        hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
                     };
                     let proof = prove_impl(
                         (&public_param, &public_commit),

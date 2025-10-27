@@ -8,7 +8,7 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 use crate::curve_api::{CompressedG1, CompressedG2, Compressible, Curve};
 use crate::proofs::pke_v2::{
     CompressedComputeLoadProofFields, CompressedProof, ComputeLoadProofFields, PkeV2HashConfig,
-    PkeV2HashMode, PkeV2ProvenZeroBitsEncoding, Proof,
+    PkeV2HashMode, PkeV2HashedBoundType, PkeV2ProvenZeroBitsEncoding, Proof,
 };
 
 use super::IncompleteProof;
@@ -180,6 +180,7 @@ impl<G: Curve> Upgrade<Proof<G>> for ProofV2<G> {
             hash_config: PkeV2HashConfig {
                 mode: hash_mode,
                 proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+                hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
             },
         })
     }
@@ -392,6 +393,7 @@ where
             hash_config: PkeV2HashConfig {
                 mode: hash_mode,
                 proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
+                hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
             },
         })
     }
@@ -435,4 +437,10 @@ pub enum PkeV2HashConfigVersions {
 pub enum PkeV2ProvenZeroBitsEncodingVersions {
     #[allow(dead_code)]
     V0(PkeV2ProvenZeroBitsEncoding),
+}
+
+#[derive(VersionsDispatch)]
+pub enum PkeV2HashedBoundTypeVersions {
+    #[allow(dead_code)]
+    V0(PkeV2HashedBoundType),
 }

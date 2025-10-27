@@ -6,7 +6,8 @@ use tfhe_versionable::Versionize;
 /// Scalar generation using the hash random oracle
 use crate::{
     backward_compatibility::pke_v2::{
-        PkeV2HashConfigVersions, PkeV2HashModeVersions, PkeV2ProvenZeroBitsEncodingVersions,
+        PkeV2HashConfigVersions, PkeV2HashModeVersions, PkeV2HashedBoundTypeVersions,
+        PkeV2ProvenZeroBitsEncodingVersions,
     },
     curve_api::{Curve, FieldOps},
     proofs::pke_v2::{compute_crs_params, inf_norm_bound_to_euclidean_squared},
@@ -70,10 +71,21 @@ impl PkeV2ProvenZeroBitsEncoding {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(PkeV2HashedBoundTypeVersions)]
+/// The kind of norm bound that is hashed in the statement.
+pub enum PkeV2HashedBoundType {
+    /// Hash the square of the derived L2/Euclidean norm that is used for the proof
+    SquaredEuclideanNorm = 0,
+    /// Hash the infinite norm given as input by the prover
+    InfiniteNorm = 1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
 #[versionize(PkeV2HashConfigVersions)]
 pub struct PkeV2HashConfig {
     pub(crate) mode: PkeV2HashMode,
     pub(crate) proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding,
+    pub(crate) hashed_bound_type: PkeV2HashedBoundType,
 }
 
 impl Default for PkeV2HashConfig {
@@ -84,6 +96,7 @@ impl Default for PkeV2HashConfig {
         Self {
             mode: PkeV2HashMode::Compact,
             proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot,
+            hashed_bound_type: PkeV2HashedBoundType::InfiniteNorm,
         }
     }
 }
@@ -95,6 +108,10 @@ impl PkeV2HashConfig {
 
     pub fn proven_zero_bits_encoding(&self) -> PkeV2ProvenZeroBitsEncoding {
         self.proven_zero_bits_encoding
+    }
+
+    pub fn hashed_bound(&self) -> PkeV2HashedBoundType {
+        self.hashed_bound_type
     }
 }
 
@@ -327,10 +344,15 @@ impl<'a> RHash<'a> {
             k,
         );
 
+        let hashed_bound = match config.hashed_bound_type {
+            PkeV2HashedBoundType::SquaredEuclideanNorm => B_squared.to_le_bytes().to_vec(),
+            PkeV2HashedBoundType::InfiniteNorm => B_inf.to_le_bytes().to_vec(),
+        };
+
         let x_bytes = [
             q.to_le_bytes().as_slice(),
             (d as u64).to_le_bytes().as_slice(),
-            B_squared.to_le_bytes().as_slice(),
+            &hashed_bound,
             t_input.to_le_bytes().as_slice(),
             encoded_zero_bits.as_slice(),
             &*a.iter()
