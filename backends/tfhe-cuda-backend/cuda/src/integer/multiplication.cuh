@@ -395,7 +395,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
           (Torus *)current_blocks->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
-          mem_ptr->params.ks_level, total_messages);
+          mem_ptr->params.ks_level, total_messages,
+          mem_ptr->luts_message_carry->using_trivial_lwe_indexes,
+          mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
       execute_pbs_async<Torus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
@@ -446,7 +448,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
           (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
-          mem_ptr->params.ks_level, num_radix_blocks);
+          mem_ptr->params.ks_level, num_radix_blocks,
+          mem_ptr->luts_message_carry->using_trivial_lwe_indexes,
+          mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
       execute_pbs_async<Torus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
