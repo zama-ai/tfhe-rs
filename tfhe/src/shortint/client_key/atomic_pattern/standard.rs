@@ -331,34 +331,31 @@ impl StandardAtomicPatternClientKey {
         }
     }
 
-    pub(crate) fn new_seeded_keyswitching_key(
+    pub(crate) fn new_seeded_keyswitching_key_with_engine(
         &self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
         params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
         match params.destination_key {
-            EncryptionKeyChoice::Big => ShortintEngine::with_thread_local_mut(|engine| {
-                allocate_and_generate_new_seeded_lwe_keyswitch_key(
-                    &input_secret_key.lwe_secret_key,
-                    &self.large_lwe_secret_key(),
-                    params.ks_base_log,
-                    params.ks_level,
-                    self.parameters().glwe_noise_distribution(),
-                    self.parameters().ciphertext_modulus(),
-                    &mut engine.seeder,
-                )
-            }),
-            EncryptionKeyChoice::Small => ShortintEngine::with_thread_local_mut(|engine| {
-                allocate_and_generate_new_seeded_lwe_keyswitch_key(
-                    &input_secret_key.lwe_secret_key,
-                    &self.small_lwe_secret_key(),
-                    params.ks_base_log,
-                    params.ks_level,
-                    self.parameters().lwe_noise_distribution(),
-                    self.parameters().ciphertext_modulus(),
-                    &mut engine.seeder,
-                )
-            }),
+            EncryptionKeyChoice::Big => allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &self.large_lwe_secret_key(),
+                params.ks_base_log,
+                params.ks_level,
+                self.parameters().glwe_noise_distribution(),
+                self.parameters().ciphertext_modulus(),
+                &mut engine.seeder,
+            ),
+            EncryptionKeyChoice::Small => allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &self.small_lwe_secret_key(),
+                params.ks_base_log,
+                params.ks_level,
+                self.parameters().lwe_noise_distribution(),
+                self.parameters().ciphertext_modulus(),
+                &mut engine.seeder,
+            ),
         }
     }
 }
