@@ -211,14 +211,19 @@ impl AtomicPatternClientKey {
         }
     }
 
-    pub(crate) fn new_seeded_keyswitching_key(
+    pub(crate) fn new_seeded_keyswitching_key_with_engine(
         &self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
         params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
         match self {
-            Self::Standard(ap) => ap.new_seeded_keyswitching_key(input_secret_key, params),
-            Self::KeySwitch32(ap) => ap.new_seeded_keyswitching_key(input_secret_key, params),
+            Self::Standard(ap) => {
+                ap.new_seeded_keyswitching_key_with_engine(input_secret_key, params, engine)
+            }
+            Self::KeySwitch32(ap) => {
+                ap.new_seeded_keyswitching_key_with_engine(input_secret_key, params, engine)
+            }
         }
     }
 }
