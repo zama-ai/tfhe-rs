@@ -2095,6 +2095,7 @@ mod tests {
     use super::*;
     use rand::rngs::StdRng;
     use rand::{thread_rng, Rng, SeedableRng};
+    use tfhe_versionable::Unversionize;
 
     type Curve = curve_api::Bls12_446;
 
@@ -3148,9 +3149,12 @@ mod tests {
                 &seed.to_le_bytes(),
             );
 
-            let compressed_proof = bincode::serialize(&proof.compress()).unwrap();
-            let proof =
-                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
+            let compressed_proof = bincode::serialize(&proof.compress().versionize()).unwrap();
+            let proof = Proof::uncompress(
+                CompressedProof::unversionize(bincode::deserialize(&compressed_proof).unwrap())
+                    .unwrap(),
+            )
+            .unwrap();
 
             verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
         }
