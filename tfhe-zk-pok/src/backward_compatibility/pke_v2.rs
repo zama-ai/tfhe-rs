@@ -181,6 +181,7 @@ impl<G: Curve> Upgrade<Proof<G>> for ProofV2<G> {
                 mode: hash_mode,
                 proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
                 hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
+                hash_k: false,
             },
         })
     }
@@ -394,6 +395,7 @@ where
                 mode: hash_mode,
                 proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
                 hashed_bound_type: PkeV2HashedBoundType::SquaredEuclideanNorm,
+                hash_k: false,
             },
         })
     }

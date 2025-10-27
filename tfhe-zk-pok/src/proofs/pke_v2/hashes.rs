@@ -86,6 +86,8 @@ pub struct PkeV2HashConfig {
     pub(crate) mode: PkeV2HashMode,
     pub(crate) proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding,
     pub(crate) hashed_bound_type: PkeV2HashedBoundType,
+    /// Should we also hash the value of k with the statement
+    pub(crate) hash_k: bool,
 }
 
 impl Default for PkeV2HashConfig {
@@ -97,6 +99,7 @@ impl Default for PkeV2HashConfig {
             mode: PkeV2HashMode::Compact,
             proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::AnyBitAnySlot,
             hashed_bound_type: PkeV2HashedBoundType::InfiniteNorm,
+            hash_k: true,
         }
     }
 }
@@ -112,6 +115,10 @@ impl PkeV2HashConfig {
 
     pub fn hashed_bound(&self) -> PkeV2HashedBoundType {
         self.hashed_bound_type
+    }
+
+    pub fn hash_k(&self) -> bool {
+        self.hash_k
     }
 }
 
@@ -349,9 +356,16 @@ impl<'a> RHash<'a> {
             PkeV2HashedBoundType::InfiniteNorm => B_inf.to_le_bytes().to_vec(),
         };
 
+        let hashed_k = if config.hash_k {
+            k.to_le_bytes().to_vec()
+        } else {
+            Vec::new()
+        };
+
         let x_bytes = [
             q.to_le_bytes().as_slice(),
             (d as u64).to_le_bytes().as_slice(),
+            hashed_k.as_slice(),
             &hashed_bound,
             t_input.to_le_bytes().as_slice(),
             encoded_zero_bits.as_slice(),

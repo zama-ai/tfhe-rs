@@ -1185,6 +1185,15 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
             ..self
         }
     }
+
+    /// Reject the proof conformance if k is not hashed. This has no effect on
+    /// PkeV1 proofs
+    pub fn force_hash_k(self) -> Self {
+        Self {
+            zk_conformance_params: self.zk_conformance_params.force_hash_k(),
+            ..self
+        }
+    }
 }
 
 #[cfg(feature = "zk-pok")]

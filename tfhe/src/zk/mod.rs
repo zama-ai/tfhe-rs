@@ -123,6 +123,7 @@ pub struct CompactPkeV2ProofConformanceParams {
     accepted_hash_mode: EnumSet<PkeV2HashMode>,
     accepted_proven_zero_bits_encoding: EnumSet<PkeV2ProvenZeroBitsEncoding>,
     accepted_hashed_bound_type: EnumSet<PkeV2HashedBoundType>,
+    accepted_hash_k_mode: EnumSet<bool>,
 }
 
 impl Default for CompactPkeV2ProofConformanceParams {
@@ -152,11 +153,16 @@ impl CompactPkeV2ProofConformanceParams {
         accepted_hashed_bound_type.insert(PkeV2HashedBoundType::SquaredEuclideanNorm);
         accepted_hashed_bound_type.insert(PkeV2HashedBoundType::InfiniteNorm);
 
+        let mut accepted_hash_k_mode = EnumSet::new();
+        accepted_hash_k_mode.insert(true);
+        accepted_hash_k_mode.insert(false);
+
         Self {
             accepted_compute_load,
             accepted_hash_mode,
             accepted_proven_zero_bits_encoding,
             accepted_hashed_bound_type,
+            accepted_hash_k_mode,
         }
     }
 
@@ -209,6 +215,17 @@ impl CompactPkeV2ProofConformanceParams {
             ..self
         }
     }
+
+    /// Reject the proof conformance if k is not hashed
+    pub fn force_hash_k(self) -> Self {
+        let mut accepted_hash_k_mode = self.accepted_hash_k_mode;
+        accepted_hash_k_mode.remove(false);
+
+        Self {
+            accepted_hash_k_mode,
+            ..self
+        }
+    }
 }
 
 impl ParameterSetConformant for ProofV2<Curve> {
@@ -227,6 +244,9 @@ impl ParameterSetConformant for ProofV2<Curve> {
             && parameter_set
                 .accepted_hashed_bound_type
                 .contains(self.hash_config().hashed_bound())
+            && parameter_set
+                .accepted_hash_k_mode
+                .contains(self.hash_config().hash_k())
             && self.is_usable()
     }
 }
@@ -289,11 +309,20 @@ impl CompactPkeProofConformanceParams {
         forbidden_hashed_bound_type: ZkPkeV2HashedBoundType,
     ) -> Self {
         match self {
-            // There is no hash mode to configure in PkeV1
+            // There is no hashed bound to configure in PkeV1
             Self::PkeV1(params) => Self::PkeV1(params),
             Self::PkeV2(params) => {
                 Self::PkeV2(params.forbid_hashed_bound_type(forbidden_hashed_bound_type))
             }
+        }
+    }
+
+    /// Reject the proof conformance if k is not hashed. This has no effect on
+    /// PkeV1 proofs
+    pub fn force_hash_k(self) -> Self {
+        match self {
+            Self::PkeV1(params) => Self::PkeV1(params),
+            Self::PkeV2(params) => Self::PkeV2(params.force_hash_k()),
         }
     }
 }
