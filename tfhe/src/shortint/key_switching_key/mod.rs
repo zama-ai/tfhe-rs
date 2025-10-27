@@ -1089,9 +1089,11 @@ impl<'keys> CompressedKeySwitchingKeyBuildHelper<'keys> {
         let output_cks = output_key_pair.0;
 
         // Creation of the key switching key
-        let key_switching_key = output_cks
-            .atomic_pattern
-            .new_seeded_keyswitching_key(&input_secret_key, params);
+        let key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
+            output_cks
+                .atomic_pattern
+                .new_seeded_keyswitching_key_with_engine(&input_secret_key, params, engine)
+        });
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;

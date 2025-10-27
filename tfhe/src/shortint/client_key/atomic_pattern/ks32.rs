@@ -259,35 +259,32 @@ impl KS32AtomicPatternClientKey {
         }
     }
 
-    pub(crate) fn new_seeded_keyswitching_key(
+    pub(crate) fn new_seeded_keyswitching_key_with_engine(
         &self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
         params: ShortintKeySwitchingParameters,
+        engine: &mut ShortintEngine,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
         match params.destination_key {
-            EncryptionKeyChoice::Big => ShortintEngine::with_thread_local_mut(|engine| {
-                allocate_and_generate_new_seeded_lwe_keyswitch_key(
+            EncryptionKeyChoice::Big => allocate_and_generate_new_seeded_lwe_keyswitch_key(
+                &input_secret_key.lwe_secret_key,
+                &self.large_lwe_secret_key(),
+                params.ks_base_log,
+                params.ks_level,
+                self.parameters.glwe_noise_distribution(),
+                self.parameters.ciphertext_modulus(),
+                &mut engine.seeder,
+            ),
+            EncryptionKeyChoice::Small => {
+                let ksk = allocate_and_generate_new_seeded_lwe_keyswitch_key(
                     &input_secret_key.lwe_secret_key,
-                    &self.large_lwe_secret_key(),
+                    &self.small_lwe_secret_key(),
                     params.ks_base_log,
                     params.ks_level,
-                    self.parameters.glwe_noise_distribution(),
-                    self.parameters.ciphertext_modulus(),
+                    self.parameters.lwe_noise_distribution(),
+                    self.parameters.post_keyswitch_ciphertext_modulus(),
                     &mut engine.seeder,
-                )
-            }),
-            EncryptionKeyChoice::Small => {
-                let ksk = ShortintEngine::with_thread_local_mut(|engine| {
-                    allocate_and_generate_new_seeded_lwe_keyswitch_key(
-                        &input_secret_key.lwe_secret_key,
-                        &self.small_lwe_secret_key(),
-                        params.ks_base_log,
-                        params.ks_level,
-                        self.parameters.lwe_noise_distribution(),
-                        self.parameters.post_keyswitch_ciphertext_modulus(),
-                        &mut engine.seeder,
-                    )
-                });
+                );
                 let shift = u64::BITS - u32::BITS;
 
                 SeededLweKeyswitchKeyOwned::from_container(
