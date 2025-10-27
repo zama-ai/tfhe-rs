@@ -889,30 +889,11 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
     lwe_dimension: LweDimension,
     pbs_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
     vec_indexes: &[u32],
     num_blocks_to_decompress: u32,
 ) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        lwe_array_out.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        glwe_in.data.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        glwe_in.data.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
-    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let mut lwe_array_out_ffi = prepare_cuda_lwe_ct_ffi(lwe_array_out);
@@ -928,10 +909,11 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
         lwe_dimension.0 as u32,
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
         num_blocks_to_decompress,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
-        PBSType::Classical as u32,
+        pbs_type as u32,
         true,
         PBSMSNoiseReductionType::NoReduction as u32,
     );
@@ -1029,6 +1011,8 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
     lwe_dimension: LweDimension,
     pbs_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
     num_blocks_to_decompress: u32,
 ) -> u64 {
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1043,10 +1027,11 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
             lwe_dimension.0 as u32,
             pbs_level.0 as u32,
             pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
             num_blocks_to_decompress,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::Classical as u32,
+            pbs_type as u32,
             false,
             PBSMSNoiseReductionType::NoReduction as u32,
         )

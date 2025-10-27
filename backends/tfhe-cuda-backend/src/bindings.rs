@@ -1656,6 +1656,7 @@ unsafe extern "C" {
         lwe_dimension: u32,
         pbs_level: u32,
         pbs_base_log: u32,
+        grouping_factor: u32,
         num_blocks_to_decompress: u32,
         message_modulus: u32,
         carry_modulus: u32,
