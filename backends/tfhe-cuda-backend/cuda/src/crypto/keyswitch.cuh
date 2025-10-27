@@ -433,12 +433,13 @@ void execute_keyswitch_async(CudaStreams streams,
           lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
           fp_tmp_buffer[i]);
 
+#ifndef NDEBUG
       dump_2d_gpu_to_file(current_lwe_array_out, num_samples,
                           lwe_dimension_out + 1, "my_lwe_out", prefix,
                           streams.stream(i), streams.gpu_index(i));
 
       // Compute Keyswitch
-      host_keyswitch_lwe_ciphertext_vector<Torus>(
+/*      host_keyswitch_lwe_ciphertext_vector<Torus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
@@ -446,7 +447,8 @@ void execute_keyswitch_async(CudaStreams streams,
 
       dump_2d_gpu_to_file(current_lwe_array_out, num_samples,
                           lwe_dimension_out + 1, "orig_lwe_out", prefix,
-                          streams.stream(i), streams.gpu_index(i));
+                          streams.stream(i), streams.gpu_index(i));*/
+#endif
     } else {
       // Compute Keyswitch
       host_keyswitch_lwe_ciphertext_vector<Torus>(
