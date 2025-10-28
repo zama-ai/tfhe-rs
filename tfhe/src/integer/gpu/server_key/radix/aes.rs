@@ -13,88 +13,32 @@ use crate::integer::gpu::{
 use crate::integer::{RadixCiphertext, RadixClientKey};
 use crate::shortint::Ciphertext;
 
-const NUM_BITS: usize = 128;
+const NUM_BITS: usize = 64;
 
 impl RadixClientKey {
-    /// Encrypts a 128-bit block for homomorphic AES evaluation.
-    ///
-    /// This function prepares a 128-bit plaintext block (like an AES key or IV)
-    /// for homomorphic processing by decomposing it into its 128 constituent bits
-    /// and encrypting each bit individually with FHE.
-    ///
-    /// The process is as follows:
-    /// ```text
-    /// // INPUT: A 128-bit plaintext block
-    /// Plaintext block (u128): 0x2b7e1516...
-    ///       |
-    ///       V
-    /// // 1. Decompose the block into individual bits
-    /// Individual bits: [b127, b126, ..., b1, b0]
-    ///       |
-    ///       V
-    /// // 2. Encrypt each bit individually using FHE
-    /// `self.encrypt(bit)` is applied to each bit
-    ///       |
-    ///       V
-    /// // 3. Collect the resulting bit-ciphertexts
-    /// Ciphertexts: [Ct(b127), Ct(b126), ..., Ct(b0)]
-    ///       |
-    ///       V
-    /// // 4. Group the bit-ciphertexts into a single RadixCiphertext
-    /// //    representing the full encrypted block.
-    /// // OUTPUT: A RadixCiphertext
-    /// ```
-    pub fn encrypt_u128_for_aes_ctr(&self, data: u128) -> RadixCiphertext {
+    pub fn encrypt_u64_for_aes_ctr(&self, data: u64) -> RadixCiphertext {
         let mut blocks: Vec<Ciphertext> = Vec::with_capacity(NUM_BITS);
         for i in 0..NUM_BITS {
-            let bit = ((data >> (NUM_BITS - 1 - i)) & 1) as u64;
+            let bit = (data >> (NUM_BITS - 1 - i)) & 1;
             blocks.extend(self.encrypt(bit).blocks);
         }
         RadixCiphertext::from(blocks)
     }
 
-    /// Decrypts a `RadixCiphertext` containing one or more 128-bit blocks
-    /// that were homomorphically processed.
-    ///
-    /// This function reverses the encryption process by decrypting each individual
-    /// bit-ciphertext and reassembling them into 128-bit plaintext blocks.
-    ///
-    /// The process is as follows:
-    /// ```text
-    /// // INPUT: RadixCiphertext containing one or more encrypted blocks
-    /// Ciphertext collection: [Ct(b127), ..., Ct(b0), Ct(b'127), ..., Ct(b'0), ...]
-    ///       |
-    ///       | (For each sequence of 128 bit-ciphertexts)
-    ///       V
-    /// // 1. Decrypt each bit's ciphertext individually
-    /// `self.decrypt(Ct)` is applied to each bit-ciphertext
-    ///       |
-    ///       V
-    /// // 2. Collect the resulting plaintext bits
-    /// Plaintext bits: [b127, b126, ..., b0]
-    ///       |
-    ///       V
-    /// // 3. Assemble the bits back into a 128-bit block
-    /// Reconstruction: ( ...((b127 << 1) | b126) << 1 | ... ) | b0
-    ///       |
-    ///       V
-    /// // OUTPUT: A vector of plaintext u128 blocks
-    /// Plaintext u128s: [0x..., ...]
-    /// ```
-    pub fn decrypt_u128_from_aes_ctr(
+    pub fn decrypt_u64_from_aes_ctr(
         &self,
         encrypted_result: &RadixCiphertext,
         num_aes_inputs: usize,
-    ) -> Vec<u128> {
+    ) -> Vec<u64> {
         let mut plaintext_results = Vec::with_capacity(num_aes_inputs);
         for i in 0..num_aes_inputs {
-            let mut current_block_plaintext: u128 = 0;
+            let mut current_block_plaintext: u64 = 0;
             let block_start_index = i * NUM_BITS;
             for j in 0..NUM_BITS {
                 let block_slice =
                     &encrypted_result.blocks[block_start_index + j..block_start_index + j + 1];
                 let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
-                let decrypted_bit: u128 = self.decrypt(&block_radix_ct);
+                let decrypted_bit: u64 = self.decrypt(&block_radix_ct);
                 current_block_plaintext = (current_block_plaintext << 1) | decrypted_bit;
             }
             plaintext_results.push(current_block_plaintext);
@@ -108,7 +52,7 @@ impl CudaServerKey {
         &self,
         key: &CudaUnsignedRadixCiphertext,
         iv: &CudaUnsignedRadixCiphertext,
-        start_counter: u128,
+        start_counter: u64,
         num_aes_inputs: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
@@ -154,7 +98,7 @@ impl CudaServerKey {
         &self,
         key: &CudaUnsignedRadixCiphertext,
         iv: &CudaUnsignedRadixCiphertext,
-        start_counter: u128,
+        start_counter: u64,
         num_aes_inputs: usize,
         sbox_parallelism: usize,
         streams: &CudaStreams,
@@ -188,13 +132,13 @@ impl CudaServerKey {
         &self,
         iv: &CudaUnsignedRadixCiphertext,
         round_keys: &CudaUnsignedRadixCiphertext,
-        start_counter: u128,
+        start_counter: u64,
         num_aes_inputs: usize,
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
         let mut result: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(num_aes_inputs * 128, streams);
+            self.create_trivial_zero_radix(num_aes_inputs * NUM_BITS, streams);
 
         let num_round_key_blocks = 11 * NUM_BITS;
 
@@ -212,9 +156,9 @@ impl CudaServerKey {
         );
         assert_eq!(
             result.as_ref().d_blocks.lwe_ciphertext_count().0,
-            num_aes_inputs * 128,
+            num_aes_inputs * NUM_BITS,
             "AES result must contain {} encrypted bits for {num_aes_inputs} blocks, but contains {}",
-            num_aes_inputs * 128,
+            num_aes_inputs * NUM_BITS,
             result.as_ref().d_blocks.lwe_ciphertext_count().0
         );
 
@@ -327,7 +271,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
         let num_round_keys = 11;
-        let num_key_bits = 128;
+        let num_key_bits = 64;
         let mut expanded_keys: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(num_round_keys * num_key_bits, streams);
 

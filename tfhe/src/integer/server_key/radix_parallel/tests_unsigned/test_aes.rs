@@ -25,57 +25,54 @@ const S_BOX: [u8; 256] = [
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 ];
 
-fn plain_key_expansion(key: u128) -> Vec<u128> {
+fn plain_key_expansion(key: u64) -> Vec<u64> {
     const RCON: [u32; 10] = [
         0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000, 0x20000000, 0x40000000,
         0x80000000, 0x1B000000, 0x36000000,
     ];
-    let mut words = [0u32; 44];
-    for (i, word) in words.iter_mut().enumerate().take(4) {
-        *word = (key >> (96 - (i * 32))) as u32;
+    // 64-bit key (2 words) * 11 rounds = 22 words
+    const KEY_WORDS: usize = 2;
+    const TOTAL_WORDS: usize = 22;
+
+    let mut words = [0u32; TOTAL_WORDS];
+    for (i, word) in words.iter_mut().enumerate().take(KEY_WORDS) {
+        *word = (key >> (32 - (i * 32))) as u32;
     }
-    for i in 4..44 {
+
+    for i in KEY_WORDS..TOTAL_WORDS {
         let mut temp = words[i - 1];
-        if i % 4 == 0 {
+        if i % KEY_WORDS == 0 {
             temp = temp.rotate_left(8);
             let mut sub_bytes = 0u32;
             for j in 0..4 {
                 let byte = (temp >> (24 - j * 8)) as u8;
                 sub_bytes |= (S_BOX[byte as usize] as u32) << (24 - j * 8);
             }
-            temp = sub_bytes ^ RCON[i / 4 - 1];
+            temp = sub_bytes ^ RCON[i / KEY_WORDS - 1];
         }
-        words[i] = words[i - 4] ^ temp;
+        words[i] = words[i - KEY_WORDS] ^ temp;
     }
     words
-        .chunks_exact(4)
-        .map(|chunk| {
-            ((chunk[0] as u128) << 96)
-                | ((chunk[1] as u128) << 64)
-                | ((chunk[2] as u128) << 32)
-                | (chunk[3] as u128)
-        })
+        .chunks_exact(KEY_WORDS)
+        .map(|chunk| ((chunk[0] as u64) << 32) | (chunk[1] as u64))
         .collect()
 }
-fn sub_bytes(state: &mut [u8; 16]) {
+fn sub_bytes(state: &mut [u8; 8]) {
     for byte in state.iter_mut() {
         *byte = S_BOX[*byte as usize];
     }
 }
-fn shift_rows(state: &mut [u8; 16]) {
+fn shift_rows(state: &mut [u8; 8]) {
+    // 4x2 state
+    // Row 0: s0, s1 (no shift)
+    // Row 1: s2, s3 (shift 1)
+    // Row 2: s4, s5 (shift 2 -> no shift)
+    // Row 3: s6, s7 (shift 3 -> shift 1)
     let original = *state;
-    state[1] = original[5];
-    state[5] = original[9];
-    state[9] = original[13];
-    state[13] = original[1];
-    state[2] = original[10];
-    state[6] = original[14];
-    state[10] = original[2];
-    state[14] = original[6];
-    state[3] = original[15];
-    state[7] = original[3];
-    state[11] = original[7];
-    state[15] = original[11];
+    state[2] = original[3];
+    state[3] = original[2];
+    state[6] = original[7];
+    state[7] = original[6];
 }
 fn gmul(mut a: u8, mut b: u8) -> u8 {
     let mut p = 0;
@@ -92,9 +89,10 @@ fn gmul(mut a: u8, mut b: u8) -> u8 {
     }
     p
 }
-fn mix_columns(state: &mut [u8; 16]) {
+fn mix_columns(state: &mut [u8; 8]) {
     let original = *state;
-    for i in 0..4 {
+    // 2 columns
+    for i in 0..2 {
         let col = i * 4;
         state[col] = gmul(original[col], 2)
             ^ gmul(original[col + 1], 3)
@@ -114,13 +112,13 @@ fn mix_columns(state: &mut [u8; 16]) {
             ^ gmul(original[col + 3], 2);
     }
 }
-fn add_round_key(state: &mut [u8; 16], round_key: u128) {
+fn add_round_key(state: &mut [u8; 8], round_key: u64) {
     let key_bytes = round_key.to_be_bytes();
-    for i in 0..16 {
+    for i in 0..8 {
         state[i] ^= key_bytes[i];
     }
 }
-fn plain_aes_encrypt_block(block_bytes: &mut [u8; 16], expanded_keys: &[u128]) {
+fn plain_aes_encrypt_block(block_bytes: &mut [u8; 8], expanded_keys: &[u64]) {
     add_round_key(block_bytes, expanded_keys[0]);
     for round_key in expanded_keys.iter().take(10).skip(1) {
         sub_bytes(block_bytes);
@@ -132,14 +130,14 @@ fn plain_aes_encrypt_block(block_bytes: &mut [u8; 16], expanded_keys: &[u128]) {
     shift_rows(block_bytes);
     add_round_key(block_bytes, expanded_keys[10]);
 }
-fn plain_aes_ctr(num_aes_inputs: usize, iv: u128, key: u128) -> Vec<u128> {
+fn plain_aes_ctr(num_aes_inputs: usize, iv: u64, key: u64) -> Vec<u64> {
     let expanded_keys = plain_key_expansion(key);
     let mut results = Vec::with_capacity(num_aes_inputs);
     for i in 0..num_aes_inputs {
-        let counter_value = iv.wrapping_add(i as u128);
+        let counter_value = iv.wrapping_add(i as u64);
         let mut block = counter_value.to_be_bytes();
         plain_aes_encrypt_block(&mut block, &expanded_keys);
-        results.push(u128::from_be_bytes(block));
+        results.push(u64::from_be_bytes(block));
     }
     results
 }
@@ -148,7 +146,7 @@ fn internal_aes_fixed_parallelism_test<P, E>(param: P, mut executor: E, num_aes_
 where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize, usize),
+        (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize, usize),
         RadixCiphertext,
     >,
 {
@@ -158,18 +156,18 @@ where
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);
 
-    let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
-    let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
+    let key: u64 = 0x2b7e151628aed2a6;
+    let iv: u64 = 0xf0f1f2f3f4f5f6f7;
 
     let plain_results = plain_aes_ctr(num_aes_inputs, iv, key);
 
-    let ctxt_key = cks.encrypt_u128_for_aes_ctr(key);
-    let ctxt_iv = cks.encrypt_u128_for_aes_ctr(iv);
+    let ctxt_key = cks.encrypt_u64_for_aes_ctr(key);
+    let ctxt_iv = cks.encrypt_u64_for_aes_ctr(iv);
 
     for sbox_parallelism in [1, 2, 4, 8, 16] {
         let encrypted_result =
             executor.execute((&ctxt_key, &ctxt_iv, 0, num_aes_inputs, sbox_parallelism));
-        let fhe_results = cks.decrypt_u128_from_aes_ctr(&encrypted_result, num_aes_inputs);
+        let fhe_results = cks.decrypt_u64_from_aes_ctr(&encrypted_result, num_aes_inputs);
         assert_eq!(fhe_results, plain_results);
     }
 }
@@ -178,7 +176,7 @@ pub fn aes_fixed_parallelism_1_input_test<P, E>(param: P, executor: E)
 where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize, usize),
+        (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize, usize),
         RadixCiphertext,
     >,
 {
@@ -189,7 +187,7 @@ pub fn aes_fixed_parallelism_2_inputs_test<P, E>(param: P, executor: E)
 where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize, usize),
+        (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize, usize),
         RadixCiphertext,
     >,
 {
@@ -200,7 +198,7 @@ pub fn aes_dynamic_parallelism_many_inputs_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize),
+        (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize),
         RadixCiphertext,
     >,
 {
@@ -210,16 +208,16 @@ where
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);
 
-    let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
-    let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
+    let key: u64 = 0x2b7e151628aed2a6;
+    let iv: u64 = 0xf0f1f2f3f4f5f6f7;
 
-    let ctxt_key = cks.encrypt_u128_for_aes_ctr(key);
-    let ctxt_iv = cks.encrypt_u128_for_aes_ctr(iv);
+    let ctxt_key = cks.encrypt_u64_for_aes_ctr(key);
+    let ctxt_iv = cks.encrypt_u64_for_aes_ctr(iv);
 
     for num_aes_inputs in [4, 8, 16, 32] {
         let plain_results = plain_aes_ctr(num_aes_inputs, iv, key);
         let encrypted_result = executor.execute((&ctxt_key, &ctxt_iv, 0, num_aes_inputs));
-        let fhe_results = cks.decrypt_u128_from_aes_ctr(&encrypted_result, num_aes_inputs);
+        let fhe_results = cks.decrypt_u64_from_aes_ctr(&encrypted_result, num_aes_inputs);
         assert_eq!(fhe_results, plain_results);
     }
 }

@@ -20,7 +20,7 @@ template <typename Torus> struct int_aes_lut_buffers {
                       bool allocate_gpu_memory, uint32_t num_aes_inputs,
                       uint32_t sbox_parallelism, uint64_t &size_tracker) {
 
-    constexpr uint32_t AES_STATE_BITS = 128;
+    constexpr uint32_t AES_STATE_BITS = 64;
     constexpr uint32_t SBOX_MAX_AND_GATES = 18;
 
     this->and_lut = new int_radix_lut<Torus>(
@@ -238,7 +238,7 @@ template <typename Torus> struct int_aes_main_workspaces {
                           bool allocate_gpu_memory, uint32_t num_aes_inputs,
                           uint32_t sbox_parallelism, uint64_t &size_tracker) {
 
-    constexpr uint32_t AES_STATE_BITS = 128;
+    constexpr uint32_t AES_STATE_BITS = 64;
     constexpr uint32_t SBOX_MAX_AND_GATES = 18;
     constexpr uint32_t BATCH_BUFFER_OPERANDS = 3;
 
@@ -397,7 +397,7 @@ template <typename Torus> struct int_key_expansion_buffer {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    constexpr uint32_t TOTAL_WORDS = 44;
+    constexpr uint32_t TOTAL_WORDS = 22;
     constexpr uint32_t BITS_PER_WORD = 32;
     constexpr uint32_t TOTAL_BITS = TOTAL_WORDS * BITS_PER_WORD;
 

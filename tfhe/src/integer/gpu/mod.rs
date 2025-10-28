@@ -7490,7 +7490,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
     round_keys: &CudaRadixCiphertext,
-    start_counter: u128,
+    start_counter: u64,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
     bootstrapping_key: &CudaVec<B>,
@@ -7534,8 +7534,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
 
     let counter_bits_le: Vec<u64> = (0..num_aes_inputs)
         .flat_map(|i| {
-            let current_counter = start_counter + i as u128;
-            (0..128).map(move |bit_index| ((current_counter >> bit_index) & 1) as u64)
+            let current_counter = start_counter + i as u64;
+            (0..64).map(move |bit_index| (current_counter >> bit_index) & 1)
         })
         .collect();
 

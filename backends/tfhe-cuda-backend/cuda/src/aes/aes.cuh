@@ -621,7 +621,7 @@ __host__ void vectorized_shift_rows(CudaStreams streams,
                                     CudaRadixCiphertextFFI *state_bitsliced,
                                     uint32_t num_aes_inputs,
                                     int_aes_encrypt_buffer<Torus> *mem) {
-  constexpr uint32_t NUM_BYTES = 16;
+  constexpr uint32_t NUM_BYTES = 8;
   constexpr uint32_t LEN_BYTE = 8;
   constexpr uint32_t NUM_BITS = NUM_BYTES * LEN_BYTE;
 
@@ -649,8 +649,7 @@ __host__ void vectorized_shift_rows(CudaStreams streams,
         i * num_aes_inputs, (i + 1) * num_aes_inputs);
   }
 
-  const int shift_rows_map[] = {0, 5,  10, 15, 4,  9, 14, 3,
-                                8, 13, 2,  7,  12, 1, 6,  11};
+  const int shift_rows_map[] = {0, 1, 3, 2, 4, 5, 7, 6};
 
   for (int i = 0; i < NUM_BYTES; i++) {
     for (int bit = 0; bit < LEN_BYTE; bit++) {
@@ -711,7 +710,7 @@ __host__ void vectorized_mix_columns(CudaStreams streams,
 
   constexpr uint32_t BITS_PER_BYTE = 8;
   constexpr uint32_t BYTES_PER_COLUMN = 4;
-  constexpr uint32_t NUM_COLUMNS = 4;
+  constexpr uint32_t NUM_COLUMNS = 2;
   constexpr uint32_t BITS_PER_COLUMN = BYTES_PER_COLUMN * BITS_PER_BYTE;
 
   for (uint32_t col = 0; col < NUM_COLUMNS; ++col) {
@@ -849,7 +848,7 @@ __host__ void vectorized_aes_encrypt_inplace(
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
   constexpr uint32_t BITS_PER_BYTE = 8;
-  constexpr uint32_t STATE_BYTES = 16;
+  constexpr uint32_t STATE_BYTES = 8;
   constexpr uint32_t STATE_BITS = STATE_BYTES * BITS_PER_BYTE;
   constexpr uint32_t ROUNDS = 10;
 
@@ -910,6 +909,7 @@ __host__ void vectorized_aes_encrypt_inplace(
                                        mem, bsks, ksks);
       }
       break;
+    case 16:
     case 8:
       for (uint32_t i = 0; i < STATE_BYTES; i += 8) {
         CudaRadixCiphertextFFI *sbox_inputs[] = {
@@ -921,19 +921,6 @@ __host__ void vectorized_aes_encrypt_inplace(
                                        mem, bsks, ksks);
       }
       break;
-    case 16: {
-      CudaRadixCiphertextFFI *sbox_inputs[] = {
-          &s_bits[0 * BITS_PER_BYTE],  &s_bits[1 * BITS_PER_BYTE],
-          &s_bits[2 * BITS_PER_BYTE],  &s_bits[3 * BITS_PER_BYTE],
-          &s_bits[4 * BITS_PER_BYTE],  &s_bits[5 * BITS_PER_BYTE],
-          &s_bits[6 * BITS_PER_BYTE],  &s_bits[7 * BITS_PER_BYTE],
-          &s_bits[8 * BITS_PER_BYTE],  &s_bits[9 * BITS_PER_BYTE],
-          &s_bits[10 * BITS_PER_BYTE], &s_bits[11 * BITS_PER_BYTE],
-          &s_bits[12 * BITS_PER_BYTE], &s_bits[13 * BITS_PER_BYTE],
-          &s_bits[14 * BITS_PER_BYTE], &s_bits[15 * BITS_PER_BYTE]};
-      vectorized_sbox_n_bytes<Torus>(streams, sbox_inputs, 16, num_aes_inputs,
-                                     mem, bsks, ksks);
-    } break;
     default:
       PANIC("Unsupported S-Box parallelism level selected: %u",
             sbox_parallelism);
@@ -993,7 +980,7 @@ __host__ void vectorized_aes_full_adder_inplace(
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
-  constexpr uint32_t NUM_BITS = 128;
+  constexpr uint32_t NUM_BITS = 64;
 
   // --- Initialization ---
   CudaRadixCiphertextFFI *carry_vec =
@@ -1098,7 +1085,7 @@ __host__ void host_integer_aes_ctr_encrypt(
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
-  constexpr uint32_t NUM_BITS = 128;
+  constexpr uint32_t NUM_BITS = 64;
 
   CudaRadixCiphertextFFI *initial_states =
       mem->main_workspaces->initial_states_and_jit_key_workspace;
@@ -1159,8 +1146,8 @@ __host__ void host_integer_key_expansion(CudaStreams streams,
   constexpr uint32_t BITS_PER_WORD = 32;
   constexpr uint32_t BITS_PER_BYTE = 8;
   constexpr uint32_t BYTES_PER_WORD = 4;
-  constexpr uint32_t TOTAL_WORDS = 44;
-  constexpr uint32_t KEY_WORDS = 4;
+  constexpr uint32_t TOTAL_WORDS = 22;
+  constexpr uint32_t KEY_WORDS = 2;
 
   const Torus rcon[] = {0x01, 0x02, 0x04, 0x08, 0x10,
                         0x20, 0x40, 0x80, 0x1b, 0x36};
@@ -1178,8 +1165,8 @@ __host__ void host_integer_key_expansion(CudaStreams streams,
 
     as_radix_ciphertext_slice<Torus>(&tmp_word_buffer, mem->tmp_word_buffer, 0,
                                      BITS_PER_WORD);
-    as_radix_ciphertext_slice<Torus>(&tmp_far, words, (w - 4) * BITS_PER_WORD,
-                                     (w - 3) * BITS_PER_WORD);
+    as_radix_ciphertext_slice<Torus>(&tmp_far, words, (w - 2) * BITS_PER_WORD,
+                                     (w - 1) * BITS_PER_WORD);
     as_radix_ciphertext_slice<Torus>(&tmp_near, words, (w - 1) * BITS_PER_WORD,
                                      w * BITS_PER_WORD);
 

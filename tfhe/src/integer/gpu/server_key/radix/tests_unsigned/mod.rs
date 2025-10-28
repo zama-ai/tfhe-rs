@@ -85,16 +85,14 @@ impl<F> GpuFunctionExecutor<F> {
 }
 
 impl<'a, F>
-    FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize, usize),
-        RadixCiphertext,
-    > for GpuFunctionExecutor<F>
+    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext, u64, usize, usize), RadixCiphertext>
+    for GpuFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
         &CudaUnsignedRadixCiphertext,
         &CudaUnsignedRadixCiphertext,
-        u128,
+        u64,
         usize,
         usize,
         &CudaStreams,
@@ -106,7 +104,7 @@ where
 
     fn execute(
         &mut self,
-        input: (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize, usize),
+        input: (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize, usize),
     ) -> RadixCiphertext {
         let context = self
             .context
@@ -133,14 +131,14 @@ where
 }
 
 impl<'a, F>
-    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext, u128, usize), RadixCiphertext>
+    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext, u64, usize), RadixCiphertext>
     for GpuFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
         &CudaUnsignedRadixCiphertext,
         &CudaUnsignedRadixCiphertext,
-        u128,
+        u64,
         usize,
         &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext,
@@ -151,7 +149,7 @@ where
 
     fn execute(
         &mut self,
-        input: (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize),
+        input: (&'a RadixCiphertext, &'a RadixCiphertext, u64, usize),
     ) -> RadixCiphertext {
         let context = self
             .context
