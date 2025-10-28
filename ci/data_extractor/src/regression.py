@@ -86,7 +86,7 @@ def generate_json_regression_file(
 
         for bench_details, values in head_branch_data.items():
             regression_data[bench_details.operation_name] = {
-                "name": bench_details.operation_name,
+                "name": layer + "::" + bench_details.operation_name,
                 "bit_size": bench_details.bit_size,
                 "params": bench_details.params,
                 "results": {
