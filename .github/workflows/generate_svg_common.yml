@@ -1,0 +1,80 @@
+name: generate_svg_common
+
+on:
+  workflow_call:
+    inputs:
+      backend:
+        type: string
+        required: true
+      hardware_name:
+        type: string
+        required: true
+      layer:
+        type: string
+        required: true
+      pbs_kind: # Valid values are 'classical', 'multi_bit' or 'any'
+        type: string
+        required: true
+      grouping_factor: # Valid values are 2, 3, or 4
+        type: string
+      bench_type: # Valid values are 'latency', 'throughput'
+        type: string
+        required: true
+      time_span_days:
+        type: string
+        default: 60
+      output_filename:
+        type: string
+        required: true
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER:
+        required: true
+      DATA_EXTRACTOR_DATABASE_HOST:
+        required: true
+      DATA_EXTRACTOR_DATABASE_PASSWORD:
+        required: true
+
+jobs:
+  generate-table:
+    name: generate_svg_common/generate-table
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: 'false'
+
+      - name: Produce table from database
+        run: |
+          python3 -m pip install -r ci/data_extractor/requirements.txt
+          python ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          --generate-svg \ 
+          --branch "${REF_NAME}"\
+          --backend "${BACKEND}" \
+          --hardware "${HARDWARE_NAME}" \
+          --tfhe-rs-layer "${LAYER}" \
+          --pbs-kind "${PBS_KIND}" \
+          --grouping-factor "${GROUPING_FACTOR}" \
+          --bench-type "${BENCH_TYPE}" \
+          --time-span-days "${TIME_SPAN}"
+        env:
+          OUTPUT_FILENAME: ${{ inputs.output_filename }}
+          REF_NAME: ${{ github.ref_name }}
+          BACKEND: ${{ inputs.backend }}
+          HARDWARE_NAME: ${{ inputs.hardware_name }}
+          LAYER: ${{ inputs.layer }}
+          PBS_KIND: ${{ inputs.pbs_kind }}
+          GROUPING_FACTOR: ${{ inputs.grouping_factor || '4' }}
+          BENCH_TYPE: ${{ inputs.bench_type }}
+          TIME_SPAN: ${{ inputs.time_span_days }}
+          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+      - name: Upload tables
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
+          # This will upload all the file generated
+          path: ${{ inputs.output_filename }}*.svg
+          retention-days: 60

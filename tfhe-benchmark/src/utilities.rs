@@ -351,12 +351,33 @@ const BENCH_BIT_SIZES: [usize; 8] = [2, 8, 16, 32, 40, 64, 128, 256];
 const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
 const HPU_BENCH_BIT_SIZES: [usize; 5] = [8, 16, 32, 64, 128];
 const MULTI_BIT_CPU_SIZES: [usize; 5] = [8, 16, 32, 40, 64];
+const BENCH_BIT_SIZES_DOCUMENTATION: [usize; 5] = [8, 16, 32, 64, 128];
+
+#[derive(Default)]
+enum BitSizesSet {
+    #[default]
+    Fast,
+    All,
+    Documentation,
+}
+
+impl BitSizesSet {
+    pub fn from_env() -> Result<Self, String> {
+        let raw_value = env::var("__TFHE_RS_BENCH_BIT_SIZES_SET").unwrap_or("fast".to_string());
+        match raw_value.to_lowercase().as_str() {
+            "fast" => Ok(BitSizesSet::Fast),
+            "all" => Ok(BitSizesSet::All),
+            "documentation" => Ok(BitSizesSet::Documentation),
+            _ => Err(format!("bit sizes set '{raw_value}' is not supported")),
+        }
+    }
+}
 
 /// User configuration in which benchmarks must be run.
 #[derive(Default)]
 pub struct EnvConfig {
     pub is_multi_bit: bool,
-    pub is_fast_bench: bool,
+    pub bit_sizes_set: BitSizesSet,
 }
 
 impl EnvConfig {
@@ -366,22 +387,23 @@ impl EnvConfig {
             ParamType::MultiBit | ParamType::MultiBitDocumentation
         );
 
-        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
-            Ok(val) => val.to_lowercase() == "true",
-            Err(_) => false,
-        };
-
         EnvConfig {
             is_multi_bit,
-            is_fast_bench,
+            bit_sizes_set: BitSizesSet::from_env().unwrap(),
         }
     }
 
     /// Get precisions values to benchmark.
     pub fn bit_sizes(&self) -> Vec<usize> {
-        if self.is_fast_bench {
-            FAST_BENCH_BIT_SIZES.to_vec()
-        } else if self.is_multi_bit {
+        let bit_sizes_set = match self.bit_sizes_set {
+            BitSizesSet::Fast => return FAST_BENCH_BIT_SIZES.to_vec(),
+            BitSizesSet::All => BENCH_BIT_SIZES.to_vec(),
+            BitSizesSet::Documentation => {
+                return BENCH_BIT_SIZES_DOCUMENTATION.to_vec()
+            }
+        };
+
+        if self.is_multi_bit {
             if cfg!(feature = "gpu") {
                 BENCH_BIT_SIZES.to_vec()
             } else {
@@ -390,7 +412,7 @@ impl EnvConfig {
         } else if cfg!(feature = "hpu") {
             HPU_BENCH_BIT_SIZES.to_vec()
         } else {
-            BENCH_BIT_SIZES.to_vec()
+            bit_sizes_set
         }
     }
 }
