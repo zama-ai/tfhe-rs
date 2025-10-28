@@ -25,6 +25,8 @@
 #   Possible values for target_name are listed in tfhe-benchmark/Cargo.toml file under `[[bench]]` section in the
 #   `name` field.
 #
+# > parameters_filter: a parameters' set name pattern to filter against when performing data extraction
+#
 # > env.<variable_name>: environment variable that will be used to alter benchmark execution enviroment
 #   Possible values for variable_name are (case-insensitive):
 #       * FAST_BENCH
@@ -85,6 +87,7 @@ target.hlapi-erc20 = ["transfer::whitepaper", "transfer::no_cmux"]
 target.shortint = ["bitand"]
 target.core_crypto-ks = ["keyswitch"]
 target.core_crypto-pbs = [ "pbs_mem_optimized"]
+parameters_filter = "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128"
 slab.backend = "aws"
 slab.profile = "bench"
 env.fast_bench = "TRUE"
