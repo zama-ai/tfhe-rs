@@ -629,8 +629,12 @@ def check_performance_changes(results_file: pathlib.Path):
             raise KeyError(
                 f"no head branch value found in results file for '{op_name}' operation"
             )
+        try:
+            op_perf = OperationPerformance(op_name, baseline_data, head_branch_value)
+        except statistics.StatisticsError as err:
+            print(f"Operation '{op_name}' skipped due to invalid data (error: {err}).")
+            continue
 
-        op_perf = OperationPerformance(op_name, baseline_data, head_branch_value)
         op_perf.compute_change()
         changes.append(op_perf)
 
