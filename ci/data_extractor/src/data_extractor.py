@@ -18,8 +18,7 @@ import argparse
 import datetime
 import formatter
 import sys
-from formatter import (CSVFormatter, GenericFormatter, MarkdownFormatter,
-                       SVGFormatter)
+from formatter import CSVFormatter, GenericFormatter, MarkdownFormatter, SVGFormatter
 
 import config
 import connector

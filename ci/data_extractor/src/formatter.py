@@ -6,10 +6,18 @@ import xml.dom.minidom
 from collections.abc import Callable
 
 import svg
-from benchmark_specs import (ALL_RUST_TYPES, Backend, BenchDetails,
-                             CoreCryptoOperation, ErrorFailureProbability,
-                             Layer, NoiseDistribution, OperandType, PBSKind,
-                             RustType)
+from benchmark_specs import (
+    ALL_RUST_TYPES,
+    Backend,
+    BenchDetails,
+    CoreCryptoOperation,
+    ErrorFailureProbability,
+    Layer,
+    NoiseDistribution,
+    OperandType,
+    PBSKind,
+    RustType,
+)
 from py_markdown_table.markdown_table import markdown_table
 
 

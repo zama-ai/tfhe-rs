@@ -15,7 +15,10 @@ except ModuleNotFoundError:
 
 
 def generate_json_regression_file(
-    conn: connector.PostgreConnector, ops_filter: dict, user_config: config.UserConfig
+    conn: connector.PostgreConnector,
+    ops_filter: dict,
+    user_config: config.UserConfig,
+    params_filter: str = None,
 ):
     """
     Generate a JSON regression file based on benchmark data from specified branches
@@ -33,6 +36,8 @@ def generate_json_regression_file(
     :param user_config: A configuration object that contains branch information,
         backend settings, and output preferences for regression.
     :type user_config: UserConfig
+    :param params_filter: Optional parameter filter to be applied to the benchmark results
+    :type params_filter: str, optional
 
     :raises NoDataFound: If benchmark data is not found for the HEAD or BASE branch
         during processing.
@@ -58,6 +63,14 @@ def generate_json_regression_file(
         except NoDataFound:
             print(error_msg.format("HEAD", user_config.head_branch, layer, ops))
             raise
+
+        if params_filter and layer != Layer.HLApi:
+            head_branch_data = dict(
+                filter(
+                    lambda item: params_filter in item[0].params,
+                    head_branch_data.items(),
+                )
+            )
 
         try:
             base_branch_data = conn.fetch_benchmark_data(
@@ -180,4 +193,9 @@ def perform_regression_json_generation(
         )
         sys.exit(5)
 
-    generate_json_regression_file(conn, operations_filter, user_config)
+    generate_json_regression_file(
+        conn,
+        operations_filter,
+        user_config,
+        profile_definition.get("parameters_filter", None),
+    )
