@@ -493,6 +493,8 @@ class BenchDetails:
                 else:
                     self.operation_name = "::".join(parts[1:-1])
                 self.rust_type = parts[-1].partition("_mean")[0]
+            case Layer.Shortint:
+                self.operation_name = parts[1]
             case _:
                 raise NotImplementedError(
                     f"layer '{self.layer}' not supported yet for name parsing"
