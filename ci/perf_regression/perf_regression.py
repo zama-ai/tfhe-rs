@@ -737,6 +737,9 @@ def generate_regression_report(
         "<details>",
         "<summary><strong>View All Benchmarks</strong></summary>",
         "",
+        f"* Minor change threshold: +/- {MINOR_CHANGE_SCALE_FACTOR}x StdDev",
+        f"* Major change threshold: +/- {MAJOR_CHANGE_SCALE_FACTOR}x StdDev",
+        "",
         full_array_markdown,
         "</details>",
     ]
