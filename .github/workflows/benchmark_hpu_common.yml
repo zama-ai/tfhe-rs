@@ -13,9 +13,9 @@ on:
       bench_type:
         type: string
         default: latency
-      all_precisions:
-        type: boolean
-        default: false
+      precisions_set:
+        type: string
+        default: fast
       v80_pcie_dev:
         type: string
         default: 24
@@ -48,7 +48,6 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  FAST_BENCH: TRUE
 
 permissions: {}
 
@@ -137,11 +136,6 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Should run benchmarks with all precisions
-        if: inputs.all_precisions
-        run: |
-          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
-
       - name: Select HPU board
         run: |
           echo "V80_PCIE_DEV=${PCIE_DEV}" >> "${GITHUB_ENV}"
@@ -154,11 +148,12 @@ jobs:
         run: |
           echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
           make pull_hpu_files
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
+          make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
           BENCH_COMMAND: ${{ matrix.command }}
+          PRECISIONS_SET: ${{ inputs.precisions_set }}
 
       - name: Parse results
         run: |

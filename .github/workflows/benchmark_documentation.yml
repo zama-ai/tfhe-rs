@@ -1,0 +1,186 @@
+# Run all benchmarks displayed in the public documentation.
+name: benchmark_documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-benchmarks:
+        description: "Run benchmarks"
+        type: boolean
+        default: true
+      generate-svgs:
+        description: "Generate SVG tables"
+        type: boolean
+        default: true
+      open-pr:
+        description: "Open a PR with the benchmark results"
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  run-benchmarks-cpu-integer:
+    name: benchmark_documentation/run-benchmarks-cpu-integer
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: integer
+      op_flavor: fast_default
+      bench_type: both
+      precisions_set: documentation
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-gpu-integer:
+    name: benchmark_documentation/run-benchmarks-gpu-integer
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    with:
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100-SXM5x8
+      command: integer_multi_bit
+      op_flavor: fast_default
+      bench_type: both
+      precisions_set: documentation
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-hpu-integer:
+    name: benchmark_documentation/run-benchmarks-hpu-integer
+    uses: ./.github/workflows/benchmark_hpu_common.yml
+    with:
+      command: integer_hpu
+      op_flavor: default
+      bench_type: both
+      precisions_set: fast
+      v80_pcie_dev: 24
+      v80_serial_number: XFL12NWY3ZKG
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  run-benchmarks-cpu-core-crypto:
+    name: benchmark_documentation/run-benchmarks-cpu-core-crypto
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: pbs, ks_pbs
+      bench_type: latency
+      params_type: classical_documentation + multi_bit_documentation
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-gpu-core-crypto:
+    name: benchmark_gpu_weekly/run-benchmarks-gpu-core-crypto
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    with:
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100-SXM5x8
+      command: pbs, ks_pbs
+      bench_type: latency
+      params_type: classical_documentation + multi_bit_documentation
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  generate-svgs-with-benchmarks-run:
+    name: benchmark-documentation/generate-svgs-with-benchmarks-run
+    if: inputs.run-benchmarks && inputs.generate-svgs
+    needs: [
+      run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
+      run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto
+    ]
+    uses: ./.github/workflows/generate_svgs.yml
+    with:
+      time_span_days: 1  # This ensures extraction is performed on the last values stored in database/
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  generate-svgs-without-benchmarks-run:
+    name: benchmark-documentation/generate-svgs-without-benchmarks-run
+    if: ${{ !inputs.run-benchmarks && inputs.generate-svgs }}
+    uses: ./.github/workflows/generate_svgs.yml
+    with:
+      time_span_days: 60
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  open-pr:
+    name: benchmark-documentation/open-pr
+    needs: [ generate-svgs-with-benchmarks-run, generate-svgs-without-benchmarks-run ]
+    if: ${{ always() && inputs.open-pr &&
+      (needs.generate-svgs-with-benchmarks-run.result == 'success' || needs.generate-svgs-without-benchmarks-run.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to create a commit
+      pull-requests: write # Needed to open a pull-request
+    env:
+      PATH_TO_DOC_ASSETS: tfhe/docs/.gitbook/assets
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: 'false'
+
+      - name: Download SVG tables
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          path: svg_tables
+          merge-multiple: 'true'
+
+      - name: Copy SVG tables to documentation location
+        run: |
+          cp -f svg_tables/*integer-benchmark*.svg "${PATH_TO_DOC_ASSETS}"
+          cp -f svg_tables/*pbs-benchmark-tuniform*.svg "${PATH_TO_DOC_ASSETS}"
+
+      - name: Create pull-request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        with:
+          sign-commits: true
+          token: ${{ secrets.FHE_DIVISION_TOKEN }} # Sign commit as Zama Bot
+          add-paths: ${{ env.PATH_TO_DOC_ASSETS }}/*.svg
+          commit-message: |
+            chore(docs): update benchmark results for all backends
+            
+            Automated documentation update from tfhe-rs CI pipeline.
+          title: |
+            [CI] chore(docs): update benchmark results for all backends
+          body: |
+            Documentation update triggered by GitHub workflow*
+          labels: documentation

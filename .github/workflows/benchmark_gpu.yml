@@ -40,10 +40,14 @@ on:
           - default
           - fast_default
           - unchecked
-      all_precisions:
-        description: "Run all precisions"
-        type: boolean
-        default: false
+      precisions_set:
+        description: "Bit precisions set"
+        type: choice
+        default: fast
+        options:
+          - fast
+          - all
+          - documentation
       bench_type:
         description: "Benchmarks type"
         type: choice
@@ -104,7 +108,7 @@ jobs:
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
       params_type: ${{ inputs.params_type }}
-      all_precisions: ${{ inputs.all_precisions }}
+      precisions_set: ${{ inputs.precisions_set }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
