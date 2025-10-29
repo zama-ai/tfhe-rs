@@ -16,6 +16,7 @@
     * [Programmable bootstrapping](getting-started/benchmarks/gpu/gpu-programmable-bootstrapping.md)
   * [HPU Benchmarks](getting-started/benchmarks/hpu/README.md)
     * [Integer](getting-started/benchmarks/hpu/hpu-integer-operations.md)
+    * [Programmable bootstrapping](getting-started/benchmarks/hpu/hpu-programmable-bootstrapping.md)
   * [Zero-knowledge proof benchmarks](getting-started/benchmarks/zk-proof-benchmarks.md)
 * [Security and cryptography](getting-started/security-and-cryptography.md)
 
