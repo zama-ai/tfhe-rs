@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-zk-pok"
-version = "0.7.3"
+version = "0.8.0"
 edition = "2021"
 keywords = ["zero", "knowledge", "proof", "vector-commitments"]
 homepage = "https://zama.ai/"
@@ -23,7 +23,7 @@ sha3 = "0.10.8"
 serde = { workspace = true, features = ["default", "derive"] }
 zeroize = "1.7.0"
 num-bigint = "0.4.5"
-tfhe-versionable = { version = "0.6.2", path = "../utils/tfhe-versionable" }
+tfhe-versionable = { version = "0.6.3", path = "../utils/tfhe-versionable" }
 
 [features]
 experimental = []
