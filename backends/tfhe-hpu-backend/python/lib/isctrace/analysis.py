@@ -21,7 +21,7 @@ def group_by_time(it, timef, threshold):
         batch = [next(it)]
         ptime = timef(batch[0])
         for obj, time in map(lambda i: (i, timef(i)), it):
-            delta = (time - ptime)%2**32
+            delta = cmp_timestamp(time, ptime)
             if (delta < threshold):
                 batch.append(obj)
             else:
@@ -188,6 +188,9 @@ def peek(it: Iterable):
         val = None
     return ret, val
 
+def cmp_timestamp(cur, last):
+    return (cur - last)%2**32
+
 """
 Iterable yielding Stats objects when iterated, results are not cached so don't
 save the results if you want them more than once.
@@ -210,12 +213,12 @@ class Retired:
             timestamp = event.timestamp
             if (event.data.__class__ == Retire):
                 if insn in isn_map:
-                    latency = (timestamp - isn_map[insn])%2**32
+                    latency = cmp_timestamp(timestamp, isn_map[insn])
                     del isn_map[insn]
                 else:
                     latency = np.NAN
-                delta = (timestamp - prev_stamp)%2**32
-                reltime = (timestamp - first_stamp)%2**32
+                delta = cmp_timestamp(timestamp, prev_stamp)
+                reltime = cmp_timestamp(timestamp, first_stamp)
                 yield InstructionStats(insn, latency, timestamp, delta, reltime)
                 prev_stamp = timestamp
             elif (event.data.__class__ == Issue):
@@ -229,7 +232,7 @@ class Retired:
                                       index='timestamp')
 
     def runtime_us(self, freq_mhz) -> 'useconds':
-        return ((self._events[-1].timestamp - self._events[0].timestamp)%2**32)/freq_mhz
+        return cmp_timestamp(self._events[-1].timestamp, self._events[0].timestamp)/freq_mhz
 
     def pbs_batches(self, threshold = BATCH_THRESHOLD):
         pbs = filter(lambda i: i.insn.opcode.startswith('PBS'), self)
