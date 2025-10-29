@@ -2,7 +2,6 @@ use super::super::super::meta::{DedicatedCompactPublicKeyParameters, MetaParamet
 use super::super::compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 use super::super::key_switching::p_fail_2_minus_128::ks_pbs_gpu::*;
 use super::super::list_compression::p_fail_2_minus_128::*;
-use super::super::list_compression::p_fail_2_minus_64::*;
 use super::super::multi_bit::gaussian::p_fail_2_minus_128::ks_pbs_gpu::*;
 use super::super::multi_bit::gaussian::p_fail_2_minus_40::ks_pbs_gpu::*;
 use super::super::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
@@ -252,9 +251,7 @@ pub const V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
             V1_5_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )),
         dedicated_compact_public_key_parameters: None,
-        compression_parameters: Some(
-            V1_5_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-        ),
+        compression_parameters: None,
         noise_squashing_parameters: None,
     };
 
@@ -652,9 +649,7 @@ pub const V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
             V1_5_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )),
         dedicated_compact_public_key_parameters: None,
-        compression_parameters: Some(
-            V1_5_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        ),
+        compression_parameters: None,
         noise_squashing_parameters: None,
     };
 
