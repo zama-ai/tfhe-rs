@@ -8,7 +8,7 @@ All HPU benchmarks were launched on AMD Alveo v80 FPGAs.
 
 The cryptographic parameters `HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128` were used.
 
-The HPU interface is based on IOp (Integer Operations) execution and is not designed to execute a single PBS. That is why the following measurements were done by building custom IOp containing only PBS. The HPU execute PBS by batch to share key elements between several ciphertexts and optimize processing pipeline usage. It also executes the keyswitch in parrallel of the blind-rotation of the PBS so the 2 operations cannot be splitted.
+The HPU interface is based on IOp (Integer Operations) execution and is not designed to execute a single PBS. That is why the following measurements were done by building custom IOp containing only PBS. The HPU execute PBS by batch to share key elements between several ciphertexts and optimize processing pipeline usage. It also executes the keyswitch in parallel of the blind-rotation of the PBS so the 2 operations cannot be separated.
 The next table show the execution time of batches of 12, 9 and 2 KS-PBS.
 
 ## P-fail: $$2^{-128}$$
