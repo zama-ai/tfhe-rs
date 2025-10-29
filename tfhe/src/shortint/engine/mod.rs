@@ -311,7 +311,27 @@ impl ShortintEngine {
     where
         F: FnOnce(&mut Self) -> R,
     {
-        LOCAL_ENGINE.with(|engine_cell| func(&mut engine_cell.borrow_mut()))
+        LOCAL_ENGINE.with(|engine_cell| {
+            if let Ok(mut thread_engine) = engine_cell.try_borrow_mut() {
+                func(&mut thread_engine)
+            } else {
+                // The thread engine might be unavailable at this point.
+                // This might happen for example if we have the following call stack:
+                // - rayon::par_iter
+                // - with_thread_local_mut
+                // - rayon::par_iter
+                // In that case a task from the outer par_iter will be descheduled when reaching the
+                // inner par_iter. Another outer task might be scheduled on the same
+                // thread and try to access the engine again.
+                //
+                // To avoid this, instead of crashing we create a temporary engine for the current
+                // task. This might incur a performance overhead but it's better
+                // than a panic. This should not affect determinism since the task
+                // would have been scheduled on an undefined thread with an engine
+                // in an unknown state anyways.
+                func(&mut Self::new())
+            }
+        })
     }
 
     /// Create a new shortint engine
@@ -371,5 +391,41 @@ impl ShortintEngine {
 
     pub fn get_computation_buffers(&mut self) -> &mut ComputationBuffers {
         &mut self.computation_buffers
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rand::Rng;
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+    use crate::shortint::parameters::test_params::TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::{CompactPrivateKey, CompactPublicKey};
+
+    /// Test the case where a thread is reused by rayon and thread engine will be already borrowed
+    #[test]
+    fn test_engine_thread_reuse_ci_run_filter() {
+        let mut rng = rand::thread_rng();
+        let param_pke = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let packed_modulus = param_pke.message_modulus.0 * param_pke.carry_modulus.0;
+
+        let compact_private_key = CompactPrivateKey::new(param_pke);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        // Should be enough to trigger a thread re-use on all cpu config
+        let elements = 500;
+        let fhe_uint_count = 16;
+
+        let messages = (0..elements)
+            .map(|_| {
+                let input_msg: u64 = rng.gen_range(0..packed_modulus);
+                vec![input_msg; fhe_uint_count]
+            })
+            .collect::<Vec<_>>();
+
+        // Trigger the pattern par_iter -> engine borrow -> par_iter
+        messages.par_iter().for_each(|msg| {
+            pk.encrypt_iter_with_modulus(msg.iter().copied(), packed_modulus);
+        })
     }
 }
