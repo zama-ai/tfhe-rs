@@ -10357,3 +10357,130 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
 
     update_noise_degree(output, &cuda_ffi_output);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_erc20_assign<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    from_amount: &mut CudaRadixCiphertext,
+    to_amount: &mut CudaRadixCiphertext,
+    amount: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        from_amount.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first from_amount pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        from_amount.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        to_amount.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first to_amount pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        to_amount.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        amount.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first amount pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        amount.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut from_amount_degrees = from_amount.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut from_amount_noise_levels = from_amount
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_from_amount = prepare_cuda_radix_ffi(
+        from_amount,
+        &mut from_amount_degrees,
+        &mut from_amount_noise_levels,
+    );
+    let mut amount_degrees = amount.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut amount_noise_levels = amount.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_amount =
+        prepare_cuda_radix_ffi(amount, &mut amount_degrees, &mut amount_noise_levels);
+    let mut to_amount_degrees = to_amount.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut to_amount_noise_levels = to_amount
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_to_amount = prepare_cuda_radix_ffi(
+        to_amount,
+        &mut to_amount_degrees,
+        &mut to_amount_noise_levels,
+    );
+    scratch_cuda_erc20_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+    cuda_erc20_assign_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_from_amount,
+        &raw mut cuda_ffi_to_amount,
+        &raw const cuda_ffi_amount,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_erc20(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(from_amount, &cuda_ffi_from_amount);
+    update_noise_degree(to_amount, &cuda_ffi_to_amount);
+}

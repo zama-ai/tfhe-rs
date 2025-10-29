@@ -2,14 +2,17 @@
 
 mod aes;
 mod aes256;
+mod erc20;
 mod oprf;
 
 mod rerand;
 
 use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
+    gen_random_u256, get_bench_type, throughput_num_threads, write_to_json, BenchmarkType,
+    EnvConfig, OperatorType,
 };
+
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -25,13 +28,6 @@ use tfhe::{get_pbs_count, reset_pbs_count};
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested
 type ScalarType = U256;
-
-fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
-    let clearlow = rng.gen::<u128>();
-    let clearhigh = rng.gen::<u128>();
-
-    tfhe::integer::U256::from((clearlow, clearhigh))
-}
 
 /// Base function to bench a server key function that is a binary operation, input ciphertexts will
 /// contain non zero carries

@@ -116,6 +116,12 @@ harness = false
 required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
+name = "integer-erc20"
+path = "benches/integer/erc20.rs"
+harness = false
+required-features = ["integer", "pbs-stats", "internal-keycache"]
+
+[[bench]]
 name = "integer-signed"
 path = "benches/integer/signed_bench.rs"
 harness = false

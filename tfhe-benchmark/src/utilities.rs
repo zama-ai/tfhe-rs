@@ -1,3 +1,5 @@
+use rand::prelude::ThreadRng;
+use rand::Rng;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -791,3 +793,11 @@ mod cuda_utils {
 
 #[cfg(feature = "gpu")]
 pub use cuda_utils::*;
+use tfhe::integer::U256;
+
+pub fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
+    let clearlow = rng.gen::<u128>();
+    let clearhigh = rng.gen::<u128>();
+
+    tfhe::integer::U256::from((clearlow, clearhigh))
+}
