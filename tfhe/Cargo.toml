@@ -77,8 +77,8 @@ blake3 = { version = "1.8", optional = true }
 itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
 strum = { version = "0.27", features = ["derive"], optional = true }
-tfhe-zk-pok = { version = "0.7.3", path = "../tfhe-zk-pok", optional = true }
-tfhe-versionable = { version = "0.6.2", path = "../utils/tfhe-versionable" }
+tfhe-zk-pok = { version = "0.8.0", path = "../tfhe-zk-pok", optional = true }
+tfhe-versionable = { version = "0.6.3", path = "../utils/tfhe-versionable" }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [
