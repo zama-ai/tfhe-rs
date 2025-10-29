@@ -1,0 +1,81 @@
+# Run benchmarks on an AWS instance and return parsed results to Slab CI bot.
+name: benchmark_cpu
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Benchmark command to run"
+        type: choice
+        options:
+          - integer
+          - signed_integer
+          - integer_compression
+          - integer_zk
+          - shortint
+          - shortint_oprf
+          - hlapi
+          - hlapi_erc20
+          - hlapi_dex
+          - hlapi_noise_squash
+          - tfhe_zk_pok
+          - boolean
+          - pbs
+          - pbs128
+          - ks
+          - ks_pbs
+      op_flavor:
+        description: "Operations set to run"
+        type: choice
+        default: default
+        options:
+          - default
+          - fast_default
+          - smart
+          - unchecked
+          - misc
+      all_precisions:
+        description: "Run all precisions"
+        type: boolean
+        default: false
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
+      params_type:
+        description: "Parameters type"
+        type: choice
+        default: classical
+        options:
+          - classical
+          - multi_bit
+          - classical + multi_bit
+          - classical_documentation
+          - multi_bit_documentation
+          - classical_documentation + multi_bit_documentation
+
+permissions: {}
+
+jobs:
+  run-benchmarks:
+    name: benchmark_cpu/run-benchmarks
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: ${{ inputs.command }}
+      op_flavor: ${{ inputs.op_flavor }}
+      bench_type: ${{ inputs.bench_type }}
+      params_type: ${{ inputs.params_type }}
+      all_precisions: ${{ inputs.all_precisions }}
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
