@@ -7,7 +7,10 @@ use crate::shortint::list_compression::{
     NoiseSquashingCompressionPrivateKey,
 };
 use crate::shortint::parameters::LweCiphertextCount;
-use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ModulusSwitchConfiguration, ShortintBootstrappingKey,
+    ShortintCompressedBootstrappingKey,
+};
 use crate::Error;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
@@ -62,8 +65,11 @@ impl Upgrade<DecompressionKey> for DecompressionKeyV1 {
             lwe_per_glwe,
         } = self;
 
-        Ok(DecompressionKey::Classic {
-            blind_rotate_key,
+        Ok(DecompressionKey {
+            bsk: ShortintBootstrappingKey::Classic {
+                bsk: blind_rotate_key,
+                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
+            },
             lwe_per_glwe,
         })
     }
@@ -108,8 +114,11 @@ impl Upgrade<CompressedDecompressionKey> for CompressedDecompressionKeyV1 {
             lwe_per_glwe,
         } = self;
 
-        Ok(CompressedDecompressionKey::Classic {
-            blind_rotate_key,
+        Ok(CompressedDecompressionKey {
+            bsk: ShortintCompressedBootstrappingKey::Classic {
+                bsk: blind_rotate_key,
+                modulus_switch_noise_reduction_key: CompressedModulusSwitchConfiguration::Standard,
+            },
             lwe_per_glwe,
         })
     }

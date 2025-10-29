@@ -9,6 +9,9 @@ use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey,
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ShortintCompressedBootstrappingKey,
+};
 use crate::shortint::{CarryModulus, MessageModulus};
 
 impl CompressedDecompressionKey {
@@ -21,14 +24,22 @@ impl CompressedDecompressionKey {
         ciphertext_modulus: CiphertextModulus<u64>,
         streams: &CudaStreams,
     ) -> CudaDecompressionKey {
-        match &self.key {
-            crate::shortint::list_compression::CompressedDecompressionKey::Classic {
-                blind_rotate_key,
-                lwe_per_glwe,
+        let crate::shortint::list_compression::CompressedDecompressionKey {
+            ref bsk,
+            lwe_per_glwe,
+        } = self.key;
+
+        match bsk {
+            ShortintCompressedBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
             } => {
-                let h_bootstrap_key = blind_rotate_key
-                    .as_view()
-                    .par_decompress_into_lwe_bootstrap_key();
+                assert_eq!(
+                    modulus_switch_noise_reduction_key,
+                    &CompressedModulusSwitchConfiguration::Standard
+                );
+
+                let h_bootstrap_key = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
 
                 let d_bootstrap_key =
                     CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, None, streams);
@@ -37,7 +48,7 @@ impl CompressedDecompressionKey {
 
                 CudaDecompressionKey {
                     blind_rotate_key,
-                    lwe_per_glwe: *lwe_per_glwe,
+                    lwe_per_glwe,
                     glwe_dimension,
                     polynomial_size,
                     message_modulus,
@@ -45,11 +56,11 @@ impl CompressedDecompressionKey {
                     ciphertext_modulus,
                 }
             }
-            crate::shortint::list_compression::CompressedDecompressionKey::MultiBit {
-                multi_bit_blind_rotate_key,
-                lwe_per_glwe,
+            ShortintCompressedBootstrappingKey::MultiBit {
+                seeded_bsk,
+                deterministic_execution: _,
             } => {
-                let h_bootstrap_key = multi_bit_blind_rotate_key
+                let h_bootstrap_key = seeded_bsk
                     .as_view()
                     .par_decompress_into_lwe_multi_bit_bootstrap_key();
 
@@ -62,7 +73,7 @@ impl CompressedDecompressionKey {
 
                 CudaDecompressionKey {
                     blind_rotate_key,
-                    lwe_per_glwe: *lwe_per_glwe,
+                    lwe_per_glwe,
                     glwe_dimension,
                     polynomial_size,
                     message_modulus,
