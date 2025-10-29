@@ -1,6 +1,6 @@
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
@@ -768,83 +768,83 @@ fn main() {
         print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
-    // FheUint64 latency
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::whitepaper",
-            par_transfer_whitepaper::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::no_cmux",
-            par_transfer_no_cmux::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::overflow",
-            par_transfer_overflow::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            par_transfer_safe::<FheUint64>,
-        );
+    match get_bench_type() {
+        BenchmarkType::Latency => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::whitepaper",
+                par_transfer_whitepaper::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::no_cmux",
+                par_transfer_no_cmux::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::overflow",
+                par_transfer_overflow::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::safe",
+                par_transfer_safe::<FheUint64>,
+            );
 
-        group.finish();
-    }
+            group.finish();
+        }
 
-    // FheUint64 Throughput
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::whitepaper",
-            par_transfer_whitepaper::<FheUint64>,
-        );
-        bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::no_cmux",
-            par_transfer_no_cmux::<FheUint64>,
-        );
-        bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::overflow",
-            par_transfer_overflow::<FheUint64>,
-        );
-        bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            par_transfer_safe::<FheUint64>,
-        );
+        BenchmarkType::Throughput => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::whitepaper",
+                par_transfer_whitepaper::<FheUint64>,
+            );
+            bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::no_cmux",
+                par_transfer_no_cmux::<FheUint64>,
+            );
+            bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::overflow",
+                par_transfer_overflow::<FheUint64>,
+            );
+            bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::safe",
+                par_transfer_safe::<FheUint64>,
+            );
 
-        group.finish();
-    }
+            group.finish();
+        }
+    };
 
     c.final_summary();
 }
@@ -888,82 +888,82 @@ fn main() {
         print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
-    // FheUint64 latency
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::whitepaper",
-            par_transfer_whitepaper::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::no_cmux",
-            par_transfer_no_cmux::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::overflow",
-            par_transfer_overflow::<FheUint64>,
-        );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            par_transfer_safe::<FheUint64>,
-        );
+    match get_bench_type() {
+        BenchmarkType::Latency => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::whitepaper",
+                par_transfer_whitepaper::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::no_cmux",
+                par_transfer_no_cmux::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::overflow",
+                par_transfer_overflow::<FheUint64>,
+            );
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::safe",
+                par_transfer_safe::<FheUint64>,
+            );
 
-        group.finish();
-    }
+            group.finish();
+        }
 
-    // FheUint64 Throughput
-    {
-        let mut group = c.benchmark_group(bench_name);
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
-        );
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::overflow",
-            transfer_overflow::<FheUint64>,
-        );
-        cuda_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            transfer_safe::<FheUint64>,
-        );
-        group.finish();
-    }
+        BenchmarkType::Throughput => {
+            let mut group = c.benchmark_group(bench_name);
+            cuda_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::whitepaper",
+                transfer_whitepaper::<FheUint64>,
+            );
+            cuda_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::no_cmux",
+                transfer_no_cmux::<FheUint64>,
+            );
+            cuda_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::overflow",
+                transfer_overflow::<FheUint64>,
+            );
+            cuda_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::safe",
+                transfer_safe::<FheUint64>,
+            );
+            group.finish();
+        }
+    };
 
     c.final_summary();
 }
@@ -992,69 +992,69 @@ fn main() {
 
     let bench_name = "hlapi::hpu::erc20::transfer";
 
-    // FheUint64 latency
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        // Erc20 optimized instruction only available on Hpu
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "hpu_optim",
-            transfer_hpu::<FheUint64>,
-        );
-        // Erc20 SIMD instruction only available on Hpu
-        bench_transfer_latency_simd(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "hpu_simd",
-            transfer_hpu_simd::<FheUint64>,
-        );
-        group.finish();
-    }
+    match get_bench_type() {
+        BenchmarkType::Latency => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "whitepaper",
+                transfer_whitepaper::<FheUint64>,
+            );
+            // Erc20 optimized instruction only available on Hpu
+            bench_transfer_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "hpu_optim",
+                transfer_hpu::<FheUint64>,
+            );
+            // Erc20 SIMD instruction only available on Hpu
+            bench_transfer_latency_simd(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "hpu_simd",
+                transfer_hpu_simd::<FheUint64>,
+            );
+            group.finish();
+        }
 
-    // FheUint64 Throughput
-    {
-        let mut group = c.benchmark_group(bench_name);
-        hpu_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        // Erc20 optimized instruction only available on Hpu
-        hpu_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "hpu_optim",
-            transfer_hpu::<FheUint64>,
-        );
-        // Erc20 SIMD instruction only available on Hpu
-        hpu_bench_transfer_throughput_simd(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "hpu_simd",
-            transfer_hpu_simd::<FheUint64>,
-        );
-        group.finish();
-    }
+        BenchmarkType::Throughput => {
+            let mut group = c.benchmark_group(bench_name);
+            hpu_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "whitepaper",
+                transfer_whitepaper::<FheUint64>,
+            );
+            // Erc20 optimized instruction only available on Hpu
+            hpu_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "hpu_optim",
+                transfer_hpu::<FheUint64>,
+            );
+            // Erc20 SIMD instruction only available on Hpu
+            hpu_bench_transfer_throughput_simd(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "hpu_simd",
+                transfer_hpu_simd::<FheUint64>,
+            );
+            group.finish();
+        }
+    };
 
     c.final_summary();
 }

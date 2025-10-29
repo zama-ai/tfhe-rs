@@ -1573,25 +1573,29 @@ bench_hlapi_hpu: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_erc20 # Run benchmarks for ERC20 operations
 bench_hlapi_erc20: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ERC20 operations on GPU
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+    cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_dex_gpu # Run benchmarks for DEX operations on GPU
 bench_hlapi_dex_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
 
@@ -1599,7 +1603,7 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
-	RUSTFLAGS="$(RUSTFLAGS)" \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --

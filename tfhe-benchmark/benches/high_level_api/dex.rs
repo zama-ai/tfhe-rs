@@ -4,7 +4,7 @@ use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
@@ -1329,89 +1329,89 @@ fn main() {
         );
     }
 
-    // FheUint64 latency
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_swap_request_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::whitepaper",
-            swap_request_update_dex_balance_whitepaper::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_request_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::no_cmux",
-            swap_request_update_dex_balance_no_cmux::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_claim_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::whitepaper",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
-        );
-        bench_swap_claim_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::no_cmux",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
-        );
+    match get_bench_type() {
+        BenchmarkType::Latency => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_swap_request_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::whitepaper",
+                swap_request_update_dex_balance_whitepaper::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_request_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::no_cmux",
+                swap_request_update_dex_balance_no_cmux::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_claim_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::whitepaper",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+            );
+            bench_swap_claim_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::no_cmux",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+            );
 
-        group.finish();
-    }
-    // FheUint64 Throughput
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_swap_request_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::whitepaper",
-            swap_request_update_dex_balance_whitepaper::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_request_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::no_cmux",
-            swap_request_update_dex_balance_no_cmux::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_claim_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::whitepaper",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
-        );
-        bench_swap_claim_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::no_cmux",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
-        );
-        group.finish();
-    }
+            group.finish();
+        }
+        BenchmarkType::Throughput => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_swap_request_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::whitepaper",
+                swap_request_update_dex_balance_whitepaper::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_request_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::no_cmux",
+                swap_request_update_dex_balance_no_cmux::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_claim_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::whitepaper",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+            );
+            bench_swap_claim_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::no_cmux",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+            );
+            group.finish();
+        }
+    };
 
     c.final_summary();
 }
@@ -1468,90 +1468,90 @@ fn main() {
         );
     }
 
-    // FheUint64 latency
-    {
-        let mut group = c.benchmark_group(bench_name);
-        bench_swap_request_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::whitepaper",
-            swap_request_update_dex_balance_whitepaper::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_request_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::no_cmux",
-            swap_request_update_dex_balance_no_cmux::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        bench_swap_claim_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::whitepaper",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
-        );
-        bench_swap_claim_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::no_cmux",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
-        );
+    match get_bench_type() {
+        BenchmarkType::Latency => {
+            let mut group = c.benchmark_group(bench_name);
+            bench_swap_request_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::whitepaper",
+                swap_request_update_dex_balance_whitepaper::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_request_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::no_cmux",
+                swap_request_update_dex_balance_no_cmux::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            bench_swap_claim_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::whitepaper",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+            );
+            bench_swap_claim_latency(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::no_cmux",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+            );
 
-        group.finish();
-    }
+            group.finish();
+        }
 
-    // FheUint64 Throughput
-    {
-        let mut group = c.benchmark_group(bench_name);
-        cuda_bench_swap_request_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::whitepaper",
-            swap_request_update_dex_balance_whitepaper::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        cuda_bench_swap_request_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_request::no_cmux",
-            swap_request_update_dex_balance_no_cmux::<FheUint64>,
-            swap_request_finalize::<FheUint64>,
-        );
-        cuda_bench_swap_claim_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::whitepaper",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
-        );
-        cuda_bench_swap_claim_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "swap_claim::no_cmux",
-            swap_claim_prepare::<FheUint64, FheUint128>,
-            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
-        );
-        group.finish();
-    }
+        BenchmarkType::Throughput => {
+            let mut group = c.benchmark_group(bench_name);
+            cuda_bench_swap_request_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::whitepaper",
+                swap_request_update_dex_balance_whitepaper::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            cuda_bench_swap_request_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_request::no_cmux",
+                swap_request_update_dex_balance_no_cmux::<FheUint64>,
+                swap_request_finalize::<FheUint64>,
+            );
+            cuda_bench_swap_claim_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::whitepaper",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+            );
+            cuda_bench_swap_claim_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "swap_claim::no_cmux",
+                swap_claim_prepare::<FheUint64, FheUint128>,
+                swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+            );
+            group.finish();
+        }
+    };
 
     c.final_summary();
 }
