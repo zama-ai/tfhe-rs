@@ -16,6 +16,21 @@ pub(crate) const SERDE_ATTR_NAME: &str = "serde";
 /// Transparent mode can also be activated using `#[repr(transparent)]`
 pub(crate) const REPR_ATTR_NAME: &str = "repr";
 
+/// The generated associated types will only derive Serialize/Deserialize. We should not propagate
+/// any attribute from other derive macro (eg: `#[default]`). This is a list of attributes that
+/// should be propagated to the newly created type.
+pub(crate) const PRESERVED_FIELD_ATTRIBUTE_NAMES: [&str; 9] = [
+    "serde",
+    "cfg",
+    "cfg_attr",
+    "doc",
+    "allow",
+    "warn",
+    "deny",
+    "forbid",
+    "deprecated",
+];
+
 /// Represent the parsed `#[versionize(...)]` attribute
 pub(crate) enum VersionizeAttribute {
     Classic(ClassicVersionizeAttribute),
@@ -341,27 +356,38 @@ pub(crate) fn is_skipped(attributes: &[Attribute]) -> syn::Result<bool> {
     Ok(false)
 }
 
-/// Replace `#[versionize(skip)]` with `#[serde(skip)]` in an attributes list
+/// Replace `#[versionize(skip)]` with `#[serde(skip)]` in an attributes list, and remove attributes
+/// from other derived macro
 pub(crate) fn replace_versionize_skip_with_serde(
     attributes: &[Attribute],
 ) -> syn::Result<Vec<Attribute>> {
     attributes
         .iter()
         .cloned()
-        .map(|attr| {
+        .filter_map(|attr| {
             if attr.path().is_ident(VERSIONIZE_ATTR_NAME) {
                 let nested =
-                    attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+                    match attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
+                        Ok(nested) => nested,
+                        Err(e) => return Some(Err(e)),
+                    };
 
                 for meta in nested.iter() {
                     if let Meta::Path(path) = meta {
                         if path.is_ident("skip") {
-                            return Ok(parse_quote! { #[serde(skip)] });
+                            return Some(Ok(parse_quote! { #[serde(skip)] }));
                         }
                     }
                 }
             }
-            Ok(attr)
+
+            for preserved_attr in PRESERVED_FIELD_ATTRIBUTE_NAMES {
+                if attr.path().is_ident(preserved_attr) {
+                    return Some(Ok(attr));
+                }
+            }
+
+            return None;
         })
         .collect()
 }
