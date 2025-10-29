@@ -85,6 +85,7 @@ fn main() {
             "cuda/include/integer/compression/compression.h",
             "cuda/include/integer/integer.h",
             "cuda/include/aes/aes.h",
+            "cuda/include/erc20/erc20.h",
             "cuda/include/zk/zk.h",
             "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
