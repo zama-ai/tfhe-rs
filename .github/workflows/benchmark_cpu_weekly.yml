@@ -1,0 +1,201 @@
+# Run CPU latencies benchmarks AWS VMs and return parsed results to Slab CI bot.
+name: benchmark_cpu_weekly
+
+on:
+  schedule:
+    # Weekly schedules are separated in two groups to avoid spawning too many the machines at once thus risking resource shortages.
+    # Group 1
+    # -------
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
+    # Group 2
+    # -------
+    # Weekly benchmarks will be triggered each Sunday at 3a.m.
+    - cron: '0 3 * * 0'
+
+    # Quarterly benchmarks will be triggered right before the end of the quarter, the 25th of the current month at 4a.m.
+    # These benchmarks are far longer to execute, hence the reason to run them only four times a year.
+    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
+
+env:
+  WEEKLY_BENCH_GROUP_1: ${{ github.event.schedule == '0 1 * * 6' }}
+  WEEKLY_BENCH_GROUP_2: ${{ github.event.schedule == '0 3 * * 0' }}
+  QUARTERLY_BENCH: ${{ github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *' }}
+
+permissions: {}
+
+jobs:
+  prepare-inputs:
+    name: benchmark_cpu_weekly/prepare-inputs
+    runs-on: ubuntu-latest
+    outputs:
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+      all_precisions: ${{ steps.set_all_precisions.outputs.all_precisions }}
+    steps:
+      - name: Weekly benchmarks
+        if: env.WEEKLY_BENCH_GROUP_1 || env.WEEKLY_BENCH_GROUP_2
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          echo "ALL_PRECISIONS=false" >> "${GITHUB_ENV}"
+
+      - name: Quarterly benchmarks
+        if: env.QUARTERLY_BENCH
+        run: |
+          echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
+          echo "ALL_PRECISIONS=true" >> "${GITHUB_ENV}"
+
+      - name: Set operation flavor output
+        id: set_op_flavor
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set bit precisions output
+        id: set_all_precisions
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "all_precisions=${{ toJSON(env.ALL_PRECISIONS) }}" >> "${GITHUB_OUTPUT}"
+
+  run-benchmarks-integer:
+    name: benchmark_gpu_weekly/run-benchmarks-integer
+    if: github.repository == 'zama-ai/tfhe-rs' 
+      && (env.WEEKLY_BENCH_GROUP_1 || env.QUARTERLY_BENCH)
+    needs: prepare-inputs
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: integer,signed_integer, integer_compression
+      op_flavor: ${{ needs.prepare-inputs.outputs.op_flavor }}
+      all_precisions: ${{ needs.prepare-inputs.outputs.all_precisions }}
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-integer-zk-pke:
+    name: benchmark_gpu_weekly/run-benchmarks-integer-zk-pke
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_1
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: integer_zk
+      additional_file_to_parse: pke_zk_crs_sizes.csv
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-hlapi-erc20:
+    name: benchmark_gpu_weekly/run-benchmarks-hlapi-erc20
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_2
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: hlapi_erc20
+      additional_file_to_parse: erc20_pbs_count.csv
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-hlapi-dex:
+    name: benchmark_gpu_weekly/run-benchmarks-hlapi-dex
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_1
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: hlapi_dex
+      additional_file_to_parse: dex_swap_request_update_dex_balance_pbs_count.csv,dex_swap_request_finalize_pbs_count.csv,dex_swap_claim_prepare_pbs_count.csv,dex_swap_claim_update_dex_balance_pbs_count.csv
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-core-crypto:
+    name: benchmark_gpu_weekly/run-benchmarks-core-crypto
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_1
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: ks,pbs,pbs128,ks_pbs
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-shortint:
+    name: benchmark_gpu_weekly/run-benchmarks-shortint
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && (env.WEEKLY_BENCH_GROUP_2 || env.quarterly_bench)
+    needs: prepare-inputs
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      op_flavor: ${{ needs.prepare-inputs.outputs.op_flavor }}
+      command: shortint
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-boolean:
+    name: benchmark_gpu_weekly/run-benchmarks-boolean
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_2
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: boolean
+      additional_recipe: measure_boolean_key_sizes
+      additional_file_to_parse: boolean_key_size.csv
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-tfhe-zk-pok:
+    name: benchmark_gpu_weekly/run-benchmarks-tfhe-zk-pok
+    if: github.repository == 'zama-ai/tfhe-rs'
+      && env.WEEKLY_BENCH_GROUP_1
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    with:
+      command: tfhe_zk_pok
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
