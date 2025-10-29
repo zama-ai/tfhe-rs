@@ -21,7 +21,7 @@ def group_by_time(it, timef, threshold):
         batch = [next(it)]
         ptime = timef(batch[0])
         for obj, time in map(lambda i: (i, timef(i)), it):
-            delta = time - ptime
+            delta = (time - ptime)%2**32
             if (delta < threshold):
                 batch.append(obj)
             else:
@@ -210,12 +210,12 @@ class Retired:
             timestamp = event.timestamp
             if (event.data.__class__ == Retire):
                 if insn in isn_map:
-                    latency = timestamp - isn_map[insn]
+                    latency = (timestamp - isn_map[insn])%2**32
                     del isn_map[insn]
                 else:
                     latency = np.NAN
-                delta = timestamp - prev_stamp
-                reltime = timestamp - first_stamp 
+                delta = (timestamp - prev_stamp)%2**32
+                reltime = (timestamp - first_stamp)%2**32
                 yield InstructionStats(insn, latency, timestamp, delta, reltime)
                 prev_stamp = timestamp
             elif (event.data.__class__ == Issue):
@@ -229,7 +229,7 @@ class Retired:
                                       index='timestamp')
 
     def runtime_us(self, freq_mhz) -> 'useconds':
-        return (self._events[-1].timestamp - self._events[0].timestamp)/freq_mhz
+        return ((self._events[-1].timestamp - self._events[0].timestamp)%2**32)/freq_mhz
 
     def pbs_batches(self, threshold = BATCH_THRESHOLD):
         pbs = filter(lambda i: i.insn.opcode.startswith('PBS'), self)
