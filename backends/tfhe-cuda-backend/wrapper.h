@@ -7,6 +7,7 @@
 #include "cuda/include/aes/aes.h"
 #include "cuda/include/trivium/trivium.h"
 #include "cuda/include/kreyvium/kreyvium.h"
+#include "cuda/include/erc20/erc20.h"
 #include "cuda/include/zk/zk.h"
 #include "cuda/include/keyswitch/keyswitch.h"
 #include "cuda/include/keyswitch/ks_enums.h"

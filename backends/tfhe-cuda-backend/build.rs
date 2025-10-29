@@ -90,6 +90,7 @@ fn main() {
             "cuda/include/aes/aes.h",
             "cuda/include/trivium/trivium.h",
             "cuda/include/kreyvium/kreyvium.h",
+            "cuda/include/erc20/erc20.h",
             "cuda/include/zk/zk.h",
             "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
