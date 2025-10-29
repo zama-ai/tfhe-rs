@@ -39,6 +39,7 @@ mod bitwise_op;
 mod cmux;
 mod comparison;
 mod div_mod;
+mod erc20;
 mod even_odd;
 mod ilog2;
 mod mul;
