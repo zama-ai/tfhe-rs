@@ -1,0 +1,271 @@
+# Run benchmarks on an instance and return parsed results to Slab CI bot.
+name: benchmark_cpu_common
+
+on:
+  workflow_call:
+    inputs:
+      command: # Any make recipes stripped of the "bench_" prefix in the Makefile
+        type: string # Use comma separated values to generate an array
+        required: true
+      op_flavor:
+        type: string # Use comma separated values to generate an array
+        default: default
+      bench_type:
+        type: string
+        default: latency
+      params_type:
+        type: string
+        default: classical
+      all_precisions:
+        type: boolean
+        default: false
+      additional_recipe: # Make recipes to run aside the benchmarks.
+        type: string # Use comma separated values to generate an array
+      additional_file_to_parse: # Make recipes aditional to run aside the benchamrks. Use comma separated values to generate an array
+        type: string # Use comma separated values to generate an array
+      additional_results_type:
+        type: string
+        default: object-size
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  FAST_BENCH: TRUE
+
+permissions: {}
+
+jobs:
+  prepare-matrix:
+    name: benchmark_cpu_common/prepare-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      command: ${{ steps.set_matrix_args.outputs.command }}
+      op_flavor: ${{ steps.set_matrix_args.outputs.op_flavor }}
+      bench_type: ${{ steps.set_matrix_args.outputs.bench_type }}
+      params_type: ${{ steps.set_matrix_args.outputs.params_type }}
+    env:
+      INPUTS_COMMAND: ${{ inputs.command }}
+      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
+    steps:
+      - name: Parse user inputs
+        shell: python
+        run: | # zizmor: ignore[template-injection] these env variables are safe
+          split_command = "${{ inputs.command }}".replace(" ", "").split(",")
+          split_op_flavor = "${{ inputs.op_flavor }}".replace(" ", "").split(",")
+
+          if "${{ inputs.bench_type }}" == "both":
+            bench_type = ["latency", "throughput"]
+          else:
+            bench_type = ["${{ inputs.bench_type }}", ]
+
+          if "+" in "${{ inputs.params_type }}":
+            split_params_type= "${{ inputs.params_type }}".replace(" ", "").split("+")
+          else:
+            split_params_type = ["${{ inputs.params_type }}", ]
+
+          with open("${{ github.env }}", "a") as f:
+            for env_name, values_to_join in [
+              ("COMMAND", split_command),
+              ("OP_FLAVOR", split_op_flavor),
+              ("BENCH_TYPE", bench_type),
+              ("PARAMS_TYPE", split_params_type),
+            ]:
+              f.write(f"""{env_name}=["{'", "'.join(values_to_join)}"]\n""")
+
+      - name: Set martix arguments outputs
+        id: set_matrix_args
+        run: | # zizmor: ignore[template-injection] these env variable are safe
+          {
+            echo "command=${{ toJSON(env.COMMAND) }}";
+            echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}";
+            echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}";
+            echo "params_type=${{ toJSON(env.PARAMS_TYPE) }}";
+          } >> "${GITHUB_OUTPUT}"
+
+  setup-instance:
+    name: benchmark_cpu_common/setup-instance
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: bench
+
+  integer-benchmarks:
+    name: benchmark_cpu_common/integer-benchmarks
+    needs: [ prepare-matrix, setup-instance ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440  # 24 hours
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: ${{ fromJSON(needs.prepare-matrix.outputs.command) }}
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
+        params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Get benchmark details
+        run: |
+          COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict "${SHA}");
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=${COMMIT_DATE}";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+        env:
+          SHA: ${{ github.sha }}
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: nightly
+
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
+        run: |
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
+
+      - name: Run benchmarks with AVX512
+        run: |
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"
+        env:
+          OP_FLAVOR: ${{ matrix.op_flavor }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
+          BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
+          BENCH_COMMAND: ${{ matrix.command }}
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          --database tfhe_rs \
+          --hardware "hpc7a.96xlarge" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --bench-type "${BENCH_TYPE}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
+
+      - name: Run additional benchmarks
+        if: ${{ inputs.additional_recipe }}
+        run: |
+          targets_list="${targets}"
+          IFS=','
+          for target in $targets_list; do
+            make "$target"
+          done
+        env:
+          targets: ${{ inputs.additional_recipe }}
+
+      - name: Parse additional benchmarks results files
+        if: ${{ inputs.additional_file_to_parse }}
+        run: |
+          filenames_list="${filenames}"
+          IFS=','
+          for filename in $filenames_list; do
+            python3 ./ci/benchmark_parser.py "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
+            --"${results_type}" \
+            --append-results
+          done
+        env:
+          filenames: ${{ inputs.additional_file_to_parse }}
+          results_type: ${{ inputs.additional_results_type }}
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          repository: zama-ai/slab
+          path: slab
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
+          --slab-url "${SLAB_URL}"
+        env:
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLAB_URL: ${{ secrets.SLAB_URL }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "CPU bencmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: benchmark_cpu_common/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [ setup-instance, integer-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cpu-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
