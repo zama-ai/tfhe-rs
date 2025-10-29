@@ -1361,18 +1361,20 @@ impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for Decompres
         accumulator: &LookupTable<Vec<u64>>,
         side_resources: &mut Self::SideResources,
     ) {
-        match self {
-            Self::Classic {
-                blind_rotate_key,
-                lwe_per_glwe: _,
-            } => {
-                match (input, output) {
-                    (DynLwe::U64(input), DynLwe::U64(output)) => blind_rotate_key
-                        .lwe_classic_fft_pbs(input, output, &accumulator.acc, side_resources),
-                    _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
+        match &self.bsk {
+            ShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: _,
+            } => match (input, output) {
+                (DynLwe::U64(input), DynLwe::U64(output)) => {
+                    bsk.lwe_classic_fft_pbs(input, output, &accumulator.acc, side_resources)
                 }
-            }
-            Self::MultiBit { .. } => {
+                _ => panic!(
+                    "DecompressionKey only supports DynLwe::U64 for noise
+        simulation"
+                ),
+            },
+            ShortintBootstrappingKey::MultiBit { .. } => {
                 panic!("Tried to compute a classic PBS with a multi bit DecompressionKey")
             }
         }
@@ -1824,12 +1826,12 @@ impl NoiseSimulationLweFourierBsk {
     }
 
     pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
-        match decomp_key {
-            DecompressionKey::Classic {
-                blind_rotate_key,
-                lwe_per_glwe: _,
-            } => self.matches_actual_bsk(blind_rotate_key),
-            DecompressionKey::MultiBit { .. } => false,
+        match &decomp_key.bsk {
+            ShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: _,
+            } => self.matches_actual_bsk(bsk),
+            ShortintBootstrappingKey::MultiBit { .. } => false,
         }
     }
 }

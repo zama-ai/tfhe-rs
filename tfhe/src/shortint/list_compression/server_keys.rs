@@ -1,7 +1,6 @@
 use super::private_key::NoiseSquashingCompressionPrivateKey;
 use super::CompressionPrivateKeys;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
@@ -14,6 +13,10 @@ use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
 use crate::shortint::parameters::{
     CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
     PolynomialSize,
+};
+use crate::shortint::prelude::ModulusSwitchType;
+use crate::shortint::server_key::{
+    PBSConformanceParams, PbsTypeConformanceParams, ShortintBootstrappingKey,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -29,53 +32,22 @@ pub struct CompressionKey {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DecompressionKeyVersions)]
-pub enum DecompressionKey {
-    Classic {
-        blind_rotate_key: FourierLweBootstrapKeyOwned,
-        lwe_per_glwe: LweCiphertextCount,
-    },
-    MultiBit {
-        multi_bit_blind_rotate_key: FourierLweMultiBitBootstrapKeyOwned,
-        lwe_per_glwe: LweCiphertextCount,
-        thread_count: ThreadCount,
-    },
+pub struct DecompressionKey {
+    pub(crate) bsk: ShortintBootstrappingKey<u64>,
+    pub(crate) lwe_per_glwe: LweCiphertextCount,
 }
 
 impl DecompressionKey {
     pub fn out_glwe_size(&self) -> GlweSize {
-        match self {
-            Self::Classic {
-                blind_rotate_key, ..
-            } => blind_rotate_key.glwe_size(),
-            Self::MultiBit {
-                multi_bit_blind_rotate_key,
-                ..
-            } => multi_bit_blind_rotate_key.glwe_size(),
-        }
+        self.bsk.glwe_size()
     }
 
     pub fn out_polynomial_size(&self) -> PolynomialSize {
-        match self {
-            Self::Classic {
-                blind_rotate_key, ..
-            } => blind_rotate_key.polynomial_size(),
-            Self::MultiBit {
-                multi_bit_blind_rotate_key,
-                ..
-            } => multi_bit_blind_rotate_key.polynomial_size(),
-        }
+        self.bsk.polynomial_size()
     }
 
     pub fn output_lwe_dimension(&self) -> LweDimension {
-        match self {
-            Self::Classic {
-                blind_rotate_key, ..
-            } => blind_rotate_key.output_lwe_dimension(),
-            Self::MultiBit {
-                multi_bit_blind_rotate_key,
-                ..
-            } => multi_bit_blind_rotate_key.output_lwe_dimension(),
-        }
+        self.bsk.output_lwe_dimension()
     }
 }
 
@@ -193,39 +165,16 @@ impl ParameterSetConformant for DecompressionKey {
     type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match self {
-            Self::Classic {
-                blind_rotate_key,
-                lwe_per_glwe,
-            } => {
-                let Ok(params) = parameter_set.try_into() else {
-                    return false;
-                };
+        let Self { bsk, lwe_per_glwe } = self;
 
-                blind_rotate_key.is_conformant(&params)
-                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
-            }
-            Self::MultiBit {
-                multi_bit_blind_rotate_key,
-                lwe_per_glwe,
-                thread_count,
-            } => {
-                let Ok(params) = parameter_set.try_into() else {
-                    return false;
-                };
+        let params = parameter_set.into();
 
-                multi_bit_blind_rotate_key.is_conformant(&params)
-                    && *lwe_per_glwe == parameter_set.lwe_per_glwe
-                    && thread_count.0 > 0
-            }
-        }
+        *lwe_per_glwe == parameter_set.lwe_per_glwe && bsk.is_conformant(&params)
     }
 }
 
-impl TryFrom<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
-    type Error = String;
-
-    fn try_from(value: &CompressionKeyConformanceParams) -> Result<Self, String> {
+impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
+    fn from(value: &CompressionKeyConformanceParams) -> Self {
         let CompressionKeyConformanceParams {
             br_level,
             br_base_log,
@@ -237,51 +186,27 @@ impl TryFrom<&CompressionKeyConformanceParams> for LweBootstrapKeyConformancePar
             ..
         } = value;
 
-        if decompression_grouping_factor.is_some() {
-            return Err("Expected classic PBS decompression conformance parameters, found multi bit parameters".to_owned());
-        }
-
-        Ok(Self {
-            decomp_base_log: *br_base_log,
-            decomp_level_count: *br_level,
-            input_lwe_dimension: packing_ks_glwe_dimension
-                .to_equivalent_lwe_dimension(*packing_ks_polynomial_size),
-            output_glwe_size: uncompressed_glwe_dimension.to_glwe_size(),
-            polynomial_size: *uncompressed_polynomial_size,
-            ciphertext_modulus: value.cipherext_modulus,
-        })
-    }
-}
-
-impl TryFrom<&CompressionKeyConformanceParams> for MultiBitBootstrapKeyConformanceParams<u64> {
-    type Error = String;
-
-    fn try_from(value: &CompressionKeyConformanceParams) -> Result<Self, String> {
-        let CompressionKeyConformanceParams {
-            br_level,
-            br_base_log,
-            packing_ks_polynomial_size,
-            packing_ks_glwe_dimension,
-            uncompressed_polynomial_size,
-            uncompressed_glwe_dimension,
-            decompression_grouping_factor,
-            ..
-        } = value;
-
-        let Some(grouping_factor) = decompression_grouping_factor.as_ref() else {
-            return Err("Expected multi bit PBS decompression conformance parameters, found classic parameters".to_owned());
+        #[allow(clippy::option_if_let_else)]
+        let pbs_type = if let Some(grouping_factor) = decompression_grouping_factor.as_ref() {
+            PbsTypeConformanceParams::MultiBit {
+                lwe_bsk_grouping_factor: *grouping_factor,
+            }
+        } else {
+            PbsTypeConformanceParams::Classic {
+                modulus_switch_noise_reduction: ModulusSwitchType::Standard,
+            }
         };
 
-        Ok(Self {
-            decomp_base_log: *br_base_log,
-            decomp_level_count: *br_level,
-            input_lwe_dimension: packing_ks_glwe_dimension
+        Self {
+            in_lwe_dimension: packing_ks_glwe_dimension
                 .to_equivalent_lwe_dimension(*packing_ks_polynomial_size),
-            output_glwe_size: uncompressed_glwe_dimension.to_glwe_size(),
-            polynomial_size: *uncompressed_polynomial_size,
+            out_glwe_dimension: *uncompressed_glwe_dimension,
+            out_polynomial_size: *uncompressed_polynomial_size,
+            base_log: *br_base_log,
+            level: *br_level,
+            pbs_type,
             ciphertext_modulus: value.cipherext_modulus,
-            grouping_factor: *grouping_factor,
-        })
+        }
     }
 }
 

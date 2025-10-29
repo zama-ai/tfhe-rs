@@ -16,6 +16,10 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKeyView;
 use crate::shortint::parameters::{CompressionParameters, NoiseSquashingCompressionParameters};
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ModulusSwitchConfiguration, ShortintBootstrappingKey,
+    ShortintCompressedBootstrappingKey,
+};
 use crate::shortint::{EncryptionKeyChoice, ShortintParameterSet};
 use std::fmt::Debug;
 
@@ -154,8 +158,11 @@ impl CompressionPrivateKeys {
                     pbs_params.ciphertext_modulus(),
                 );
 
-                DecompressionKey::Classic {
-                    blind_rotate_key,
+                DecompressionKey {
+                    bsk: ShortintBootstrappingKey::Classic {
+                        bsk: blind_rotate_key,
+                        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
+                    },
                     lwe_per_glwe: classic_compression_parameters.lwe_per_glwe,
                 }
             }
@@ -179,10 +186,13 @@ impl CompressionPrivateKeys {
                     multi_bit_compression_parameters.decompression_grouping_factor,
                 );
 
-                DecompressionKey::MultiBit {
-                    multi_bit_blind_rotate_key,
+                DecompressionKey {
+                    bsk: ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk: multi_bit_blind_rotate_key,
+                        thread_count,
+                        deterministic_execution: true,
+                    },
                     lwe_per_glwe: multi_bit_compression_parameters.lwe_per_glwe,
-                    thread_count,
                 }
             }
         }
@@ -215,8 +225,12 @@ impl CompressionPrivateKeys {
                     )
                 });
 
-                CompressedDecompressionKey::Classic {
-                    blind_rotate_key,
+                CompressedDecompressionKey {
+                    bsk: ShortintCompressedBootstrappingKey::Classic {
+                        bsk: blind_rotate_key,
+                        modulus_switch_noise_reduction_key:
+                            CompressedModulusSwitchConfiguration::Standard,
+                    },
                     lwe_per_glwe: classic_compression_parameters.lwe_per_glwe,
                 }
             }
@@ -234,8 +248,11 @@ impl CompressionPrivateKeys {
                     )
                 });
 
-                CompressedDecompressionKey::MultiBit {
-                    multi_bit_blind_rotate_key,
+                CompressedDecompressionKey {
+                    bsk: ShortintCompressedBootstrappingKey::MultiBit {
+                        seeded_bsk: multi_bit_blind_rotate_key,
+                        deterministic_execution: true,
+                    },
                     lwe_per_glwe: multi_bit_compression_parameters.lwe_per_glwe,
                 }
             }
