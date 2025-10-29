@@ -1,20 +1,46 @@
-# Run all integer benchmarks on a permanent HPU instance and return parsed results to Slab CI bot.
-name: benchmark_hpu_integer
+# Run benchmarks on a permanent HPU instance and return parsed results to Slab CI bot.
+name: benchmark_hpu_common
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      all_precisions:
-        description: "Run all precisions"
-        type: boolean
+      command: # Use a comma separated values to generate an array
+        type: string
+        required: true
+      op_flavor: # Use a comma separated values to generate an array
+        type: string
+        default: default
       bench_type:
-        description: "Benchmarks type"
-        type: choice
-        default: both
-        options:
-          - latency
-          - throughput
-          - both
+        type: string
+        default: latency
+      all_precisions:
+        type: boolean
+        default: false
+      v80_pcie_dev:
+        type: string
+        default: 24
+      v80_serial_number:
+        type: string
+        default: XFL12NWY3ZKG
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+      SSH_PRIVATE_KEY:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -28,15 +54,45 @@ permissions: {}
 
 jobs:
   prepare-matrix:
-    name: Prepare operations matrix
-    runs-on: v80-marais
+    name: benchmark_hpu_common/prepare-matrix
+    runs-on: ubuntu-latest
     outputs:
+      command: ${{ steps.set_command.outputs.command }}
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
       bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    env:
+      INPUTS_COMMAND: ${{ inputs.command }}
+      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
     steps:
-      - name: Set benchmark types
-        if: github.event_name == 'workflow_dispatch'
+      - name: Set single command
+        if: ${{ !contains(inputs.command, ',')}}
         run: |
-          if [[ -z $INPUTS_BENCH_TYPE || "${INPUTS_BENCH_TYPE}" == "both" ]]; then
+          echo "COMMAND=[\"${INPUTS_COMMAND}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set multiple commands
+        if: ${{ contains(inputs.command, ',')}}
+        run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
+          PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\", \"/g')
+          echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set single operations flavor
+        if: ${{ !contains(inputs.op_flavor, ',')}}
+        run: |
+          echo "OP_FLAVOR=[\"${INPUTS_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set multiple operations flavors
+        if: ${{ contains(inputs.op_flavor, ',')}}
+        run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
+          PARSED_OP_FLAVOR=$(echo "${INPUTS_OP_FLAVOR}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
+          echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set benchmark types
+        run: |
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
             echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
@@ -44,19 +100,23 @@ jobs:
         env:
           INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
 
-      - name: Default benchmark type
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
-      
+      - name: Set command output
+        id: set_command
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "command=${{ toJSON(env.COMMAND) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set operation flavor output
+        id: set_op_flavor
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
       - name: Set benchmark types output
         id: set_bench_type
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
-
-  integer-benchmarks-hpu:
-    name: benchmark_hpu_integer/integer-benchmarks-hpu
+  hpu-benchmarks:
+    name: benchmark_hpu_common/hpu-benchmarks
     needs: prepare-matrix
     runs-on: v80-marais
     concurrency:
@@ -66,6 +126,8 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
+        command: ${{ fromJSON(needs.prepare-matrix.outputs.command) }}
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
         bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       # Needed as long as hw_regmap repository is private
@@ -98,14 +160,6 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          repository: zama-ai/slab
-          path: slab
-          persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
       - name: Should run benchmarks with all precisions
         if: inputs.all_precisions
         run: |
@@ -113,16 +167,21 @@ jobs:
 
       - name: Select HPU board
         run: |
-          echo "V80_PCIE_DEV=24" >> "${GITHUB_ENV}"
-          echo "V80_SERIAL_NUMBER=XFL12NWY3ZKG" >> "${GITHUB_ENV}"
+          echo "V80_PCIE_DEV=${PCIE_DEV}" >> "${GITHUB_ENV}"
+          echo "V80_SERIAL_NUMBER=${SERIAL_NUMBER}" >> "${GITHUB_ENV}"
+        env:
+          PCIE_DEV: ${{ inputs.v80_pcie_dev }}
+          SERIAL_NUMBER: ${{ inputs.v80_serial_number }}
 
       - name: Run benchmarks
         run: |
           echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
           make pull_hpu_files
-          make BENCH_TYPE="${BENCH_TYPE}" bench_integer_hpu
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
         env:
+          OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
+          BENCH_COMMAND: ${{ matrix.command }}
 
       - name: Parse results
         run: |
@@ -145,6 +204,14 @@ jobs:
         with:
           name: ${{ github.sha }}_${{ matrix.bench_type }}_integer_benchmarks
           path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          repository: zama-ai/slab
+          path: slab
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
         shell: bash
