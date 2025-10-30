@@ -7,7 +7,7 @@ CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 RS_BUILD_TOOLCHAIN:=stable
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
-MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
+MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' Cargo.toml | cut -d '=' -f 2 | xargs)
 AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
