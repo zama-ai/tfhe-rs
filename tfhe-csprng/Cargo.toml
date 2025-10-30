@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-csprng"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 license = "BSD-3-Clause-Clear"
 description = "Cryptographically Secure PRNG used in the TFHE-rs library."
@@ -9,7 +9,7 @@ documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
-rust-version = "1.72"
+rust-version.workspace = true
 
 [dependencies]
 aes = "0.8.2"

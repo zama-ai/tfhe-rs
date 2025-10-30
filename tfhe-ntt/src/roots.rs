@@ -32,7 +32,7 @@ pub const fn sqrt_mod_ex64(p: Div64, q: u64, s: u64, z: u64, n: u64) -> Option<u
     let mut m = s;
     let mut c = exp_mod64(p, z, q);
     let mut t = exp_mod64(p, n, q);
-    let mut r = exp_mod64(p, n, (q + 1) / 2);
+    let mut r = exp_mod64(p, n, q.div_ceil(2));
 
     loop {
         if t == 0 {
