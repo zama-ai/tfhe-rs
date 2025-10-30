@@ -22,6 +22,10 @@ exclude = [
     "utils/tfhe-lints",
     "apps/trivium",
 ]
+
+[workspace.package]
+rust-version = "1.85"
+
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
 bytemuck = "<1.24"
