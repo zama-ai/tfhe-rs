@@ -544,6 +544,12 @@ class OperationPerformance:
 
         return f"{sign}{self.change_percentage}%"
 
+    def stddev_divergence_as_str(self):
+        divergence = (
+            abs(self.baseline_mean - self.head_branch_value) / self.baseline_stdev
+        )
+        return f"{divergence:.2f}x"
+
 
 def convert_value_to_readable_text(value_nanos: float, max_digits=3):
     """
@@ -645,6 +651,7 @@ OPERATION_HEADER = "Operation"
 CURRENT_VALUE_HEADER = "Current (ms)"
 BASELINE_VALUE_HEADER = "Baseline (ms)"
 BASELINE_STDDEV_HEADER = "Baseline Stddev (ms)"
+STDDEV_DIVERGENCE_HEADER = "Stddev Divergence"
 CHANGE_HEADER = "Change (%)"
 STATUS_HEADER = "Status"
 
@@ -675,6 +682,7 @@ def generate_regression_report(
             CURRENT_VALUE_HEADER: convert_value_to_readable_text(op.head_branch_value),
             BASELINE_VALUE_HEADER: convert_value_to_readable_text(op.baseline_mean),
             BASELINE_STDDEV_HEADER: convert_value_to_readable_text(op.baseline_stdev),
+            STDDEV_DIVERGENCE_HEADER: op.stddev_divergence_as_str(),
             CHANGE_HEADER: op.change_percentage_as_str(),
             STATUS_HEADER: " ".join((op.change_type.get_emoji(), op.change_type.value)),
         }
