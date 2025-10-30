@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-ntt"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 description = "tfhe-ntt is a pure Rust high performance number theoretic transform library."
 readme = "README.md"
@@ -8,7 +8,7 @@ repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 homepage = "https://zama.ai/"
 keywords = ["ntt"]
-rust-version = "1.67"
+rust-version.workspace = true
 
 
 [dependencies]
