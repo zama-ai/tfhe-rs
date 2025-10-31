@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ErrorKind {
     Message(String),
-    /// The provide range for a slicing operation was invalid
+    /// The provided range for a slicing operation was invalid
     InvalidRange(InvalidRangeError),
     /// The zero knowledge proof and the content it is supposed to prove
     /// failed to correctly prove
