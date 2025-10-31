@@ -306,11 +306,12 @@ mod pbs_stats {
         println!("ERC20 transfer/{fn_name}::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
+        let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::erc20::pbs_count::{fn_name}::{type_name}")
+            format!("hlapi::cuda::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
         } else {
-            format!("hlapi::erc20::pbs_count::{fn_name}::{type_name}")
+            format!("hlapi::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
         };
 
         let results_file = Path::new("erc20_pbs_count.csv");
@@ -327,7 +328,7 @@ mod pbs_stats {
         write_to_json::<u64, _>(
             &test_name,
             params,
-            params.name(),
+            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -351,7 +352,10 @@ fn bench_transfer_latency<FheType, F>(
     #[cfg(feature = "gpu")]
     configure_gpu(client_key);
 
-    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
+    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -368,12 +372,10 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    let params = client_key.computation_parameters();
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        params_name,
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -402,7 +404,11 @@ fn bench_transfer_latency_simd<FheType, F>(
         .src
         .len()
         / 3;
-    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
+    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -427,12 +433,10 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    let params = client_key.computation_parameters();
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        params_name,
         "erc20-simd-transfer",
         &OperatorType::Atomic,
         64,
@@ -454,10 +458,14 @@ fn bench_transfer_throughput<FheType, F>(
 {
     let mut rng = thread_rng();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -479,12 +487,10 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
@@ -513,11 +519,16 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
         .collect::<Vec<_>>();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     // 200 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
     let num_elems = 200 * num_gpus;
 
     group.throughput(Throughput::Elements(num_elems));
-    let bench_id = format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+    let bench_id = format!(
+        "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+    );
     group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)
             .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -565,12 +576,10 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    let params = client_key.computation_parameters();
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        &params_name,
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -593,10 +602,14 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 {
     let mut rng = thread_rng();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [10, 100] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -627,12 +640,10 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
@@ -663,11 +674,15 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
         .len()
         / 3;
     let mut rng = thread_rng();
+
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{real_num_elems}_elems");
+            format!("{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{real_num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| {
@@ -710,12 +725,10 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "erc20-simd-ransfer",
             &OperatorType::Atomic,
             64,
