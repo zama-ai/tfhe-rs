@@ -26,7 +26,7 @@ $$
 
 Note that $q = \lfloor \frac{v}{p} \rfloor$.
 
-The Barret reduction algorithm is explained and analyzed in this blog post: https://blog.zksecurity.xyz/posts/barrett-tighter-bound/ a major distinction to note is that the blog-post derives functions word-wise meaning that $b = 2^{32}$ or $2^{64}$. `tfhe-ntt` code is writtent in terms of bits so $b = 2$.
+The Barrett reduction algorithm is explained and analyzed in this blog post: https://blog.zksecurity.xyz/posts/barrett-tighter-bound/ a major distinction to note is that the blog-post derives functions word-wise meaning that $b = 2^{32}$ or $2^{64}$. `tfhe-ntt` code is written in terms of bits so $b = 2$.
 
 The `tfhe-ntt` code uses the Barrett reduction algorithm to compute a good first approximation $q_{barrett}$ of the quotient $q$ of the division of a given value $v$ by $p$. This in turns allows to compute a first approximation $r_{barrett}$ of $r$:
 

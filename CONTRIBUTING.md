@@ -5,7 +5,7 @@ This document provides guidance on how to contribute to **TFHE-rs**.
 There are two ways to contribute:
 
 - **Report issues:** Open issues on GitHub to report bugs, suggest improvements, or note typos.
-- **Submit codes**: To become an official contributor, you must sign our Contributor License Agreement (CLA). Our CLA-bot will guide you through this process when you open your first pull request.
+- **Submit code**: To become an official contributor, you must sign our Contributor License Agreement (CLA). Our CLA-bot will guide you through this process when you open your first pull request.
 
 ## 1. Setting up the project
 
