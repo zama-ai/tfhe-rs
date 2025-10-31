@@ -3,6 +3,33 @@ name: placeholder_workflow
 
 on:
   workflow_dispatch:
+    inputs:
+      command:
+        description: "Command to run"
+        type: string
+      op_flavor:
+        description: "Operation flavor to run"
+        type: string # Use comma separated values to generate an array
+        default: default
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
+      params_type:
+        description: "Parameters type"
+        type: choice
+        default: classical
+        options:
+          - classical
+          - multi_bit
+          - classical + multi_bit
+          - classical_documentation
+          - multi_bit_documentation
+          - classical_documentation + multi_bit_documentation
 
 permissions: {}
 
@@ -10,7 +37,118 @@ jobs:
   placeholder:
     name: placeholder_workflow/placeholder
     runs-on: ubuntu-latest
-
+    outputs:
+      command: ${{ steps.set_command.outputs.command }}
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+      params_type: ${{ steps.set_params_type.outputs.params_type }}
+    env:
+      INPUTS_COMMAND: ${{ inputs.command }}
+      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
     steps:
       - run: |
           echo "Hello this is a Placeholder Workflow"
+
+      - name: Test python interpretation
+        shell: python
+        run: |
+          split_command = "${{ inputs.command }}".replace(" ", "").split(",")
+          split_op_flavor = "${{ inputs.op_flavor }}".replace(" ", "").split(",")
+          
+          if "${{ inputs.bench_type }}" == "both":
+            bench_type = ["latency", "throughput"]
+          else: 
+            bench_type = ["${{ inputs.bench_type }}", ]
+          
+          if "+" in "${{ inputs.params_type }}":
+            split_params_type= "${{ inputs.params_type }}".replace(" ", "").split("+")
+          else:
+            split_params_type = ["${{ inputs.params_type }}", ]
+          
+          with open("${{ github.env }}", "a") as f:
+            for env_name, values_to_join in [
+              ("COMMAND", split_command),
+              ("OP_FLAVOR", split_op_flavor),
+              ("BENCH_TYPE", bench_type),
+              ("PARAMS_TYPE", split_params_type),
+            ]:
+              f.write(f'{env_name}=["{'", "'.join(values_to_join)}"]\n')
+            
+
+
+      - name: Set command output
+        id: set_command
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "command=${{ toJSON(env.COMMAND) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set operation flavor output
+        id: set_op_flavor
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set parameters types output
+        id: set_params_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "params_type=${{ toJSON(env.PARAMS_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check env setting
+        run: |
+          echo "command: ${{ steps.set_command.outputs.command }}"
+          echo "op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}"
+          echo "bench_type: ${{ steps.set_bench_type.outputs.bench_type }}"
+          echo "params_type: ${{ steps.set_params_type.outputs.params_type }}"
+          
+      
+
+#      - name: Set single command
+#        if: ${{ !contains(inputs.command, ',')}}
+#        run: |
+#          echo "COMMAND=[\"${INPUTS_COMMAND}\"]" >> "${GITHUB_ENV}"
+#
+#      - name: Set multiple commands
+#        if: ${{ contains(inputs.command, ',')}}
+#        run: |
+#          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+#          # shellcheck disable=SC2001
+#          PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\", \"/g')
+#          echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
+#
+#      - name: Set single operations flavor
+#        if: ${{ !contains(inputs.op_flavor, ',')}}
+#        run: |
+#          echo "OP_FLAVOR=[\"${INPUTS_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
+#
+#      - name: Set multiple operations flavors
+#        if: ${{ contains(inputs.op_flavor, ',')}}
+#        run: |
+#          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+#          # shellcheck disable=SC2001
+#          PARSED_OP_FLAVOR=$(echo "${INPUTS_OP_FLAVOR}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
+#          echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
+#
+#      - name: Set benchmark types
+#        run: |
+#          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
+#            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+#          else
+#            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
+#          fi
+#        env:
+#          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+#
+#      - name: Set parameters types
+#        run: |
+#          if [[ "${INPUTS_PARAM_TYPE}" == "classical + multi_bit" ]]; then
+#            echo "PARAM_TYPE=[\"classical\", \"multi_bit\"]" >> "${GITHUB_ENV}"
+#          elif [[ "${INPUTS_PARAM_TYPE}" == "classical_documentation + multi_bit_documentation" ]]; then
+#            echo "PARAM_TYPE=[\"classical_documentation\", \"multi_bit_documentation\"]" >> "${GITHUB_ENV}"
+#          else
+#            echo "PARAM_TYPE=[\"${INPUTS_PARAM_TYPE}\"]" >> "${GITHUB_ENV}"
+#          fi
+#        env:
+#          INPUTS_PARAMS_TYPE: ${{ inputs.params_type }}

@@ -31,6 +31,7 @@ jobs:
     outputs:
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
       all_precisions: ${{ steps.set_all_precisions.outputs.all_precisions }}
+      # TODO ajouter 3 sorties pour les benchmarks de la semaine/quarterly pour remplacer les envs
     steps:
       - name: Weekly benchmarks
         if: env.WEEKLY_BENCH_GROUP_1 || env.WEEKLY_BENCH_GROUP_2
