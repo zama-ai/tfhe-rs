@@ -44,18 +44,34 @@
 #   See ci/slab.toml file to have the list of all supported profiles.
 
 [gpu.default]
-target.integer = ["mul"]
-target.hlapi-dex = ["dex::swap_claim::no_cmux"]
+target.integer = [
+    "add",
+    "mul",
+    "div_rem",
+    "bitand",
+    "bitnot",
+    "left_shift",
+    "rotate_left",
+    "max",
+    "eq",
+    "gt",
+    "if_then_else",
+    "neg",
+    "leading_zeros",
+    "ilog2",
+]
+target.hlapi-dex = [
+    "swap_request::whitepaper",
+    "swap_request::no_cmux",
+    "swap_claim::whitepaper",
+    "swap_claim::no_cmux"
+]
+target.hlapi-erc20 = ["transfer::whitepaper", "transfer::no_cmux"]
+target.core_crypto-ks = ["keyswitch"]
+target.core_crypto-pbs = ["multi_bit_pbs"]
+parameters_filter = "PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128"
 slab.backend = "hyperstack"
-slab.profile = "single-h100"
-env.fast_bench = "TRUE"
-env.bench_param_type = "MULTI_BIT"
-
-[gpu.multi-h100]
-target.integer = ["mul", "div"]
-target.hlapi-dex = ["dex_swap"]
-slab.backend = "hyperstack"
-slab.profile = "multi-h100"
+slab.profile = "multi-h100-sxm5"
 env.fast_bench = "TRUE"
 env.bench_param_type = "MULTI_BIT"
 
