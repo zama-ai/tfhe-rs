@@ -1219,6 +1219,61 @@ where
         })
     }
 
+    /// Returns the estimated memory usage (in bytes) required on the GPU to perform
+    /// the `match_value` operation.
+    ///
+    /// This is useful to check if the operation fits in the GPU memory before attempting execution.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16, MatchValues};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(17u16, &client_key);
+    ///
+    /// let match_values = MatchValues::new(vec![(0u16, 3u16), (17u16, 25u16)]).unwrap();
+    ///
+    /// #[cfg(feature = "gpu")]
+    /// {
+    ///     let size_bytes = a.get_match_value_size_on_gpu(&match_values).unwrap();
+    ///     println!("Memory required on GPU: {} bytes", size_bytes);
+    ///     assert!(size_bytes > 0);
+    /// }
+    /// ```
+    #[cfg(feature = "gpu")]
+    pub fn get_match_value_size_on_gpu<Clear>(
+        &self,
+        matches: &MatchValues<Clear>,
+    ) -> crate::Result<u64>
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+    {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => Err(crate::Error::new(
+                "This function is only available when using the CUDA backend".to_string(),
+            )),
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let ct_on_gpu = self.ciphertext.on_gpu(streams);
+
+                let size = cuda_key
+                    .key
+                    .key
+                    .get_unchecked_match_value_size_on_gpu(&ct_on_gpu, matches, streams);
+                Ok(size)
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation.")
+            }
+        })
+    }
+
     /// `match` an input value to an output value
     ///
     /// - Input values are not required to span all possible values that `self` could hold. And the

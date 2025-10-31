@@ -5,7 +5,7 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_random_op_sequence::{
     random_op_sequence_test, BinaryOpExecutor, ComparisonOpExecutor, DivRemOpExecutor,
-    Log2OpExecutor, OprfBoundedExecutor, OprfCustomRangeExecutor, OprfExecutor,
+    Log2OpExecutor, MatchValueExecutor, OprfBoundedExecutor, OprfCustomRangeExecutor, OprfExecutor,
     OverflowingOpExecutor, ScalarBinaryOpExecutor, ScalarComparisonOpExecutor,
     ScalarDivRemOpExecutor, ScalarOverflowingOpExecutor, SelectOpExecutor, UnaryOpExecutor,
 };
@@ -56,6 +56,7 @@ pub(crate) fn random_op_sequence_test_init_gpu<P>(
         String,
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
+    match_value_ops: &mut [(MatchValueExecutor, String)],
     oprf_ops: &mut [(OprfExecutor, String)],
     oprf_bounded_ops: &mut [(OprfBoundedExecutor, String)],
     oprf_custom_range_ops: &mut [(OprfCustomRangeExecutor, String)],
@@ -89,6 +90,7 @@ where
         + div_rem_op.len()
         + scalar_div_rem_op.len()
         + log2_ops.len()
+        + match_value_ops.len()
         + oprf_ops.len()
         + oprf_bounded_ops.len()
         + oprf_custom_range_ops.len();
@@ -138,6 +140,9 @@ where
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
     for x in log2_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
+    for x in match_value_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
     for x in oprf_ops.iter_mut() {
@@ -314,6 +319,8 @@ where
         "ilog2".to_string(),
     )];
 
+    let mut match_value_ops: Vec<(MatchValueExecutor, String)> = vec![];
+
     let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![];
     let mut oprf_bounded_ops: Vec<(OprfBoundedExecutor, String)> = vec![];
     let mut oprf_custom_range_ops: Vec<(OprfCustomRangeExecutor, String)> = vec![];
@@ -331,6 +338,7 @@ where
         &mut div_rem_op,
         &mut scalar_div_rem_op,
         &mut log2_ops,
+        &mut match_value_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,
@@ -351,6 +359,7 @@ where
         &mut div_rem_op,
         &mut scalar_div_rem_op,
         &mut log2_ops,
+        &mut match_value_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,
@@ -769,6 +778,12 @@ where
         //),
     ];
 
+    // Match Value Executor
+    let match_value_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::match_value);
+    let mut match_value_ops: Vec<(MatchValueExecutor, String)> =
+        vec![(Box::new(match_value_executor), "match_value".to_string())];
+
     // OPRF Executors
     let oprf_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
         &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
@@ -803,6 +818,7 @@ where
         &mut div_rem_op,
         &mut scalar_div_rem_op,
         &mut log2_ops,
+        &mut match_value_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,
@@ -823,6 +839,7 @@ where
         &mut div_rem_op,
         &mut scalar_div_rem_op,
         &mut log2_ops,
+        &mut match_value_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,

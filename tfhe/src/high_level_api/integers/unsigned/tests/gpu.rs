@@ -10,7 +10,7 @@ use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
 };
 use crate::shortint::ClassicPBSParameters;
-use crate::{set_server_key, ClientKey, ConfigBuilder, FheBool, FheUint32, GpuIndex};
+use crate::{set_server_key, ClientKey, ConfigBuilder, FheBool, FheUint32, GpuIndex, MatchValues};
 use rand::Rng;
 
 /// GPU setup for tests
@@ -179,6 +179,18 @@ fn test_ilog2_multibit() {
 fn test_min_max() {
     let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     super::test_case_min_max(&client_key);
+}
+
+#[test]
+fn test_match_value_gpu() {
+    let client_key = setup_default_gpu();
+    super::test_case_match_value(&client_key);
+}
+
+#[test]
+fn test_match_value_gpu_multibit() {
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    super::test_case_match_value(&client_key);
 }
 
 #[test]
@@ -383,4 +395,23 @@ fn test_gpu_get_div_size_on_gpu() {
     check_valid_cuda_malloc_assert_oom(scalar_div_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_rem_tmp_buffer_size, GpuIndex::new(0));
     check_valid_cuda_malloc_assert_oom(scalar_div_rem_tmp_buffer_size, GpuIndex::new(0));
+}
+
+#[test]
+fn test_gpu_get_match_value_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    a.move_to_current_device();
+    let match_values = MatchValues::new(vec![
+        (0u32, 10u32),
+        (1u32, 20u32),
+        (clear_a, 30u32),
+        (u32::MAX, 40u32),
+    ])
+    .unwrap();
+    let memory_size = a.get_match_value_size_on_gpu(&match_values).unwrap();
+    check_valid_cuda_malloc_assert_oom(memory_size, GpuIndex::new(0));
+    assert!(memory_size > 0);
 }

@@ -5,7 +5,7 @@ use crate::integer::{
     BooleanBlock, IntegerCiphertext, RadixCiphertext, RadixClientKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::NoiseLevel;
-use crate::CompressedServerKey;
+use crate::{CompressedServerKey, MatchValues};
 use rand::Rng;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
@@ -268,6 +268,37 @@ impl<
         }
     }
 }
+
+impl RandomOpSequenceDataGenerator<u64, RadixCiphertext> {
+    #[allow(clippy::manual_is_multiple_of)]
+    pub(crate) fn gen_match_values(&mut self, key_to_match: u64) -> (MatchValues<u64>, u64, bool) {
+        let mut pairings = Vec::new();
+        let does_match = self.deterministic_seeder.seed().0 % 2 == 0;
+        let match_output_val = self.deterministic_seeder.seed().0 as u64;
+
+        let num_elements = (self.deterministic_seeder.seed().0 % 20) + 1;
+        for _ in 0..num_elements {
+            let k = self.deterministic_seeder.seed().0 as u64;
+            let v = self.deterministic_seeder.seed().0 as u64;
+            if k != key_to_match {
+                pairings.push((k, v));
+            }
+        }
+
+        if does_match {
+            pairings.push((key_to_match, match_output_val));
+        }
+
+        let mv = MatchValues::new(pairings).expect("Failed to create MatchValues");
+
+        (
+            mv,
+            if does_match { match_output_val } else { 0 },
+            does_match,
+        )
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sanity_check_op_sequence_result_u64(
     op_index: usize,

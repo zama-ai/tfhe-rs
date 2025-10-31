@@ -6,7 +6,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
-use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex};
+use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex, MatchValues};
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
 
@@ -442,6 +442,50 @@ where
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(input, &context.streams);
 
         let d_res = (self.func)(&context.sks, &d_ctxt_1, &context.streams);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.streams),
+            d_res.1.to_boolean_block(&context.streams),
+        )
+    }
+}
+
+/// For match_value operation
+impl<'a, F>
+    OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a MatchValues<u64>),
+        (RadixCiphertext, BooleanBlock),
+    > for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &MatchValues<u64>,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a MatchValues<u64>),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
         (
             d_res.0.to_radix_ciphertext(&context.streams),
