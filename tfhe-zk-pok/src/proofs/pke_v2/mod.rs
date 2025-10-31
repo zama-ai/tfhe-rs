@@ -1773,7 +1773,7 @@ pub fn verify_impl<G: Curve>(
     let decoded_q = decode_q(q);
 
     // FIXME: div_round
-    let delta = {
+    let delta_encoding = {
         // delta takes the encoding with the padding bit
         (decoded_q / t_input as u128) as u64
     };
@@ -1832,18 +1832,6 @@ pub fn verify_impl<G: Curve>(
 
     let (theta, theta_hash) = t_hash.gen_theta();
 
-    let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(
-        &mut a_theta,
-        &theta,
-        a,
-        d,
-        k,
-        b,
-        effective_cleartext_t,
-        delta,
-    );
-
     let t_theta = theta
         .iter()
         .copied()
@@ -1861,67 +1849,108 @@ pub fn verify_impl<G: Curve>(
 
     let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
 
-    let rhs = pairing(pi, g_hat);
-    let lhs = {
-        let lhs0 = pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin);
-        let lhs1 = pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e);
+    let mut a_theta = vec![G::Zp::ZERO; D];
 
-        let lhs2 = pairing(
-            C_r_tilde,
-            match compute_load_proof_fields.as_ref() {
-                Some(&ComputeLoadProofFields {
-                    C_hat_h3,
-                    C_hat_w: _,
-                }) => C_hat_h3,
-                None => G::G2::multi_mul_scalar(
-                    &g_hat_list[n - (d + k)..n],
-                    &(0..d + k)
-                        .rev()
-                        .map(|j| {
-                            let mut acc = G::Zp::ZERO;
-                            for (i, &phi) in phi.iter().enumerate() {
-                                match R(i, d + k + 4 + j) {
-                                    0 => {}
-                                    1 => acc += phi,
-                                    -1 => acc -= phi,
-                                    _ => unreachable!(),
+    let mut rhs = None;
+    let mut lhs0 = None;
+    let mut lhs1 = None;
+    let mut lhs2 = None;
+    let mut lhs3 = None;
+    let mut lhs4 = None;
+    let mut lhs5 = None;
+    let mut lhs6 = None;
+
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            compute_a_theta::<G>(
+                &mut a_theta,
+                &theta,
+                a,
+                d,
+                k,
+                b,
+                effective_cleartext_t,
+                delta_encoding,
+            )
+        });
+        s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
+        s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
+        s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
+        s.spawn(|_| {
+            lhs2 = Some(pairing(
+                C_r_tilde,
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3,
+                        C_hat_w: _,
+                    }) => C_hat_h3,
+                    None => G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
                                 }
-                            }
-                            delta_r * acc - delta_theta_q * theta[j]
-                        })
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    ),
+                },
+            ))
+        });
+        s.spawn(|_| {
+            lhs3 = Some(pairing(
+                C_R,
+                G::G2::multi_mul_scalar(
+                    &g_hat_list[n - 128..n],
+                    &(0..128)
+                        .rev()
+                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
                         .collect::<Box<[_]>>(),
                 ),
-            },
-        );
-        let lhs3 = pairing(
-            C_R,
-            G::G2::multi_mul_scalar(
-                &g_hat_list[n - 128..n],
-                &(0..128)
-                    .rev()
-                    .map(|j| delta_r * phi[j] + delta_dec * xi[j])
-                    .collect::<Box<[_]>>(),
-            ),
-        );
-        let lhs4 = pairing(
-            C_e.mul_scalar(delta_e),
-            match compute_load_proof_fields.as_ref() {
-                Some(&ComputeLoadProofFields {
-                    C_hat_h3: _,
-                    C_hat_w,
-                }) => C_hat_w,
-                None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
-            },
-        );
-        let lhs5 = pairing(C_y.mul_scalar(delta_eq), C_hat_t);
-        let lhs6 = pairing(
-            G::G1::projective(g_list[0]),
-            G::G2::projective(g_hat_list[n - 1]),
-        )
-        .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared));
+            ))
+        });
+        s.spawn(|_| {
+            lhs4 = Some(pairing(
+                C_e.mul_scalar(delta_e),
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3: _,
+                        C_hat_w,
+                    }) => C_hat_w,
+                    None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
+                },
+            ))
+        });
+        s.spawn(|_| lhs5 = Some(pairing(C_y.mul_scalar(delta_eq), C_hat_t)));
+        s.spawn(|_| {
+            lhs6 = Some(
+                pairing(
+                    G::G1::projective(g_list[0]),
+                    G::G2::projective(g_hat_list[n - 1]),
+                )
+                .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared)),
+            )
+        });
+    });
 
-        lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6
-    };
+    let rhs = rhs.unwrap();
+    let lhs0 = lhs0.unwrap();
+    let lhs1 = lhs1.unwrap();
+    let lhs2 = lhs2.unwrap();
+    let lhs3 = lhs3.unwrap();
+    let lhs4 = lhs4.unwrap();
+    let lhs5 = lhs5.unwrap();
+    let lhs6 = lhs6.unwrap();
+
+    let lhs = lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6;
 
     if lhs != rhs {
         return Err(());
@@ -2066,24 +2095,33 @@ pub fn verify_impl<G: Curve>(
     let chi3 = chi2 * chi;
     let chi4 = chi3 * chi;
 
-    let lhs = pairing(
-        C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
-        g_hat,
-    ) + pairing(
-        g,
-        {
-            let mut C_hat = C_hat_t.mul_scalar(chi2);
-            if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
-                C_hat += C_hat_h3.mul_scalar(chi3);
-                C_hat += C_hat_w.mul_scalar(chi4);
-            }
-            C_hat
-        } - g_hat.mul_scalar(p_t * chi2 + p_h3 * chi3 + p_omega * chi4),
+    let (lhs, rhs) = rayon::join(
+        || {
+            pairing(
+                C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
+                g_hat,
+            ) + pairing(
+                g,
+                {
+                    let mut C_hat = C_hat_t.mul_scalar(chi2);
+                    if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) =
+                        compute_load_proof_fields
+                    {
+                        C_hat += C_hat_h3.mul_scalar(chi3);
+                        C_hat += C_hat_w.mul_scalar(chi4);
+                    }
+                    C_hat
+                } - g_hat.mul_scalar(p_t * chi2 + p_h3 * chi3 + p_omega * chi4),
+            )
+        },
+        || {
+            pairing(
+                pi_kzg,
+                G::G2::projective(g_hat_list[0]) - g_hat.mul_scalar(z),
+            )
+        },
     );
-    let rhs = pairing(
-        pi_kzg,
-        G::G2::projective(g_hat_list[0]) - g_hat.mul_scalar(z),
-    );
+
     if lhs != rhs {
         Err(())
     } else {
