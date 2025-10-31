@@ -1629,6 +1629,45 @@ unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_compute_equality_selectors_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_possible_values: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_compute_equality_selectors_64(
+        streams: CudaStreamsFFI,
+        lwe_array_out_list: *mut CudaRadixCiphertextFFI,
+        many_luts_output_list: *const *const CudaRadixCiphertextFFI,
+        h_decomposed_cleartexts: *const u64,
+        mem: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_compute_equality_selectors_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

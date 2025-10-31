@@ -735,6 +735,24 @@ void cuda_integer_ilog2_64(
 
 void cleanup_cuda_integer_ilog2_64(CudaStreamsFFI streams,
                                    int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_compute_equality_selectors_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_possible_values, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_compute_equality_selectors_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_list,
+    CudaRadixCiphertextFFI const *const *many_luts_output_list,
+    const uint64_t *h_decomposed_cleartexts, int8_t *mem, void *const *bsks,
+    void *const *ksks);
+
+void cleanup_cuda_compute_equality_selectors_64(CudaStreamsFFI streams,
+                                                int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H

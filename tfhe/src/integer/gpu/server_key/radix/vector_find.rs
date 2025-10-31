@@ -1,12 +1,13 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::core_crypto::prelude::{LweBskGroupingFactor, UnsignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
-use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{cuda_backend_compute_equality_selectors, PBSType};
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::prelude::CastInto;
 use itertools::Itertools;
@@ -1407,7 +1408,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
         Iter: ParallelIterator<Item = Clear>,
-        Clear: Decomposable + CastInto<usize>,
+        Clear: Decomposable + CastInto<usize> + Send + Sync,
     {
         assert!(
             ct.block_carries_are_empty(),
@@ -1416,12 +1417,11 @@ impl CudaServerKey {
         assert!(
             self.carry_modulus.0 >= self.message_modulus.0,
             "This function uses many LUTs in a way that requires to have at least as much carry \
-                space as message space ({:?} vs {:?})",
+            space as message space ({:?} vs {:?})",
             self.carry_modulus,
             self.message_modulus
         );
-        // Contains the LUTs used to compare a block with scalar block values
-        // in many LUTs format for efficiency
+
         let luts = {
             let scalar_block_cmp_fns = (0..self.message_modulus.0)
                 .map(|msg_value| move |block: u64| u64::from(block == msg_value))
@@ -1438,43 +1438,97 @@ impl CudaServerKey {
         let blocks_cmps = self.apply_many_lookup_table(ct.as_ref(), &luts, streams);
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
-        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-        let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
-        let lwe_size = lwe_dimension.to_lwe_size().0;
-        possible_input_values
-            .map(|input_value| {
-                let cmps: Vec<usize> = BlockDecomposer::new(input_value, num_bits_in_message)
-                    .take(num_blocks)
-                    .map(|block_value| block_value.cast_into())
-                    .collect::<Vec<_>>();
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
-                let mut d_ct_res: CudaUnsignedRadixCiphertext =
-                    self.create_trivial_zero_radix(num_blocks, streams);
-                // Here we jump between the results of the many luts to build the final result
-                for (block_index, block_value) in cmps.iter().enumerate() {
-                    let mut dest_slice = d_ct_res
-                        .as_mut()
-                        .d_blocks
-                        .0
-                        .d_vec
-                        .as_mut_slice(block_index * lwe_size..lwe_size * (block_index + 1), 0)
-                        .unwrap();
-                    // block_value gives us the index of the many lut we need to use for each block
-                    let mut copy_ct = blocks_cmps[*block_value].duplicate(streams);
-                    let src_slice = copy_ct
-                        .d_blocks
-                        .0
-                        .d_vec
-                        .as_mut_slice(block_index * lwe_size..lwe_size * (block_index + 1), 0)
-                        .unwrap();
-                    unsafe {
-                        dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-                        streams.synchronize();
-                    }
-                }
-                self.unchecked_are_all_comparisons_block_true(&d_ct_res, streams)
+        let clear_values: Vec<Clear> = possible_input_values.collect();
+        let num_possible_values = clear_values.len() as u32;
+
+        if num_possible_values == 0 {
+            return vec![];
+        }
+
+        let h_decomposed_cleartexts: Vec<u64> = clear_values
+            .into_par_iter()
+            .flat_map(|input_value| {
+                BlockDecomposer::new(input_value, num_bits_in_message)
+                    .take(num_blocks as usize)
+                    .map(|block_value| block_value.cast_into() as u64)
+                    .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        let mut result_vec: Vec<CudaBooleanBlock> = (0..num_possible_values)
+            .map(|_| {
+                CudaBooleanBlock(
+                    self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams),
+                )
+            })
+            .collect();
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_compute_equality_selectors(
+                        streams,
+                        &mut result_vec,
+                        &blocks_cmps,
+                        &h_decomposed_cleartexts,
+                        num_possible_values,
+                        num_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_compute_equality_selectors(
+                        streams,
+                        &mut result_vec,
+                        &blocks_cmps,
+                        &h_decomposed_cleartexts,
+                        num_possible_values,
+                        num_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+
+        result_vec
     }
 
     /// Creates a vector of radix ciphertext from an iterator that associates encrypted boolean
