@@ -13,13 +13,14 @@ pub use lwe_programmable_bootstrap::{
 
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::dispersion::Variance;
+use crate::core_crypto::commons::math::random::DynamicDistribution;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateLweBootstrapResult, AllocateLweMultiBitBlindRotateResult, LweUncorrelatedAdd,
     LweUncorrelatedSub, ScalarMul, ScalarMulAssign,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulusLog, GlweDimension, LweDimension, PolynomialSize,
+    CiphertextModulusLog, GlweDimension, GlweSize, LweDimension, PolynomialSize,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,6 +68,40 @@ impl NoiseSimulationModulus {
         match self {
             Self::NativeU128 => 2.0f64.powi(128),
             Self::Other(val) => *val as f64,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NoiseSimulationNoiseDistribution {
+    U32(DynamicDistribution<u32>),
+    U64(DynamicDistribution<u64>),
+    U128(DynamicDistribution<u128>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NoiseSimulationNoiseDistributionKind {
+    Gaussian,
+    TUniform,
+}
+
+impl NoiseSimulationNoiseDistribution {
+    pub fn kind(&self) -> NoiseSimulationNoiseDistributionKind {
+        match self {
+            Self::U32(dynamic_distribution) => dynamic_distribution.into(),
+            Self::U64(dynamic_distribution) => dynamic_distribution.into(),
+            Self::U128(dynamic_distribution) => dynamic_distribution.into(),
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger> From<&DynamicDistribution<Scalar>>
+    for NoiseSimulationNoiseDistributionKind
+{
+    fn from(value: &DynamicDistribution<Scalar>) -> Self {
+        match value {
+            DynamicDistribution::Gaussian(_) => Self::Gaussian,
+            DynamicDistribution::TUniform(_) => Self::TUniform,
         }
     }
 }
@@ -209,6 +244,10 @@ mod simulation_ciphertexts {
 
         pub fn glwe_dimension(&self) -> GlweDimension {
             self.glwe_dimension
+        }
+
+        pub fn glwe_size(&self) -> GlweSize {
+            self.glwe_dimension().to_glwe_size()
         }
 
         pub fn polynomial_size(&self) -> PolynomialSize {

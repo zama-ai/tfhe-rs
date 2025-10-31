@@ -35,6 +35,11 @@ use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PrecisionWithPadding {
+    value: u32,
+}
+
 pub fn normality_check(
     noise_samples: &[f64],
     check_location: &str,
@@ -187,7 +192,7 @@ pub fn encrypt_new_noiseless_lwe<
 #[derive(Clone, Copy)]
 pub struct PfailAndPrecision {
     pfail: f64,
-    precision_with_padding: u32,
+    precision_with_padding: PrecisionWithPadding,
 }
 
 impl PfailAndPrecision {
@@ -215,7 +220,7 @@ impl PfailAndPrecision {
         self.pfail
     }
 
-    pub fn precision_with_padding(&self) -> u32 {
+    pub fn precision_with_padding(&self) -> PrecisionWithPadding {
         self.precision_with_padding
     }
 }
@@ -310,9 +315,9 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
     println!("expected_pfail={expected_pfail}");
 
     let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
-        new_precision_with_padding,
+        new_precision_with_padding.value,
         measured_pfail,
-        original_precision_with_padding,
+        original_precision_with_padding.value,
     );
 
     println!("equivalent_measured_pfail={equivalent_measured_pfail}");
@@ -336,14 +341,14 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
         println!("pfail_upper_bound={pfail_upper_bound}");
 
         let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
-            new_precision_with_padding,
+            new_precision_with_padding.value,
             pfail_lower_bound,
-            original_precision_with_padding,
+            original_precision_with_padding.value,
         );
         let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
-            new_precision_with_padding,
+            new_precision_with_padding.value,
             pfail_upper_bound,
-            original_precision_with_padding,
+            original_precision_with_padding.value,
         );
 
         println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
@@ -529,9 +534,9 @@ pub fn update_ap_params_for_pfail(
     }
 
     let new_expected_pfail = equivalent_pfail_gaussian_noise(
-        orig_pfail_and_precision.precision_with_padding(),
+        orig_pfail_and_precision.precision_with_padding().value,
         orig_pfail_and_precision.pfail(),
-        precision_with_padding(ap_params.message_modulus(), ap_params.carry_modulus()),
+        precision_with_padding(ap_params.message_modulus(), ap_params.carry_modulus()).value,
     );
     let new_expected_log2_pfail = new_expected_pfail.log2();
 
@@ -560,8 +565,41 @@ pub fn update_ap_params_for_pfail(
     (orig_pfail_and_precision, new_expected_pfail)
 }
 
-pub fn precision_with_padding(msg_mod: MessageModulus, carr_mod: CarryModulus) -> u32 {
-    let cleartext_modulus = msg_mod.0 * carr_mod.0;
+pub fn precision_with_padding(
+    msg_mod: MessageModulus,
+    carry_mod: CarryModulus,
+) -> PrecisionWithPadding {
+    let cleartext_modulus = msg_mod.0 * carry_mod.0;
     assert!(cleartext_modulus.is_power_of_two());
-    cleartext_modulus.ilog2() + 1
+    PrecisionWithPadding {
+        value: cleartext_modulus.ilog2() + 1,
+    }
+}
+
+pub fn expected_pfail_for_precision(
+    precision_with_padding: PrecisionWithPadding,
+    variance: Variance,
+) -> f64 {
+    // The additional 1 is to guarantee proper decryption
+    let precision_for_proper_decryption: i32 =
+        (precision_with_padding.value + 1).try_into().unwrap();
+    let correctness_threshold = 2.0f64.powi(-precision_for_proper_decryption);
+
+    let measured_std_dev = variance.get_standard_dev().0;
+    let measured_std_score = correctness_threshold / measured_std_dev;
+
+    statrs::function::erf::erfc(measured_std_score / core::f64::consts::SQRT_2)
+}
+
+#[test]
+fn test_expected_pfail_for_ci_run_filter() {
+    // Practical check on a compression-like scenario, of interest because pfail is known to be very
+    // low
+    let precision_with_padding = precision_with_padding(MessageModulus(1 << 2), CarryModulus(1));
+    let theoretical_variance = Variance(1.0216297411906617e-5);
+
+    assert_eq!(
+        expected_pfail_for_precision(precision_with_padding, theoretical_variance).log2(),
+        -280.4295428516361
+    );
 }
