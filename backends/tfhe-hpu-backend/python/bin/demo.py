@@ -3,7 +3,7 @@
 from pandas import DataFrame
 from isctrace.analysis import Refilled, Retired, Trace
 
-freq_mhz = 300
+freq_mhz = 400
 
 iops = Trace.from_hw("data/trace.json")
 
