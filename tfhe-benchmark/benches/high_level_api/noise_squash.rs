@@ -77,11 +77,12 @@ fn bench_sns_only_fhe_type<FheType>(
 
     let mut bench_group = c.benchmark_group(type_name);
     let bench_id_prefix = if cfg!(feature = "gpu") {
-        format!("hlapi::cuda::{}", noise_param.name())
+        "hlapi::cuda".to_string()
     } else {
         "hlapi".to_string()
     };
-    let bench_id_suffix = format!("noise_squash::{type_name}");
+    let noise_param_name = noise_param.name();
+    let bench_id_suffix = format!("noise_squash::{noise_param_name}::{type_name}");
 
     let mut rng = thread_rng();
 
@@ -218,11 +219,12 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 
     let mut bench_group = c.benchmark_group(type_name);
     let bench_id_prefix = if cfg!(feature = "gpu") {
-        format!("hlapi::cuda::{}", noise_param.name())
+        "hlapi::cuda".to_string()
     } else {
         "hlapi".to_string()
     };
-    let bench_id_suffix = format!("decomp_noise_squash_comp::{type_name}");
+    let noise_param_name = noise_param.name();
+    let bench_id_suffix = format!("decomp_noise_squash_comp::{noise_param_name}::{type_name}");
 
     let mut rng = thread_rng();
 

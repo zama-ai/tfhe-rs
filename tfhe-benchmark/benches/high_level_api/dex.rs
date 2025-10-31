@@ -252,12 +252,13 @@ mod pbs_stats {
         println!("ERC20 swap request update dex balance/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
+        let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{type_name}")
+            format!("hlapi::cuda::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{params_name}::{type_name}")
         } else {
             format!(
-                "hlapi::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{type_name}"
+                "hlapi::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{params_name}::{type_name}"
             )
         };
 
@@ -275,7 +276,7 @@ mod pbs_stats {
         write_to_json::<u64, _>(
             &test_name,
             params,
-            params.name(),
+            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -306,11 +307,14 @@ mod pbs_stats {
         println!("ERC20 swap request finalize/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
+        let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::pbs_count::swap_request_finalize::{type_name}")
+            format!(
+                "hlapi::cuda::dex::pbs_count::swap_request_finalize::{params_name}::{type_name}"
+            )
         } else {
-            format!("hlapi::dex::pbs_count::swap_request_finalize::{type_name}")
+            format!("hlapi::dex::pbs_count::swap_request_finalize::{params_name}::{type_name}")
         };
 
         let results_file = Path::new("dex_swap_request_finalize_pbs_count.csv");
@@ -327,7 +331,7 @@ mod pbs_stats {
         write_to_json::<u64, _>(
             &test_name,
             params,
-            params.name(),
+            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -368,11 +372,12 @@ mod pbs_stats {
         println!("ERC20 swap claim prepare/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
+        let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::pbs_count::dex::swap_claim_prepare::{type_name}")
+            format!("hlapi::cuda::pbs_count::dex::swap_claim_prepare::{params_name}::{type_name}")
         } else {
-            format!("hlapi::dex::pbs_count::swap_claim_prepare::{type_name}")
+            format!("hlapi::dex::pbs_count::swap_claim_prepare::{params_name}::{type_name}")
         };
 
         let results_file = Path::new("dex_swap_claim_prepare_pbs_count.csv");
@@ -389,7 +394,7 @@ mod pbs_stats {
         write_to_json::<u64, _>(
             &test_name,
             params,
-            params.name(),
+            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -427,11 +432,12 @@ mod pbs_stats {
         println!("ERC20 swap claim update dex balance/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
+        let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::pbs_count::dex::swap_claim_update_dex_balance::{fn_name}::{type_name}")
+            format!("hlapi::cuda::pbs_count::dex::swap_claim_update_dex_balance::{fn_name}::{params_name}::{type_name}")
         } else {
-            format!("hlapi::dex::pbs_count::swap_claim_update_dex_balance:::{fn_name}:{type_name}")
+            format!("hlapi::dex::pbs_count::swap_claim_update_dex_balance::{fn_name}::{params_name}::{type_name}")
         };
 
         let results_file = Path::new("dex_swap_claim_update_dex_balance_pbs_count.csv");
@@ -448,7 +454,7 @@ mod pbs_stats {
         write_to_json::<u64, _>(
             &test_name,
             params,
-            params.name(),
+            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -472,6 +478,9 @@ fn bench_swap_request_latency<FheType, F1, F2>(
 {
     #[cfg(feature = "gpu")]
     configure_gpu(client_key);
+
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
 
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
@@ -512,12 +521,10 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    let params = client_key.computation_parameters();
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        params_name,
         "dex-swap-request",
         &OperatorType::Atomic,
         64,
@@ -541,10 +548,14 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
 {
     let mut rng = thread_rng();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [10, 50, 100] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -626,12 +637,10 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -662,10 +671,14 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
         .collect::<Vec<_>>();
     let dex_balance_update_sks = compressed_server_key.decompress_to_gpu();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [5 * num_gpus, 10 * num_gpus, 20 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -836,12 +849,10 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -866,7 +877,10 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
     #[cfg(feature = "gpu")]
     configure_gpu(client_key);
 
-    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
+    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -911,12 +925,10 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    let params = client_key.computation_parameters();
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        &params_name,
         "dex-swap-claim",
         &OperatorType::Atomic,
         64,
@@ -940,10 +952,14 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
 {
     let mut rng = thread_rng();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [2, 6, 10] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pendings_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -1043,12 +1059,10 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
@@ -1079,10 +1093,14 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
         .collect::<Vec<_>>();
     let dex_balance_update_sks = compressed_server_key.decompress_to_gpu();
 
+    let params = client_key.computation_parameters();
+    let params_name = params.name();
+
     for num_elems in [num_gpus, 2 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id = format!(
+            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pendings_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -1248,12 +1266,10 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        let params = client_key.computation_parameters();
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            &params_name,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
