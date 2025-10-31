@@ -64,7 +64,7 @@ def generate_json_regression_file(
             print(error_msg.format("HEAD", user_config.head_branch, layer, ops))
             raise
 
-        if params_filter and layer != Layer.HLApi:
+        if params_filter:
             head_branch_data = dict(
                 filter(
                     lambda item: params_filter in item[0].params,
