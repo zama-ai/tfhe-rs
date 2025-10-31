@@ -776,6 +776,80 @@ void cuda_integer_ilog2_64(
 
 void cleanup_cuda_integer_ilog2_64(CudaStreamsFFI streams,
                                    int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_compute_equality_selectors_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_possible_values, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_compute_equality_selectors_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_list,
+    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
+    const uint64_t *h_decomposed_cleartexts, int8_t *mem, void *const *bsks,
+    void *const *ksks);
+
+void cleanup_cuda_compute_equality_selectors_64(CudaStreamsFFI streams,
+                                                int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_create_possible_results_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_possible_values, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_create_possible_results_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_list,
+    CudaRadixCiphertextFFI const *lwe_array_in_list,
+    uint32_t num_possible_values, const uint64_t *h_decomposed_cleartexts,
+    uint32_t num_blocks, int8_t *mem, void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_create_possible_results_64(CudaStreamsFFI streams,
+                                             int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_aggregate_one_hot_vector_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t num_matches, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_aggregate_one_hot_vector_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_list,
+    uint32_t num_input_ciphertexts, uint32_t num_blocks, int8_t *mem,
+    void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_aggregate_one_hot_vector_64(CudaStreamsFFI streams,
+                                              int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_unchecked_match_value_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_matches, uint32_t num_input_blocks,
+    uint32_t num_output_packed_blocks, uint32_t max_output_is_zero,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_unchecked_match_value_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result,
+    CudaRadixCiphertextFFI *lwe_array_out_boolean,
+    CudaRadixCiphertextFFI const *lwe_array_in_ct,
+    const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
+    int8_t *mem, void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_unchecked_match_value_64(CudaStreamsFFI streams,
+                                           int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H

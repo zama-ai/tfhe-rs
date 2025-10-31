@@ -1,8 +1,9 @@
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8};
+use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues};
 use rand::{thread_rng, Rng};
+use std::collections::HashMap;
 
 mod cpu;
 #[cfg(feature = "gpu")]
@@ -780,4 +781,61 @@ fn test_case_min_max(cks: &ClientKey) {
     let decrypted_max: u8 = encrypted_max.decrypt(cks);
     assert_eq!(decrypted_min, a_val.min(b_val));
     assert_eq!(decrypted_max, a_val.max(b_val));
+}
+
+fn test_case_match_value(cks: &ClientKey) {
+    let mut rng = thread_rng();
+
+    for _ in 0..5 {
+        let clear_in = rng.gen::<u8>();
+        let ct = FheUint8::encrypt(clear_in, cks);
+
+        let should_match = rng.gen_bool(0.5);
+
+        let mut map: HashMap<u8, u8> = HashMap::new();
+        let mut pairs = Vec::new();
+
+        let expected_value = if should_match {
+            let val = rng.gen::<u8>();
+            map.insert(clear_in, val);
+            pairs.push((clear_in, val));
+            val
+        } else {
+            0u8
+        };
+
+        let num_entries = rng.gen_range(1..10);
+        for _ in 0..num_entries {
+            let mut k = rng.gen::<u8>();
+            while !should_match && k == clear_in {
+                k = rng.gen::<u8>();
+            }
+            if let std::collections::hash_map::Entry::Vacant(e) = map.entry(k) {
+                let v = rng.gen::<u8>();
+                e.insert(v);
+                pairs.push((k, v));
+            }
+        }
+
+        let matches = MatchValues::new(pairs).unwrap();
+
+        let (result, found): (FheUint8, _) = ct.match_value(&matches).unwrap();
+
+        let dec_result: u8 = result.decrypt(cks);
+        let dec_found = found.decrypt(cks);
+
+        assert_eq!(
+            dec_found, should_match,
+            "Mismatch on 'found' boolean flag for input {clear_in}"
+        );
+
+        if should_match {
+            assert_eq!(
+                dec_result, expected_value,
+                "Mismatch on result value for input {clear_in}"
+            );
+        } else {
+            assert_eq!(dec_result, 0, "Result should be 0 when no match is found");
+        }
+    }
 }

@@ -463,6 +463,12 @@ fn test_min_max() {
 }
 
 #[test]
+fn test_match_value() {
+    let client_key = setup_default_cpu();
+    super::test_case_match_value(&client_key);
+}
+
+#[test]
 fn test_safe_deserialize_conformant_fhe_uint32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
