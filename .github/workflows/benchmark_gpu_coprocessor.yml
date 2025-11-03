@@ -16,8 +16,8 @@ on:
           - "4-h100 (n3-H100x4)"
           - "multi-h100 (n3-H100x8)"
           - "multi-h100-nvlink (n3-H100x8-NVLink)"
-          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
-          - "multi-h100-sxm5_fallback (n3-H100x8-SXM5)"
+          - "multi-h100-sxm5 (n3-H100-SXM5x8)"
+          - "multi-h100-sxm5_fallback (n3-H100-SXM5x8)"
 
   schedule:
     # Weekly tests @ 1AM
@@ -33,7 +33,7 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  PROFILE_SCHEDULED_RUN: "multi-h100-sxm5 (n3-H100x8-SXM5)"
+  PROFILE_SCHEDULED_RUN: "multi-h100-sxm5 (n3-H100-SXM5x8)"
   PROFILE_MANUAL_RUN: ${{ inputs.profile }}
   IS_MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' }}
   BENCHMARK_TYPE: "ALL"
