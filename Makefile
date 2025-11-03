@@ -30,6 +30,7 @@ WASM_PACK_VERSION="0.13.1"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
+TYPOS_VERSION=1.39.0
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -182,9 +183,8 @@ install_cargo_audit: install_rs_build_toolchain
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker: install_rs_build_toolchain
-	@typos --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked typos-cli || \
-	( echo "Unable to install typos-cli, unknown error." && exit 1 )
+	@./scripts/install_typos.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+	--typos-version $(TYPOS_VERSION)
 
 .PHONY: install_zizmor # Install zizmor workflow security checker
 install_zizmor: install_rs_build_toolchain

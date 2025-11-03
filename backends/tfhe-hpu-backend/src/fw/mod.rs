@@ -72,7 +72,7 @@ impl From<FwParameters> for asm::DigitParameters {
 }
 
 /// Fw trait abstraction
-/// Use to handle Fw implemantion in an abstract way
+/// Use to handle Fw implementation in an abstract way
 #[enum_dispatch]
 pub trait Fw {
     /// Expand a program of IOp into a program of DOp
