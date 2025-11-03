@@ -198,7 +198,7 @@ pub mod utils {
     where
         P: Copy + PartialEq + NamedParam,
         S: PersistentStorage<P, K>,
-        K: From<P> + Clone,
+        K: From<P>,
     {
         pub fn get(&self, param: P) -> SharedKey<K> {
             self.get_with_closure(param, &mut K::from)
