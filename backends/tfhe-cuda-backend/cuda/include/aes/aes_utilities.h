@@ -442,4 +442,67 @@ template <typename Torus> struct int_key_expansion_buffer {
   }
 };
 
+template <typename Torus> struct int_key_expansion_256_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  CudaRadixCiphertextFFI *words_buffer;
+
+  CudaRadixCiphertextFFI *tmp_word_buffer;
+  CudaRadixCiphertextFFI *tmp_rotated_word_buffer;
+
+  int_aes_encrypt_buffer<Torus> *aes_encrypt_buffer;
+
+  int_key_expansion_256_buffer(CudaStreams streams,
+                               const int_radix_params &params,
+                               bool allocate_gpu_memory,
+                               uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    constexpr uint32_t TOTAL_WORDS = 60;
+    constexpr uint32_t BITS_PER_WORD = 32;
+    constexpr uint32_t TOTAL_BITS = TOTAL_WORDS * BITS_PER_WORD;
+
+    this->words_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->words_buffer, TOTAL_BITS,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->tmp_word_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_word_buffer,
+        BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->tmp_rotated_word_buffer = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_rotated_word_buffer,
+        BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->aes_encrypt_buffer = new int_aes_encrypt_buffer<Torus>(
+        streams, params, allocate_gpu_memory, 1, 4, size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->words_buffer, allocate_gpu_memory);
+    delete this->words_buffer;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_word_buffer, allocate_gpu_memory);
+    delete this->tmp_word_buffer;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_rotated_word_buffer,
+                                   allocate_gpu_memory);
+    delete this->tmp_rotated_word_buffer;
+
+    this->aes_encrypt_buffer->release(streams);
+    delete this->aes_encrypt_buffer;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
 #endif

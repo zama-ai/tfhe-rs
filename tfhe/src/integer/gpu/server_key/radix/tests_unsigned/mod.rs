@@ -1,5 +1,6 @@
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
+pub(crate) mod test_aes256;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
