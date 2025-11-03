@@ -201,7 +201,7 @@ impl<Scalar: UnsignedInteger> Upgrade<Shortint128BootstrappingKey<Scalar>>
         } else {
             Err(Error::new(
                 "Shortint128BootstrappingKey from TFHE-rs 1.3 and before only support u64 drift\
- mitigation key coeffecients"
+ mitigation key coefficients"
                     .to_string(),
             ))
         }
@@ -265,7 +265,7 @@ impl<Scalar: UnsignedInteger> Upgrade<CompressedShortint128BootstrappingKey<Scal
         } else {
             Err(Error::new(
                 "CompressedShortint128BootstrappingKey from TFHE-rs 1.3 and before only support u64 \
-drift mitigation key coeffecients"
+drift mitigation key coefficients"
                     .to_string(),
             ))
         }

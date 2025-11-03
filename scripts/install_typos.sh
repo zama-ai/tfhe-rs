@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -e
+
+rust_toolchain=""
+required_typos_version=""
+
+function usage() {
+    echo "$0: install typos-cli"
+    echo
+    echo "--help                    Print this message"
+    echo "--rust-toolchain          The toolchain to check the version for with leading"
+    echo "--typos-version           Version of typos-cli to install"
+    echo
+}
+
+while [ -n "$1" ]
+do
+    case "$1" in
+        "--rust-toolchain" )
+            shift
+            rust_toolchain="$1"
+            ;;
+
+        "--typos-version" )
+            shift
+            required_typos_version="$1"
+            ;;
+
+        *)
+            echo "Unknown param : $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if [[ "${rust_toolchain::1}" != "+" ]]; then
+    rust_toolchain="+${rust_toolchain}"
+fi
+
+if ! which typos ; then
+    cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
+    ( echo "Unable to install typos-cli, unknown error." && exit 1 )
+
+    exit 0
+fi
+
+ver_string="$(typos --version | cut -d ' ' -f 2)"
+
+ver_major="$(echo "${ver_string}" | cut -d '.' -f 1)"
+ver_minor="$(echo "${ver_string}" | cut -d '.' -f 2)"
+
+min_ver_major="$(echo "${required_typos_version}" | cut -d '.' -f 1)"
+min_ver_minor="$(echo "${required_typos_version}" | cut -d '.' -f 2)"
+
+if [[ "${ver_major}" -gt "${min_ver_major}" ]]; then
+    exit 0
+elif [[ "${ver_major}" -eq "${min_ver_major}" ]] && [[ "${ver_minor}" -ge "${min_ver_minor}" ]]; then
+    exit 0
+else
+    cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
+    ( echo "Unable to install typos-cli, unknown error." && exit 1 )
+fi
