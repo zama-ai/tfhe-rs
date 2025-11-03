@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use tfhe_zk_pok::proofs::pke_v2::{prove, verify, Bound};
+use tfhe_zk_pok::proofs::pke_v2::{prove, verify, Bound, VerificationPairingMode};
 use tfhe_zk_pok::proofs::ComputeLoad;
 use utils::{init_params_v2, write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
 
@@ -30,6 +30,7 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
         let bits = (params.k as u32) * effective_t.ilog2();
 
         let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
+        println!("{bench_id}");
 
         let seed: u128 = rng.gen();
 
@@ -59,19 +60,26 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
 
     let rng = &mut rand::thread_rng();
 
-    for ((params, param_name), load, bound) in itertools::iproduct!(
+    for ((params, param_name), load, bound, pairing_mode) in itertools::iproduct!(
         [
             (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
             (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
         ],
         [ComputeLoad::Proof, ComputeLoad::Verify],
-        [Bound::CS, Bound::GHL]
+        [Bound::CS, Bound::GHL],
+        [
+            VerificationPairingMode::TwoSteps,
+            VerificationPairingMode::Batched
+        ]
     ) {
         let (public_param, public_commit, private_commit, metadata) = init_params_v2(params, bound);
         let effective_t = params.t >> 1;
         let bits = (params.k as u32) * effective_t.ilog2();
 
-        let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
+        let bench_id = format!(
+            "{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}_{pairing_mode:?}"
+        );
+        println!("{bench_id}");
 
         let seed: u128 = rng.gen();
 
@@ -85,7 +93,13 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                verify(&proof, (&public_param, &public_commit), &metadata).unwrap();
+                verify(
+                    &proof,
+                    (&public_param, &public_commit),
+                    &metadata,
+                    pairing_mode,
+                )
+                .unwrap();
             })
         });
 

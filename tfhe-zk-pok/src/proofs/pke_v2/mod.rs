@@ -1716,15 +1716,33 @@ fn compute_a_theta<G: Curve>(
     }
 }
 
+/// At the end of the verification, we perform several pairings on computed g1/g2 elements, to
+/// derive an equality that should hold if the proof is correct.
+///
+/// This defines how these pairings should be done. Note that this choice is made by the verifier
+/// and will not make any non perf related difference in the verification output.
+#[derive(Copy, Clone, Debug, Default)]
+pub enum VerificationPairingMode {
+    /// Perform the pairings in two steps, resulting in 2 equalities (eq. (50) and (51) of the
+    /// reference)
+    // On a hpc7, this is measured to be approx. equivalent with compute load verify and slightly
+    // slower on compute load proof.
+    #[default]
+    TwoSteps,
+    /// Generate a random scalar and use it to batch the pairings (eq. (52) of the reference)
+    Batched,
+}
+
 #[allow(clippy::result_unit_err)]
 pub fn verify<G: Curve + Send + Sync>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
+    pairing_mode: VerificationPairingMode,
 ) -> Result<(), ()> {
     // By running it in a limited thread pool, we make sure that the rayon overhead stays minimal
     // compared to the actual verification work
-    run_in_pool(|| verify_impl(proof, public, metadata))
+    run_in_pool(|| verify_impl(proof, public, metadata, pairing_mode))
 }
 
 #[allow(clippy::result_unit_err)]
@@ -1732,6 +1750,7 @@ pub fn verify_impl<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
+    pairing_mode: VerificationPairingMode,
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
@@ -1743,17 +1762,15 @@ pub fn verify_impl<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        pi,
-        pi_kzg,
+        pi: _,
+        pi_kzg: _,
         ref compute_load_proof_fields,
         hash_config,
     } = proof;
     let hash_config = hash_config.into();
 
-    let pairing = G::Gt::pairing;
-
     let &PublicParams {
-        ref g_lists,
+        g_lists: _,
         D: D_max,
         n,
         d,
@@ -1767,8 +1784,6 @@ pub fn verify_impl<G: Curve>(
         sid: _,
         domain_separators: _,
     } = public.0;
-    let g_list = &*g_lists.g_list.0;
-    let g_hat_list = &*g_lists.g_hat_list.0;
 
     let decoded_q = decode_q(q);
 
@@ -1809,7 +1824,7 @@ pub fn verify_impl<G: Curve>(
     let C_e_bytes = C_e.to_le_bytes();
     let C_r_tilde_bytes = C_r_tilde.to_le_bytes();
 
-    let (R, R_hash) = RHash::new(
+    let (R_matrix, R_hash) = RHash::new(
         public,
         metadata,
         C_hat_e_bytes.as_ref(),
@@ -1817,7 +1832,7 @@ pub fn verify_impl<G: Curve>(
         C_r_tilde_bytes.as_ref(),
         hash_config,
     );
-    let R = |i: usize, j: usize| R[i + j * 128];
+    let R = |i: usize, j: usize| R_matrix[i + j * 128];
 
     let C_R_bytes = C_R.to_le_bytes();
     let (phi, phi_hash) = R_hash.gen_phi(C_R_bytes.as_ref());
@@ -1842,119 +1857,21 @@ pub fn verify_impl<G: Curve>(
     let (omega, omega_hash) = theta_hash.gen_omega();
 
     let (delta, delta_hash) = omega_hash.gen_delta();
-    let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
-
-    let g = G::G1::GENERATOR;
-    let g_hat = G::G2::GENERATOR;
+    let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, _delta_l] = delta;
 
     let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-
-    let mut rhs = None;
-    let mut lhs0 = None;
-    let mut lhs1 = None;
-    let mut lhs2 = None;
-    let mut lhs3 = None;
-    let mut lhs4 = None;
-    let mut lhs5 = None;
-    let mut lhs6 = None;
-
-    rayon::scope(|s| {
-        s.spawn(|_| {
-            compute_a_theta::<G>(
-                &mut a_theta,
-                &theta,
-                a,
-                d,
-                k,
-                b,
-                effective_cleartext_t,
-                delta_encoding,
-            )
-        });
-        s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
-        s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
-        s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
-        s.spawn(|_| {
-            lhs2 = Some(pairing(
-                C_r_tilde,
-                match compute_load_proof_fields.as_ref() {
-                    Some(&ComputeLoadProofFields {
-                        C_hat_h3,
-                        C_hat_w: _,
-                    }) => C_hat_h3,
-                    None => G::G2::multi_mul_scalar(
-                        &g_hat_list[n - (d + k)..n],
-                        &(0..d + k)
-                            .rev()
-                            .map(|j| {
-                                let mut acc = G::Zp::ZERO;
-                                for (i, &phi) in phi.iter().enumerate() {
-                                    match R(i, d + k + 4 + j) {
-                                        0 => {}
-                                        1 => acc += phi,
-                                        -1 => acc -= phi,
-                                        _ => unreachable!(),
-                                    }
-                                }
-                                delta_r * acc - delta_theta_q * theta[j]
-                            })
-                            .collect::<Box<[_]>>(),
-                    ),
-                },
-            ))
-        });
-        s.spawn(|_| {
-            lhs3 = Some(pairing(
-                C_R,
-                G::G2::multi_mul_scalar(
-                    &g_hat_list[n - 128..n],
-                    &(0..128)
-                        .rev()
-                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
-                        .collect::<Box<[_]>>(),
-                ),
-            ))
-        });
-        s.spawn(|_| {
-            lhs4 = Some(pairing(
-                C_e.mul_scalar(delta_e),
-                match compute_load_proof_fields.as_ref() {
-                    Some(&ComputeLoadProofFields {
-                        C_hat_h3: _,
-                        C_hat_w,
-                    }) => C_hat_w,
-                    None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
-                },
-            ))
-        });
-        s.spawn(|_| lhs5 = Some(pairing(C_y.mul_scalar(delta_eq), C_hat_t)));
-        s.spawn(|_| {
-            lhs6 = Some(
-                pairing(
-                    G::G1::projective(g_list[0]),
-                    G::G2::projective(g_hat_list[n - 1]),
-                )
-                .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared)),
-            )
-        });
-    });
-
-    let rhs = rhs.unwrap();
-    let lhs0 = lhs0.unwrap();
-    let lhs1 = lhs1.unwrap();
-    let lhs2 = lhs2.unwrap();
-    let lhs3 = lhs3.unwrap();
-    let lhs4 = lhs4.unwrap();
-    let lhs5 = lhs5.unwrap();
-    let lhs6 = lhs6.unwrap();
-
-    let lhs = lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6;
-
-    if lhs != rhs {
-        return Err(());
-    }
+    compute_a_theta::<G>(
+        &mut a_theta,
+        &theta,
+        a,
+        d,
+        k,
+        b,
+        effective_cleartext_t,
+        delta_encoding,
+    );
 
     let load = if compute_load_proof_fields.is_some() {
         ComputeLoad::Proof
@@ -2091,16 +2008,180 @@ pub fn verify_impl<G: Curve>(
 
     let chi = z_hash.gen_chi(p_h1, p_h2, p_t, p_h3_opt, p_omega_opt);
 
+    match pairing_mode {
+        VerificationPairingMode::TwoSteps => pairing_check_two_steps(
+            proof, public.0, k, R, phi, xi, &theta, &omega, delta, chi, z, t_theta, p_h1, p_h2,
+            p_h3, p_t, p_omega,
+        ),
+        VerificationPairingMode::Batched => pairing_check_batched(
+            proof, public.0, k, R, phi, xi, &theta, &omega, delta, chi, z, t_theta, p_h1, p_h2,
+            p_h3, p_t, p_omega,
+        ),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pairing_check_two_steps<G: Curve>(
+    proof: &Proof<G>,
+    pp: &PublicParams<G>,
+    k: usize,
+    R: impl Fn(usize, usize) -> i8 + Sync,
+    phi: [G::Zp; 128],
+    xi: [G::Zp; 128],
+    theta: &[G::Zp],
+    omega: &[G::Zp],
+    delta: [G::Zp; 7],
+    chi: G::Zp,
+    z: G::Zp,
+    t_theta: G::Zp,
+    p_h1: G::Zp,
+    p_h2: G::Zp,
+    p_h3: G::Zp,
+    p_t: G::Zp,
+    p_omega: G::Zp,
+) -> Result<(), ()> {
+    let &Proof {
+        C_hat_e,
+        C_e,
+        C_r_tilde,
+        C_R,
+        C_hat_bin,
+        C_y,
+        C_h1,
+        C_h2,
+        C_hat_t,
+        pi,
+        pi_kzg,
+        ref compute_load_proof_fields,
+        hash_config: _,
+    } = proof;
+
+    let &PublicParams {
+        ref g_lists,
+        D: _,
+        n,
+        d,
+        k: _,
+        B_bound_squared: _,
+        B_inf,
+        q,
+        t: _,
+        msbs_zero_padding_bit_count: _,
+        bound_type: _,
+        sid: _,
+        domain_separators: _,
+    } = pp;
+    let g_list = &*g_lists.g_list.0;
+    let g_hat_list = &*g_lists.g_hat_list.0;
+
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let decoded_q = decode_q(q);
+
+    let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
+
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
+
+    let pairing = G::Gt::pairing;
+    let g = G::G1::GENERATOR;
+    let g_hat = G::G2::GENERATOR;
+
+    // Compared to the reference document, chi2 and chi3 are reversed in compute load proof, that
+    // way the equation are not modified between compute load proof/verify. This is ok as long as
+    // chi2 and chi3 are reversed everywhere.
     let chi2 = chi * chi;
     let chi3 = chi2 * chi;
     let chi4 = chi3 * chi;
 
-    let (lhs, rhs) = rayon::join(
-        || {
-            pairing(
+    let mut rhs = None;
+    let mut lhs0 = None;
+    let mut lhs1 = None;
+    let mut lhs2 = None;
+    let mut lhs3 = None;
+    let mut lhs4 = None;
+    let mut lhs5 = None;
+    let mut lhs6 = None;
+
+    let mut rhs_eq2 = None;
+    let mut lhs0_eq2 = None;
+    let mut lhs1_eq2 = None;
+
+    rayon::scope(|s| {
+        s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
+        s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
+        s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
+        s.spawn(|_| {
+            lhs2 = Some(pairing(
+                C_r_tilde,
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3,
+                        C_hat_w: _,
+                    }) => C_hat_h3,
+                    None => G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    ),
+                },
+            ))
+        });
+        s.spawn(|_| {
+            lhs3 = Some(pairing(
+                C_R,
+                G::G2::multi_mul_scalar(
+                    &g_hat_list[n - 128..n],
+                    &(0..128)
+                        .rev()
+                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
+                        .collect::<Box<[_]>>(),
+                ),
+            ))
+        });
+        s.spawn(|_| {
+            lhs4 = Some(pairing(
+                C_e.mul_scalar(delta_e),
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3: _,
+                        C_hat_w,
+                    }) => C_hat_w,
+                    None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
+                },
+            ))
+        });
+        s.spawn(|_| lhs5 = Some(pairing(C_y.mul_scalar(delta_eq), C_hat_t)));
+        s.spawn(|_| {
+            lhs6 = Some(
+                pairing(
+                    G::G1::projective(g_list[0]),
+                    G::G2::projective(g_hat_list[n - 1]),
+                )
+                .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared)),
+            )
+        });
+
+        s.spawn(|_| {
+            lhs0_eq2 = Some(pairing(
                 C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
                 g_hat,
-            ) + pairing(
+            ));
+        });
+
+        s.spawn(|_| {
+            lhs1_eq2 = Some(pairing(
                 g,
                 {
                     let mut C_hat = C_hat_t.mul_scalar(chi2);
@@ -2112,15 +2193,225 @@ pub fn verify_impl<G: Curve>(
                     }
                     C_hat
                 } - g_hat.mul_scalar(p_t * chi2 + p_h3 * chi3 + p_omega * chi4),
-            )
-        },
-        || {
-            pairing(
+            ));
+        });
+
+        s.spawn(|_| {
+            rhs_eq2 = Some(pairing(
                 pi_kzg,
                 G::G2::projective(g_hat_list[0]) - g_hat.mul_scalar(z),
-            )
-        },
-    );
+            ))
+        });
+    });
+
+    let rhs = rhs.unwrap();
+    let lhs0 = lhs0.unwrap();
+    let lhs1 = lhs1.unwrap();
+    let lhs2 = lhs2.unwrap();
+    let lhs3 = lhs3.unwrap();
+    let lhs4 = lhs4.unwrap();
+    let lhs5 = lhs5.unwrap();
+    let lhs6 = lhs6.unwrap();
+
+    let lhs = lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6;
+
+    if lhs != rhs {
+        return Err(());
+    }
+
+    let rhs = rhs_eq2.unwrap();
+    let lhs0 = lhs0_eq2.unwrap();
+    let lhs1 = lhs1_eq2.unwrap();
+    let lhs = lhs0 + lhs1;
+
+    if lhs != rhs {
+        Err(())
+    } else {
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pairing_check_batched<G: Curve>(
+    proof: &Proof<G>,
+    pp: &PublicParams<G>,
+    k: usize,
+    R: impl Fn(usize, usize) -> i8 + Sync,
+    phi: [G::Zp; 128],
+    xi: [G::Zp; 128],
+    theta: &[G::Zp],
+    omega: &[G::Zp],
+    delta: [G::Zp; 7],
+    chi: G::Zp,
+    z: G::Zp,
+    t_theta: G::Zp,
+    p_h1: G::Zp,
+    p_h2: G::Zp,
+    p_h3: G::Zp,
+    p_t: G::Zp,
+    p_omega: G::Zp,
+) -> Result<(), ()> {
+    let &Proof {
+        C_hat_e,
+        C_e,
+        C_r_tilde,
+        C_R,
+        C_hat_bin,
+        C_y,
+        C_h1,
+        C_h2,
+        C_hat_t,
+        pi,
+        pi_kzg,
+        ref compute_load_proof_fields,
+        hash_config: _,
+    } = proof;
+
+    let &PublicParams {
+        ref g_lists,
+        D: _,
+        n,
+        d,
+        k: _,
+        B_bound_squared: _,
+        B_inf,
+        q,
+        t: _,
+        msbs_zero_padding_bit_count: _,
+        bound_type: _,
+        sid: _,
+        domain_separators: _,
+    } = pp;
+    let g_list = &*g_lists.g_list.0;
+    let g_hat_list = &*g_lists.g_hat_list.0;
+
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let decoded_q = decode_q(q);
+
+    let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
+
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
+
+    let pairing = G::Gt::pairing;
+    let g = G::G1::GENERATOR;
+    let g_hat = G::G2::GENERATOR;
+
+    // Compared to the reference document, chi2 and chi3 are reversed in compute load proof, that
+    // way the equation are not modified between compute load proof/verify. This is ok as long as
+    // chi2 and chi3 are reversed everywhere.
+    let chi2 = chi * chi;
+    let chi3 = chi2 * chi;
+    let chi4 = chi3 * chi;
+
+    let mut rhs = None;
+    let mut lhs0 = None;
+    let mut lhs1 = None;
+    let mut lhs2 = None;
+    let mut lhs3 = None;
+    let mut lhs4 = None;
+    let mut lhs5 = None;
+    let mut lhs6 = None;
+
+    let eta = G::Zp::rand(&mut rand::thread_rng());
+
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            rhs = Some(pairing(
+                pi - C_h1.mul_scalar(eta)
+                    + g.mul_scalar(
+                        eta * (p_h1 + chi * p_h2 + chi3 * p_h3 + chi2 * p_t + chi4 * p_omega),
+                    )
+                    - C_h2.mul_scalar(chi * eta)
+                    - pi_kzg.mul_scalar(z * eta),
+                g_hat,
+            ))
+        });
+        s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
+        s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
+        s.spawn(|_| match compute_load_proof_fields.as_ref() {
+            Some(&ComputeLoadProofFields {
+                C_hat_h3,
+                C_hat_w: _,
+            }) => lhs2 = Some(pairing(C_r_tilde + g.mul_scalar(eta * chi3), C_hat_h3)),
+            None => {
+                lhs2 = Some(pairing(
+                    C_r_tilde,
+                    G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    ),
+                ))
+            }
+        });
+        s.spawn(|_| {
+            lhs3 = Some(pairing(
+                C_R,
+                G::G2::multi_mul_scalar(
+                    &g_hat_list[n - 128..n],
+                    &(0..128)
+                        .rev()
+                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
+                        .collect::<Box<[_]>>(),
+                ),
+            ))
+        });
+        s.spawn(|_| match compute_load_proof_fields.as_ref() {
+            Some(&ComputeLoadProofFields {
+                C_hat_h3: _,
+                C_hat_w,
+            }) => {
+                lhs4 = Some(pairing(
+                    C_e.mul_scalar(delta_e) - g.mul_scalar(eta * chi4),
+                    C_hat_w,
+                ))
+            }
+            None => {
+                lhs4 = Some(pairing(
+                    C_e.mul_scalar(delta_e),
+                    G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
+                ))
+            }
+        });
+        s.spawn(|_| {
+            lhs5 = Some(pairing(
+                C_y.mul_scalar(delta_eq) - g.mul_scalar(eta * chi2),
+                C_hat_t,
+            ))
+        });
+        s.spawn(|_| {
+            lhs6 = Some(pairing(
+                -G::G1::projective(g_list[n - 1])
+                    .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared))
+                    - pi_kzg.mul_scalar(eta),
+                G::G2::projective(g_hat_list[0]),
+            ))
+        });
+    });
+
+    let rhs = rhs.unwrap();
+    let lhs0 = lhs0.unwrap();
+    let lhs1 = lhs1.unwrap();
+    let lhs2 = lhs2.unwrap();
+    let lhs3 = lhs3.unwrap();
+    let lhs4 = lhs4.unwrap();
+    let lhs5 = lhs5.unwrap();
+    let lhs6 = lhs6.unwrap();
+
+    let lhs = lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 + lhs6;
 
     if lhs != rhs {
         Err(())
@@ -2294,7 +2585,12 @@ mod tests {
                 };
 
                 assert_eq!(
-                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                    verify_all_pairing_modes(
+                        &proof,
+                        (&public_param, &public_commit),
+                        verify_metadata
+                    )
+                    .is_err(),
                     use_fake_e1
                         || use_fake_e2
                         || use_fake_r
@@ -2405,7 +2701,12 @@ mod tests {
                     };
 
                     assert_eq!(
-                        verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                        verify_all_pairing_modes(
+                            &proof,
+                            (&public_param, &public_commit),
+                            verify_metadata,
+                        )
+                        .is_err(),
                         use_fake_e1
                             || use_fake_e2
                             || use_fake_r
@@ -2415,6 +2716,19 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn verify_all_pairing_modes(
+        proof: &Proof<Curve>,
+        public: (&PublicParams<Curve>, &PublicCommit<Curve>),
+        metadata: &[u8],
+    ) -> Result<(), ()> {
+        let res1 = verify(proof, public, metadata, VerificationPairingMode::TwoSteps);
+
+        let res2 = verify(proof, public, metadata, VerificationPairingMode::Batched);
+
+        assert_eq!(res1, res2);
+        res1
     }
 
     fn prove_and_verify(
@@ -2448,7 +2762,7 @@ mod tests {
             sanity_check_mode,
         );
 
-        if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
+        if verify_all_pairing_modes(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
             VerificationResult::Accept
         } else {
             VerificationResult::Reject
@@ -2938,7 +3252,13 @@ mod tests {
                 };
 
                 // Should not panic but return an error
-                assert!(verify(&proof, (&crs, &public_commit), &testcase.metadata).is_err())
+                assert!(verify(
+                    &proof,
+                    (&crs, &public_commit),
+                    &testcase.metadata,
+                    VerificationPairingMode::default()
+                )
+                .is_err())
             }
         }
     }
@@ -3050,17 +3370,17 @@ mod tests {
                 &seed.to_le_bytes(),
             );
 
-            assert!(verify(
+            assert!(verify_all_pairing_modes(
                 &proof,
                 (&crs, &public_commit_verify_zero),
-                &testcase.metadata
+                &testcase.metadata,
             )
             .is_err());
 
-            assert!(verify(
+            assert!(verify_all_pairing_modes(
                 &proof,
                 (&crs, &public_commit_verify_trivial),
-                &testcase.metadata
+                &testcase.metadata,
             )
             .is_err());
         }
@@ -3209,7 +3529,13 @@ mod tests {
             )
             .unwrap();
 
-            verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
+            verify(
+                &proof,
+                (&public_param, &public_commit),
+                &testcase.metadata,
+                VerificationPairingMode::default(),
+            )
+            .unwrap()
         }
     }
 
