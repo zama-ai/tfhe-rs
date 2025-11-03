@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod aes;
+mod aes256;
 mod oprf;
 
 mod rerand;
@@ -2799,6 +2800,7 @@ mod cuda {
         cuda_ilog2,
         oprf::cuda::cuda_unsigned_oprf,
         aes::cuda::cuda_aes,
+        aes256::cuda::cuda_aes_256,
     );
 
     criterion_group!(
@@ -2828,6 +2830,7 @@ mod cuda {
         cuda_scalar_rem,
         oprf::cuda::cuda_unsigned_oprf,
         aes::cuda::cuda_aes,
+        aes256::cuda::cuda_aes_256,
     );
 
     criterion_group!(

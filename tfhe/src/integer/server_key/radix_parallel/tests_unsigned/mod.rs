@@ -1,6 +1,7 @@
 mod modulus_switch_compression;
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
+pub(crate) mod test_aes256;
 pub(crate) mod test_bitwise_op;
 mod test_block_rotate;
 mod test_block_shift;

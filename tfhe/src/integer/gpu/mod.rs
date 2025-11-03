@@ -7628,6 +7628,104 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
 }
 
 #[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    iv: &CudaRadixCiphertext,
+    round_keys: &CudaRadixCiphertext,
+    start_counter: u128,
+    num_aes_inputs: u32,
+    sbox_parallelism: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let mut iv_degrees = iv.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut iv_noise_levels = iv.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_iv = prepare_cuda_radix_ffi(iv, &mut iv_degrees, &mut iv_noise_levels);
+
+    let mut round_keys_degrees = round_keys.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut round_keys_noise_levels = round_keys
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_round_keys = prepare_cuda_radix_ffi(
+        round_keys,
+        &mut round_keys_degrees,
+        &mut round_keys_noise_levels,
+    );
+
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let counter_bits_le: Vec<u64> = (0..num_aes_inputs)
+        .flat_map(|i| {
+            let current_counter = start_counter + i as u128;
+            (0..128).map(move |bit_index| ((current_counter >> bit_index) & 1) as u64)
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_aes_encrypt_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+        num_aes_inputs,
+        sbox_parallelism,
+    );
+
+    cuda_integer_aes_ctr_256_encrypt_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_iv,
+        &raw const cuda_ffi_round_keys,
+        counter_bits_le.as_ptr(),
+        num_aes_inputs,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_aes_encrypt_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
     streams: &CudaStreams,
     num_aes_inputs: u32,
@@ -7798,6 +7896,134 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
 
     unsafe {
         cleanup_cuda_integer_key_expansion_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr))
+    };
+
+    size
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    expanded_keys: &mut CudaRadixCiphertext,
+    key: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let mut expanded_keys_degrees = expanded_keys
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut expanded_keys_noise_levels = expanded_keys
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_expanded_keys = prepare_cuda_radix_ffi(
+        expanded_keys,
+        &mut expanded_keys_degrees,
+        &mut expanded_keys_noise_levels,
+    );
+
+    let mut key_degrees = key.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut key_noise_levels = key.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_key = prepare_cuda_radix_ffi(key, &mut key_degrees, &mut key_noise_levels);
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_key_expansion_256_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_key_expansion_256_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_expanded_keys,
+        &raw const cuda_ffi_key,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_key_expansion_256_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(expanded_keys, &cuda_ffi_expanded_keys);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_key_expansion_256_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        )
+    };
+
+    unsafe {
+        cleanup_cuda_integer_key_expansion_256_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr))
     };
 
     size

@@ -59,6 +59,7 @@ mod vector_comparisons;
 mod vector_find;
 
 mod aes;
+mod aes256;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]
