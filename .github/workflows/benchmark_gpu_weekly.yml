@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
-      hardware_name: n3-H100x8-SXM5
+      hardware_name: n3-H100-SXM5x8
       command: integer_multi_bit
       op_flavor: default
       bench_type: both
@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
-      hardware_name: n3-H100x8-SXM5
+      hardware_name: n3-H100-SXM5x8
       command: integer_compression
       op_flavor: default
       bench_type: both
@@ -58,7 +58,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
-      hardware_name: n3-H100x8-SXM5
+      hardware_name: n3-H100-SXM5x8
       command: integer_zk
       op_flavor: default
       bench_type: both
@@ -79,7 +79,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
-      hardware_name: n3-H100x8-SXM5
+      hardware_name: n3-H100-SXM5x8
       command: hlapi_noise_squash
       op_flavor: default
       bench_type: both
