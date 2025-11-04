@@ -23,9 +23,7 @@ env:
   TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-concurrency:
-  group: ${{ github.workflow_ref }}
-  cancel-in-progress: true
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
 
 permissions:
   contents: read

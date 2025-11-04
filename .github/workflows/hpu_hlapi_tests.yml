@@ -17,14 +17,14 @@ concurrency:
   cancel-in-progress: true
 
 
-permissions: { }
+permissions: {}
 
 jobs:
   should-run:
     name: hpu_hlapi_tests/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       hpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.hpu_any_changed }}
     steps:

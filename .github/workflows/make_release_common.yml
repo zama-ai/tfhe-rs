@@ -33,6 +33,8 @@ env:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
 jobs:
   verify-triggering-actor:
     name: make_release_common/verify-triggering-actor
@@ -75,12 +77,9 @@ jobs:
     needs: package
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
-      # Needed to detect the GitHub Actions environment
-      actions: read
-      # Needed to create the provenance via GitHub OIDC
-      id-token: write
-      # Needed to upload assets/artifacts
-      contents: write
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
     with:
       # SHA-256 hashes of the Crate package.
       base64-subjects: ${{ needs.package.outputs.hash }}
@@ -91,8 +90,7 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     permissions:
-      # Needed for OIDC token exchange on crates.io
-      id-token: write
+      id-token: write # Needed for OIDC token exchange on crates.io
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

@@ -8,9 +8,7 @@ env:
   CARGO_TERM_COLOR: always
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow (via manual approval for PR from forks)
 
 permissions:
   contents: read

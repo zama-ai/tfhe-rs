@@ -20,6 +20,8 @@ env:
 
 permissions: { }
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   verify-triggering-actor:
     name: benchmark_perf_regression/verify-actor
@@ -45,8 +47,7 @@ jobs:
       selected-regression-profile: ${{ steps.set_regression_details.outputs.selected-profile }}
       custom-env: ${{ steps.get_custom_env.outputs.custom_env }}
     permissions:
-      # Needed to write a comment in a pull-request
-      pull-requests: write
+      pull-requests: write # Needed to write a comment in a pull-request
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -298,10 +299,8 @@ jobs:
     needs: [ prepare-benchmarks, regression-benchmarks ]
     runs-on: ubuntu-latest
     permissions:
-      # Needed to write a comment in a pull-request
-      pull-requests: write
-      # Needed to set up Python dependencies
-      contents: read
+      pull-requests: write # Needed to write a comment in a pull-request
+      contents: read # Needed to set up Python dependencies
     env:
       REF_NAME: ${{ github.head_ref || github.ref_name }}
     steps:
@@ -355,8 +354,7 @@ jobs:
     if: ${{ failure() && github.event_name == 'issue_comment' }}
     continue-on-error: true
     permissions:
-      # Needed to write a comment in a pull-request
-      pull-requests: write
+      pull-requests: write # Needed to write a comment in a pull-request
     steps:
       - name: Write failure message
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0

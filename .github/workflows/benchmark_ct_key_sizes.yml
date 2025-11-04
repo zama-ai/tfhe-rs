@@ -20,6 +20,8 @@ env:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
+
 jobs:
   setup-instance:
     name: Setup instance (sizes-benchmarks)

@@ -40,6 +40,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   run-benchmarks:
     name: benchmark_hpu/run-benchmarks

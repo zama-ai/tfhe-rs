@@ -12,6 +12,8 @@ env:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow (via manual approval for PR from forks)
+
 jobs:
   lint-check:
     name: ci_lint/lint-check (bpr)
