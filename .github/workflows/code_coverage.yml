@@ -20,6 +20,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   setup-instance:
     name: code_coverage/setup-instance

@@ -9,6 +9,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only GitHub can trigger this workflow
+
 jobs:
   run-benchmarks-8-h100-sxm5-integer:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer

@@ -5,6 +5,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow (via manual approval for PR from forks)
+
 jobs:
   check-commit-pr:
     name: check_commit/check-commit-pr (bpr)

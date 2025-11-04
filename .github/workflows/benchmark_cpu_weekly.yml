@@ -19,6 +19,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only GitHub can trigger this workflow
+
 jobs:
   prepare-inputs:
     name: benchmark_cpu_weekly/prepare-inputs
