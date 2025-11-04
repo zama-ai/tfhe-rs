@@ -35,11 +35,17 @@ jobs:
         run: |
           make lint_workflow
 
-      - name: Check workflows security
+      - name: Get Zimzor version to use
+        id: get_zizmor
         run: |
-          make check_workflow_security
-        env:
-          GH_TOKEN: ${{ env.CHECKOUT_TOKEN }}
+          echo "version=$(make zizmor_version)" >> "${GITHUB_OUTPUT}"
+
+      - name: Check workflows security
+        uses: zizmorcore/zizmor-action@e673c3917a1aef3c65c972347ed84ccd013ecda4 # v0.2.0
+        with:
+          advanced-security: 'false' # Print results directly in logs
+          persona: pedantic
+          version: ${{ steps.get_zizmor.outputs.version }}
 
       - name: Ensure SHA pinned actions
         uses: zgosalvez/github-actions-ensure-sha-pinned-actions@9e9574ef04ea69da568d6249bd69539ccc704e74 # v4.0.0
