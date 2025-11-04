@@ -18,6 +18,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   setup-instance:
     name: gpu_full_h100_tests/setup-instance

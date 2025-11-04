@@ -29,6 +29,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   setup-instance:
     name: gpu_code_validation_tests/setup-instance

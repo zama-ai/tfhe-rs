@@ -26,6 +26,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   setup-instance:
     name: aws_tfhe_wasm_tests/setup-instance
@@ -56,9 +60,6 @@ jobs:
   wasm-tests:
     name: aws_tfhe_wasm_tests/wasm-tests
     needs: setup-instance
-    concurrency:
-      group: ${{ github.workflow_ref }}
-      cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs

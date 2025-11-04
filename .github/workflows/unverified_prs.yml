@@ -6,13 +6,17 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   stale:
     name: unverified_prs/stale
     runs-on: ubuntu-latest
     permissions:
-      issues: read
-      pull-requests: write
+      issues: read # Needed to fetch all issues
+      pull-requests: write # Needed to write message and close the PR
     steps:
       - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
         with:

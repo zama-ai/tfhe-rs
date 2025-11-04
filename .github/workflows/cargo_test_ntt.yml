@@ -25,7 +25,7 @@ jobs:
     name: cargo_test_ntt/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       ntt_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ntt_any_changed }}
     steps:

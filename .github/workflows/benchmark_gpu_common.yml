@@ -61,6 +61,10 @@ env:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   prepare-matrix:
     name: benchmark_gpu_common/prepare-matrix

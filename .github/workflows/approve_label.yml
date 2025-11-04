@@ -9,12 +9,16 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow_ref }}
+  cancel-in-progress: true
+
 jobs:
   trigger-tests:
     name: approve_label/trigger-tests
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: write # Needed to apply or remove label
     steps:
       - name: Get current labels
         uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576

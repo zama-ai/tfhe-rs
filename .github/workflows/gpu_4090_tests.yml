@@ -25,15 +25,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow_ref }}
+  cancel-in-progress: true
+
 jobs:
   cuda-tests-linux:
     name: gpu_4090_tests/cuda-tests-linux
     if: github.event_name == 'workflow_dispatch' ||
       contains(github.event.label.name, '4090_test') ||
       (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs')
-    concurrency:
-      group: ${{ github.workflow_ref }}
-      cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
     timeout-minutes: 1440 # 24 hours
 

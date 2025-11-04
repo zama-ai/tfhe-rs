@@ -26,6 +26,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
@@ -106,8 +110,8 @@ jobs:
     continue-on-error: true
     timeout-minutes: 720  # 12 hours
     permissions:
-      contents: 'read'
-      packages: 'read'
+      contents: 'read' # Needed to read repositories contents
+      packages: 'read' # Needed to get fhevm packages
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options

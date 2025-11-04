@@ -30,6 +30,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   should-run:
     name: aws_tfhe_tests/should-run
@@ -37,7 +41,7 @@ jobs:
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}

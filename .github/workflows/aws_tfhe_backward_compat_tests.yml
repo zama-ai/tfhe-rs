@@ -29,6 +29,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   setup-instance:
     name: aws_tfhe_backward_compat_tests/setup-instance
@@ -58,9 +62,6 @@ jobs:
   backward-compat-tests:
     name: aws_tfhe_backward_compat_tests/backward-compat-tests (bpr)
     needs: [ setup-instance ]
-    concurrency:
-      group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs

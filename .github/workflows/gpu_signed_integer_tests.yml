@@ -29,12 +29,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   should-run:
     name: gpu_signed_integer_tests/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
