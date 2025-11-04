@@ -12,6 +12,10 @@ env:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow_ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-check:
     name: ci_lint/lint-check (bpr)

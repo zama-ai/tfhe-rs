@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   cuda-integer-benchmarks:
     name: benchmark_gpu_4090/cuda-integer-benchmarks

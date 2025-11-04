@@ -19,6 +19,10 @@ env:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   audit:
     name: cargo_audit/audit

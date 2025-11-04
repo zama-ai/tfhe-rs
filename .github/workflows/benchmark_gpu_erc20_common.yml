@@ -46,6 +46,10 @@ env:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   setup-instance:
     name: benchmark_gpu_erc20_common/setup-instance

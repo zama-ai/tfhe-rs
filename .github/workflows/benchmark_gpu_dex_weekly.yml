@@ -8,6 +8,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   run-benchmarks-1-h100:
     name: benchmark_gpu_dex_weekly/run-benchmarks-1-h100

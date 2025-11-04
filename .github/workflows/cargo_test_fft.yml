@@ -24,7 +24,7 @@ jobs:
     name: cargo_test_fft/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       fft_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.fft_any_changed }}
     steps:

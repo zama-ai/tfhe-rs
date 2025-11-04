@@ -20,6 +20,10 @@ env:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   setup-instance:
     name: Setup instance (sizes-benchmarks)
