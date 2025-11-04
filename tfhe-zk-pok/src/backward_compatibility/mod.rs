@@ -151,10 +151,24 @@ pub struct SerializablePKEv2DomainSeparatorsV0 {
 impl Upgrade<SerializablePKEv2DomainSeparators> for SerializablePKEv2DomainSeparatorsV0 {
     type Error = Infallible;
 
+    /// Upgrades V0 domain separators to V1 by generating a deterministic `hash_gamma`.
+    ///
+    /// In V0, `hash_gamma` was not stored and used an unspecified random value. Since V0 proofs
+    /// didn't require a specific `hash_gamma`, we deterministically derive it from existing domain
+    /// separators for backward compatibility.
+    ///
+    /// Uses SHAKE256 XoF to hash the following domain separators in fixed order:
+    /// `hash`, `hash_t`, `hash_w`, `hash_agg`, `hash_lmap`, `hash_z`.
+    ///
+    /// **Why these fields?** They are present in both V0 and V1, core to CRS identity, and
+    /// sufficient for cryptographic security. PKEv2-specific fields (`hash_R`, `hash_phi`,
+    /// `hash_xi`, `hash_chi`) are excluded as they weren't in V0.
+    ///
+    /// **Order matters:** The fixed order ensures reproducibility - the same CRS always produces
+    /// the same `hash_gamma`. Changing the order would break compatibility.
     fn upgrade(self) -> Result<SerializablePKEv2DomainSeparators, Self::Error> {
-        // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
-        // We use Shake256 XoF to get a reproducible value for a given CRS.
         let mut hasher = sha3::Shake256::default();
+        // Fixed order: hash, hash_t, hash_w, hash_agg, hash_lmap, hash_z
         for data in &[
             &self.hash,
             &self.hash_t,
@@ -261,10 +275,20 @@ pub struct SerializablePKEv1DomainSeparatorsV0 {
 impl Upgrade<SerializablePKEv1DomainSeparators> for SerializablePKEv1DomainSeparatorsV0 {
     type Error = Infallible;
 
+    /// Upgrades V0 domain separators to V1 by generating a deterministic `hash_gamma`.
+    ///
+    /// In V0, `hash_gamma` was not stored and used an unspecified random value. Since V0 proofs
+    /// didn't require a specific `hash_gamma`, we deterministically derive it from existing domain
+    /// separators for backward compatibility.
+    ///
+    /// Uses SHAKE256 XoF to hash all available V0 domain separators in fixed order:
+    /// `hash`, `hash_t`, `hash_w`, `hash_agg`, `hash_lmap`, `hash_z`.
+    ///
+    /// **Order matters:** The fixed order ensures reproducibility - the same CRS always produces
+    /// the same `hash_gamma`. Changing the order would break compatibility.
     fn upgrade(self) -> Result<SerializablePKEv1DomainSeparators, Self::Error> {
-        // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
-        // We use Shake256 XoF to get a reproducible value for a given CRS.
         let mut hasher = sha3::Shake256::default();
+        // Fixed order: hash, hash_t, hash_w, hash_agg, hash_lmap, hash_z
         for data in &[
             &self.hash,
             &self.hash_t,
