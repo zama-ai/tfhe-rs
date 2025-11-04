@@ -1,13 +1,17 @@
-use ark_ec::pairing::PairingOutput;
+use ark_bls12_381::Config;
+use ark_ec::bls12::Bls12;
+use ark_ec::pairing::{MillerLoopOutput, Pairing, PairingOutput};
 use ark_ec::short_weierstrass::Affine;
 use ark_ec::{AdditiveGroup as Group, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, Field, MontFp, Zero};
 use ark_poly::univariate::DensePolynomial;
+use bls12_446::ate_pairing_noexp;
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
 
+use crate::curve_446;
 use crate::serialization::{SerializableAffine, SerializableFp, SerializableFp12, SerializableFp2};
 
 struct MontIntDisplay<'a, T>(&'a T);
@@ -148,8 +152,11 @@ pub trait PairingGroupOps<Zp, G1, G2>:
     + core::ops::Sub<Self, Output = Self>
     + core::ops::Neg<Output = Self>
 {
+    type Pairing: Pairing;
     fn mul_scalar(self, scalar: Zp) -> Self;
     fn pairing(x: G1, y: G2) -> Self;
+    fn pairing_noexp(x: G1, y: G2) -> MillerLoopOutput<Self::Pairing>;
+    fn final_exp(mlo: MillerLoopOutput<Self::Pairing>) -> Self;
 }
 
 pub trait Curve: Clone {
@@ -297,6 +304,16 @@ impl PairingGroupOps<bls12_381::Zp, bls12_381::G1, bls12_381::G2> for bls12_381:
         }
         Self::pairing(x, y)
     }
+
+    type Pairing = Bls12<Config>;
+
+    fn pairing_noexp(x: bls12_381::G1, y: bls12_381::G2) -> MillerLoopOutput<Self::Pairing> {
+        todo!()
+    }
+
+    fn final_exp(mlo: MillerLoopOutput<Self::Pairing>) -> Self {
+        todo!()
+    }
 }
 
 impl FieldOps for bls12_446::Zp {
@@ -441,6 +458,21 @@ impl PairingGroupOps<bls12_446::Zp, bls12_446::G1, bls12_446::G2> for bls12_446:
             return Self::pairing(bls12_446::G1::ZERO, bls12_446::G2::GENERATOR);
         }
         Self::pairing(x, y)
+    }
+
+    type Pairing = Bls12<curve_446::Config>;
+
+    fn pairing_noexp(x: bls12_446::G1, y: bls12_446::G2) -> MillerLoopOutput<Self::Pairing> {
+        if x == bls12_446::G1::ZERO || y == bls12_446::G2::ZERO {
+            return ate_pairing_noexp(bls12_446::G1::ZERO, -bls12_446::G2::GENERATOR);
+        }
+        ate_pairing_noexp(x, -y)
+    }
+
+    fn final_exp(mlo: MillerLoopOutput<Self::Pairing>) -> Self {
+        Self {
+            inner: curve_446::Bls12_446::final_exponentiation(mlo).unwrap(),
+        }
     }
 }
 

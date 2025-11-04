@@ -635,10 +635,11 @@ mod g2 {
 }
 
 mod gt {
-    use crate::curve_446::{Fq, Fq12, Fq2};
+    use crate::curve_446::{Config, Fq, Fq12, Fq2};
     use crate::serialization::InvalidSerializedAffineError;
 
     use super::*;
+    use ark_ec::bls12::Bls12;
     use ark_ec::pairing::{MillerLoopOutput, Pairing};
     use ark_ff::{CubicExtField, QuadExtField};
     use tfhe_versionable::Versionize;
@@ -781,6 +782,14 @@ mod gt {
 
     #[allow(clippy::needless_range_loop)]
     fn ate_pairing(p: G1, q: G2) -> Gt {
+        let mlo = ate_pairing_noexp(p, q);
+        Gt {
+            inner: Bls::final_exponentiation(mlo).unwrap(),
+        }
+    }
+
+    #[allow(clippy::needless_range_loop)]
+    pub fn ate_pairing_noexp(p: G1, q: G2) -> MillerLoopOutput<Bls12<Config>> {
         let t_log2 = 75;
         let t_bits = b"110000000001000001000000100000000000000000000000000000000100000000000000001";
 
@@ -805,10 +814,8 @@ mod gt {
                 qk = new_qk;
             }
         }
-        let mlo = MillerLoopOutput(fk);
-        Gt {
-            inner: Bls::final_exponentiation(mlo).unwrap(),
-        }
+
+        MillerLoopOutput(fk)
     }
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash)]
@@ -1326,7 +1333,7 @@ mod zp {
 
 pub use g1::{G1Affine, G1};
 pub use g2::{G2Affine, G2};
-pub use gt::Gt;
+pub use gt::{ate_pairing_noexp, Gt};
 pub use zp::{ZeroizeZp, Zp};
 
 #[cfg(test)]

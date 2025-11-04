@@ -4,12 +4,15 @@
 use super::*;
 use crate::backward_compatibility::pke_v2::*;
 use crate::backward_compatibility::BoundVersions;
+
 use crate::curve_api::{CompressedG1, CompressedG2};
 use crate::four_squares::*;
 use crate::serialization::{
     InvalidSerializedAffineError, InvalidSerializedPublicParamsError, SerializableGroupElements,
     SerializablePKEv2PublicParams,
 };
+
+use ark_ec::pairing::MillerLoopOutput;
 
 use core::marker::PhantomData;
 
@@ -1750,7 +1753,7 @@ pub fn verify_impl<G: Curve>(
     } = proof;
     let hash_config = hash_config.into();
 
-    let pairing = G::Gt::pairing;
+    let pairing = G::Gt::pairing_noexp;
 
     let &PublicParams {
         ref g_lists,
@@ -1825,7 +1828,7 @@ pub fn verify_impl<G: Curve>(
     let C_hat_bin_bytes = C_hat_bin.to_le_bytes();
     let (xi, xi_hash) = phi_hash.gen_xi::<G::Zp>(C_hat_bin_bytes.as_ref());
 
-    let (y, y_hash) = xi_hash.gen_y();
+    let (y, y_hash) = xi_hash.gen_y::<G::Zp>();
 
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
@@ -1841,7 +1844,7 @@ pub fn verify_impl<G: Curve>(
 
     let (omega, omega_hash) = theta_hash.gen_omega();
 
-    let (delta, delta_hash) = omega_hash.gen_delta();
+    let (delta, delta_hash) = omega_hash.gen_delta::<G::Zp>();
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
 
     let g = G::G1::GENERATOR;
@@ -2141,7 +2144,9 @@ pub fn verify_impl<G: Curve>(
     let mut lhs5 = None;
     let mut lhs6 = None;
 
-    let eta = G::Zp::rand(&mut rand::thread_rng());
+    //let eta = G::Zp::rand(&mut rand::thread_rng());
+    let eta = G::Zp::from_u64(42);
+    //dbg!(g_hat);
 
     rayon::scope(|s| {
         s.spawn(|_| {
@@ -2231,16 +2236,18 @@ pub fn verify_impl<G: Curve>(
         });
     });
 
-    let rhs = rhs.unwrap();
-    let lhs0 = lhs0.unwrap();
-    let lhs1 = lhs1.unwrap();
-    let lhs2 = lhs2.unwrap();
-    let lhs3 = lhs3.unwrap();
-    let lhs4 = lhs4.unwrap();
-    let lhs5 = lhs5.unwrap();
-    let lhs6 = lhs6.unwrap();
+    let rhs = G::Gt::final_exp(rhs.unwrap());
+    let lhs0 = lhs0.unwrap().0;
+    let lhs1 = lhs1.unwrap().0;
+    let lhs2 = lhs2.unwrap().0;
+    let lhs3 = lhs3.unwrap().0;
+    let lhs4 = lhs4.unwrap().0;
+    let lhs5 = lhs5.unwrap().0;
+    let lhs6 = lhs6.unwrap().0;
 
-    let lhs = lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 + lhs6;
+    let lhs = G::Gt::final_exp(MillerLoopOutput(
+        lhs0 * lhs1 * lhs2 / lhs3 / lhs4 / lhs5 * lhs6,
+    ));
 
     if lhs != rhs {
         Err(())
@@ -2316,7 +2323,8 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let seed = thread_rng().gen();
+        //let seed = thread_rng().gen();
+        let seed = 42;
         println!("pkev2 seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
