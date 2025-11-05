@@ -337,11 +337,7 @@ pub(crate) fn shr_assign(lhs: &mut [u64], shift: u32, shift_type: ShiftType) {
     let value_mask = u64::MAX >> shift_in_words;
     let carry_mask = ((1u64 << shift_in_words) - 1u64).rotate_right(shift_in_words);
 
-    let mut carry = if sign_bit == 1 {
-        u64::MAX & carry_mask
-    } else {
-        0
-    };
+    let mut carry = if sign_bit == 1 { carry_mask } else { 0 };
     for word in &mut head.iter_mut().rev() {
         let rotated = word.rotate_right(shift_in_words);
         let value = (rotated & value_mask) | carry;

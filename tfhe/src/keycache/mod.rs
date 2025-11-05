@@ -226,14 +226,11 @@ pub mod utils {
                 // we check if we can load the key from persistent storage
                 let persistent_storage = &self.persistent_storage;
                 let maybe_key = persistent_storage.load(param);
-                maybe_key.map_or_else(
-                    || {
-                        let key = key_gen_closure(param);
-                        persistent_storage.store(param, &key);
-                        key
-                    },
-                    |key| key,
-                )
+                maybe_key.unwrap_or_else(|| {
+                    let key = key_gen_closure(param);
+                    persistent_storage.store(param, &key);
+                    key
+                })
             };
 
             let try_load_from_memory_and_init = || -> Result<_, ()> {

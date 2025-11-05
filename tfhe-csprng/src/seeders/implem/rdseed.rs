@@ -38,18 +38,18 @@ unsafe fn rdseed_random_m128() -> u128 {
     let mut rand1: u64 = 0;
     let mut rand2: u64 = 0;
     let mut output_bytes = [0u8; 16];
-    unsafe {
-        loop {
-            if core::arch::x86_64::_rdseed64_step(&mut rand1) == 1 {
-                break;
-            }
-        }
-        loop {
-            if core::arch::x86_64::_rdseed64_step(&mut rand2) == 1 {
-                break;
-            }
+
+    loop {
+        if core::arch::x86_64::_rdseed64_step(&mut rand1) == 1 {
+            break;
         }
     }
+    loop {
+        if core::arch::x86_64::_rdseed64_step(&mut rand2) == 1 {
+            break;
+        }
+    }
+
     output_bytes[0..8].copy_from_slice(&rand1.to_ne_bytes());
     output_bytes[8..16].copy_from_slice(&rand2.to_ne_bytes());
     u128::from_ne_bytes(output_bytes)
