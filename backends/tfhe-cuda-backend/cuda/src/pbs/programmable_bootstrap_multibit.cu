@@ -456,9 +456,9 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
  */
 template <typename Torus, class params>
-uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size,
-                            uint64_t full_sm_keybundle) {
+uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
+                            uint32_t polynomial_size, uint32_t glwe_dimension,
+                            uint32_t level_count, uint64_t full_sm_keybundle) {
 
   int max_blocks_per_sm;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
@@ -479,6 +479,22 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   check_cuda_error(cudaDeviceGetAttribute(
       &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
 
+  size_t total_mem, free_mem;
+  check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
+  // Estimate the size of one chunk
+  uint64_t size_one_chunk = max_num_pbs * polynomial_size *
+                            (glwe_dimension + 1) * (glwe_dimension + 1) *
+                            level_count * sizeof(Torus);
+
+  // We calculate the maximum number of chunks that can fit in the 50% of free
+  // memory. We don't want the pbs temp array uses more than 50% of the free
+  // memory if 1 chunk doesn't fit in the 50% of free memory we panic
+  uint32_t max_num_chunks =
+      static_cast<uint32_t>(free_mem / (2 * size_one_chunk));
+  PANIC_IF_FALSE(
+      max_num_chunks > 0,
+      "Cuda error (multi-bit PBS): Not enough GPU memory to allocate PBS "
+      "temporary arrays.");
   int x = num_sms * max_blocks_per_sm;
   int count = 0;
 
@@ -500,7 +516,7 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   // applied only to few number of samples(8) because it can have a negative
   // effect of over saturation.
   if (max_num_pbs <= 8) {
-    return num_sms / 2;
+    return (max_num_chunks > num_sms / 2) ? num_sms / 2 : max_num_chunks;
   }
 #endif
 
@@ -514,8 +530,7 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
       }
     }
   }
-
-  return divisor;
+  return (max_num_chunks > divisor) ? divisor : max_num_chunks;
 }
 
 template uint64_t scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(

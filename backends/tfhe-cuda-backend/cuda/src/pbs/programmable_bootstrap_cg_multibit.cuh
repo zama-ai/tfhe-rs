@@ -30,7 +30,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         Torus *global_accumulator, uint32_t lwe_dimension,
         uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
         uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
-        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint64_t lwe_chunk_size, uint64_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         uint32_t num_many_lut, uint32_t lut_stride) {
 
@@ -193,7 +193,7 @@ template <typename Torus>
 uint64_t get_buffer_size_cg_multibit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t grouping_factor, uint32_t lwe_chunk_size) {
+    uint32_t grouping_factor, uint64_t lwe_chunk_size) {
 
   uint64_t buffer_size = 0;
   buffer_size += input_lwe_ciphertext_count * lwe_chunk_size * level_count *
@@ -280,9 +280,9 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  auto lwe_chunk_size =
-      get_lwe_chunk_size<Torus, params>(gpu_index, input_lwe_ciphertext_count,
-                                        polynomial_size, full_sm_keybundle);
+  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
+      level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -317,12 +317,12 @@ __host__ void execute_cg_external_product_loop(
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  uint32_t keybundle_size_per_input =
+  uint64_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
       (glwe_dimension + 1) * (polynomial_size / 2);
 
-  uint32_t chunk_size =
-      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size = std::min(
+      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
 
   auto d_mem = buffer->d_mem_acc_cg;
   auto keybundle_fft = buffer->keybundle_fft;

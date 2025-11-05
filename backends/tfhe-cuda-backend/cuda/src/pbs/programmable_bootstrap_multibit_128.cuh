@@ -23,8 +23,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_128(
     const InputTorus *__restrict__ lwe_input_indexes, double *keybundle_array,
     const __uint128_t *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-    uint32_t keybundle_size_per_input, int8_t *device_mem,
+    uint32_t level_count, uint32_t lwe_offset, uint64_t lwe_chunk_size,
+    uint64_t keybundle_size_per_input, int8_t *device_mem,
     uint64_t device_memory_size_per_block) {
 
   extern __shared__ int8_t sharedmem[];
@@ -237,7 +237,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         const double *__restrict__ keybundle_array,
         __uint128_t *global_accumulator, double *global_accumulator_fft,
         uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-        uint32_t iteration, uint32_t lwe_chunk_size, int8_t *device_mem,
+        uint32_t iteration, uint64_t lwe_chunk_size, int8_t *device_mem,
         uint64_t device_memory_size_per_block, uint32_t num_many_lut,
         uint32_t lut_stride) {
   // We use shared memory for the polynomials that are used often during the
@@ -372,7 +372,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         __uint128_t *global_accumulator, uint32_t lwe_dimension,
         uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
         uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
-        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint64_t lwe_chunk_size, uint64_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         uint32_t num_many_lut, uint32_t lut_stride) {
 
@@ -546,10 +546,10 @@ __host__ void execute_compute_keybundle_128(
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  uint32_t chunk_size =
-      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size = std::min(
+      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
 
-  uint32_t keybundle_size_per_input =
+  uint64_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
       (glwe_dimension + 1) * (polynomial_size / 2) * 4;
 
@@ -703,8 +703,9 @@ __host__ void host_multi_bit_programmable_bootstrap_128(
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, level_count, lwe_offset);
     // Accumulate
-    uint32_t chunk_size = std::min(
-        lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+    uint64_t chunk_size =
+        std::min((uint32_t)lwe_chunk_size,
+                 (lwe_dimension / grouping_factor) - lwe_offset);
     for (uint32_t j = 0; j < chunk_size; j++) {
       bool is_first_iter = (j + lwe_offset) == 0;
       bool is_last_iter =
@@ -761,12 +762,12 @@ __host__ void execute_cg_external_product_loop_128(
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  uint32_t keybundle_size_per_input =
+  uint64_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
       (glwe_dimension + 1) * (polynomial_size / 2) * 4;
 
-  uint32_t chunk_size =
-      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size = std::min(
+      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
 
   auto d_mem = buffer->d_mem_acc_cg;
   auto keybundle_fft = buffer->keybundle_fft;
@@ -994,8 +995,8 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size_128<InputTorus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size,
-      full_sm_keybundle);
+      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
+      level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -1079,8 +1080,8 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size_128<InputTorus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size,
-      full_sm_keybundle);
+      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
+      level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,

@@ -307,8 +307,9 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_128(void *stream,
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
  */
 template <typename Torus, class params>
-uint32_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
+uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
                                 uint32_t polynomial_size,
+                                uint32_t glwe_dimension, uint32_t level_count,
                                 uint64_t full_sm_keybundle) {
 
   int max_blocks_per_sm;
