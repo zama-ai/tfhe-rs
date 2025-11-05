@@ -97,12 +97,13 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 
 template <typename Torus, class params>
-uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size,
-                            uint64_t full_sm_keybundle);
+uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
+                            uint32_t polynomial_size, uint32_t glwe_dimension,
+                            uint32_t level_count, uint64_t full_sm_keybundle);
 template <typename Torus, class params>
-uint32_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
+uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
                                 uint32_t polynomial_size,
+                                uint32_t glwe_dimension, uint32_t level_count,
                                 uint64_t full_sm_keybundle);
 template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_keybundle = NULL;
@@ -110,7 +111,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_acc_step_two = NULL;
   int8_t *d_mem_acc_cg = NULL;
   int8_t *d_mem_acc_tbc = NULL;
-  uint32_t lwe_chunk_size;
+  uint64_t lwe_chunk_size;
   double2 *keybundle_fft;
   Torus *global_accumulator;
   double2 *global_join_buffer;
@@ -120,7 +121,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
-             uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
+             uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
              uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
@@ -295,7 +296,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_acc_step_two = NULL;
   int8_t *d_mem_acc_cg = NULL;
   int8_t *d_mem_acc_tbc = NULL;
-  uint32_t lwe_chunk_size;
+  uint64_t lwe_chunk_size;
   double *keybundle_fft;
   __uint128_t *global_accumulator;
   double *global_join_buffer;
@@ -306,7 +307,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
   pbs_buffer_128(cudaStream_t stream, uint32_t gpu_index,
                  uint32_t glwe_dimension, uint32_t polynomial_size,
                  uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-                 uint32_t lwe_chunk_size, PBS_VARIANT pbs_variant,
+                 uint64_t lwe_chunk_size, PBS_VARIANT pbs_variant,
                  bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);

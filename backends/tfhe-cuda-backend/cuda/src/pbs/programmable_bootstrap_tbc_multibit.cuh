@@ -30,7 +30,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         Torus *global_accumulator, uint32_t lwe_dimension,
         uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
         uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
-        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint64_t lwe_chunk_size, uint64_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         bool support_dsm, uint32_t num_many_lut, uint32_t lut_stride) {
 
@@ -207,7 +207,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         const Torus *__restrict__ lwe_input_indexes,
         const double2 *__restrict__ keybundle_array, double2 *join_buffer,
         Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
-        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint64_t lwe_chunk_size, uint64_t keybundle_size_per_input,
         uint32_t num_many_lut, uint32_t lut_stride) {
 
   constexpr uint32_t level_count = 1;
@@ -502,9 +502,9 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  auto lwe_chunk_size =
-      get_lwe_chunk_size<Torus, params>(gpu_index, input_lwe_ciphertext_count,
-                                        polynomial_size, full_sm_keybundle);
+  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
+      level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -544,12 +544,12 @@ __host__ void execute_tbc_external_product_loop(
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
 
-  uint32_t keybundle_size_per_input =
+  uint64_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
       (glwe_dimension + 1) * (polynomial_size / 2);
 
-  uint32_t chunk_size =
-      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size = std::min(
+      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
 
   auto d_mem = buffer->d_mem_acc_tbc;
   auto keybundle_fft = buffer->keybundle_fft;
