@@ -313,7 +313,10 @@ def perform_data_extraction(
         conversion_func,
     )
 
-    file_suffix = f"_{operand_type.lower()}"
+    if layer != Layer.CoreCrypto:
+        file_suffix = f"-{operand_type.lower()}"
+    else:
+        file_suffix = ""
     filename = utils.append_suffix_to_filename(output_filename, file_suffix, ".csv")
 
     utils.write_to_csv(
@@ -332,8 +335,10 @@ def perform_data_extraction(
     for array in generic_arrays:
         metadata_suffix = ""
         if array.metadata:
-            for key, value in array.metadata.items():
-                metadata_suffix += f"_{key}_{value}"
+            for value in array.metadata.values():
+                # In recent Python, dict keep insert order.
+                # This call won't change metadata order in the suffix between runs.
+                metadata_suffix += f"-{value}".lower()
 
         current_suffix = file_suffix + metadata_suffix
 
