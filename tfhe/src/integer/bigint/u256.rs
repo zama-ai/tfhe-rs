@@ -257,6 +257,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::identity_op)]
     fn test_shr_limits() {
         assert_eq!(U256::MAX >> 256u32, U256::MAX >> (256 % U256::BITS));
         assert_eq!(U256::MAX >> 257u32, U256::MAX >> (257 % U256::BITS));

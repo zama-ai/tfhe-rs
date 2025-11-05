@@ -115,7 +115,7 @@ impl UpgradeGraph {
 
     fn get_or_insert_node(&mut self, node: Node) -> NodeId {
         self.index_of_node(&node)
-            .map_or_else(|| self.add_node(node), |index| index)
+            .unwrap_or_else(|| self.add_node(node))
     }
 
     fn add_node(&mut self, node: Node) -> NodeId {

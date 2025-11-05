@@ -137,6 +137,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::identity_op)]
     fn test_shr_limits() {
         assert_eq!(U512::MAX >> 512u32, U512::MAX >> (512u32 % U512::BITS));
         assert_eq!(U512::MAX >> 513u32, U512::MAX >> (513u32 % U512::BITS));
