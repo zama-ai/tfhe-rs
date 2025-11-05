@@ -813,7 +813,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         let output_ciphertext_count = functions.map_or_else(|| 1, |x| x.len());
 
         let identity_fn_array: &[&(dyn Fn(u64) -> u64 + Sync)] = &[&|x: u64| x];
-        let functions_to_use = functions.map_or_else(|| identity_fn_array, |fns| fns);
+        let functions_to_use = functions.unwrap_or(identity_fn_array);
         let using_user_provided_functions = functions.is_some();
         let using_identity_lut = !using_user_provided_functions;
         let mut output_cts = vec![self.dest_server_key.create_trivial(0); output_ciphertext_count];

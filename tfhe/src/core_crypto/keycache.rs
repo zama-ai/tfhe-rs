@@ -229,7 +229,7 @@ pub fn generate_keys() {
 
     println!("Generating keys for core_crypto");
 
-    let classical_u32_params = vec![DUMMY_31_U32, DUMMY_NATIVE_U32];
+    let classical_u32_params = [DUMMY_31_U32, DUMMY_NATIVE_U32];
     for param in classical_u32_params.iter().copied() {
         let mut keys_gen = |_| lwe_programmable_bootstrapping::generate_keys(param, &mut rsc);
         generate_and_store(param, &mut keys_gen);
