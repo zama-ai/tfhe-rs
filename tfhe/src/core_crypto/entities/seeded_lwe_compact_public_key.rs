@@ -160,7 +160,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         self.seeded_glwe_ciphertext.get_body()
     }
 
-    /// Return an immutable view to the the underlying [`SeededGlweCiphertext`] of the
+    /// Return an immutable view to the underlying [`SeededGlweCiphertext`] of the
     /// [`SeededLweCompactPublicKey`].
     pub fn as_seeded_glwe_ciphertext(&self) -> SeededGlweCiphertextView<'_, Scalar> {
         self.seeded_glwe_ciphertext.as_view()
@@ -202,7 +202,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweCompac
         self.seeded_glwe_ciphertext.get_mut_body()
     }
 
-    /// Return a mutable view to the the underlying [`SeededGlweCiphertext`] of the
+    /// Return a mutable view to the underlying [`SeededGlweCiphertext`] of the
     /// [`SeededLweCompactPublicKey`].
     pub fn as_mut_seeded_glwe_ciphertext(&mut self) -> SeededGlweCiphertextMutView<'_, Scalar> {
         self.seeded_glwe_ciphertext.as_mut_view()
