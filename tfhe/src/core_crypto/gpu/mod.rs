@@ -496,6 +496,8 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
     base_log: DecompositionBaseLog,
     l_gadget: DecompositionLevelCount,
     num_samples: u32,
+    ks_tmp_buffer: *mut i8,
+    uses_trivial_indices: bool,
 ) {
     cuda_keyswitch_lwe_ciphertext_vector_64(
         streams.ptr[0],
@@ -510,6 +512,8 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
         base_log.0 as u32,
         l_gadget.0 as u32,
         num_samples,
+        ks_tmp_buffer,
+        uses_trivial_indices,
     );
 }
 
