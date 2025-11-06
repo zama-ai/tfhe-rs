@@ -4,9 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
-use tfhe::core_crypto::prelude::{
-    CiphertextModulus, DynamicDistribution, TUniform, UnsignedInteger,
-};
+use tfhe::core_crypto::prelude::{CiphertextModulus, DynamicDistribution, UnsignedInteger};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::current_params::{
     VEC_ALL_CLASSIC_PBS_PARAMETERS, VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS,
@@ -332,11 +330,11 @@ pub fn format_lwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDe
         DynamicDistribution::TUniform(distrib) => {
             format!(
                 "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
-                Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
+                Xe=ND.TUniform({}),\n tag=('{}_lwe',) \n)\n\n",
                 name,
                 param.lwe_dimension().0,
                 format_modulus_as_string(param.lwe_ciphertext_modulus()),
-                tuniform_equivalent_gaussian_std_dev(&distrib),
+                distrib.bound_log2(),
                 similar_params.join("_lwe', '")
             )
         }
@@ -371,22 +369,18 @@ pub fn format_glwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamD
         DynamicDistribution::TUniform(distrib) => {
             format!(
                 "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
-                Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
+                Xe=ND.TUniform({}),\n tag=('{}_glwe',) \n)\n\n",
                 name,
                 param
                     .glwe_dimension()
                     .to_equivalent_lwe_dimension(param.polynomial_size())
                     .0,
                 format_modulus_as_string(param.glwe_ciphertext_modulus()),
-                tuniform_equivalent_gaussian_std_dev(&distrib),
+                distrib.bound_log2(),
                 similar_params.join("_glwe', '")
             )
         }
     }
-}
-
-fn tuniform_equivalent_gaussian_std_dev<U: UnsignedInteger>(distribution: &TUniform<U>) -> f64 {
-    f64::sqrt((2_f64.powf(2.0 * distribution.bound_log2() as f64 + 1_f64) + 1_f64) / 6_f64)
 }
 
 fn write_file(file: &mut File, filename: &Path, line: impl Into<String>) {
