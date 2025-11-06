@@ -280,7 +280,7 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
   for (int i = 0; i < lwe_dimension; i++) {
 
     // We calculate the modulus switch of a warp size of elements
-    if (i % 32 == 0) {
+    if (i % 32 == 0 && (i + threadIdx.x % 32) < lwe_dimension) {
       modulus_switch(block_lwe_array_in[i + threadIdx.x % 32], temp_a_hat,
                      log_modulus);
     }
