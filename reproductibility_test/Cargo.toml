@@ -1,0 +1,13 @@
+[package]
+name = "reproductibility_test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tfhe = { path = "../tfhe", features = [
+    "shortint",
+    "experimental-force_fft_algo_dif4",
+] }
+sha2 = "0.10"
+bincode = "1.3"
+rayon = "1.10"
