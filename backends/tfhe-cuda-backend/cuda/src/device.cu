@@ -1,4 +1,5 @@
 #include "device.h"
+
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <mutex>

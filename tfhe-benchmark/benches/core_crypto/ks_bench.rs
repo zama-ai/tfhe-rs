@@ -386,7 +386,7 @@ mod cuda {
                 .keyswitch_key(ksk_big_to_small)
                 .build();
 
-            let bench_id;
+            let mut bench_id;
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
@@ -423,11 +423,88 @@ mod cuda {
                                     &mut output_ct_gpu,
                                     &cuda_indexes.d_input,
                                     &cuda_indexes.d_output,
+                                    true,
                                     &streams,
                                 );
+
                                 black_box(&mut ct_gpu);
                             })
                         });
+                    }
+
+                    for uses_simple_indices in [false, true] {
+                        for elements_per_stream_i in 2..=32u64 {
+                            let elements_per_stream = elements_per_stream_i * 16;
+                            let plaintext_list = PlaintextList::new(
+                                Scalar::ZERO,
+                                PlaintextCount(elements_per_stream as usize),
+                            );
+
+                            let mut input_ct_list = LweCiphertextList::new(
+                                Scalar::ZERO,
+                                big_lwe_sk.lwe_dimension().to_lwe_size(),
+                                LweCiphertextCount(elements_per_stream as usize),
+                                params.ciphertext_modulus.unwrap(),
+                            );
+                            encrypt_lwe_ciphertext_list(
+                                &big_lwe_sk,
+                                &mut input_ct_list,
+                                &plaintext_list,
+                                params.lwe_noise_distribution.unwrap(),
+                                &mut encryption_generator,
+                            );
+                            let input_ks_list = LweCiphertextList::from_container(
+                                input_ct_list.into_container(),
+                                big_lwe_sk.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            );
+                            let input_ct_list_gpu = CudaLweCiphertextList::from_lwe_ciphertext_list(
+                                &input_ks_list,
+                                &streams,
+                            );
+
+                            let output_ct_list = LweCiphertextList::new(
+                                Scalar::ZERO,
+                                lwe_sk.lwe_dimension().to_lwe_size(),
+                                LweCiphertextCount(elements_per_stream as usize),
+                                params.ciphertext_modulus.unwrap(),
+                            );
+                            let mut output_ct_list_gpu =
+                                CudaLweCiphertextList::from_lwe_ciphertext_list(
+                                    &output_ct_list,
+                                    &streams,
+                                );
+
+                            let indexes_range: Vec<u64> = if uses_simple_indices {
+                                (0..elements_per_stream).collect()
+                            } else {
+                                (0..elements_per_stream).rev().collect()
+                            };
+                            let h_indexes = indexes_range
+                                .iter()
+                                .map(|v| CastFrom::cast_from(*v))
+                                .collect::<Vec<_>>();
+                            let cuda_indexes_vec = CudaIndexes::new(&h_indexes, &streams, 0);
+
+                            bench_id = format!("{bench_name}::{elements_per_stream}::simple_{uses_simple_indices}::{name}");
+                            {
+                                bench_group.bench_function(&bench_id, |b| {
+                                    b.iter(|| {
+                                        cuda_keyswitch_lwe_ciphertext(
+                                            gpu_keys.ksk.as_ref().unwrap(),
+                                            &input_ct_list_gpu,
+                                            &mut output_ct_list_gpu,
+                                            &cuda_indexes_vec.d_input,
+                                            &cuda_indexes_vec.d_output,
+                                            uses_simple_indices,
+                                            &streams,
+                                        );
+
+                                        black_box(&mut output_ct_list_gpu);
+                                    })
+                                });
+                            }
+                        }
                     }
                 }
                 BenchmarkType::Throughput => {
@@ -517,6 +594,7 @@ mod cuda {
                                             output_ct,
                                             &cuda_indexes_vec[i].d_input,
                                             &cuda_indexes_vec[i].d_output,
+                                            true,
                                             local_stream,
                                         );
                                     })
