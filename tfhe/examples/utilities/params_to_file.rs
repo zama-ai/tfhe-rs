@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -19,7 +20,7 @@ use tfhe::shortint::parameters::{
 };
 use tfhe::shortint::AtomicPatternParameters;
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ParamModulus {
     NativeU128,
     Other(u128),
@@ -275,7 +276,7 @@ impl ParamDetails<u128> for NoiseSquashingCompressionParameters {
     }
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Ord, PartialOrd)]
 enum ParametersFormat {
     Lwe,
     Glwe,
@@ -284,7 +285,7 @@ enum ParametersFormat {
 
 type NoiseDistributionString = String;
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Ord, PartialOrd)]
 struct ParamGroupKey {
     lwe_dimension: LweDimension,
     ciphertext_modulus: ParamModulus,
@@ -458,9 +459,15 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
         }
     }
 
+    let ordered_params_groups = params_groups
+        .keys()
+        .sorted()
+        .map(|k| (k, params_groups.get(k).unwrap()))
+        .collect::<Vec<_>>();
+
     let mut param_names_augmented = Vec::new();
 
-    for (key, group) in params_groups.iter() {
+    for (key, group) in ordered_params_groups.iter() {
         let similar_params = group.iter().map(|p| p.1.as_str()).collect::<Vec<_>>();
         let (ref_param, ref_param_name) = &group[0];
         let formatted_param = match key.parameters_format {
