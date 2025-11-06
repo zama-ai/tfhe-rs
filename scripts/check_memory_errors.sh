@@ -33,6 +33,8 @@ RUSTFLAGS="$RUSTFLAGS" cargo "${CARGO_RS_BUILD_TOOLCHAIN}" nextest list --cargo-
 
 # Filter the tests to get only the HL ones
 TESTS_HL=$(sed -e $'s/\x1b\[[0-9;]*m//g' <  /tmp/test_list.txt | grep 'high_level_api::.*gpu.*' )
+TESTS_CORE=$(sed -e $'s/\x1b\[[0-9;]*m//g' <  /tmp/test_list.txt | grep 'core_crypto::gpu::algorithms::' )
+TESTS_TO_RUN="${TESTS_HL} ${TESTS_CORE}"
 
 if [[ "${RUN_VALGRIND}" == "1" ]]; then
   # Build the tests but don't run them
@@ -50,14 +52,13 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
     if [[ $? != "0" ]]; then \
         RESULT=1; \
     fi; \
-  done <<< "${TESTS_HL}"
+  done <<< "${TESTS_TO_RUN}"
 
   if [ $RESULT -ne 0 ]; then \
     exit $RESULT; \
   fi;
 fi
 
-TESTS_HL=$(sed -e $'s/\x1b\[[0-9;]*m//g' <  /tmp/test_list.txt | grep 'high_level_api::.*gpu.*' )
 
 if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
   # Build the tests but don't run them
@@ -76,10 +77,12 @@ if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
     if [[ $? != "0" ]]; then \
         RESULT=1; \
     fi; \
-  done <<< "${TESTS_HL}"
+  done <<< "${TESTS_TO_RUN}"
 
   if [ $RESULT -ne 0 ]; then \
-    exit $RESULT; \
+    echo "Some memory sanitizer tests failed!!! Error ${RESULT}" && exit $RESULT; \
+  else \
+    echo "Memory sanitizer tests passed"; \
   fi;
 fi
 

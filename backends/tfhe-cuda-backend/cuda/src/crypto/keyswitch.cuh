@@ -1,6 +1,8 @@
 #ifndef CNCRT_KS_CUH
 #define CNCRT_KS_CUH
 
+#include <algorithm>
+
 #include "device.h"
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
@@ -10,7 +12,49 @@
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <thread>
+#include <unistd.h>
 #include <vector>
+
+const int BLOCK_SIZE_DECOMP = 8;
+const int BLOCK_SIZE_GEMM_KS = 36;
+const int THREADS_GEMM_KS = 6;
+
+inline uint64_t get_threshold_ks_gemm() {
+  // Size of LWE batch for which, the batch-KS latency
+  // is better with the GEMM KS than with the classical KS
+  const int THRESHOLD_THREADS_6_H100_SXM5 = 128;
+  const int THRESHOLD_THREADS_6_L40 = 56;
+  const int H100_SXM5_SMS = 132;
+  const int L40_SMS = 142;
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, 0);
+
+#if CUDA_ARCH >= 900 // for H100, H100 SXM5, Blackwell
+  return (uint64_t)std::clamp((float)prop.multiProcessorCount / H100_SXM5_SMS,
+                              0.5f, 1.5f) *
+         THRESHOLD_THREADS_6_H100_SXM5;
+#elif CUDA_ARCH >= 890 // for L40, 4090
+  return (uint64_t)std::clamp((float)prop.multiProcessorCount / L40_SMS, 0.5f,
+                              1.5f) *
+         THRESHOLD_THREADS_6_L40;
+#else
+  return 8;
+#endif
+}
+
+template <typename Torus> struct ks_mem {
+  Torus *d_buffer;
+  uint64_t num_lwes;
+  uint32_t lwe_dimension;
+};
+
+template <typename Torus>
+uint64_t scratch_cuda_keyswitch_size(uint32_t lwe_dimension_in,
+                                     uint32_t lwe_dimension_out,
+                                     uint32_t num_lwes) {
+  return (uint64_t)num_lwes * std::max(lwe_dimension_in, lwe_dimension_out) *
+         sizeof(Torus) * 2;
+}
 
 template <typename Torus>
 __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
@@ -20,6 +64,202 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
             level * (lwe_dimension_out + 1);
   Torus *ptr = &ksk[pos];
   return ptr;
+}
+
+// Initialize decomposition by performing rounding
+// and decomposing one level of an array of Torus LWEs. Only
+// decomposes the mask elements of the incoming LWEs.
+template <typename Torus>
+__global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
+                                         uint32_t lwe_dimension,
+                                         uint32_t num_lwe, uint32_t base_log,
+                                         uint32_t level_count) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
+    return;
+
+  // Input LWE array is [mask_0, .., mask_lwe_dim, message] and
+  // we only decompose the mask. Thus the stride for reading
+  // is lwe_dimension + 1, while for writing it is lwe_dimension
+  auto read_val_idx = lwe_idx * (lwe_dimension + 1) + lwe_sample_idx;
+  auto write_val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
+  auto write_state_idx =
+      num_lwe * lwe_dimension + lwe_idx * lwe_dimension + lwe_sample_idx;
+
+  Torus a_i = lwe_in[read_val_idx];
+
+  Torus state = init_decomposer_state(a_i, base_log, level_count);
+
+  Torus mod_b_mask = (1ll << base_log) - 1ll;
+  lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  __syncthreads();
+  lwe_out[write_state_idx] = state;
+}
+
+// Decompose an array of LWEs with indirection through lwe_input_indices
+// The LWE array can contain total_lwe LWEs where total_lwe can be different
+// from num_lwe. The maximum index should be <= total_lwe. num_lwe is the number
+// of LWEs to decompose The output buffer should have space for num_lwe LWEs.
+// These will be sorted according to the input indices.
+template <typename Torus>
+__global__ void decompose_vectorize_init_with_indices(
+    Torus const *lwe_in, const Torus *__restrict__ lwe_input_indices,
+    Torus *lwe_out, uint32_t lwe_dimension, uint32_t num_lwe, uint32_t base_log,
+    uint32_t level_count) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
+    return;
+
+  // Input LWE array is [mask_0, .., mask_lwe_dim, message] and
+  // we only decompose the mask. Thus the stride for reading
+  // is lwe_dimension + 1, while for writing it is lwe_dimension
+  auto read_val_idx =
+      lwe_input_indices[lwe_idx] * (lwe_dimension + 1) + lwe_sample_idx;
+  auto write_val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
+  auto write_state_idx =
+      num_lwe * lwe_dimension + lwe_idx * lwe_dimension + lwe_sample_idx;
+
+  Torus a_i = lwe_in[read_val_idx];
+
+  Torus state = init_decomposer_state(a_i, base_log, level_count);
+
+  Torus mod_b_mask = (1ll << base_log) - 1ll;
+  lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  __syncthreads();
+  lwe_out[write_state_idx] = state;
+}
+
+// Continue decomposition of an array of Torus elements in place. Supposes
+// that the array contains already decomposed elements and
+// computes the new decomposed level in place.
+template <typename Torus>
+__global__ void
+decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
+                                 uint32_t num_lwe, uint32_t base_log,
+                                 uint32_t level_count) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
+    return;
+
+  auto val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
+  auto state_idx = num_lwe * lwe_dimension + val_idx;
+
+  Torus state = buffer_in[state_idx];
+  __syncthreads();
+
+  Torus mod_b_mask = (1ll << base_log) - 1ll;
+
+  buffer_in[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  __syncthreads();
+  buffer_in[state_idx] = state;
+}
+
+template <typename Torus>
+__global__ void keyswitch_gemm_copy_message(const Torus *lwe_in, Torus *lwe_out,
+                                            uint32_t lwe_dimension_in,
+                                            uint32_t num_lwes,
+                                            uint32_t lwe_dimension_out) {
+
+  uint32_t lwe_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (lwe_id >= num_lwes)
+    return;
+
+  lwe_out[lwe_id * (lwe_dimension_out + 1) + lwe_dimension_out] =
+      -lwe_in[lwe_id * (lwe_dimension_in + 1) + lwe_dimension_in];
+}
+
+template <typename Torus>
+__global__ void keyswitch_gemm_copy_message_with_indices(
+    const Torus *__restrict__ lwe_in,
+    const Torus *__restrict__ lwe_input_indices, Torus *__restrict__ lwe_out,
+    const Torus *__restrict__ lwe_output_indices,
+
+    uint32_t lwe_dimension_in, uint32_t num_lwes, uint32_t lwe_dimension_out) {
+
+  uint32_t lwe_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (lwe_id >= num_lwes)
+    return;
+
+  uint32_t lwe_in_idx = lwe_input_indices[lwe_id];
+  uint32_t lwe_out_idx = lwe_output_indices[lwe_id];
+
+  lwe_out[lwe_out_idx * (lwe_dimension_out + 1) + lwe_dimension_out] =
+      -lwe_in[lwe_in_idx * (lwe_dimension_in + 1) + lwe_dimension_in];
+}
+
+// Continue decomposition of an array of Torus elements in place. Supposes
+// that the array contains already decomposed elements and
+// computes the new decomposed level in place.
+template <typename Torus>
+__global__ void keyswitch_negate(Torus *buffer_in, uint32_t lwe_size,
+                                 uint32_t num_lwe) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_sample_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_size)
+    return;
+
+  auto val_idx = lwe_idx * lwe_size + lwe_sample_idx;
+
+  Torus val = buffer_in[val_idx];
+  buffer_in[val_idx] = -val;
+}
+
+template <typename Torus>
+__global__ void keyswitch_negate_with_output_indices(
+    Torus *buffer_in, const Torus *__restrict__ lwe_output_indices,
+    uint32_t lwe_size, uint32_t num_lwe) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_sample_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_size)
+    return;
+
+  auto val_idx = lwe_output_indices[lwe_idx] * lwe_size + lwe_sample_idx;
+
+  Torus val = buffer_in[val_idx];
+  buffer_in[val_idx] = -val;
+}
+
+template <typename Torus>
+__global__ void keyswitch_zero_output_with_output_indices(
+    Torus *buffer_in, const Torus *__restrict__ lwe_output_indices,
+    uint32_t lwe_size, uint32_t num_lwe) {
+
+  // index of this LWE ct in the buffer
+  auto lwe_sample_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // index of the LWE sample in the LWE ct
+  auto lwe_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_size)
+    return;
+
+  auto val_idx = lwe_output_indices[lwe_idx] * lwe_size + lwe_sample_idx;
+
+  buffer_in[val_idx] = 0;
 }
 
 /*
@@ -142,14 +382,160 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void execute_keyswitch_async(CudaStreams streams,
-                             const LweArrayVariant<Torus> &lwe_array_out,
-                             const LweArrayVariant<Torus> &lwe_output_indexes,
-                             const LweArrayVariant<Torus> &lwe_array_in,
-                             const LweArrayVariant<Torus> &lwe_input_indexes,
-                             Torus *const *ksks, uint32_t lwe_dimension_in,
-                             uint32_t lwe_dimension_out, uint32_t base_log,
-                             uint32_t level_count, uint32_t num_samples) {
+__host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indices, Torus const *lwe_array_in,
+    Torus const *lwe_input_indices, Torus const *ksk, uint32_t lwe_dimension_in,
+    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, Torus *fp_tmp_buffer, bool uses_trivial_indices) {
+  cuda_set_device(gpu_index);
+  check_cuda_error(cudaGetLastError());
+
+  auto d_mem_0 = fp_tmp_buffer; // keeps decomposed value
+
+  // Set the scratch buffer to 0 as it is used to accumulate
+  // decomposition temporary results
+  if (uses_trivial_indices) {
+    cuda_memset_async(lwe_array_out, 0,
+                      num_samples * (lwe_dimension_out + 1) * sizeof(Torus),
+                      stream, gpu_index);
+  } else {
+    // gemm to ks the individual LWEs to GLWEs
+    dim3 grid_zero(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
+                   CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+    dim3 threads_zero(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
+
+    keyswitch_zero_output_with_output_indices<Torus>
+        <<<grid_zero, threads_zero, 0, stream>>>(
+            lwe_array_out, lwe_output_indices, lwe_dimension_out + 1,
+            num_samples);
+  }
+  check_cuda_error(cudaGetLastError());
+
+  dim3 grid_copy(CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+  dim3 threads_copy(BLOCK_SIZE_DECOMP);
+
+  // lwe_array_out is num_samples x (lwe_dimension_out + 1). copy the bodies
+  // lwe_array_in[:,lwe_dimension_in] to lwe_array_out[:,lwe_dimension_out]
+  // and negate
+  if (uses_trivial_indices) {
+    keyswitch_gemm_copy_message<Torus><<<grid_copy, threads_copy, 0, stream>>>(
+        lwe_array_in, lwe_array_out, lwe_dimension_in, num_samples,
+        lwe_dimension_out);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    keyswitch_gemm_copy_message_with_indices<Torus>
+        <<<grid_copy, threads_copy, 0, stream>>>(
+            lwe_array_in, lwe_input_indices, lwe_array_out, lwe_output_indices,
+            lwe_dimension_in, num_samples, lwe_dimension_out);
+    check_cuda_error(cudaGetLastError());
+  }
+
+  // decompose LWEs
+  // don't decompose LWE body - the LWE has lwe_size + 1 elements. The last
+  // element, the body is ignored by rounding down the number of blocks assuming
+  // here that the LWE dimension is a multiple of the block size
+  dim3 grid_decomp(CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP),
+                   CEIL_DIV(lwe_dimension_in, BLOCK_SIZE_DECOMP));
+  dim3 threads_decomp(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
+
+  uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
+  // Shared memory requirement is 4096, 8192, and 16384 bytes respectively for
+  // 32, 64, and 128-bit Torus elements
+  // Sanity check: the shared memory size is a constant defined by the algorithm
+  GPU_ASSERT(shared_mem_size <= 1024 * sizeof(Torus),
+             "GEMM kernel error: shared memory required might be too large");
+
+  auto stride_KSK_buffer = (lwe_dimension_out + 1) * level_count;
+
+  // gemm to ks the individual LWEs to GLWEs
+  dim3 grid_gemm(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_GEMM_KS),
+                 CEIL_DIV(num_samples, BLOCK_SIZE_GEMM_KS));
+  dim3 threads_gemm(BLOCK_SIZE_GEMM_KS * THREADS_GEMM_KS);
+
+  // decompose first level (skips the body in the input buffer)
+  if (uses_trivial_indices) {
+    decompose_vectorize_init<Torus><<<grid_decomp, threads_decomp, 0, stream>>>(
+        lwe_array_in, fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
+        level_count);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    decompose_vectorize_init_with_indices<Torus>
+        <<<grid_decomp, threads_decomp, 0, stream>>>(
+            lwe_array_in, lwe_input_indices, fp_tmp_buffer, lwe_dimension_in,
+            num_samples, base_log, level_count);
+    check_cuda_error(cudaGetLastError());
+  }
+
+  if (uses_trivial_indices) {
+    tgemm<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+            num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
+            ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1);
+    check_cuda_error(cudaGetLastError());
+
+  } else {
+    tgemm_with_indices<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+            num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
+            ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1,
+            lwe_output_indices);
+    check_cuda_error(cudaGetLastError());
+  }
+
+  auto ksk_block_size = (lwe_dimension_out + 1);
+
+  for (int li = 1; li < level_count; ++li) {
+    decompose_vectorize_step_inplace<Torus>
+        <<<grid_decomp, threads_decomp, 0, stream>>>(
+            fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
+            level_count);
+    check_cuda_error(cudaGetLastError());
+
+    if (uses_trivial_indices) {
+      tgemm<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+          <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+              num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
+              ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
+              lwe_dimension_out + 1);
+      check_cuda_error(cudaGetLastError());
+
+    } else {
+      tgemm_with_indices<Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
+          <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+              num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
+              ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
+              lwe_dimension_out + 1, lwe_output_indices);
+      check_cuda_error(cudaGetLastError());
+    }
+  }
+
+  // gemm to ks the individual LWEs to GLWEs
+  dim3 grid_negate(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
+                   CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP));
+  dim3 threads_negate(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
+  // Negate all outputs in the LWE
+  if (uses_trivial_indices) {
+    keyswitch_negate<Torus><<<grid_negate, threads_negate, 0, stream>>>(
+        lwe_array_out, lwe_dimension_out + 1, num_samples);
+  } else {
+    keyswitch_negate_with_output_indices<Torus>
+        <<<grid_negate, threads_negate, 0, stream>>>(
+            lwe_array_out, lwe_output_indices, lwe_dimension_out + 1,
+            num_samples);
+  }
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus>
+void execute_keyswitch_async(
+    CudaStreams streams, const LweArrayVariant<Torus> &lwe_array_out,
+    const LweArrayVariant<Torus> &lwe_output_indexes,
+    const LweArrayVariant<Torus> &lwe_array_in,
+    const LweArrayVariant<Torus> &lwe_input_indexes, Torus *const *ksks,
+    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, bool uses_trivial_indices,
+    const std::vector<ks_mem<Torus> *> &fp_tmp_buffer) {
 
   /// If the number of radix blocks is lower than the number of GPUs, not all
   /// GPUs will be active and there will be 1 input per GPU
@@ -164,12 +550,38 @@ void execute_keyswitch_async(CudaStreams streams,
     Torus *current_lwe_input_indexes =
         get_variant_element(lwe_input_indexes, i);
 
-    // Compute Keyswitch
-    host_keyswitch_lwe_ciphertext_vector<Torus>(
-        streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-        current_lwe_output_indexes, current_lwe_array_in,
-        current_lwe_input_indexes, ksks[i], lwe_dimension_in, lwe_dimension_out,
-        base_log, level_count, num_samples_on_gpu);
+    if (num_samples_on_gpu >= get_threshold_ks_gemm()) {
+      GPU_ASSERT(fp_tmp_buffer.size() >= streams.count(),
+                 "GEMM KS Buffers %ld were not initialized for this amount of "
+                 "streams, %d",
+                 fp_tmp_buffer.size(), streams.count());
+
+      GPU_ASSERT(fp_tmp_buffer[i]->num_lwes >= num_samples_on_gpu,
+                 "KS temp buffer not big enough");
+
+      GPU_ASSERT(fp_tmp_buffer[i]->lwe_dimension ==
+                     std::max(lwe_dimension_in, lwe_dimension_out),
+                 "KS temp buffer was created for a different input LWE size: "
+                 "%d vs (in:%d, out:%d)",
+                 fp_tmp_buffer[i]->lwe_dimension, lwe_dimension_in,
+                 lwe_dimension_out);
+
+      // Compute Keyswitch
+      host_gemm_keyswitch_lwe_ciphertext_vector<Torus>(
+          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+          current_lwe_output_indexes, current_lwe_array_in,
+          current_lwe_input_indexes, ksks[i], lwe_dimension_in,
+          lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
+          fp_tmp_buffer[i]->d_buffer, uses_trivial_indices);
+
+    } else {
+      // Compute Keyswitch
+      host_keyswitch_lwe_ciphertext_vector<Torus>(
+          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+          current_lwe_output_indexes, current_lwe_array_in,
+          current_lwe_input_indexes, ksks[i], lwe_dimension_in,
+          lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
+    }
   }
 }
 
@@ -257,6 +669,34 @@ __global__ void accumulate_glwes(Torus *glwe_out, Torus *glwe_array_in,
       glwe_out[tid] += glwe_in[tid];
     }
   }
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_keyswitch(cudaStream_t stream, uint32_t gpu_index,
+                                ks_mem<Torus> **ks_tmp_memory,
+                                uint32_t lwe_dimension_in,
+                                uint32_t lwe_dimension_out, uint32_t num_lwes,
+                                bool allocate_gpu_memory) {
+  uint64_t sub_size_tracker = 0;
+  uint64_t buffer_size = scratch_cuda_keyswitch_size<Torus>(
+      lwe_dimension_in, lwe_dimension_out, num_lwes);
+
+  *ks_tmp_memory = new ks_mem<Torus>;
+  (*ks_tmp_memory)->d_buffer = (uint64_t *)cuda_malloc_with_size_tracking_async(
+      buffer_size, stream, gpu_index, sub_size_tracker, allocate_gpu_memory);
+  (*ks_tmp_memory)->lwe_dimension =
+      std::max(lwe_dimension_in, lwe_dimension_out);
+  (*ks_tmp_memory)->num_lwes = num_lwes;
+  return sub_size_tracker;
+}
+
+template <typename Torus>
+void cleanup_cuda_keyswitch(cudaStream_t stream, uint32_t gpu_index,
+                            ks_mem<Torus> *ks_tmp_memory,
+                            bool allocate_gpu_memory) {
+  cuda_drop_with_size_tracking_async(ks_tmp_memory->d_buffer, stream, gpu_index,
+                                     allocate_gpu_memory);
+  delete ks_tmp_memory;
 }
 
 #endif

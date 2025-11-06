@@ -15,6 +15,9 @@ template <typename Torus> struct int_rerand_mem {
 
   bool gpu_memory_allocated;
 
+  std::vector<ks_mem<Torus> *>
+      ks_tmp_buf_vec; // buffers on each GPU to store keyswitch temporary data
+
   expand_job<Torus> *d_expand_jobs;
   expand_job<Torus> *h_expand_jobs;
 
@@ -56,6 +59,21 @@ template <typename Torus> struct int_rerand_mem {
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 
+    for (auto i = 0; i < streams.count(); ++i) {
+      ks_mem<Torus> *ks_buffer;
+      uint64_t sub_size_tracker = scratch_cuda_keyswitch<Torus>(
+          streams.stream(i), streams.gpu_index(i), &ks_buffer,
+          params.small_lwe_dimension, params.big_lwe_dimension, num_lwes,
+          allocate_gpu_memory);
+
+      if (i == 0) {
+        size_tracker += sub_size_tracker;
+      }
+      ks_tmp_buf_vec.push_back(ks_buffer);
+    }
+
+    streams.synchronize();
+
     free(h_lwe_trivial_indexes);
   }
 
@@ -72,6 +90,13 @@ template <typename Torus> struct int_rerand_mem {
     cuda_drop_with_size_tracking_async(d_expand_jobs, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+
+    for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
+      cleanup_cuda_keyswitch(streams.stream(i), streams.gpu_index(i),
+                             ks_tmp_buf_vec[i], gpu_memory_allocated);
+    }
+    ks_tmp_buf_vec.clear();
+
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_expand_jobs);
   }

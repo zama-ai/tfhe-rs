@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 
+#include "crypto/keyswitch.cuh"
+
 class NoiseLevel {
 public:
   // Constants equivalent to the Rust code
@@ -336,6 +338,9 @@ struct int_radix_lut_custom_input_output {
   std::vector<InputTorus *> lwe_after_ks_vec;
   std::vector<OutputTorus *> lwe_after_pbs_vec;
   std::vector<InputTorus *> lwe_trivial_indexes_vec;
+  std::vector<ks_mem<InputTorus> *>
+      ks_tmp_buf_vec; // buffers on each GPU to store keyswitch temporary data
+
   std::vector<InputTorus *> lwe_aligned_vec;
 
   bool gpu_memory_allocated;
@@ -439,6 +444,25 @@ struct int_radix_lut_custom_input_output {
     multi_gpu_copy_array_async(active_streams, lwe_trivial_indexes_vec,
                                lwe_trivial_indexes, num_radix_blocks,
                                allocate_gpu_memory);
+
+    auto inputs_on_gpu = std::max(
+        THRESHOLD_MULTI_GPU,
+        get_num_inputs_on_gpu(num_radix_blocks, 0, active_streams.count()));
+
+    if (inputs_on_gpu >= get_threshold_ks_gemm()) {
+      for (auto i = 0; i < active_streams.count(); ++i) {
+        ks_mem<InputTorus> *ks_buffer;
+        uint64_t sub_size_tracker = scratch_cuda_keyswitch<InputTorus>(
+            active_streams.stream(i), active_streams.gpu_index(i), &ks_buffer,
+            input_big_lwe_dimension, params.small_lwe_dimension, num_blocks,
+            allocate_gpu_memory);
+
+        if (i == 0) {
+          size_tracker += sub_size_tracker;
+        }
+        ks_tmp_buf_vec.push_back(ks_buffer);
+      }
+    }
   }
 
   void setup_mem_reuse(uint32_t num_radix_blocks,
@@ -458,6 +482,8 @@ struct int_radix_lut_custom_input_output {
     lwe_after_ks_vec = base_lut_object->lwe_after_ks_vec;
     lwe_after_pbs_vec = base_lut_object->lwe_after_pbs_vec;
     lwe_trivial_indexes_vec = base_lut_object->lwe_trivial_indexes_vec;
+
+    ks_tmp_buf_vec = base_lut_object->ks_tmp_buf_vec;
 
     mem_reuse = true;
   }
@@ -861,6 +887,13 @@ struct int_radix_lut_custom_input_output {
         }
         lwe_aligned_vec.clear();
       }
+
+      for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
+        cleanup_cuda_keyswitch(active_streams.stream(i),
+                               active_streams.gpu_index(i), ks_tmp_buf_vec[i],
+                               gpu_memory_allocated);
+      }
+      ks_tmp_buf_vec.clear();
     }
     free(h_lut_indexes);
     free(degrees);
