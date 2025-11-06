@@ -16,6 +16,7 @@ use std::any::{Any, TypeId};
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
+use tfhe_cuda_backend::ffi;
 
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
@@ -477,8 +478,48 @@ pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
     size_tracker
 }
 
-/// Keyswitch on a vector of LWE ciphertexts
+/// Keyswitch on a vector of LWE ciphertexts using the GEMM batch KS approach
 ///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn keyswitch_async_gemm<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_out_indexes: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    lwe_in_indexes: &CudaVec<T>,
+    input_lwe_dimension: LweDimension,
+    output_lwe_dimension: LweDimension,
+    keyswitch_key: &CudaVec<T>,
+    base_log: DecompositionBaseLog,
+    l_gadget: DecompositionLevelCount,
+    num_samples: u32,
+    ks_tmp_buffer: *const ffi::c_void,
+    uses_trivial_indices: bool,
+) {
+    cuda_keyswitch_gemm_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_out_indexes.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        lwe_in_indexes.as_c_ptr(0),
+        keyswitch_key.as_c_ptr(0),
+        input_lwe_dimension.0 as u32,
+        output_lwe_dimension.0 as u32,
+        base_log.0 as u32,
+        l_gadget.0 as u32,
+        num_samples,
+        ks_tmp_buffer,
+        uses_trivial_indices,
+    );
+}
+
+/// Keyswitch on a vector of LWE ciphertexts. Better for small batches of LWEs
+/// (up to 128 LWEs on H100, up to 64 on L40, up to 16 on 4090)
 /// # Safety
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
@@ -512,7 +553,6 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
         num_samples,
     );
 }
-
 /// Convert keyswitch key
 ///
 /// # Safety

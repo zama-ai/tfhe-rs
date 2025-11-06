@@ -15,6 +15,10 @@ template <typename Torus> struct int_rerand_mem {
 
   bool gpu_memory_allocated;
 
+  std::vector<ks_mem<Torus> *>
+      ks_tmp_buf_vec; // not allocated, ReRand not using GEMM KS for now
+  // kept empty to pass to the KS function indicating GEMM KS disabled
+
   expand_job<Torus> *d_expand_jobs;
   expand_job<Torus> *h_expand_jobs;
 
@@ -72,6 +76,13 @@ template <typename Torus> struct int_rerand_mem {
     cuda_drop_with_size_tracking_async(d_expand_jobs, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+
+    for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
+      cleanup_cuda_keyswitch(streams.stream(i), streams.gpu_index(i),
+                             ks_tmp_buf_vec[i], gpu_memory_allocated);
+    }
+    ks_tmp_buf_vec.clear();
+
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_expand_jobs);
   }

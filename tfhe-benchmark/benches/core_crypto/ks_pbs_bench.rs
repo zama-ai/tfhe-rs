@@ -630,7 +630,9 @@ mod cuda {
                                     &mut output_ks_ct_gpu,
                                     &cuda_indexes.d_input,
                                     &cuda_indexes.d_output,
+                                    true,
                                     &streams,
+                                    false,
                                 );
                                 cuda_programmable_bootstrap_lwe_ciphertext(
                                     &output_ks_ct_gpu,
@@ -782,7 +784,9 @@ mod cuda {
                                                 output_ks_ct,
                                                 &cuda_indexes_vec[i].d_input,
                                                 &cuda_indexes_vec[i].d_output,
+                                                true,
                                                 local_stream,
+                                                false,
                                             );
                                             cuda_programmable_bootstrap_lwe_ciphertext(
                                                 output_ks_ct,
@@ -937,7 +941,9 @@ mod cuda {
                                 &mut output_ks_ct_gpu,
                                 &cuda_indexes.d_input,
                                 &cuda_indexes.d_output,
+                                true,
                                 &streams,
+                                false,
                             );
                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
                                 &output_ks_ct_gpu,
@@ -1088,7 +1094,9 @@ mod cuda {
                                                 output_ks_ct,
                                                 &cuda_indexes_vec[i].d_input,
                                                 &cuda_indexes_vec[i].d_output,
+                                                true,
                                                 local_stream,
+                                                false,
                                             );
                                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
                                                 output_ks_ct,
