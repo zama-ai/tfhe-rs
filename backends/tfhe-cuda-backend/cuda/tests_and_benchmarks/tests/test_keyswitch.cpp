@@ -45,6 +45,7 @@ protected:
   uint64_t *lwe_out_ct;
   uint64_t *lwe_input_indexes;
   uint64_t *lwe_output_indexes;
+  void *ks_tmp_buffer;
 
   // Data stays at gpu 0
   uint32_t gpu_index = 0;
@@ -83,7 +84,7 @@ public:
     keyswitch_setup(streams[0], gpu_index, &seed, &lwe_sk_in_array,
                     &lwe_sk_out_array, &d_ksk_array, &plaintexts,
                     &d_lwe_ct_in_array, &lwe_input_indexes, &d_lwe_ct_out_array,
-                    &lwe_output_indexes, input_lwe_dimension,
+                    &lwe_output_indexes, &ks_tmp_buffer, input_lwe_dimension,
                     output_lwe_dimension, noise_distribution, ksk_base_log,
                     ksk_level, message_modulus, carry_modulus, &payload_modulus,
                     &delta, number_of_inputs, REPETITIONS, SAMPLES);
@@ -94,7 +95,7 @@ public:
     keyswitch_teardown(streams[0], gpu_index, lwe_sk_in_array, lwe_sk_out_array,
                        d_ksk_array, plaintexts, d_lwe_ct_in_array,
                        lwe_input_indexes, d_lwe_ct_out_array,
-                       lwe_output_indexes);
+                       lwe_output_indexes, &ks_tmp_buffer);
     if (active_gpu_count > 1) {
       for (uint gpu_i = 1; gpu_i < active_gpu_count; gpu_i++) {
         cuda_destroy_stream(streams[gpu_i], gpu_i);
@@ -136,10 +137,11 @@ TEST_P(KeyswitchMultiGPUTestPrimitives_u64, keyswitch) {
             d_lwe_ct_out_array + (ptrdiff_t)(output_lwe_start_index);
 
         // Execute keyswitch
-        cuda_keyswitch_lwe_ciphertext_vector_64(
+        cuda_keyswitch_gemm_lwe_ciphertext_vector_64(
             streams[gpu_i], gpu_i, d_lwe_ct_out, lwe_output_indexes,
             d_lwe_ct_in_slice, lwe_input_indexes, d_ksk, input_lwe_dimension,
-            output_lwe_dimension, ksk_base_log, ksk_level, num_inputs);
+            output_lwe_dimension, ksk_base_log, ksk_level, num_inputs,
+            ks_tmp_buffer, false);
       }
       for (uint gpu_i = 0; gpu_i < active_gpu_count; gpu_i++) {
         cuda_synchronize_stream(streams[gpu_i], gpu_i);
@@ -195,6 +197,7 @@ protected:
   uint64_t *lwe_out_ct;
   uint64_t *lwe_input_indexes;
   uint64_t *lwe_output_indexes;
+  void *ks_tmp_buffer;
 
 public:
   // Test arithmetic functions
@@ -217,7 +220,7 @@ public:
     keyswitch_setup(stream, gpu_index, &seed, &lwe_sk_in_array,
                     &lwe_sk_out_array, &d_ksk_array, &plaintexts,
                     &d_lwe_ct_in_array, &lwe_input_indexes, &d_lwe_ct_out_array,
-                    &lwe_output_indexes, input_lwe_dimension,
+                    &lwe_output_indexes, &ks_tmp_buffer, input_lwe_dimension,
                     output_lwe_dimension, noise_distribution, ksk_base_log,
                     ksk_level, message_modulus, carry_modulus, &payload_modulus,
                     &delta, number_of_inputs, REPETITIONS, SAMPLES);
@@ -227,7 +230,7 @@ public:
     keyswitch_teardown(stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array,
                        d_ksk_array, plaintexts, d_lwe_ct_in_array,
                        lwe_input_indexes, d_lwe_ct_out_array,
-                       lwe_output_indexes);
+                       lwe_output_indexes, &ks_tmp_buffer);
   }
 };
 
@@ -245,11 +248,12 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
           (ptrdiff_t)((r * SAMPLES * number_of_inputs + s * number_of_inputs) *
                       (input_lwe_dimension + 1));
       // Execute keyswitch
-      cuda_keyswitch_lwe_ciphertext_vector_64(
+      cuda_keyswitch_gemm_lwe_ciphertext_vector_64(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)lwe_output_indexes, (void *)d_lwe_ct_in,
           (void *)lwe_input_indexes, (void *)d_ksk, input_lwe_dimension,
-          output_lwe_dimension, ksk_base_log, ksk_level, number_of_inputs);
+          output_lwe_dimension, ksk_base_log, ksk_level, number_of_inputs,
+          ks_tmp_buffer, false);
 
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_out_ct, d_lwe_ct_out_array,
