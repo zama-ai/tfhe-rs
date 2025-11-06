@@ -781,7 +781,7 @@ build_debug_integer_short_run_gpu: install_rs_check_toolchain install_cargo_next
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile debug_lto_off \
 		--features=integer,gpu-debug-fake-multi-gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random --list
 	@echo "To debug fake-multi-gpu short run tests run:"
-	@echo "TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE <executable> integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random_op_sequence_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128 --nocapture"
+	@echo "TFHE_RS_LONGRUN_TESTS_SEED=<SEED_FROM_CI> TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE <executable> integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random_op_sequence_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128 --nocapture"
 	@echo "Where <executable> = the one printed in the () in the 'Running unittests src/lib.rs ()' line above"
 
 .PHONY: test_integer_compression
