@@ -192,4 +192,103 @@ __global__ void tgemm(uint M, uint N, uint K, const Torus *A, const Torus *B,
   }
 }
 
+// Multiply matrices A, B of size (M, K), (K, N) respectively
+// with K as the inner dimension.
+//
+// A block of threads processeds blocks of size (BLOCK_SIZE_GEMM,
+// BLOCK_SIZE_GEMM) splitting them in multiple tiles: (BLOCK_SIZE_GEMM,
+// THREADS_GEMM)-shaped tiles of values from A, and a (THREADS_GEMM,
+// BLOCK_SIZE_GEMM)-shaped tiles of values from B.
+//
+// This code is adapted by generalizing the 1d block-tiling
+// kernel from https://github.com/siboehm/SGEMM_CUDA
+// to any matrix dimension
+template <typename Torus>
+__global__ void tgemm_with_indices(uint M, uint N, uint K, const Torus *A,
+                                   const Torus *B, uint stride_B, Torus *C,
+                                   uint stride_C,
+                                   const Torus *__restrict__ C_indices) {
+
+  const int BM = BLOCK_SIZE_GEMM;
+  const int BN = BLOCK_SIZE_GEMM;
+  const int BK = THREADS_GEMM;
+  const int TM = THREADS_GEMM;
+
+  const uint cRow = blockIdx.y;
+  const uint cCol = blockIdx.x;
+
+  const int threadCol = threadIdx.x % BN;
+  const int threadRow = threadIdx.x / BN;
+
+  // Allocate space for the current block tile in shared memory
+  __shared__ Torus As[BM * BK];
+  __shared__ Torus Bs[BK * BN];
+
+  // Initialize the pointers to the input blocks from A, B
+  // Tiles from these blocks are loaded to shared memory
+
+  A += cRow * BM * K;
+  B += cCol * BN;
+
+  // Each thread will handle multiple sub-blocks
+  const uint innerColA = threadIdx.x % BK;
+  const uint innerRowA = threadIdx.x / BK;
+  const uint innerColB = threadIdx.x % BN;
+  const uint innerRowB = threadIdx.x / BN;
+
+  // allocate thread-local cache for results in registerfile
+  Torus threadResults[TM] = {0};
+
+  auto row_A = cRow * BM + innerRowA;
+  auto col_B = cCol * BN + innerColB;
+
+  // For each thread, loop over block tiles
+  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
+    auto col_A = bkIdx + innerColA;
+    auto row_B = bkIdx + innerRowB;
+
+    if (row_A < M && col_A < K) {
+      As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA]; //
+    } else {
+      As[innerRowA * BK + innerColA] = 0;
+    }
+
+    if (col_B < N && row_B < K) {
+      Bs[innerRowB * BN + innerColB] = B[innerRowB * stride_B + innerColB];
+    } else {
+      Bs[innerRowB * BN + innerColB] = 0;
+    }
+    __syncthreads();
+
+    // Advance blocktile for the next iteration of this loop
+    A += BK;
+    B += BK * stride_B;
+
+    // calculate per-thread results
+    for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
+      // we make the dotproduct loop the outside loop, which facilitates
+      // reuse of the Bs entry, which we can cache in a tmp var.
+      Torus tmp = Bs[dotIdx * BN + threadCol];
+      for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+        threadResults[resIdx] +=
+            As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
+      }
+    }
+    __syncthreads();
+  }
+
+  // write out the results
+  for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+    int outRow = cRow * BM + threadRow * TM + resIdx;
+    int outCol = cCol * BN + threadCol;
+
+    if (outRow >= M)
+      continue;
+    if (outCol >= N)
+      continue;
+
+    C[C_indices[outRow] * stride_C + outCol] += threadResults[resIdx];
+  }
+}
+
 #endif // CUDA_MULT_H
