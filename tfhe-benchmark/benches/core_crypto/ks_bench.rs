@@ -431,8 +431,9 @@ mod cuda {
                     }
 
 
-                    for elements_per_stream in (2..=32u64)
+                    for elements_per_stream_i in (4..=32u64)
                     {
+                        let elements_per_stream = elements_per_stream_i * 16;
                         let plaintext_list = PlaintextList::new(
                             Scalar::ZERO,
                             PlaintextCount(elements_per_stream as usize),
