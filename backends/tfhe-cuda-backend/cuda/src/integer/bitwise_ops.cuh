@@ -10,6 +10,30 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
+__host__ void
+host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
+            uint32_t ct_message_modulus, uint32_t param_message_modulus,
+            uint32_t param_carry_modulus) {
+
+
+  constexpr Torus TORUS_ONE = (sizeof(Torus) == 4) ? 1U : 1ULL;
+  const Torus encoded_scalar =
+      (TORUS_ONE << ((sizeof(Torus) * 8 - 1) -
+          __builtin_ctz(param_message_modulus * param_carry_modulus))) *
+          (ct_message_modulus - 1);
+
+  host_negation<Torus>(
+      streams.stream(0), streams.gpu_index(0), (Torus *)radix_ciphertext->ptr,
+      (Torus *)radix_ciphertext->ptr, radix_ciphertext->lwe_dimension,
+      radix_ciphertext->num_radix_blocks);
+
+  host_addition_plaintext_scalar<Torus>(
+      streams.stream(0), streams.gpu_index(0), (Torus *)radix_ciphertext->ptr,
+      (Torus *)radix_ciphertext->ptr, encoded_scalar,
+      radix_ciphertext->lwe_dimension, radix_ciphertext->num_radix_blocks);
+}
+
+template <typename Torus>
 __host__ void host_bitop(CudaStreams streams,
                          CudaRadixCiphertextFFI *lwe_array_out,
                          CudaRadixCiphertextFFI const *lwe_array_1,

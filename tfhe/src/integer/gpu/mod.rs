@@ -8028,3 +8028,144 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
 
     size
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    ciphertext: &mut CudaRadixCiphertext,
+    is_unchecked: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    lwe_dimension: LweDimension,
+    polynomial_size: PolynomialSize,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ciphertext.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, ciphertext pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        ciphertext.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut ciphertext_degrees = ciphertext.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut ciphertext_noise_levels = ciphertext
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_ciphertext = prepare_cuda_radix_ffi(
+        &ciphertext,
+        &mut ciphertext_degrees,
+        &mut ciphertext_noise_levels,
+    );
+
+    // scratch_cuda_integer_mult_radix_ciphertext_64(
+    //     streams.ffi(),
+    //     std::ptr::addr_of_mut!(mem_ptr),
+    //     is_boolean_left,
+    //     is_boolean_right,
+    //     message_modulus.0 as u32,
+    //     carry_modulus.0 as u32,
+    //     glwe_dimension.0 as u32,
+    //     lwe_dimension.0 as u32,
+    //     polynomial_size.0 as u32,
+    //     pbs_base_log.0 as u32,
+    //     pbs_level.0 as u32,
+    //     ks_base_log.0 as u32,
+    //     ks_level.0 as u32,
+    //     grouping_factor.0 as u32,
+    //     num_blocks,
+    //     pbs_type as u32,
+    //     true,
+    //     noise_reduction_type as u32,
+    // );
+    // cuda_integer_mult_radix_ciphertext_64(
+    //     streams.ffi(),
+    //     &raw mut cuda_ffi_radix_lwe_left,
+    //     &raw const cuda_ffi_radix_lwe_left,
+    //     is_boolean_left,
+    //     &raw const cuda_ffi_radix_lwe_right,
+    //     is_boolean_right,
+    //     bootstrapping_key.ptr.as_ptr(),
+    //     keyswitch_key.ptr.as_ptr(),
+    //     mem_ptr,
+    //     polynomial_size.0 as u32,
+    //     num_blocks,
+    // );
+    // cleanup_cuda_integer_mult(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    // update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_bitnot_assign(
+    streams: &CudaStreams,
+    ciphertext: &mut CudaRadixCiphertext,
+    param_message_modulus: MessageModulus,
+    param_carry_modulus: CarryModulus,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ciphertext.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, ciphertext pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        ciphertext.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+
+    let mut ciphertext_degrees = ciphertext.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut ciphertext_noise_levels = ciphertext
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_ciphertext = prepare_cuda_radix_ffi(
+        &ciphertext,
+        &mut ciphertext_degrees,
+        &mut ciphertext_noise_levels,
+    );
+
+    cuda_bitnot_ciphertext_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_ciphertext,
+        param_message_modulus.0 as u32,
+        param_message_modulus.0 as u32,
+        param_carry_modulus.0 as u32,
+    )
+}

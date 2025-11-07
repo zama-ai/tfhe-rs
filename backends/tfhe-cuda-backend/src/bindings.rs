@@ -687,6 +687,15 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn cuda_bitnot_ciphertext_64(
+        streams: CudaStreamsFFI,
+        radix_ciphertext: *mut CudaRadixCiphertextFFI,
+        ct_message_modulus: u32,
+        param_message_modulus: u32,
+        param_carry_modulus: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_bitop_ciphertext_64(
         streams: CudaStreamsFFI,
         lwe_array_out: *mut CudaRadixCiphertextFFI,

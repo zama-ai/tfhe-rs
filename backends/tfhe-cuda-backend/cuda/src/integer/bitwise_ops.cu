@@ -19,6 +19,15 @@ uint64_t scratch_cuda_bitop_64(
       lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
 }
 
+void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
+                               CudaRadixCiphertextFFI *radix_ciphertext,
+                               uint32_t ct_message_modulus,
+                               uint32_t param_message_modulus,
+                               uint32_t param_carry_modulus) {
+  host_bitnot<uint64_t>(CudaStreams(streams), radix_ciphertext,
+                        ct_message_modulus, param_message_modulus, param_carry_modulus);
+}
+
 void cuda_bitop_ciphertext_64(CudaStreamsFFI streams,
                               CudaRadixCiphertextFFI *lwe_array_out,
                               CudaRadixCiphertextFFI const *lwe_array_1,

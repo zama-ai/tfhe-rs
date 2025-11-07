@@ -6,12 +6,14 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    cuda_backend_get_bitop_size_on_gpu, cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_boolean_bitnot_assign, cuda_backend_get_bitop_size_on_gpu,
+    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_unchecked_bitnot_assign,
     cuda_backend_unchecked_bitop_assign, BitOpType, CudaServerKey, PBSType,
 };
+use crate::shortint::{CarryModulus, MessageModulus};
 
 impl CudaServerKey {
     /// Computes homomorphically bitnot for an encrypted integer value.
@@ -69,30 +71,31 @@ impl CudaServerKey {
         ct: &mut T,
         streams: &CudaStreams,
     ) {
-        // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
-        cuda_lwe_ciphertext_negate_assign(&mut ct.as_mut().d_blocks, streams);
-
-        let ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-
-        let scalar = self.message_modulus.0 as u8 - 1;
-
-        let shift_plaintext = self.encoding().encode(Cleartext(u64::from(scalar))).0;
-
-        let scalar_vector = vec![shift_plaintext; ct_blocks];
-
-        let mut d_decomposed_scalar = unsafe {
-            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
-        };
         unsafe {
-            d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+            cuda_backend_unchecked_bitnot_assign(streams, ct.as_mut(), self
+                .message_modulus, self.carry_modulus);
         }
-
-        cuda_lwe_ciphertext_plaintext_add_assign(
-            &mut ct.as_mut().d_blocks,
-            &d_decomposed_scalar,
-            streams,
-        );
         ct.as_mut().info = ct.as_ref().info.after_bitnot();
+    }
+
+    pub fn boolean_bitnot(&self, ct: &CudaBooleanBlock, streams: &CudaStreams) -> CudaBooleanBlock {
+        let mut result = ct.duplicate(streams);
+        self.boolean_bitnot_assign(&mut result, streams);
+        result
+    }
+
+    pub fn boolean_bitnot_assign(&self, ct: &mut CudaBooleanBlock, streams: &CudaStreams) {
+        self.boolean_bitnot_assign_executor(ct, false, streams);
+    }
+
+    pub fn unchecked_boolean_bitnot(
+        &self,
+        ct: &CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock {
+        let mut result = ct.duplicate(streams);
+        self.unchecked_boolean_bitnot_assign(&mut result, streams);
+        result
     }
 
     pub fn unchecked_boolean_bitnot_assign(
@@ -100,27 +103,83 @@ impl CudaServerKey {
         ct: &mut CudaBooleanBlock,
         streams: &CudaStreams,
     ) {
-        // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
-        cuda_lwe_ciphertext_negate_assign(&mut ct.0.as_mut().d_blocks, streams);
+        self.boolean_bitnot_assign_executor(ct, true, streams);
 
-        let ct_blocks = ct.0.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
+        // cuda_lwe_ciphertext_negate_assign(&mut ct.0.as_mut().d_blocks, streams);
+        //
+        // let ct_blocks = ct.0.as_ref().d_blocks.lwe_ciphertext_count().0;
+        //
+        // let shift_plaintext = self.encoding().encode(Cleartext(1u64)).0;
+        //
+        // let scalar_vector = vec![shift_plaintext; ct_blocks];
+        // let mut d_decomposed_scalar = unsafe {
+        //     CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams,
+        // 0) };
+        // unsafe {
+        //     d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+        // }
+        //
+        // cuda_lwe_ciphertext_plaintext_add_assign(
+        //     &mut ct.0.as_mut().d_blocks,
+        //     &d_decomposed_scalar,
+        //     streams,
+        // );
+        // // Neither noise level nor the degree changes
+    }
 
-        let shift_plaintext = self.encoding().encode(Cleartext(1u64)).0;
-
-        let scalar_vector = vec![shift_plaintext; ct_blocks];
-        let mut d_decomposed_scalar = unsafe {
-            CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
-        };
+    fn boolean_bitnot_assign_executor(
+        &self,
+        ct: &mut CudaBooleanBlock,
+        is_unchecked: bool,
+        streams: &CudaStreams,
+    ) {
         unsafe {
-            d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_boolean_bitnot_assign(
+                        streams,
+                        &mut ct.0.ciphertext as &mut CudaRadixCiphertext,
+                        is_unchecked,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension(),
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        d_bsk.decomp_base_log(),
+                        d_bsk.decomp_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        self.key_switching_key.decomposition_level_count(),
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_boolean_bitnot_assign(
+                        streams,
+                        &mut ct.0.ciphertext as &mut CudaRadixCiphertext,
+                        is_unchecked,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        d_multibit_bsk.decomp_base_log(),
+                        d_multibit_bsk.decomp_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        self.key_switching_key.decomposition_level_count(),
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
         }
-
-        cuda_lwe_ciphertext_plaintext_add_assign(
-            &mut ct.0.as_mut().d_blocks,
-            &d_decomposed_scalar,
-            streams,
-        );
-        // Neither noise level nor the degree changes
     }
 
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -807,13 +866,15 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, streams: &CudaStreams) -> T {
+    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T,
+                                                 streams: &CudaStreams) -> T {
         let mut result = ct.duplicate(streams);
         self.bitnot_assign(&mut result, streams);
         result
     }
 
-    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, streams: &CudaStreams) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T,
+                                                        streams: &CudaStreams) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }

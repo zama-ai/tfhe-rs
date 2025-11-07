@@ -289,6 +289,12 @@ uint64_t scratch_cuda_bitop_64(
     uint32_t carry_modulus, PBS_TYPE pbs_type, BITOP_TYPE op_type,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
+void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
+                               CudaRadixCiphertextFFI *radix_ciphertext,
+                               uint32_t ct_message_modulus,
+                               uint32_t param_message_modulus,
+                               uint32_t param_carry_modulus);
+
 void cuda_bitop_ciphertext_64(CudaStreamsFFI streams,
                               CudaRadixCiphertextFFI *lwe_array_out,
                               CudaRadixCiphertextFFI const *lwe_array_1,
