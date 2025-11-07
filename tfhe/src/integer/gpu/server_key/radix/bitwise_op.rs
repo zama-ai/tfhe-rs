@@ -72,8 +72,12 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) {
         unsafe {
-            cuda_backend_unchecked_bitnot_assign(streams, ct.as_mut(), self
-                .message_modulus, self.carry_modulus);
+            cuda_backend_unchecked_bitnot_assign(
+                streams,
+                ct.as_mut(),
+                self.message_modulus,
+                self.carry_modulus,
+            );
         }
         ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
@@ -104,28 +108,6 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) {
         self.boolean_bitnot_assign_executor(ct, true, streams);
-
-        // // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
-        // cuda_lwe_ciphertext_negate_assign(&mut ct.0.as_mut().d_blocks, streams);
-        //
-        // let ct_blocks = ct.0.as_ref().d_blocks.lwe_ciphertext_count().0;
-        //
-        // let shift_plaintext = self.encoding().encode(Cleartext(1u64)).0;
-        //
-        // let scalar_vector = vec![shift_plaintext; ct_blocks];
-        // let mut d_decomposed_scalar = unsafe {
-        //     CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams,
-        // 0) };
-        // unsafe {
-        //     d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
-        // }
-        //
-        // cuda_lwe_ciphertext_plaintext_add_assign(
-        //     &mut ct.0.as_mut().d_blocks,
-        //     &d_decomposed_scalar,
-        //     streams,
-        // );
-        // // Neither noise level nor the degree changes
     }
 
     fn boolean_bitnot_assign_executor(
@@ -866,15 +848,13 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T,
-                                                 streams: &CudaStreams) -> T {
+    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, streams: &CudaStreams) -> T {
         let mut result = ct.duplicate(streams);
         self.bitnot_assign(&mut result, streams);
         result
     }
 
-    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T,
-                                                        streams: &CudaStreams) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, streams: &CudaStreams) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }

@@ -1,6 +1,49 @@
 #pragma once
 #include "integer_utilities.h"
 
+template <typename Torus> struct boolean_bitnot_buffer {
+  int_radix_params params;
+  int_radix_lut<Torus> *message_extract_lut;
+  bool gpu_memory_allocated;
+  bool unchecked;
+  boolean_bitnot_buffer(CudaStreams streams, int_radix_params params,
+                        uint32_t lwe_ciphertext_count, bool is_unchecked,
+                        bool allocate_gpu_memory, uint64_t &size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+    unchecked = is_unchecked;
+    this->params = params;
+
+    auto message_modulus = params.message_modulus;
+
+    if (!unchecked) {
+      message_extract_lut =
+          new int_radix_lut<Torus>(streams, params, 1, lwe_ciphertext_count,
+                                   gpu_memory_allocated, size_tracker);
+      auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
+        return x % message_modulus;
+      };
+
+      generate_device_accumulator<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          message_extract_lut->get_lut(0, 0),
+          message_extract_lut->get_degree(0),
+          message_extract_lut->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          lut_f_message_extract, gpu_memory_allocated);
+      auto active_streams = streams.active_gpu_subset(lwe_ciphertext_count);
+      message_extract_lut->broadcast_lut(active_streams);
+    }
+  }
+
+  void release(CudaStreams streams) {
+    if (!unchecked) {
+      message_extract_lut->release(streams);
+      delete message_extract_lut;
+    }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
 template <typename Torus> struct int_bitop_buffer {
 
   int_radix_params params;
