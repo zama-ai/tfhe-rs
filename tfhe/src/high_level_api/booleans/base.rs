@@ -1286,18 +1286,25 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
-                let inner_ct = cuda_key.key.key.bitand(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.borrow().ciphertext.on_gpu(streams),
+                let inner_left_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
+                let inner_right_block = rhs
+                    .borrow()
+                    .ciphertext
+                    .on_gpu(streams)
+                    .as_ref()
+                    .duplicate(streams);
+                let boolean_block_left =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_left_block);
+                let boolean_block_right =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_right_block);
+
+                let inner_ct = cuda_key.key.key.boolean_bitand(
+                    &boolean_block_left,
+                    &boolean_block_right,
                     streams,
                 );
 
-                (
-                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                        inner_ct.ciphertext,
-                    )),
-                    cuda_key.tag.clone(),
-                )
+                (InnerBoolean::Cuda(inner_ct), cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1314,14 +1321,24 @@ where
     B: Borrow<Self>,
 {
     fn get_bitand_size_on_gpu(&self, rhs: B) -> u64 {
-        let rhs = rhs.borrow();
-
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
-                cuda_key.key.key.get_bitand_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
+                let inner_left_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
+                let inner_right_block = rhs
+                    .borrow()
+                    .ciphertext
+                    .on_gpu(streams)
+                    .as_ref()
+                    .duplicate(streams);
+                let boolean_block_left =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_left_block);
+                let boolean_block_right =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_right_block);
+
+                cuda_key.key.key.get_boolean_bitand_size_on_gpu(
+                    &boolean_block_left,
+                    &boolean_block_right,
                     streams,
                 )
             } else {
@@ -2327,17 +2344,10 @@ impl std::ops::Not for &FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
-                let inner =
-                    cuda_key
-                        .key
-                        .key
-                        .scalar_bitxor(&*self.ciphertext.on_gpu(streams), 1, streams);
-                (
-                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                        inner.ciphertext,
-                    )),
-                    cuda_key.tag.clone(),
-                )
+                let inner_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
+                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(inner_block);
+                let inner = cuda_key.key.key.boolean_bitnot(&boolean_block, streams);
+                (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
