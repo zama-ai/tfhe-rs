@@ -665,6 +665,86 @@ unsafe extern "C" {
     pub fn cleanup_cuda_integer_comparison(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_boolean_bitop_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        lwe_ciphertext_count: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        op_type: BITOP_TYPE,
+        is_unchecked: bool,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_boolean_bitop_ciphertext_64(
+        streams: CudaStreamsFFI,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_1: *const CudaRadixCiphertextFFI,
+        lwe_array_2: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_boolean_bitop(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_boolean_bitnot_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        lwe_ciphertext_count: u32,
+        is_unchecked: bool,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_boolean_bitnot_ciphertext_64(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_boolean_bitnot(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn cuda_bitnot_ciphertext_64(
+        streams: CudaStreamsFFI,
+        radix_ciphertext: *mut CudaRadixCiphertextFFI,
+        ct_message_modulus: u32,
+        param_message_modulus: u32,
+        param_carry_modulus: u32,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_bitop_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -687,17 +767,6 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_bitop_ciphertext_64(
-        streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_1: *const CudaRadixCiphertextFFI,
-        lwe_array_2: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_scalar_bitop_ciphertext_64(
         streams: CudaStreamsFFI,
         lwe_array_out: *mut CudaRadixCiphertextFFI,
@@ -705,6 +774,17 @@ unsafe extern "C" {
         clear_blocks: *const ffi::c_void,
         h_clear_blocks: *const ffi::c_void,
         num_clear_blocks: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_bitop_ciphertext_64(
+        streams: CudaStreamsFFI,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_1: *const CudaRadixCiphertextFFI,
+        lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
