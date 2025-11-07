@@ -49,22 +49,6 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_bitnot(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .map(|b| CudaBlockInfo {
-                    degree: Degree::new(b.message_modulus.0 - 1),
-                    message_modulus: b.message_modulus,
-                    carry_modulus: b.carry_modulus,
-                    atomic_pattern: b.atomic_pattern,
-                    noise_level: b.noise_level,
-                })
-                .collect(),
-        }
-    }
-
     pub(crate) fn after_extend_radix_with_trivial_zero_blocks_lsb(
         &self,
         num_blocks: usize,
