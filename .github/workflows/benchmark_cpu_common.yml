@@ -16,9 +16,9 @@ on:
       params_type:
         type: string
         default: classical
-      all_precisions:
-        type: boolean
-        default: false
+      precisions_set:
+        type: string
+        default: fast
       additional_recipe: # Make recipes to run aside the benchmarks.
         type: string # Use comma separated values to generate an array
       additional_file_to_parse: # Make recipes aditional to run aside the benchamrks. Use comma separated values to generate an array
@@ -54,7 +54,6 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  FAST_BENCH: TRUE
 
 permissions: {}
 
@@ -160,19 +159,15 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Should run benchmarks with all precisions
-        if: inputs.all_precisions
-        run: |
-          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
-
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"
+          make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
           BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
           BENCH_COMMAND: ${{ matrix.command }}
+          PRECISIONS_SET: ${{ inputs.precisions_set }}
 
       - name: Parse results
         run: |

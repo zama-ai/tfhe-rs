@@ -11,7 +11,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  FAST_BENCH: TRUE
+  BIT_SIZES_SET: FAST
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -51,7 +51,6 @@ jobs:
             echo "BENCH_DATE=$(date --iso-8601=seconds)";
             echo "COMMIT_DATE=${COMMIT_DATE}";
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
-            echo "FAST_BENCH=TRUE";
           } >> "${GITHUB_ENV}"
         env:
           SHA: ${{ github.sha }}
