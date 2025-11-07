@@ -48,8 +48,8 @@ mod wasm_seeder {
 /// Service`](`https://developer.apple.com/documentation/security/randomization_services?language=objc`)
 /// calling [`SecRandomCopyBytes`](`https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc`).
 ///
-/// On Unix platforms, `/dev/random` is used as a fallback and the quality of the generated seeds
-/// depends on the particular implementation of the platform your code is running on.
+/// On Unix platforms, this will use `getrandom` or `getentropy` system call if available. Otherwise
+/// it will draw from `/dev/urandom` after successfully polling `/dev/random`.
 ///
 /// For the wasm32 target the [`getrandom`](`https://docs.rs/getrandom/latest/getrandom/`)
 /// js random number generator is used as a source of
