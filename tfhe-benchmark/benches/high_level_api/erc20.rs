@@ -1003,7 +1003,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::hpu::erc20::transfer";
+    let bench_name = "hlapi::hpu::erc20";
 
     match get_bench_type() {
         BenchmarkType::Latency => {
@@ -1013,7 +1013,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "whitepaper",
+                "transfer::whitepaper",
                 transfer_whitepaper::<FheUint64>,
             );
             // Erc20 optimized instruction only available on Hpu
@@ -1022,7 +1022,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "hpu_optim",
+                "transfer::hpu_optim",
                 transfer_hpu::<FheUint64>,
             );
             // Erc20 SIMD instruction only available on Hpu
@@ -1031,7 +1031,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "hpu_simd",
+                "transfer::hpu_simd",
                 transfer_hpu_simd::<FheUint64>,
             );
             group.finish();
@@ -1044,7 +1044,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "whitepaper",
+                "transfer::whitepaper",
                 transfer_whitepaper::<FheUint64>,
             );
             // Erc20 optimized instruction only available on Hpu
@@ -1053,7 +1053,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "hpu_optim",
+                "transfer::hpu_optim",
                 transfer_hpu::<FheUint64>,
             );
             // Erc20 SIMD instruction only available on Hpu
@@ -1062,7 +1062,7 @@ fn main() {
                 &cks,
                 bench_name,
                 "FheUint64",
-                "hpu_simd",
+                "transfer::hpu_simd",
                 transfer_hpu_simd::<FheUint64>,
             );
             group.finish();
