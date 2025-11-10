@@ -46,13 +46,13 @@ jobs:
           echo "is_quarterly_bench=${{ github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *' }}" >> "${GITHUB_OUTPUT}"
 
       - name: Weekly benchmarks
-        if: env.WEEKLY_BENCH_GROUP_1 || env.WEEKLY_BENCH_GROUP_2
+        if: steps.check_bench_group_1.outputs.is_weekly_bench_group_1 || steps.check_bench_group_2.outputs.is_weekly_bench_group_2
         run: |
           echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
           echo "ALL_PRECISIONS=false" >> "${GITHUB_ENV}"
 
       - name: Quarterly benchmarks
-        if: env.QUARTERLY_BENCH
+        if: steps.check_quarterly_bench.outputs.is_quarterly_bench
         run: |
           echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
           echo "ALL_PRECISIONS=true" >> "${GITHUB_ENV}"
@@ -190,7 +190,7 @@ jobs:
     with:
       command: boolean
       additional_recipe: measure_boolean_key_sizes
-      additional_file_to_parse: boolean_key_size.csv
+      additional_file_to_parse: boolean_key_sizes.csv
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

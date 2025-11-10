@@ -21,7 +21,7 @@ on:
         default: false
       additional_recipe: # Make recipes to run aside the benchmarks.
         type: string # Use comma separated values to generate an array
-      additional_file_to_parse: # Make recipes aditional to run aside the benchamrks. Use comma separated values to generate an array
+      additional_file_to_parse: # Other files to parse, located under tfhe-benchmark/ directory
         type: string # Use comma separated values to generate an array
       additional_results_type:
         type: string
