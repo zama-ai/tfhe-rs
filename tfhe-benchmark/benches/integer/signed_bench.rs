@@ -55,6 +55,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
 
@@ -153,6 +154,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
 
@@ -174,6 +176,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -251,6 +254,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0) = (&bench_data.0, &bench_data.1);
                     b.iter(|| {
@@ -269,6 +273,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -333,6 +338,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -353,6 +359,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -858,6 +865,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -894,6 +902,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -1046,6 +1055,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -1070,6 +1080,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -1448,6 +1459,7 @@ fn bench_server_key_signed_cast_function<F>(
         for target_num_blocks in all_num_blocks.iter().copied() {
             let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
             let bench_id = format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+            println!("{bench_id}");
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -1543,6 +1555,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1594,6 +1607,7 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1714,6 +1728,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1752,6 +1767,7 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1858,6 +1874,7 @@ mod cuda {
 
                     bench_id =
                         format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -1904,6 +1921,7 @@ mod cuda {
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
+                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -2020,6 +2038,7 @@ mod cuda {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -2071,6 +2090,7 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -2185,6 +2205,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -2235,6 +2256,7 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -3054,6 +3076,7 @@ mod cuda {
                     target_num_blocks * param.message_modulus().0.ilog2() as usize;
                 let bench_id =
                     format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
