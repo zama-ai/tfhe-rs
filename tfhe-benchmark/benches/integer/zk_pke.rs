@@ -128,6 +128,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                             bench_id = format!(
                                 "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                             );
+                            println!("{bench_id}");
                             bench_group.bench_function(&bench_id, |b| {
                                 let input_msg = rng.gen::<u64>();
                                 let messages = vec![input_msg; fhe_uint_count];
@@ -149,6 +150,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                             bench_id = format!(
                                 "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                             );
+                            println!("{bench_id}");
                             bench_group.bench_function(&bench_id, |b| {
                                 let messages = (0..elements)
                                     .map(|_| {
@@ -340,12 +342,14 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 vec![],
                             );
 
+                            println!("{bench_id_verify}");
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
                                     let _ret = ct1.verify(&crs, &pk, &metadata);
                                 });
                             });
 
+                            println!("{bench_id_verify_and_expand}");
                             bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                             b.iter(|| {
                                 let _ret = ct1
@@ -386,6 +390,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 })
                                 .collect::<Vec<_>>();
 
+                            println!("{bench_id_verify}");
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
                                     cts.par_iter().for_each(|ct1| {
@@ -394,6 +399,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 });
                             });
 
+                            println!("{bench_id_verify_and_expand}");
                             bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                             b.iter(|| {
                                 cts.par_iter().for_each(|ct1| {
@@ -622,12 +628,14 @@ mod cuda {
                                     vec![],
                                 );
 
+                                println!("{bench_id_verify}");
                                 bench_group.bench_function(&bench_id_verify, |b| {
                                     b.iter(|| {
                                         let _ret = ct1.verify(&crs, &pk, &metadata);
                                     });
                                 });
 
+                                println!("{bench_id_expand_without_verify}");
                                 bench_group.bench_function(&bench_id_expand_without_verify, |b| {
                                     b.iter(|| {
                                         let _ret = gpu_ct1
@@ -636,6 +644,7 @@ mod cuda {
                                     });
                                 });
 
+                                println!("{bench_id_verify_and_expand}");
                                 bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                                     b.iter(|| {
                                         let _ret = gpu_ct1
@@ -688,6 +697,7 @@ mod cuda {
                                     })
                                     .collect::<Vec<_>>();
 
+                                println!("{bench_id_verify}");
                                 bench_group.bench_function(&bench_id_verify, |b| {
                                     b.iter(|| {
                                         cts.par_iter().for_each(|ct1| {
@@ -696,6 +706,7 @@ mod cuda {
                                     });
                                 });
 
+                                println!("{bench_id_expand_without_verify}");
                                 bench_group.bench_function(&bench_id_expand_without_verify, |b| {
                                     let setup_encrypted_values = || {
                                         let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
@@ -725,6 +736,7 @@ mod cuda {
                                                    }, BatchSize::SmallInput);
                                 });
 
+                                println!("{bench_id_verify_and_expand}");
                                 bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                                     let setup_encrypted_values = || {
                                         let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {

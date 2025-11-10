@@ -51,30 +51,37 @@ fn benches(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
     let ct3 = cks.encrypt(true);
 
     let id = format!("AND::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.and(&ct1, &ct2))));
     write_to_json_boolean(&id, params, parameter_name, "and");
 
     let id = format!("NAND::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.nand(&ct1, &ct2))));
     write_to_json_boolean(&id, params, parameter_name, "nand");
 
     let id = format!("OR::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.or(&ct1, &ct2))));
     write_to_json_boolean(&id, params, parameter_name, "or");
 
     let id = format!("XOR::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xor(&ct1, &ct2))));
     write_to_json_boolean(&id, params, parameter_name, "xor");
 
     let id = format!("XNOR::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xnor(&ct1, &ct2))));
     write_to_json_boolean(&id, params, parameter_name, "xnor");
 
     let id = format!("NOT::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.not(&ct1))));
     write_to_json_boolean(&id, params, parameter_name, "not");
 
     let id = format!("MUX::{parameter_name}");
+    println!("{id}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
     write_to_json_boolean(&id, params, parameter_name, "mux");
 }

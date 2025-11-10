@@ -296,6 +296,7 @@ mod cuda {
                     CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &streams);
 
                 bench_id = format!("{bench_name}::{params_name}");
+                println!("{bench_id}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -317,6 +318,7 @@ mod cuda {
                 let gpu_count = get_number_of_gpus() as usize;
 
                 bench_id = format!("{bench_name}::throughput::{params_name}");
+                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 let elements_per_stream = elements as usize / gpu_count;
@@ -541,6 +543,7 @@ mod cuda {
                 let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                 bench_id = format!("{bench_name}::{params_name}");
+                println!("{bench_id}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -564,6 +567,7 @@ mod cuda {
                 let gpu_count = get_number_of_gpus() as usize;
 
                 bench_id = format!("{bench_name}::throughput::{params_name}");
+                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 let elements_per_stream = elements as usize / gpu_count;

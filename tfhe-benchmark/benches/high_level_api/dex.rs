@@ -483,6 +483,7 @@ fn bench_swap_request_latency<FheType, F1, F2>(
     let params_name = params.name();
 
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+    println!("{bench_id}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -556,6 +557,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
+        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -679,6 +681,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
+        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -881,6 +884,7 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
     let params_name = params.name();
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
+    println!("{bench_id}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -960,6 +964,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
+        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -1101,6 +1106,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
+        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))

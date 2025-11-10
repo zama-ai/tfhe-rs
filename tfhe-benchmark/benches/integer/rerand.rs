@@ -69,6 +69,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
             let mut d_re_randomized = decompressed.clone();
 
             bench_id = format!("{bench_name}::latency_u{bit_size}");
+            println!("{bench_id}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter_batched(
                     || {
@@ -116,6 +117,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
                 .collect();
 
             bench_id = format!("{bench_name}::throughput_u{bit_size}");
+            println!("{bench_id}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter_batched(
                     || {
@@ -257,6 +259,7 @@ mod cuda {
                 let mut d_re_randomized = d_decompressed.duplicate(&streams);
 
                 bench_id = format!("{bench_name}::latency_u{bit_size}");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(
                         || {
@@ -331,6 +334,7 @@ mod cuda {
                     .collect();
 
                 bench_id = format!("{bench_name}::throughput_u{bit_size}");
+                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(
                         || {
