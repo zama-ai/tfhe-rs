@@ -229,7 +229,7 @@ impl VarCell {
     pub fn mac(&self, cnst: usize, coeff: &VarCell) -> VarCell {
         let var = VarCell::new();
         let new_op = MacOp::new_op(cnst, coeff, self);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 
@@ -681,7 +681,7 @@ impl ProgManager for PbsOp {
 
     fn add_prog(&mut self, prog: &mut Program) {
         let pbs = prog.var_from(Some(VarPos::Pbs(self.data.lut.clone())));
-        let tfhe_params = prog.params().clone().into();
+        let tfhe_params = prog.params().into();
         let src = self.src[0].copy_meta().unwrap();
         let dst = self
             .data
@@ -747,9 +747,9 @@ impl ProgManager for StOp {
         let rhs = self.src[0].copy_meta().unwrap();
         if let Some(dst) = self.dst[0].as_ref() {
             if let Some(mut lhs) = dst.copy_meta() {
-                lhs <<= rhs.clone();
+                lhs <<= rhs;
             } else {
-                dst.set_meta(rhs.clone());
+                dst.set_meta(rhs);
             }
         }
     }
@@ -1166,7 +1166,7 @@ impl std::ops::Add for &VarCell {
     fn add(self, other: &VarCell) -> VarCell {
         let var = VarCell::new();
         let new_op = AddOp::new_op(self, other);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 }
@@ -1177,7 +1177,7 @@ impl std::ops::Add<usize> for &VarCell {
     fn add(self, other: usize) -> VarCell {
         let var = VarCell::new();
         let new_op = AddsOp::new_op(self, other);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 }
@@ -1188,7 +1188,7 @@ impl std::ops::Sub for &VarCell {
     fn sub(self, other: &VarCell) -> VarCell {
         let var = VarCell::new();
         let new_op = SubOp::new_op(self, other);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 }
@@ -1199,7 +1199,7 @@ impl std::ops::Sub<usize> for &VarCell {
     fn sub(self, other: usize) -> VarCell {
         let var = VarCell::new();
         let new_op = SubsOp::new_op(self, other);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 }
@@ -1210,7 +1210,7 @@ impl std::ops::Mul<usize> for &VarCell {
     fn mul(self, coeff: usize) -> VarCell {
         let var = VarCell::new();
         let new_op = MulsOp::new_op(self, coeff);
-        var.set_driver(Some((new_op.clone(), 0)));
+        var.set_driver(Some((new_op, 0)));
         var
     }
 }
@@ -1218,7 +1218,7 @@ impl std::ops::Mul<usize> for &VarCell {
 impl std::ops::ShlAssign<&VarCell> for VarCell {
     fn shl_assign(&mut self, rhs: &VarCell) {
         let new_op = StOp::new_op(rhs);
-        self.set_driver(Some((new_op.clone(), 0)));
+        self.set_driver(Some((new_op, 0)));
     }
 }
 

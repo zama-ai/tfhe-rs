@@ -1647,7 +1647,7 @@ mod tests {
 
         testcase_before_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
 
-        let mut testcase_before_bound_e2 = testcase.clone();
+        let mut testcase_before_bound_e2 = testcase;
         let bad_idx = rng.gen::<usize>() % k;
 
         testcase_before_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
@@ -1819,7 +1819,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct.c1.clone(),
-            ct.c2.clone(),
+            ct.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             testcase.m.clone(),
@@ -1945,7 +1945,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct.c1.clone(),
-            ct.c2.clone(),
+            ct.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             testcase.m.clone(),
@@ -1957,7 +1957,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct_plus_zero.c1.clone(),
-            ct_plus_zero.c2.clone(),
+            ct_plus_zero.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             testcase.m.clone(),
@@ -1969,7 +1969,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct_plus_trivial.c1.clone(),
-            ct_plus_trivial.c2.clone(),
+            ct_plus_trivial.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             m_plus_trivial,
@@ -2077,7 +2077,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct.c1.clone(),
-            ct.c2.clone(),
+            ct.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             testcase.m.clone(),
@@ -2129,7 +2129,7 @@ mod tests {
             testcase.a.clone(),
             testcase.b.clone(),
             ct.c1.clone(),
-            ct.c2.clone(),
+            ct.c2,
             testcase.r.clone(),
             testcase.e1.clone(),
             testcase.m.clone(),

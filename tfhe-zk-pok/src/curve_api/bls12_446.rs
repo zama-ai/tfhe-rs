@@ -1508,7 +1508,7 @@ mod tests {
         let sum_zeroize = &zeroize1 + &zeroize2;
         let sum_zp = zp1 + zp2;
 
-        assert_eq!(sum_zp.inner, sum_zeroize.clone().into());
+        assert_eq!(sum_zp.inner, sum_zeroize.into());
 
         let sum_zeroize_zp = zp1 + &zeroize2;
 
@@ -1517,7 +1517,7 @@ mod tests {
         let prod_zeroize = &zeroize1 * &zeroize2;
         let prod_zp = zp1 * zp2;
 
-        assert_eq!(prod_zp.inner, prod_zeroize.clone().into());
+        assert_eq!(prod_zp.inner, prod_zeroize.into());
 
         let prod_zeroize_zp = zp1 * &zeroize2;
 

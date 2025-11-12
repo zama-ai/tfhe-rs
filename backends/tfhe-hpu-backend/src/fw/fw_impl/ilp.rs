@@ -776,7 +776,7 @@ fn inner_shift(
     amount: &metavar::MetaVarCell,
 ) -> (metavar::MetaVarCell, metavar::MetaVarCell) {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let (pbs_msg, pbs_msg_next) = match dir {
         ShiftKind::ShiftRight | ShiftKind::RotRight => (
@@ -805,7 +805,7 @@ fn block_swap(
     cond_mask: CondPos,
 ) -> metavar::MetaVarCell {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let (pbs_orig, pbs_swap) = match cond_mask {
         CondPos::Pos0 => (

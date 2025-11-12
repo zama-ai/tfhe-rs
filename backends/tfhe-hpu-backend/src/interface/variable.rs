@@ -163,7 +163,7 @@ impl HpuVarWrapped {
                     slot.mz[id].write(0, cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
-                        &cut.as_slice(),
+                        cut.as_slice(),
                         &params,
                         io_dump::DumpKind::BlweIn,
                         io_dump::DumpId::Slot(slot.id, id),
@@ -230,7 +230,7 @@ impl HpuVarWrapped {
                     mz.read(0, cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
-                        &cut.as_ref(),
+                        cut,
                         &self.params,
                         io_dump::DumpKind::BlweOut,
                         io_dump::DumpId::Slot(slot.id, id),

@@ -53,7 +53,7 @@ mod hpu_test {
     ) -> (std::sync::Mutex<HpuDevice>, tfhe::integer::ClientKey, u128) {
         // Hpu io dump for debug  -------------------------------------------------
         #[cfg(feature = "hpu-debug")]
-        if let Some(dump_path) = std::env::var("HPU_IO_DUMP").ok() {
+        if let Ok(dump_path) = std::env::var("HPU_IO_DUMP") {
             set_hpu_io_dump(&dump_path);
         }
 
@@ -941,8 +941,7 @@ mod hpu_test {
             );
             ntt_bsk
         };
-        let hpu_bsk =
-            HpuLweBootstrapKeyOwned::create_from(cpu_bsk_orig.as_view(), hpu_params.clone());
+        let hpu_bsk = HpuLweBootstrapKeyOwned::create_from(cpu_bsk_orig.as_view(), hpu_params);
 
         let cpu_bsk_lb = NttLweBootstrapKeyOwned::from(hpu_bsk.as_view());
 

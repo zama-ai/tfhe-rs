@@ -212,7 +212,7 @@ impl HpuDevice {
 
         bg_poll.store(true, atomic::Ordering::SeqCst);
         let bg_workq = (bg_poll.clone(), backend.clone());
-        let bg_ackq = (bg_poll.clone(), backend.clone());
+        let bg_ackq = (bg_poll, backend);
         self.bg_handles = Some((
             std::thread::spawn(move || {
                 while bg_workq.0.load(atomic::Ordering::SeqCst) {

@@ -576,7 +576,7 @@ impl MetaVarCell {
 
     pub fn pbs_assign(&mut self, lut: &MetaVarCell, flush: bool) {
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.params().clone().into();
+        let tfhe_params = self.0.borrow().prog.params().into();
         // Deferred to default logic
         Self::pbs_raw(&[self], self, lut, flush, &tfhe_params);
     }
@@ -590,7 +590,7 @@ impl MetaVarCell {
         // pbs_raw already
 
         // Construct tfhe params
-        let tfhe_params = prog.params().clone().into();
+        let tfhe_params = prog.params().into();
 
         // Deferred to default logic
         Self::pbs_raw(&[&dst], self, lut, flush, &tfhe_params);
@@ -609,7 +609,7 @@ impl MetaVarCell {
             .collect::<Vec<_>>();
 
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.params().clone().into();
+        let tfhe_params = self.0.borrow().prog.params().into();
 
         // Deferred to default logic
         Self::pbs_raw(
@@ -793,7 +793,7 @@ impl MetaVarCell {
     }
 
     pub fn pack_carry(&self, msb: &MetaVarCell) -> MetaVarCell {
-        let tfhe_params: asm::DigitParameters = self.0.borrow().prog.params().clone().into();
+        let tfhe_params: asm::DigitParameters = self.0.borrow().prog.params().into();
         msb.mac(tfhe_params.msg_range() as u8, self)
     }
 

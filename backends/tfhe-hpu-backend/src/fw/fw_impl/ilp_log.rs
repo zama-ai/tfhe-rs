@@ -364,7 +364,7 @@ pub fn iop_propagate_msb_to_lsbv(
     inverse_propagation: &Option<bool>, // default false
 ) -> Vec<metavar::MetaVarCell> {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let pbs_many_m2l_prop_bit1_msg_split = new_pbs!(prog, "Manym2lPropBit1MsgSplit");
     let pbs_many_m2l_prop_bit0_msg_split = new_pbs!(prog, "Manym2lPropBit0MsgSplit");

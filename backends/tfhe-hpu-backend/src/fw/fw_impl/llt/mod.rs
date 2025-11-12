@@ -401,7 +401,7 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
 
     {
         let props = prog.params();
-        let tfhe_params: asm::DigitParameters = props.clone().into();
+        let tfhe_params: asm::DigitParameters = props.into();
         let lut = pbs_by_name!("IfFalseZeroed");
         let dst_to = VarCell::from_vec(dst_to);
         let dst_from = VarCell::from_vec(dst_from);
@@ -810,7 +810,7 @@ pub fn iop_cmpx_rtl(
     cmp_lut: Pbs,
 ) -> VarCell {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     // Wrapped given cmp_op and comp_sign lookup table in MetaVar
     let pbs_none = pbs_by_name!("None");
@@ -924,7 +924,7 @@ fn inner_shift(
     amount: &VarCell,
 ) -> (VarCell, VarCell) {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let (pbs_msg, pbs_msg_next) = match dir {
         ShiftKind::ShiftRight | ShiftKind::RotRight => (
@@ -951,7 +951,7 @@ fn block_swap(
     cond_mask: CondPos,
 ) -> VarCell {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let (pbs_orig, pbs_swap) = match cond_mask {
         CondPos::Pos0 => (

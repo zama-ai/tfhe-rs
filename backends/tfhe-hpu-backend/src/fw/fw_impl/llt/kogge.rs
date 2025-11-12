@@ -233,7 +233,7 @@ impl KoggeTree {
             cache.insert(Range(i, i), v);
         });
         let props = prg.params();
-        let tfhe_params: asm::DigitParameters = props.clone().into();
+        let tfhe_params: asm::DigitParameters = props.into();
         let mut reduce_map = HashMap::new();
         reduce_map.insert(
             2,
@@ -314,7 +314,7 @@ pub fn propagate_carry(
     carrysave: &[VarCell],
     cin: &Option<PGCarry>,
 ) -> PGCarry {
-    let tfhe_params: asm::DigitParameters = prog.params().clone().into();
+    let tfhe_params: asm::DigitParameters = prog.params().into();
 
     let pbs_genprop = pbs_by_name!("ManyGenProp");
     let pbs_genprop_add = pbs_by_name!("GenPropAdd");
@@ -424,7 +424,7 @@ pub fn ripple_add(
 
     dst.iter_mut()
         .zip(src_a.into_iter().zip_longest(src_b).map(|r| match r {
-            EitherOrBoth::Left(x) | EitherOrBoth::Right(x) => x.clone(),
+            EitherOrBoth::Left(x) | EitherOrBoth::Right(x) => x,
             EitherOrBoth::Both(a, b) => &a + &b,
         }))
         .for_each(|(dst, mut msg)| {

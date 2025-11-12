@@ -145,7 +145,7 @@ pub fn iop_add_hillissteel_v(
     post_process: Option<AddHSPostProcess>, // default is CleanCt
 ) -> Vec<metavar::MetaVarCell> {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let pbs_many_carry_msg = new_pbs!(prog, "ManyCarryMsg");
     let pbs_msg_only = new_pbs!(prog, "MsgOnly");
@@ -215,14 +215,14 @@ pub fn iop_add_hillissteel_v(
                     let mut it = v.pbs_many(&pbs_many_carry_msg, false).into_iter();
                     msg0 = it.next();
                     let prop_carry = it.next().unwrap();
-                    prop_group_a.push(prop_carry.clone());
+                    prop_group_a.push(prop_carry);
                 } else {
                     let prop = v.pbs(&pbs_extract_prop_group_v[idx - 1], false);
-                    prop_group_a.push(prop.clone());
+                    prop_group_a.push(prop);
                 }
             } else {
                 let prop = v.pbs(&pbs_extract_prop_group_v[idx % 4], false);
-                prop_group_a.push(prop.clone());
+                prop_group_a.push(prop);
             }
         });
     });
@@ -248,12 +248,12 @@ pub fn iop_add_hillissteel_v(
                     } else if c_idx == 0 {
                         // Solve carry directly
                         let group_carry = sum.pbs(&pbs_solve_prop_group_final_v[3 - 1], false);
-                        group_prop_a.push(group_carry.clone());
+                        group_prop_a.push(group_carry);
                     } else {
                         let cst_1 = prog.new_imm(1);
                         let mut group_prop = sum.pbs(&pbs_reduce_carry_pad, false);
                         group_prop = &group_prop + &cst_1;
-                        group_prop_a.push(group_prop.clone());
+                        group_prop_a.push(group_prop);
                     }
                     Some(sum)
                 } else {
@@ -378,7 +378,7 @@ pub fn iop_opposite_nopropv(
     src: &[metavar::MetaVarCell],
 ) -> Vec<metavar::MetaVarCell> {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let cst_msg = prog.new_imm(tfhe_params.msg_range());
     let cst_msg_m1 = prog.new_imm(tfhe_params.msg_range() - 1);
@@ -491,7 +491,7 @@ pub fn iop_if_then_else_0v(
     select_type: Option<IfThenElse0Select>, // Default SelPos0Msg
 ) -> Vec<metavar::MetaVarCell> {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
     let pbs_if_pos1_false_zeroed = new_pbs!(prog, "IfPos1FalseZeroed");
@@ -527,7 +527,7 @@ pub fn iop_div_corev(
     div_output: Option<DivCoreOutput>, // Default All
 ) -> Vec<Vec<metavar::MetaVarCell>> {
     let props = prog.params();
-    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let tfhe_params: asm::DigitParameters = props.into();
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg_not_null_pos1 = new_pbs!(prog, "MsgNotNullPos1");
