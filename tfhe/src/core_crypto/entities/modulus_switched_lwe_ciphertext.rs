@@ -62,6 +62,23 @@ impl<Scalar: Copy> ModulusSwitchedLweCiphertext<Scalar>
     }
 }
 
+impl<Scalar> From<StandardModulusSwitchedLweCiphertext<Scalar>> for LweCiphertext<Vec<Scalar>>
+where
+    Scalar: UnsignedInteger,
+{
+    fn from(value: StandardModulusSwitchedLweCiphertext<Scalar>) -> Self {
+        Self::from_container(
+            value
+                .container
+                .into_iter()
+                // The coefficients are converted to use the power of two encoding
+                .map(|coeff| coeff << (Scalar::BITS - value.log_modulus.0))
+                .collect(),
+            CiphertextModulus::new(1 << value.log_modulus.0),
+        )
+    }
+}
+
 /// An LWE ciphertext that undergoes a modulus switch when the body and mask elements are read
 ///
 /// This can be used as an input for the blind rotation.
@@ -156,5 +173,105 @@ where
 
     fn log_modulus(&self) -> CiphertextModulusLog {
         self.log_modulus
+    }
+}
+
+impl<Scalar, SwitchedScalar, C>
+    From<LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, C>>
+    for LweCiphertext<Vec<SwitchedScalar>>
+where
+    Scalar: UnsignedInteger + CastInto<SwitchedScalar>,
+    SwitchedScalar: UnsignedInteger,
+    C: Container<Element = Scalar>,
+{
+    fn from(value: LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, C>) -> Self {
+        let cont = value
+            .mask()
+            .chain(std::iter::once(value.body()))
+            // The coefficients are converted to use the power of two encoding
+            .map(|coeff| coeff << (SwitchedScalar::BITS - value.log_modulus.0))
+            .collect();
+
+        Self::from_container(cont, CiphertextModulus::new(1 << value.log_modulus.0))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rand::Rng;
+    use tfhe_csprng::generators::DefaultRandomGenerator;
+    use tfhe_csprng::seeders::Seed;
+
+    use crate::core_crypto::commons::generators::DeterministicSeeder;
+    use crate::core_crypto::prelude::*;
+
+    #[test]
+    fn test_modswitched_to_lwe() {
+        let root_seed = rand::thread_rng().gen();
+        println!("test_modswitched_to_lwe seed: 0x{root_seed:x}");
+
+        let seed = Seed(root_seed);
+
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), &mut seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+
+        let lwe_dimension = LweDimension(742);
+        let ciphertext_modulus = CiphertextModulus::new_native();
+        let lwe_noise_distribution =
+            Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
+        let ms_modulus_log = CiphertextModulusLog(4096u64.ilog2() as usize);
+        let cleartext_modulus_log = 4;
+        let cleartext_modulus = 1 << cleartext_modulus_log;
+        let level_count =
+            DecompositionLevelCount(1 + (64 - ms_modulus_log.0) / cleartext_modulus_log);
+
+        let key =
+            allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+
+        for msg in 0..cleartext_modulus {
+            let plaintext = Plaintext(msg << (64 - cleartext_modulus_log));
+
+            let input = allocate_and_encrypt_new_lwe_ciphertext(
+                &key,
+                plaintext,
+                lwe_noise_distribution,
+                ciphertext_modulus,
+                &mut encryption_generator,
+            );
+
+            // Test From<LazyStandardModulusSwitchedLweCiphertext> for LweCiphertext
+            let modswitched: LazyStandardModulusSwitchedLweCiphertext<u64, u64, Vec<u64>> =
+                lwe_ciphertext_modulus_switch(input, ms_modulus_log);
+
+            let lwe_ms: LweCiphertext<Vec<_>> = modswitched.clone().into();
+
+            let decrypted_plaintext = decrypt_lwe_ciphertext(&key, &lwe_ms);
+
+            let decomposer =
+                SignedDecomposer::new(DecompositionBaseLog(cleartext_modulus_log), level_count);
+
+            let cleartext = decomposer.decode_plaintext(decrypted_plaintext).0 % cleartext_modulus;
+
+            assert_eq!(cleartext, msg);
+
+            // Test From<StandardModulusSwitchedLweCiphertext> for LweCiphertext
+            let compressed_modswitched = modswitched.compress::<u64>();
+            let extracted = compressed_modswitched.extract();
+
+            let lwe_ms: LweCiphertext<Vec<_>> = extracted.into();
+
+            let decrypted_plaintext = decrypt_lwe_ciphertext(&key, &lwe_ms);
+
+            let decomposer =
+                SignedDecomposer::new(DecompositionBaseLog(cleartext_modulus_log), level_count);
+
+            let cleartext = decomposer.decode_plaintext(decrypted_plaintext).0 % cleartext_modulus;
+
+            assert_eq!(cleartext, msg);
+        }
     }
 }
