@@ -102,6 +102,12 @@ pub trait UnsignedInteger:
     /// Integer division rounding up.
     #[must_use]
     fn div_ceil(self, divisor: Self) -> Self;
+    /// Interpret the value as signed and apply an arithmetic right shift, sign extending like on a
+    /// signed value.
+    #[must_use]
+    fn arithmetic_shr(self, rhs: usize) -> Self {
+        self.into_signed().shr(rhs).into_unsigned()
+    }
     /// Return the casting of the current value to the signed type of the same size.
     fn into_signed(self) -> Self::Signed;
     /// Return a bit representation of the integer, where blocks of length `block_length` are

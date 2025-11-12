@@ -143,9 +143,9 @@ pub(crate) fn decompose_one_level<S: UnsignedInteger>(
     mod_b_mask: S,
 ) -> S {
     let res = *state & mod_b_mask;
-    *state >>= base_log;
+    *state = (*state).arithmetic_shr(base_log);
     let carry = decomposition_bit_trick(res, *state, base_log);
-    *state += carry;
+    *state = (*state).wrapping_add(carry);
     res.wrapping_sub(carry << base_log)
 }
 
