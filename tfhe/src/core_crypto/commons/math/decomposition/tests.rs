@@ -224,3 +224,17 @@ fn test_single_level_decompose_balanced() {
     // We expect an average value of 0 so the sum is also 0
     assert_eq!(sum, 0);
 }
+
+#[test]
+fn test_decomposition_edge_case_sign_handling() {
+    let decomposer = SignedDecomposer::new(DecompositionBaseLog(17), DecompositionLevelCount(3));
+    let val: u64 = 0x8000_00e3_55b0_c827;
+
+    let decomp = decomposer.decompose(val);
+
+    let expected = [44422i64, 909, -65536];
+
+    for (term, expect) in decomp.zip(expected) {
+        assert_eq!(term.value() as i64, expect, "Problem with term {term:?}");
+    }
+}
