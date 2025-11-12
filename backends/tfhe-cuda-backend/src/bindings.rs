@@ -1681,6 +1681,7 @@ unsafe extern "C" {
         pbs_level: u32,
         pbs_base_log: u32,
         grouping_factor: u32,
+        num_possible_values: u32,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,

@@ -8246,6 +8246,7 @@ pub(crate) unsafe fn cuda_backend_create_possible_results<
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
+        num_possible_values,
         num_blocks,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,

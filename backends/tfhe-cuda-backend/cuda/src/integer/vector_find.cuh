@@ -21,7 +21,25 @@ __host__ void host_compute_equality_selectors(
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
+  cuda_event_record(mem_ptr->incoming_events[0], streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
+    cuda_stream_wait_event(mem_ptr->sub_streams.stream(j),
+                           mem_ptr->incoming_events[0],
+                           mem_ptr->sub_streams.gpu_index(j));
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+
   for (uint32_t i = 0; i < num_possible_values; i++) {
+
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams.get_ith(stream_idx);
+    CudaRadixCiphertextFFI *current_tmp_block_comparisons =
+        mem_ptr->tmp_block_comparisons_vec[stream_idx];
+    int_comparison_buffer<Torus> *current_reduction_buffer =
+        mem_ptr->reduction_buffers[stream_idx];
 
     const uint64_t *current_clear_blocks =
         &h_decomposed_cleartexts[i * num_blocks];
@@ -37,16 +55,25 @@ __host__ void host_compute_equality_selectors(
       uint32_t input_start = (uint32_t)block_value * num_blocks + j;
 
       copy_radix_ciphertext_slice_async<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          mem_ptr->tmp_block_comparisons, j, j + 1,
+          current_stream.stream(0), current_stream.gpu_index(0),
+          current_tmp_block_comparisons, j, j + 1,
           mem_ptr->tmp_many_luts_output, input_start, input_start + 1);
     }
 
     CudaRadixCiphertextFFI *current_output_block = &lwe_array_out_list[i];
 
     host_integer_are_all_comparisons_block_true<Torus>(
-        streams, current_output_block, mem_ptr->tmp_block_comparisons,
-        mem_ptr->reduction_buffer, bsks, (Torus **)ksks, num_blocks);
+        current_stream, current_output_block, current_tmp_block_comparisons,
+        current_reduction_buffer, bsks, (Torus **)ksks, num_blocks);
+  }
+
+  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
+    cuda_event_record(mem_ptr->outgoing_events[j],
+                      mem_ptr->sub_streams.stream(j),
+                      mem_ptr->sub_streams.gpu_index(j));
+
+    cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events[j],
+                           streams.gpu_index(0));
   }
 }
 
@@ -75,8 +102,23 @@ __host__ void host_create_possible_results(
   uint32_t max_packed_value = mem_ptr->max_packed_value;
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
   uint32_t num_lut_accumulators = mem_ptr->num_lut_accumulators;
+  uint32_t num_streams = mem_ptr->num_streams;
+
+  cuda_event_record(mem_ptr->incoming_events[0], streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
+    cuda_stream_wait_event(mem_ptr->sub_streams.stream(j),
+                           mem_ptr->incoming_events[0],
+                           mem_ptr->sub_streams.gpu_index(j));
+  }
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
+
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams.get_ith(stream_idx);
+    CudaRadixCiphertextFFI *current_tmp_buffer =
+        mem_ptr->tmp_many_luts_output_vec[stream_idx];
 
     CudaRadixCiphertextFFI const *current_selector = &lwe_array_in_list[i];
     CudaRadixCiphertextFFI *current_output = &lwe_array_out_list[i];
@@ -88,7 +130,7 @@ __host__ void host_create_possible_results(
       uint32_t luts_in_this_call = mem_ptr->luts_vec[k]->num_many_lut;
 
       integer_radix_apply_many_univariate_lookup_table<Torus>(
-          streams, mem_ptr->tmp_many_luts_output, current_selector, bsks,
+          current_stream, current_tmp_buffer, current_selector, bsks,
           (Torus *const *)ksks, mem_ptr->luts_vec[k], luts_in_this_call,
           mem_ptr->lut_stride);
 
@@ -108,22 +150,33 @@ __host__ void host_create_possible_results(
             packed_block_value % max_luts_per_call;
 
         copy_radix_ciphertext_slice_async<Torus>(
-            streams.stream(0), streams.gpu_index(0), current_output, j, j + 1,
-            mem_ptr->tmp_many_luts_output, lut_index_in_accumulator,
-            lut_index_in_accumulator + 1);
+            current_stream.stream(0), current_stream.gpu_index(0),
+            current_output, j, j + 1, current_tmp_buffer,
+            lut_index_in_accumulator, lut_index_in_accumulator + 1);
       }
     }
+  }
+
+  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
+    cuda_event_record(mem_ptr->outgoing_events[j],
+                      mem_ptr->sub_streams.stream(j),
+                      mem_ptr->sub_streams.gpu_index(j));
+
+    cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events[j],
+                           streams.gpu_index(0));
   }
 }
 
 template <typename Torus>
 uint64_t scratch_cuda_create_possible_results(
     CudaStreams streams, int_possible_results_buffer<Torus> **mem_ptr,
-    int_radix_params params, uint32_t num_blocks, bool allocate_gpu_memory) {
+    int_radix_params params, uint32_t num_blocks, uint32_t num_possible_values,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_possible_results_buffer<Torus>(
-      streams, params, num_blocks, allocate_gpu_memory, size_tracker);
+      streams, params, num_blocks, num_possible_values, allocate_gpu_memory,
+      size_tracker);
 
   return size_tracker;
 }
