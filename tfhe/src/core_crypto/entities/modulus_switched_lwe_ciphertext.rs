@@ -62,6 +62,18 @@ impl<Scalar: Copy> ModulusSwitchedLweCiphertext<Scalar>
     }
 }
 
+impl<Scalar> From<StandardModulusSwitchedLweCiphertext<Scalar>> for LweCiphertext<Vec<Scalar>>
+where
+    Scalar: UnsignedInteger,
+{
+    fn from(value: StandardModulusSwitchedLweCiphertext<Scalar>) -> Self {
+        Self::from_container(
+            value.container,
+            CiphertextModulus::new(1 << value.log_modulus.0),
+        )
+    }
+}
+
 /// An LWE ciphertext that undergoes a modulus switch when the body and mask elements are read
 ///
 /// This can be used as an input for the blind rotation.
@@ -156,5 +168,20 @@ where
 
     fn log_modulus(&self) -> CiphertextModulusLog {
         self.log_modulus
+    }
+}
+
+impl<Scalar, SwitchedScalar, C>
+    From<LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, C>>
+    for LweCiphertext<Vec<SwitchedScalar>>
+where
+    Scalar: UnsignedInteger + CastInto<SwitchedScalar>,
+    SwitchedScalar: UnsignedInteger,
+    C: Container<Element = Scalar>,
+{
+    fn from(value: LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, C>) -> Self {
+        let cont = value.mask().chain(std::iter::once(value.body())).collect();
+
+        Self::from_container(cont, CiphertextModulus::new(1 << value.log_modulus.0))
     }
 }
