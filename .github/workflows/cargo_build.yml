@@ -43,7 +43,7 @@ jobs:
       matrix:
         command: ${{ fromJson(needs.prepare-parallel-pcc-matrix.outputs.matrix_command)}}
       fail-fast: false
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-pcc-cpu-batch: ${{ matrix.command }}
     secrets:
@@ -58,7 +58,7 @@ jobs:
 
   pcc-hpu:
     name: cargo_build/pcc-hpu
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-pcc-hpu: true
     secrets:
@@ -73,7 +73,7 @@ jobs:
 
   build-tfhe-full:
     name: cargo_build/build-tfhe-full
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-build-tfhe-full: true
       # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
@@ -91,7 +91,7 @@ jobs:
 
   build:
     name: cargo_build/build
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-build: true
     secrets:
@@ -106,7 +106,7 @@ jobs:
 
   build-layers:
     name: cargo_build/build-layers
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-build-layers: true
     secrets:
@@ -121,7 +121,7 @@ jobs:
 
   build-c-api:
     name: cargo_build/build-c-api
-    uses: ./.github/workflows/cargo_build_common.yml
+    uses: ./.github/workflows/placeholder_workflow.yml
     with:
       run-build-c-api: true
     secrets:
