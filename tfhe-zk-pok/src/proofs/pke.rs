@@ -1647,7 +1647,7 @@ mod tests {
 
         testcase_before_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
 
-        let mut testcase_before_bound_e2 = testcase.clone();
+        let mut testcase_before_bound_e2 = testcase;
         let bad_idx = rng.gen::<usize>() % k;
 
         testcase_before_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };

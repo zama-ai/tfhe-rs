@@ -103,7 +103,7 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
             if path.is_file() && path.extension().is_some_and(|e| e == "md") {
                 let file_content = std::fs::read_to_string(&path).ok()?;
                 if file_content.contains("```rust") {
-                    Some(path.to_path_buf())
+                    Some(path)
                 } else {
                     None
                 }
