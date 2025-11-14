@@ -23,6 +23,7 @@ use tfhe_zk_pok::proofs::pke::{
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commit_v2, crs_gen as crs_gen_v2, prove as prove_v2, verify as verify_v2,
     PkeV2SupportedHashConfig, Proof as ProofV2, PublicCommit as PublicCommitV2,
+    VerificationPairingMode,
 };
 
 pub use tfhe_zk_pok::curve_api::Compressible;
@@ -815,7 +816,12 @@ impl CompactPkeCrs {
             }
             (Self::PkeV2(public_params), CompactPkeProof::PkeV2(proof)) => {
                 let public_commit = PublicCommitV2::new(key_mask, key_body, ct_mask, ct_body);
-                verify_v2(proof, (public_params, &public_commit), metadata)
+                verify_v2(
+                    proof,
+                    (public_params, &public_commit),
+                    metadata,
+                    VerificationPairingMode::default(),
+                )
             }
 
             (Self::PkeV1(_), CompactPkeProof::PkeV2(_))
