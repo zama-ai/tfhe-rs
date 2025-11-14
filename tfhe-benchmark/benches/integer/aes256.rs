@@ -3,7 +3,7 @@ pub mod cuda {
     use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use benchmark::utilities::{write_to_json, OperatorType};
     use criterion::{black_box, Criterion};
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use tfhe::core_crypto::gpu::{check_valid_cuda_malloc, CudaStreams};
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
@@ -106,38 +106,52 @@ pub mod cuda {
             let sks = CudaServerKey::new(&cpu_cks, &streams);
             let cks = RadixClientKey::from((cpu_cks, 1));
 
-            let ct_key = cks.encrypt_2u128_for_aes_ctr_256(key_hi, key_lo);
+            //
+            // Memory checks
+            //
+            let gpu_index = streams.gpu_indexes[0];
 
-            let ct_iv = cks.encrypt_u128_for_aes_ctr(iv);
+            let key_expansion_size = sks.get_key_expansion_256_size_on_gpu(&streams);
+            let aes_encrypt_size =
+                sks.get_aes_encrypt_size_on_gpu(NUM_AES_INPUTS, SBOX_PARALLELISM, &streams);
 
-            let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
-            let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
+            if check_valid_cuda_malloc(key_expansion_size, gpu_index)
+                && check_valid_cuda_malloc(aes_encrypt_size, gpu_index)
+            {
+                let ct_key = cks.encrypt_2u128_for_aes_ctr_256(key_hi, key_lo);
+                let ct_iv = cks.encrypt_u128_for_aes_ctr(iv);
 
-            let round_keys = sks.key_expansion_256(&d_key, &streams);
+                let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
+                let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
-            println!("{bench_id}");
-            bench_group.bench_function(&bench_id, |b| {
-                b.iter(|| {
-                    black_box(sks.aes_256_encrypt(
-                        &d_iv,
-                        &round_keys,
-                        0,
-                        NUM_AES_INPUTS,
-                        SBOX_PARALLELISM,
-                        &streams,
-                    ));
-                })
-            });
+                let round_keys = sks.key_expansion_256(&d_key, &streams);
 
-            write_to_json::<u64, _>(
-                &bench_id,
-                atomic_param,
-                param.name(),
-                "aes_256_encryption",
-                &OperatorType::Atomic,
-                aes_block_op_bit_size,
-                vec![atomic_param.message_modulus().0.ilog2(); aes_block_op_bit_size as usize],
-            );
+                println!("{bench_id}");
+                bench_group.bench_function(&bench_id, |b| {
+                    b.iter(|| {
+                        black_box(sks.aes_256_encrypt(
+                            &d_iv,
+                            &round_keys,
+                            0,
+                            NUM_AES_INPUTS,
+                            SBOX_PARALLELISM,
+                            &streams,
+                        ));
+                    })
+                });
+
+                write_to_json::<u64, _>(
+                    &bench_id,
+                    atomic_param,
+                    param.name(),
+                    "aes_256_encryption",
+                    &OperatorType::Atomic,
+                    aes_block_op_bit_size,
+                    vec![atomic_param.message_modulus().0.ilog2(); aes_block_op_bit_size as usize],
+                );
+            } else {
+                println!("{} skipped: Not enough memory in GPU", bench_id);
+            }
         }
 
         bench_group.finish();
