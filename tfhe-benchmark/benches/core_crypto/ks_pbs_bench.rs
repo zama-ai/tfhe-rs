@@ -111,7 +111,6 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 );
 
                 bench_id = format!("{bench_name}::{name}");
-                println!("{bench_id}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -135,7 +134,6 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 println!("Number of elements: {elements}"); // DEBUG
@@ -372,7 +370,6 @@ fn multi_bit_ks_pbs<
                 );
 
                 bench_id = format!("{bench_name}::{name}::parallelized");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         keyswitch_lwe_ciphertext(
@@ -394,7 +391,6 @@ fn multi_bit_ks_pbs<
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 println!("Number of elements: {elements}"); // DEBUG
@@ -625,7 +621,6 @@ mod cuda {
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
-                    println!("{bench_id}");
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
@@ -657,7 +652,6 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    println!("{bench_id}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;
@@ -935,7 +929,6 @@ mod cuda {
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
-                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
                             cuda_keyswitch_lwe_ciphertext(
@@ -965,7 +958,6 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    println!("{bench_id}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;

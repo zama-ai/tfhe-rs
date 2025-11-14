@@ -62,7 +62,6 @@ fn modulus_switch_noise_reduction(c: &mut Criterion) {
             .measurement_time(std::time::Duration::from_secs(5));
 
         let bench_name = format!("modulus_switch_noise_reduction_{count}");
-        println!("{bench_name}");
 
         bench_group.bench_function(&bench_name, |b| {
             b.iter(|| {

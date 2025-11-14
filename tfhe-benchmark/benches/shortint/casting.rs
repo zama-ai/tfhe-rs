@@ -26,7 +26,6 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let vec_ct = vec![client_key_1.encrypt(1); 64];
 
     let bench_id = format!("{bench_name}_{ks_param_name}");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = (0..32)
@@ -79,7 +78,6 @@ pub fn pack_cast(c: &mut Criterion) {
     let ct_2 = client_key_1.encrypt(1);
 
     let bench_id = format!("{bench_name}_{ks_param_name}");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(
@@ -120,7 +118,6 @@ pub fn cast(c: &mut Criterion) {
     let ct = client_key_1.encrypt(1);
 
     let bench_id = format!("{bench_name}_{ks_param_name}");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(&ct);

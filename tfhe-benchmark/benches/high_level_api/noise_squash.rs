@@ -91,7 +91,6 @@ fn bench_sns_only_fhe_type<FheType>(
     match get_bench_type() {
         BenchmarkType::Latency => {
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
-            println!("{bench_id}");
 
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
@@ -106,7 +105,6 @@ fn bench_sns_only_fhe_type<FheType>(
         }
         BenchmarkType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-            println!("{bench_id}");
             let params = client_key.computation_parameters();
             let num_blocks = num_bits
                 .div_ceil((params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize);
@@ -235,7 +233,6 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     match get_bench_type() {
         BenchmarkType::Latency => {
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
-            println!("{bench_id}");
 
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
@@ -258,7 +255,6 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         }
         BenchmarkType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-            println!("{bench_id}");
             let params = client_key.computation_parameters();
             let num_blocks = num_bits
                 .div_ceil((params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize);

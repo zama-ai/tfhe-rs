@@ -55,7 +55,6 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
         let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = (&keys.0, &keys.1);
 
@@ -139,7 +138,6 @@ fn bench_server_key_binary_function_clean_inputs<F>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
                     b.iter(|| {
@@ -161,7 +159,6 @@ fn bench_server_key_binary_function_clean_inputs<F>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -232,7 +229,6 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
         let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = (&keys.0, &keys.1);
 
@@ -311,7 +307,6 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0) = (&bench_data.0, &bench_data.1);
 
@@ -332,7 +327,6 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -395,7 +389,6 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
         let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = (&keys.0, &keys.1);
 
@@ -483,7 +476,6 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, clear_1) = (&bench_data.0, &bench_data.1, bench_data.2);
 
@@ -505,7 +497,6 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -614,7 +605,6 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -639,7 +629,6 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -724,7 +713,6 @@ fn flip_parallelized(c: &mut Criterion) {
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -749,7 +737,6 @@ fn flip_parallelized(c: &mut Criterion) {
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                println!("{bench_id}");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -839,7 +826,6 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     });
 
                     bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         let (sks, ctxts) = (&bench_data.0, &bench_data.1);
 
@@ -869,7 +855,6 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     bench_id = format!(
                         "{bench_name}_{len}_ctxts::throughput::{param_name}::{bit_size}_bits"
                     );
-                    println!("{bench_id}");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
@@ -1546,7 +1531,6 @@ mod cuda {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1581,7 +1565,6 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
@@ -1666,7 +1649,6 @@ mod cuda {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1710,7 +1692,6 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
@@ -1815,7 +1796,6 @@ mod cuda {
                         .measurement_time(std::time::Duration::from_secs(30));
                     bench_id =
                         format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}"); // FIXME it makes no sense to duplicate `bit_size`
-                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -1861,7 +1841,6 @@ mod cuda {
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
-                    println!("{bench_id}");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1943,7 +1922,6 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1994,7 +1972,6 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
@@ -2913,7 +2890,6 @@ mod cuda {
                     target_num_blocks * param.message_modulus().0.ilog2() as usize;
                 let bench_id =
                     format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
@@ -3018,7 +2994,6 @@ mod hpu {
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
@@ -3071,7 +3046,6 @@ mod hpu {
                 }
                 BenchmarkType::Throughput => {
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    println!("{bench_id}");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(120));
@@ -3701,7 +3675,6 @@ fn bench_server_key_cast_function<F>(
         for target_num_blocks in all_num_blocks.iter().copied() {
             let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
             let bench_id = format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
-            println!("{bench_id}");
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 

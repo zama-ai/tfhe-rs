@@ -70,7 +70,6 @@ fn bench_fhe_type<FheType>(
     let mut bench_id;
 
     bench_id = format!("{bench_prefix}::add::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs + &rhs;
@@ -81,7 +80,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "add");
 
     bench_id = format!("{bench_prefix}::overflowing_add::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let (res, flag) = lhs.overflowing_add(&rhs);
@@ -92,7 +90,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "overflowing_add");
 
     bench_id = format!("{bench_prefix}::overflowing_sub::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let (res, flag) = lhs.overflowing_sub(&rhs);
@@ -103,7 +100,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "overflowing_sub");
 
     bench_id = format!("{bench_prefix}::sub::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs - &rhs;
@@ -114,7 +110,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "sub");
 
     bench_id = format!("{bench_prefix}::mul::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs * &rhs;
@@ -125,7 +120,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "mul");
 
     bench_id = format!("{bench_prefix}::bitand::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs & &rhs;
@@ -136,7 +130,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "bitand");
 
     bench_id = format!("{bench_prefix}::bitor::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs | &rhs;
@@ -147,7 +140,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "bitor");
 
     bench_id = format!("{bench_prefix}::bitxor::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs ^ &rhs;
@@ -158,7 +150,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "bitxor");
 
     bench_id = format!("{bench_prefix}::left_shift::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs << &rhs;
@@ -169,7 +160,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "left_shift");
 
     bench_id = format!("{bench_prefix}::right_shift::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs >> &rhs;
@@ -180,7 +170,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "right_shift");
 
     bench_id = format!("{bench_prefix}::left_rotate::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = (&lhs).rotate_left(&rhs);
@@ -191,7 +180,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "left_rotate");
 
     bench_id = format!("{bench_prefix}::right_rotate::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = (&lhs).rotate_right(&rhs);
@@ -202,7 +190,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "right_rotate");
 
     bench_id = format!("{bench_prefix}::min::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = lhs.min(&rhs);
@@ -213,7 +200,6 @@ fn bench_fhe_type<FheType>(
     write_record(bench_id, "min");
 
     bench_id = format!("{bench_prefix}::max::{param_name}::{bit_size}_bits");
-    println!("{bench_id}");
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = lhs.max(&rhs);
@@ -308,14 +294,12 @@ where
     let mut kv_store = KVStore::new();
     let mut rng = rand::thread_rng();
 
-    let format_and_print_bench_id = |op_name: &str| -> String {
-        let bench_id = format!(
+    let format_id_bench = |op_name: &str| -> String {
+        format!(
             "KVStore::<{}, {}>::{op_name}/{num_elements}",
             TypeDisplayer::<Key>::default(),
             TypeDisplayer::<Value>::default(),
-        );
-        println!("{bench_id}");
-        bench_id
+        )
     };
 
     match BenchmarkType::from_env().unwrap() {
@@ -334,19 +318,19 @@ where
             let value = rng.gen::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
-            c.bench_function(&format_and_print_bench_id("Get"), |b| {
+            c.bench_function(&format_id_bench("Get"), |b| {
                 b.iter(|| {
                     let _ = kv_store.get(&encrypted_key);
                 })
             });
 
-            c.bench_function(&format_and_print_bench_id("Update"), |b| {
+            c.bench_function(&format_id_bench("Update"), |b| {
                 b.iter(|| {
                     let _ = kv_store.update(&encrypted_key, &value_to_add);
                 })
             });
 
-            c.bench_function(&format_and_print_bench_id("Map"), |b| {
+            c.bench_function(&format_id_bench("Map"), |b| {
                 b.iter(|| {
                     kv_store.map(&encrypted_key, |v| v);
                 })
@@ -383,7 +367,7 @@ where
             let mut group = c.benchmark_group("KVStore Throughput");
             group.throughput(Throughput::Elements(kv_stores.len() as u64));
 
-            group.bench_function(format_and_print_bench_id("Map"), |b| {
+            group.bench_function(format_id_bench("Map"), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.map(&encrypted_key, |v| v);
@@ -391,7 +375,7 @@ where
                 })
             });
 
-            group.bench_function(format_and_print_bench_id("Update"), |b| {
+            group.bench_function(format_id_bench("Update"), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.update(&encrypted_key, &value_to_add);
@@ -399,7 +383,7 @@ where
                 })
             });
 
-            group.bench_function(format_and_print_bench_id("Get"), |b| {
+            group.bench_function(format_id_bench("Get"), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.get(&encrypted_key);

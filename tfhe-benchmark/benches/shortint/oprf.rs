@@ -14,9 +14,7 @@ fn oprf(c: &mut Criterion) {
     let keys = KEY_CACHE.get_from_param(param);
     let sks = keys.server_key();
 
-    let bench_id = format!("2-bits-oprf::{}", param.name());
-    println!("{bench_id}");
-    bench_group.bench_function(bench_id, |b| {
+    bench_group.bench_function(format!("2-bits-oprf::{}", param.name()), |b| {
         b.iter(|| {
             _ = black_box(sks.generate_oblivious_pseudo_random(Seed(0), 2));
         })

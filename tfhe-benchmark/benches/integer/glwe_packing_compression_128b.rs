@@ -89,7 +89,6 @@ mod cuda {
                 builder.push(d_ns_ct, &stream);
 
                 bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed =
@@ -158,7 +157,6 @@ mod cuda {
                     .collect::<Vec<_>>();
 
                 bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         builders.par_iter().for_each(
@@ -235,7 +233,6 @@ mod cuda {
                 let compressed = builder.build(&cuda_noise_squashing_compression_key, &stream);
 
                 bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: CudaSquashedNoiseRadixCiphertext =
@@ -313,7 +310,6 @@ mod cuda {
                     .collect::<Vec<_>>();
 
                 bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         compressed.par_iter().enumerate().for_each(|(i, comp)| {

@@ -48,7 +48,6 @@ pub mod cuda {
             const NUM_AES_INPUTS: usize = 1;
             const SBOX_PARALLELISM: usize = 16;
             let bench_id = format!("{param_name}::{NUM_AES_INPUTS}_input_encryption");
-            println!("{bench_id}");
 
             let round_keys = sks.key_expansion_256(&d_key, &streams);
 
@@ -78,7 +77,6 @@ pub mod cuda {
 
         {
             let bench_id = format!("{param_name}::key_expansion");
-            println!("{bench_id}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     black_box(sks.key_expansion_256(&d_key, &streams));
@@ -126,7 +124,6 @@ pub mod cuda {
 
                 let round_keys = sks.key_expansion_256(&d_key, &streams);
 
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         black_box(sks.aes_256_encrypt(

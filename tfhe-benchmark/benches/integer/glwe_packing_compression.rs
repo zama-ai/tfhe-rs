@@ -54,7 +54,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                 builder.push(ct);
 
                 bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed = builder.build(&compression_key);
@@ -66,7 +65,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                 let compressed = builder.build(&compression_key);
 
                 bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: RadixCiphertext =
@@ -107,7 +105,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                     .collect::<Vec<_>>();
 
                 bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         builders.par_iter().for_each(|builder| {
@@ -122,7 +119,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                     .collect::<Vec<_>>();
 
                 bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         compressed.par_iter().for_each(|comp| {
@@ -229,7 +225,6 @@ mod cuda {
                 builder.push(d_ct, &stream);
 
                 bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed = builder.build(&cuda_compression_key, &stream);
@@ -255,7 +250,6 @@ mod cuda {
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
                 bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
-                println!("{bench_id_pack}");
                 let cuda_compression_key_vec = (0..get_number_of_gpus())
                     .into_par_iter()
                     .map(|i| {
@@ -359,7 +353,6 @@ mod cuda {
                 let compressed = builder.build(&cuda_compression_key, &stream);
 
                 bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: CudaUnsignedRadixCiphertext = compressed
@@ -388,7 +381,6 @@ mod cuda {
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
                 bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
-                println!("{bench_id_unpack}");
                 let builders = (0..elements)
                     .into_par_iter()
                     .map(|i| {
