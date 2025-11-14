@@ -2,6 +2,7 @@
 #define HELPER_CUH
 
 #include <cstdint>
+#include <sstream>
 #include <stdio.h>
 #include <type_traits>
 
@@ -64,4 +65,100 @@ void print_body(const char *name, T *src, int n, int lwe_dimension, T delta) {
   printf("\n");
 }
 
+template <typename Torus>
+void print_2d_csv_to_file(const std::vector<Torus> &v, int col_size,
+                          const char *fname) {
+  FILE *fp = fopen(fname, "wt");
+  for (int i = 0; i < v.size() / col_size; ++i) {
+    for (int j = 0; j < col_size; ++j) {
+      fprintf(fp, "%lu%c", v[i * col_size + j],
+              (j == col_size - 1) ? '\n' : ',');
+    }
+  }
+  fclose(fp);
+}
+
+template <typename Torus>
+__host__ void dump_2d_gpu_to_file(const Torus *ptr, int row_size, int col_size,
+                                  const char *fname_prefix, int rand_prefix,
+                                  cudaStream_t stream, uint32_t gpu_index) {
+  // #ifndef NDEBUG
+  std::vector<Torus> buf_cpu(row_size * col_size);
+
+  char fname[4096];
+  snprintf(fname, 4096, "%s_%d_%d_%d.csv", fname_prefix, row_size, col_size,
+           rand_prefix);
+
+  cuda_memcpy_async_to_cpu((void *)&buf_cpu[0], ptr,
+                           buf_cpu.size() * sizeof(Torus), stream, gpu_index);
+  cuda_synchronize_device(gpu_index);
+  print_2d_csv_to_file(buf_cpu, col_size, fname);
+  // #endif
+}
+
+template <typename Torus>
+__host__ void compare_2d_arrays(const Torus *ptr1, const Torus *ptr2,
+                                int row_size, int col_size, cudaStream_t stream,
+                                uint32_t gpu_index) {
+  // #ifndef NDEBUG
+  std::vector<Torus> buf_cpu1(row_size * col_size),
+      buf_cpu2(row_size * col_size);
+  ;
+  cuda_memcpy_async_to_cpu((void *)&buf_cpu1[0], ptr1,
+                           buf_cpu1.size() * sizeof(Torus), stream, gpu_index);
+  cuda_memcpy_async_to_cpu((void *)&buf_cpu2[0], ptr2,
+                           buf_cpu2.size() * sizeof(Torus), stream, gpu_index);
+  cuda_synchronize_device(gpu_index);
+
+  std::vector<uint32_t> non_matching_indexes;
+  for (int i = 0; i < buf_cpu1.size(); ++i) {
+    if (buf_cpu1[i] != buf_cpu2[i]) {
+      non_matching_indexes.push_back(i);
+    }
+  }
+
+  if (!non_matching_indexes.empty()) {
+    std::stringstream ss;
+    for (int i = 0; i < std::min(non_matching_indexes.size(), (size_t)10);
+         ++i) {
+      ss << "    difference at " << non_matching_indexes[i] << ": "
+         << buf_cpu1[non_matching_indexes[i]] << " vs "
+         << buf_cpu2[non_matching_indexes[i]] << " at index "
+         << non_matching_indexes[i] << "\n";
+    }
+    GPU_ASSERT(non_matching_indexes.empty(),
+               "Correctness error for matrices %d x %d: \n%s", row_size,
+               col_size, ss.str().c_str());
+  }
+}
+
+template <typename Torus>
+__host__ void compare_2d_csvs(const char *fname_prefix1,
+                              const char *fname_prefix2, int row_size,
+                              int col_size, int rand_prefix) {
+  // #ifndef NDEBUG
+  char fname1[4096], fname2[4096];
+  snprintf(fname1, 4096, "%s_%d_%d_%d.csv", fname_prefix1, row_size, col_size,
+           rand_prefix);
+  snprintf(fname2, 4096, "%s_%d_%d_%d.csv", fname_prefix2, row_size, col_size,
+           rand_prefix);
+  FILE *fp1 = fopen(fname1, "rt");
+  FILE *fp2 = fopen(fname2, "rt");
+  for (int i = 0; i < row_size; ++i) {
+    for (int j = 0; j < col_size; ++j) {
+      uint64_t v1, v2;
+      fscanf(fp1, "%lu", &v1);
+      fscanf(fp2, "%lu", &v2);
+      fscanf(fp1, (j == col_size - 1) ? "\n" : ",");
+      fscanf(fp2, (j == col_size - 1) ? "\n" : ",");
+      GPU_ASSERT(
+          v1 == v2,
+          "Correctness error %lu vs %lu at index %d, %d\nComparing %s vs %s",
+          v1, v2, i, j, fname1, fname2);
+    }
+  }
+  fclose(fp1);
+  fclose(fp2);
+  // #endif
+}
 #endif

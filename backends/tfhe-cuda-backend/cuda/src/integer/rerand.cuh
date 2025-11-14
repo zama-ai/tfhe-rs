@@ -59,7 +59,7 @@ void rerand_inplace(
   execute_keyswitch_async<Torus>(
       streams.get_ith(0), ksed_zero_lwes, lwe_trivial_indexes, zero_lwes,
       lwe_trivial_indexes, ksk, input_dimension, output_dimension, ks_base_log,
-      ks_level, num_lwes);
+      ks_level, num_lwes, true, mem_ptr->ks_tmp_buf_vec);
 
   // Add ks output to ct
   // Check sizes

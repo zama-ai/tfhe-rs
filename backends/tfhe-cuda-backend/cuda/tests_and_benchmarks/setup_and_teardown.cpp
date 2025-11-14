@@ -261,6 +261,7 @@ void keyswitch_setup(
     uint64_t **lwe_sk_out_array, uint64_t **d_ksk_array, uint64_t **plaintexts,
     uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
     uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
+    ks_mem **lwe_sk_out_array
     int input_lwe_dimension, int output_lwe_dimension,
     DynamicDistribution lwe_noise_distribution, int ksk_base_log, int ksk_level,
     int message_modulus, int carry_modulus, int *payload_modulus,
