@@ -238,6 +238,9 @@ class ErrorFailureProbability(enum.IntEnum):
                     f"error failure probability str conversion '{self}' not supported yet"
                 )
 
+    def __str__(self):
+        return self.to_str()
+
 
 class BenchType(enum.Enum):
     Latency = 0

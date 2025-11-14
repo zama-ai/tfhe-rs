@@ -15,21 +15,21 @@ The following tables show the performance when the inputs of the benchmarked ope
 
 ### Encrypted/encrypted operations latency
 
-![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-ciphertext.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-latency-ciphertext.svg)
 
 ### Encrypted/encrypted operations throughput
 
-![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-ciphertext-throughput.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-throughput-ciphertext.svg)
 
 The following tables show the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
 ### Encrypted/clear operations latency
 
-![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-plaintext.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-latency-plaintext.svg)
 
 ### Encrypted/clear operations throughput
 
-![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-plaintext-throughput.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-throughput-plaintext.svg)
 
 ## Reproducing TFHE-rs benchmarks
 

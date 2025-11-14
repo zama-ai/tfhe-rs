@@ -508,7 +508,10 @@ class GenericFormatter:
                 BenchArray(
                     array,
                     self.layer,
-                    metadata={"pfail": key.pfail, "noise": key.noise_distribution},
+                    metadata={
+                        "noise": key.noise_distribution,
+                        "pfail": key.pfail,
+                    },
                 )
             )
 
