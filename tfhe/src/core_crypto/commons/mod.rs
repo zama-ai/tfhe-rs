@@ -164,6 +164,7 @@ pub mod test_tools {
 
     /// Samples must come from a gaussian distribution, returns the estimated confidence interval
     /// for a variance measurement of a gaussian distribution.
+    #[track_caller]
     pub fn gaussian_variance_confidence_interval(
         sample_count: f64,
         measured_variance: Variance,
@@ -172,18 +173,22 @@ pub mod test_tools {
         assert!(probability_to_be_in_the_interval >= 0.0);
         assert!(probability_to_be_in_the_interval <= 1.0);
 
-        // We have f64 arithmetic errors sightly farther away, so to protect ourselves, limit to
-        // 125000
-        assert!(
-            sample_count <= 125000.,
-            "variance_confidence_interval cannot handle sample count > 125000",
-        );
-
         let alpha = 1.0 - probability_to_be_in_the_interval;
         let degrees_of_freedom = sample_count - 1.0;
         let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
         let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
         let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+        let result_ok = chi2_lower.is_finite() && chi2_upper.is_finite();
+
+        assert!(
+            result_ok,
+            "Got an invalid value as a result of Chi2 inverse CDF with: \n\
+            sample_count={sample_count} \n\
+            probability_to_be_in_the_interval={probability_to_be_in_the_interval} \n\
+            this is a known issue with statrs, \
+            try to change your number of samples to get a computable value."
+        );
 
         // Lower bound is divided by Chi_right^2 so by chi2_upper, upper bound divided by Chi_left^2
         // so chi2_lower

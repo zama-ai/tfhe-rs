@@ -8,7 +8,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     StandardModSwitch,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
-    NoiseSimulationLwe, NoiseSimulationModulus,
+    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus,
 };
 use crate::core_crypto::commons::parameters::{CiphertextModulusLog, LweBskGroupingFactor};
 
@@ -158,5 +158,58 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for NoiseSimulationLwe {
             // original modulus
             self.modulus(),
         );
+    }
+}
+
+impl AllocateStandardModSwitchResult for NoiseSimulationGlwe {
+    type Output = Self;
+    type SideResources = ();
+
+    fn allocate_standard_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        Self::Output::new(
+            self.glwe_dimension(),
+            self.polynomial_size(),
+            self.variance_per_occupied_slot(),
+            self.modulus(),
+        )
+    }
+}
+
+impl StandardModSwitch<Self> for NoiseSimulationGlwe {
+    type SideResources = ();
+
+    fn standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut Self,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        let simulation_after_mod_switch_modulus =
+            NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);
+
+        let input_modulus_f64 = self.modulus().as_f64();
+        let output_modulus_f64 = simulation_after_mod_switch_modulus.as_f64();
+
+        assert!(output_modulus_f64 < input_modulus_f64);
+
+        let mod_switch_additive_variance = modulus_switch_additive_variance(
+            self.glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size()),
+            input_modulus_f64,
+            output_modulus_f64,
+        );
+
+        *output = Self::new(
+            self.glwe_dimension(),
+            self.polynomial_size(),
+            Variance(self.variance_per_occupied_slot().0 + mod_switch_additive_variance.0),
+            // Mod switched but the noise is to be interpreted with respect to the input modulus,
+            // as strictly the operation adding the noise is the rounding under the
+            // original modulus
+            self.modulus(),
+        )
     }
 }

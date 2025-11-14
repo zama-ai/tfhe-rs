@@ -78,6 +78,14 @@ impl ClientKey {
             )
     }
 
+    pub fn new_compression_key(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> CompressionKey {
+        self.atomic_pattern
+            .new_compression_key(private_compression_key)
+    }
+
     pub fn new_compression_decompression_keys(
         &self,
         private_compression_key: &CompressionPrivateKeys,
