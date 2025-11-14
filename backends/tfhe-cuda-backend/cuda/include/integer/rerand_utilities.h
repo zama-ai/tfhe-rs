@@ -7,10 +7,10 @@
 
 template <typename Torus> struct int_rerand_mem {
   int_radix_params params;
-  Torus *lwe_trivial_indexes;
 
   Torus *tmp_zero_lwes;
   Torus *tmp_ksed_zero_lwes;
+  Torus *lwe_trivial_indexes;
   uint32_t num_lwes;
 
   bool gpu_memory_allocated;
@@ -54,7 +54,7 @@ template <typename Torus> struct int_rerand_mem {
                              num_lwes * sizeof(Torus), streams.stream(0),
                              streams.gpu_index(0));
 
-    streams.synchronize();
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 
     free(h_lwe_trivial_indexes);
   }
@@ -64,6 +64,9 @@ template <typename Torus> struct int_rerand_mem {
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(tmp_ksed_zero_lwes, streams.stream(0),
+                                       streams.gpu_index(0),
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(lwe_trivial_indexes, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(d_expand_jobs, streams.stream(0),
