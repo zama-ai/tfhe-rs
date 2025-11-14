@@ -55,6 +55,7 @@ int main(void) {
   // Destroy the keys
   client_key_destroy(client_key);
   server_key_destroy(server_key);
+  unset_server_key();
 
   return EXIT_SUCCESS;
 }

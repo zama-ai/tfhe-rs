@@ -263,6 +263,7 @@ int main(void) {
     client_key_destroy(client_key);
     compressed_compact_public_key_destroy(compressed_public_key);
     server_key_destroy(server_key);
+    unset_server_key();
   }
   return ok;
 }

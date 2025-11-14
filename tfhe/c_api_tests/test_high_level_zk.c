@@ -133,6 +133,7 @@ int main(void) {
   server_key_destroy(server_key);
   compact_public_key_destroy(pk);
   compact_pke_crs_destroy(crs);
+  unset_server_key();
 
   return EXIT_SUCCESS;
 }

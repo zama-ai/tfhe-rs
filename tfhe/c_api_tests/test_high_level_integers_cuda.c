@@ -87,6 +87,8 @@ int main(void) {
     client_key_destroy(client_key);
     compressed_server_key_destroy(compressed_sks);
     cuda_server_key_destroy(cuda_server_key);
+    unset_server_key();
+
   }
 
   return ok;
