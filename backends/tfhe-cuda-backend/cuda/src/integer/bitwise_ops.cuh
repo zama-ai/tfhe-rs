@@ -34,11 +34,31 @@ host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
 }
 
 template <typename Torus>
+__host__ uint64_t scratch_cuda_boolean_bitnot(
+    CudaStreams streams, boolean_bitnot_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t lwe_ciphertext_count, bool is_unchecked,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new boolean_bitnot_buffer<Torus>(
+      streams, params, lwe_ciphertext_count, is_unchecked, allocate_gpu_memory,
+      size_tracker);
+  return size_tracker;
+}
+
+template <typename Torus>
 __host__ void host_boolean_bitnot(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *lwe_array,
-                                 boolean_bitnot_buffer<Torus> *mem_ptr,
-                                 void *const *bsks, Torus *const *ksks) {
-  if (mem_ptr->unchecked == false) {
+                                  CudaRadixCiphertextFFI *lwe_array,
+                                  boolean_bitnot_buffer<Torus> *mem_ptr,
+                                  void *const *bsks, Torus *const *ksks) {
+  bool carries_empty = true;
+  for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
+    if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
+      carries_empty = false;
+      break;
+    }
+  }
+  if (mem_ptr->unchecked == false && carries_empty == false) {
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lwe_array, lwe_array, bsks, ksks, mem_ptr->message_extract_lut,
         lwe_array->num_radix_blocks);
@@ -87,19 +107,6 @@ __host__ void host_bitop(CudaStreams streams,
 
   memcpy(lwe_array_out->degrees, degrees,
          lwe_array_out->num_radix_blocks * sizeof(uint64_t));
-}
-
-template <typename Torus>
-__host__ uint64_t scratch_cuda_boolean_bitnot(
-    CudaStreams streams, boolean_bitnot_buffer<Torus> **mem_ptr,
-    int_radix_params params, uint32_t lwe_ciphertext_count, bool is_unchecked,
-    bool allocate_gpu_memory) {
-
-  uint64_t size_tracker = 0;
-  *mem_ptr = new boolean_bitnot_buffer<Torus>(
-      streams, params, lwe_ciphertext_count, is_unchecked, allocate_gpu_memory,
-      size_tracker);
-  return size_tracker;
 }
 
 template <typename Torus>

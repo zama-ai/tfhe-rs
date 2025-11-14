@@ -24,11 +24,12 @@ void cuda_boolean_bitnot_ciphertext_64(CudaStreamsFFI streams,
                                        int8_t *mem_ptr, void *const *bsks,
                                        void *const *ksks) {
   host_boolean_bitnot<uint64_t>(CudaStreams(streams), lwe_array,
-                       (boolean_bitnot_buffer<uint64_t> *)mem_ptr, bsks,
-                       (uint64_t **)(ksks));
+                                (boolean_bitnot_buffer<uint64_t> *)mem_ptr,
+                                bsks, (uint64_t **)(ksks));
 }
 
-void cleanup_cuda_boolean_bitnot(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
+void cleanup_cuda_boolean_bitnot(CudaStreamsFFI streams,
+                                 int8_t **mem_ptr_void) {
 
   boolean_bitnot_buffer<uint64_t> *mem_ptr =
       (boolean_bitnot_buffer<uint64_t> *)(*mem_ptr_void);
@@ -36,7 +37,6 @@ void cleanup_cuda_boolean_bitnot(CudaStreamsFFI streams, int8_t **mem_ptr_void) 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
-
 
 uint64_t scratch_cuda_bitop_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
