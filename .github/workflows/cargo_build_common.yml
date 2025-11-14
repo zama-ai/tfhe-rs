@@ -1,0 +1,17 @@
+name: cargo_build_common
+
+on:
+  workflow_call:
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  placeholder:
+    name: cargo_build_common/placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a placeholder workflow"
