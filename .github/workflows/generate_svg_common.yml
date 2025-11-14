@@ -1,0 +1,17 @@
+name: generate_svg_common.yml
+
+on:
+  workflow_call:
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  placeholder:
+    name: generate_svg_common/placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a placeholder workflow"
