@@ -97,7 +97,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 );
 
                 bench_id = format!("{bench_name}::{name}");
-                println!("{bench_id}");
 
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
@@ -115,7 +114,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -328,7 +326,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
         );
 
                 bench_id = format!("{bench_name}::{name}");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         batch_programmable_bootstrap_lwe_ciphertext_mem_optimized(
@@ -345,7 +342,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -556,7 +552,6 @@ fn multi_bit_pbs<
                 );
 
                 bench_id = format!("{bench_name}::{name}::parallelized");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -573,7 +568,6 @@ fn multi_bit_pbs<
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -785,7 +779,6 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                 buffers.resize(stack_size);
 
                 bench_id = format!("{bench_name}::{name}");
-                println!("{bench_id}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
@@ -802,7 +795,6 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                println!("{bench_id}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -1028,7 +1020,6 @@ mod cuda {
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
-                    println!("{bench_id}");
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
@@ -1052,7 +1043,6 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    println!("{bench_id}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;
@@ -1290,7 +1280,6 @@ mod cuda {
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
-                    println!("{bench_id}");
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -1312,7 +1301,6 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    println!("{bench_id}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;

@@ -31,7 +31,6 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 bench_id_oprf_bounded =
                     format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
 
-                println!("{bench_id_oprf}");
                 bench_group.bench_function(&bench_id_oprf, |b| {
                     let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -43,7 +42,6 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     })
                 });
 
-                println!("{bench_id_oprf_bounded}");
                 bench_group.bench_function(&bench_id_oprf_bounded, |b| {
                     let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -77,7 +75,6 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
 
-                println!("{bench_id_oprf}");
                 bench_group.bench_function(&bench_id_oprf, |b| {
                     b.iter(|| {
                         (0..elements).into_par_iter().for_each(|_| {
@@ -89,7 +86,6 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     })
                 });
 
-                println!("{bench_id_oprf_bounded}");
                 bench_group.bench_function(&bench_id_oprf_bounded, |b| {
                     b.iter(|| {
                         (0..elements).into_par_iter().for_each(|_| {
@@ -156,7 +152,6 @@ pub mod cuda {
                     bench_id_oprf_bounded =
                         format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
 
-                    println!("{bench_id_oprf}");
                     bench_group.bench_function(&bench_id_oprf, |b| {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -173,7 +168,6 @@ pub mod cuda {
                         })
                     });
 
-                    println!("{bench_id_oprf_bounded}");
                     bench_group.bench_function(&bench_id_oprf_bounded, |b| {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -212,7 +206,6 @@ pub mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
 
-                    println!("{bench_id_oprf}");
                     bench_group.bench_function(&bench_id_oprf, |b| {
                         b.iter(|| {
                             (0..elements).into_par_iter().for_each(|i| {
@@ -228,7 +221,6 @@ pub mod cuda {
                         })
                     });
 
-                    println!("{bench_id_oprf_bounded}");
                     bench_group.bench_function(&bench_id_oprf_bounded, |b| {
                         b.iter(|| {
                             (0..elements).into_par_iter().for_each(|i| {
