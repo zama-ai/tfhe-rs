@@ -1,6 +1,6 @@
 [backend.aws.cpu-big]
 region = "eu-west-3"
-image_id = "ami-0449b775abf884686"
+image_id = "ami-0eda00173fe323828"
 instance_type = "m6i.32xlarge"
 user = "ubuntu"
 
@@ -12,7 +12,7 @@ user = "ubuntu"
 
 [backend.aws.cpu-small]
 region = "eu-west-3"
-image_id = "ami-0449b775abf884686"
+image_id = "ami-0eda00173fe323828"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
