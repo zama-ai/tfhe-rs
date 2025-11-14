@@ -503,19 +503,11 @@ impl DecryptionAndNoiseResult {
     }
 }
 
-pub fn update_ap_params_for_pfail(
+pub fn update_ap_params_msg_and_carry_moduli(
     ap_params: &mut AtomicPatternParameters,
     new_message_modulus: MessageModulus,
     new_carry_modulus: CarryModulus,
-) -> (PfailAndPrecision, PfailAndPrecision) {
-    let orig_pfail_and_precision = PfailAndPrecision::new_from_ap_params(&*ap_params);
-
-    println!("original_pfail: {}", orig_pfail_and_precision.pfail());
-    println!(
-        "original_pfail_log2: {}",
-        orig_pfail_and_precision.pfail().log2()
-    );
-
+) {
     match ap_params {
         AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
             PBSParameters::PBS(classic_pbsparameters) => {
@@ -532,6 +524,22 @@ pub fn update_ap_params_for_pfail(
             key_switch32_pbsparameters.carry_modulus = new_carry_modulus;
         }
     }
+}
+
+pub fn update_ap_params_for_pfail(
+    ap_params: &mut AtomicPatternParameters,
+    new_message_modulus: MessageModulus,
+    new_carry_modulus: CarryModulus,
+) -> (PfailAndPrecision, PfailAndPrecision) {
+    let orig_pfail_and_precision = PfailAndPrecision::new_from_ap_params(&*ap_params);
+
+    println!("original_pfail: {}", orig_pfail_and_precision.pfail());
+    println!(
+        "original_pfail_log2: {}",
+        orig_pfail_and_precision.pfail().log2()
+    );
+
+    update_ap_params_msg_and_carry_moduli(ap_params, new_message_modulus, new_carry_modulus);
 
     let new_expected_pfail = equivalent_pfail_gaussian_noise(
         orig_pfail_and_precision.precision_with_padding().value,

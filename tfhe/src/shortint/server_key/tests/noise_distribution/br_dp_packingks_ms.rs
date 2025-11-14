@@ -2,8 +2,8 @@ use super::utils::noise_simulation::*;
 use super::utils::traits::*;
 use super::utils::{
     expected_pfail_for_precision, mean_and_variance_check, normality_check, pfail_check,
-    precision_with_padding, DecryptionAndNoiseResult, NoiseSample, PfailAndPrecision,
-    PfailTestMeta, PfailTestResult,
+    precision_with_padding, update_ap_params_msg_and_carry_moduli, DecryptionAndNoiseResult,
+    NoiseSample, PfailAndPrecision, PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::shortint::atomic_pattern::AtomicPattern;
@@ -19,7 +19,7 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CiphertextModulusLog, CompressionParameters,
-    MessageModulus, PBSParameters, Variance,
+    MessageModulus, Variance,
 };
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::{PaddingBit, ShortintEncoding};
@@ -616,8 +616,22 @@ where
             compression_carry_mod,
         );
 
+        // Here we update the message modulus only:
+        // - because the message modulus matches for the compression encoding and compute encoding
+        // - so that the carry modulus stays the same and we apply the same dot product as normal
+        //   for 2_2
+        // - so that the effective encoding after the storage is the one we used to evaluate the
+        //   pfail
         let updated_message_mod = MessageModulus(1 << 6);
         let updated_carry_mod = compression_carry_mod;
+
+        update_ap_params_msg_and_carry_moduli(&mut params, updated_message_mod, updated_carry_mod);
+
+        assert!(
+            (params.message_modulus().0 * params.carry_modulus().0).ilog2()
+                <= comp_params.storage_log_modulus().0 as u32,
+            "Compression storage modulus cannot store enough bits for pfail estimation"
+        );
 
         let updated_precision_with_padding =
             precision_with_padding(updated_message_mod, updated_carry_mod);
@@ -632,27 +646,6 @@ where
             updated_message_mod,
             updated_carry_mod,
         );
-
-        // Here we update the message modulus only:
-        // - because the message modulus matches for the compression encoding and compute encoding
-        // - so that the carry modulus stays the same and we apply the same dot product as normal
-        //   for 2_2
-        // - so that the effective encoding after the storage is the one we used to evaluate the
-        //   pfail
-        // TODO: do something about this
-        match &mut params {
-            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
-                PBSParameters::PBS(classic_pbsparameters) => {
-                    classic_pbsparameters.message_modulus = updated_message_mod
-                }
-                PBSParameters::MultiBitPBS(multi_bit_pbsparameters) => {
-                    multi_bit_pbsparameters.message_modulus = updated_message_mod
-                }
-            },
-            AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
-                key_switch32_pbsparameters.message_modulus = updated_message_mod
-            }
-        }
 
         let pfail_test_meta = if should_run_short_pfail_tests_debug() {
             // To have the same amount of keys generated as the case where a single run is a single
