@@ -55,7 +55,7 @@ jobs:
     name: csprng_randomness_tests/csprng-randomness-tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow_ref }}
+      group: ${{ github.workflow_ref }}_${{ github.sha }}_${{ github.event_name }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
