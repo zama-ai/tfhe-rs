@@ -92,6 +92,107 @@ impl CudaServerKey {
         self.boolean_bitnot_assign_executor(ct, false, streams);
     }
 
+    pub fn boolean_bitand(
+        &self,
+        ct_left: &CudaBooleanBlock,
+        ct_right: &CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock {
+        let mut result = ct.duplicate(streams);
+        self.boolean_bitnot_assign(&mut result, streams);
+        result
+    }
+
+    pub fn boolean_bitand_assign(
+        &self,
+        ct_left: &mut CudaBooleanBlock,
+        ct_right: &CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) {
+        self.boolean_bitop_assign_executor(&mut ct_left, &ct_right, BitOpType::And, false, streams);
+    }
+
+    pub fn boolean_bitop_assign_executor(
+        &self,
+        ct_left: &mut CudaBooleanBlock,
+        ct_right: &CudaBooleanBlock,
+        op: BitOpType,
+        is_unchecked: bool,
+        streams: &CudaStreams,
+    )  {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
+        );
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_boolean_bitop_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        op,
+                        is_unchecked,
+                        1u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_boolean_bitop_assign(
+                        streams,
+                        ct_left.as_mut(),
+                        ct_right.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        op,
+                        is_unchecked,
+                        1u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+    }
+
     pub fn unchecked_boolean_bitnot(
         &self,
         ct: &CudaBooleanBlock,

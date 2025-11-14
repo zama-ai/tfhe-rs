@@ -2327,21 +2327,10 @@ impl std::ops::Not for &FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
-                let inner_block = *self.ciphertext.on_gpu(streams);
-                let cloned_block = inner_block.duplicate(streams).ciphertext;
-                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(cloned_block);
-                let inner =
-                    cuda_key
-                        .key
-                        .key
-                        .boolean_bitnot(
-                            &boolean_block, streams);
-                (
-                    InnerBoolean::Cuda(
-                        inner,
-                    ),
-                    cuda_key.tag.clone(),
-                )
+                let inner_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
+                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(inner_block);
+                let inner = cuda_key.key.key.boolean_bitnot(&boolean_block, streams);
+                (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
