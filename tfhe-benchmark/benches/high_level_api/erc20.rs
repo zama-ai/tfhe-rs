@@ -356,7 +356,6 @@ fn bench_transfer_latency<FheType, F>(
     let params_name = params.name();
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
-    println!("{bench_id}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -410,7 +409,6 @@ fn bench_transfer_latency_simd<FheType, F>(
     let params_name = params.name();
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
-    println!("{bench_id}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -468,7 +466,6 @@ fn bench_transfer_throughput<FheType, F>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
-        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -532,7 +529,6 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     let bench_id = format!(
         "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
     );
-    println!("{bench_id}");
     group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)
             .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -614,7 +610,6 @@ fn hpu_bench_transfer_throughput<FheType, F>(
         let bench_id = format!(
             "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
         );
-        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -688,7 +683,6 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{real_num_elems}_elems");
-        println!("{bench_id}");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| {

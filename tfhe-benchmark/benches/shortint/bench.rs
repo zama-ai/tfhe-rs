@@ -34,7 +34,6 @@ fn bench_server_key_unary_function<F>(
         let mut ct = cks.encrypt(clear_text);
 
         let bench_id = format!("{bench_name}::{}", param.name());
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 unary_op(sks, &mut ct);
@@ -80,7 +79,6 @@ fn bench_server_key_binary_function<F>(
         let mut ct_1 = cks.encrypt(clear_1);
 
         let bench_id = format!("{bench_name}::{}", param.name());
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, &mut ct_1);
@@ -125,7 +123,6 @@ fn bench_server_key_binary_scalar_function<F>(
         let mut ct_0 = cks.encrypt(clear_0);
 
         let bench_id = format!("{bench_name}::{}", param.name());
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, clear_1 as u8);
@@ -174,7 +171,6 @@ fn bench_server_key_binary_scalar_division_function<F>(
         let mut ct_0 = cks.encrypt(clear_0);
 
         let bench_id = format!("{bench_name}::{}", param.name());
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, clear_1 as u8);
@@ -211,7 +207,6 @@ fn carry_extract_bench(c: &mut Criterion) {
         let ct_0 = cks.encrypt(clear_0);
 
         let bench_id = format!("shortint::carry_extract::{}", param.name());
-        println!("{bench_id}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let _ = sks.carry_extract(&ct_0);
@@ -250,7 +245,6 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
         let ctxt = cks.encrypt(clear_0);
 
         let bench_id = format!("shortint::programmable_bootstrap::{}", param.name());
-        println!("{bench_id}");
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -294,7 +288,6 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
         let sks_compressed = CompressedServerKey::new(keys.client_key());
 
         let bench_id = format!("shortint::uncompress_key::{}", param.name());
-        println!("{bench_id}");
 
         bench_group.bench_function(&bench_id, |b| {
             let clone_compressed_key = || sks_compressed.clone();
