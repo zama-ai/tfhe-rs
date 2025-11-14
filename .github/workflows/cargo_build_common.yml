@@ -2,16 +2,216 @@ name: cargo_build_common
 
 on:
   workflow_call:
+    inputs:
+      run-pcc-cpu-batch:
+        type: string
+      run-pcc-hpu:
+        type: boolean
+        default: false
+      run-build:
+        type: boolean
+        default: false
+      run-build-layers:
+        type: boolean
+        default: false
+      run-build-c-api:
+        type: boolean
+        default: false
+      run-build-tfhe-full:
+        type: boolean
+        default: false
+      runners-to-use: # Additional runners to run builds command against
+        type: string # Use comma separated values to generate an array
+        default: ""
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
 
-permissions: {}
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets will be available only to zama-ai organization members
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16"
+
+permissions:
+  contents: read
 
 # zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
 
 jobs:
-  placeholder:
-    name: cargo_build_common/placeholder
+  setup-instance:
+    name: cargo_build_common/setup-instance
     runs-on: ubuntu-latest
-
+    outputs:
+      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
     steps:
-      - run: |
-          echo "Hello this is a placeholder workflow"
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-build
+
+      # This instance will be spawned especially for pull-request from forked repository
+      - name: Start GitHub instance
+        id: start-github-instance
+        if: env.SECRETS_AVAILABLE == 'false'
+        run: |
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+
+  prepare-matrix:
+    name: cargo_build_common/prepare-matrix
+    runs-on: ubuntu-latest
+    needs: setup-instance
+    outputs:
+      runners: ${{ steps.set_matrix_runners.outputs.runners }}
+    steps:
+      - name: Parse runners
+        shell: python
+        run: | # zizmor: ignore[template-injection] these env variables are safe
+          runners = ["${{ needs.setup-instance.outputs.runner-name }}", ]
+          if "${{ inputs.runners-to-use }}":
+            split_runners = "${{ inputs.runners-to-use }}".replace(" ", "").split(",")
+            runners.extend(split_runners)
+          
+          with open("${{ github.env }}", "a") as f:
+            f.write(f"""RUNNERS=["{'", "'.join(runners)}"]\n""")
+
+      - name: Set martix runners outputs
+        id: set_matrix_runners
+        run: | # zizmor: ignore[template-injection] these env variable are safe
+          echo "runners=${{ toJSON(env.RUNNERS) }}" >> "${GITHUB_OUTPUT}"
+
+  builds:
+    name: cargo_build_common/builds
+    needs: [ setup-instance, prepare-matrix ]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: ${{ fromJSON(needs.prepare-matrix.outputs.runners) }}
+      fail-fast: false
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Run pcc checks batch
+        if: inputs.run-pcc-cpu-batch
+        run: |
+          make "${COMMAND}"
+        env:
+          COMMAND: ${{ inputs.run-pcc-cpu-batch }}
+
+      - name: Run Hpu pcc checks
+        if: inputs.run-pcc-hpu
+        run: |
+          make pcc_hpu
+
+      - name: Build Release tfhe full
+        if: inputs.run-build-tfhe-full
+        run: |
+          make build_tfhe_full
+
+      - name: Run newline linter checks
+        if: inputs.run-build
+        run: |
+          make check_newline
+
+      - name: Build tfhe-csprng
+        if: inputs.run-build
+        run: |
+          make build_tfhe_csprng
+
+      - name: Build with MSRV
+        if: inputs.run-build
+        run: |
+          make build_tfhe_msrv
+
+      - name: Build coverage tests
+        if: inputs.run-build
+        run: |
+          make build_tfhe_coverage
+
+      - name: Build Release core
+        if: inputs.run-build-layers
+        run: |
+          make build_core AVX512_SUPPORT=ON
+          make build_core_experimental AVX512_SUPPORT=ON
+
+      - name: Build Release boolean
+        if: inputs.run-build-layers
+        run: |
+          make build_boolean
+
+      - name: Build Release shortint
+        if: inputs.run-build-layers
+        run: |
+          make build_shortint
+
+      - name: Build Release integer
+        if: inputs.run-build-layers
+        run: |
+          make build_integer
+
+      - name: Build Release c_api
+        if: inputs.run-build-c-api
+        run: |
+          make build_c_api
+
+      # The wasm build check is a bit annoying to set-up here and is done during the tests in
+      # aws_tfhe_tests.yml
+
+  teardown-instance:
+    name: cargo_build_common/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [setup-instance, builds]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop remote instance
+        id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cargo-builds) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
