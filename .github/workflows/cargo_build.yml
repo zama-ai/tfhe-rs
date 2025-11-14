@@ -39,157 +39,100 @@ jobs:
   parallel-pcc-cpu:
     name: cargo_build/parallel-pcc-cpu
     needs: prepare-parallel-pcc-matrix
-    runs-on: large_ubuntu_16
     strategy:
       matrix:
-        command: ${{fromJson(needs.prepare-parallel-pcc-matrix.outputs.matrix_command)}}
+        command: ${{ fromJson(needs.prepare-parallel-pcc-matrix.outputs.matrix_command)}}
       fail-fast: false
-    steps:
-      - name: Checkout tfhe-rs repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Run pcc checks batch
-        run: |
-          make "${COMMAND}"
-        env:
-          COMMAND: ${{ matrix.command }}
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-pcc-cpu-batch: ${{ matrix.command }}
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   pcc-hpu:
     name: cargo_build/pcc-hpu
-    runs-on: large_ubuntu_16
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Run Hpu pcc checks
-        run: |
-          make pcc_hpu
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-pcc-hpu: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   build-tfhe-full:
     name: cargo_build/build-tfhe-full
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
-        # even with a few PRs
-        os: [large_ubuntu_16, macos-latest-xlarge, large_windows_16_latest]
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Build Release tfhe full
-        run: |
-          make build_tfhe_full
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-build-tfhe-full: true
+      # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
+      # even with a few PRs
+      extra-runners-to-use: macos-latest-xlarge,large_windows_16_latest
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   build:
     name: cargo_build/build
-    runs-on: large_ubuntu_16
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Install and run newline linter checks
-        run: |
-          wget https://github.com/fernandrone/linelint/releases/download/0.0.6/linelint-linux-amd64
-          echo "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b linelint-linux-amd64" > checksum
-          sha256sum -c checksum || exit 1
-          chmod +x linelint-linux-amd64
-          mv linelint-linux-amd64 /usr/local/bin/linelint
-          make check_newline
-
-      - name: Build tfhe-csprng
-        run: |
-          make build_tfhe_csprng
-
-      - name: Build with MSRV
-        run: |
-          make build_tfhe_msrv
-
-      - name: Build coverage tests
-        run: |
-          make build_tfhe_coverage
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-build: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   build-layers:
     name: cargo_build/build-layers
-    runs-on: large_ubuntu_16
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Build Release core
-        run: |
-          make build_core AVX512_SUPPORT=ON
-          make build_core_experimental AVX512_SUPPORT=ON
-
-      - name: Build Release boolean
-        run: |
-          make build_boolean
-
-      - name: Build Release shortint
-        run: |
-          make build_shortint
-
-      - name: Build Release integer
-        run: |
-          make build_integer
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-build-layers: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   build-c-api:
     name: cargo_build/build-c-api
-    runs-on: large_ubuntu_16
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
-        with:
-          toolchain: stable
-
-      - name: Build Release c_api
-        run: |
-          make build_c_api
-
-      # The wasm build check is a bit annoying to set-up here and is done during the tests in
-      # aws_tfhe_tests.yml
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-build-c-api: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   cargo-builds:
     name: cargo_build/cargo-builds (bpr)
