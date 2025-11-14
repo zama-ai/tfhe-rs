@@ -25,6 +25,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
+
 jobs:
   cuda-tests-linux:
     name: gpu_4090_tests/cuda-tests-linux

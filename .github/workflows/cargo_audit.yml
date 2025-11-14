@@ -19,6 +19,8 @@ env:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
+
 jobs:
   audit:
     name: cargo_audit/audit

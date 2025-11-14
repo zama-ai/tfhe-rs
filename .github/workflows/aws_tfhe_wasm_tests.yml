@@ -26,6 +26,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
 jobs:
   setup-instance:
     name: aws_tfhe_wasm_tests/setup-instance
@@ -57,7 +59,7 @@ jobs:
     name: aws_tfhe_wasm_tests/wasm-tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow_ref }}
+      group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:

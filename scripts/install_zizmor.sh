@@ -9,8 +9,8 @@ function usage() {
     echo "$0: install zizmor"
     echo
     echo "--help                    Print this message"
-    echo "--rust-toolchain          The toolchain to check the version for with leading"
-    echo "--zizmor-version           Version of zizmor to install"
+    echo "--rust-toolchain          The toolchain to use"
+    echo "--zizmor-version          Version of zizmor to install"
     echo
 }
 

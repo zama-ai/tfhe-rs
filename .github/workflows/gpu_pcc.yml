@@ -26,6 +26,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow (via manual approval for PR from forks)
+
 jobs:
   setup-instance:
     name: gpu_pcc/setup-instance

@@ -33,6 +33,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
 jobs:
   should-run:
     name: aws_tfhe_integer_tests/should-run
@@ -42,7 +44,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       integer_test: ${{ github.event_name == 'workflow_dispatch' ||
         steps.changed-files.outputs.integer_any_changed }}
