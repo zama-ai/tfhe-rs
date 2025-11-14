@@ -44,8 +44,8 @@ jobs:
     name: benchmark_documentation/run-benchmarks-gpu-integer
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: multi-h100-sxm5
-      hardware_name: n3-H100-SXM5x8
+      profile: l40
+      hardware_name: n3-L40x1
       command: integer_multi_bit
       op_flavor: fast_default
       bench_type: both
@@ -102,8 +102,8 @@ jobs:
     name: benchmark_documentation/run-benchmarks-gpu-core-crypto
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: multi-h100-sxm5
-      hardware_name: n3-H100-SXM5x8
+      profile: l40
+      hardware_name: n3-L40x1
       command: pbs, ks_pbs
       bench_type: latency
       params_type: classical_documentation + multi_bit_documentation

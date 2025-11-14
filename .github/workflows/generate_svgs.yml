@@ -61,7 +61,7 @@ jobs:
     uses: ./.github/workflows/generate_svg_common.yml
     with:
       backend: gpu
-      hardware_name: n3-H100-SXM5x8
+      hardware_name: n3-L40x1
       layer: integer
       pbs_kind: multi_bit
       grouping_factor: 4
@@ -78,7 +78,7 @@ jobs:
     uses: ./.github/workflows/generate_svg_common.yml
     with:
       backend: gpu
-      hardware_name: n3-H100-SXM5x8
+      hardware_name: n3-L40x1
       layer: integer
       pbs_kind: multi_bit
       grouping_factor: 4
@@ -148,7 +148,7 @@ jobs:
     uses: ./.github/workflows/generate_svg_common.yml
     with:
       backend: gpu
-      hardware_name: n3-H100-SXM5x8
+      hardware_name: n3-L40x1
       layer: core_crypto
       pbs_kind: any
       grouping_factor: 4
