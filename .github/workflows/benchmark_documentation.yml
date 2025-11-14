@@ -1,0 +1,17 @@
+name: benchmark_documentation.yml
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
+jobs:
+  placeholder:
+    name: benchmark_documentation/placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a placeholder workflow"
