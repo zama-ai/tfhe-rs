@@ -1,5 +1,6 @@
 pub mod fft128_pbs;
 pub mod fft64_pbs;
+pub mod karatsuba;
 pub mod ntt64_bnf_pbs;
 pub mod ntt64_pbs;
 
