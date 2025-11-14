@@ -1,10 +1,7 @@
-#ifndef CNCRT_CRYPTO_CUH
-#define CNCRT_CRYPTO_CUH
-
+#pragma once
 #include "crypto/torus.cuh"
 #include "device.h"
 #include "fft128/f128.cuh"
-#include <cstdint>
 
 /**
  * GadgetMatrix implements the iterator design pattern to decompose a set of
@@ -16,7 +13,20 @@
  * This class always decomposes the entire set of num_poly polynomials.
  * By default, it works on a single polynomial.
  */
-#pragma once
+
+// Define explicitly an arithmetic shift right with a cast to signed
+template <typename T> __device__ T signed_shift_right(T value, int base_log) {
+  if constexpr (sizeof(T) == 4) {
+    return static_cast<T>(static_cast<int32_t>(value) >> base_log);
+  } else if constexpr (sizeof(T) == 8) {
+    return static_cast<T>(static_cast<int64_t>(value) >> base_log);
+  } else if constexpr (sizeof(T) == 16) {
+    return static_cast<T>(static_cast<__int128_t>(value) >> base_log);
+  } else {
+    return value >> base_log; // fallback for unusual sizes
+  }
+}
+
 template <typename T, class params> class GadgetMatrix {
 private:
   uint32_t level_count;
@@ -61,8 +71,8 @@ public:
       T res_re = *input1 & mask_mod_b;
       T res_im = *input2 & mask_mod_b;
 
-      *input1 >>= base_log; // Update state
-      *input2 >>= base_log; // Update state
+      *input1 = signed_shift_right<T>(*input1, base_log); // Update state
+      *input2 = signed_shift_right<T>(*input2, base_log); // Update state
 
       T carry_re = ((res_re - 1ll) | *input1) & res_re;
       T carry_im = ((res_im - 1ll) | *input2) & res_im;
@@ -94,8 +104,8 @@ public:
       T res_re = *input1 & mask_mod_b;
       T res_im = *input2 & mask_mod_b;
 
-      *input1 >>= base_log; // Update state
-      *input2 >>= base_log; // Update state
+      *input1 = signed_shift_right<T>(*input1, base_log);
+      *input2 = signed_shift_right<T>(*input2, base_log);
 
       T carry_re = ((res_re - 1ll) | *input1) & res_re;
       T carry_im = ((res_im - 1ll) | *input2) & res_im;
@@ -149,8 +159,8 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
     T res_re = input1 & mask_mod_b;
     T res_im = input2 & mask_mod_b;
 
-    input1 >>= base_log; // Update state
-    input2 >>= base_log; // Update state
+    input1 = signed_shift_right<T>(input1, base_log); // Update state
+    input2 = signed_shift_right<T>(input2, base_log); // Update state
 
     T carry_re = ((res_re - 1ll) | input1) & res_re;
     T carry_im = ((res_im - 1ll) | input2) & res_im;
@@ -168,12 +178,11 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
 template <typename Torus>
 __device__ Torus decompose_one(Torus &state, Torus mask_mod_b, int base_log) {
   Torus res = state & mask_mod_b;
-  state >>= base_log;
+  state = signed_shift_right<Torus>(state, base_log);
+
   Torus carry = ((res - 1ll) | state) & res;
   carry >>= base_log - 1;
   state += carry;
   res -= carry << base_log;
   return res;
 }
-
-#endif // CNCRT_CRYPTO_CUH
