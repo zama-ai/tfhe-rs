@@ -24,6 +24,8 @@ env:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
+
 jobs:
   should-run:
     name: benchmark_wasm_client/should-run
@@ -32,7 +34,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
-      pull-requests: read
+      pull-requests: read  # Needed to check for file change
     outputs:
       wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:

@@ -29,6 +29,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
 jobs:
   setup-instance:
     name: aws_tfhe_backward_compat_tests/setup-instance
@@ -58,10 +60,10 @@ jobs:
   backward-compat-tests:
     name: aws_tfhe_backward_compat_tests/backward-compat-tests (bpr)
     needs: [ setup-instance ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8

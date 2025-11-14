@@ -17,6 +17,8 @@ env:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   verify-triggering-actor:
     name: make_release_cuda/verify-triggering-actor
@@ -117,12 +119,9 @@ jobs:
     needs: [package]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
-      # Needed to detect the GitHub Actions environment
-      actions: read
-      # Needed to create the provenance via GitHub OIDC
-      id-token: write
-      # Needed to upload assets/artifacts
-      contents: write
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
     with:
       # SHA-256 hashes of the Crate package.
       base64-subjects: ${{ needs.package.outputs.hash }}
@@ -132,8 +131,7 @@ jobs:
     needs: [setup-instance, package] # for comparing hashes
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     permissions:
-      # Needed for OIDC token exchange on crates.io
-      id-token: write
+      id-token: write # Needed for OIDC token exchange on crates.io
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options

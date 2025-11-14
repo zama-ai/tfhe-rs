@@ -10,6 +10,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   make-release:
     name: make_release_tfhe_csprng/make-release
@@ -18,12 +20,9 @@ jobs:
       package-name: "tfhe-csprng"
       dry-run: ${{ inputs.dry_run }}
     permissions:
-      # Needed to detect the GitHub Actions environment
-      actions: read
-      # Needed to create the provenance via GitHub OIDC
-      id-token: write
-      # Needed to upload assets/artifacts
-      contents: write
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

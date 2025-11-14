@@ -27,12 +27,14 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
 jobs:
   should-run:
     name: aws_tfhe_fast_tests/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: read # Needed to check for file change
     outputs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}

@@ -7,3 +7,5 @@ updates:
       # Check for updates to GitHub Actions every sunday
       interval: "weekly"
       day: "sunday"
+    cooldown:
+      default-days: 7

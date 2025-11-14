@@ -24,6 +24,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
 jobs:
   setup-instance:
     name: csprng_randomness_tests/setup-instance

@@ -6,6 +6,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   placeholder:
     name: placeholder_workflow/placeholder

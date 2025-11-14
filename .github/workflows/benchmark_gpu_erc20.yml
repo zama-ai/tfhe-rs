@@ -22,6 +22,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   parse-inputs:
     name: benchmark_gpu_erc20/parse-inputs

@@ -9,7 +9,7 @@ function usage() {
     echo "$0: install typos-cli"
     echo
     echo "--help                    Print this message"
-    echo "--rust-toolchain          The toolchain to check the version for with leading"
+    echo "--rust-toolchain          The toolchain to use"
     echo "--typos-version           Version of typos-cli to install"
     echo
 }

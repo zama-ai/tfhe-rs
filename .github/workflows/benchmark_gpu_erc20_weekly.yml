@@ -9,6 +9,8 @@ on:
 
 permissions: {}
 
+# zizmor: ignore[concurrency-limits] only GitHub can trigger this workflow
+
 jobs:
   run-benchmarks-1-h100:
     name: benchmark_gpu_erc20_weekly/run-benchmarks-1-h100

@@ -23,6 +23,8 @@ on:
 permissions:
   contents: read
 
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
 jobs:
   setup-instance:
     name: aws_tfhe_noise_checks/setup-instance
