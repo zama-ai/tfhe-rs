@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 
 // TODO use .gitignore or git to resolve ignored files
-const DIR_TO_IGNORE: [&str; 2] = [".git", "target"];
+const DIR_TO_IGNORE: [&str; 3] = [".git", "target", "apps/test-vectors"];
 
 const FILES_TO_IGNORE: [&str; 9] = [
     // This contains fragments of code that are unrelated to TFHE-rs
