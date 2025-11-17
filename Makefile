@@ -25,6 +25,7 @@ BENCH_CUSTOM_COMMAND:=
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
+TEST_VECTORS_DIR=apps/test-vectors
 CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 WASM_PACK_VERSION="0.13.1"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
@@ -525,11 +526,16 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
 	fi
 
+.PHONY: clippy_test_vectors # Run clippy lints on the test vectors app
+clippy_test_vectors: install_rs_check_toolchain
+	cd apps/test-vectors; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-test-vectors -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
 clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_backward_compat_data
+clippy_test_vectors clippy_backward_compat_data
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -1184,6 +1190,17 @@ test_backward_compatibility_ci: install_rs_build_toolchain
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
 test_backward_compatibility: pull_backward_compat_data test_backward_compatibility_ci
 
+# Generate the test vectors and update the hash file
+.PHONY: gen_test_vectors
+gen_test_vectors:
+	./scripts/test_vectors.sh generate apps/test-vectors
+
+# Generate the test vectors and check that the content matches the hash file
+# `comm` is used to compare the checksums, and will also notify of any added file
+.PHONY: check_test_vectors
+check_test_vectors:
+	./scripts/test_vectors.sh check apps/test-vectors
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
@@ -1723,6 +1740,10 @@ pull_backward_compat_data:
 pull_hpu_files:
 	./scripts/pull_lfs_data.sh backends/tfhe-hpu-backend/
 
+.PHONY: pull_test_vectors # Pull the data files needed for backward compatibility tests
+pull_test_vectors:
+	./scripts/pull_lfs_data.sh $(TEST_VECTORS_DIR)
+
 #
 # Real use case examples
 #
@@ -1774,6 +1795,8 @@ pcc_batch_2:
 	$(call run_recipe_with_details,clippy)
 	$(call run_recipe_with_details,clippy_all_targets)
 	$(call run_recipe_with_details,check_fmt_js)
+	$(call run_recipe_with_details,clippy_test_vectors)
+	$(call run_recipe_with_details,check_test_vectors)
 
 .PHONY: pcc_batch_3 # duration: 6'50''
 pcc_batch_3:
