@@ -141,22 +141,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check all builds success
-        if: needs.parallel-pcc-cpu.result == 'success' &&
-          needs.pcc-hpu.result == 'success' &&
-          needs.build-tfhe-full.result == 'success' &&
-          needs.build.result == 'success' &&
-          needs.build-layers.result == 'success' &&
-          needs.build-c-api.result == 'success'
+        if: needs.parallel-pcc-cpu.outputs.builds-result == 'success' &&
+          needs.pcc-hpu.outputs.builds-result == 'success' &&
+          needs.build-tfhe-full.outputs.builds-result == 'success' &&
+          needs.build.outputs.builds-result == 'success' &&
+          needs.build-layers.outputs.builds-result == 'success' &&
+          needs.build-c-api.outputs.builds-result == 'success'
         run: |
           echo "All tfhe-rs build checks passed"
 
       - name: Check builds failure
-        if: needs.parallel-pcc-cpu.result != 'success' ||
-          needs.pcc-hpu.result != 'success' ||
-          needs.build-tfhe-full.result != 'success' ||
-          needs.build.result != 'success' ||
-          needs.build-layers.result != 'success' ||
-          needs.build-c-api.result != 'success'
+        if: needs.parallel-pcc-cpu.outputs.builds-result != 'success' ||
+          needs.pcc-hpu.outputs.builds-result != 'success' ||
+          needs.build-tfhe-full.outputs.builds-result != 'success' ||
+          needs.build.outputs.builds-result != 'success' ||
+          needs.build-layers.outputs.builds-result != 'success' ||
+          needs.build-c-api.outputs.builds-result != 'success'
         run: |
           echo "Some tfhe-rs build checks failed"
           exit 1
