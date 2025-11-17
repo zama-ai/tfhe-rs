@@ -418,7 +418,7 @@ impl<const N: usize> CastFrom<u128> for StaticUnsignedBigInt<N> {
 
 impl<const N: usize> CastFrom<StaticUnsignedBigInt<N>> for u128 {
     fn cast_from(input: StaticUnsignedBigInt<N>) -> Self {
-        input.0[0] as Self | input.0.get(1).copied().unwrap_or(0) as Self
+        input.0[0] as Self | ((input.0.get(1).copied().unwrap_or(0) as Self) << 64)
     }
 }
 
