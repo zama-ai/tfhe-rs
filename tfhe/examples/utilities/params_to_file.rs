@@ -316,7 +316,7 @@ pub fn format_lwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDe
     match param.lwe_noise_distribution() {
         DynamicDistribution::Gaussian(distrib) => {
             let modular_std_dev =
-                (param.lwe_ciphertext_modulus().as_f64() * distrib.standard_dev().0).log2();
+                param.lwe_ciphertext_modulus().as_f64() * distrib.standard_dev().0;
 
             format!(
                 "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
@@ -324,7 +324,7 @@ pub fn format_lwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDe
                 name,
                 param.lwe_dimension().0,
                 format_modulus_as_string(param.lwe_ciphertext_modulus()),
-                2.0_f64.powf(modular_std_dev),
+                modular_std_dev,
                 similar_params.join("_lwe', '")
             )
         }
@@ -352,7 +352,7 @@ pub fn format_glwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamD
     match param.glwe_noise_distribution() {
         DynamicDistribution::Gaussian(distrib) => {
             let modular_std_dev =
-                (param.glwe_ciphertext_modulus().as_f64() * distrib.standard_dev().0).log2();
+                param.glwe_ciphertext_modulus().as_f64() * distrib.standard_dev().0;
 
             format!(
                 "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.Uniform(0,1), \n \
@@ -363,7 +363,7 @@ pub fn format_glwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamD
                     .to_equivalent_lwe_dimension(param.polynomial_size())
                     .0,
                 format_modulus_as_string(param.glwe_ciphertext_modulus()),
-                2.0_f64.powf(modular_std_dev),
+                modular_std_dev,
                 similar_params.join("_glwe', '")
             )
         }
