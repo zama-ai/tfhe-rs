@@ -502,8 +502,10 @@ mod integer_params {
     use itertools::iproduct;
     use std::vec::IntoIter;
     use tfhe::shortint::AtomicPatternParameters;
-    use tfhe::shortint::parameters::
-    use tfhe::shortint::parameters::
+
+    use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64;
+    use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64_FALSE_FALSE;
+    use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128;
 
 
     /// An iterator that yields a succession of combinations
@@ -546,8 +548,9 @@ mod integer_params {
                 #[cfg(feature = "hpu")]
                 let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
                 #[cfg(not(feature = "hpu"))]
-                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64.into(),
-                                    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128.into()];
+                let params = vec![V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64.into(),
+                                    V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128.into(),
+                                    V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64_FALSE_FALSE.into()];
                 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {

@@ -76,7 +76,7 @@ pub const V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PBSPar
     };
 
 
-pub const V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2_M64_FALSE_FALSE: KeySwitch32PBSParameters =
+pub const V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64_FALSE_FALSE: KeySwitch32PBSParameters =
     KeySwitch32PBSParameters {
         lwe_dimension: LweDimension(833),
         glwe_dimension: GlweDimension(1),
