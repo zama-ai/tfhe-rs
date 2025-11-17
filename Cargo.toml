@@ -20,7 +20,7 @@ exclude = [
 ]
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
-bytemuck = "1.14.3"
+bytemuck = "<1.24"
 dyn-stack = { version = "0.11", default-features = false }
 itertools = "0.14"
 num-complex = "0.4"
