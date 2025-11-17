@@ -616,8 +616,8 @@ mod cuda_utils {
 
     #[cfg(feature = "integer")]
     pub mod cuda_integer_utils {
-        use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::core_crypto::gpu::vec::GpuIndex;
+        use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::integer::gpu::CudaServerKey;
         use tfhe::integer::ClientKey;
 
@@ -645,9 +645,7 @@ mod cuda_utils {
         ) -> Vec<CudaStreams> {
             (0..cuda_num_streams(num_block))
                 .map(|i| {
-                    CudaStreams::new_single_gpu(GpuIndex(
-                        (i % get_number_of_gpus() as u64) as u32,
-                    ))
+                    CudaStreams::new_single_gpu(GpuIndex((i % get_number_of_gpus() as u64) as u32))
                 })
                 .cycle()
                 .take(throughput_elements)
