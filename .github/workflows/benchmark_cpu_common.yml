@@ -68,9 +68,6 @@ jobs:
       op_flavor: ${{ steps.set_matrix_args.outputs.op_flavor }}
       bench_type: ${{ steps.set_matrix_args.outputs.bench_type }}
       params_type: ${{ steps.set_matrix_args.outputs.params_type }}
-    env:
-      INPUTS_COMMAND: ${{ inputs.command }}
-      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
     steps:
       - name: Parse user inputs
         shell: python

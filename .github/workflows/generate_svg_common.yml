@@ -54,7 +54,7 @@ jobs:
           python3 -m pip install -r ci/data_extractor/requirements.txt
           python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
-          --branch "${REF_NAME}"\
+          --branch "${REF_NAME}" \
           --backend "${BACKEND}" \
           --hardware "${HARDWARE_NAME}" \
           --tfhe-rs-layer "${LAYER}" \

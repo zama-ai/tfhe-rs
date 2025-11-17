@@ -4,8 +4,16 @@ name: benchmark_documentation
 on:
   workflow_dispatch:
     inputs:
-      run-benchmarks:
-        description: "Run benchmarks"
+      run-cpu-benchmarks:
+        description: "Run CPU benchmarks"
+        type: boolean
+        default: true
+      run-gpu-benchmarks:
+        description: "Run GPU benchmarks"
+        type: boolean
+        default: true
+      run-hpu-benchmarks:
+        description: "Run HPU benchmarks"
         type: boolean
         default: true
       generate-svgs:
@@ -25,6 +33,7 @@ jobs:
   run-benchmarks-cpu-integer:
     name: benchmark_documentation/run-benchmarks-cpu-integer
     uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
     with:
       command: integer
       op_flavor: fast_default
@@ -43,6 +52,7 @@ jobs:
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
     uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-benchmarks
     with:
       profile: l40
       hardware_name: n3-L40x1
@@ -63,6 +73,7 @@ jobs:
   run-benchmarks-hpu-integer:
     name: benchmark_documentation/run-benchmarks-hpu-integer
     uses: ./.github/workflows/benchmark_hpu_common.yml
+    if: inputs.run-hpu-benchmarks
     with:
       command: integer
       op_flavor: default
@@ -84,6 +95,7 @@ jobs:
   run-benchmarks-cpu-core-crypto:
     name: benchmark_documentation/run-benchmarks-cpu-core-crypto
     uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
     with:
       command: pbs, ks_pbs
       bench_type: latency
@@ -101,6 +113,7 @@ jobs:
   run-benchmarks-gpu-core-crypto:
     name: benchmark_documentation/run-benchmarks-gpu-core-crypto
     uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-benchmarks
     with:
       profile: l40
       hardware_name: n3-L40x1
@@ -119,14 +132,19 @@ jobs:
 
   generate-svgs-with-benchmarks-run:
     name: benchmark-documentation/generate-svgs-with-benchmarks-run
-    if: inputs.run-benchmarks && inputs.generate-svgs
+    if: ${{ always() &&
+      (inputs.run-cpu-benchmarks || inputs.run-gpu-benchmarks ||inputs.run-hpu-benchmarks) &&
+      inputs.generate-svgs }}
     needs: [
       run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
       run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto
     ]
     uses: ./.github/workflows/generate_svgs.yml
     with:
-      time_span_days: 1  # This ensures extraction is performed on the last values stored in database/
+      time_span_days: 5
+      generate-cpu-svgs: ${{ inputs.run-cpu-benchmarks }}
+      generate-gpu-svgs: ${{ inputs.run-gpu-benchmarks }}
+      generate-hpu-svgs: ${{ inputs.run-hpu-benchmarks }}
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
@@ -134,7 +152,8 @@ jobs:
 
   generate-svgs-without-benchmarks-run:
     name: benchmark-documentation/generate-svgs-without-benchmarks-run
-    if: ${{ !inputs.run-benchmarks && inputs.generate-svgs }}
+    if: ${{ !(inputs.run-cpu-benchmarks || inputs.run-gpu-benchmarks || inputs.run-hpu-benchmarks) &&
+      inputs.generate-svgs }}
     uses: ./.github/workflows/generate_svgs.yml
     with:
       time_span_days: 60

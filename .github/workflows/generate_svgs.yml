@@ -7,6 +7,15 @@ on:
       time_span_days:
         type: string
         required: true
+      generate-cpu-svgs:
+        type: boolean
+        default: true
+      generate-gpu-svgs:
+        type: boolean
+        default: true
+      generate-hpu-svgs:
+        type: boolean
+        default: true
     secrets:
       DATA_EXTRACTOR_DATABASE_USER:
         required: true
@@ -27,6 +36,7 @@ jobs:
   cpu-integer-latency-table:
     name: generate_documentation_svgs/cpu-integer-latency-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
     with:
       backend: cpu
       hardware_name: hpc7a.96xlarge
@@ -43,6 +53,7 @@ jobs:
   cpu-integer-throughput-table:
     name: generate_documentation_svgs/cpu-integer-latency-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
     with:
       backend: cpu
       hardware_name: hpc7a.96xlarge
@@ -59,6 +70,7 @@ jobs:
   gpu-integer-latency-table:
     name: generate_documentation_svgs/gpu-integer-latency-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-gpu-svgs
     with:
       backend: gpu
       hardware_name: n3-L40x1
@@ -76,6 +88,7 @@ jobs:
   gpu-integer-throughput-table:
     name: generate_documentation_svgs/gpu-integer-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-gpu-svgs
     with:
       backend: gpu
       hardware_name: n3-L40x1
@@ -93,6 +106,7 @@ jobs:
   hpu-integer-latency-table:
     name: generate_documentation_svgs/hpu-integer-latency-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-hpu-svgs
     with:
       backend: hpu
       hardware_name: hpu_x1
@@ -109,6 +123,7 @@ jobs:
   hpu-integer-throughput-table:
     name: generate_documentation_svgs/hpu-integer-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-hpu-svgs
     with:
       backend: hpu
       hardware_name: hpu_x1
@@ -129,6 +144,7 @@ jobs:
   cpu-pbs-tables:
     name: generate_documentation_svgs/cpu-pbs-tables
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
     with:
       backend: cpu
       hardware_name: hpc7a.96xlarge
@@ -146,6 +162,7 @@ jobs:
   gpu-pbs-tables:
     name: generate_documentation_svgs/gpu-pbs-tables
     uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-gpu-svgs
     with:
       backend: gpu
       hardware_name: n3-L40x1
