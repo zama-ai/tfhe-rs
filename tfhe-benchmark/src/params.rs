@@ -502,6 +502,9 @@ mod integer_params {
     use itertools::iproduct;
     use std::vec::IntoIter;
     use tfhe::shortint::AtomicPatternParameters;
+    use tfhe::shortint::parameters::
+    use tfhe::shortint::parameters::
+
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
