@@ -23,6 +23,10 @@ on:
       extra-runners-to-use: # Additional runners to run builds command against
         type: string # Use comma separated values to generate an array
         default: ""
+    outputs:
+      builds-result:
+        description: "Result of builds job"
+        value: ${{ jobs.builds.outputs.result }}
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -114,6 +118,8 @@ jobs:
       matrix:
         runner: ${{ fromJSON(needs.prepare-matrix.outputs.runners) }}
       fail-fast: false
+    outputs:
+      result: ${{ steps.set_builds_result.outputs.result }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -191,6 +197,12 @@ jobs:
 
       # The wasm build check is a bit annoying to set-up here and is done during the tests in
       # aws_tfhe_tests.yml
+
+      - name: Set result output
+        id: set_builds_result
+        if: ${{ always() }}
+        run: | # zizmor: ignore[template-injection] this context variable is safe
+          echo "result=${{ job.status }}" >> "${GITHUB_OUTPUT}"
 
   teardown-instance:
     name: cargo_build_common/teardown-instance
