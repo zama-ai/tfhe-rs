@@ -17,9 +17,31 @@ permissions: {}
 # zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
 
 jobs:
+  setup-instance:
+    name: parameters_check/setup-instance
+    if:
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-remote-instance.outputs.label }}
+    steps:
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-small
+
   params-curves-security-check:
     name: parameters_check/params-curves-security-check
-    runs-on: large_ubuntu_16-22.04
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -59,3 +81,28 @@ jobs:
           SLACK_MESSAGE: "Security check for parameters finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-instance:
+    name: parameters_check/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [setup-instance, params-curves-security-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop remote instance
+        id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (params-curves-security-check) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
