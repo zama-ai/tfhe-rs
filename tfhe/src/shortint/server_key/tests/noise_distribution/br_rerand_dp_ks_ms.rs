@@ -951,7 +951,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
     let id_lut = sks.generate_lookup_table(|x| x);
 
     for idx in 0..10 {
-        let seed_bytes = vec![idx as u8; 258 / 8];
+        let seed_bytes = vec![idx as u8; 256 / 8];
         let rerand_xof_seed = XofSeed::new(seed_bytes, *b"TFHE_Enc");
 
         // Manually build as the seed is made non Clone to protect user normally
