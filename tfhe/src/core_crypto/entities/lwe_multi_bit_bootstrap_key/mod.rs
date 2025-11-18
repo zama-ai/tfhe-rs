@@ -26,7 +26,7 @@ pub fn equivalent_multi_bit_lwe_dimension(
     input_lwe_dimension: LweDimension,
     grouping_factor: LweBskGroupingFactor,
 ) -> Result<LweDimension, &'static str> {
-    if input_lwe_dimension.0 % grouping_factor.0 != 0 {
+    if !input_lwe_dimension.0.is_multiple_of(grouping_factor.0) {
         return Err("equivalent_multi_bit_lwe_dimension error: \
         input_lwe_dimension is required to be a multiple of grouping_factor");
     }

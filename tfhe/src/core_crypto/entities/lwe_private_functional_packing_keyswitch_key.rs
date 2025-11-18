@@ -211,13 +211,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
             "Got an empty container to create an LweKeyswitchKey"
         );
         assert!(
-            container.container_len()
-                % lwe_pfpksk_input_key_element_encrypted_size(
+            container
+                .container_len()
+                .is_multiple_of(lwe_pfpksk_input_key_element_encrypted_size(
                     decomp_level_count,
                     output_glwe_size,
                     output_polynomial_size
-                )
-                == 0,
+                )),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * output_glwe_size * output_polynomial_size:\
          {}. Got container length: {} and decomp_level_count: {decomp_level_count:?}, \

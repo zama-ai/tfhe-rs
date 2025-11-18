@@ -964,7 +964,7 @@ fn num_bits_to_strict_num_blocks(
     message_modulus: MessageModulus,
 ) -> crate::Result<usize> {
     let bits_per_block = message_modulus.0.ilog2();
-    if num_bits as u32 % bits_per_block != 0 {
+    if !(num_bits as u32).is_multiple_of(bits_per_block) {
         let message = format!("Number of bits must be a multiple of the parameter's MessageModulus.ilog2 ({bits_per_block} here)");
         return Err(crate::Error::new(message));
     }

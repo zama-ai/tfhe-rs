@@ -73,8 +73,6 @@
     clippy::too_many_arguments,
     non_camel_case_types
 )]
-// Should be removed when we raise MSRV above 1.87
-#![allow(clippy::manual_is_multiple_of)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(rustdoc::broken_intra_doc_links)]
 

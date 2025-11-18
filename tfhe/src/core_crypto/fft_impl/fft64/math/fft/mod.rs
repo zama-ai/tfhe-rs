@@ -585,9 +585,10 @@ impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
     pub fn iter_mut(
         &mut self,
     ) -> impl DoubleEndedIterator<Item = FourierPolynomial<&'_ mut [c64]>> {
-        assert!(
-            self.data.container_len() % self.polynomial_size.to_fourier_polynomial_size().0 == 0
-        );
+        assert!(self
+            .data
+            .container_len()
+            .is_multiple_of(self.polynomial_size.to_fourier_polynomial_size().0));
         self.data
             .as_mut()
             .chunks_exact_mut(self.polynomial_size.to_fourier_polynomial_size().0)

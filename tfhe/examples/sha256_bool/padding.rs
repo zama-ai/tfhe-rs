@@ -8,7 +8,7 @@
 pub fn pad_sha256_input(input: &str) -> Vec<bool> {
     let bytes = if input.starts_with("0x") && is_valid_hex(&input[2..]) {
         let no_prefix = &input[2..];
-        let hex_input = if no_prefix.len() % 2 == 0 {
+        let hex_input = if no_prefix.len().is_multiple_of(2) {
             // hex value can be converted to bytes
             no_prefix.to_string()
         } else {

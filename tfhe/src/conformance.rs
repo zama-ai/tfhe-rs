@@ -67,7 +67,7 @@ impl ListSizeConstraint {
         if self.group_size == 0 {
             size == 0
         } else {
-            size % self.group_size == 0
+            size.is_multiple_of(self.group_size)
                 && size >= self.min_inclusive_group_count * self.group_size
                 && size <= self.max_inclusive_group_count * self.group_size
         }

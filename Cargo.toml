@@ -24,7 +24,7 @@ exclude = [
 ]
 
 [workspace.package]
-rust-version = "1.85"
+rust-version = "1.91.1"
 
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }

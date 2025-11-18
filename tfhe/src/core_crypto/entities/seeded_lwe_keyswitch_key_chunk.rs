@@ -142,7 +142,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             "Got an empty container to create a SeededLweKeyswitchKeyChunk"
         );
         assert!(
-            container.container_len() % (decomp_level_count.0) == 0,
+            container
+                .container_len()
+                .is_multiple_of(decomp_level_count.0),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count: {}. \
         Got container length: {} and decomp_level_count: {decomp_level_count:?}.",
