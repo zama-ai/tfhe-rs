@@ -36,25 +36,25 @@ use tfhe::core_crypto::prelude::*;
 pub fn main() {
     type Scalar = u64;
 
-    // ~2^50-ish
-    let modulus = 0b0011_1111_1111_1111_1111_1111_1111_1100_0111_0000_0000_0000_0001;
-    let lwe_dim = LweDimension(1038);
-    let glwe_dim = GlweDimension(1);
-    let polynomial_size = PolynomialSize(2048);
-    let ks_level = DecompositionLevelCount(3);
-    let ks_base_log = DecompositionBaseLog(64u32.ilog2() as usize);
-    let pbs_level = DecompositionLevelCount(1);
-    let pbs_base_log = DecompositionBaseLog(4194304u32.ilog2() as usize);
-    let lwe_noise = DynamicDistribution::<u64>::new_t_uniform(10);
-    let glwe_noise = DynamicDistribution::<u64>::new_t_uniform(3);
-    let ks_mod = CiphertextModulus::<u64>::try_new(
-        modulus
-    )
-    .unwrap();
-    let pbs_mod = CiphertextModulus::<u64>::try_new(
-        modulus
-    )
-    .unwrap();
+    // // ~2^50-ish
+    // let modulus = 0b0011_1111_1111_1111_1111_1111_1111_1100_0111_0000_0000_0000_0001;
+    // let lwe_dim = LweDimension(1038);
+    // let glwe_dim = GlweDimension(1);
+    // let polynomial_size = PolynomialSize(2048);
+    // let ks_level = DecompositionLevelCount(3);
+    // let ks_base_log = DecompositionBaseLog(64u32.ilog2() as usize);
+    // let pbs_level = DecompositionLevelCount(1);
+    // let pbs_base_log = DecompositionBaseLog(4194304u32.ilog2() as usize);
+    // let lwe_noise = DynamicDistribution::<u64>::new_t_uniform(10);
+    // let glwe_noise = DynamicDistribution::<u64>::new_t_uniform(3);
+    // let ks_mod = CiphertextModulus::<u64>::try_new(
+    //     modulus
+    // )
+    // .unwrap();
+    // let pbs_mod = CiphertextModulus::<u64>::try_new(
+    //     modulus
+    // )
+    // .unwrap();
 
     // let modulus = (1u128 << 64) - (1u128 << 32) + 1;
 
@@ -69,6 +69,26 @@ pub fn main() {
     // let glwe_noise = DynamicDistribution::<u64>::new_t_uniform(17);
     // let ks_mod = CiphertextModulus::<u64>::try_new(modulus).unwrap();
     // let pbs_mod = CiphertextModulus::<u64>::try_new(modulus).unwrap();
+
+    // BnF
+    let lwe_dim = LweDimension(879);
+    let glwe_dim = GlweDimension(1);
+    let polynomial_size = PolynomialSize(2048);
+    let lwe_noise = DynamicDistribution::new_t_uniform(3);
+    // let glwe_noise = DynamicDistribution::new_t_uniform(17);
+    let pbs_base_log = DecompositionBaseLog(23);
+    let pbs_level = DecompositionLevelCount(1);
+    let ks_base_log = DecompositionBaseLog(2);
+    let ks_level = DecompositionLevelCount(8);
+    // let message_modulus = MessageModulus(4);
+    // let carry_modulus = CarryModulus(4);
+    // let max_noise_level = MaxNoiseLevel::new(5);
+    let log2_p_fail = -128.0;
+    let ks_mod = CiphertextModulus::new(1 << 21);
+    let ciphertext_modulus = CiphertextModulus::new_native();
+    // let modulus_switch_noise_reduction_params = ModulusSwitchType::CenteredMeanNoiseReduction;
+    let modulus = (1u128 << 64) - (1 << 32) + 1;
+    let pbs_mod = CiphertextModulus::new(modulus);
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -113,7 +133,7 @@ pub fn main() {
         &output_lwe_secret_key,
         Plaintext(0),
         lwe_noise,
-        pbs_mod,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -123,13 +143,18 @@ pub fn main() {
         ks_mod,
     );
 
-    let accumulator = GlweCiphertext::new(0, glwe_dim.to_glwe_size(), polynomial_size, pbs_mod);
+    let accumulator = GlweCiphertext::new(
+        0,
+        glwe_dim.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
     // Allocate the LweCiphertext to store the result of the PBS
     let mut output_pbs_ct = LweCiphertext::new(
         0,
         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-        pbs_mod,
+        ciphertext_modulus,
     );
 
     let ntt = Ntt64::new(ntt_bsk.ciphertext_modulus(), polynomial_size);
@@ -145,7 +170,7 @@ pub fn main() {
 
     let mut buffers = ComputationBuffers::new();
     buffers.resize(
-        programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+        programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized_requirement(
             ntt_bsk.glwe_size(),
             ntt_bsk.polynomial_size(),
             ntt,
@@ -158,7 +183,7 @@ pub fn main() {
     {
         bench_group.bench_function(bench_name, |b| {
             b.iter(|| {
-                programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
+                programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized(
                     &output_ks_ct,
                     &mut output_pbs_ct,
                     &accumulator.as_view(),
