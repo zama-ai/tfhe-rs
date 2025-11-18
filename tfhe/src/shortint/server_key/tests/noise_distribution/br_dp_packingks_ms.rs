@@ -13,14 +13,14 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys};
 use crate::shortint::parameters::test_params::{
-    TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CiphertextModulusLog, CompressionParameters,
-    MessageModulus, Variance,
+    MessageModulus, MetaParameters, Variance,
 };
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::{PaddingBit, ShortintEncoding};
 use rayon::prelude::*;
@@ -96,11 +96,11 @@ where
     (res, packing_result, ms_result)
 }
 
-fn sanity_check_encrypt_br_dp_packing_ks_ms<P>(params: P, comp_params: CompressionParameters)
-where
-    P: Into<AtomicPatternParameters>,
-{
-    let params: AtomicPatternParameters = params.into();
+fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters) {
+    let (params, comp_params) = (
+        meta_params.compute_parameters,
+        meta_params.compression_parameters.unwrap(),
+    );
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
     let compression_private_key = cks.new_compression_private_key(comp_params);
@@ -158,23 +158,10 @@ where
     assert_eq!(after_ms.as_view(), extracted.as_view());
 }
 
-#[test]
-fn test_sanity_check_encrypt_br_dp_packing_ks_ms_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    sanity_check_encrypt_br_dp_packing_ks_ms(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-#[test]
-fn test_sanity_check_encrypt_br_dp_packing_ks_ms_test_param_message_2_carry_2_ks32_pbs_tuniform_2m128(
-) {
-    sanity_check_encrypt_br_dp_packing_ks_ms(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+create_parameterized_test!(sanity_check_encrypt_br_dp_packing_ks_ms {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
 
 #[allow(clippy::type_complexity)]
 fn encrypt_br_dp_packing_ks_ms_inner_helper(
@@ -403,11 +390,11 @@ fn encrypt_br_dp_packing_ks_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_dp_packing_ks_ms_noise<P>(params: P, comp_params: CompressionParameters)
-where
-    P: Into<AtomicPatternParameters>,
-{
-    let params: AtomicPatternParameters = params.into();
+fn noise_check_encrypt_br_dp_packing_ks_ms_noise(meta_params: MetaParameters) {
+    let (params, comp_params) = (
+        meta_params.compute_parameters,
+        meta_params.compression_parameters.unwrap(),
+    );
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
     let compression_private_key = cks.new_compression_private_key(comp_params);
@@ -530,31 +517,17 @@ where
 
     assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
 }
+create_parameterized_test!(noise_check_encrypt_br_dp_packing_ks_ms_noise {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
 
-#[test]
-fn test_noise_check_encrypt_br_dp_packing_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    noise_check_encrypt_br_dp_packing_ks_ms_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-#[test]
-fn test_noise_check_encrypt_br_dp_packing_ks_ms_noise_test_param_message_2_carry_2_ks32_pbs_tuniform_2m128(
-) {
-    noise_check_encrypt_br_dp_packing_ks_ms_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-fn noise_check_encrypt_br_dp_packing_ks_ms_pfail<P>(params: P, comp_params: CompressionParameters)
-where
-    P: Into<AtomicPatternParameters>,
-{
-    let (pfail_test_meta, params) = {
-        let mut params: AtomicPatternParameters = params.into();
+fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(meta_params: MetaParameters) {
+    let (pfail_test_meta, params, comp_params) = {
+        let (mut params, comp_params) = (
+            meta_params.compute_parameters,
+            meta_params.compression_parameters.unwrap(),
+        );
 
         let original_message_modulus = params.message_modulus();
         let original_carry_modulus = params.carry_modulus();
@@ -666,7 +639,7 @@ where
             )
         };
 
-        (pfail_test_meta, params)
+        (pfail_test_meta, params, comp_params)
     };
 
     let cks = ClientKey::new(params);
@@ -709,20 +682,7 @@ where
     pfail_check(&pfail_test_meta, test_result);
 }
 
-#[test]
-fn test_noise_check_encrypt_br_dp_packing_ks_ms_pfail_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    noise_check_encrypt_br_dp_packing_ks_ms_pfail(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-#[test]
-fn test_noise_check_encrypt_br_dp_packing_ks_ms_pfail_test_param_message_2_carry_2_ks32_pbs_tuniform_2m128(
-) {
-    noise_check_encrypt_br_dp_packing_ks_ms_pfail(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+create_parameterized_test!(noise_check_encrypt_br_dp_packing_ks_ms_pfail {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
