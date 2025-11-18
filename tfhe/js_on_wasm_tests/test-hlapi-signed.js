@@ -563,7 +563,7 @@ test("hlapi_compact_ciphertext_list", (t) => {
 
 test("hlapi_compact_ciphertext_list_with_proof", (t) => {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
   );
   let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
     ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -616,7 +616,7 @@ test("hlapi_compact_pk_conformance", (t) => {
   const limit = BigInt(1 << 20);
 
   let blockParams = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
   );
   let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
     ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
