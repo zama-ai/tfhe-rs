@@ -21,9 +21,8 @@ tfhe-ntt requires a Rust version >= 1.67.0.
 # Features
 
 - `std` (default): This enables runtime arch detection for accelerated SIMD instructions.
-- `nightly`: This enables unstable Rust features to further speed up the NTT, by enabling
-AVX512 instructions on CPUs that support them. This feature requires a nightly Rust
-toolchain.
+- `avx512` (default): This enables AVX512 instructions on CPUs that support them to further
+  speed up the NTT.
 
 # Example
 
@@ -59,6 +58,4 @@ Run the example with `cargo run --example mul_poly_native`.
 
 # Benchmarks
 
-Benchmarks can be executed with `cargo bench`. If a nightly toolchain is
-available, then AVX512 acceleration can be enabled by passing the
-`--features=nightly` flag.
+Benchmarks can be executed with `cargo bench`.
