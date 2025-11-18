@@ -19,7 +19,7 @@ pulp = { workspace = true }
 [features]
 default = ["std"]
 std = ["pulp/std", "aligned-vec/std"]
-nightly = ["pulp/nightly"]
+nightly = ["pulp/x86-v4"]
 
 [dev-dependencies]
 criterion = "0.5"
