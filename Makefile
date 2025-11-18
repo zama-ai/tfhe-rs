@@ -427,10 +427,10 @@ clippy_rustdoc: install_rs_check_toolchain
 		echo "WARNING: skipped clippy_rustdoc, unsupported OS $(OS)"; \
 		exit 0; \
 	fi && \
-	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
+	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
 		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental \
-		-p tfhe
+		-p tfhe -- --nocapture
 
 .PHONY: clippy_rustdoc_gpu # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
 clippy_rustdoc_gpu: install_rs_check_toolchain
@@ -438,10 +438,10 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 		echo "WARNING: skipped clippy_rustdoc_gpu, unsupported OS $(OS)"; \
 		exit 0; \
 	fi && \
-	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
+	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
 		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu \
-		-p tfhe
+		-p tfhe -- --nocapture
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
@@ -652,7 +652,7 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 	cd tfhe && \
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory" rustup run $(RS_CHECK_TOOLCHAIN) \
+	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory -Clink-arg=--shared-memory -Clink-arg=--max-memory=1073741824 -Clink-arg=--import-memory -Clink-arg=--export=__wasm_init_tls -Clink-arg=--export=__tls_size -Clink-arg=--export=__tls_align -Clink-arg=--export=__tls_base" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
 		-Z build-std=panic_abort,std && \

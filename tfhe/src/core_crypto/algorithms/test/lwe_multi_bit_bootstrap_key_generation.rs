@@ -46,7 +46,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
         let noise_distribution =
             DynamicDistribution::new_gaussian_from_std_dev(StandardDev::from_standard_dev(10.));
 
-        while lwe_dim.0 % grouping_factor.0 != 0 {
+        while !lwe_dim.0.is_multiple_of(grouping_factor.0) {
             lwe_dim = LweDimension(lwe_dim.0 + 1);
         }
 

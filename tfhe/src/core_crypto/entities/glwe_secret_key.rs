@@ -88,7 +88,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
             "Got an empty container to create a GlweSecretKey"
         );
         assert!(
-            container.container_len() % polynomial_size.0 == 0,
+            container.container_len().is_multiple_of(polynomial_size.0),
             "The provided container length is not valid. \
         It needs to be dividable by polynomial_size. \
         Got container length: {} and polynomial_size: {polynomial_size:?}",

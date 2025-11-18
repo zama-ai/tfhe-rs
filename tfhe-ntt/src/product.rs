@@ -156,7 +156,7 @@ impl Plan {
         factors: impl AsRef<[u64]>,
     ) -> Option<Self> {
         fn try_new_impl(polynomial_size: usize, modulus: u64, primes: &mut [u64]) -> Option<Plan> {
-            if polynomial_size % 2 != 0 {
+            if !polynomial_size.is_multiple_of(2) {
                 return None;
             }
 
