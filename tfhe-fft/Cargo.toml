@@ -23,7 +23,7 @@ js-sys = "0.3"
 [features]
 default = ["std"]
 fft128 = []
-nightly = ["pulp/nightly"]
+nightly = ["pulp/x86-v4"]
 std = ["pulp/std"]
 serde = ["dep:serde", "num-complex/serde"]
 
