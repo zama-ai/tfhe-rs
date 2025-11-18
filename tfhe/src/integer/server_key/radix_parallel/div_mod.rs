@@ -412,7 +412,7 @@ impl ServerKey {
             // to trim out bits which should not be there
 
             let mut trim_last_interesting_divisor_bits = || {
-                if ((msb_bit_set + 1) % num_bits_in_message as usize) == 0 {
+                if (msb_bit_set + 1).is_multiple_of(num_bits_in_message as usize) {
                     return;
                 }
                 // The last block of the interesting part of the remainder
@@ -441,7 +441,7 @@ impl ServerKey {
 
             let mut trim_first_divisor_ms_bits = || {
                 if divisor_ms_blocks.blocks.is_empty()
-                    || ((msb_bit_set + 1) % num_bits_in_message as usize) == 0
+                    || (msb_bit_set + 1).is_multiple_of(num_bits_in_message as usize)
                 {
                     return;
                 }

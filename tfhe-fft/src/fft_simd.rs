@@ -54,7 +54,7 @@ pub const H1Y: f64 = -0.38268343236508984f64;
 struct AssertC64Vec<T>(PhantomData<T>);
 impl<T> AssertC64Vec<T> {
     pub const VALID: () = {
-        assert!(core::mem::size_of::<T>() % core::mem::size_of::<c64>() == 0);
+        assert!(core::mem::size_of::<T>().is_multiple_of(core::mem::size_of::<c64>()));
     };
 }
 

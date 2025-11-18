@@ -66,7 +66,7 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         // If the currently checked item is a trait impl
         if let ItemKind::Impl(Impl {
-            of_trait: Some(ref trait_ref),
+            of_trait: Some(trait_ref),
             ..
         }) = item.kind
         {
@@ -86,7 +86,7 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                 }
 
                 // Check if the implemented trait is `Serialize`
-                if let Some(def_id) = trait_ref.trait_def_id() {
+                if let Some(def_id) = trait_ref.trait_ref.trait_def_id() {
                     let path = cx.get_def_path(def_id);
                     if path == symbols_list_from_str(&SERIALIZE_TRAIT)
                         || path == symbols_list_from_str(&SERIALIZE_TRAIT_LEGACY)
@@ -97,10 +97,7 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                             cx.tcx
                                 .for_each_relevant_impl(versionize_trait, ty, |impl_id| {
                                     if !found_impl {
-                                        let trait_ref = cx
-                                            .tcx
-                                            .impl_trait_ref(impl_id)
-                                            .expect("must be a trait implementation");
+                                        let trait_ref = cx.tcx.impl_trait_ref(impl_id);
 
                                         if trait_ref.instantiate_identity().args.type_at(0) == ty {
                                             found_impl = true;

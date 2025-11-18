@@ -270,9 +270,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
             "Got an empty container to create a PseudoGgswCiphertext"
         );
         assert!(
-            container.container_len()
-                % (input_glwe_size.to_glwe_dimension().0 * output_glwe_size.0 * polynomial_size.0)
-                == 0,
+            container.container_len().is_multiple_of(
+                input_glwe_size.to_glwe_dimension().0 * output_glwe_size.0 * polynomial_size.0
+            ),
             "The provided container length is not valid. \
         It needs to be dividable by glwe_dimension_in * output_glwe_size * polynomial_size: {}. \
         Got container length: {} and glwe_dimension_in: {:?}, output_glwe_size: \

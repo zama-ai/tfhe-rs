@@ -20,7 +20,7 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign_split(
     let output_lo = output_lo.into_container();
     let output_hi = output_hi.into_container();
     let full_cycles_count = monomial_degree.0 / output_lo.container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         izip_eq!(&mut *output_lo, &mut *output_hi)
             .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
     }
@@ -40,7 +40,7 @@ pub fn polynomial_wrapping_monic_monomial_div_assign_split(
     let output_lo = output_lo.into_container();
     let output_hi = output_hi.into_container();
     let full_cycles_count = monomial_degree.0 / output_lo.container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         izip_eq!(&mut *output_lo, &mut *output_hi)
             .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
     }
