@@ -28,11 +28,11 @@ rust-version = "1.91.1"
 
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
-bytemuck = "<1.24"
+bytemuck = "1.24"
 dyn-stack = { version = "0.11", default-features = false }
 itertools = "0.14"
 num-complex = "0.4"
-pulp = { version = "0.21", default-features = false }
+pulp = { version = "0.22", default-features = false }
 rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
