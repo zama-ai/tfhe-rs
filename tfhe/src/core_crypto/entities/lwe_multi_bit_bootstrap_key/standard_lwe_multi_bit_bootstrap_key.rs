@@ -196,7 +196,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
             grouping_factor,
         };
         assert!(
-            bsk.input_lwe_dimension().0 % grouping_factor.0 == 0,
+            bsk.input_lwe_dimension()
+                .0
+                .is_multiple_of(grouping_factor.0),
             "Input LWE dimension ({}) of the bootstrap key needs to be a multiple of {}",
             bsk.input_lwe_dimension().0,
             grouping_factor.0,
@@ -333,7 +335,7 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
         assert!(
-            input_lwe_dimension.0 % grouping_factor.0 == 0,
+            input_lwe_dimension.0.is_multiple_of(grouping_factor.0),
             "Multi Bit BSK requires input LWE dimension ({}) to be a multiple of {}",
             input_lwe_dimension.0,
             grouping_factor.0

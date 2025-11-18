@@ -122,12 +122,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKeyChu
             "Got an empty container to create an LweKeyswitchKeyChunk"
         );
         assert!(
-            container.container_len()
-                % lwe_keyswitch_key_input_key_element_encrypted_size(
+            container.container_len().is_multiple_of(
+                lwe_keyswitch_key_input_key_element_encrypted_size(
                     decomp_level_count,
                     output_lwe_size
                 )
-                == 0,
+            ),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * output_lwe_size: {}. \
         Got container length: {} and decomp_level_count: {decomp_level_count:?}, \

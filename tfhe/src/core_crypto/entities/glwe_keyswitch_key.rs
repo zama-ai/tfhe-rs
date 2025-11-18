@@ -195,13 +195,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweKeyswitchKey<C
             "Got an empty container to create a GlweKeyswitchKey"
         );
         assert!(
-            container.container_len()
-                % glwe_keyswitch_key_input_key_element_encrypted_size(
+            container.container_len().is_multiple_of(
+                glwe_keyswitch_key_input_key_element_encrypted_size(
                     decomp_level_count,
                     output_glwe_size,
                     poly_size
                 )
-                == 0,
+            ),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * output_glwe_size * output_poly_size: {}. \
         Got container length: {} and decomp_level_count: {decomp_level_count:?}, \

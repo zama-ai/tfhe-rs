@@ -233,7 +233,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     ) -> ChunksExactWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>> {
         let entity_count = self.entity_count();
         assert!(
-            entity_count % chunk_size == 0,
+            entity_count.is_multiple_of(chunk_size),
             "The current container has {entity_count} entities, which is not dividable by the \
             requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
         );
@@ -297,7 +297,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     {
         let entity_count = self.entity_count();
         assert!(
-            entity_count % chunk_size == 0,
+            entity_count.is_multiple_of(chunk_size),
             "The current container has {entity_count} entities, which is not dividable by the \
             requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
         );
@@ -435,7 +435,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     ) -> ChunksExactWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>> {
         let entity_count = self.entity_count();
         assert!(
-            entity_count % chunk_size == 0,
+            entity_count.is_multiple_of(chunk_size),
             "The current container has {entity_count} entities, which is not dividable by the \
             requested chunk_size: {chunk_size}, preventing chunks_exact_mut from returning an \
             iterator."
@@ -515,7 +515,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     {
         let entity_count = self.entity_count();
         assert!(
-            entity_count % chunk_size == 0,
+            entity_count.is_multiple_of(chunk_size),
             "The current container has {entity_count} entities, which is not dividable by the \
             requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
         );

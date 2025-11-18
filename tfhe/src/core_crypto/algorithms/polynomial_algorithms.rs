@@ -400,7 +400,7 @@ pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
     OutputCont: ContainerMut<Element = Scalar>,
 {
     let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         output
             .as_mut()
             .iter_mut()
@@ -425,7 +425,7 @@ pub fn polynomial_wrapping_monic_monomial_div_assign_custom_mod<Scalar, OutputCo
     OutputCont: ContainerMut<Element = Scalar>,
 {
     let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         output
             .as_mut()
             .iter_mut()
@@ -467,7 +467,7 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
     OutputCont: ContainerMut<Element = Scalar>,
 {
     let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         output
             .as_mut()
             .iter_mut()
@@ -491,7 +491,7 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign_custom_mod<Scalar, OutputCo
     OutputCont: ContainerMut<Element = Scalar>,
 {
     let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
-    if full_cycles_count % 2 != 0 {
+    if !full_cycles_count.is_multiple_of(2) {
         output
             .as_mut()
             .iter_mut()
@@ -561,7 +561,7 @@ pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
     let remaining_degree = monomial_degree.0 % polynomial_size;
 
     let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 == 0 {
+    if full_cycles_count.is_multiple_of(2) {
         copy_without_neg(
             &mut output[..polynomial_size - remaining_degree],
             &input[remaining_degree..],
@@ -625,7 +625,7 @@ pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
     let remaining_degree = monomial_degree.0 % polynomial_size;
 
     let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 == 0 {
+    if full_cycles_count.is_multiple_of(2) {
         copy_with_neg(
             &mut output[..remaining_degree],
             &input[polynomial_size - remaining_degree..],
@@ -701,7 +701,7 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
     let remaining_degree = monomial_degree.0 % polynomial_size;
 
     let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 == 0 {
+    if full_cycles_count.is_multiple_of(2) {
         copy_with_neg_and_subtract(
             &mut output[..remaining_degree],
             &input[polynomial_size - remaining_degree..],

@@ -144,7 +144,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
-            container.container_len() % lwe_size.0 == 0,
+            container.container_len().is_multiple_of(lwe_size.0),
             "The provided container length is not valid. \
         It needs to be dividable by lwe_size. \
         Got container length: {} and lwe_size: {lwe_size:?}.",

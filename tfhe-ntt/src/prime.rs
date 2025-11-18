@@ -83,18 +83,18 @@ pub const fn is_prime64(n: u64) -> bool {
     // hand-unrolled for the compiler to optimize divisions
     #[rustfmt::skip]
     {
-        if n %  2 == 0 { return n ==  2; }
-        if n %  3 == 0 { return n ==  3; }
-        if n %  5 == 0 { return n ==  5; }
-        if n %  7 == 0 { return n ==  7; }
-        if n % 11 == 0 { return n == 11; }
-        if n % 13 == 0 { return n == 13; }
-        if n % 17 == 0 { return n == 17; }
-        if n % 19 == 0 { return n == 19; }
-        if n % 23 == 0 { return n == 23; }
-        if n % 29 == 0 { return n == 29; }
-        if n % 31 == 0 { return n == 31; }
-        if n % 37 == 0 { return n == 37; }
+        if n.is_multiple_of(2) { return n ==  2; }
+        if n.is_multiple_of(3) { return n ==  3; }
+        if n.is_multiple_of(5) { return n ==  5; }
+        if n.is_multiple_of(7) { return n ==  7; }
+        if n.is_multiple_of(11) { return n == 11; }
+        if n.is_multiple_of(13) { return n == 13; }
+        if n.is_multiple_of(17) { return n == 17; }
+        if n.is_multiple_of(19) { return n == 19; }
+        if n.is_multiple_of(23) { return n == 23; }
+        if n.is_multiple_of(29) { return n == 29; }
+        if n.is_multiple_of(31) { return n == 31; }
+        if n.is_multiple_of(37) { return n == 37; }
     };
 
     // deterministic miller rabin test, works for any n < 2^64
@@ -104,7 +104,7 @@ pub const fn is_prime64(n: u64) -> bool {
     let mut s = 0;
     let mut d = n - 1;
 
-    while d % 2 == 0 {
+    while d.is_multiple_of(2) {
         s += 1;
         d /= 2;
     }

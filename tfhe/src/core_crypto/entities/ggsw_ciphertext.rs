@@ -406,7 +406,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> 
             "Got an empty container to create a GgswCiphertext"
         );
         assert!(
-            container.container_len() % (glwe_size.0 * glwe_size.0 * polynomial_size.0) == 0,
+            container
+                .container_len()
+                .is_multiple_of(glwe_size.0 * glwe_size.0 * polynomial_size.0),
             "The provided container length is not valid. \
         It needs to be dividable by glwe_size * glwe_size * polynomial_size: {}. \
         Got container length: {} and glwe_size: {glwe_size:?}, \

@@ -659,6 +659,7 @@ pub fn iop_div_corev(
             }
 
             remain_a = Vec::new();
+            #[allow(clippy::needless_range_loop)]
             for i in 0..block_nb {
                 remain_tmp_v[0][i] = &remain_tmp_v[0][i] + &remain_tmp_v[1][i];
                 remain_tmp_v[2][i] = &remain_tmp_v[2][i] + &remain_tmp_v[3][i];
