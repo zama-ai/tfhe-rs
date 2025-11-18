@@ -15,17 +15,16 @@ use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
 use crate::shortint::parameters::test_params::{
-    TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+    CompactPublicKeyEncryptionParameters, MetaParameters, ShortintCompactCiphertextListCastingMode,
     ShortintKeySwitchingParameters,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::PaddingBit;
 use rayon::prelude::*;
@@ -326,21 +325,21 @@ fn cpk_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_cpk_ks_ms_noise<P>(
-    params: P,
-    mut cpk_params: CompactPublicKeyEncryptionParameters,
-    ksk_ds_params: ShortintKeySwitchingParameters,
-) where
-    P: Into<AtomicPatternParameters>,
-{
-    let params: AtomicPatternParameters = params.into();
+fn noise_check_encrypt_cpk_ks_ms_noise(meta_params: MetaParameters) {
+    let (params, cpk_params, ksk_ds_params) = {
+        let compute_params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
+        // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
+        // expand
+        let cpk_params = {
+            let mut cpk_params = dedicated_cpk_params.pke_params;
+            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+                compute_params.encryption_key_choice().into_pbs_order(),
+            );
+            cpk_params
+        };
 
-    // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after expand
-    let cpk_params = {
-        cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-            params.encryption_key_choice().into_pbs_order(),
-        );
-        cpk_params
+        (compute_params, cpk_params, dedicated_cpk_params.ksk_params)
     };
 
     let cpk_private_key = CompactPrivateKey::new(cpk_params);
@@ -452,50 +451,30 @@ fn noise_check_encrypt_cpk_ks_ms_noise<P>(
     assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
 }
 
-// create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
-//     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-//     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-//     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-// });
+create_parameterized_test!(noise_check_encrypt_cpk_ks_ms_noise {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
 
-#[test]
-fn test_noise_check_encrypt_cpk_ks_ms_noise_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
-    noise_check_encrypt_cpk_ks_ms_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+fn noise_check_encrypt_cpk_ks_ms_pfail(meta_params: MetaParameters) {
+    let (params, cpk_params, ksk_ds_params) = {
+        let compute_params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
+        // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
+        // expand
+        let cpk_params = {
+            let mut cpk_params = dedicated_cpk_params.pke_params;
+            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+                compute_params.encryption_key_choice().into_pbs_order(),
+            );
+            cpk_params
+        };
 
-#[test]
-fn test_noise_check_encrypt_cpk_ks_ms_noise_test_param_message_2_carry_2_ks32_tuniform_2m128() {
-    noise_check_encrypt_cpk_ks_ms_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-fn noise_check_encrypt_cpk_ks_ms_pfail<P>(
-    params: P,
-    mut cpk_params: CompactPublicKeyEncryptionParameters,
-    ksk_ds_params: ShortintKeySwitchingParameters,
-) where
-    P: Into<AtomicPatternParameters> + Copy,
-{
-    // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
-    // expand
-    let cpk_params = {
-        let params: AtomicPatternParameters = params.into();
-
-        cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-            params.encryption_key_choice().into_pbs_order(),
-        );
-        cpk_params
+        (compute_params, cpk_params, dedicated_cpk_params.ksk_params)
     };
 
     let (pfail_test_meta, params) = {
-        let mut ap_params: AtomicPatternParameters = params.into();
+        let mut ap_params = params;
 
         let original_message_modulus = ap_params.message_modulus();
         let original_carry_modulus = ap_params.carry_modulus();
@@ -566,20 +545,103 @@ fn noise_check_encrypt_cpk_ks_ms_pfail<P>(
     pfail_check(&pfail_test_meta, test_result);
 }
 
-#[test]
-fn test_noise_check_encrypt_cpk_ks_ms_pfail_test_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
-    noise_check_encrypt_cpk_ks_ms_pfail(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
+create_parameterized_test!(noise_check_encrypt_cpk_ks_ms_pfail {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
+
+fn sanity_check_encrypt_cpk_ks_ms_pbs(meta_params: MetaParameters) {
+    let (params, cpk_params, ksk_ds_params, orig_cast_mode) = {
+        let compute_params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
+        // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
+        // expand
+        let (cpk_params, orig_cast_mode) = {
+            let mut cpk_params = dedicated_cpk_params.pke_params;
+            let orig_cast_mode = cpk_params.expansion_kind;
+            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+                compute_params.encryption_key_choice().into_pbs_order(),
+            );
+            (cpk_params, orig_cast_mode)
+        };
+
+        assert!(matches!(
+            orig_cast_mode,
+            CompactCiphertextListExpansionKind::RequiresCasting
+        ));
+
+        (
+            compute_params,
+            cpk_params,
+            dedicated_cpk_params.ksk_params,
+            orig_cast_mode,
+        )
+    };
+
+    let cpk_private_key = CompactPrivateKey::new(cpk_params);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+
+    let ksk_rerand_builder =
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), ksk_ds_params);
+    let ksk_ds: KeySwitchingKeyView<'_> = ksk_rerand_builder.as_key_switching_key_view();
+
+    let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+    let compute_br_input_modulus_log = sks.br_input_modulus_log();
+
+    let id_lut = sks.generate_lookup_table(|x| x);
+
+    for _ in 0..10 {
+        let (sample_input, shortint_res) = {
+            let mut engine = ShortintEngine::new();
+            let no_casting_compact_list = cpk.encrypt_iter_with_modulus_with_engine(
+                core::iter::once(0),
+                cpk.parameters.message_modulus.0,
+                &mut engine,
+            );
+
+            let mut shortint_casting_compact_list = no_casting_compact_list.clone();
+            shortint_casting_compact_list.expansion_kind = orig_cast_mode;
+
+            let mut ap_input_expanded = no_casting_compact_list
+                .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+                .unwrap();
+            assert_eq!(ap_input_expanded.len(), 1);
+
+            // Shortint expand will do the KS + MS + PBS all on its own
+            let shortint_res = shortint_casting_compact_list
+                .expand(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                    casting_key: ksk_ds,
+                    functions: None, // Will fallback to ID LUT which is what we want
+                })
+                .unwrap()
+                .pop()
+                .unwrap();
+
+            (
+                DynLwe::U64(ap_input_expanded.pop().unwrap().ct),
+                shortint_res,
+            )
+        };
+
+        let (_input, _after_ks, _before_ms, after_ms) = cpk_ks_any_ms(
+            sample_input,
+            &ksk_ds,
+            modulus_switch_config,
+            compute_br_input_modulus_log,
+            &mut (),
+        );
+
+        // Complete the AP by computing the PBS to match shortint
+        let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
+        sks.lwe_classic_fft_pbs(&after_ms, &mut pbs_result, &id_lut, &mut ());
+
+        assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
+    }
 }
 
-#[test]
-fn test_noise_check_encrypt_cpk_ks_ms_pfail_test_param_message_2_carry_2_ks32_tuniform_2m128() {
-    noise_check_encrypt_cpk_ks_ms_pfail(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+create_parameterized_test!(sanity_check_encrypt_cpk_ks_ms_pbs {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
