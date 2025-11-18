@@ -3,10 +3,13 @@
 //!
 //! These types have 0 overhead compared to the type being wrapped.
 
+use std::ops::RangeInclusive;
+
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
+use super::traits::CastInto;
 use crate::core_crypto::backward_compatibility::commons::parameters::*;
 
 /// The number plaintexts in a plaintext list.
@@ -408,3 +411,59 @@ pub struct NoiseEstimationMeasureBound(pub f64);
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(ChunkSizeVersions)]
 pub struct ChunkSize(pub usize);
+
+/// The max normalized hamming weight
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MaxNormalizedHammingWeight(f64);
+
+impl MaxNormalizedHammingWeight {
+    /// Creates `self`, returns None if pmax not in ]0.5, 1.0]
+    pub fn new(pmax: f64) -> Option<Self> {
+        if 0.5 < pmax && pmax <= 1.0 {
+            Some(Self(pmax))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the inner value
+    pub fn get(self) -> f64 {
+        self.0
+    }
+
+    /// Given the number of bits `num_bits`, returns the range
+    /// of acceptable hamming weights for a slice of `num_bits` bits
+    pub fn hamming_weight_range(self, num_bits: usize) -> RangeInclusive<u128> {
+        RangeInclusive::new(
+            ((1.0 - self.0) * num_bits as f64) as u128,
+            (self.0 * num_bits as f64) as u128,
+        )
+    }
+
+    /// Checks that the binary_slice's hamming weight is ok with regards to `self`
+    ///
+    /// * Returns Ok(()) if the hamming weight is ok, otherwise Err(())
+    ///
+    /// # Note
+    ///
+    /// The slice elements must be binary, that is they must be 0 or 1,
+    /// otherwise the result will be incorrect
+    pub fn check_binary_slice<T>(self, binary_slice: &[T]) -> Result<(), ()>
+    where
+        T: Copy + CastInto<u128>,
+    {
+        let hamming_weight = binary_slice
+            .iter()
+            .copied()
+            .map(|bit| -> u128 { bit.cast_into() })
+            .sum::<u128>();
+
+        let bounds = self.hamming_weight_range(binary_slice.len());
+
+        if bounds.contains(&hamming_weight) {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+}
