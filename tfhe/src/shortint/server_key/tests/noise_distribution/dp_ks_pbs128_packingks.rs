@@ -16,12 +16,13 @@ use crate::shortint::list_compression::{
 use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::test_params::{
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
-use crate::shortint::parameters::{AtomicPatternParameters, NoiseSquashingCompressionParameters};
+use crate::shortint::parameters::{
+    AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
+};
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
 use rayon::prelude::*;
 
@@ -235,14 +236,16 @@ where
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
-fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
-    params: P,
-    noise_squashing_params: NoiseSquashingParameters,
-    noise_squashing_compression_params: NoiseSquashingCompressionParameters,
-) where
-    P: Into<AtomicPatternParameters>,
-{
-    let params: AtomicPatternParameters = params.into();
+fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParameters) {
+    let (params, noise_squashing_params, noise_squashing_compression_params) = {
+        let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
+        (
+            meta_params.compute_parameters,
+            meta_noise_squashing_params.parameters,
+            meta_noise_squashing_params.compression_parameters.unwrap(),
+        )
+    };
+
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
@@ -323,25 +326,10 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks<P>(
     assert_eq!(after_packing.as_view(), extracted.as_view());
 }
 
-#[test]
-fn test_sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-#[test]
-fn test_sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_test_param_message_2_carry_2_ks32_tuniform_2m128(
-) {
-    sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+create_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
@@ -670,14 +658,16 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_noise_helper(
     )
 }
 
-fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
-    params: P,
-    noise_squashing_params: NoiseSquashingParameters,
-    noise_squashing_compression_params: NoiseSquashingCompressionParameters,
-) where
-    P: Into<AtomicPatternParameters>,
-{
-    let params: AtomicPatternParameters = params.into();
+fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaParameters) {
+    let (params, noise_squashing_params, noise_squashing_compression_params) = {
+        let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
+        (
+            meta_params.compute_parameters,
+            meta_noise_squashing_params.parameters,
+            meta_noise_squashing_params.compression_parameters.unwrap(),
+        )
+    };
+
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
@@ -813,22 +803,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
     assert!(after_packing_is_ok);
 }
 
-#[test]
-fn test_noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
-
-#[test]
-fn test_noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_test_param_message_2_carry_2_ks32_tuniform_2m128(
-) {
-    noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    )
-}
+create_parameterized_test!(noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise {
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+});
