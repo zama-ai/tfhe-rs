@@ -97,7 +97,7 @@ impl crate::V3 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl crate::V4 {
     #[inline(always)]
     fn interleave8_u32x16(self, z0z0z0z0z0z0z0z0z1z1z1z1z1z1z1z1: [u32x16; 2]) -> [u32x16; 2] {
@@ -282,7 +282,7 @@ fn init_negacyclic_twiddles_shoup(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_assign_normalize_avx512(
     simd: crate::V4,
     lhs: &mut [u32],
@@ -408,7 +408,7 @@ fn mul_assign_normalize_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn normalize_avx512(
     simd: crate::V4,
     values: &mut [u32],
@@ -486,7 +486,7 @@ fn normalize_scalar(values: &mut [u32], p: u32, n_inv_mod_p: u32, n_inv_mod_p_sh
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_accumulate_avx512(
     simd: crate::V4,
     acc: &mut [u32],
@@ -801,7 +801,7 @@ impl Plan {
         if p < (1u32 << 30) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_30bit::fwd_avx512(simd, p, buf, &self.twid, &self.twid_shoup);
                     return;
@@ -815,7 +815,7 @@ impl Plan {
         } else if p < (1u32 << 31) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_31bit::fwd_avx512(simd, p, buf, &self.twid, &self.twid_shoup);
                     return;
@@ -828,7 +828,7 @@ impl Plan {
             less_than_31bit::fwd_scalar(p, buf, &self.twid, &self.twid_shoup);
         } else {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 generic::fwd_avx512(simd, buf, p, self.p_div, &self.twid);
                 return;
@@ -854,7 +854,7 @@ impl Plan {
         if p < (1u32 << 30) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_30bit::inv_avx512(simd, p, buf, &self.inv_twid, &self.inv_twid_shoup);
                     return;
@@ -868,7 +868,7 @@ impl Plan {
         } else if p < (1u32 << 31) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_31bit::inv_avx512(simd, p, buf, &self.inv_twid, &self.inv_twid_shoup);
                     return;
@@ -881,7 +881,7 @@ impl Plan {
             less_than_31bit::inv_scalar(p, buf, &self.inv_twid, &self.inv_twid_shoup);
         } else {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 generic::inv_avx512(simd, buf, p, self.p_div, &self.inv_twid);
                 return;
@@ -900,7 +900,7 @@ impl Plan {
     pub fn mul_assign_normalize(&self, lhs: &mut [u32], rhs: &[u32]) {
         if self.can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 mul_assign_normalize_avx512(
                     simd,
@@ -956,7 +956,7 @@ impl Plan {
     pub fn normalize(&self, values: &mut [u32]) {
         if self.can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 normalize_avx512(
                     simd,
@@ -993,7 +993,7 @@ impl Plan {
     pub fn mul_accumulate(&self, acc: &mut [u32], lhs: &[u32], rhs: &[u32]) {
         if self.can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 mul_accumulate_avx512(simd, acc, lhs, rhs, self.p, self.p_barrett, self.big_q);
                 return;
@@ -1466,7 +1466,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_interleaves_and_permutes_u32x16() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1582,7 +1582,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_assign_normalize_avx512() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1669,7 +1669,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_accumulate_avx512() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1738,7 +1738,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_normalize_avx512() {
         if let Some(simd) = crate::V4::try_new() {

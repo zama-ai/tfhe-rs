@@ -17,8 +17,8 @@
 //! # Features
 //!
 //! - `std` (default): This enables runtime arch detection for accelerated SIMD instructions.
-//! - `nightly`: This enables unstable Rust features to further speed up the NTT, by enabling AVX512
-//!   instructions on CPUs that support them. This feature requires a nightly Rust toolchain.
+//! - `avx512` (default): This enables unstable Rust features to further speed up the NTT, by
+//!   enabling AVX512 instructions on CPUs that support them.
 //!
 //! # Example
 //!
@@ -57,13 +57,13 @@
 /// we use `NullaryFnOnce` instead of a closure because we need the `#[inline(always)]`
 /// annotation, which doesn't always work with closures for some reason.
 ///
-/// Shoup modular multiplication  
+/// Shoup modular multiplication
 /// <https://pdfs.semanticscholar.org/e000/fa109f1b2a6a3e52e04462bac4b7d58140c9.pdf>
 ///
-/// Lemire modular reduction  
+/// Lemire modular reduction
 /// <https://lemire.me/blog/2019/02/08/faster-remainders-when-the-divisor-is-a-constant-beating-compilers-and-libdivide/>
 ///
-/// Barrett reduction  
+/// Barrett reduction
 /// <https://arxiv.org/pdf/2103.16400.pdf> Algorithm 8
 ///
 /// Chinese remainder theorem solution:
@@ -126,12 +126,12 @@ fn bit_rev(nbits: u32, i: usize) -> usize {
 struct V3(pulp::x86::V3);
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 struct V4(pulp::x86::V4);
 
-#[cfg(all(feature = "nightly", any(target_arch = "x86", target_arch = "x86_64")))]
+#[cfg(all(feature = "avx512", any(target_arch = "x86", target_arch = "x86_64")))]
 pulp::simd_type! {
     struct V4IFma {
         pub sse: "sse",
@@ -158,7 +158,7 @@ pulp::simd_type! {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl V4 {
     #[inline]
     pub fn try_new() -> Option<Self> {
@@ -210,7 +210,7 @@ impl V4 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl V4IFma {
     /// Returns separately two vectors containing the low 52 bits of the result,
     /// and the high 52 bits of the result.
@@ -239,14 +239,14 @@ impl V4IFma {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 trait SupersetOfV4: Copy {
     fn get_v4(self) -> V4;
     fn vectorize(self, f: impl pulp::NullaryFnOnce);
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl SupersetOfV4 for V4 {
     #[inline(always)]
     fn get_v4(self) -> V4 {
@@ -258,7 +258,7 @@ impl SupersetOfV4 for V4 {
     }
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl SupersetOfV4 for V4IFma {
     #[inline(always)]
     fn get_v4(self) -> V4 {
@@ -334,7 +334,7 @@ impl V3 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl core::ops::Deref for V4 {
     type Target = pulp::x86::V4;
 
@@ -345,7 +345,7 @@ impl core::ops::Deref for V4 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl core::ops::Deref for V4IFma {
     type Target = V4;
 
@@ -817,7 +817,7 @@ mod x86_tests {
             );
         }
 
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = crate::V4::try_new() {
             let a = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
             let b = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
@@ -867,7 +867,7 @@ mod x86_tests {
                 ),
             );
         }
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = crate::V4::try_new() {
             let a = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
             let b = u64x8(rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd(), rnd());
