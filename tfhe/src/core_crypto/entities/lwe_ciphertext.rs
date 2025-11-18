@@ -382,7 +382,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMaskList<C> {
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
         assert!(
-            container.container_len() % lwe_dimension.0 == 0,
+            container.container_len().is_multiple_of(lwe_dimension.0),
             "The provided container length is not valid. \
         It needs to be dividable by lwe_dimension. \
         Got container length: {} and lwe_dimension: {lwe_dimension:?}.",

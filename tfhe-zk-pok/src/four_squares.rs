@@ -226,7 +226,7 @@ pub fn four_squares(v: u128, sanity_check_mode: ProofSanityCheckMode) -> [u64; 4
 
             let mut d = p - 1;
             let mut s = 0u32;
-            while d % 2 == 0 {
+            while d.is_multiple_of(2) {
                 d /= 2;
                 s += 1;
             }

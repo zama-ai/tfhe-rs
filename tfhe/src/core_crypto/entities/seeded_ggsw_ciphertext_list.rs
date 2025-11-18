@@ -142,8 +142,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         );
 
         assert!(
-            container.container_len() % (decomp_level_count.0 * glwe_size.0 * polynomial_size.0)
-                == 0,
+            container
+                .container_len()
+                .is_multiple_of(decomp_level_count.0 * glwe_size.0 * polynomial_size.0),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * glwe_size * polynomial_size: \
         {}.Got container length: {} and decomp_level_count: {decomp_level_count:?},  \
@@ -487,7 +488,11 @@ impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Sca
     type Error = ();
 
     fn try_from(value: &MultiBitBootstrapKeyConformanceParams<Scalar>) -> Result<Self, ()> {
-        if value.input_lwe_dimension.0 % value.grouping_factor.0 != 0 {
+        if !value
+            .input_lwe_dimension
+            .0
+            .is_multiple_of(value.grouping_factor.0)
+        {
             return Err(());
         }
 

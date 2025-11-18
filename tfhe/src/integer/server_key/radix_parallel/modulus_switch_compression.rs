@@ -76,7 +76,7 @@ impl ServerKey {
 
         let len = blocks.len();
 
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             paired_blocks = blocks;
             last_block = None;
         } else {

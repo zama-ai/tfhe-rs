@@ -261,9 +261,10 @@ mod gpu {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Default)]
     pub enum CudaGpuChoice {
         Single(GpuIndex),
+        #[default]
         Multi,
         Custom(CustomMultiGpuIndexes),
     }
@@ -293,12 +294,6 @@ mod gpu {
                 Self::Multi => CudaStreams::new_multi_gpu(),
                 Self::Custom(idxs) => CudaStreams::new_multi_gpu_with_indexes(idxs.gpu_indexes()),
             }
-        }
-    }
-
-    impl Default for CudaGpuChoice {
-        fn default() -> Self {
-            Self::Multi
         }
     }
 }
