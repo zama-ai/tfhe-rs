@@ -957,16 +957,12 @@ pub mod gpu {
 mod tests {
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
-    #[cfg(not(feature = "gpu"))]
-    use crate::shortint::parameters::test_params::TEST_PARAM_COMP_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_MB_GPU;
+    #[cfg(feature = "gpu")]
+    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     #[cfg(not(feature = "gpu"))]
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
-    #[cfg(feature = "gpu")]
     use crate::shortint::parameters::{
         COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
-    use crate::shortint::parameters::{
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
@@ -990,11 +986,9 @@ mod tests {
                 PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
-            // TODO: enable these params for gpu when supported
-            #[cfg(not(feature = "gpu"))]
             (
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                TEST_PARAM_COMP_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_MB_GPU,
+                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
             #[cfg(feature = "gpu")]
             (
