@@ -628,7 +628,14 @@ impl ShortintParameterSet {
     }
 
     pub const fn encryption_noise_distribution(&self) -> DynamicDistribution<u64> {
-        match self.encryption_key_choice() {
+        self.noise_distribution_for_key_choice(self.encryption_key_choice())
+    }
+
+    pub const fn noise_distribution_for_key_choice(
+        &self,
+        key_choice: EncryptionKeyChoice,
+    ) -> DynamicDistribution<u64> {
+        match key_choice {
             EncryptionKeyChoice::Big => self.glwe_noise_distribution(),
             EncryptionKeyChoice::Small => self.lwe_noise_distribution(),
         }

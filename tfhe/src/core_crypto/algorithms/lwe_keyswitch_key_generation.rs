@@ -560,7 +560,7 @@ where
     new_lwe_keyswitch_key
 }
 
-pub fn allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator<
+pub fn allocate_and_generate_new_seeded_lwe_key_switching_key_with_pre_seeded_generator<
     InputLweCont,
     OutputLweCont,
     Gen,
