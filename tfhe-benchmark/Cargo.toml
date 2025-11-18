@@ -156,6 +156,12 @@ path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
+[[bench]]
+name = "dev-bench"
+path = "benches/core_crypto/dev_bench.rs"
+harness = false
+required-features = []
+
 [[bin]]
 name = "boolean_key_sizes"
 path = "src/bin/boolean_key_sizes.rs"
