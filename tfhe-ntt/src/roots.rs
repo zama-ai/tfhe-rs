@@ -7,7 +7,7 @@ pub const fn get_q_s64(p: Div64) -> (u64, u64) {
     let p = p.divisor();
     let mut q = p - 1;
     let mut s = 0;
-    while q % 2 == 0 {
+    while q.is_multiple_of(2) {
         q /= 2;
         s += 1;
     }

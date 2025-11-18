@@ -37,7 +37,7 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
         grouping_factor: LweBskGroupingFactor,
     ) -> Self {
         assert!(
-            input_lwe_dimension.0 % grouping_factor.0 == 0,
+            input_lwe_dimension.0.is_multiple_of(grouping_factor.0),
             "Multi Bit BSK requires input LWE dimension to be a multiple of {}",
             grouping_factor.0
         );
@@ -182,7 +182,7 @@ impl FourierLweMultiBitBootstrapKeyOwned {
         grouping_factor: LweBskGroupingFactor,
     ) -> Self {
         assert!(
-            input_lwe_dimension.0 % grouping_factor.0 == 0,
+            input_lwe_dimension.0.is_multiple_of(grouping_factor.0),
             "Multi Bit BSK requires input LWE dimension ({}) to be a multiple of {}",
             input_lwe_dimension.0,
             grouping_factor.0

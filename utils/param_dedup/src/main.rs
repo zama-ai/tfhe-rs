@@ -382,7 +382,7 @@ fn main() {
                                     "crate::shortint::parameters::{old_param_dir_name}::{old_param_prefix}{current_normalized_param_ident_str}"
                                 )).unwrap();
 
-                            param.expr = Box::new(old_param_path_expr);
+                            *param.expr = old_param_path_expr;
 
                             modified_item_count += 1;
                         }

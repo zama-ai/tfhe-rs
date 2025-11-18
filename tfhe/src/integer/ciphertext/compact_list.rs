@@ -65,7 +65,7 @@ fn unpack_and_sanitize(
         unpacked.push(block.clone());
         unpacked.push(block);
     }
-    if block_count % 2 == 0 {
+    if block_count.is_multiple_of(2) {
         unpacked.push(packed_blocks[0].clone());
     }
     unpacked.push(packed_blocks.pop().unwrap());

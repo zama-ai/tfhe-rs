@@ -144,14 +144,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
-            container.container_len()
-                % lwe_pfpksk_size(
-                    input_lwe_size,
-                    decomp_level_count,
-                    output_glwe_size,
-                    output_polynomial_size
-                )
-                == 0,
+            container.container_len().is_multiple_of(lwe_pfpksk_size(
+                input_lwe_size,
+                decomp_level_count,
+                output_glwe_size,
+                output_polynomial_size
+            )),
             "The provided container length is not valid. \
         It needs to be dividable by input_lwe_size * decomp_level_count * output_glwe_size * \
         output_polynomial_size: {}. Got container length: {} and input_lwe_size: {input_lwe_size:?}\
