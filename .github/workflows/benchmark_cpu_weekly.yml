@@ -50,24 +50,24 @@ jobs:
       - name: Weekly benchmarks
         if: steps.check_bench_group_1.outputs.is_weekly_bench_group_1 || steps.check_bench_group_2.outputs.is_weekly_bench_group_2
         run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          echo "OP_FLAVOR=default" >> "${GITHUB_ENV}"
           echo "ALL_PRECISIONS=false" >> "${GITHUB_ENV}"
 
       - name: Quarterly benchmarks
         if: steps.check_quarterly_bench.outputs.is_quarterly_bench
         run: |
-          echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
+          echo "OP_FLAVOR=\"default,unchecked\"" >> "${GITHUB_ENV}"
           echo "ALL_PRECISIONS=true" >> "${GITHUB_ENV}"
 
       - name: Set operation flavor output
         id: set_op_flavor
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+          echo "op_flavor=${{ env.OP_FLAVOR }}" >> "${GITHUB_OUTPUT}"
 
       - name: Set bit precisions output
         id: set_all_precisions
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "all_precisions=${{ toJSON(env.ALL_PRECISIONS) }}" >> "${GITHUB_OUTPUT}"
+          echo "all_precisions=${{ env.ALL_PRECISIONS }}" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks-integer:
     name: benchmark_gpu_weekly/run-benchmarks-integer
