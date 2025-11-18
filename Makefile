@@ -1988,33 +1988,35 @@ build_ntt_no_std: install_rs_build_toolchain
 
 .PHONY: test_ntt
 test_ntt: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
+		--no-default-features \
+		--features=std
 
-.PHONY: test_ntt_nightly
-test_ntt_nightly: install_rs_check_toolchain
+.PHONY: test_ntt_avx512
+test_ntt_avx512: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
-		--features=nightly
+		--features=avx512
 
 .PHONY: test_ntt_no_std
 test_ntt_no_std: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
 		--no-default-features
 
-.PHONY: test_ntt_no_std_nightly
-test_ntt_no_std_nightly: install_rs_check_toolchain
+.PHONY: test_ntt_no_std_avx512
+test_ntt_no_std_avx512: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
 		--no-default-features \
-		--features=nightly
+		--features=avx512
 
 .PHONY: test_ntt_all
-test_ntt_all: test_ntt test_ntt_no_std test_ntt_nightly test_ntt_no_std_nightly
+test_ntt_all: test_ntt test_ntt_no_std test_ntt_avx512 test_ntt_no_std_avx512
 
 ##### Bench #####
 
 .PHONY: bench_ntt # Run NTT benchmarks
 bench_ntt: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" bench --bench ntt -p tfhe-ntt \
-		--features=nightly
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" bench --bench ntt -p tfhe-ntt
+
 #============================End NTT Section ==================================
 
 .PHONY: help # Generate list of targets with descriptions

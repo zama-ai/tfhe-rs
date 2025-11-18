@@ -17,9 +17,9 @@ bytemuck = { workspace = true }
 pulp = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["std", "avx512"]
 std = ["pulp/std", "aligned-vec/std"]
-nightly = ["pulp/x86-v4"]
+avx512 = ["pulp/x86-v4"]
 
 [dev-dependencies]
 criterion = "0.5"

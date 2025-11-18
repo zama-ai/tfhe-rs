@@ -97,41 +97,21 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Test debug
+      - name: Test avx2
         run: make test_ntt
 
-      - name: Test no-std
+      - name: Test no-std avx2
         run: make test_ntt_no_std
 
-  cargo-tests-ntt-nightly:
-    name: cargo_test_ntt/cargo-tests-ntt-nightly
-    needs: [should-run, setup-instance]
-    if: needs.should-run.outputs.ntt_test == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{fromJson(needs.setup-instance.outputs.matrix_os)}}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: "false"
-          token: ${{ env.CHECKOUT_TOKEN }}
+      - name: Test avx512
+        run: make test_ntt_avx512
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
-        with:
-          toolchain: nightly
-          override: true
-
-      - name: Test nightly
-        run: make test_ntt_nightly
-
-      - name: Test no-std nightly
-        run: make test_ntt_no_std_nightly
+      - name: Test no-std avx512
+        run: make test_ntt_no_std_avx512
 
   cargo-tests-ntt-successful:
     name: cargo_test_ntt/cargo-tests-ntt-successful (bpr)
-    needs: [should-run, cargo-tests-ntt, cargo-tests-ntt-nightly]
+    needs: [should-run, cargo-tests-ntt]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -142,15 +122,13 @@ jobs:
 
       - name: Check all tests success
         if: needs.should-run.outputs.ntt_test == 'true' &&
-          needs.cargo-tests-ntt.result == 'success' &&
-          needs.cargo-tests-ntt-nightly.result == 'success'
+          needs.cargo-tests-ntt.result == 'success'
         run: |
           echo "All tfhe-ntt tests passed"
 
       - name: Check tests failure
         if: needs.should-run.outputs.ntt_test == 'true' &&
-          (needs.cargo-tests-ntt.result != 'success' ||
-          needs.cargo-tests-ntt-nightly.result != 'success')
+          needs.cargo-tests-ntt.result != 'success'
         run: |
           echo "Some tfhe-ntt tests failed"
           exit 1
