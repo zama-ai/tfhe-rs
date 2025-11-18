@@ -1,7 +1,8 @@
+use super::current_params::meta::cpu::*;
 use super::current_params::*;
 use super::{
     AtomicPatternParameters, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
-    CompressionParameters, KeySwitch32PBSParameters, MultiBitPBSParameters,
+    CompressionParameters, KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 
@@ -227,3 +228,12 @@ pub const TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFOR
 
 pub const TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     NoiseSquashingParameters = V1_5_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
+    V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
+    V1_5_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
+    V1_5_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128;
