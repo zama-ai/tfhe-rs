@@ -503,7 +503,7 @@ mod integer_params {
     use std::vec::IntoIter;
     use tfhe::shortint::AtomicPatternParameters;
 
-    use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64;
+    use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64_FALSE_FALSE;
     use tfhe::shortint::parameters::v1_4::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_4_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128;
 
 
