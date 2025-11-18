@@ -27,3 +27,13 @@ Use instead:
 #[versionize(MyStructVersions)]
 pub struct MyStruct {}
 ```
+
+## Updating to new toolchains
+The dylint library is frequently updated too new toolchains. To update the tool to the latest
+supported toolchain, simply run the following command in this folder:
+```
+cargo dylint upgrade
+```
+
+Since the tool uses the Rust compiler API, which is unstable, manual adjustments to the code may be
+necessary.

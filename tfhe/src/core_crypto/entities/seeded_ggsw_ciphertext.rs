@@ -165,7 +165,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             "Got an empty container to create a SeededGgswCiphertext"
         );
         assert!(
-            container.container_len() % (glwe_size.0 * polynomial_size.0) == 0,
+            container
+                .container_len()
+                .is_multiple_of(glwe_size.0 * polynomial_size.0),
             "The provided container length is not valid. \
         It needs to be dividable by glwe_size * polynomial_size: {}. \
         Got container length: {} and glwe_size: {glwe_size:?}, \

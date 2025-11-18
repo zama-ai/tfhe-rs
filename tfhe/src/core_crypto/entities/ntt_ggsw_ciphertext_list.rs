@@ -109,9 +109,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertextL
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
         assert!(
-            data.container_len()
-                % ggsw_ciphertext_size(glwe_size, polynomial_size, decomposition_level_count)
-                == 0,
+            data.container_len().is_multiple_of(ggsw_ciphertext_size(
+                glwe_size,
+                polynomial_size,
+                decomposition_level_count
+            )),
             "The provided container length is not valid. \
             It needs to be dividable by the size of a GGSW ciphertext: {}. \
             Got container length: {}.",

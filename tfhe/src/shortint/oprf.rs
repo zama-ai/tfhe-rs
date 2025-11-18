@@ -393,8 +393,8 @@ pub(crate) mod test {
         };
 
         let prf = |x| {
-            let a = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
-            assert!(a % 2 == 0);
+            let a: u64 = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
+            assert!(a.is_multiple_of(2));
             a / 2
         };
 

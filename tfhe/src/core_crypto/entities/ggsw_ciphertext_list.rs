@@ -173,9 +173,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
-            container.container_len()
-                % (decomp_level_count.0 * glwe_size.0 * glwe_size.0 * polynomial_size.0)
-                == 0,
+            container.container_len().is_multiple_of(
+                decomp_level_count.0 * glwe_size.0 * glwe_size.0 * polynomial_size.0
+            ),
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * glwe_size * glwe_size * polynomial_size: \
         {}.Got container length: {} and decomp_level_count: {decomp_level_count:?},  \
