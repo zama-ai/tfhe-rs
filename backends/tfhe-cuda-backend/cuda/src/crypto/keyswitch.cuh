@@ -22,19 +22,19 @@ const int THREADS_GEMM_KS = 6;
 inline uint64_t get_threshold_ks_gemm() {
   // Size of LWE batch for which, the batch-KS latency
   // is better with the GEMM KS than with the classical KS
-  const int THRESHOLD_THREADS_6_H100_SXM5 = 128;
-  const int THRESHOLD_THREADS_6_L40 = 56;
-  const int H100_SXM5_SMS = 132;
-  const int L40_SMS = 142;
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, 0);
 
 #if CUDA_ARCH >= 900 // for H100, H100 SXM5, Blackwell
+  const int H100_SXM5_SMS = 132;
+  const int THRESHOLD_THREADS_6_H100_SXM5 = 128;
   return (uint64_t)std::clamp((float)prop.multiProcessorCount / H100_SXM5_SMS,
                               0.5f, 1.5f) *
          THRESHOLD_THREADS_6_H100_SXM5;
 #elif CUDA_ARCH >= 890 // for L40, 4090
-  return (uint64_t)std::clamp((float)prop.multiProcessorCount / L40_SMS, 0.5f,
+    const int THRESHOLD_THREADS_6_L40 = 56;
+    const int L40_SMS = 142;
+    return (uint64_t)std::clamp((float)prop.multiProcessorCount / L40_SMS, 0.5f,
                               1.5f) *
          THRESHOLD_THREADS_6_L40;
 #else

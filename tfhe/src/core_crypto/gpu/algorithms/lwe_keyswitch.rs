@@ -81,7 +81,7 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar>(
         input_lwe_ciphertext.lwe_ciphertext_count().0,
     );
 
-    assert_eq!(input_indexes.len, output_indexes.len);
+    assert_eq!(input_indexes.len, output_indexes.len, "The number of input and output indexes must be the same for LWE keyswitch");
 
     cuda_scratch_keyswitch_lwe_ciphertext_async::<Scalar>(
         streams,

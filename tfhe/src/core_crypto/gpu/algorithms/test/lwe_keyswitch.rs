@@ -136,25 +136,20 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
                 lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
-            let input_ks_list = LweCiphertextList::from_container(
-                input_ct_list.into_container(),
-                big_lwe_sk.lwe_dimension().to_lwe_size(),
-                ciphertext_modulus,
-            );
             let input_ct_list_gpu =
-                CudaLweCiphertextList::from_lwe_ciphertext_list(&input_ks_list, &stream);
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&input_ct_list, &stream);
 
             let output_ct_list = LweCiphertextList::new(
                 Scalar::ZERO,
-                lwe_sk.lwe_dimension().to_lwe_size(),
-                LweCiphertextCount(num_blocks),
-                ciphertext_modulus,
+                ksk_big_to_small.output_key_lwe_dimension().to_lwe_size(),
+                input_ct_list.lwe_ciphertext_count(),
+                ksk_big_to_small.ciphertext_modulus(),
             );
             let mut output_ct_list_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext_list(&output_ct_list, &stream);
 
             assert!(check_encrypted_content_respects_mod(
-                &input_ks_list,
+                &input_ct_list,
                 ciphertext_modulus
             ));
 
@@ -170,7 +165,7 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
                 num_blocks
             };
             let lwe_indexes_usize = (0..num_blocks).collect_vec();
-            let mut lwe_indexes = lwe_indexes_usize.iter().collect_vec();
+            let mut lwe_indexes = lwe_indexes_usize.clone();
 
             let mut lwe_indexes_out = lwe_indexes.clone();
 
@@ -179,18 +174,15 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
                 lwe_indexes_out.shuffle(&mut thread_rng());
             }
 
-            if num_blocks_to_ks < num_blocks {
-                lwe_indexes = lwe_indexes[0..num_blocks_to_ks].to_vec();
-                lwe_indexes_out = lwe_indexes_out[0..num_blocks_to_ks].to_vec();
-            }
-
             let h_lwe_indexes: Vec<Scalar> = lwe_indexes
                 .iter()
-                .map(|&x| <usize as CastInto<Scalar>>::cast_into(*x))
+                .take(num_blocks_to_ks)
+                .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
                 .collect_vec();
             let h_lwe_indexes_out: Vec<Scalar> = lwe_indexes_out
                 .iter()
-                .map(|&x| <usize as CastInto<Scalar>>::cast_into(*x))
+                .take(num_blocks_to_ks)
+                .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
                 .collect_vec();
 
             let mut d_input_indexes =
@@ -212,8 +204,8 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
 
             let mut ref_vec = vec![Scalar::ZERO; num_blocks];
             for i in 0..num_blocks_to_ks {
-                ref_vec[*lwe_indexes_out[i]] =
-                    round_decode(*plaintext_list.get(*lwe_indexes[i]).0, delta); // % msg_modulus;
+                ref_vec[lwe_indexes_out[i]] =
+                    round_decode(*plaintext_list.get(lwe_indexes[i]).0, delta);
             }
             output_ct_list_gpu
                 .to_lwe_ciphertext_list(&stream)
