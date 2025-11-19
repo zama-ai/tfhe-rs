@@ -37,7 +37,8 @@ jobs:
     with:
       command: integer
       op_flavor: fast_default
-      bench_type: both
+#      bench_type: both
+      bench_type: latency
       precisions_set: documentation
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -58,7 +59,8 @@ jobs:
       hardware_name: n3-L40x1
       command: integer_multi_bit
       op_flavor: fast_default
-      bench_type: both
+#      bench_type: both
+      bench_type: latency
       precisions_set: documentation
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
