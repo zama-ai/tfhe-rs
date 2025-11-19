@@ -67,9 +67,7 @@ jobs:
         run: |
           make test_fft
           make test_fft_serde
-          make test_fft_nightly
           make test_fft_no_std
-          make test_fft_no_std_nightly
           # we don't run the js stuff here as it's causing issues with the M1 config
 
       - name: Run pcc NTT checks

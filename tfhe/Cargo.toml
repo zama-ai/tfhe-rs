@@ -150,7 +150,7 @@ high-level-client-js-wasm-api = [
 ]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/avx512", "pulp/x86-v4"]
+nightly-avx512 = ["tfhe-fft/avx512", "tfhe-ntt/avx512", "pulp/x86-v4"]
 
 # Private features
 __profiling = []
