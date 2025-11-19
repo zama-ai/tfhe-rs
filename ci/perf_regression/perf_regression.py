@@ -380,12 +380,12 @@ def parse_issue_comment(comment):
     return arguments_pairs
 
 
-def build_definition(profile_args_pairs, profile_defintions):
+def build_definition(profile_args_pairs, profile_definitions):
     """
     Build regression profile definition form user inputs and definitions file.
 
     :param profile_args_pairs: pairs of profile options and their value parsed from a string
-    :param profile_defintions: parsed profile definitions file
+    :param profile_definitions: parsed profile definitions file
 
     :return: :class:`ProfileDefinition`
     """
@@ -395,7 +395,7 @@ def build_definition(profile_args_pairs, profile_defintions):
     for profile_option, value in profile_args_pairs:
         definition.set_field_from_option(profile_option, value)
 
-    definition.set_defaults_from_definitions_file(profile_defintions)
+    definition.set_defaults_from_definitions_file(profile_definitions)
 
     return definition
 
@@ -812,4 +812,4 @@ if __name__ == "__main__":
             except Exception:
                 sys.exit(4)
 
-# TODO Add unittests primarly to check if commands and env generated are correct.
+# TODO Add unittests primarily to check if commands and env generated are correct.
