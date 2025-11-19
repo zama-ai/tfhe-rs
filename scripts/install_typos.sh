@@ -2,7 +2,7 @@
 
 set -e
 
-rust_toolchain=""
+rust_toolchain=
 required_typos_version=""
 
 function usage() {
@@ -35,12 +35,14 @@ do
     shift
 done
 
-if [[ "${rust_toolchain::1}" != "+" ]]; then
-    rust_toolchain="+${rust_toolchain}"
+if [ -n "${rust_toolchain}" ]; then
+    if [[ "${rust_toolchain::1}" != "+" ]]; then
+        rust_toolchain="+${rust_toolchain}"
+    fi
 fi
 
 if ! which typos ; then
-    cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
+    eval cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
     ( echo "Unable to install typos-cli, unknown error." && exit 1 )
 
     exit 0
@@ -59,6 +61,6 @@ if [[ "${ver_major}" -gt "${min_ver_major}" ]]; then
 elif [[ "${ver_major}" -eq "${min_ver_major}" ]] && [[ "${ver_minor}" -ge "${min_ver_minor}" ]]; then
     exit 0
 else
-    cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
+    eval cargo "${rust_toolchain}" install --locked typos-cli --version ~"${required_typos_version}" || \
     ( echo "Unable to install typos-cli, unknown error." && exit 1 )
 fi
