@@ -4,3 +4,6 @@ xtask = "run --manifest-path ./tasks/Cargo.toml --"
 # Accessed by wasm-bindgen when testing for the wasm target
 [target.wasm32-unknown-unknown]
 runner = 'wasm-bindgen-test-runner'
+
+[env]
+RUST_ANALYZER_SNAPSHOT = "1"

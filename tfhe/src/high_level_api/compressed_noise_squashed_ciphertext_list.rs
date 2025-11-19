@@ -751,4 +751,66 @@ mod tests {
         let decrypted: bool = ns_c.decrypt(&cks);
         assert_eq!(decrypted, clear_c);
     }
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compressed_squashed_noise_ciphertext_list_multibit() {
+        let params = V1_5_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params =
+            V1_5_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params =
+            V1_5_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
+            .build();
+
+        let cks = crate::ClientKey::generate(config);
+        let sks = crate::CompressedServerKey::new(&cks);
+
+        set_server_key(sks.decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+
+        let clear_a = rng.gen::<i32>();
+        let clear_b = rng.gen::<u32>();
+        let clear_c = rng.gen_bool(0.5);
+
+        let mut a = FheInt32::encrypt(clear_a, &cks);
+        let mut b = FheUint32::encrypt(clear_b, &cks);
+        let mut c = FheBool::encrypt(clear_c, &cks);
+
+        a.move_to_device(crate::Device::CudaGpu);
+        b.move_to_device(crate::Device::CudaGpu);
+        c.move_to_device(crate::Device::CudaGpu);
+
+        let ns_a = a.squash_noise().unwrap();
+        let ns_b = b.squash_noise().unwrap();
+        let ns_c = c.squash_noise().unwrap();
+
+        let list = CompressedSquashedNoiseCiphertextList::builder()
+            .push(ns_a)
+            .push(ns_b)
+            .push(ns_c)
+            .build()
+            .unwrap();
+
+        let mut serialized_list = vec![];
+        safe_serialize(&list, &mut serialized_list, 1 << 24).unwrap();
+        let list: CompressedSquashedNoiseCiphertextList =
+            safe_deserialize(serialized_list.as_slice(), 1 << 24).unwrap();
+
+        let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
+        let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
+        let ns_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
+
+        let decrypted: i32 = ns_a.decrypt(&cks);
+        assert_eq!(decrypted, clear_a);
+
+        let decrypted: u32 = ns_b.decrypt(&cks);
+        assert_eq!(decrypted, clear_b);
+
+        let decrypted: bool = ns_c.decrypt(&cks);
+        assert_eq!(decrypted, clear_c);
+    }
 }
