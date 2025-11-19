@@ -504,7 +504,7 @@ impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u64 {
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u128 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
         let inner = &input.0;
-        inner[0] as Self | ((inner[1] as Self) << 64)
+        inner[0] as Self | ((inner.get(1).copied().unwrap_or(0) as Self) << 64)
     }
 }
 
@@ -517,6 +517,35 @@ impl<const N: usize> CastFrom<super::static_unsigned::StaticUnsignedBigInt<N>>
 }
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for i128 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
-        input.0[0] as Self | ((input.0.get(1).copied().unwrap_or(0) as Self) << 64)
+        let inner = &input.0;
+        inner[0] as Self | ((inner.get(1).copied().unwrap_or(0) as Self) << 64)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::core_crypto::commons::numeric::CastFrom;
+    use crate::integer::bigint::StaticSignedBigInt;
+
+    #[test]
+    fn test_u128_cast() {
+        let a = 1_u128 << 64;
+
+        let b = StaticSignedBigInt::<4>::cast_from(a);
+
+        let c = u128::cast_from(b);
+
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_i128_cast() {
+        let a = 1_i128 << 64;
+
+        let b: StaticSignedBigInt<4> = a.into();
+
+        let c = i128::cast_from(b);
+
+        assert_eq!(a, c);
     }
 }
