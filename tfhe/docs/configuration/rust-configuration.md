@@ -65,11 +65,3 @@ This crate provides 4 kinds of data types. Each kind is enabled by activating th
 | Strings   | `strings`        | ASCII strings               |
 
 The `Integers+` kind refers to types which have non-standard bit-width like `FheUint24` for example. Having more granular types can allow to improve performance. The feature is not enabled by default to avoid very long compile times if users don't need the extended-types.
-
-### AVX-512
-
-While the library generally selects automatically the best instruction sets available by the host, in the case of 'AVX-512', you have to choose it explicitly. This requires to use a nightly toolchain with the feature `nightly-avx512`.
-
-```shell
-cargo +nightly build --release --features=nightly-avx512
-```
