@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/generate", "crates/add_new_version"]
 default-members = ["crates/generate"]
 
 [workspace.package]
