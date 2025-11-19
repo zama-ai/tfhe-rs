@@ -27,7 +27,7 @@
 #
 # > parameters_filter: a parameters' set name pattern to filter against when performing data extraction
 #
-# > env.<variable_name>: environment variable that will be used to alter benchmark execution enviroment
+# > env.<variable_name>: environment variable that will be used to alter benchmark execution environment
 #   Possible values for variable_name are (case-insensitive):
 #       * FAST_BENCH
 #       * BENCH_OP_FLAVOR

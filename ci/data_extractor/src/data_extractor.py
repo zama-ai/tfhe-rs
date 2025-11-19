@@ -156,7 +156,7 @@ exclusive_generation_group.add_argument(
     "--generate-regression-json",
     dest="generate_regression_json",
     action="store_true",
-    help="Generate JSON file with regression data with all the results from base branch and the lastest results of the development branch",
+    help="Generate JSON file with regression data with all the results from base branch and the latest results of the development branch",
 )
 
 
