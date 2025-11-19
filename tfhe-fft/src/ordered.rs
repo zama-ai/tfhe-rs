@@ -457,7 +457,7 @@ mod tests {
             if let Some(simd) = pulp::x86::V3::try_new() {
                 test_fft_simd(simd);
             }
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = pulp::x86::V4::try_new() {
                 test_fft_simd(simd);
             }

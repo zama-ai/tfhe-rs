@@ -21,9 +21,9 @@ serde = { workspace = true, optional = true }
 js-sys = "0.3"
 
 [features]
-default = ["std"]
+default = ["std", "avx512"]
 fft128 = []
-nightly = ["pulp/x86-v4"]
+avx512 = ["pulp/x86-v4"]
 std = ["pulp/std"]
 serde = ["dep:serde", "num-complex/serde"]
 
