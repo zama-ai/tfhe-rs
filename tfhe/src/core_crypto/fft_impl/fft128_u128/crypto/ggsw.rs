@@ -234,7 +234,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 fn collect_next_term_split_avx512(
     simd: pulp::x86::V4,
     glwe_decomp_term_lo: &mut [u64],
@@ -564,7 +564,7 @@ fn collect_next_term_split(
     base_log: usize,
 ) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = pulp::x86::V4::try_new() {
         return collect_next_term_split_avx512(
             simd,
