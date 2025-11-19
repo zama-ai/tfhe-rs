@@ -1,11 +1,9 @@
 SHELL:=$(shell /usr/bin/env which bash)
 OS:=$(shell uname)
-RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
+RS_CHECK_TOOLCHAIN:=$(shell cat nightly-toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 CARGO_BUILD_JOBS=default
 CPU_COUNT=$(shell ./scripts/cpu_count.sh)
-RS_BUILD_TOOLCHAIN:=stable
-CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
 MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' Cargo.toml | cut -d '=' -f 2 | xargs)
 AVX512_SUPPORT?=OFF
@@ -86,10 +84,6 @@ endef
 rs_check_toolchain:
 	@echo $(RS_CHECK_TOOLCHAIN)
 
-.PHONY: rs_build_toolchain # Echo the rust toolchain used for builds
-rs_build_toolchain:
-	@echo $(RS_BUILD_TOOLCHAIN)
-
 .PHONY: install_rs_check_toolchain # Install the toolchain used for checks
 install_rs_check_toolchain:
 	@rustup toolchain list | grep -q "$(RS_CHECK_TOOLCHAIN)" || \
@@ -105,16 +99,6 @@ install_rs_latest_nightly_toolchain:
 	( echo "Unable to install nightly  toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
-.PHONY: install_rs_build_toolchain # Install the toolchain used for builds
-install_rs_build_toolchain:
-	@( rustup toolchain list | grep -q "$(RS_BUILD_TOOLCHAIN)" && \
-	./scripts/check_cargo_min_ver.sh \
-	--rust-toolchain "$(CARGO_RS_BUILD_TOOLCHAIN)" \
-	--min-rust-version "$(MIN_RUST_VERSION)" ) || \
-	rustup toolchain install --profile default "$(RS_BUILD_TOOLCHAIN)" || \
-	( echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
-	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
-
 .PHONY: install_rs_msrv_toolchain # Install the msrv toolchain
 install_rs_msrv_toolchain:
 	@rustup toolchain install --profile default "$(MIN_RUST_VERSION)" || \
@@ -122,25 +106,29 @@ install_rs_msrv_toolchain:
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
 .PHONY: install_build_wasm32_target # Install the wasm32 toolchain used for builds
-install_build_wasm32_target: install_rs_build_toolchain
-	rustup +$(RS_BUILD_TOOLCHAIN) target add wasm32-unknown-unknown || \
+install_build_wasm32_target:
+	rustup target add wasm32-unknown-unknown || \
 	( echo "Unable to install wasm32-unknown-unknown target toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
 .PHONY: install_cargo_nextest # Install cargo nextest used for shortint tests
-install_cargo_nextest: install_rs_build_toolchain
+install_cargo_nextest:
 	@cargo nextest --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
+	cargo install cargo-nextest --locked || \
 	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
 
 .PHONY: install_wasm_bindgen_cli # Install wasm-bindgen-cli to get access to the test runner
-install_wasm_bindgen_cli: install_rs_build_toolchain
-	cargo +$(RS_BUILD_TOOLCHAIN) install --locked wasm-bindgen-cli --version "$(WASM_BINDGEN_VERSION)"
+install_wasm_bindgen_cli:
+	cargo install --locked wasm-bindgen-cli --version "$(WASM_BINDGEN_VERSION)"
+
+.PHONY: check_default_toolchain_msrv # Check that the toolchain in `rust-toolchain.toml` matches the MSRV
+check_default_toolchain_msrv:
+	./scripts/check_default_toolchain_msrv.sh
 
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
-install_wasm_pack: install_rs_build_toolchain
+install_wasm_pack:
 	@wasm-pack --version | grep "$(WASM_PACK_VERSION)" > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@$(WASM_PACK_VERSION) || \
+	cargo install --locked wasm-pack@$(WASM_PACK_VERSION) || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
 .PHONY: install_node # Install last version of NodeJS via nvm
@@ -169,36 +157,34 @@ install_dieharder:
 	fi || ( echo "Unable to install dieharder, unknown error." && exit 1 )
 
 .PHONY: install_tarpaulin # Install tarpaulin to perform code coverage
-install_tarpaulin: install_rs_build_toolchain
+install_tarpaulin:
 	@cargo tarpaulin --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
+	cargo install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
-install_cargo_dylint: install_rs_build_toolchain
+install_cargo_dylint:
 	cargo install --locked cargo-dylint dylint-link
 
 .PHONY: install_cargo_audit # Check dependencies
-install_cargo_audit: install_rs_build_toolchain
+install_cargo_audit:
 	cargo install --locked cargo-audit
 
 .PHONY: install_typos_checker # Install typos checker
-install_typos_checker: install_rs_build_toolchain
-	@./scripts/install_typos.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-	--typos-version $(TYPOS_VERSION)
+install_typos_checker:
+	@./scripts/install_typos.sh --typos-version $(TYPOS_VERSION)
 
 .PHONY: install_zizmor # Install zizmor workflow security checker
-install_zizmor: install_rs_build_toolchain
-	@./scripts/install_zizmor.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-	--zizmor-version $(ZIZMOR_VERSION)
+install_zizmor:
+	@./scripts/install_zizmor.sh --zizmor-version $(ZIZMOR_VERSION)
 
 .PHONY: zizmor_version  # Return zizmor version that will be installed
 zizmor_version:
 	@echo "$(ZIZMOR_VERSION)"
 
 .PHONY: install_cargo_cross # Install cross for big endian tests
-install_cargo_cross: install_rs_build_toolchain
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked cross
+install_cargo_cross:
+	cargo install --locked cross
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
@@ -267,9 +253,9 @@ check_nvm_installed:
 	( echo "Unable to locate Node. Run 'make install_node'" && exit 1 )
 
 .PHONY: install_mlc # Install mlc (Markup Link Checker)
-install_mlc: install_rs_build_toolchain
+install_mlc:
 	@mlc --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install mlc --locked || \
+	cargo install mlc --locked || \
 	( echo "Unable to install mlc, unknown error." && exit 1 )
 
 .PHONY: fmt # Format rust code
@@ -573,57 +559,57 @@ tfhe_lints: install_cargo_dylint
 		--features=experimental
 
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
-audit_dependencies: install_rs_build_toolchain install_cargo_audit
+audit_dependencies: install_cargo_audit
 	cargo audit
 
 
 .PHONY: build_core # Build core_crypto without experimental features
-build_core: install_rs_build_toolchain install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_core:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--no-default-features -p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 			--features=avx512 -p tfhe; \
 	fi
 
 .PHONY: build_core_experimental # Build core_crypto with experimental features
-build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_core_experimental:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--no-default-features --features=experimental -p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 			--features=experimental,avx512 -p tfhe; \
 	fi
 
 .PHONY: build_boolean # Build with boolean enabled
-build_boolean: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_boolean:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=boolean -p tfhe --all-targets
 
 .PHONY: build_shortint # Build with shortint enabled
-build_shortint: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_shortint:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=shortint -p tfhe --all-targets
 
 .PHONY: build_integer # Build with integer enabled
-build_integer: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_integer:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_full # Build with boolean, shortint and integer enabled
-build_tfhe_full: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_tfhe_full:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_coverage # Build with test coverage enabled
-build_tfhe_coverage: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_tfhe_coverage:
+	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo build --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer,internal-keycache -p tfhe --tests
 
 # As of 05/08/2025 this is the set of features that can be easily compiled without additional
 # toolkits
 .PHONY: build_tfhe_msrv # Build with msrv compiler
-build_tfhe_msrv: install_rs_build_toolchain
+build_tfhe_msrv:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo +$(MIN_RUST_VERSION) build --profile dev \
 		--features=boolean,extended-types,hpu,hpu-debug \
 		--features=hpu-v80,integer,noise-asserts \
@@ -648,10 +634,9 @@ build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 		-p tfhe
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
-build_web_js_api: install_rs_build_toolchain install_wasm_pack
+build_web_js_api: install_wasm_pack
 	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
-		wasm-pack build --release --target=web \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
@@ -674,36 +659,35 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
-build_node_js_api: install_rs_build_toolchain install_wasm_pack
+build_node_js_api: install_wasm_pack
 	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
-		wasm-pack build --release --target=nodejs \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=nodejs \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
 
 .PHONY: build_tfhe_csprng # Build tfhe_csprng
-build_tfhe_csprng: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+build_tfhe_csprng:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		-p tfhe-csprng --all-targets
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
-test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_core_crypto:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--no-default-features --features=experimental,zk-pok -p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 			--features=experimental,zk-pok -p tfhe -- core_crypto::; \
 	fi
 
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
-test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+test_core_crypto_cov: install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 		--no-default-features \
 		--features=experimental,internal-keycache \
 		-p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 			--features=experimental,internal-keycache,avx512 \
@@ -722,43 +706,41 @@ test_cuda_backend:
 test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
-test_core_crypto_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_core_crypto_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=gpu -p tfhe -- core_crypto::gpu::
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
 		--features=gpu -p tfhe -- core_crypto::gpu::
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
-test_integer_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_integer_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=2
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
 
 .PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
-test_integer_gpu_debug: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile release_lto_off \
+test_integer_gpu_debug:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile release_lto_off \
 		--features=integer,gpu-debug -vv -p tfhe -- integer::gpu::server_key:: --test-threads=1 --nocapture
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile release_lto_off \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile release_lto_off \
 		--features=integer,gpu-debug -p tfhe -- integer::gpu::server_key::
 
 .PHONY: test_high_level_api_gpu_valgrind # Run the tests of the integer module with Debug flags for CUDA
-test_high_level_api_gpu_valgrind: install_rs_build_toolchain install_cargo_nextest
+test_high_level_api_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
 	export TFHE_SPEC="tfhe" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
 
 .PHONY: test_high_level_api_gpu_sanitizer # Run the tests of the integer module with Debug flags for CUDA
-test_high_level_api_gpu_sanitizer: install_rs_build_toolchain install_cargo_nextest
+test_high_level_api_gpu_sanitizer: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
 	export TFHE_SPEC="tfhe" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
-test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build \
+test_integer_hl_test_gpu_check_warnings:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build \
 		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p tfhe &> /tmp/gpu_compile_output
 	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning #" | grep "\[tfhe-cuda-backend" | grep -v "inline qualifier" || true) && \
 	if [[ "$${WARNINGS}" != "" ]]; then \
@@ -768,103 +750,103 @@ test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
 
 
 .PHONY: test_integer_long_run_gpu # Run the long run integer tests on the gpu backend
-test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
+test_integer_long_run_gpu: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	LONG_TESTS=TRUE \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe" --backend "gpu"
 
 .PHONY: test_integer_short_run_gpu # Run the long run integer tests on the gpu backend
-test_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
+test_integer_short_run_gpu: install_cargo_nextest
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
 
 .PHONY: build_debug_integer_short_run_gpu # Run the long run integer tests on the gpu backend
-build_debug_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test -vv --no-run --profile debug_lto_off \
+build_debug_integer_short_run_gpu: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test -vv --no-run --profile debug_lto_off \
 		--features=integer,gpu-debug-fake-multi-gpu -p tfhe
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile debug_lto_off \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile debug_lto_off \
 		--features=integer,gpu-debug-fake-multi-gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random --list
 	@echo "To debug fake-multi-gpu short run tests run:"
 	@echo "TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE <executable> integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_short_random_op_sequence_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128 --nocapture"
 	@echo "Where <executable> = the one printed in the () in the 'Running unittests src/lib.rs ()' line above"
 
 .PHONY: test_integer_compression
-test_integer_compression: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_integer_compression:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer -p tfhe -- integer::ciphertext::compressed_ciphertext_list::tests::
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
 		--features=integer -p tfhe -- integer::ciphertext::compress
 
 .PHONY: test_integer_compression_gpu
-test_integer_compression_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_integer_compression_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::ciphertext::compress
 
 .PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
-test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_gpu_ci # Run the tests for unsigned integer ci on gpu backend
-test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_unsigned_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_gpu_ci # Run the tests for signed integer ci on gpu backend
-test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_signed_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_multi_bit_gpu_ci # Run the tests for integer ci on gpu backend running only multibit tests
-test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_multi_bit_gpu_ci # Run the tests for unsigned integer ci on gpu backend running only multibit tests
-test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_unsigned_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_multi_bit_gpu_ci # Run the tests for signed integer ci on gpu backend running only multibit tests
-test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_signed_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_hpu_ci # Run the tests for integer ci on hpu backend
-test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_hpu_ci: install_cargo_nextest
 	cargo test --release -p tfhe --features hpu-v80 --test hpu
 
 .PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
-test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_hpu_mockup_ci: install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --release --bin hpu_mockup; \
 	coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
@@ -873,7 +855,7 @@ test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 	kill %1
 
 .PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
-test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextest
+test_integer_hpu_mockup_ci_fast: install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --profile devo --bin hpu_mockup; \
 	coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
@@ -882,13 +864,13 @@ test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextes
 	kill %1
 
 .PHONY: test_boolean # Run the tests of the boolean module
-test_boolean: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_boolean:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean -p tfhe -- boolean::
 
 .PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
-test_boolean_cov: install_rs_check_toolchain install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+test_boolean_cov: install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=boolean,internal-keycache \
@@ -913,121 +895,121 @@ test_c_api_gpu: build_c_api_gpu
 	./scripts/c_api_tests.sh --gpu --cargo-profile "$(CARGO_PROFILE)"
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
-test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
+test_shortint_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		./scripts/shortint-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "tfhe"
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
-test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
+test_shortint_multi_bit_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		./scripts/shortint-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "tfhe"
 
 .PHONY: test_shortint # Run all the tests for shortint
-test_shortint: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_shortint:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint,internal-keycache -p tfhe -- shortint::
 
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
-test_shortint_cov: install_rs_check_toolchain install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+test_shortint_cov: install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=shortint,internal-keycache \
 		-p tfhe -- -Z unstable-options --report-time shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
-test_integer_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
-test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
+test_unsigned_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_ci # Run the tests for signed integer ci
-test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
+test_signed_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
-test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
+test_integer_multi_bit_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for unsigned integer ci running only multibit tests
-test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
+test_unsigned_integer_multi_bit_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_multi_bit_ci # Run the tests for signed integer ci running only multibit tests
-test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
+test_signed_integer_multi_bit_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_long_run # Run the long run integer tests
-test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
+test_integer_long_run: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	LONG_TESTS=TRUE \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
 
 .PHONY: test_noise_check # Run dedicated noise and pfail check tests
-test_noise_check: install_rs_check_toolchain
+test_noise_check:
 	@# First run the sanity checks to make sure the atomic patterns are correct
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer -p tfhe -- sanity_check
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_safe_serialization # Run the tests for safe serialization
-test_safe_serialization: install_rs_build_toolchain install_cargo_nextest
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_safe_serialization: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer,internal-keycache -p tfhe -- safe_serialization::
 
 .PHONY: test_zk # Run the tests for the zk module of the TFHE-rs crate
-test_zk: install_rs_build_toolchain install_cargo_nextest
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_zk: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint,zk-pok -p tfhe -- zk::
 
 .PHONY: test_integer # Run all the tests for integer
-test_integer: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_integer:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,internal-keycache -p tfhe -- integer::
 
 .PHONY: test_integer_cov # Run the tests of the integer module with code coverage
-test_integer_cov: install_rs_check_toolchain install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+test_integer_cov: install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/integer --line --engine llvm --timeout 500 \
 		--implicit-test-threads \
 		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
@@ -1035,40 +1017,40 @@ test_integer_cov: install_rs_check_toolchain install_tarpaulin
 		-p tfhe -- -Z unstable-options --report-time integer::
 
 .PHONY: test_high_level_api # Run all the tests for high_level_api
-test_high_level_api: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_high_level_api:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
 		-- high_level_api::
 
-test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+test_high_level_api_gpu: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/)"
 
-test_list_gpu: install_rs_build_toolchain install_cargo_nextest
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest list --cargo-profile $(CARGO_PROFILE) \
+test_list_gpu: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \
 		--features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/.*gpu.*/)"
 
 .PHONY: build_one_hl_api_test_gpu
-build_one_hl_api_test_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+build_one_hl_api_test_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		   --features=integer,gpu-debug -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
 .PHONY: build_one_hl_api_test_fake_multi_gpu
-build_one_hl_api_test_fake_multi_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+build_one_hl_api_test_fake_multi_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		   --features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
-test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
+test_high_level_api_hpu: install_cargo_nextest
 ifeq ($(HPU_CONFIG), v80)
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe \
 		-E "test(/high_level_api::.*hpu.*/)"
 else
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu -p tfhe \
@@ -1077,33 +1059,33 @@ endif
 
 
 .PHONY: test_strings # Run the tests for strings ci
-test_strings: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_strings:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint,integer,strings -p tfhe \
 		-- strings::
 
 
 .PHONY: test_user_doc # Run tests from the .md documentation
-test_user_doc: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+test_user_doc:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok,strings \
 		-p tfhe \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
-test_user_doc_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+test_user_doc_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=internal-keycache,integer,zk-pok,gpu -p tfhe \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_hpu # Run tests for HPU from the .md documentation
-test_user_doc_hpu: install_rs_build_toolchain
+test_user_doc_hpu:
 ifeq ($(HPU_CONFIG), v80)
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=internal-keycache,integer,hpu,hpu-v80 -p tfhe \
 		-- test_user_docs::
 else
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=internal-keycache,integer,hpu -p tfhe \
 		-- test_user_docs::
 endif
@@ -1111,42 +1093,42 @@ endif
 
 
 .PHONY: test_regex_engine # Run tests for regex_engine example
-test_regex_engine: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_regex_engine:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--example regex_engine --features=integer
 
 .PHONY: test_sha256_bool # Run tests for sha256_bool example
-test_sha256_bool: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_sha256_bool:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--example sha256_bool --features=boolean
 
 .PHONY: test_examples # Run tests for examples
 test_examples: test_sha256_bool test_regex_engine
 
 .PHONY: test_trivium # Run tests for trivium
-test_trivium: install_rs_build_toolchain
-	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_trivium:
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-trivium -- --test-threads=1 trivium::
 
 .PHONY: test_kreyvium # Run tests for kreyvium
-test_kreyvium: install_rs_build_toolchain
-	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_kreyvium:
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-trivium -- --test-threads=1 kreyvium::
 
 .PHONY: test_tfhe_csprng # Run tfhe-csprng tests
-test_tfhe_csprng: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_tfhe_csprng:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-csprng
 
 .PHONY: test_tfhe_csprng_big_endian # Run tfhe-csprng tests on an emulated big endian system
-test_tfhe_csprng_big_endian: install_rs_build_toolchain install_cargo_cross
-	RUSTFLAGS="" cross $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_tfhe_csprng_big_endian: install_cargo_cross
+	RUSTFLAGS="" cross test --profile $(CARGO_PROFILE) \
 		-p tfhe-csprng --target=powerpc64-unknown-linux-gnu
 
 
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
-test_zk_pok: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_zk_pok:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental
 
 .PHONY: test_zk_wasm_x86_compat_ci
@@ -1157,14 +1139,14 @@ test_zk_wasm_x86_compat_ci: check_nvm_installed
 	$(MAKE) test_zk_wasm_x86_compat
 
 .PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
-test_zk_wasm_x86_compat: install_rs_build_toolchain build_node_js_api
+test_zk_wasm_x86_compat: build_node_js_api
 	cd tfhe/tests/zk_wasm_x86_test && npm install
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
 
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
-test_versionable: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_versionable:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-versionable
 
 .PHONY: test_tfhe_lints # Run test on tfhe-lints
@@ -1175,17 +1157,17 @@ test_tfhe_lints: install_cargo_dylint
 
 # The backward compat data folder holds historical binary data but also rust code to generate and load them.
 .PHONY: gen_backward_compat_data # Re-generate backward compatibility data
-gen_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+gen_backward_compat_data:
 	$(BACKWARD_COMPAT_DATA_DIR)/gen_data.sh $(BACKWARD_COMPAT_DATA_GEN_VERSION)
 
 # Instantiate a new backward data crate for the current TFHE-rs version, if it does not already exists
 .PHONY: new_backward_compat_crate
-new_backward_compat_crate: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+new_backward_compat_crate:
 	cd $(BACKWARD_COMPAT_DATA_DIR) && cargo run -p add_new_version -- --tfhe-version $(CURRENT_TFHE_VERSION)
 
 .PHONY: test_backward_compatibility_ci
-test_backward_compatibility_ci: install_rs_build_toolchain
-	TFHE_BACKWARD_COMPAT_DATA_DIR="../$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+test_backward_compatibility_ci:
+	TFHE_BACKWARD_COMPAT_DATA_DIR="../$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint,integer,zk-pok -p tests test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
@@ -1196,7 +1178,7 @@ doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
-	cargo +nightly doc \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p tfhe
 
 .PHONY: docs # Build rust doc alias for doc
@@ -1214,8 +1196,8 @@ lint_doc: install_rs_check_toolchain
 lint_docs: lint_doc
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
-format_doc_latex: install_rs_build_toolchain
-	RUSTFLAGS="" cargo "$(CARGO_RS_BUILD_TOOLCHAIN)" xtask format_latex_doc
+format_doc_latex:
+	RUSTFLAGS="" cargo xtask format_latex_doc
 	@"$(MAKE)" --no-print-directory fmt
 	@printf "\n===============================\n\n"
 	@printf "Please manually inspect changes made by format_latex_doc, rustfmt can break equations \
@@ -1223,8 +1205,8 @@ format_doc_latex: install_rs_build_toolchain
 	@printf "\n===============================\n"
 
 .PHONY: check_md_docs_are_tested # Checks that the rust codeblocks in our .md files are tested
-check_md_docs_are_tested: install_rs_build_toolchain
-	RUSTFLAGS="" cargo "$(CARGO_RS_BUILD_TOOLCHAIN)" xtask check_tfhe_docs_are_tested
+check_md_docs_are_tested:
+	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
 
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
@@ -1243,21 +1225,21 @@ check_parameter_export_ok:
 	python3 ./scripts/check_current_param_export.py
 
 .PHONY: check_compile_tests # Build tests in debug without running them
-check_compile_tests: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+check_compile_tests:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=experimental,boolean,shortint,integer,internal-keycache \
 		-p tfhe
 
 .PHONY: check_compile_tests_c_api # Build C API tests without running them
-check_compile_tests_c_api: install_rs_build_toolchain
+check_compile_tests_c_api:
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
 		./scripts/c_api_tests.sh --build-only --cargo-profile "$(CARGO_PROFILE)"; \
 	fi
 
 .PHONY: check_compile_tests_benches_gpu # Build tests in debug without running them
-check_compile_tests_benches_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+check_compile_tests_benches_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=experimental,boolean,shortint,integer,internal-keycache,gpu,zk-pok \
 		-p tfhe
 	mkdir -p "$(TFHECUDA_BUILD)" && \
@@ -1670,15 +1652,15 @@ bench_custom: install_rs_check_toolchain
 #
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
-gen_key_cache: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+gen_key_cache:
+	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
 		--features=boolean,shortint,experimental,internal-keycache -p tfhe \
 		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
-gen_key_cache_core_crypto: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
+gen_key_cache_core_crypto:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --tests --profile $(CARGO_PROFILE) \
 		--features=experimental,internal-keycache -p tfhe -- --nocapture \
 		core_crypto::keycache::generate_keys
 
@@ -1735,21 +1717,21 @@ pull_hpu_files:
 #
 
 .PHONY: regex_engine # Run regex_engine example
-regex_engine: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+regex_engine:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
 	--example regex_engine --features=integer \
 	-- $(REGEX_STRING) $(REGEX_PATTERN)
 
 .PHONY: dark_market # Run dark market example
-dark_market: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+dark_market:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
 	--example dark_market \
 	--features=integer,internal-keycache \
 	-- fhe-modified fhe-parallel plain fhe
 
 .PHONY: sha256_bool # Run sha256_bool example
-sha256_bool: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+sha256_bool:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
 	--example sha256_bool --features=boolean
 
 .PHONY: pcc # pcc stands for pre commit checks for CPU compilation
@@ -1775,6 +1757,7 @@ pcc_batch_1:
 	$(call run_recipe_with_details,test_tfhe_lints)
 	$(call run_recipe_with_details,tfhe_lints)
 	$(call run_recipe_with_details,clippy_rustdoc)
+	$(call run_recipe_with_details,check_default_toolchain_msrv)
 
 .PHONY: pcc_batch_2 # duration: 6'10'' (shortest one, extend it with further checks)
 pcc_batch_2:
@@ -1882,16 +1865,16 @@ clippy_fft: install_rs_check_toolchain
 pcc_fft: check_fmt lint_doc_fft clippy_fft
 
 .PHONY: build_fft
-build_fft: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+build_fft:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-fft
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-fft \
 		--features=fft128
 
 .PHONY: build_fft_no_std
-build_fft_no_std: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+build_fft_no_std:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-fft \
 		--no-default-features
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-fft \
 		--no-default-features \
 		--features=fft128
 
@@ -1983,35 +1966,35 @@ clippy_ntt: install_rs_check_toolchain
 pcc_ntt: check_fmt lint_doc_ntt clippy_ntt
 
 .PHONY: build_ntt
-build_ntt: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-ntt
+build_ntt:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-ntt
 
 .PHONY: build_ntt_no_std
-build_ntt_no_std: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-ntt \
+build_ntt_no_std:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release -p tfhe-ntt \
 		--no-default-features
 
 ##### Tests #####
 
 .PHONY: test_ntt
-test_ntt: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
+test_ntt:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-ntt \
 		--no-default-features \
 		--features=std
 
 .PHONY: test_ntt_avx512
-test_ntt_avx512: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
+test_ntt_avx512:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-ntt \
 		--features=avx512
 
 .PHONY: test_ntt_no_std
-test_ntt_no_std: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
+test_ntt_no_std:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-ntt \
 		--no-default-features
 
 .PHONY: test_ntt_no_std_avx512
-test_ntt_no_std_avx512: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
+test_ntt_no_std_avx512:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-ntt \
 		--no-default-features \
 		--features=avx512
 
