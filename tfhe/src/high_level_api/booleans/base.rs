@@ -2467,10 +2467,13 @@ impl BitNotSizeOnGpu for FheBool {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
+                let inner_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
+                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(inner_block);
+
                 cuda_key
                     .key
                     .key
-                    .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                    .get_boolean_bitnot_size_on_gpu(&boolean_block, streams)
             } else {
                 0
             }

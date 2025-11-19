@@ -5,9 +5,10 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphe
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_boolean_bitnot_assign, cuda_backend_boolean_bitop_assign,
-    cuda_backend_get_bitop_size_on_gpu, cuda_backend_get_boolean_bitop_size_on_gpu,
-    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_unchecked_bitnot_assign,
-    cuda_backend_unchecked_bitop_assign, BitOpType, CudaServerKey, PBSType,
+    cuda_backend_get_bitop_size_on_gpu, cuda_backend_get_boolean_bitnot_size_on_gpu,
+    cuda_backend_get_boolean_bitop_size_on_gpu, cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_unchecked_bitnot_assign, cuda_backend_unchecked_bitop_assign, BitOpType,
+    CudaServerKey, PBSType,
 };
 
 impl CudaServerKey {
@@ -87,7 +88,7 @@ impl CudaServerKey {
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
@@ -102,13 +103,13 @@ impl CudaServerKey {
     /// let ct = cks.encrypt_bool(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaBooleanBlock::from_boolean_block(&ct, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
     /// let d_ct_res = sks.boolean_bitnot(&d_ct, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
+    /// let ct_res = CudaBooleanBlock::to_boolean_block(&d_ct_res, &streams);
     ///
     /// // Decrypt:
     /// let dec: bool = cks.decrypt_bool(&ct_res);
@@ -134,7 +135,7 @@ impl CudaServerKey {
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
@@ -151,14 +152,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt_bool(msg2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
+    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &streams);
+    /// let d_ct2 = CudaBooleanBlock::from_boolean_block(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
     /// let d_ct_res = sks.boolean_bitand(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
+    /// let ct_res = CudaBooleanBlock::to_boolean_block(&d_ct_res, &streams);
     /// let expected = msg1 & msg2;
     ///
     /// // Decrypt:
@@ -195,7 +196,7 @@ impl CudaServerKey {
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
@@ -212,14 +213,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt_bool(msg2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
+    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &streams);
+    /// let d_ct2 = CudaBooleanBlock::from_boolean_block(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise or:
     /// let d_ct_res = sks.boolean_bitor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
+    /// let ct_res = CudaBooleanBlock::to_boolean_block(&d_ct_res, &streams);
     /// let expected = msg1 | msg2;
     ///
     /// // Decrypt:
@@ -256,7 +257,7 @@ impl CudaServerKey {
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
@@ -273,14 +274,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt_bool(msg2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
+    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &streams);
+    /// let d_ct2 = CudaBooleanBlock::from_boolean_block(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise xor:
     /// let d_ct_res = sks.boolean_bitxor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
+    /// let ct_res = CudaBooleanBlock::to_boolean_block(&d_ct_res, &streams);
     /// let expected = msg1 ^ msg2;
     ///
     /// // Decrypt:
@@ -1280,6 +1281,63 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64 {
         self.get_bitop_size_on_gpu(ct_left, ct_right, BitOpType::Xor, streams)
+    }
+
+    pub fn get_boolean_bitnot_size_on_gpu(
+        &self,
+        ct: &CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let boolean_bitnot_mem = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_boolean_bitnot_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                self.key_switching_key
+                    .input_key_lwe_size()
+                    .to_lwe_dimension(),
+                self.key_switching_key
+                    .output_key_lwe_size()
+                    .to_lwe_dimension(),
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                false,
+                1u32,
+                PBSType::Classical,
+                LweBskGroupingFactor(0),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                cuda_backend_get_boolean_bitnot_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    false,
+                    1u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    None,
+                )
+            }
+        };
+
+        boolean_bitnot_mem
     }
 
     pub fn get_bitnot_size_on_gpu<T: CudaIntegerRadixCiphertext>(

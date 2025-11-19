@@ -1628,6 +1628,56 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_boolean_bitnot_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    is_unchecked: bool,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_boolean_bitnot_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            num_blocks,
+            is_unchecked,
+            false,
+            noise_reduction_type as u32,
+        )
+    };
+    unsafe {
+        cleanup_cuda_boolean_bitnot(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
