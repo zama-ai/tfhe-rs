@@ -13,7 +13,7 @@ function usage() {
     echo
 }
 
-RUST_TOOLCHAIN="+stable"
+RUST_TOOLCHAIN=""
 multi_bit=""
 multi_bit_argument=
 fast_tests_argument=
@@ -56,8 +56,10 @@ do
    shift
 done
 
-if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
-    RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+if [ -n "${RUST_TOOLCHAIN}" ]; then
+    if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
+        RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+    fi
 fi
 
 if [[ "${FAST_TESTS}" == TRUE ]]; then
@@ -88,14 +90,14 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
     filter_expression_small_params=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint ${fast_tests_argument} ${multi_bit_argument})
 
     # Run tests only no examples or benches with small params and more threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    eval cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
         --features=shortint,internal-keycache,zk-pok,experimental \
         --test-threads "${n_threads_small}" \
-        -E "${filter_expression_small_params}"
+        -E '${filter_expression_small_params}'
 
     if [[ "${FAST_TESTS}" != TRUE ]]; then
         filter_expression_big_params="""\
@@ -105,7 +107,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
 and not test(~smart_add_and_mul)"""
 
     # Run tests only no examples or benches with big params and less threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    eval cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
@@ -113,10 +115,10 @@ and not test(~smart_add_and_mul)"""
         --features=shortint,internal-keycache,zk-pok,experimental \
         --test-threads "${n_threads_big}" \
         --no-tests=warn \
-        -E "${filter_expression_big_params}"
+        -E '${filter_expression_big_params}'
 
         if [[ "${multi_bit}" == "" ]]; then
-            cargo "${RUST_TOOLCHAIN}" test \
+            eval cargo "${RUST_TOOLCHAIN}" test \
                 --profile "${cargo_profile}" \
                 --package "${tfhe_package}" \
                 --features=shortint,internal-keycache,zk-pok,experimental \
@@ -128,17 +130,17 @@ else
     filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint --big-instance ${fast_tests_argument} ${multi_bit_argument})
 
     # Run tests only no examples or benches with small params and more threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    eval cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
         --features=shortint,internal-keycache,experimental \
         --test-threads "${n_threads_big}" \
-        -E "${filter_expression}"
+        -E '${filter_expression}'
 
     if [[ "${multi_bit}" == "" ]]; then
-        cargo "${RUST_TOOLCHAIN}" test \
+        eval cargo "${RUST_TOOLCHAIN}" test \
             --profile "${cargo_profile}" \
             --package "${tfhe_package}" \
             --features=shortint,internal-keycache,experimental \
