@@ -367,21 +367,40 @@ impl<Id: FheIntId> FheInt<Id> {
     }
 }
 
+#[cfg(test)]
 #[cfg(feature = "gpu")]
 #[allow(unused_imports)]
 mod test {
     use crate::prelude::*;
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint64, GpuIndex};
+    use crate::{
+        generate_keys, set_server_key, ConfigBuilder, FheInt128, FheUint32, FheUint64, GpuIndex,
+    };
+    use tfhe_csprng::seeders::Seed;
+
+    #[test]
+    fn test_oprf_gpu() {
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let _ck = setup_fn();
+            let seed = Seed(0);
+
+            let img = FheUint64::generate_oblivious_pseudo_random_bounded(seed, 1);
+
+            assert_eq!(img.ciphertext.into_cpu().blocks.len(), 32);
+
+            let img = FheInt128::generate_oblivious_pseudo_random_bounded(seed, 1);
+
+            assert_eq!(img.ciphertext.into_cpu().blocks.len(), 64);
+        }
+    }
 
     #[test]
     fn test_oprf_size_on_gpu() {
-        let config = ConfigBuilder::default().build();
-        let (_client_key, server_key) = generate_keys(config);
-
-        set_server_key(server_key);
-        let size = FheUint32::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
-        check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
-        let size_1 = FheUint64::get_generate_oblivious_pseudo_random_size_on_gpu();
-        check_valid_cuda_malloc_assert_oom(size_1, GpuIndex::new(0));
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let _ck = setup_fn();
+            let size = FheUint32::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
+            check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
+            let size_1 = FheUint64::get_generate_oblivious_pseudo_random_size_on_gpu();
+            check_valid_cuda_malloc_assert_oom(size_1, GpuIndex::new(0));
+        }
     }
 }

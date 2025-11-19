@@ -14,14 +14,13 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_user_defined_seed, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
 
-create_gpu_parameterized_test!(signed_random_op_sequence {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
+create_gpu_parameterized_test!(signed_random_op_sequence);
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn signed_random_op_sequence_test_init_gpu<P>(

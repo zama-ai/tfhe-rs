@@ -13,18 +13,15 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_user_defined_seed, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Tag};
 use std::sync::Arc;
 
-create_gpu_parameterized_test!(random_op_sequence {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
+create_gpu_parameterized_test!(random_op_sequence);
 
 #[cfg(feature = "gpu-debug-fake-multi-gpu")]
-create_gpu_parameterized_test!(short_random_op_sequence {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
+create_gpu_parameterized_test!(short_random_op_sequence);
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn random_op_sequence_test_init_gpu<P>(

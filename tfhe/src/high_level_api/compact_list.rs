@@ -1162,62 +1162,77 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_compact_list() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        for i in [0, 1] {
+            let config = if i == 0 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else if i == 1 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else {
+                panic!("Unexpected parameter set")
+            };
 
-        let ck = crate::ClientKey::generate(config);
-        let compressed_server_key = CompressedServerKey::new(&ck);
-        let gpu_sk = compressed_server_key.decompress_to_gpu();
-        let pk = crate::CompactPublicKey::new(&ck);
+            let ck = crate::ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&ck);
+            let gpu_sk = compressed_server_key.decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
 
-        set_server_key(gpu_sk);
+            set_server_key(gpu_sk);
 
-        let compact_list = CompactCiphertextList::builder(&pk)
-            .push(17u32)
-            .push(-1i64)
-            .push(false)
-            .push(true)
-            .push_with_num_bits(3u8, 2)
-            .unwrap()
-            .build_packed();
+            let compact_list = CompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(false)
+                .push(true)
+                .push_with_num_bits(3u8, 2)
+                .unwrap()
+                .build_packed();
 
-        let serialized = bincode::serialize(&compact_list).unwrap();
-        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
-        let expander = compact_list.expand().unwrap();
+            let serialized = bincode::serialize(&compact_list).unwrap();
+            let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+            let expander = compact_list.expand().unwrap();
 
-        {
-            let a: FheUint32 = expander.get(0).unwrap().unwrap();
-            let b: FheInt64 = expander.get(1).unwrap().unwrap();
-            let c: FheBool = expander.get(2).unwrap().unwrap();
-            let d: FheBool = expander.get(3).unwrap().unwrap();
-            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+            {
+                let a: FheUint32 = expander.get(0).unwrap().unwrap();
+                let b: FheInt64 = expander.get(1).unwrap().unwrap();
+                let c: FheBool = expander.get(2).unwrap().unwrap();
+                let d: FheBool = expander.get(3).unwrap().unwrap();
+                let e: FheUint2 = expander.get(4).unwrap().unwrap();
 
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d = d.decrypt(&ck);
-            assert!(d);
-            let e: u8 = e.decrypt(&ck);
-            assert_eq!(e, 3);
+                let a: u32 = a.decrypt(&ck);
+                assert_eq!(a, 17);
+                let b: i64 = b.decrypt(&ck);
+                assert_eq!(b, -1);
+                let c = c.decrypt(&ck);
+                assert!(!c);
+                let d = d.decrypt(&ck);
+                assert!(d);
+                let e: u8 = e.decrypt(&ck);
+                assert_eq!(e, 3);
 
-            assert!(expander.get::<FheBool>(5).unwrap().is_none());
-        }
+                assert!(expander.get::<FheBool>(5).unwrap().is_none());
+            }
 
-        {
-            // Incorrect type
-            assert!(expander.get::<FheInt64>(0).is_err());
+            {
+                // Incorrect type
+                assert!(expander.get::<FheInt64>(0).is_err());
 
-            // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).is_err());
+                // Correct type but wrong number of bits
+                assert!(expander.get::<FheUint16>(0).is_err());
+            }
         }
     }
 
@@ -1266,49 +1281,64 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_compact_list_extended_types() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        for i in [0, 1] {
+            let config = if i == 0 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else if i == 1 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else {
+                panic!("Unexpected parameter set")
+            };
 
-        let ck = crate::ClientKey::generate(config);
-        let compressed_server_key = CompressedServerKey::new(&ck);
-        let gpu_sk = compressed_server_key.decompress_to_gpu();
-        let pk = crate::CompactPublicKey::new(&ck);
+            let ck = crate::ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&ck);
+            let gpu_sk = compressed_server_key.decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
 
-        set_server_key(gpu_sk);
+            set_server_key(gpu_sk);
 
-        let compact_list = CompactCiphertextList::builder(&pk)
-            .push_with_num_bits(-17i64, 40)
-            .unwrap()
-            .push_with_num_bits(3u8, 24)
-            .unwrap()
-            .build_packed();
+            let compact_list = CompactCiphertextList::builder(&pk)
+                .push_with_num_bits(-17i64, 40)
+                .unwrap()
+                .push_with_num_bits(3u8, 24)
+                .unwrap()
+                .build_packed();
 
-        let serialized = bincode::serialize(&compact_list).unwrap();
-        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
-        let expander = compact_list.expand().unwrap();
+            let serialized = bincode::serialize(&compact_list).unwrap();
+            let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+            let expander = compact_list.expand().unwrap();
 
-        {
-            let a: crate::FheInt40 = expander.get(0).unwrap().unwrap();
-            let b: crate::FheUint24 = expander.get(1).unwrap().unwrap();
+            {
+                let a: crate::FheInt40 = expander.get(0).unwrap().unwrap();
+                let b: crate::FheUint24 = expander.get(1).unwrap().unwrap();
 
-            let a: i64 = a.decrypt(&ck);
-            assert_eq!(a, -17);
-            let b: u8 = b.decrypt(&ck);
-            assert_eq!(b, 3);
-        }
+                let a: i64 = a.decrypt(&ck);
+                assert_eq!(a, -17);
+                let b: u8 = b.decrypt(&ck);
+                assert_eq!(b, 3);
+            }
 
-        {
-            // Incorrect type
-            assert!(expander.get::<FheUint32>(0).is_err());
+            {
+                // Incorrect type
+                assert!(expander.get::<FheUint32>(0).is_err());
 
-            // Correct type but wrong number of bits
-            assert!(expander.get::<FheInt64>(0).is_err());
+                // Correct type but wrong number of bits
+                assert!(expander.get::<FheInt64>(0).is_err());
+            }
         }
     }
 
@@ -1473,86 +1503,102 @@ mod tests {
     #[cfg(all(feature = "zk-pok", feature = "gpu"))]
     #[test]
     fn test_gpu_proven_compact_list() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .use_dedicated_compact_public_key_parameters((
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ))
-        .build();
+        for i in [0, 1] {
+            let config = if i == 0 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else if i == 1 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else {
+                panic!("Unexpected parameter set")
+            };
 
-        let ck = crate::ClientKey::generate(config);
-        let compressed_server_key = CompressedServerKey::new(&ck);
-        let gpu_sk = compressed_server_key.decompress_to_gpu();
-        let pk = crate::CompactPublicKey::new(&ck);
+            let ck = crate::ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&ck);
+            let gpu_sk = compressed_server_key.decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
 
-        set_server_key(gpu_sk);
+            set_server_key(gpu_sk);
 
-        // Intentionally low so that we test when multiple lists and proofs are needed
-        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+            // Intentionally low so that we test when multiple lists and proofs are needed
+            let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
-        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+            let metadata = [b'h', b'l', b'a', b'p', b'i'];
 
-        let compact_list = ProvenCompactCiphertextList::builder(&pk)
-            .push(17u32)
-            .push(-1i64)
-            .push(false)
-            .push_with_num_bits(3u32, 2)
-            .unwrap()
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
-            .unwrap();
+            let compact_list = ProvenCompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(false)
+                .push_with_num_bits(3u32, 2)
+                .unwrap()
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
 
-        let serialized = bincode::serialize(&compact_list).unwrap();
-        let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
-        let expander = compact_list
-            .verify_and_expand(&crs, &pk, &metadata)
-            .unwrap();
+            let serialized = bincode::serialize(&compact_list).unwrap();
+            let compact_list: ProvenCompactCiphertextList =
+                bincode::deserialize(&serialized).unwrap();
+            let expander = compact_list
+                .verify_and_expand(&crs, &pk, &metadata)
+                .unwrap();
 
-        {
-            let a: FheUint32 = expander.get(0).unwrap().unwrap();
-            let b: FheInt64 = expander.get(1).unwrap().unwrap();
-            let c: FheBool = expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = expander.get(3).unwrap().unwrap();
+            {
+                let a: FheUint32 = expander.get(0).unwrap().unwrap();
+                let b: FheInt64 = expander.get(1).unwrap().unwrap();
+                let c: FheBool = expander.get(2).unwrap().unwrap();
+                let d: FheUint2 = expander.get(3).unwrap().unwrap();
 
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d: u8 = d.decrypt(&ck);
-            assert_eq!(d, 3);
+                let a: u32 = a.decrypt(&ck);
+                assert_eq!(a, 17);
+                let b: i64 = b.decrypt(&ck);
+                assert_eq!(b, -1);
+                let c = c.decrypt(&ck);
+                assert!(!c);
+                let d: u8 = d.decrypt(&ck);
+                assert_eq!(d, 3);
 
-            assert!(expander.get::<FheBool>(4).unwrap().is_none());
-        }
+                assert!(expander.get::<FheBool>(4).unwrap().is_none());
+            }
 
-        {
-            // Incorrect type
-            assert!(expander.get::<FheInt64>(0).is_err());
+            {
+                // Incorrect type
+                assert!(expander.get::<FheInt64>(0).is_err());
 
-            // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).is_err());
-        }
+                // Correct type but wrong number of bits
+                assert!(expander.get::<FheUint16>(0).is_err());
+            }
 
-        let unverified_expander = compact_list.expand_without_verification().unwrap();
+            let unverified_expander = compact_list.expand_without_verification().unwrap();
 
-        {
-            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
-            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
-            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+            {
+                let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+                let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
+                let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
+                let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
 
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d: u8 = d.decrypt(&ck);
-            assert_eq!(d, 3);
+                let a: u32 = a.decrypt(&ck);
+                assert_eq!(a, 17);
+                let b: i64 = b.decrypt(&ck);
+                assert_eq!(b, -1);
+                let c = c.decrypt(&ck);
+                assert!(!c);
+                let d: u8 = d.decrypt(&ck);
+                assert_eq!(d, 3);
 
-            assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
+                assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
+            }
         }
     }
 
