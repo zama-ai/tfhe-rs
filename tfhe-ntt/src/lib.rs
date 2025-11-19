@@ -17,8 +17,8 @@
 //! # Features
 //!
 //! - `std` (default): This enables runtime arch detection for accelerated SIMD instructions.
-//! - `avx512` (default): This enables unstable Rust features to further speed up the NTT, by
-//!   enabling AVX512 instructions on CPUs that support them.
+//! - `avx512` (default): This enables AVX512 instructions on CPUs that support them to further
+//!   speed up the NTT.
 //!
 //! # Example
 //!
