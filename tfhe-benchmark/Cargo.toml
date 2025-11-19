@@ -27,10 +27,11 @@ serde_json = "1.0.94"
 paste = "1.0.7"
 rand = { workspace = true }
 rayon = { workspace = true }
-tfhe = { path = "../tfhe" }
+tfhe = { path = "../tfhe", default-features = false }
 tfhe-csprng = { path = "../tfhe-csprng" }
 
 [features]
+default = ["avx512"]
 boolean = ["tfhe/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
@@ -38,7 +39,7 @@ gpu = ["tfhe/gpu"]
 hpu = ["tfhe/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
 internal-keycache = ["tfhe/internal-keycache"]
-nightly-avx512 = ["tfhe/nightly-avx512"]
+avx512 = ["tfhe/avx512"]
 pbs-stats = ["tfhe/pbs-stats"]
 zk-pok = ["tfhe/zk-pok"]
 
