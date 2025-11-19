@@ -4,17 +4,12 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_erc20::{
     no_cmux_erc20_test, safe_erc20_test, whitepaper_erc20_test,
 };
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-create_gpu_parameterized_test!(safe_erc20 {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
-create_gpu_parameterized_test!(whitepaper_erc20 {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
-create_gpu_parameterized_test!(no_cmux_erc20 {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-});
+create_gpu_parameterized_test!(safe_erc20);
+create_gpu_parameterized_test!(whitepaper_erc20);
+create_gpu_parameterized_test!(no_cmux_erc20);
 
 fn safe_erc20<P>(param: P)
 where

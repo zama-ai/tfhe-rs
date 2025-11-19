@@ -3,8 +3,6 @@ mod signed;
 mod unsigned;
 
 use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheId};
-#[cfg(feature = "gpu")]
-use crate::{Config, CudaServerKey};
 use rand::distributions::{Distribution, Standard};
 use rand::random;
 use std::fmt::Debug;
@@ -15,14 +13,6 @@ use crate::high_level_api::array::{FheBackendArray, FheBackendArraySlice};
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use std::ops::{BitAnd, BitOr, BitXor};
 
-#[cfg(feature = "gpu")]
-pub(crate) fn generate_cuda_keys<C: Into<Config>>(config: C) -> (ClientKey, CudaServerKey) {
-    let client_kc = ClientKey::generate(config);
-    let server_kc = client_kc.generate_compressed_server_key();
-    let cuda_server_kc = server_kc.decompress_to_gpu();
-
-    (client_kc, cuda_server_kc)
-}
 fn draw_random_values<T>(num_values: usize) -> Vec<T>
 where
     Standard: Distribution<T>,
@@ -33,15 +23,6 @@ where
 fn setup_default_cpu() -> ClientKey {
     let config = ConfigBuilder::default().build();
     let (ck, sk) = generate_keys(config);
-    set_server_key(sk);
-
-    ck
-}
-
-#[cfg(feature = "gpu")]
-fn setup_default_gpu() -> ClientKey {
-    let config = ConfigBuilder::default().build();
-    let (ck, sk) = generate_cuda_keys(config);
     set_server_key(sk);
 
     ck
