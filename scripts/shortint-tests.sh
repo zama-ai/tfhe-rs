@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 function usage() {
     echo "$0: shortint test runner"
@@ -13,7 +13,7 @@ function usage() {
     echo
 }
 
-RUST_TOOLCHAIN="+stable"
+RUST_TOOLCHAIN=""
 multi_bit=""
 multi_bit_argument=
 fast_tests_argument=
@@ -57,7 +57,7 @@ do
 done
 
 if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
-    RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+    RUST_TOOLCHAIN=${RUST_TOOLCHAIN:+"+${RUST_TOOLCHAIN}"}
 fi
 
 if [[ "${FAST_TESTS}" == TRUE ]]; then
@@ -88,7 +88,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
     filter_expression_small_params=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint ${fast_tests_argument} ${multi_bit_argument})
 
     # Run tests only no examples or benches with small params and more threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    cargo ${RUST_TOOLCHAIN} nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
@@ -105,7 +105,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
 and not test(~smart_add_and_mul)"""
 
     # Run tests only no examples or benches with big params and less threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    cargo ${RUST_TOOLCHAIN} nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
@@ -116,7 +116,7 @@ and not test(~smart_add_and_mul)"""
         -E "${filter_expression_big_params}"
 
         if [[ "${multi_bit}" == "" ]]; then
-            cargo "${RUST_TOOLCHAIN}" test \
+             cargo ${RUST_TOOLCHAIN} test \
                 --profile "${cargo_profile}" \
                 --package "${tfhe_package}" \
                 --features=shortint,internal-keycache,zk-pok,experimental \
@@ -128,17 +128,17 @@ else
     filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint --big-instance ${fast_tests_argument} ${multi_bit_argument})
 
     # Run tests only no examples or benches with small params and more threads
-    cargo "${RUST_TOOLCHAIN}" nextest run \
+    cargo ${RUST_TOOLCHAIN} nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
         --features=shortint,internal-keycache,experimental \
         --test-threads "${n_threads_big}" \
-        -E "${filter_expression}"
+        -E "$filter_expression"
 
     if [[ "${multi_bit}" == "" ]]; then
-        cargo "${RUST_TOOLCHAIN}" test \
+        cargo ${RUST_TOOLCHAIN} test \
             --profile "${cargo_profile}" \
             --package "${tfhe_package}" \
             --features=shortint,internal-keycache,experimental \
