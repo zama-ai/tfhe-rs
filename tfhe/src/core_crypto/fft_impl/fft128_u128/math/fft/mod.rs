@@ -4,7 +4,7 @@ use dyn_stack::PodStack;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use pulp::{f64x4, u64x4, x86::V3};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 use pulp::{f64x8, u64x8, x86::V4};
 use tfhe_fft::fft128::f128;
 
@@ -101,7 +101,7 @@ pub fn u128_to_f64_avx2(simd: V3, (lo, hi): (u64x4, u64x4)) -> f64x4 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn u128_to_f64_avx512(simd: V4, (lo, hi): (u64x8, u64x8)) -> f64x8 {
     const A: f64 = (1u128 << 52) as f64;
@@ -213,7 +213,7 @@ pub fn wrapping_neg_avx2(simd: V3, (lo, hi): (u64x4, u64x4)) -> (u64x4, u64x4) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn wrapping_sub_avx512(
     simd: V4,
@@ -228,7 +228,7 @@ pub fn wrapping_sub_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn wrapping_add_avx512(
     simd: V4,
@@ -243,7 +243,7 @@ pub fn wrapping_add_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn wrapping_neg_avx512(simd: V4, (lo, hi): (u64x8, u64x8)) -> (u64x8, u64x8) {
     wrapping_add_avx512(
@@ -280,7 +280,7 @@ fn i128_to_f64_avx2(simd: V3, (lo, hi): (u64x4, u64x4)) -> f64x4 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn i128_to_f64_avx512(simd: V4, (lo, hi): (u64x8, u64x8)) -> f64x8 {
     let sign_bit = simd.splat_u64x8(1 << 63);
@@ -399,7 +399,7 @@ fn f64_to_i128_avx2(simd: V3, f: f64x4) -> (u64x4, u64x4) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn f64_to_i128_avx512(simd: V4, f: f64x8) -> (u64x8, u64x8) {
     let sign_bit = simd.splat_u64x8(1 << 63);
@@ -432,7 +432,7 @@ fn f64_to_i128_avx512(simd: V4, f: f64x8) -> (u64x8, u64x8) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn f64_to_u128_avx512(simd: V4, f: f64x8) -> (u64x8, u64x8) {
     let f = pulp::cast(f);
@@ -520,7 +520,7 @@ fn to_signed_to_f128_avx2(simd: V3, (lo, hi): (u64x4, u64x4)) -> (f64x4, f64x4) 
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn to_signed_to_f128_avx512(simd: V4, (lo, hi): (u64x8, u64x8)) -> (f64x8, f64x8) {
     // convert to signed then to float
@@ -580,7 +580,7 @@ fn f128_floor_avx2(simd: V3, (x0, x1): (f64x4, f64x4)) -> (f64x4, f64x4) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn f128_floor_avx512(simd: V4, (x0, x1): (f64x8, f64x8)) -> (f64x8, f64x8) {
     let x0_floor = simd.floor_f64x8(x0);
@@ -609,7 +609,7 @@ fn f128_round_avx2(simd: V3, (x0, x1): (f64x4, f64x4)) -> (f64x4, f64x4) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn f128_round_avx512(simd: V4, (x0, x1): (f64x8, f64x8)) -> (f64x8, f64x8) {
     f128_floor_avx512(simd, add_f128_f64x8(simd, x0, x1, simd.splat_f64x8(0.5)))
@@ -680,14 +680,14 @@ pub fn add_f128_f64x4(simd: V3, a0: f64x4, a1: f64x4, b: f64x4) -> (f64x4, f64x4
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn quick_two_sum_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
     let s = simd.add_f64x8(a, b);
     (s, simd.sub_f64x8(b, simd.sub_f64x8(s, a)))
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub(crate) fn two_sum_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
     let s = simd.add_f64x8(a, b);
@@ -701,7 +701,7 @@ pub(crate) fn two_sum_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
     )
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn two_diff_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
     let s = simd.sub_f64x8(a, b);
@@ -715,7 +715,7 @@ fn two_diff_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
     )
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn sub_estimate_f128x8(simd: V4, a0: f64x8, a1: f64x8, b0: f64x8, b1: f64x8) -> (f64x8, f64x8) {
     let (s, e) = two_diff_f64x8(simd, a0, b0);
@@ -724,7 +724,7 @@ fn sub_estimate_f128x8(simd: V4, a0: f64x8, a1: f64x8, b0: f64x8, b1: f64x8) -> 
     quick_two_sum_f64x8(simd, s, e)
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn add_f128_f64x8(simd: V4, a0: f64x8, a1: f64x8, b: f64x8) -> (f64x8, f64x8) {
     let (s1, s2) = two_sum_f64x8(simd, a0, b);
@@ -751,7 +751,7 @@ fn from_torus_f128_avx2(simd: V3, x: (f64x4, f64x4)) -> (u64x4, u64x4) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn from_torus_f128_avx512(simd: V4, x: (f64x8, f64x8)) -> (u64x8, u64x8) {
     let floor = f128_floor_avx512(simd, x);
@@ -847,7 +847,7 @@ pub fn convert_forward_integer_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_forward_integer_avx512(
     simd: V4,
     out_re0: &mut [f64],
@@ -961,7 +961,7 @@ pub fn convert_forward_integer(
     in_im_hi: &[u64],
 ) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_forward_integer_avx512(
             simd, out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
@@ -1097,7 +1097,7 @@ pub fn convert_add_backward_torus_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_add_backward_torus_avx512(
     simd: V4,
     out_re_lo: &mut [u64],
@@ -1201,7 +1201,7 @@ pub fn convert_add_backward_torus(
     in_im1: &[f64],
 ) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_add_backward_torus_avx512(
             simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,

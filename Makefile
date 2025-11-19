@@ -376,10 +376,11 @@ clippy_core: install_rs_check_toolchain
 		--features=experimental \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=nightly-avx512 \
+		--no-default-features \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=experimental,nightly-avx512 \
+		--no-default-features \
+		--features=experimental \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=zk-pok \
@@ -579,19 +580,19 @@ audit_dependencies: install_rs_build_toolchain install_cargo_audit
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		-p tfhe
+		--no-default-features -p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=nightly-avx512 -p tfhe; \
+			--features=avx512 -p tfhe; \
 	fi
 
 .PHONY: build_core_experimental # Build core_crypto with experimental features
 build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=experimental -p tfhe
+		--no-default-features --features=experimental -p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=experimental,nightly-avx512 -p tfhe; \
+			--features=experimental,avx512 -p tfhe; \
 	fi
 
 .PHONY: build_boolean # Build with boolean enabled
@@ -687,10 +688,10 @@ build_tfhe_csprng: install_rs_build_toolchain
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=experimental,zk-pok -p tfhe -- core_crypto::
+		--no-default-features --features=experimental,zk-pok -p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-			--features=experimental,zk-pok,nightly-avx512 -p tfhe -- core_crypto::; \
+			--features=experimental,zk-pok -p tfhe -- core_crypto::; \
 	fi
 
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
@@ -698,13 +699,14 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
+		--no-default-features \
 		--features=experimental,internal-keycache \
 		-p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-			--features=experimental,internal-keycache,nightly-avx512 \
+			--features=experimental,internal-keycache,avx512 \
 			-p tfhe -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
@@ -1003,9 +1005,9 @@ test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
 test_noise_check: install_rs_check_toolchain
 	@# First run the sanity checks to make sure the atomic patterns are correct
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,nightly-avx512 -p tfhe -- sanity_check
+		--features=boolean,shortint,integer -p tfhe -- sanity_check
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,nightly-avx512 -p tfhe -- noise_check \
+		--features=boolean,shortint,integer -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_safe_serialization # Run the tests for safe serialization
@@ -1336,13 +1338,13 @@ dieharder_csprng: install_dieharder build_tfhe_csprng
 clippy_bench: install_rs_check_toolchain
 	! (grep --recursive "trivial" tfhe-benchmark && echo "trivial found in benches")
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
 clippy_bench_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=gpu,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		--features=gpu,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
 .PHONY: clippy_bench_hpu # Run clippy lints on tfhe-benchmark
@@ -1361,28 +1363,28 @@ bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_signed_integer # Run benchmarks for signed integer
 bench_signed_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_signed_integer_gpu # Run benchmarks for signed integer on GPU backend
 bench_signed_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
@@ -1398,7 +1400,7 @@ bench_integer_compression: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-glwe_packing_compression \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
@@ -1441,7 +1443,7 @@ bench_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_signed_integer_multi_bit # Run benchmarks for signed integer using multi-bit parameters
 bench_signed_integer_multi_bit: install_rs_check_toolchain
@@ -1449,7 +1451,7 @@ bench_signed_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_multi_bit_gpu # Run benchmarks for integer on GPU backend using multi-bit parameters
 bench_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -1457,7 +1459,7 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_signed_integer_multi_bit_gpu # Run benchmarks for signed integer on GPU backend using multi-bit parameters
 bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -1465,14 +1467,14 @@ bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
-	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
+	--features=integer,internal-keycache,zk-pok,pbs-stats \
 	-p tfhe-benchmark --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
@@ -1480,76 +1482,76 @@ bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint \
-	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_shortint_oprf # Run benchmarks for shortint
 bench_shortint_oprf: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-oprf \
-	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_boolean # Run benchmarks for boolean
 bench_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench boolean \
-	--features=boolean,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=boolean,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-ks \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=boolean,shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_ks_gpu # Run benchmarks for keyswitch on GPU backend
 bench_ks_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-ks \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
 
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=boolean,shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
 
 .PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
 bench_ks_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-ks-pbs \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=boolean,shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_ks_pbs_gpu # Run benchmarks for KS-PBS on GPU backend
 bench_ks_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-ks-pbs \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
 bench_pbs128: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs128 \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+	--features=boolean,shortint,internal-keycache -p tfhe-benchmark
 
 .PHONY: bench_pbs128_gpu # Run benchmarks for PBS using FFT 128 bits on GPU
 bench_pbs128_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs128 \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
+	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
 
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
@@ -1585,13 +1587,13 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 bench_hlapi: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
 bench_hlapi_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_hpu: install_rs_check_toolchain
@@ -1607,28 +1609,28 @@ bench_hlapi_erc20: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ERC20 operations on GPU
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
     cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
-	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_dex_gpu # Run benchmarks for DEX operations on GPU
 bench_hlapi_dex_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
@@ -1649,14 +1651,14 @@ bench_hlapi_noise_squash: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
-	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_noise_squash_gpu # Run benchmarks for noise squash operation on GPU
 bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 
 .PHONY: bench_custom # Run benchmarks with a user-defined command
@@ -1917,15 +1919,15 @@ test_fft_no_std:
 		--no-default-features \
 		--features=fft128
 
-.PHONY: test_fft_no_std_nightly
-test_fft_no_std_nightly: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
+.PHONY: test_fft_no_std_avx512
+test_fft_no_std_avx512:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
 		--no-default-features \
 		--features=avx512,fft128
 
 .PHONY: test_fft_node_js
-test_fft_node_js: install_rs_build_toolchain install_build_wasm32_target install_wasm_bindgen_cli
-	RUSTFLAGS="" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
+test_fft_node_js: install_build_wasm32_target install_wasm_bindgen_cli
+	RUSTFLAGS="" cargo test --release \
 		--features=serde --target wasm32-unknown-unknown -p tfhe-fft
 
 .PHONY: test_fft_node_js_ci
@@ -1936,7 +1938,7 @@ test_fft_node_js_ci: check_nvm_installed
 	"$(MAKE)" test_fft_node_js
 
 .PHONY: test_fft_all
-test_fft_all: test_fft test_fft_serde test_fft_nightly test_fft_no_std test_fft_no_std_nightly \
+test_fft_all: test_fft test_fft_serde test_fft_avx512 test_fft_no_std test_fft_no_std_avx512 \
 test_fft_node_js_ci
 
 ##### Bench #####
@@ -1945,7 +1947,7 @@ test_fft_node_js_ci
 bench_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" bench --bench fft -p tfhe-fft \
 		--features=serde \
-		--features=nightly \
+		--features=avx512 \
 		--features=fft128
 #============================End FFT Section ==================================
 

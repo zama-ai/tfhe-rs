@@ -67,15 +67,6 @@
 #![allow(clippy::iter_with_drain)] // 2
 #![allow(clippy::large_stack_frames)] // 1
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
-// Temporary workaround until we raise msrv to 1.89
-#![allow(stable_features)]
-#![cfg_attr(
-    all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly-avx512"
-    ),
-    feature(avx512_target_feature, stdarch_x86_avx512)
-)]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 // Weird clippy lint triggering without any code location
 #![cfg_attr(test, allow(clippy::large_stack_arrays))]
