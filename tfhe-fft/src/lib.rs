@@ -21,9 +21,8 @@
 //!  an FFT plan that measures the various implementations to choose the fastest one at runtime.
 //!  - `fft128`: This flag provides access to the 128-bit FFT, which is accessible in the
 //!  `fft128` module.
-//!  - `nightly`: This enables unstable Rust features to further speed up the FFT, by enabling
-//!  AVX512F instructions on CPUs that support them. This feature requires a nightly Rust
-//!  toolchain.
+//!  - `avx512` (default): This enables AVX512F instructions on CPUs that support them to further
+//!  speed up the FFT.
 //!  - `serde`: This enables serialization and deserialization functions for the unordered plan.
 //!  These allow for data in the Fourier domain to be serialized from the permuted order to the
 //!  standard order, and deserialized from the standard order to the permuted order.
