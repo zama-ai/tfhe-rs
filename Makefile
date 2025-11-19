@@ -1896,30 +1896,24 @@ build_fft_no_std: install_rs_build_toolchain
 ##### Tests #####
 
 .PHONY: test_fft
-test_fft: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
-		--features=fft128
+test_fft:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
+		--no-default-features \
+		--features=std,fft128
 
 .PHONY: test_fft_serde
-test_fft_serde: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
-		--features=serde
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+test_fft_serde:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
 		--features=serde,fft128
 
-.PHONY: test_fft_nightly
-test_fft_nightly: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
-		--features=nightly
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
-		--features=nightly,fft128
+.PHONY: test_fft_avx512
+test_fft_avx512:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
+		--features=avx512,fft128
 
 .PHONY: test_fft_no_std
-test_fft_no_std: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
-		--no-default-features
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+test_fft_no_std:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
 		--no-default-features \
 		--features=fft128
 
@@ -1927,10 +1921,7 @@ test_fft_no_std: install_rs_build_toolchain
 test_fft_no_std_nightly: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
 		--no-default-features \
-		--features=nightly
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
-		--no-default-features \
-		--features=nightly,fft128
+		--features=avx512,fft128
 
 .PHONY: test_fft_node_js
 test_fft_node_js: install_rs_build_toolchain install_build_wasm32_target install_wasm_bindgen_cli
