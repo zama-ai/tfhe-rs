@@ -94,6 +94,7 @@ bytemuck = { workspace = true }
 tfhe-hpu-backend = { version = "0.3", path = "../backends/tfhe-hpu-backend", optional = true }
 
 [features]
+default = ["avx512"]
 boolean = []
 shortint = ["dep:sha3", "dep:blake3"]
 integer = ["shortint", "dep:strum"]
@@ -150,7 +151,9 @@ high-level-client-js-wasm-api = [
 ]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = ["tfhe-fft/avx512", "tfhe-ntt/avx512", "pulp/x86-v4"]
+avx512 = ["tfhe-fft/avx512", "tfhe-ntt/avx512", "pulp/x86-v4"]
+# Kept for backward compatibility
+nightly-avx512 = ["avx512"]
 
 # Private features
 __profiling = []
