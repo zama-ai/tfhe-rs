@@ -12,16 +12,13 @@ members = [
     "backends/tfhe-hpu-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
+    "utils/tfhe-backward-compat-data",
     "utils/param_dedup",
     "tests",
     "mockups/tfhe-hpu-mockup",
 ]
 
-exclude = [
-    "utils/tfhe-backward-compat-data",
-    "utils/tfhe-lints",
-    "apps/trivium",
-]
+exclude = ["utils/tfhe-lints", "apps/trivium"]
 
 [workspace.package]
 rust-version = "1.91.1"

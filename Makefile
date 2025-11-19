@@ -521,6 +521,11 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
 			-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all --all-targets \
 			-- --no-deps -D warnings; \
+		for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
+			echo "checking $$crate"; \
+			RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
+				-C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate clippy --all --all-targets -- --no-deps -D warnings; \
+		done \
 	else \
 		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
 	fi

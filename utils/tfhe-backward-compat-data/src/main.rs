@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use tfhe_backward_compat_data::generate::{load_metadata_from_str, store_metadata};
 
 /// Relative dir where the generated crates must be stored from the Cargo.toml of this crate
-const RELATIVE_CRATES_PATH: &str = "..";
+const RELATIVE_CRATES_PATH: &str = "crates";
 
 #[derive(Parser, Debug)]
 struct Args {
