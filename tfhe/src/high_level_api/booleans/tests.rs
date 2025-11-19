@@ -646,41 +646,40 @@ mod cpu {
     #[test]
     fn test_compressed_public_key_encrypt() {
         let config = ConfigBuilder::default().build();
-        let (client_key, _) = generate_keys(config);
+        let (keys, _) = generate_keys(config);
 
-        let public_key = CompressedPublicKey::new(&client_key);
+        let public_key = CompressedPublicKey::new(&keys);
 
         let a = FheBool::try_encrypt(true, &public_key).unwrap();
         assert_degree_is_ok(&a);
 
-        let clear: bool = a.decrypt(&client_key);
+        let clear: bool = a.decrypt(&keys);
         assert!(clear);
     }
 
     #[test]
     fn test_decompressed_public_key_encrypt() {
         let config = ConfigBuilder::default().build();
-        let (client_key, _) = generate_keys(config);
+        let (keys, _) = generate_keys(config);
 
-        let compressed_public_key = CompressedPublicKey::new(&client_key);
+        let compressed_public_key = CompressedPublicKey::new(&keys);
         let public_key = compressed_public_key.decompress();
 
         let a = FheBool::try_encrypt(true, &public_key).unwrap();
         assert_degree_is_ok(&a);
 
-        let clear: bool = a.decrypt(&client_key);
+        let clear: bool = a.decrypt(&keys);
         assert!(clear);
     }
 
     #[test]
     fn test_safe_deserialize_conformant_fhe_bool() {
         let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params));
+        let (keys, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(block_params));
         set_server_key(server_key.clone());
 
         let clear_a = random::<bool>();
-        let a = FheBool::encrypt(clear_a, &client_key);
+        let a = FheBool::encrypt(clear_a, &keys);
         let mut serialized = vec![];
         SerializationConfig::new(1 << 20)
             .serialize_into(&a, &mut serialized)
@@ -690,7 +689,7 @@ mod cpu {
         let deserialized_a = DeserializationConfig::new(1 << 20)
             .deserialize_from::<FheBool>(serialized.as_slice(), &params)
             .unwrap();
-        let decrypted: bool = deserialized_a.decrypt(&client_key);
+        let decrypted: bool = deserialized_a.decrypt(&keys);
         assert_eq!(decrypted, clear_a);
 
         assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
@@ -699,11 +698,10 @@ mod cpu {
     #[test]
     fn test_safe_deserialize_conformant_compressed_fhe_bool() {
         let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params));
+        let (keys, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(block_params));
         set_server_key(server_key.clone());
         let clear_a = random::<bool>();
-        let a = CompressedFheBool::encrypt(clear_a, &client_key);
+        let a = CompressedFheBool::encrypt(clear_a, &keys);
         let mut serialized = vec![];
         SerializationConfig::new(1 << 20)
             .serialize_into(&a, &mut serialized)
@@ -716,7 +714,7 @@ mod cpu {
 
         assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
 
-        let decrypted: bool = deserialized_a.decompress().decrypt(&client_key);
+        let decrypted: bool = deserialized_a.decompress().decrypt(&keys);
         assert_eq!(decrypted, clear_a);
     }
 }
@@ -724,336 +722,353 @@ mod cpu {
 #[cfg(feature = "gpu")]
 mod gpu {
     use super::*;
+    use crate::high_level_api::integers::unsigned::tests::gpu::{
+        setup_classical_gpu, setup_multibit_gpu,
+    };
     use crate::GpuIndex;
-
-    fn setup_gpu_default() -> ClientKey {
-        let config = ConfigBuilder::default().build();
-        let cks = crate::ClientKey::generate(config);
-        let csks = crate::CompressedServerKey::new(&cks);
-
-        let server_keys = csks.decompress_to_gpu();
-
-        set_server_key(server_keys);
-        cks
-    }
 
     #[test]
     fn test_xor_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        xor_truth_table(&ttrue, &ffalse, &keys);
+            xor_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_xor_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_xor_truth_table(&ttrue, &ffalse, &keys);
+            scalar_xor_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_xor_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        xor_truth_table(&ttrue, &ffalse, &keys);
+            xor_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_xor_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_xor_truth_table(&ttrue, &ffalse, &keys);
+            scalar_xor_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_and_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        and_truth_table(&ttrue, &ffalse, &keys);
+            and_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_and_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_and_truth_table(&ttrue, &ffalse, &keys);
+            scalar_and_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_and_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        and_truth_table(&ttrue, &ffalse, &keys);
+            and_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_and_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_and_truth_table(&ttrue, &ffalse, &keys);
+            scalar_and_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_or_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        or_truth_table(&ttrue, &ffalse, &keys);
+            or_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_or_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_or_truth_table(&ttrue, &ffalse, &keys);
+            scalar_or_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_or_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        or_truth_table(&ttrue, &ffalse, &keys);
+            or_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_or_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_or_truth_table(&ttrue, &ffalse, &keys);
+            scalar_or_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_not_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        not_truth_table(&ttrue, &ffalse, &keys);
+            not_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_not_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        not_truth_table(&ttrue, &ffalse, &keys);
+            not_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_eq_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        eq_truth_table(&ttrue, &ffalse, &keys);
+            eq_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_eq_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_eq_truth_table(&ttrue, &ffalse, &keys);
+            scalar_eq_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_eq_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        eq_truth_table(&ttrue, &ffalse, &keys);
+            eq_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_eq_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_eq_truth_table(&ttrue, &ffalse, &keys);
+            scalar_eq_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_ne_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        ne_truth_table(&ttrue, &ffalse, &keys);
+            ne_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_ne_truth_table_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
 
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_ne_truth_table(&ttrue, &ffalse, &keys);
+            scalar_ne_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_ne_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        ne_truth_table(&ttrue, &ffalse, &keys);
+            ne_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_scalar_ne_truth_table_trivial_default() {
-        let keys = setup_gpu_default();
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt_trivial(true);
+            let ffalse = FheBool::encrypt_trivial(false);
 
-        let ttrue = FheBool::encrypt_trivial(true);
-        let ffalse = FheBool::encrypt_trivial(false);
+            assert_eq!(ttrue.current_device(), Device::CudaGpu);
+            assert_eq!(ffalse.current_device(), Device::CudaGpu);
 
-        assert_eq!(ttrue.current_device(), Device::CudaGpu);
-        assert_eq!(ffalse.current_device(), Device::CudaGpu);
-
-        scalar_ne_truth_table(&ttrue, &ffalse, &keys);
+            scalar_ne_truth_table(&ttrue, &ffalse, &keys);
+        }
     }
 
     #[test]
     fn test_compressed_bool() {
-        compressed_bool_test_case(|| (setup_gpu_default(), Device::CudaGpu));
+        compressed_bool_test_case(|| (setup_classical_gpu(), Device::CudaGpu));
+        compressed_bool_test_case(|| (setup_multibit_gpu(), Device::CudaGpu));
     }
+
     #[test]
     fn test_get_size_on_gpu() {
-        let keys = setup_gpu_default();
-
-        let ttrue = FheBool::encrypt(true, &keys);
-        let ffalse = FheBool::encrypt(false, &keys);
-        let bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(&ffalse);
-        check_valid_cuda_malloc_assert_oom(bitand_size_on_gpu, GpuIndex::new(0));
-        let scalar_bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(false);
-        check_valid_cuda_malloc_assert_oom(scalar_bitand_size_on_gpu, GpuIndex::new(0));
-        let bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(&ffalse);
-        check_valid_cuda_malloc_assert_oom(bitxor_size_on_gpu, GpuIndex::new(0));
-        let scalar_bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(false);
-        check_valid_cuda_malloc_assert_oom(scalar_bitxor_size_on_gpu, GpuIndex::new(0));
-        let bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(&ffalse);
-        check_valid_cuda_malloc_assert_oom(bitor_size_on_gpu, GpuIndex::new(0));
-        let scalar_bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(false);
-        check_valid_cuda_malloc_assert_oom(scalar_bitor_size_on_gpu, GpuIndex::new(0));
-        let bitnot_size_on_gpu = ttrue.get_bitnot_size_on_gpu();
-        check_valid_cuda_malloc_assert_oom(bitnot_size_on_gpu, GpuIndex::new(0));
-        let eq_size_on_gpu = ttrue.get_eq_size_on_gpu(&ffalse);
-        check_valid_cuda_malloc_assert_oom(eq_size_on_gpu, GpuIndex::new(0));
-        let scalar_eq_size_on_gpu = ttrue.get_eq_size_on_gpu(false);
-        check_valid_cuda_malloc_assert_oom(scalar_eq_size_on_gpu, GpuIndex::new(0));
-        let ne_size_on_gpu = ttrue.get_ne_size_on_gpu(&ffalse);
-        check_valid_cuda_malloc_assert_oom(ne_size_on_gpu, GpuIndex::new(0));
-        let scalar_ne_size_on_gpu = ttrue.get_ne_size_on_gpu(false);
-        check_valid_cuda_malloc_assert_oom(scalar_ne_size_on_gpu, GpuIndex::new(0));
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let keys = setup_fn();
+            let ttrue = FheBool::encrypt(true, &keys);
+            let ffalse = FheBool::encrypt(false, &keys);
+            let bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(&ffalse);
+            check_valid_cuda_malloc_assert_oom(bitand_size_on_gpu, GpuIndex::new(0));
+            let scalar_bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(false);
+            check_valid_cuda_malloc_assert_oom(scalar_bitand_size_on_gpu, GpuIndex::new(0));
+            let bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(&ffalse);
+            check_valid_cuda_malloc_assert_oom(bitxor_size_on_gpu, GpuIndex::new(0));
+            let scalar_bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(false);
+            check_valid_cuda_malloc_assert_oom(scalar_bitxor_size_on_gpu, GpuIndex::new(0));
+            let bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(&ffalse);
+            check_valid_cuda_malloc_assert_oom(bitor_size_on_gpu, GpuIndex::new(0));
+            let scalar_bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(false);
+            check_valid_cuda_malloc_assert_oom(scalar_bitor_size_on_gpu, GpuIndex::new(0));
+            let bitnot_size_on_gpu = ttrue.get_bitnot_size_on_gpu();
+            check_valid_cuda_malloc_assert_oom(bitnot_size_on_gpu, GpuIndex::new(0));
+            let eq_size_on_gpu = ttrue.get_eq_size_on_gpu(&ffalse);
+            check_valid_cuda_malloc_assert_oom(eq_size_on_gpu, GpuIndex::new(0));
+            let scalar_eq_size_on_gpu = ttrue.get_eq_size_on_gpu(false);
+            check_valid_cuda_malloc_assert_oom(scalar_eq_size_on_gpu, GpuIndex::new(0));
+            let ne_size_on_gpu = ttrue.get_ne_size_on_gpu(&ffalse);
+            check_valid_cuda_malloc_assert_oom(ne_size_on_gpu, GpuIndex::new(0));
+            let scalar_ne_size_on_gpu = ttrue.get_ne_size_on_gpu(false);
+            check_valid_cuda_malloc_assert_oom(scalar_ne_size_on_gpu, GpuIndex::new(0));
+        }
     }
 }
