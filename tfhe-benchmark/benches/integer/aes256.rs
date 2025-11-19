@@ -47,7 +47,7 @@ pub mod cuda {
         {
             const NUM_AES_INPUTS: usize = 1;
             const SBOX_PARALLELISM: usize = 16;
-            let bench_id = format!("{param_name}::{NUM_AES_INPUTS}_input_encryption");
+            let bench_id = format!("{bench_name}::{param_name}::{NUM_AES_INPUTS}_input_encryption");
 
             let round_keys = sks.key_expansion_256(&d_key, &streams);
 
@@ -76,7 +76,7 @@ pub mod cuda {
         }
 
         {
-            let bench_id = format!("{param_name}::key_expansion");
+            let bench_id = format!("{bench_name}::{param_name}::key_expansion");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     black_box(sks.key_expansion_256(&d_key, &streams));
@@ -97,7 +97,8 @@ pub mod cuda {
         {
             const NUM_AES_INPUTS: usize = 192;
             const SBOX_PARALLELISM: usize = 16;
-            let bench_id = format!("{param_name}::{NUM_AES_INPUTS}_inputs_encryption");
+            let bench_id =
+                format!("{bench_name}::{param_name}::{NUM_AES_INPUTS}_inputs_encryption");
 
             let streams = CudaStreams::new_multi_gpu();
             let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
