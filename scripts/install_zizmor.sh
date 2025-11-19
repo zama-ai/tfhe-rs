@@ -36,11 +36,11 @@ do
 done
 
 if [[ "${rust_toolchain::1}" != "+" ]]; then
-    rust_toolchain="+${rust_toolchain}"
+    rust_toolchain=${rust_toolchain:+"+$rust_toolchain"}
 fi
 
 if ! which zizmor ; then
-    cargo "${rust_toolchain}" install --locked zizmor --version ~"${required_zizmor_version}" || \
+    cargo  ${rust_toolchain:+"$rust_toolchain"} install --locked zizmor --version ~"${required_zizmor_version}" || \
     ( echo "Unable to install zizmor, unknown error." && exit 1 )
 
     exit 0
@@ -59,6 +59,6 @@ if [[ "${ver_major}" -gt "${min_ver_major}" ]]; then
 elif [[ "${ver_major}" -eq "${min_ver_major}" ]] && [[ "${ver_minor}" -ge "${min_ver_minor}" ]]; then
     exit 0
 else
-    cargo "${rust_toolchain}" install --locked zizmor --version ~"${required_zizmor_version}" || \
+    cargo ${rust_toolchain:+"$rust_toolchain"} install --locked zizmor --version ~"${required_zizmor_version}" || \
     ( echo "Unable to install zizmor, unknown error." && exit 1 )
 fi
