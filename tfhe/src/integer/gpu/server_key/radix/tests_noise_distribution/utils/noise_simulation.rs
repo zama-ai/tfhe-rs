@@ -116,7 +116,7 @@ impl ScalarMul<u64> for CudaDynLwe {
             Self::U64(cuda_lwe) => {
                 // Use the block info from side_resources for proper modulus values
                 let mut cuda_radix = CudaRadixCiphertext::new(
-                    cuda_lwe.clone(),
+                    cuda_lwe.duplicate(&side_resources.streams),
                     CudaRadixCiphertextInfo {
                         blocks: vec![side_resources.block_info],
                     },
@@ -195,7 +195,7 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
+                *output_cuda_lwe = input.duplicate(&side_resources.streams);
                 cuda_modulus_switch_ciphertext(
                     output_cuda_lwe,
                     output_modulus_log.0 as u32,
@@ -232,25 +232,21 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
         side_resources: &Self::SideResources,
     ) {
         match (self, output) {
-            (Self::U32(input), Self::U32(output_cuda_lwe)) => {
-                output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
-                cuda_modulus_switch_ciphertext(
-                    output_cuda_lwe,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
+            (Self::U32(_input), Self::U32(_output_cuda_lwe)) => {
+                panic!("U32 centered binary shifted modulus switch not implemented for CudaDynLwe - only U64 is supported")
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => unsafe {
+                let mut internal_output = output_cuda_lwe.duplicate(&side_resources.streams);
                 cuda_centered_modulus_switch_64(
                     side_resources.streams.ptr[0],
                     0u32,
-                    output_cuda_lwe.0.d_vec.as_mut_c_ptr(0),
+                    internal_output.0.d_vec.as_mut_c_ptr(0),
                     input.0.d_vec.as_c_ptr(0),
                     input.lwe_dimension().0 as u32,
                     output_modulus_log.0 as u32,
                 );
                 side_resources.streams.synchronize();
-                let cpu_lwe = output_cuda_lwe.into_lwe_ciphertext(&side_resources.streams);
+                let cpu_lwe = internal_output.into_lwe_ciphertext(&side_resources.streams);
                 let mut cpu_ct = LweCiphertext::from_container(
                     cpu_lwe.clone().into_container(),
                     cpu_lwe.ciphertext_modulus(),
@@ -262,15 +258,10 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
                 }
                 let d_after_ms =
                     CudaLweCiphertextList::from_lwe_ciphertext(&cpu_ct, &side_resources.streams);
-                output_cuda_lwe.clone_from(&d_after_ms);
+                *output_cuda_lwe = d_after_ms;
             },
-            (Self::U128(input), Self::U128(output_cuda_lwe)) => {
-                output_cuda_lwe.0.d_vec.clone_from(&input.0.d_vec);
-                cuda_modulus_switch_ciphertext(
-                    output_cuda_lwe,
-                    output_modulus_log.0 as u32,
-                    &side_resources.streams,
-                );
+            (Self::U128(_input), Self::U128(_output_cuda_lwe)) => {
+                panic!("U128 centered binary shifted modulus switch not implemented for CudaDynLwe - only U64 is supported")
             }
             _ => panic!("Inconsistent inputs/outputs for CudaDynLwe StandardModSwitch"),
         }

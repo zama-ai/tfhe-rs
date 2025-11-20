@@ -348,9 +348,11 @@ template <typename Torus> struct int_radix_lut {
     for (uint i = 0; i < active_streams.count(); i++) {
       cuda_set_device(streams.gpu_index(i));
       int8_t *gpu_pbs_buffer;
-      auto num_blocks_on_gpu = std::max(
-          THRESHOLD_MULTI_GPU,
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_streams.count()));
+      auto num_blocks_on_gpu =
+          std::min((int)num_radix_blocks,
+                   std::max(THRESHOLD_MULTI_GPU,
+                            get_num_inputs_on_gpu(num_radix_blocks, i,
+                                                  active_streams.count())));
 
       uint64_t size = 0;
       execute_scratch_pbs<Torus>(
@@ -561,9 +563,11 @@ template <typename Torus> struct int_radix_lut {
     for (uint i = 0; i < active_streams.count(); i++) {
       cuda_set_device(streams.gpu_index(i));
       int8_t *gpu_pbs_buffer;
-      auto num_blocks_on_gpu = std::max(
-          THRESHOLD_MULTI_GPU,
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_streams.count()));
+      auto num_blocks_on_gpu =
+          std::min((int)num_radix_blocks,
+                   std::max(THRESHOLD_MULTI_GPU,
+                            get_num_inputs_on_gpu(num_radix_blocks, i,
+                                                  active_streams.count())));
 
       uint64_t size = 0;
       execute_scratch_pbs<Torus>(
@@ -764,9 +768,11 @@ template <typename Torus> struct int_radix_lut {
       lwe_aligned_vec.resize(active_streams.count());
       for (uint i = 0; i < active_streams.count(); i++) {
         uint64_t size_tracker_on_array_i = 0;
-        auto inputs_on_gpu = std::max(
-            THRESHOLD_MULTI_GPU, get_num_inputs_on_gpu(max_num_radix_blocks, i,
-                                                       active_streams.count()));
+        auto inputs_on_gpu =
+            std::min((int)max_num_radix_blocks,
+                     std::max(THRESHOLD_MULTI_GPU,
+                              get_num_inputs_on_gpu(max_num_radix_blocks, i,
+                                                    active_streams.count())));
         Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
             inputs_on_gpu * (params.big_lwe_dimension + 1) * sizeof(Torus),
             streams.stream(0), streams.gpu_index(0), size_tracker_on_array_i,
@@ -927,9 +933,11 @@ template <typename InputTorus> struct int_noise_squashing_lut {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     for (uint i = 0; i < active_streams.count(); i++) {
       cuda_set_device(streams.gpu_index(i));
-      auto num_radix_blocks_on_gpu = std::max(
-          THRESHOLD_MULTI_GPU,
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_streams.count()));
+      auto num_radix_blocks_on_gpu =
+          std::min((int)num_radix_blocks,
+                   std::max(THRESHOLD_MULTI_GPU,
+                            get_num_inputs_on_gpu(num_radix_blocks, i,
+                                                  active_streams.count())));
       int8_t *gpu_pbs_buffer;
       uint64_t size = 0;
       execute_scratch_pbs<__uint128_t>(

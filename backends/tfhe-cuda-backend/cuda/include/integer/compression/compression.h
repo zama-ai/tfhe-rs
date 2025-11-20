@@ -68,8 +68,8 @@ void cleanup_cuda_integer_decompress_radix_ciphertext_128(
 
 void cuda_integer_extract_glwe_128(
     CudaStreamsFFI streams, void *glwe_array_out,
-    CudaPackedGlweCiphertextListFFI const *glwe_list, uint32_t const glwe_index);
-    
+    CudaPackedGlweCiphertextListFFI const *glwe_list,
+    uint32_t const glwe_index);
 }
 
 #endif

@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
@@ -16,7 +17,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async_64,
-    get_compression_size_on_gpu, get_decompression_size_on_gpu,
+    extract_glwe_async, get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
@@ -28,8 +29,6 @@ use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
-use crate::integer::gpu::extract_glwe_async;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 
 #[derive(Debug)]
 pub struct CudaCompressionKey {

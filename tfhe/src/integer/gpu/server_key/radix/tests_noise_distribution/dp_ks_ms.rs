@@ -491,31 +491,35 @@ where
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
     let mut noise_samples_before_ms = vec![];
     let mut noise_samples_after_ms = vec![];
-    let num_streams = 16;
-    let vec_local_streams = (0..num_streams)
-        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
-        .collect::<Vec<_>>();
 
     let sample_count_per_msg = 1000usize;
+    let chunk_size = 10;
     for _ in 0..cleartext_modulus {
         let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) = (0
             ..sample_count_per_msg)
-            .into_par_iter()
-            .map(|index| {
-                let stream_index = index % num_streams;
-                let local_streams = &vec_local_streams[stream_index];
-                let (_input, _after_dp, _after_ks, before_ms, after_ms) =
-                    encrypt_dp_ks_any_ms_noise_helper_gpu(
-                        params,
-                        &cks.key,
-                        &sks,
-                        &cuda_sks,
-                        0,
-                        max_scalar_mul,
-                        br_input_modulus_log,
-                        local_streams,
-                    );
-                (before_ms.value, after_ms.value)
+            .collect::<Vec<_>>()
+            .chunks(chunk_size)
+            .flat_map(|chunk| {
+                chunk
+                    .iter()
+                    .collect::<Vec<_>>()
+                    .into_par_iter()
+                    .map(|_| {
+                        let local_stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+                        let (_input, _after_dp, _after_ks, before_ms, after_ms) =
+                            encrypt_dp_ks_any_ms_noise_helper_gpu(
+                                params,
+                                &cks.key,
+                                &sks,
+                                &cuda_sks,
+                                0,
+                                max_scalar_mul,
+                                br_input_modulus_log,
+                                &local_stream,
+                            );
+                        (before_ms.value, after_ms.value)
+                    })
+                    .collect::<Vec<_>>()
             })
             .unzip();
 
@@ -597,29 +601,32 @@ where
     let br_input_modulus_log = sks.key.br_input_modulus_log();
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
 
-    let num_streams = 16;
-    let vec_local_streams = (0..num_streams)
-        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
-        .collect::<Vec<_>>();
+    let chunk_size = 10;
     let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .into_iter()
-        .map(|index| {
-            let stream_index = index % num_streams;
-            let local_streams = &vec_local_streams[stream_index as usize];
-            let after_ms_decryption_result = encrypt_dp_ks_any_ms_pfail_helper_gpu(
-                params,
-                &cks.key,
-                &sks,
-                &cuda_sks,
-                0,
-                max_scalar_mul,
-                br_input_modulus_log,
-                local_streams,
-            );
-            after_ms_decryption_result.failure_as_f64()
+        .collect::<Vec<_>>()
+        .chunks(chunk_size)
+        .flat_map(|chunk| {
+            chunk
+                .iter()
+                .collect::<Vec<_>>()
+                .into_par_iter()
+                .map(|_| {
+                    let local_stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+                    let after_ms_decryption_result = encrypt_dp_ks_any_ms_pfail_helper_gpu(
+                        params,
+                        &cks.key,
+                        &sks,
+                        &cuda_sks,
+                        0,
+                        max_scalar_mul,
+                        br_input_modulus_log,
+                        &local_stream,
+                    );
+                    after_ms_decryption_result.failure_as_f64()
+                })
+                .collect::<Vec<_>>()
         })
         .sum();
-
     let test_result = PfailTestResult { measured_fails };
 
     pfail_check(&pfail_test_meta, test_result);

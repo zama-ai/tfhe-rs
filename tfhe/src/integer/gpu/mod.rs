@@ -7,6 +7,7 @@ pub mod server_key;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
 
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
@@ -36,7 +37,6 @@ use std::any::TypeId;
 use std::cmp::min;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -7755,7 +7755,7 @@ pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
 
     cuda_integer_extract_glwe_128(
         streams.ffi(),
-        &mut glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+        glwe_array_out.0.d_vec.as_mut_c_ptr(0),
         &raw const packed_glwe_list_ffi,
         glwe_index,
     );
