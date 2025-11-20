@@ -37,6 +37,23 @@ __host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertextFFI *output,
 }
 
 template <typename Torus>
+__host__ void
+host_trim_radix_blocks_msb(CudaRadixCiphertextFFI *output_radix,
+                           const CudaRadixCiphertextFFI *input_radix,
+                           CudaStreams streams) {
+
+  PANIC_IF_FALSE(input_radix->num_radix_blocks >=
+                     output_radix->num_radix_blocks,
+                 "Cuda error: input radix ciphertext has fewer blocks than "
+                 "required to keep");
+
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), output_radix, 0,
+      output_radix->num_radix_blocks, input_radix, 0,
+      output_radix->num_radix_blocks);
+}
+
+template <typename Torus>
 __host__ uint64_t scratch_extend_radix_with_sign_msb(
     CudaStreams streams, int_extend_radix_with_sign_msb_buffer<Torus> **mem_ptr,
     const int_radix_params params, uint32_t num_radix_blocks,
@@ -89,6 +106,58 @@ __host__ void host_extend_radix_with_sign_msb(
         dst_block_idx + 1, mem_ptr->padding_block, 0, 1);
   }
   POP_RANGE()
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_cast_to_unsigned(
+    CudaStreams streams, int_cast_to_unsigned_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_input_blocks,
+    uint32_t target_num_blocks, bool input_is_signed,
+    bool requires_full_propagate, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_cast_to_unsigned_buffer<Torus>(
+      streams, params, num_input_blocks, target_num_blocks, input_is_signed,
+      requires_full_propagate, allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void
+host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
+                      CudaRadixCiphertextFFI *input,
+                      int_cast_to_unsigned_buffer<Torus> *mem_ptr,
+                      uint32_t target_num_blocks, bool input_is_signed,
+                      void *const *bsks, Torus *const *ksks) {
+
+  uint32_t current_num_blocks = input->num_radix_blocks;
+
+  if (mem_ptr->requires_full_propagate) {
+    host_full_propagate_inplace<Torus>(streams, input, mem_ptr->prop_buffer,
+                                       ksks, bsks, current_num_blocks);
+  }
+
+  if (target_num_blocks > current_num_blocks) {
+    uint32_t num_blocks_to_add = target_num_blocks - current_num_blocks;
+
+    if (input_is_signed) {
+      host_extend_radix_with_sign_msb<Torus>(
+          streams, output, input, mem_ptr->extend_buffer, num_blocks_to_add,
+          bsks, (Torus **)ksks);
+    } else {
+      host_extend_radix_with_trivial_zero_blocks_msb<Torus>(output, input,
+                                                            streams);
+    }
+
+  } else if (target_num_blocks < current_num_blocks) {
+    host_trim_radix_blocks_msb<Torus>(output, input, streams);
+
+  } else {
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), output, 0, current_num_blocks,
+        input, 0, current_num_blocks);
+  }
 }
 
 #endif
