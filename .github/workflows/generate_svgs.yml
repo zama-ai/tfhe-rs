@@ -67,23 +67,23 @@ jobs:
 #      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
 #      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
-  gpu-integer-latency-table:
-    name: generate_documentation_svgs/gpu-integer-latency-table
-    uses: ./.github/workflows/generate_svg_common.yml
-    if: inputs.generate-gpu-svgs
-    with:
-      backend: gpu
-      hardware_name: n3-L40x1
-      layer: integer
-      pbs_kind: multi_bit
-      grouping_factor: 4
-      bench_type: latency
-      time_span_days: ${{ inputs.time_span_days }}
-      output_filename: gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-latency
-    secrets:
-      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
-      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
-      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+#  gpu-integer-latency-table:
+#    name: generate_documentation_svgs/gpu-integer-latency-table
+#    uses: ./.github/workflows/generate_svg_common.yml
+#    if: inputs.generate-gpu-svgs
+#    with:
+#      backend: gpu
+#      hardware_name: n3-L40x1
+#      layer: integer
+#      pbs_kind: multi_bit
+#      grouping_factor: 4
+#      bench_type: latency
+#      time_span_days: ${{ inputs.time_span_days }}
+#      output_filename: gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-latency
+#    secrets:
+#      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+#      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+#      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
 #  gpu-integer-throughput-table:
 #    name: generate_documentation_svgs/gpu-integer-throughput-table
