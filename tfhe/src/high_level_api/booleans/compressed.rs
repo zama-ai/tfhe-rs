@@ -2,7 +2,8 @@ use crate::backward_compatibility::booleans::{
     CompressedFheBoolVersions, InnerCompressedFheBoolVersions,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::global_state;
+use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::BooleanBlock;
@@ -74,7 +75,19 @@ impl CompressedFheBool {
         let ciphertext = BooleanBlock::new_unchecked(match &self.inner {
             InnerCompressedFheBool::Seeded(seeded) => seeded.decompress(),
             InnerCompressedFheBool::ModulusSwitched(modulus_switched) => {
-                with_cpu_internal_keys(|sk| sk.pbs_key().key.decompress(modulus_switched))
+                global_state::with_internal_keys(|keys| match keys {
+                    InternalServerKey::Cpu(cpu_key) => {
+                        cpu_key.pbs_key().key.decompress(modulus_switched)
+                    }
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                        panic!("decompress() on FheBool is not supported on GPU, use a CompressedCiphertextList instead");
+                    }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_) => {
+                        panic!("decompress() on FheBool is not supported on HPU devices");
+                    }
+                })
             }
         });
         let mut ciphertext = FheBool::new(
@@ -82,9 +95,7 @@ impl CompressedFheBool {
             self.tag.clone(),
             ReRandomizationMetadata::default(),
         );
-
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
-
         ciphertext
     }
 }
@@ -117,16 +128,26 @@ impl Named for CompressedFheBool {
 
 impl FheBool {
     pub fn compress(&self) -> CompressedFheBool {
-        with_cpu_internal_keys(|sk| {
-            let inner = InnerCompressedFheBool::ModulusSwitched(
-                sk.pbs_key()
-                    .key
-                    .switch_modulus_and_compress(&self.ciphertext.on_cpu().0),
-            );
-
-            CompressedFheBool {
-                inner,
-                tag: sk.tag.clone(),
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let inner = InnerCompressedFheBool::ModulusSwitched(
+                    cpu_key
+                        .pbs_key()
+                        .key
+                        .switch_modulus_and_compress(&self.ciphertext.on_cpu().0),
+                );
+                CompressedFheBool {
+                    inner,
+                    tag: cpu_key.tag.clone(),
+                }
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("compress() on FheBool is not supported on GPU, use a CompressedCiphertextList instead");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("compress() on FheBool is not supported on HPU devices");
             }
         })
     }
