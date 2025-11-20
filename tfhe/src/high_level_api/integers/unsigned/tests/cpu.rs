@@ -653,3 +653,9 @@ fn test_compressed_cpk_encrypt_cast_compute_hl() {
     let clear: u64 = mul.decrypt(&client_key);
     assert_eq!(clear, (input_msg * multiplier) % modulus);
 }
+
+#[test]
+fn test_match_value_or() {
+    let client_key = setup_default_cpu();
+    super::test_case_match_value_or(&client_key);
+}

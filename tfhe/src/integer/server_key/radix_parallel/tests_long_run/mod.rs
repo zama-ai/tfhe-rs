@@ -267,9 +267,7 @@ impl<
             }
         }
     }
-}
 
-impl RandomOpSequenceDataGenerator<u64, RadixCiphertext> {
     #[allow(clippy::manual_is_multiple_of)]
     pub(crate) fn gen_match_values(&mut self, key_to_match: u64) -> (MatchValues<u64>, u64, bool) {
         let mut pairings = Vec::new();
@@ -296,6 +294,19 @@ impl RandomOpSequenceDataGenerator<u64, RadixCiphertext> {
             if does_match { match_output_val } else { 0 },
             does_match,
         )
+    }
+
+    pub(crate) fn gen_match_values_or(
+        &mut self,
+        key_to_match: u64,
+    ) -> (MatchValues<u64>, u64, u64) {
+        let (mv, match_val, does_match) = self.gen_match_values(key_to_match);
+
+        let or_value = self.deterministic_seeder.seed().0 as u64;
+
+        let expected = if does_match { match_val } else { or_value };
+
+        (mv, or_value, expected)
     }
 }
 

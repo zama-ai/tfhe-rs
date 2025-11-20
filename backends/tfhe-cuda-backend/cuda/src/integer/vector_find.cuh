@@ -1,5 +1,7 @@
 #pragma once
 
+#include "integer/cast.cuh"
+#include "integer/cmux.cuh"
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
 #include "integer/radix_ciphertext.cuh"
@@ -452,4 +454,47 @@ uint64_t scratch_cuda_unchecked_match_value(
       max_output_is_zero, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_match_value_or(
+    CudaStreams streams, int_unchecked_match_value_or_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_matches, uint32_t num_input_blocks,
+    uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
+    bool max_output_is_zero, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_match_value_or_buffer<Torus>(
+      streams, params, num_matches, num_input_blocks, num_match_packed_blocks,
+      num_final_blocks, max_output_is_zero, allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_match_value_or(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_ct,
+    const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
+    const uint64_t *h_or_value,
+    int_unchecked_match_value_or_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  host_unchecked_match_value<Torus>(streams, mem_ptr->tmp_match_result,
+                                    mem_ptr->tmp_match_bool, lwe_array_in_ct,
+                                    h_match_inputs, h_match_outputs,
+                                    mem_ptr->match_buffer, bsks, ksks);
+
+  cuda_memcpy_async_to_gpu(mem_ptr->d_or_value, h_or_value,
+                           mem_ptr->num_final_blocks * sizeof(Torus),
+                           streams.stream(0), streams.gpu_index(0));
+
+  set_trivial_radix_ciphertext_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_or_value,
+      mem_ptr->d_or_value, (Torus *)h_or_value, mem_ptr->num_final_blocks,
+      mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
+
+  host_cmux<Torus>(streams, lwe_array_out, mem_ptr->tmp_match_bool,
+                   mem_ptr->tmp_match_result, mem_ptr->tmp_or_value,
+                   mem_ptr->cmux_buffer, bsks, (Torus **)ksks);
 }

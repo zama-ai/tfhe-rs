@@ -75,3 +75,55 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
+
+template <typename Torus> struct int_cast_to_unsigned_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  bool requires_full_propagate;
+  bool requires_sign_extension;
+
+  int_fullprop_buffer<Torus> *prop_buffer;
+  int_extend_radix_with_sign_msb_buffer<Torus> *extend_buffer;
+
+  int_cast_to_unsigned_buffer(CudaStreams streams, int_radix_params params,
+                              uint32_t num_input_blocks,
+                              uint32_t target_num_blocks, bool input_is_signed,
+                              bool requires_full_propagate,
+                              bool allocate_gpu_memory,
+                              uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->requires_full_propagate = requires_full_propagate;
+
+    this->prop_buffer = nullptr;
+    this->extend_buffer = nullptr;
+
+    if (requires_full_propagate) {
+      this->prop_buffer = new int_fullprop_buffer<Torus>(
+          streams, params, allocate_gpu_memory, size_tracker);
+    }
+
+    this->requires_sign_extension =
+        (target_num_blocks > num_input_blocks) && input_is_signed;
+
+    if (this->requires_sign_extension) {
+      uint32_t num_blocks_to_add = target_num_blocks - num_input_blocks;
+      this->extend_buffer = new int_extend_radix_with_sign_msb_buffer<Torus>(
+          streams, params, num_input_blocks, num_blocks_to_add,
+          allocate_gpu_memory, size_tracker);
+    }
+  }
+
+  void release(CudaStreams streams) {
+    if (this->prop_buffer) {
+      this->prop_buffer->release(streams);
+      delete this->prop_buffer;
+    }
+    if (this->extend_buffer) {
+      this->extend_buffer->release(streams);
+      delete this->extend_buffer;
+    }
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
