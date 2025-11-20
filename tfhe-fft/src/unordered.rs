@@ -497,7 +497,7 @@ pub struct Plan {
     monomial_twiddles: ABox<[c64]>,
     indices: ABox<[usize]>,
     twiddles: ABox<[c64]>,
-    twiddles_inv: ABox<[c64]>,
+    // twiddles_inv: ABox<[c64]>,
     fwd_process_x2: fn(&mut [c64], &[c64]),
     fwd_process_x4: fn(&mut [c64], &[c64]),
     fwd_process_x8: fn(&mut [c64], &[c64]),
@@ -724,7 +724,7 @@ impl Plan {
 
         Self {
             twiddles,
-            twiddles_inv,
+            // twiddles_inv,
             fwd_process_x2: get_fwd_process_x2(),
             fwd_process_x4: get_fwd_process_x4(),
             fwd_process_x8: get_fwd_process_x8(),
@@ -924,7 +924,7 @@ impl Plan {
         let (scratch, _) = stack.make_aligned_raw::<c64>(self.algo().1, CACHELINE_ALIGN);
         inv_depth(
             buf,
-            &self.twiddles_inv,
+            &self.twiddles,
             self.base_fn_inv,
             self.base_n,
             scratch,
