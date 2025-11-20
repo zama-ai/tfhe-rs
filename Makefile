@@ -15,7 +15,7 @@ GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
 GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
-FAST_BENCH?=FALSE
+BIT_SIZES_SET?=ALL
 NIGHTLY_TESTS?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 BENCH_TYPE?=latency
@@ -1353,28 +1353,28 @@ print_doc_bench_parameters:
 
 .PHONY: bench_integer # Run benchmarks for unsigned integer
 bench_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_signed_integer # Run benchmarks for signed integer
 bench_signed_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
 	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_signed_integer_gpu # Run benchmarks for signed integer on GPU backend
 bench_signed_integer_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
 	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -1383,7 +1383,7 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 bench_integer_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark -- --quick
@@ -1433,7 +1433,7 @@ bench_integer_aes256_gpu: install_rs_check_toolchain
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
@@ -1441,7 +1441,7 @@ bench_integer_multi_bit: install_rs_check_toolchain
 .PHONY: bench_signed_integer_multi_bit # Run benchmarks for signed integer using multi-bit parameters
 bench_signed_integer_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
 	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
@@ -1449,7 +1449,7 @@ bench_signed_integer_multi_bit: install_rs_check_toolchain
 .PHONY: bench_integer_multi_bit_gpu # Run benchmarks for integer on GPU backend using multi-bit parameters
 bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT \
-	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -1457,7 +1457,7 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 .PHONY: bench_signed_integer_multi_bit_gpu # Run benchmarks for signed integer on GPU backend using multi-bit parameters
 bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT \
-	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed \
 	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -1513,7 +1513,7 @@ bench_pbs: install_rs_check_toolchain
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs \
 	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --profile release_lto_off
