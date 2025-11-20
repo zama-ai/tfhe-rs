@@ -7,6 +7,11 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/parameters_check.yml'
+      - 'ci/lattice_estimator.sage'
+      - 'tfhe/examples/utilities/params_to_file.rs'
   push:
     branches:
       - "main"
