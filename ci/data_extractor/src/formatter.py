@@ -433,7 +433,6 @@ class GenericFormatter:
         data,
     ):
         supported_pfails = [
-            ErrorFailureProbability.TWO_MINUS_40,
             ErrorFailureProbability.TWO_MINUS_64,
             ErrorFailureProbability.TWO_MINUS_128,
         ]
