@@ -196,7 +196,7 @@ jobs:
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           sign-commits: true
-          token: ${{ secrets.FHE_DIVISION_TOKEN }} # Sign commit as Zama Bot
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }} # Sign commit as Zama Bot
           add-paths: ${{ env.PATH_TO_DOC_ASSETS }}/*.svg
           commit-message: |
             chore(docs): update benchmark results for all backends
