@@ -17,11 +17,11 @@ use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_apply_bivariate_lut, cuda_backend_apply_many_univariate_lut,
-    cuda_backend_apply_univariate_lut, cuda_backend_compute_prefix_sum_hillis_steele,
-    cuda_backend_extend_radix_with_sign_msb,
+    cuda_backend_apply_univariate_lut, cuda_backend_cast_to_unsigned,
+    cuda_backend_compute_prefix_sum_hillis_steele, cuda_backend_extend_radix_with_sign_msb,
     cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
     cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
-    cuda_backend_trim_radix_blocks_lsb, CudaServerKey, PBSType,
+    cuda_backend_trim_radix_blocks_lsb, cuda_backend_trim_radix_blocks_msb, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -584,31 +584,19 @@ impl CudaServerKey {
         num_blocks: usize,
         streams: &CudaStreams,
     ) -> T {
+        let total_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+
         if num_blocks == 0 {
             return ct.duplicate(streams);
         }
-        let new_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 - num_blocks;
-        let ciphertext_modulus = ct.as_ref().d_blocks.ciphertext_modulus();
-        let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
-        let shift = new_num_blocks * lwe_size.0;
+        let new_num_blocks = total_blocks - num_blocks;
+        let mut trimmed_ct: T = self.create_trivial_zero_radix(new_num_blocks, streams);
 
-        let mut trimmed_ct_vec = CudaVec::new(new_num_blocks * lwe_size.0, streams, 0);
         unsafe {
-            trimmed_ct_vec.copy_src_range_gpu_to_gpu_async(
-                0..shift,
-                &ct.as_ref().d_blocks.0.d_vec,
-                streams,
-                0,
-            );
-            streams.synchronize();
+            cuda_backend_trim_radix_blocks_msb(trimmed_ct.as_mut(), ct.as_ref(), streams);
         }
-        let trimmed_ct_list = CudaLweCiphertextList::from_cuda_vec(
-            trimmed_ct_vec,
-            LweCiphertextCount(new_num_blocks),
-            ciphertext_modulus,
-        );
-        let trimmed_ct_info = ct.as_ref().info.after_trim_radix_blocks_msb(new_num_blocks);
-        T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
+
+        trimmed_ct
     }
 
     pub(crate) fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
@@ -1339,48 +1327,71 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        if !source.block_carries_are_empty() {
-            self.full_propagate_assign(&mut source, streams);
-        }
-        let current_num_blocks = source.as_ref().info.blocks.len();
-        if T::IS_SIGNED {
-            // Casting from signed to unsigned
-            // We have to trim or sign extend first
-            if target_num_blocks > current_num_blocks {
-                let num_blocks_to_add = target_num_blocks - current_num_blocks;
-                let signed_res: T =
-                    self.extend_radix_with_sign_msb(&source, num_blocks_to_add, streams);
-                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
-                    signed_res.into_inner(),
-                )
-            } else {
-                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
-                let signed_res = self.trim_radix_blocks_msb(&source, num_blocks_to_remove, streams);
-                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
-                    signed_res.into_inner(),
-                )
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(target_num_blocks, streams);
+
+        let requires_full_propagate = !source.block_carries_are_empty();
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_cast_to_unsigned(
+                        streams,
+                        result.as_mut(),
+                        source.as_mut(),
+                        T::IS_SIGNED,
+                        requires_full_propagate,
+                        target_num_blocks as u32,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_cast_to_unsigned(
+                        streams,
+                        result.as_mut(),
+                        source.as_mut(),
+                        T::IS_SIGNED,
+                        requires_full_propagate,
+                        target_num_blocks as u32,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
             }
-        } else {
-            // Casting from unsigned to unsigned, this is just about trimming/extending with zeros
-            if target_num_blocks > current_num_blocks {
-                let num_blocks_to_add = target_num_blocks - current_num_blocks;
-                let unsigned_res = self.extend_radix_with_trivial_zero_blocks_msb(
-                    &source,
-                    num_blocks_to_add,
-                    streams,
-                );
-                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
-                    unsigned_res.into_inner(),
-                )
-            } else {
-                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
-                let unsigned_res =
-                    self.trim_radix_blocks_msb(&source, num_blocks_to_remove, streams);
-                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
-                    unsigned_res.into_inner(),
-                )
-            }
         }
+
+        result
     }
 
     /// Cast a `CudaUnsignedRadixCiphertext` or `CudaSignedRadixCiphertext` to a

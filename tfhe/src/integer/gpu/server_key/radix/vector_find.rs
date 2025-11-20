@@ -9,8 +9,9 @@ use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     cuda_backend_aggregate_one_hot_vector, cuda_backend_compute_equality_selectors,
-    cuda_backend_create_possible_results, cuda_backend_get_unchecked_match_value_size_on_gpu,
-    cuda_backend_unchecked_match_value, PBSType,
+    cuda_backend_create_possible_results, cuda_backend_get_unchecked_match_value_or_size_on_gpu,
+    cuda_backend_get_unchecked_match_value_size_on_gpu, cuda_backend_unchecked_match_value,
+    cuda_backend_unchecked_match_value_or, PBSType,
 };
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::prelude::CastInto;
@@ -410,26 +411,229 @@ impl CudaServerKey {
         Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
     {
         if matches.get_values().is_empty() {
-            let ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(
-                or_value,
-                self.num_blocks_to_represent_unsigned_value(or_value),
-                streams,
-            );
+            let num_blocks = self.num_blocks_to_represent_unsigned_value(or_value);
+            let ct: CudaUnsignedRadixCiphertext =
+                self.create_trivial_radix(or_value, num_blocks, streams);
             return ct;
         }
-        let (result, selected) = self.unchecked_match_value(ct, matches, streams);
 
-        // The result must have as many block to represent either the result of the match or the
-        // or_value
-        let num_blocks_to_represent_or_value =
-            self.num_blocks_to_represent_unsigned_value(or_value);
-        let num_blocks = (result.as_ref().d_blocks.lwe_ciphertext_count().0)
-            .max(num_blocks_to_represent_or_value);
-        let or_value: CudaUnsignedRadixCiphertext =
-            self.create_trivial_radix(or_value, num_blocks, streams);
-        let casted_result = self.cast_to_unsigned(result, num_blocks, streams);
-        // Note, this could be slightly faster when we have scalar if then_else
-        self.unchecked_if_then_else(&selected, &casted_result, &or_value, streams)
+        let num_input_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_bits_in_message = self.message_modulus.0.ilog2();
+
+        let h_match_inputs: Vec<u64> = matches
+            .get_values()
+            .par_iter()
+            .map(|(input, _output)| *input)
+            .flat_map(|input_value| {
+                BlockDecomposer::new(input_value, num_bits_in_message)
+                    .take(num_input_blocks as usize)
+                    .map(|block_value| block_value.cast_into())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let max_output_value_match = matches
+            .get_values()
+            .iter()
+            .copied()
+            .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+            .expect("luts is not empty at this point")
+            .1;
+
+        let num_blocks_match = self.num_blocks_to_represent_unsigned_value(max_output_value_match);
+        let num_blocks_or = self.num_blocks_to_represent_unsigned_value(or_value);
+        let final_num_blocks = num_blocks_match.max(num_blocks_or);
+
+        let num_match_packed_blocks = num_blocks_match.div_ceil(2) as u32;
+
+        let h_match_outputs: Vec<u64> = matches
+            .get_values()
+            .par_iter()
+            .map(|(_input, output)| *output)
+            .flat_map(|output_value| {
+                BlockDecomposer::new(output_value, 2 * num_bits_in_message)
+                    .take(num_match_packed_blocks as usize)
+                    .map(|block_value| block_value.cast_into())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let h_or_value: Vec<u64> = BlockDecomposer::new(or_value, num_bits_in_message)
+            .take(final_num_blocks)
+            .map(|block_value| block_value.cast_into())
+            .collect();
+
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(final_num_blocks, streams);
+
+        let max_output_is_zero = max_output_value_match == Clear::ZERO;
+        let num_matches = matches.get_values().len() as u32;
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_match_value_or(
+                        streams,
+                        &mut result,
+                        ct.as_ref(),
+                        &h_match_inputs,
+                        &h_match_outputs,
+                        &h_or_value,
+                        num_matches,
+                        num_input_blocks,
+                        num_match_packed_blocks,
+                        final_num_blocks as u32,
+                        max_output_is_zero,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_match_value_or(
+                        streams,
+                        &mut result,
+                        ct.as_ref(),
+                        &h_match_inputs,
+                        &h_match_outputs,
+                        &h_or_value,
+                        num_matches,
+                        num_input_blocks,
+                        num_match_packed_blocks,
+                        final_num_blocks as u32,
+                        max_output_is_zero,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+
+        result
+    }
+
+    pub fn get_unchecked_match_value_or_size_on_gpu<Clear>(
+        &self,
+        ct: &CudaUnsignedRadixCiphertext,
+        matches: &MatchValues<Clear>,
+        or_value: Clear,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+    {
+        if matches.get_values().is_empty() {
+            return 0;
+        }
+
+        let num_input_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
+        let max_output_value_match = matches
+            .get_values()
+            .iter()
+            .copied()
+            .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+            .expect("luts is not empty at this point")
+            .1;
+
+        let num_blocks_match = self.num_blocks_to_represent_unsigned_value(max_output_value_match);
+        let num_blocks_or = self.num_blocks_to_represent_unsigned_value(or_value);
+        let final_num_blocks = num_blocks_match.max(num_blocks_or);
+
+        let num_match_packed_blocks = num_blocks_match.div_ceil(2) as u32;
+
+        let max_output_is_zero = max_output_value_match == Clear::ZERO;
+        let num_matches = matches.get_values().len() as u32;
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                cuda_backend_get_unchecked_match_value_or_size_on_gpu(
+                    streams,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    num_matches,
+                    num_input_blocks,
+                    num_match_packed_blocks,
+                    final_num_blocks as u32,
+                    max_output_is_zero,
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
+                )
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                cuda_backend_get_unchecked_match_value_or_size_on_gpu(
+                    streams,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    num_matches,
+                    num_input_blocks,
+                    num_match_packed_blocks,
+                    final_num_blocks as u32,
+                    max_output_is_zero,
+                    None,
+                )
+            }
+        }
     }
 
     /// `match` an input value to an output value

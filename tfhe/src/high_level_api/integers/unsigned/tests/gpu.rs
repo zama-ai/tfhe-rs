@@ -960,3 +960,42 @@ fn test_gpu_get_match_value_size_on_gpu() {
         assert!(memory_size > 0);
     }
 }
+
+#[test]
+fn test_match_value_or_gpu() {
+    let client_key = setup_classical_gpu();
+    super::test_case_match_value_or(&client_key);
+}
+
+#[test]
+fn test_match_value_or_gpu_multibit() {
+    let client_key = setup_multibit_gpu();
+    super::test_case_match_value_or(&client_key);
+}
+
+#[test]
+fn test_gpu_get_match_value_or_size_on_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let cks = setup_fn();
+        let mut rng = rand::thread_rng();
+        let clear_a = rng.gen::<u32>();
+        let or_value = rng.gen::<u32>();
+
+        let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+        a.move_to_current_device();
+
+        let match_values = MatchValues::new(vec![
+            (0u32, 10u32),
+            (1u32, 20u32),
+            (clear_a, 30u32),
+            (u32::MAX, 40u32),
+        ])
+        .unwrap();
+
+        let memory_size = a
+            .get_match_value_or_size_on_gpu(&match_values, or_value)
+            .unwrap();
+        check_valid_cuda_malloc_assert_oom(memory_size, GpuIndex::new(0));
+        assert!(memory_size > 0);
+    }
+}

@@ -569,6 +569,10 @@ void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
                               CudaRadixCiphertextFFI const *input,
                               CudaStreamsFFI streams);
 
+void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
+                              CudaRadixCiphertextFFI const *input,
+                              CudaStreamsFFI streams);
+
 uint64_t scratch_cuda_apply_noise_squashing(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -850,6 +854,46 @@ void cuda_unchecked_match_value_64(
 
 void cleanup_cuda_unchecked_match_value_64(CudaStreamsFFI streams,
                                            int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_cast_to_unsigned_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_input_blocks, uint32_t target_num_blocks, bool input_is_signed,
+    bool requires_full_propagate, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
+                              CudaRadixCiphertextFFI *output,
+                              CudaRadixCiphertextFFI *input, int8_t *mem_ptr,
+                              uint32_t target_num_blocks, bool input_is_signed,
+                              void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
+                                      int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_unchecked_match_value_or_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_matches, uint32_t num_input_blocks,
+    uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
+    uint32_t max_output_is_zero, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_unchecked_match_value_or_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_ct,
+    const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
+    const uint64_t *h_or_value, int8_t *mem, void *const *bsks,
+    void *const *ksks);
+
+void cleanup_cuda_unchecked_match_value_or_64(CudaStreamsFFI streams,
+                                              int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H
