@@ -1,8 +1,10 @@
+use criterion::Criterion;
+
 #[cfg(feature = "gpu")]
 pub mod cuda {
     use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use benchmark::utilities::{write_to_json, OperatorType};
-    use criterion::{black_box, Criterion};
+    use criterion::{black_box, criterion_group, Criterion};
     use tfhe::core_crypto::gpu::{check_valid_cuda_malloc, CudaStreams};
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;
@@ -150,4 +152,16 @@ pub mod cuda {
 
         bench_group.finish();
     }
+
+    criterion_group!(gpu_aes, cuda_aes);
+}
+
+#[cfg(feature = "gpu")]
+use cuda::gpu_aes;
+
+fn main() {
+    #[cfg(feature = "gpu")]
+    gpu_aes();
+
+    Criterion::default().configure_from_args().final_summary();
 }

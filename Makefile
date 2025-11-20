@@ -1416,6 +1416,20 @@ bench_integer_zk_gpu: install_rs_check_toolchain
 	--bench integer-zk-pke \
 	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_integer_aes_gpu # Run benchmarks for AES on GPU backend
+bench_integer_aes_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-aes \
+	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_integer_aes256_gpu # Run benchmarks for AES256 on GPU backend
+bench_integer_aes256_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-aes256 \
+	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
+
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
