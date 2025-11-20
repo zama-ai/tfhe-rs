@@ -186,7 +186,7 @@ pub struct Plan {
     fwd: fn(&mut [c64], &mut [c64], &[c64], &[c64]),
     inv: fn(&mut [c64], &mut [c64], &[c64], &[c64]),
     twiddles: ABox<[c64]>,
-    twiddles_inv: ABox<[c64]>,
+    // twiddles_inv: ABox<[c64]>,
     algo: FftAlgo,
 }
 
@@ -271,7 +271,7 @@ impl Plan {
             inv,
             twiddles,
             algo,
-            twiddles_inv,
+            // twiddles_inv,
         }
     }
 
@@ -366,7 +366,7 @@ impl Plan {
     pub fn inv(&self, buf: &mut [c64], stack: &mut PodStack) {
         let n = self.fft_size();
         let (scratch, _) = stack.make_aligned_raw::<c64>(n, CACHELINE_ALIGN);
-        let (w_init, w) = split_2(&self.twiddles_inv);
+        let (w_init, w) = split_2(&self.twiddles);
         (self.inv)(buf, scratch, w_init, w)
     }
 }
