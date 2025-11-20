@@ -5,9 +5,10 @@ use crate::backward_compatibility::integers::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
-use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::global_state;
 use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
+use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -111,7 +112,19 @@ where
         let ciphertext = match &self.ciphertext {
             CompressedSignedRadixCiphertext::Seeded(ct) => ct.decompress(),
             CompressedSignedRadixCiphertext::ModulusSwitched(ct) => {
-                with_cpu_internal_keys(|sk| sk.pbs_key().decompress_signed_parallelized(ct))
+                global_state::with_internal_keys(|keys| match keys {
+                    InternalServerKey::Cpu(cpu_key) => {
+                        cpu_key.pbs_key().decompress_signed_parallelized(ct)
+                    }
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                        panic!("decompress() on FheInt is not supported on GPU, use a CompressedCiphertextList instead");
+                    }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_) => {
+                        panic!("decompress() on FheInt is not supported on HPU devices");
+                    }
+                })
             }
         };
         FheInt::new(
@@ -180,14 +193,25 @@ where
     Id: FheIntId,
 {
     pub fn compress(&self) -> CompressedFheInt<Id> {
-        let a = with_cpu_internal_keys(|sk| {
-            sk.pbs_key()
-                .switch_modulus_and_compress_signed_parallelized(&self.ciphertext.on_cpu())
-        });
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let a = cpu_key
+                    .pbs_key()
+                    .switch_modulus_and_compress_signed_parallelized(&self.ciphertext.on_cpu());
 
-        CompressedFheInt::new(
-            CompressedSignedRadixCiphertext::ModulusSwitched(a),
-            self.tag.clone(),
-        )
+                CompressedFheInt::new(
+                    CompressedSignedRadixCiphertext::ModulusSwitched(a),
+                    self.tag.clone(),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("compress() on FheInt is not supported on GPU, use a CompressedCiphertextList instead");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("compress() on FheInt is not supported on HPU devices");
+            }
+        })
     }
 }
