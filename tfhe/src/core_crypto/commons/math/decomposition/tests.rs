@@ -230,11 +230,54 @@ fn test_decomposition_edge_case_sign_handling() {
     let decomposer = SignedDecomposer::new(DecompositionBaseLog(17), DecompositionLevelCount(3));
     let val: u64 = 0x8000_00e3_55b0_c827;
 
+    let rounded = decomposer.closest_representable(val);
+    let recomp = decomposer.recompose(decomposer.decompose(val)).unwrap();
     let decomp = decomposer.decompose(val);
+    assert_eq!(rounded, recomp);
 
     let expected = [44422i64, 909, -65536];
 
     for (term, expect) in decomp.zip(expected) {
         assert_eq!(term.value() as i64, expect, "Problem with term {term:?}");
     }
+}
+
+#[test]
+fn test_recompose_exhaustive() {
+    let base_log = DecompositionBaseLog(10);
+    let level = DecompositionLevelCount(3);
+    let decomposer = SignedDecomposer::new(base_log, level);
+
+    assert!(
+        decomposer.level_count().0 > 1,
+        "This test expects more than 1 level in the decomposer"
+    );
+    assert!(
+        decomposer.level_count().0 * decomposer.base_log().0 < u32::BITS as usize,
+        "This test works on u32 values, \
+        the number of bits decomposed must be strictly smaller than 32"
+    );
+
+    let mut total = 0i64;
+
+    for val in 0..=u32::MAX {
+        let recomp = decomposer.recompose(decomposer.decompose(val)).unwrap();
+        let rounded = decomposer.closest_representable(val);
+
+        assert_eq!(rounded, recomp);
+
+        for term in decomposer.decompose(val) {
+            // First cast to i32 to have the interpretation of the u32 as a signed value
+            let val_i32 = term.value() as i32;
+            // Then convert to i64 to have signed values with extra capacity to avoid potential
+            // overflows when summing terms
+            let val_i64: i64 = val_i32 as i64;
+
+            // Crash on overflow, it would make the test results invalid
+            total = total.checked_add(val_i64).unwrap();
+        }
+    }
+
+    // We expect an average value of 0, so the sum of term should also be 0
+    assert_eq!(total, 0);
 }
