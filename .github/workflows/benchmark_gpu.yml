@@ -31,6 +31,8 @@ on:
           - ks
           - ks_pbs
           - integer_zk
+          - integer_aes
+          - integer_aes256
           - hlapi_noise_squash
       op_flavor:
         description: "Operations set to run"

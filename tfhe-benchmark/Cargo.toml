@@ -127,6 +127,18 @@ harness = false
 required-features = ["integer", "zk-pok", "pbs-stats", "internal-keycache"]
 
 [[bench]]
+name = "integer-aes"
+path = "benches/integer/aes.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
+name = "integer-aes256"
+path = "benches/integer/aes256.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "core_crypto-ks"
 path = "benches/core_crypto/ks_bench.rs"
 harness = false

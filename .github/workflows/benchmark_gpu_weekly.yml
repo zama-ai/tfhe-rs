@@ -54,14 +54,14 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-8-h100-sxm5-integer-zk:
-    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-zk
+  run-benchmarks-8-h100-sxm5-integer-zk-aes:
+    name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-zk-aes
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
-      command: integer_zk
+      command: integer_zk,integer_aes,integer_aes256
       op_flavor: default
       bench_type: both
       all_precisions: true
