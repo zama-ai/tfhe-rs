@@ -28,7 +28,6 @@ jobs:
     steps:
       - name: Start remote instance
         id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
