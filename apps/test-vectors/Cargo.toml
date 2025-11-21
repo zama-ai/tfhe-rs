@@ -1,0 +1,11 @@
+[package]
+name = "tfhe-test-vectors"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+ciborium = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+tfhe = { path = "../../tfhe", features = ["experimental-force_fft_algo_dif4"] }
+tfhe-csprng = { path = "../../tfhe-csprng" }
