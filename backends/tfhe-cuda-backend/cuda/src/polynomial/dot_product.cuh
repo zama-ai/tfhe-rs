@@ -89,9 +89,10 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
     PANIC("GEMM kernel error: shared memory required might be too large");
 
   // Write the output with a stride of the GLWE total number of values
-  tgemm<Torus><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
-      n_rhs, polynomial_size, polynomial_size, poly_rhs, (Torus *)circulant,
-      polynomial_size, result, (polynomial_size * (glwe_dimension + 1)));
+  tgemm<Torus, BLOCK_SIZE_GEMM, THREADS_GEMM>
+      <<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
+          n_rhs, polynomial_size, polynomial_size, poly_rhs, (Torus *)circulant,
+          polynomial_size, result, (polynomial_size * (glwe_dimension + 1)));
   check_cuda_error(cudaGetLastError());
 }
 
