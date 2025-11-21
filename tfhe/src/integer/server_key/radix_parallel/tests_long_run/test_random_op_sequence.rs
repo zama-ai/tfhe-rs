@@ -1122,7 +1122,9 @@ pub(crate) fn random_op_sequence_test(
             let decrypted_res: u64 = cks.decrypt(&res);
             let decrypted_found: bool = cks.decrypt_bool(&found);
 
-            datagen.put_op_result_random_side(expected_value, &res, fn_name, idx);
+            let res_casted = sks.cast_to_unsigned(res.clone(), NB_CTXT_LONG_RUN);
+
+            datagen.put_op_result_random_side(expected_value, &res_casted, fn_name, idx);
 
             sanity_check_op_sequence_result_u64(
                 idx,
