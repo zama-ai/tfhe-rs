@@ -30,7 +30,7 @@ jobs:
       is_weekly_bench_group_2: ${{ steps.check_bench_group_2.outputs.is_weekly_bench_group_2 }}
       is_quarterly_bench: ${{ steps.check_quarterly_bench.outputs.is_quarterly_bench }}
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
-      all_precisions: ${{ steps.set_all_precisions.outputs.all_precisions }}
+      precisions_set: ${{ steps.set_precisions_set.outputs.precisions_set }}
     steps:
       - name: Check is weekly bench group 1
         id: check_bench_group_1
@@ -52,13 +52,13 @@ jobs:
           steps.check_bench_group_2.outputs.is_weekly_bench_group_2 == 'true'
         run: |
           echo "OP_FLAVOR=default" >> "${GITHUB_ENV}"
-          echo "ALL_PRECISIONS=false" >> "${GITHUB_ENV}"
+          echo "PRECISIONS_SET=false" >> "${GITHUB_ENV}"
 
       - name: Quarterly benchmarks
         if: steps.check_quarterly_bench.outputs.is_quarterly_bench == 'true'
         run: |
           echo "OP_FLAVOR=\"default,unchecked\"" >> "${GITHUB_ENV}"
-          echo "ALL_PRECISIONS=true" >> "${GITHUB_ENV}"
+          echo "PRECISIONS_SET=true" >> "${GITHUB_ENV}"
 
       - name: Set operation flavor output
         id: set_op_flavor
@@ -66,9 +66,9 @@ jobs:
           echo "op_flavor=${{ env.OP_FLAVOR }}" >> "${GITHUB_OUTPUT}"
 
       - name: Set bit precisions output
-        id: set_all_precisions
+        id: set_precisions_set
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "all_precisions=${{ env.ALL_PRECISIONS }}" >> "${GITHUB_OUTPUT}"
+          echo "precisions_set=${{ env.PRECISIONS_SET }}" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks-integer:
     name: benchmark_cpu_weekly/run-benchmarks-integer
@@ -79,7 +79,7 @@ jobs:
     with:
       command: integer,signed_integer, integer_compression
       op_flavor: ${{ needs.prepare-inputs.outputs.op_flavor }}
-      all_precisions: ${{ needs.prepare-inputs.outputs.all_precisions }}
+      precisions_set: ${{ needs.prepare-inputs.outputs.precisions_set }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

@@ -13,9 +13,9 @@ on:
       bench_type:
         type: string
         default: latency
-      all_precisions:
-        type: boolean
-        default: false
+      precisions_set:
+        type: string
+        default: fast
       v80_pcie_dev:
         type: string
         default: 24
@@ -48,7 +48,6 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  FAST_BENCH: TRUE
 
 permissions: {}
 
@@ -68,16 +67,27 @@ jobs:
     steps:
       - name: Parse user inputs
         shell: python
-        run: | # zizmor: ignore[template-injection] these env variables are safe
-          split_command = "${{ inputs.command }}".replace(" ", "").split(",")
-          split_op_flavor = "${{ inputs.op_flavor }}".replace(" ", "").split(",")
+        env:
+          INPUTS_COMMAND: ${{ inputs.command }}
+          INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+        run: |
+          import os
 
-          if "${{ inputs.bench_type }}" == "both":
+          inputs_command = os.environ["INPUTS_COMMAND"]
+          inputs_op_flavor = os.environ["INPUTS_OP_FLAVOR"]
+          inputs_bench_type = os.environ["INPUTS_BENCH_TYPE"]
+          env_file = os.environ["GITHUB_ENV"]
+
+          split_command = inputs_command.replace(" ", "").split(",")
+          split_op_flavor = inputs_op_flavor.replace(" ", "").split(",")
+
+          if inputs_bench_type == "both":
             bench_type = ["latency", "throughput"]
           else:
-            bench_type = ["${{ inputs.bench_type }}", ]
+            bench_type = [inputs_bench_type, ]
 
-          with open("${{ github.env }}", "a") as f:
+          with open(env_file, "a") as f:
             for env_name, values_to_join in [
               ("COMMAND", split_command),
               ("OP_FLAVOR", split_op_flavor),
@@ -139,11 +149,6 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Should run benchmarks with all precisions
-        if: inputs.all_precisions
-        run: |
-          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
-
       - name: Select HPU board
         run: |
           echo "V80_PCIE_DEV=${PCIE_DEV}" >> "${GITHUB_ENV}"
@@ -156,11 +161,12 @@ jobs:
         run: |
           echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
           make pull_hpu_files
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
+          make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
           BENCH_COMMAND: ${{ matrix.command }}
+          PRECISIONS_SET: ${{ inputs.precisions_set }}
 
       - name: Parse results
         run: |

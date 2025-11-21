@@ -3493,6 +3493,16 @@ criterion_group!(
     neg_parallelized,
     leading_zeros_parallelized,
     ilog2_parallelized,
+    scalar_add_parallelized,
+    scalar_mul_parallelized,
+    scalar_div_parallelized,
+    scalar_rem_parallelized,
+    scalar_bitand_parallelized,
+    scalar_left_shift_parallelized,
+    scalar_rotate_left_parallelized,
+    scalar_max_parallelized,
+    scalar_eq_parallelized,
+    scalar_gt_parallelized,
 );
 
 criterion_group!(

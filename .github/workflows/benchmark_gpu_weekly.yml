@@ -22,7 +22,7 @@ jobs:
       command: integer_multi_bit
       op_flavor: default
       bench_type: both
-      all_precisions: true
+      precisions_set: fast
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -43,7 +43,7 @@ jobs:
       command: integer_compression
       op_flavor: default
       bench_type: both
-      all_precisions: true
+      precisions_set: fast
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -64,7 +64,7 @@ jobs:
       command: integer_zk,integer_aes,integer_aes256
       op_flavor: default
       bench_type: both
-      all_precisions: true
+      precisions_set: fast
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -85,7 +85,7 @@ jobs:
       command: hlapi_noise_squash
       op_flavor: default
       bench_type: both
-      all_precisions: true
+      precisions_set: fast
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

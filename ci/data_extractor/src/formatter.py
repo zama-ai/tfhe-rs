@@ -433,7 +433,6 @@ class GenericFormatter:
         data,
     ):
         supported_pfails = [
-            ErrorFailureProbability.TWO_MINUS_40,
             ErrorFailureProbability.TWO_MINUS_64,
             ErrorFailureProbability.TWO_MINUS_128,
         ]
@@ -508,7 +507,10 @@ class GenericFormatter:
                 BenchArray(
                     array,
                     self.layer,
-                    metadata={"pfail": key.pfail, "noise": key.noise_distribution},
+                    metadata={
+                        "noise": key.noise_distribution,
+                        "pfail": key.pfail,
+                    },
                 )
             )
 

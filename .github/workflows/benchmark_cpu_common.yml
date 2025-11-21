@@ -16,9 +16,9 @@ on:
       params_type:
         type: string
         default: classical
-      all_precisions:
-        type: boolean
-        default: false
+      precisions_set:
+        type: string
+        default: fast
       additional_recipe: # Make recipes to run aside the benchmarks.
         type: string # Use comma separated values to generate an array
       additional_file_to_parse: # Other files to parse, located under tfhe-benchmark/ directory
@@ -54,7 +54,6 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  FAST_BENCH: TRUE
 
 permissions: {}
 
@@ -69,27 +68,37 @@ jobs:
       op_flavor: ${{ steps.set_matrix_args.outputs.op_flavor }}
       bench_type: ${{ steps.set_matrix_args.outputs.bench_type }}
       params_type: ${{ steps.set_matrix_args.outputs.params_type }}
-    env:
-      INPUTS_COMMAND: ${{ inputs.command }}
-      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
     steps:
       - name: Parse user inputs
         shell: python
-        run: | # zizmor: ignore[template-injection] these env variables are safe
-          split_command = "${{ inputs.command }}".replace(" ", "").split(",")
-          split_op_flavor = "${{ inputs.op_flavor }}".replace(" ", "").split(",")
+        env:
+          INPUTS_COMMAND: ${{ inputs.command }}
+          INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+          INPUTS_PARAMS_TYPE: ${{ inputs.params_type }}
+        run: |
+          import os
 
-          if "${{ inputs.bench_type }}" == "both":
+          inputs_command = os.environ["INPUTS_COMMAND"]
+          inputs_op_flavor = os.environ["INPUTS_OP_FLAVOR"]
+          inputs_bench_type = os.environ["INPUTS_BENCH_TYPE"]
+          inputs_params_type = os.environ["INPUTS_PARAMS_TYPE"]
+          env_file = os.environ["GITHUB_ENV"]
+
+          split_command = inputs_command.replace(" ", "").split(",")
+          split_op_flavor = inputs_op_flavor.replace(" ", "").split(",")
+
+          if inputs_bench_type == "both":
             bench_type = ["latency", "throughput"]
           else:
-            bench_type = ["${{ inputs.bench_type }}", ]
+            bench_type = [inputs_bench_type, ]
 
-          if "+" in "${{ inputs.params_type }}":
-            split_params_type= "${{ inputs.params_type }}".replace(" ", "").split("+")
+          if "+" in inputs_params_type:
+            split_params_type= inputs_params_type.replace(" ", "").split("+")
           else:
-            split_params_type = ["${{ inputs.params_type }}", ]
+            split_params_type = [inputs_params_type, ]
 
-          with open("${{ github.env }}", "a") as f:
+          with open(env_file, "a") as f:
             for env_name, values_to_join in [
               ("COMMAND", split_command),
               ("OP_FLAVOR", split_op_flavor),
@@ -162,19 +171,15 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Should run benchmarks with all precisions
-        if: inputs.all_precisions
-        run: |
-          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
-
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"
+          make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
           BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
           BENCH_COMMAND: ${{ matrix.command }}
+          PRECISIONS_SET: ${{ inputs.precisions_set }}
 
       - name: Parse results
         run: |

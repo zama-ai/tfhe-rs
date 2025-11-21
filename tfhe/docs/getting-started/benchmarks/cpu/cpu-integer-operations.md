@@ -16,21 +16,21 @@ The next tables show the operation timings on CPU when all inputs are encrypted:
 
 ### Encrypted/encrypted operations latency
 
-![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext.svg)
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-latency-ciphertext.svg)
 
 ### Encrypted/encrypted operations throughput
 
-![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-ciphertext-throughput.svg)
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-throughput-ciphertext.svg)
 
 The next tables show the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
 
 ### Encrypted/clear operations latency
 
-![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext.svg)
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-latency-plaintext.svg)
 
 ### Encrypted/clear operations throughput
 
-![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-plaintext-throughput.svg)
+![](../../../.gitbook/assets/cpu-integer-benchmark-tuniform-2m128-throughput-plaintext.svg)
 
 All timings are based on parallelized Radix-based integer operations where each block is encrypted using the default parameters `PARAM_MESSAGE_2_CARRY_2_KS_PBS`. To ensure predictable timings, we perform operations in the `default` mode, which ensures that the input and output encoding are similar (i.e., the carries are always emptied).
 
