@@ -110,7 +110,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         }
     }
 
-    #[cfg(all(feature = "integer", test))]
+    #[cfg(feature = "integer")]
     pub(crate) fn from_raw_parts(
         mask: MaskRandomGenerator<G>,
         noise: NoiseRandomGenerator<G>,
