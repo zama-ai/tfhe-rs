@@ -465,20 +465,26 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let clear_0 = gen_random_u256(&mut rng);
-                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
-
-                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
-                    (sks, ct_0, clear_1)
+                    (cks, sks)
                 });
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
-                    let (sks, ct_0, clear_1) = (&bench_data.0, &bench_data.1, bench_data.2);
+                    let (cks, sks) = (&bench_data.0, &bench_data.1);
 
-                    b.iter(|| {
-                        binary_op(sks, ct_0, clear_1);
-                    })
+                    b.iter_batched(
+                        || {
+                            let clear_0 = gen_random_u256(&mut rng);
+                            let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                            let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                            (ct_0, clear_1)
+                        },
+                        |(ct_0, clear_1)| {
+                            binary_op(sks, &ct_0, clear_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
             BenchmarkType::Throughput => {
@@ -3527,21 +3533,21 @@ criterion_group!(
 
 criterion_group!(
     default_scalar_parallelized_ops,
-    scalar_add_parallelized,
-    unsigned_overflowing_scalar_add_parallelized,
-    scalar_sub_parallelized,
-    unsigned_overflowing_scalar_sub_parallelized,
-    scalar_mul_parallelized,
+    // scalar_add_parallelized,
+    // unsigned_overflowing_scalar_add_parallelized,
+    // scalar_sub_parallelized,
+    // unsigned_overflowing_scalar_sub_parallelized,
+    // scalar_mul_parallelized,
     scalar_div_parallelized,
     scalar_rem_parallelized,
     // scalar_div_rem_parallelized,
-    scalar_left_shift_parallelized,
-    scalar_right_shift_parallelized,
-    scalar_rotate_left_parallelized,
-    scalar_rotate_right_parallelized,
-    scalar_bitand_parallelized,
-    scalar_bitor_parallelized,
-    scalar_bitxor_parallelized,
+    // scalar_left_shift_parallelized,
+    // scalar_right_shift_parallelized,
+    // scalar_rotate_left_parallelized,
+    // scalar_rotate_right_parallelized,
+    // scalar_bitand_parallelized,
+    // scalar_bitor_parallelized,
+    // scalar_bitxor_parallelized,
 );
 
 criterion_group!(
@@ -3767,10 +3773,10 @@ fn go_through_hpu_bench_groups(val: &str) {
 fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
-            default_parallelized_ops();
-            default_parallelized_ops_comp();
+            // default_parallelized_ops();
+            // default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp();
+            // default_scalar_parallelized_ops_comp();
             //cast_ops();
             //oprf()
         }
