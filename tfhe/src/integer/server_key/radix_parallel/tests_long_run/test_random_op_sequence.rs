@@ -79,6 +79,13 @@ pub(crate) type MatchValueExecutor = Box<
     >,
 >;
 
+pub(crate) type MatchValueOrExecutor = Box<
+    dyn for<'a> OpSequenceFunctionExecutor<
+        (&'a RadixCiphertext, &'a MatchValues<u64>, u64),
+        RadixCiphertext,
+    >,
+>;
+
 pub(crate) type OprfExecutor =
     Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>>;
 
@@ -474,6 +481,15 @@ where
     let mut match_value_ops: Vec<(MatchValueExecutor, String)> =
         vec![(Box::new(match_value_executor), "match_value".to_string())];
 
+    // Match Values Or Executor
+    let match_value_or_executor =
+        OpSequenceCpuFunctionExecutor::new(&ServerKey::match_value_or_parallelized);
+
+    let mut match_value_or_ops: Vec<(MatchValueOrExecutor, String)> = vec![(
+        Box::new(match_value_or_executor),
+        "match_value_or".to_string(),
+    )];
+
     // OPRF Executors
     let oprf_executor = OpSequenceCpuFunctionExecutor::new(
         &ServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
@@ -514,6 +530,7 @@ where
         &mut scalar_div_rem_op,
         &mut log2_ops,
         &mut match_value_ops,
+        &mut match_value_or_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,
@@ -535,6 +552,7 @@ where
         &mut scalar_div_rem_op,
         &mut log2_ops,
         &mut match_value_ops,
+        &mut match_value_or_ops,
         &mut oprf_ops,
         &mut oprf_bounded_ops,
         &mut oprf_custom_range_ops,
@@ -572,6 +590,7 @@ pub(crate) fn random_op_sequence_test_init_cpu<P>(
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
     match_value_ops: &mut [(MatchValueExecutor, String)],
+    match_value_or_ops: &mut [(MatchValueOrExecutor, String)],
     oprf_ops: &mut [(OprfExecutor, String)],
     oprf_bounded_ops: &mut [(OprfBoundedExecutor, String)],
     oprf_custom_range_ops: &mut [(OprfCustomRangeExecutor, String)],
@@ -602,6 +621,7 @@ where
         + scalar_div_rem_op.len()
         + log2_ops.len()
         + match_value_ops.len()
+        + match_value_or_ops.len()
         + oprf_ops.len()
         + oprf_bounded_ops.len()
         + oprf_custom_range_ops.len();
@@ -661,6 +681,9 @@ where
     for x in match_value_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
+    for x in match_value_or_ops.iter_mut() {
+        x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
+    }
     for x in oprf_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
@@ -706,6 +729,7 @@ pub(crate) fn random_op_sequence_test(
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
     match_value_ops: &mut [(MatchValueExecutor, String)],
+    match_value_or_ops: &mut [(MatchValueOrExecutor, String)],
     oprf_ops: &mut [(OprfExecutor, String)],
     oprf_bounded_ops: &mut [(OprfBoundedExecutor, String)],
     oprf_custom_range_ops: &mut [(OprfCustomRangeExecutor, String)],
@@ -729,7 +753,10 @@ pub(crate) fn random_op_sequence_test(
         div_rem_op_range.end..div_rem_op_range.end + scalar_div_rem_op.len();
     let log2_ops_range = scalar_div_rem_op_range.end..scalar_div_rem_op_range.end + log2_ops.len();
     let match_value_ops_range = log2_ops_range.end..log2_ops_range.end + match_value_ops.len();
-    let oprf_ops_range = match_value_ops_range.end..match_value_ops_range.end + oprf_ops.len();
+    let match_value_or_ops_range =
+        match_value_ops_range.end..match_value_ops_range.end + match_value_or_ops.len();
+    let oprf_ops_range =
+        match_value_or_ops_range.end..match_value_or_ops_range.end + oprf_ops.len();
     let oprf_bounded_ops_range = oprf_ops_range.end..oprf_ops_range.end + oprf_bounded_ops.len();
     let oprf_custom_range_ops_range =
         oprf_bounded_ops_range.end..oprf_bounded_ops_range.end + oprf_custom_range_ops.len();
@@ -1146,6 +1173,35 @@ pub(crate) fn random_op_sequence_test(
                 &found_1,
                 decrypted_found,
                 expected_bool,
+                operand.p,
+                operand.p,
+            );
+        } else if match_value_or_ops_range.contains(&i) {
+            let index = i - match_value_or_ops_range.start;
+            let (match_value_or_executor, fn_name) = &mut match_value_or_ops[index];
+            let operand = datagen.gen_op_single_operand(idx, fn_name);
+
+            let (match_values, or_value, expected_value) = datagen.gen_match_values_or(operand.p);
+
+            println!("{idx}: MatchValuesOr generated. Expected: {expected_value}");
+
+            let res = match_value_or_executor.execute((&operand.c, &match_values, or_value));
+            // Determinism check
+            let res_1 = match_value_or_executor.execute((&operand.c, &match_values, or_value));
+
+            let decrypted_res: u64 = cks.decrypt(&res);
+
+            let res_casted = sks.cast_to_unsigned(res.clone(), NB_CTXT_LONG_RUN);
+            datagen.put_op_result_random_side(expected_value, &res_casted, fn_name, idx);
+
+            sanity_check_op_sequence_result_u64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypted_res,
+                expected_value,
                 operand.p,
                 operand.p,
             );

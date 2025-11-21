@@ -71,6 +71,7 @@ impl CudaRadixCiphertextInfo {
         new_block_info
     }
 
+    #[allow(dead_code)]
     pub(crate) fn after_trim_radix_blocks_msb(&self, num_blocks: usize) -> Self {
         assert!(num_blocks > 0);
 

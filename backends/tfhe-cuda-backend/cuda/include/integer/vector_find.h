@@ -1,4 +1,5 @@
 #pragma once
+#include "cast.h"
 #include "integer/comparison.h"
 #include "integer/radix_ciphertext.cuh"
 #include "integer_utilities.h"
@@ -591,5 +592,100 @@ template <typename Torus> struct int_unchecked_match_buffer {
     delete[] this->selectors_list;
     delete[] this->possible_results_list;
     delete this->packed_selectors_ct;
+  }
+};
+
+template <typename Torus> struct int_unchecked_match_value_or_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  uint32_t num_matches;
+  uint32_t num_input_blocks;
+  uint32_t num_match_packed_blocks;
+  uint32_t num_final_blocks;
+  bool max_output_is_zero;
+
+  int_unchecked_match_buffer<Torus> *match_buffer;
+  int_cmux_buffer<Torus> *cmux_buffer;
+
+  CudaRadixCiphertextFFI *tmp_match_result;
+  CudaRadixCiphertextFFI *tmp_match_bool;
+  CudaRadixCiphertextFFI *tmp_or_value;
+
+  Torus *d_or_value;
+
+  int_unchecked_match_value_or_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_matches,
+      uint32_t num_input_blocks, uint32_t num_match_packed_blocks,
+      uint32_t num_final_blocks, bool max_output_is_zero,
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_matches = num_matches;
+    this->num_input_blocks = num_input_blocks;
+    this->num_match_packed_blocks = num_match_packed_blocks;
+    this->num_final_blocks = num_final_blocks;
+    this->max_output_is_zero = max_output_is_zero;
+
+    this->match_buffer = new int_unchecked_match_buffer<Torus>(
+        streams, params, num_matches, num_input_blocks, num_match_packed_blocks,
+        max_output_is_zero, allocate_gpu_memory, size_tracker);
+
+    this->cmux_buffer = new int_cmux_buffer<Torus>(
+        streams, [](Torus x) -> Torus { return x == 1; }, params,
+        num_final_blocks, allocate_gpu_memory, size_tracker);
+
+    this->tmp_match_result = new CudaRadixCiphertextFFI;
+    this->tmp_match_bool = new CudaRadixCiphertextFFI;
+    this->tmp_or_value = new CudaRadixCiphertextFFI;
+
+    this->d_or_value = (Torus *)cuda_malloc_with_size_tracking_async(
+        num_final_blocks * sizeof(Torus), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
+
+    if (!max_output_is_zero) {
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), this->tmp_match_result,
+          num_final_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
+    }
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_match_bool, 1,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_or_value,
+        num_final_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams) {
+    this->match_buffer->release(streams);
+    delete this->match_buffer;
+
+    this->cmux_buffer->release(streams);
+    delete this->cmux_buffer;
+
+    if (!max_output_is_zero) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     this->tmp_match_result,
+                                     this->allocate_gpu_memory);
+    }
+    delete this->tmp_match_result;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_match_bool,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_match_bool;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_or_value,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_or_value;
+
+    cuda_drop_async(this->d_or_value, streams.stream(0), streams.gpu_index(0));
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

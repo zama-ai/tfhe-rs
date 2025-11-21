@@ -494,6 +494,46 @@ where
     }
 }
 
+/// For match_value_or operation
+impl<'a, F>
+    OpSequenceFunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>
+    for OpSequenceGpuMultiDeviceFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &MatchValues<u64>,
+        u64,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a MatchValues<u64>, u64),
+    ) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, input.2, &context.streams);
+
+        d_res.to_radix_ciphertext(&context.streams)
+    }
+}
+
 impl<'a, F>
     OpSequenceFunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
