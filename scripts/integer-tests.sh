@@ -20,7 +20,7 @@ function usage() {
     echo
 }
 
-RUST_TOOLCHAIN="+stable"
+RUST_TOOLCHAIN=""
 multi_bit_argument=
 sign_argument=
 fast_tests_argument=
@@ -71,7 +71,7 @@ do
         "--avx512-support" )
             shift
             if [[ "$1" == "ON" ]]; then
-                avx512_feature=nightly-avx512
+                avx512_feature=avx512
             fi
             ;;
 
@@ -89,7 +89,7 @@ do
 done
 
 if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
-    RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+    RUST_TOOLCHAIN=${RUST_TOOLCHAIN:+"+${RUST_TOOLCHAIN}"}
 fi
 
 if [[ "${FAST_TESTS}" == TRUE ]]; then
@@ -168,19 +168,21 @@ fi
 
 echo "${filter_expression}"
 
-cargo "${RUST_TOOLCHAIN}" nextest run \
+cargo ${RUST_TOOLCHAIN} nextest run \
     --tests \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
+    --no-default-features \
     --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
 if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
-    cargo "${RUST_TOOLCHAIN}" test \
+    cargo ${RUST_TOOLCHAIN} test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
+        --no-default-features \
         --features=integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"

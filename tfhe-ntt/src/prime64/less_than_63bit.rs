@@ -2,7 +2,7 @@
 use pulp::*;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub(crate) fn fwd_butterfly_avx512(
     simd: crate::V4,
@@ -29,7 +29,7 @@ pub(crate) fn fwd_butterfly_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub(crate) fn fwd_last_butterfly_avx512(
     simd: crate::V4,
@@ -154,7 +154,7 @@ pub(crate) fn fwd_last_butterfly_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub(crate) fn inv_butterfly_avx512(
     simd: crate::V4,
@@ -232,7 +232,7 @@ pub(crate) fn inv_butterfly_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_avx512(
     simd: crate::V4,
     p: u64,
@@ -260,7 +260,7 @@ pub(crate) fn fwd_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_avx512(
     simd: crate::V4,
     p: u64,
@@ -394,7 +394,7 @@ mod tests {
     extern crate alloc;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_product_avx512() {
         if let Some(simd) = crate::V4::try_new() {

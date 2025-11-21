@@ -73,7 +73,7 @@ impl FftSimd<c64x2> for V3 {
     }
 }
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl FftSimd<c64x4> for V4 {
     #[inline(always)]
     fn try_new() -> Option<Self> {

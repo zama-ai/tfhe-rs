@@ -17,7 +17,7 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 use pulp::x86::V3;
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 use pulp::x86::V4;
 
 /// Convert a vector of f64 values to a vector of i64 values.
@@ -80,7 +80,7 @@ pub fn mm256_cvtpd_epi64(simd: V3, x: __m256d) -> __m256i {
 
 /// Convert a vector of f64 values to a vector of i64 values with rounding to nearest integer.
 /// [`Intel's documentation`](`https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_cvt_roundpd_epi64`)
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn mm512_cvt_round_nearest_pd_epi64(simd: V4, x: __m512d) -> __m512i {
     let _ = simd.avx512dq;
@@ -124,7 +124,7 @@ pub fn mm256_cvtepi64_pd(simd: V3, x: __m256i) -> __m256d {
 /// `_`.
 ///
 /// [`Intel's documentation`](`https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_cvtepi64_pd`)
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn mm512_cvtepi64_pd(simd: V4, x: __m512i) -> __m512d {
     // SAFETY: simd contains an instance of avx512dq, that matches the target feature of
@@ -133,7 +133,7 @@ pub fn mm512_cvtepi64_pd(simd: V4, x: __m512i) -> __m512d {
     unsafe { _mm512_cvtepi64_pd(x) }
 }
 
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_forward_integer_u32_v4(
     simd: V4,
     out: &mut [c64],
@@ -226,7 +226,7 @@ pub fn convert_forward_integer_u32_v4(
     });
 }
 
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_forward_integer_u64_v4(
     simd: V4,
     out: &mut [c64],
@@ -508,7 +508,7 @@ pub fn convert_forward_integer_u64_avx2_v3(
 ///
 /// This deinterleaves two vectors of c64 values into two vectors of real part and imaginary part,
 /// then returns the scaled fractional part.
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 pub fn prologue_convert_torus_v4(
     simd: V4,
@@ -557,7 +557,7 @@ pub fn prologue_convert_torus_v4(
 }
 
 /// See [`convert_add_backward_torus`].
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_add_backward_torus_u32_v4(
     simd: V4,
     out_re: &mut [u32],
@@ -644,7 +644,7 @@ pub fn convert_add_backward_torus_u32_v4(
 }
 
 /// See [`convert_add_backward_torus`].
-#[cfg(feature = "nightly-avx512")]
+#[cfg(feature = "avx512")]
 pub fn convert_add_backward_torus_u64_v4(
     simd: V4,
     out_re: &mut [u64],
@@ -961,7 +961,7 @@ pub fn convert_forward_integer_u32(
     in_im: &[u32],
     twisties: TwistiesView<'_>,
 ) {
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_forward_integer_u32_v4(simd, out, in_re, in_im, twisties);
     }
@@ -977,7 +977,7 @@ pub fn convert_forward_integer_u64(
     in_im: &[u64],
     twisties: TwistiesView<'_>,
 ) {
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_forward_integer_u64_v4(simd, out, in_re, in_im, twisties);
     }
@@ -993,7 +993,7 @@ pub fn convert_add_backward_torus_u32(
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_add_backward_torus_u32_v4(simd, out_re, out_im, inp, twisties);
     }
@@ -1009,7 +1009,7 @@ pub fn convert_add_backward_torus_u64(
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
         return convert_add_backward_torus_u64_v4(simd, out_re, out_im, inp, twisties);
     }
@@ -1068,7 +1068,7 @@ mod tests {
                 assert_eq!(target, computed);
             }
         }
-        #[cfg(feature = "nightly-avx512")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = V4::try_new() {
             for v in [
                 [
@@ -1148,7 +1148,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly-avx512")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn add_backward_torus_v4() {
         if let Some(simd) = V4::try_new() {

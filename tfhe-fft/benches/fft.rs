@@ -292,7 +292,7 @@ pub fn bench_fft128(c: &mut Criterion) {
         }
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = pulp::x86::V4::try_new() {
             let bench_id = format!("tfhe-fft128-avx512-fwd-{n}");
             c.bench_function(&bench_id, |bench| {

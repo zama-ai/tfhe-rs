@@ -7,7 +7,7 @@ use core::{f64, fmt::Debug, marker::PhantomData};
 pub struct c64x2(c64, c64);
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct c64x4(c64, c64, c64, c64);
@@ -23,7 +23,7 @@ const __ASSERT_POD: () = {
 
     // no padding
     assert!(core::mem::size_of::<c64x2>() == core::mem::size_of::<c64>() * 2);
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     assert!(core::mem::size_of::<c64x4>() == core::mem::size_of::<c64>() * 4);
 };
 
@@ -32,7 +32,7 @@ const __ASSERT_POD: () = {
 unsafe impl bytemuck::Zeroable for c64x2 {}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 unsafe impl bytemuck::Zeroable for c64x4 {}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -40,7 +40,7 @@ unsafe impl bytemuck::Zeroable for c64x4 {}
 unsafe impl bytemuck::Pod for c64x2 {}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 unsafe impl bytemuck::Pod for c64x4 {}
 
 pub trait Pod: Copy + Debug + bytemuck::Pod {}

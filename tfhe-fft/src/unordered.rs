@@ -297,7 +297,7 @@ macro_rules! dispatcher {
         fn $name() -> fn(&mut [c64], &[c64]) {
             #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if pulp::x86::V4::try_new().is_some() {
                     return |z, w| {
                         let simd = pulp::x86::V4::try_new().unwrap();
@@ -335,7 +335,7 @@ dispatcher!(get_inv_process_x8, inv_process_x8);
 fn get_complex_per_reg() -> usize {
     #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
     {
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = pulp::x86::V4::try_new() {
             return simd.lane_count();
         }

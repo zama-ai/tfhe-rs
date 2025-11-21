@@ -11,10 +11,10 @@ mod generic_solinas;
 mod shoup;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 mod less_than_50bit;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 mod less_than_51bit;
 
 mod less_than_62bit;
@@ -79,7 +79,7 @@ impl crate::V3 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl crate::V4 {
     #[inline(always)]
     fn interleave4_u64x8(self, z0z0z0z0z1z1z1z1: [u64x8; 2]) -> [u64x8; 2] {
@@ -270,7 +270,7 @@ impl core::fmt::Debug for Plan {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_assign_normalize_ifma(
     simd: crate::V4IFma,
     lhs: &mut [u64],
@@ -325,7 +325,7 @@ fn mul_assign_normalize_ifma(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_accumulate_ifma(
     simd: crate::V4IFma,
     acc: &mut [u64],
@@ -370,7 +370,7 @@ fn mul_accumulate_ifma(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_assign_normalize_avx512(
     simd: crate::V4,
     lhs: &mut [u64],
@@ -421,7 +421,7 @@ fn mul_assign_normalize_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn mul_accumulate_avx512(
     simd: crate::V4,
     acc: &mut [u64],
@@ -609,7 +609,7 @@ fn mul_accumulate_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn normalize_ifma(
     simd: crate::V4IFma,
     values: &mut [u64],
@@ -646,7 +646,7 @@ fn normalize_ifma(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn normalize_avx512(
     simd: crate::V4,
     values: &mut [u64],
@@ -775,11 +775,11 @@ impl Plan {
         } else {
             let ifma_instructions_available = {
                 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 let has_ifma = crate::V4IFma::try_new().is_some();
                 #[cfg(not(all(
                     any(target_arch = "x86", target_arch = "x86_64"),
-                    feature = "nightly",
+                    feature = "avx512",
                 )))]
                 let has_ifma = false;
 
@@ -899,7 +899,7 @@ impl Plan {
         let p = self.p;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if p < (1u64 << 50) {
             if let Some(simd) = crate::V4IFma::try_new() {
                 less_than_50bit::fwd_avx512(simd, p, buf, &self.twid, &self.twid_shoup);
@@ -915,7 +915,7 @@ impl Plan {
         if p < (1u64 << 62) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_62bit::fwd_avx512(simd, p, buf, &self.twid, &self.twid_shoup);
                     return;
@@ -929,7 +929,7 @@ impl Plan {
         } else if p < (1u64 << 63) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_63bit::fwd_avx512(simd, p, buf, &self.twid, &self.twid_shoup);
                     return;
@@ -943,7 +943,7 @@ impl Plan {
         } else if p == Solinas::P {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     generic_solinas::fwd_avx512(simd, buf, Solinas, (), &self.twid);
                     return;
@@ -956,7 +956,7 @@ impl Plan {
             generic_solinas::fwd_scalar(buf, Solinas, (), &self.twid);
         } else {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 let crate::u256 { x0, x1, x2, x3 } = self.p_div.double_reciprocal;
                 let p_div = (p, x0, x1, x2, x3);
@@ -977,7 +977,7 @@ impl Plan {
         let p = self.p;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if p < (1u64 << 50) {
             if let Some(simd) = crate::V4IFma::try_new() {
                 less_than_50bit::inv_avx512(simd, p, buf, &self.inv_twid, &self.inv_twid_shoup);
@@ -993,7 +993,7 @@ impl Plan {
         if p < (1u64 << 62) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_62bit::inv_avx512(simd, p, buf, &self.inv_twid, &self.inv_twid_shoup);
                     return;
@@ -1007,7 +1007,7 @@ impl Plan {
         } else if p < (1u64 << 63) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     less_than_63bit::inv_avx512(simd, p, buf, &self.inv_twid, &self.inv_twid_shoup);
                     return;
@@ -1021,7 +1021,7 @@ impl Plan {
         } else if p == Solinas::P {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                #[cfg(feature = "nightly")]
+                #[cfg(feature = "avx512")]
                 if let Some(simd) = crate::V4::try_new() {
                     generic_solinas::inv_avx512(simd, buf, Solinas, (), &self.inv_twid);
                     return;
@@ -1034,7 +1034,7 @@ impl Plan {
             generic_solinas::inv_scalar(buf, Solinas, (), &self.inv_twid);
         } else {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 let crate::u256 { x0, x1, x2, x3 } = self.p_div.double_reciprocal;
                 let p_div = (p, x0, x1, x2, x3);
@@ -1053,7 +1053,7 @@ impl Plan {
 
         if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if self.use_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
@@ -1071,7 +1071,7 @@ impl Plan {
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 mul_assign_normalize_avx512(
                     simd,
@@ -1140,7 +1140,7 @@ impl Plan {
 
         if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if self.use_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
@@ -1149,7 +1149,7 @@ impl Plan {
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 normalize_avx512(simd, values, p, self.n_inv_mod_p, self.n_inv_mod_p_shoup);
                 return;
@@ -1185,7 +1185,7 @@ impl Plan {
 
         if can_use_fast_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if self.use_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
@@ -1194,7 +1194,7 @@ impl Plan {
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
                 mul_accumulate_avx512(simd, acc, lhs, rhs, p, self.p_barrett, self.big_q);
                 return;
@@ -1609,7 +1609,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_interleaves_and_permutes_u64x8() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1669,7 +1669,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_assign_normalize_ifma() {
         if let Some(simd) = crate::V4IFma::try_new() {
@@ -1712,7 +1712,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_assign_normalize_avx512() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1797,7 +1797,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_accumulate_ifma() {
         if let Some(simd) = crate::V4IFma::try_new() {
@@ -1832,7 +1832,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_mul_accumulate_avx512() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1901,7 +1901,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_normalize_ifma() {
         if let Some(simd) = crate::V4IFma::try_new() {
@@ -1929,7 +1929,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_normalize_avx512() {
         if let Some(simd) = crate::V4::try_new() {

@@ -621,7 +621,7 @@ impl f128 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg_attr(docsrs, doc(cfg(any(target_arch = "x86", target_arch = "x86_64"))))]
 pub mod x86 {
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     use pulp::{b8, f64x8, x86::V4};
     use pulp::{f64x4, x86::V3, Simd};
 
@@ -654,7 +654,7 @@ pub mod x86 {
         (p, simd.mul_sub_f64x4(a, b, p))
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[inline(always)]
     pub(crate) fn quick_two_sum_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
         let s = simd.add_f64x8(a, b);
@@ -662,7 +662,7 @@ pub mod x86 {
     }
 
     #[inline(always)]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     pub(crate) fn two_sum_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
         let sign_bit = simd.splat_f64x8(-0.0);
         let cmp = simd.cmp_gt_f64x8(
@@ -675,19 +675,19 @@ pub mod x86 {
     }
 
     #[inline(always)]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     pub(crate) fn two_diff_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
         two_sum_f64x8(simd, a, simd.neg_f64s(b))
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[inline(always)]
     pub(crate) fn two_prod_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
         let p = simd.mul_f64x8(a, b);
         (p, simd.mul_sub_f64x8(a, b, p))
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[inline(always)]
     pub(crate) fn quick_two_sum_f64x16(simd: V4, a: f64x16, b: f64x16) -> (f64x16, f64x16) {
         let s = simd.add_f64x16(a, b);
@@ -695,7 +695,7 @@ pub mod x86 {
     }
 
     #[inline(always)]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     pub(crate) fn two_sum_f64x16(simd: V4, a: f64x16, b: f64x16) -> (f64x16, f64x16) {
         let sign_bit = simd.splat_f64x16(-0.0);
         let cmp = simd.cmp_gt_f64x16(
@@ -708,7 +708,7 @@ pub mod x86 {
     }
 
     #[inline(always)]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     pub(crate) fn two_diff_f64x16(simd: V4, a: f64x16, b: f64x16) -> (f64x16, f64x16) {
         two_sum_f64x16(
             simd,
@@ -720,14 +720,14 @@ pub mod x86 {
         )
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[inline(always)]
     pub(crate) fn two_prod_f64x16(simd: V4, a: f64x16, b: f64x16) -> (f64x16, f64x16) {
         let p = simd.mul_f64x16(a, b);
         (p, simd.mul_sub_f64x16(a, b, p))
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[derive(Copy, Clone, Debug)]
     #[repr(C)]
     pub struct f64x16 {
@@ -735,7 +735,7 @@ pub mod x86 {
         pub hi: f64x8,
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[derive(Copy, Clone, Debug)]
     #[repr(C)]
     pub struct b16 {
@@ -743,9 +743,9 @@ pub mod x86 {
         pub hi: b8,
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     unsafe impl bytemuck::Zeroable for f64x16 {}
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     unsafe impl bytemuck::Pod for f64x16 {}
 
     pub trait V3F128Ext {
@@ -756,7 +756,7 @@ pub mod x86 {
         fn mul_f128x4(self, a0: f64x4, a1: f64x4, b0: f64x4, b1: f64x4) -> (f64x4, f64x4);
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     pub trait V4F128Ext {
         fn add_estimate_f128x8(self, a0: f64x8, a1: f64x8, b0: f64x8, b1: f64x8) -> (f64x8, f64x8);
         fn sub_estimate_f128x8(self, a0: f64x8, a1: f64x8, b0: f64x8, b1: f64x8) -> (f64x8, f64x8);
@@ -841,7 +841,7 @@ pub mod x86 {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     impl V4F128Ext for V4 {
         #[inline(always)]
         fn add_estimate_f128x8(self, a0: f64x8, a1: f64x8, b0: f64x8, b1: f64x8) -> (f64x8, f64x8) {

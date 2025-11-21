@@ -127,7 +127,7 @@ fn mul_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn add_avx512(simd: crate::V4, p: u32x16, a: u32x16, b: u32x16) -> u32x16 {
     let neg_b = simd.wrapping_sub_u32x16(p, b);
@@ -140,7 +140,7 @@ fn add_avx512(simd: crate::V4, p: u32x16, a: u32x16, b: u32x16) -> u32x16 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn sub_avx512(simd: crate::V4, p: u32x16, a: u32x16, b: u32x16) -> u32x16 {
     let neg_b = simd.wrapping_sub_u32x16(p, b);
@@ -153,7 +153,7 @@ fn sub_avx512(simd: crate::V4, p: u32x16, a: u32x16, b: u32x16) -> u32x16 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn mul_avx512(
     simd: crate::V4,
@@ -937,7 +937,7 @@ pub(crate) fn inv_depth_first_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_breadth_first_avx512(
     simd: crate::V4,
     data: &mut [u32],
@@ -1090,7 +1090,7 @@ pub(crate) fn fwd_breadth_first_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_depth_first_avx512(
     simd: crate::V4,
     data: &mut [u32],
@@ -1201,7 +1201,7 @@ pub(crate) fn fwd_depth_first_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_breadth_first_avx512(
     simd: crate::V4,
     data: &mut [u32],
@@ -1423,7 +1423,7 @@ pub(crate) fn inv_breadth_first_avx512(
     });
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_depth_first_avx512(
     simd: crate::V4,
     data: &mut [u32],
@@ -1575,7 +1575,7 @@ pub(crate) fn inv_avx2(simd: crate::V3, data: &mut [u32], p: u32, p_div: Div32, 
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_avx512(simd: crate::V4, data: &mut [u32], p: u32, p_div: Div32, twid: &[u32]) {
     let p_div = p_div.double_reciprocal;
     let p_div = (
@@ -1587,7 +1587,7 @@ pub(crate) fn fwd_avx512(simd: crate::V4, data: &mut [u32], p: u32, p_div: Div32
     fwd_depth_first_avx512(simd, data, p, p_div, twid, 0, 0);
 }
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_avx512(
     simd: crate::V4,
     data: &mut [u32],
@@ -1688,7 +1688,7 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_product_avx512() {
         if let Some(simd) = crate::V4::try_new() {

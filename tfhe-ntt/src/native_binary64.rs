@@ -8,7 +8,7 @@ pub(crate) use crate::native32::mul_mod32;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub(crate) use crate::native32::mul_mod32_avx2;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) use crate::native32::{mul_mod32_avx512, mul_mod52_avx512};
 
 /// Negacyclic NTT plan for multiplying two 32bit polynomials, where the RHS contains binary
@@ -21,10 +21,9 @@ pub struct Plan32(
 );
 
 /// Negacyclic NTT plan for multiplying two 32bit polynomials, where the RHS contains binary
-/// coefficients.  
+/// coefficients.
 /// This can be more efficient than [`Plan32`], but requires the AVX512 instruction set.
-#[cfg(all(feature = "nightly", any(target_arch = "x86", target_arch = "x86_64")))]
-#[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
+#[cfg(all(feature = "avx512", any(target_arch = "x86", target_arch = "x86_64")))]
 #[derive(Clone, Debug)]
 pub struct Plan52(crate::prime64::Plan, crate::prime64::Plan, crate::V4IFma);
 
@@ -147,7 +146,7 @@ fn reconstruct_32bit_012_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[allow(dead_code)]
 #[inline(always)]
 fn reconstruct_32bit_012_avx512(
@@ -225,7 +224,7 @@ fn reconstruct_32bit_012_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[inline(always)]
 fn reconstruct_52bit_01_avx512(simd: crate::V4IFma, mod_p0: u64x8, mod_p1: u64x8) -> u64x8 {
     use crate::primes52::*;
@@ -287,7 +286,7 @@ fn reconstruct_slice_32bit_012_avx2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn reconstruct_slice_32bit_012_avx512(
     simd: crate::V4IFma,
     value: &mut [u64],
@@ -315,7 +314,7 @@ fn reconstruct_slice_32bit_012_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 fn reconstruct_slice_52bit_01_avx512(
     simd: crate::V4IFma,
     value: &mut [u64],
@@ -401,7 +400,7 @@ impl Plan32 {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            #[cfg(feature = "nightly")]
+            #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4IFma::try_new() {
                 reconstruct_slice_32bit_012_avx512(simd, value, mod_p0, mod_p1, mod_p2);
                 return;
@@ -445,7 +444,7 @@ impl Plan32 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl Plan52 {
     /// Returns a negacyclic NTT plan for the given polynomial size, or `None` if no
     /// suitable roots of unity can be found for the wanted parameters, or if the AVX512
@@ -545,7 +544,7 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn reconstruct_52bit() {
         for n in [32, 64, 256, 1024, 2048] {

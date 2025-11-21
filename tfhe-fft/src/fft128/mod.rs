@@ -16,10 +16,10 @@ use crate::fft128::f128_ops::x86::V3F128Ext;
 use pulp::{f64x4, x86::V3};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 use crate::fft128::f128_ops::x86::{f64x16, V4F128Ext};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 use pulp::{f64x8, x86::V4};
 
 trait FftSimdF128: Copy {
@@ -41,7 +41,7 @@ trait V3InterleaveExt {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 trait V4InterleaveExt {
     fn interleave4_f64x8(self, z0z0z0z0z1z1z1z1: [f64x8; 2]) -> [f64x8; 2];
     fn permute4_f64x8(self, w: [f64; 2]) -> f64x8;
@@ -90,7 +90,7 @@ impl V3InterleaveExt for V3 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl V4InterleaveExt for V4 {
     #[inline(always)]
     fn interleave4_f64x8(self, z0z0z0z0z1z1z1z1: [f64x8; 2]) -> [f64x8; 2] {
@@ -217,7 +217,7 @@ impl FftSimdF128 for V3 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl FftSimdF128 for V4 {
     type Reg = f64x8;
 
@@ -246,12 +246,12 @@ impl FftSimdF128 for V4 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[derive(Copy, Clone, Debug)]
 pub struct V4x2(pub V4);
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl FftSimdF128 for V4x2 {
     type Reg = f64x16;
 
@@ -664,7 +664,7 @@ pub fn negacyclic_fwd_fft_avxfma(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[doc(hidden)]
 pub fn negacyclic_fwd_fft_avx512(
     simd: V4,
@@ -1052,7 +1052,7 @@ pub fn negacyclic_fwd_fft(
 ) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = V4::try_new() {
             return negacyclic_fwd_fft_avx512(
                 simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
@@ -1084,7 +1084,7 @@ pub fn negacyclic_inv_fft(
 ) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = V4::try_new() {
             return negacyclic_inv_fft_avx512(
                 simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
@@ -1406,7 +1406,7 @@ pub fn negacyclic_inv_fft_avxfma(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 #[doc(hidden)]
 pub fn negacyclic_inv_fft_avx512(
     simd: V4,
@@ -2304,7 +2304,7 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_product_avx512() {
         if let Some(simd) = V4::try_new() {
@@ -2465,7 +2465,7 @@ mod x86_tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_interleaves_and_permutes_f64x8() {
         if let Some(simd) = V4::try_new() {

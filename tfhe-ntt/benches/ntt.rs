@@ -150,7 +150,7 @@ fn criterion_bench(c: &mut Criterion) {
         });
         write_to_json(&bench_id, "nativebinary32-32", n, PrimeModulus::Native32, 0);
 
-        #[cfg(all(feature = "nightly", any(target_arch = "x86", target_arch = "x86_64")))]
+        #[cfg(all(feature = "avx512", any(target_arch = "x86", target_arch = "x86_64")))]
         {
             if let Some(plan) = native32::Plan52::try_new(n) {
                 let bench_id = format!("native32-52-{n}");
@@ -188,7 +188,7 @@ fn criterion_bench(c: &mut Criterion) {
         });
         write_to_json(&bench_id, "nativebinary64-32", n, PrimeModulus::Native64, 0);
 
-        #[cfg(all(feature = "nightly", any(target_arch = "x86", target_arch = "x86_64")))]
+        #[cfg(all(feature = "avx512", any(target_arch = "x86", target_arch = "x86_64")))]
         {
             if let Some(plan) = native64::Plan52::try_new(n) {
                 let bench_id = format!("native64-52-{n}");

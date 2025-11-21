@@ -333,7 +333,7 @@ pub(crate) fn fft_impl<c64xN: Pod>(simd: impl FftSimd<c64xN>) -> crate::FftImpl 
 pub fn fft_impl_dispatch(n: usize) -> [fn(&mut [c64], &mut [c64], &[c64], &[c64]); 2] {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        #[cfg(feature = "nightly")]
+        #[cfg(feature = "avx512")]
         if let Some(simd) = pulp::x86::V4::try_new() {
             if n >= 4 * simd.lane_count() {
                 return fft_impl(simd).make_fn_ptr(n);

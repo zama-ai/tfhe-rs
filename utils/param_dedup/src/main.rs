@@ -330,7 +330,7 @@ fn main() {
     );
 
     let formatting_toolchain = {
-        let tmp = fs::read_to_string("toolchain.txt").unwrap();
+        let tmp = fs::read_to_string("nightly-toolchain.txt").unwrap();
         let tmp = tmp.trim();
         format!("+{tmp}")
     };

@@ -23,7 +23,7 @@ pub(crate) trait PrimeModulusV3: Debug + Copy {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) trait PrimeModulusV4: Debug + Copy {
     type Div: Debug + Copy;
 
@@ -292,7 +292,7 @@ impl PrimeModulusV3 for Solinas {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl PrimeModulusV4 for u64 {
     type Div = (u64, u64, u64, u64, u64);
 
@@ -397,7 +397,7 @@ impl PrimeModulusV4 for u64 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 impl PrimeModulusV4 for Solinas {
     type Div = ();
 
@@ -797,7 +797,7 @@ pub(crate) fn inv_breadth_first_avx2<P: PrimeModulusV3>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_breadth_first_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -927,7 +927,7 @@ pub(crate) fn fwd_breadth_first_avx512<P: PrimeModulusV4>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_depth_first_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -1032,7 +1032,7 @@ pub(crate) fn fwd_depth_first_avx512<P: PrimeModulusV4>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_depth_first_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -1386,7 +1386,7 @@ pub(crate) fn fwd_depth_first_scalar<P: PrimeModulus>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -1413,7 +1413,7 @@ pub(crate) fn fwd_scalar<P: PrimeModulus>(data: &mut [u64], p: P, p_div: P::Div,
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -1440,7 +1440,7 @@ pub(crate) fn inv_scalar<P: PrimeModulus>(data: &mut [u64], p: P, p_div: P::Div,
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_breadth_first_avx512<P: PrimeModulusV4>(
     simd: crate::V4,
     data: &mut [u64],
@@ -1670,7 +1670,7 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_product_avx512() {
         if let Some(simd) = crate::V4::try_new() {
@@ -1790,7 +1790,7 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "avx512")]
     #[test]
     fn test_product_solinas_avx512() {
         if let Some(simd) = crate::V4::try_new() {

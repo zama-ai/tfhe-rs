@@ -6,7 +6,7 @@ use core::iter::zip;
 use pulp::*;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_breadth_first_avx512<Simd: crate::SupersetOfV4>(
     simd: Simd,
     p: u64,
@@ -156,7 +156,7 @@ pub(crate) fn fwd_breadth_first_avx512<Simd: crate::SupersetOfV4>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn fwd_depth_first_avx512<Simd: crate::SupersetOfV4>(
     simd: Simd,
     p: u64,
@@ -706,7 +706,7 @@ pub fn fwd_depth_first_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_breadth_first_avx512<Simd: crate::SupersetOfV4>(
     simd: Simd,
     p: u64,
@@ -888,7 +888,7 @@ pub(crate) fn inv_breadth_first_avx512<Simd: crate::SupersetOfV4>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly")]
+#[cfg(feature = "avx512")]
 pub(crate) fn inv_depth_first_avx512<Simd: crate::SupersetOfV4>(
     simd: Simd,
     p: u64,
