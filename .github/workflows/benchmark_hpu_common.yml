@@ -67,16 +67,27 @@ jobs:
     steps:
       - name: Parse user inputs
         shell: python
-        run: | # zizmor: ignore[template-injection] these env variables are safe
-          split_command = "${{ inputs.command }}".replace(" ", "").split(",")
-          split_op_flavor = "${{ inputs.op_flavor }}".replace(" ", "").split(",")
+        env:
+          INPUTS_COMMAND: ${{ inputs.command }}
+          INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+        run: |
+          import os
 
-          if "${{ inputs.bench_type }}" == "both":
+          inputs_command = os.environ["INPUTS_COMMAND"]
+          inputs_op_flavor = os.environ["INPUTS_OP_FLAVOR"]
+          inputs_bench_type = os.environ["INPUTS_BENCH_TYPE"]
+          env_file = os.environ["GITHUB_ENV"]
+
+          split_command = inputs_command.replace(" ", "").split(",")
+          split_op_flavor = inputs_op_flavor.replace(" ", "").split(",")
+
+          if inputs_bench_type == "both":
             bench_type = ["latency", "throughput"]
           else:
-            bench_type = ["${{ inputs.bench_type }}", ]
+            bench_type = [inputs_bench_type, ]
 
-          with open("${{ github.env }}", "a") as f:
+          with open(env_file, "a") as f:
             for env_name, values_to_join in [
               ("COMMAND", split_command),
               ("OP_FLAVOR", split_op_flavor),
