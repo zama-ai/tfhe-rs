@@ -110,7 +110,6 @@ jobs:
 
       - name: Slack Notification
         if: ${{ failure() }}
-        continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
