@@ -50,6 +50,11 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
