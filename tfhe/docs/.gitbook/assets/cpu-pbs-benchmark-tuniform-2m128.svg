@@ -9,25 +9,25 @@
 	<rect x="0" y="40" width="300" height="160" fill="#fbbc04"/>
 	<rect x="300" y="40" width="420" height="160" fill="#f3f3f3"/>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="60.0">PBS</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="60.0">10.3 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="60.0">13.8 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="60.0">10.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="60.0">13.4 ms</text>
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="60.0">115 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="60.0">1.3 s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="60.0">1.31 s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="100.0">MB-PBS</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="100.0">3.53 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="100.0">4.16 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="100.0">33.6 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="100.0">232 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="100.0">4.18 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="100.0">5.13 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="100.0">35.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="100.0">282 ms</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="140.0">KS - PBS</text>
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="140.0">11.9 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="140.0">15.5 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="140.0">135 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="140.0">1.47 s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="140.0">16.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="140.0">132 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="140.0">1.52 s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="180.0">KS - MB-PBS</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="180.0">5.99 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="180.0">7.37 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="180.0">52.4 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="180.0">368 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="180.0">5.83 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="180.0">7.33 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="180.0">55.5 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="180.0">396 ms</text>
 	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="720" y2="0"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="40" x2="720" y2="40"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="80" x2="720" y2="80"/>
