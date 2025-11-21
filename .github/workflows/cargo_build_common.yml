@@ -67,6 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      run_attempt: ${{ github.run_attempt }} # On a re-run with a successful previous run for this job, the run_attempt will not be incremented
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -206,7 +207,9 @@ jobs:
 
   teardown-instance:
     name: cargo_build_common/teardown-instance
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    if: ${{ always() &&
+      needs.setup-instance.result == 'success' &&
+      github.run_attempt == needs.setup-instance.outputs.run_attempt }} # Only run if setup-instance has been executed during this run attempt
     needs: [setup-instance, builds]
     runs-on: ubuntu-latest
     steps:
