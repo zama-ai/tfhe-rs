@@ -190,11 +190,17 @@ jobs:
           cp -f svg_tables/*integer-benchmark*.svg "${PATH_TO_DOC_ASSETS}"
           cp -f svg_tables/*pbs-benchmark-tuniform*.svg "${PATH_TO_DOC_ASSETS}"
 
+      - name: Get current date
+        id: get-date
+        run: |
+          echo "date=$(date '+%g_%m_%d_%Hh%Mm%Ss')" >> "${GITHUB_OUTPUT}"
+
       - name: Create pull-request
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           sign-commits: true # Commit will be signed by github-actions bot
           add-paths: ${{ env.PATH_TO_DOC_ASSETS }}/*.svg
+          branch: gh-bot/docs/update-svg-tables-${{ steps.get-date.outputs.date }}
           commit-message: |
             chore(docs): update benchmark results for all backends
 
