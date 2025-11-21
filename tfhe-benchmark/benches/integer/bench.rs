@@ -465,23 +465,26 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-                    let clear_0 = gen_random_u256(&mut rng);
-                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
-
-                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
-                    (sks, ct_0, clear_1)
-                });
+                let bench_data =
+                    LazyCell::new(|| KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
 
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
-                    let (sks, ct_0, clear_1) = (&bench_data.0, &bench_data.1, bench_data.2);
+                    let (cks, sks) = (&bench_data.0, &bench_data.1);
 
-                    b.iter(|| {
-                        binary_op(sks, ct_0, clear_1);
-                    })
+                    b.iter_batched(
+                        || {
+                            let clear_0 = gen_random_u256(&mut rng);
+                            let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                            let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                            (ct_0, clear_1)
+                        },
+                        |(ct_0, clear_1)| {
+                            binary_op(sks, &ct_0, clear_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
             BenchmarkType::Throughput => {
