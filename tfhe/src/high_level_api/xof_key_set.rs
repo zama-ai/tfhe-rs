@@ -1936,8 +1936,7 @@ mod test {
         let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
         let security_bits = 128;
         let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let mut tag = Tag::default();
-        tag.set_data(b"classic_2_2");
+        let tag = Tag::from("classic_2_2");
 
         let (cks, compressed_key_set) = CompressedXofKeySet::generate(
             config,
@@ -1977,8 +1976,7 @@ mod test {
         let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
         let security_bits = 128;
         let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let mut tag = Tag::default();
-        tag.set_data(b"ks32 big pke");
+        let tag = Tag::from("ks32 big pke");
 
         let (cks, compressed_key_set) = CompressedXofKeySet::generate(
             config,
@@ -2018,8 +2016,7 @@ mod test {
         let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
         let security_bits = 128;
         let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let mut tag = Tag::default();
-        tag.set_data(b"ks32 small pke");
+        let tag = Tag::from("ks32 small pke");
 
         let (cks, compressed_key_set) = CompressedXofKeySet::generate(
             config,
