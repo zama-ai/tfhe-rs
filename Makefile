@@ -650,7 +650,7 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 # parallel wasm requires specific build options, see https://github.com/rust-lang/rust/pull/147225
-build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
+build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_wasm_bindgen_cli
 	cd tfhe && \
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory \
