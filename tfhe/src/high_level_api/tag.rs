@@ -395,6 +395,14 @@ impl From<u64> for Tag {
     }
 }
 
+impl From<&str> for Tag {
+    fn from(value: &str) -> Self {
+        let mut tag = Self::default();
+        tag.set_data(value.as_bytes());
+        tag
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
