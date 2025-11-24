@@ -32,10 +32,13 @@ use crate::prelude::{CastFrom, CastInto};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::{CarryModulus, MessageModulus};
+use crate::MatchValues;
 use itertools::Itertools;
+use rayon::prelude::*;
 pub use server_key::CudaServerKey;
 use std::any::TypeId;
 use std::cmp::min;
+use std::hash::Hash;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
@@ -6801,124 +6804,6 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_compute_prefix_sum_hillis_steele<
-    T: UnsignedInteger,
-    B: Numeric,
->(
-    streams: &CudaStreams,
-    output: &mut CudaSliceMut<T>,
-    output_degrees: &mut Vec<u64>,
-    output_noise_levels: &mut Vec<u64>,
-    generates_or_propagates: &mut CudaSliceMut<T>,
-    generates_or_propagates_degrees: &mut Vec<u64>,
-    generates_or_propagates_noise_levels: &mut Vec<u64>,
-    input_lut: &[T],
-    lut_degree: u64,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        generates_or_propagates.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first generates_or_propagates pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        generates_or_propagates.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        output.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        output.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        keyswitch_key.gpu_index(0).get(),
-    );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
-        output,
-        output_degrees,
-        output_noise_levels,
-        num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
-    );
-    let mut cuda_ffi_generates_or_propagates = prepare_cuda_radix_ffi_from_slice_mut(
-        generates_or_propagates,
-        generates_or_propagates_degrees,
-        generates_or_propagates_noise_levels,
-        num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
-    );
-    scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        input_lut.as_ptr().cast(),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        lut_degree,
-        true,
-        noise_reduction_type as u32,
-    );
-
-    cuda_integer_compute_prefix_sum_hillis_steele_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_output,
-        &raw mut cuda_ffi_generates_or_propagates,
-        mem_ptr,
-        keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
-        num_blocks,
-    );
-
-    cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     T: UnsignedInteger,
     B: Numeric,
@@ -8437,417 +8322,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitnot_assign(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_compute_equality_selectors<T: UnsignedInteger, B: Numeric>(
-    streams: &CudaStreams,
-    lwe_array_out_list: &mut [CudaBooleanBlock],
-    lwe_array_in: &CudaRadixCiphertext,
-    h_decomposed_cleartexts: &[u64],
-    num_possible_values: u32,
-    num_blocks: u32,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) {
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
-    assert_eq!(
-        streams.gpu_indexes[0],
-        lwe_array_in.d_blocks.0.d_vec.gpu_index(0)
-    );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
-    let mut ffi_out_degrees: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_out_list.len());
-    let mut ffi_out_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_out_list.len());
-
-    let mut ffi_out_structs: Vec<CudaRadixCiphertextFFI> = lwe_array_out_list
-        .iter_mut()
-        .map(|ct| {
-            assert_eq!(
-                streams.gpu_indexes[0],
-                ct.0.ciphertext.d_blocks.0.d_vec.gpu_index(0)
-            );
-            ffi_out_degrees.push(vec![ct.0.ciphertext.info.blocks[0].degree.get()]);
-            ffi_out_noise_levels.push(vec![ct.0.ciphertext.info.blocks[0].noise_level.0]);
-            prepare_cuda_radix_ffi(
-                &ct.0.ciphertext,
-                ffi_out_degrees.last_mut().unwrap(),
-                ffi_out_noise_levels.last_mut().unwrap(),
-            )
-        })
-        .collect();
-
-    let mut ffi_in_degrees: Vec<u64> = lwe_array_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.get())
-        .collect();
-    let mut ffi_in_noise_levels: Vec<u64> = lwe_array_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-
-    let ffi_in_struct: CudaRadixCiphertextFFI =
-        prepare_cuda_radix_ffi(lwe_array_in, &mut ffi_in_degrees, &mut ffi_in_noise_levels);
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_compute_equality_selectors_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_possible_values,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-
-    cuda_compute_equality_selectors_64(
-        streams.ffi(),
-        ffi_out_structs.as_mut_ptr(),
-        &raw const ffi_in_struct,
-        num_blocks,
-        h_decomposed_cleartexts.as_ptr(),
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
-
-    cleanup_cuda_compute_equality_selectors_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
-
-    for (ct, ffi_struct) in lwe_array_out_list.iter_mut().zip(ffi_out_structs.iter()) {
-        update_noise_degree(&mut ct.0.ciphertext, ffi_struct);
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_create_possible_results<
-    T: UnsignedInteger,
-    B: Numeric,
-    R: CudaIntegerRadixCiphertext,
->(
-    streams: &CudaStreams,
-    lwe_array_out_list: &mut [R],
-    lwe_array_in_list: &[CudaBooleanBlock],
-    h_decomposed_cleartexts: &[u64],
-    num_blocks: u32,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) {
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
-    let mut ffi_out_degrees: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_out_list.len());
-    let mut ffi_out_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_out_list.len());
-
-    let mut ffi_out_structs: Vec<CudaRadixCiphertextFFI> = lwe_array_out_list
-        .iter_mut()
-        .map(|ct| {
-            assert_eq!(
-                streams.gpu_indexes[0],
-                ct.as_ref().d_blocks.0.d_vec.gpu_index(0)
-            );
-            let degrees: Vec<u64> = ct
-                .as_ref()
-                .info
-                .blocks
-                .iter()
-                .map(|b| b.degree.get())
-                .collect();
-            let noise_levels: Vec<u64> = ct
-                .as_ref()
-                .info
-                .blocks
-                .iter()
-                .map(|b| b.noise_level.0)
-                .collect();
-
-            ffi_out_degrees.push(degrees);
-            ffi_out_noise_levels.push(noise_levels);
-
-            prepare_cuda_radix_ffi(
-                ct.as_ref(),
-                ffi_out_degrees.last_mut().unwrap(),
-                ffi_out_noise_levels.last_mut().unwrap(),
-            )
-        })
-        .collect();
-
-    let mut ffi_in_degrees: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_in_list.len());
-    let mut ffi_in_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_in_list.len());
-
-    let ffi_in_structs: Vec<CudaRadixCiphertextFFI> = lwe_array_in_list
-        .iter()
-        .map(|boolean_block| {
-            assert_eq!(
-                streams.gpu_indexes[0],
-                boolean_block.0.ciphertext.d_blocks.0.d_vec.gpu_index(0)
-            );
-
-            let degrees = vec![boolean_block.0.ciphertext.info.blocks[0].degree.get()];
-            let noise_levels = vec![boolean_block.0.ciphertext.info.blocks[0].noise_level.0];
-
-            ffi_in_degrees.push(degrees);
-            ffi_in_noise_levels.push(noise_levels);
-
-            prepare_cuda_radix_ffi(
-                &boolean_block.0.ciphertext,
-                ffi_in_degrees.last_mut().unwrap(),
-                ffi_in_noise_levels.last_mut().unwrap(),
-            )
-        })
-        .collect();
-
-    let num_possible_values = lwe_array_in_list.len() as u32;
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_create_possible_results_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_possible_values,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-
-    cuda_create_possible_results_64(
-        streams.ffi(),
-        ffi_out_structs.as_mut_ptr(),
-        ffi_in_structs.as_ptr(),
-        num_possible_values,
-        h_decomposed_cleartexts.as_ptr(),
-        num_blocks,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
-
-    cleanup_cuda_create_possible_results_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
-
-    for (i, ct) in lwe_array_out_list.iter_mut().enumerate() {
-        update_noise_degree(ct.as_mut(), &ffi_out_structs[i]);
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_aggregate_one_hot_vector<
-    T: UnsignedInteger,
-    B: Numeric,
-    R: CudaIntegerRadixCiphertext,
->(
-    streams: &CudaStreams,
-    lwe_array_out: &mut R,
-    lwe_array_in_list: &[R],
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) {
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
-    assert_eq!(
-        streams.gpu_indexes[0],
-        lwe_array_out.as_ref().d_blocks.0.d_vec.gpu_index(0)
-    );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
-    let mut ffi_out_degrees: Vec<u64> = lwe_array_out
-        .as_ref()
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.get())
-        .collect();
-    let mut ffi_out_noise_levels: Vec<u64> = lwe_array_out
-        .as_ref()
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-
-    let mut ffi_out_struct = prepare_cuda_radix_ffi(
-        lwe_array_out.as_ref(),
-        &mut ffi_out_degrees,
-        &mut ffi_out_noise_levels,
-    );
-
-    let mut ffi_in_degrees: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_in_list.len());
-    let mut ffi_in_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(lwe_array_in_list.len());
-
-    let ffi_in_structs: Vec<CudaRadixCiphertextFFI> = lwe_array_in_list
-        .iter()
-        .map(|ct| {
-            assert_eq!(
-                streams.gpu_indexes[0],
-                ct.as_ref().d_blocks.0.d_vec.gpu_index(0)
-            );
-            let degrees: Vec<u64> = ct
-                .as_ref()
-                .info
-                .blocks
-                .iter()
-                .map(|b| b.degree.get())
-                .collect();
-            let noise_levels: Vec<u64> = ct
-                .as_ref()
-                .info
-                .blocks
-                .iter()
-                .map(|b| b.noise_level.0)
-                .collect();
-
-            ffi_in_degrees.push(degrees);
-            ffi_in_noise_levels.push(noise_levels);
-
-            prepare_cuda_radix_ffi(
-                ct.as_ref(),
-                ffi_in_degrees.last_mut().unwrap(),
-                ffi_in_noise_levels.last_mut().unwrap(),
-            )
-        })
-        .collect();
-
-    let num_input_ciphertexts = lwe_array_in_list.len() as u32;
-    let num_blocks = lwe_array_in_list[0]
-        .as_ref()
-        .d_blocks
-        .lwe_ciphertext_count()
-        .0 as u32;
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_aggregate_one_hot_vector_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        num_input_ciphertexts,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-
-    cuda_aggregate_one_hot_vector_64(
-        streams.ffi(),
-        &raw mut ffi_out_struct,
-        ffi_in_structs.as_ptr(),
-        num_input_ciphertexts,
-        num_blocks,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
-
-    cleanup_cuda_aggregate_one_hot_vector_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
-
-    update_noise_degree(lwe_array_out.as_mut(), &ffi_out_struct);
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     T: UnsignedInteger,
     B: Numeric,
     R: CudaIntegerRadixCiphertext,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     lwe_array_out_result: &mut R,
     lwe_array_out_boolean: &mut CudaBooleanBlock,
     lwe_array_in_ct: &CudaRadixCiphertext,
-    h_match_inputs: &[u64],
-    h_match_outputs: &[u64],
-    num_matches: u32,
-    num_input_blocks: u32,
-    num_output_packed_blocks: u32,
-    max_output_is_zero: bool,
+    matches: &MatchValues<Clear>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
@@ -8884,6 +8369,50 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
             .d_vec
             .gpu_index(0)
     );
+
+    let num_input_blocks = lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+    let h_match_inputs: Vec<u64> = matches
+        .get_values()
+        .par_iter()
+        .map(|(input, _output)| *input)
+        .flat_map(|input_value: Clear| {
+            BlockDecomposer::new(input_value, num_bits_in_message)
+                .take(num_input_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+
+    let max_output_value = matches
+        .get_values()
+        .iter()
+        .copied()
+        .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+        .expect("luts is not empty at this point")
+        .1;
+
+    let num_output_unpacked_blocks = lwe_array_out_result
+        .as_ref()
+        .d_blocks
+        .lwe_ciphertext_count()
+        .0 as u32;
+    let num_output_packed_blocks = num_output_unpacked_blocks.div_ceil(2);
+
+    let h_match_outputs: Vec<u64> = matches
+        .get_values()
+        .par_iter()
+        .map(|(_input, output)| *output)
+        .flat_map(|output_value: Clear| {
+            BlockDecomposer::new(output_value, 2 * num_bits_in_message)
+                .take(num_output_packed_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+
+    let max_output_is_zero = max_output_value == Clear::ZERO;
+    let num_matches = matches.get_values().len() as u32;
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -8993,8 +8522,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu(
+pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     streams: &CudaStreams,
+    ct: &CudaRadixCiphertext,
+    matches: &MatchValues<Clear>,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
     big_lwe_dimension: LweDimension,
@@ -9007,12 +8538,34 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
-    num_matches: u32,
-    num_input_blocks: u32,
-    num_output_packed_blocks: u32,
-    max_output_is_zero: bool,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) -> u64 {
+) -> u64
+where
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+{
+    let num_input_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let max_output_value = matches
+        .get_values()
+        .iter()
+        .copied()
+        .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+        .expect("luts is not empty at this point")
+        .1;
+
+    let num_bits_in_message = message_modulus.0.ilog2();
+    let max_val_u64: u64 = max_output_value.cast_into();
+
+    let num_output_unpacked_blocks = if max_val_u64 == 0 {
+        1
+    } else {
+        (max_val_u64.ilog2() + 1).div_ceil(num_bits_in_message)
+    };
+
+    let num_output_packed_blocks = num_output_unpacked_blocks.div_ceil(2);
+    let max_output_is_zero = max_output_value == Clear::ZERO;
+    let num_matches = matches.get_values().len() as u32;
+
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -9054,8 +8607,11 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu(
+pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu<Clear>(
     streams: &CudaStreams,
+    ct: &CudaRadixCiphertext,
+    matches: &MatchValues<Clear>,
+    or_value: Clear,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
     big_lwe_dimension: LweDimension,
@@ -9068,13 +8624,41 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
-    num_matches: u32,
-    num_input_blocks: u32,
-    num_match_packed_blocks: u32,
-    num_output_blocks: u32,
-    max_output_is_zero: bool,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) -> u64 {
+) -> u64
+where
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+{
+    let num_input_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let max_output_value = matches
+        .get_values()
+        .iter()
+        .copied()
+        .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+        .expect("luts is not empty at this point")
+        .1;
+
+    let max_val_u64: u64 = max_output_value.cast_into();
+    let or_val_u64: u64 = or_value.cast_into();
+
+    let calc_blocks = |val: u64| -> u32 {
+        if val == 0 {
+            1
+        } else {
+            (val.ilog2() + 1).div_ceil(num_bits_in_message)
+        }
+    };
+
+    let num_blocks_match = calc_blocks(max_val_u64);
+    let num_blocks_or = calc_blocks(or_val_u64);
+
+    let num_output_blocks = num_blocks_match.max(num_blocks_or);
+    let num_match_packed_blocks = num_blocks_match.div_ceil(2);
+    let max_output_is_zero = max_output_value == Clear::ZERO;
+    let num_matches = matches.get_values().len() as u32;
+
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -9210,18 +8794,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     T: UnsignedInteger,
     B: Numeric,
     R: CudaIntegerRadixCiphertext,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 >(
     streams: &CudaStreams,
     lwe_array_out: &mut R,
     lwe_array_in_ct: &CudaRadixCiphertext,
-    h_match_inputs: &[u64],
-    h_match_outputs: &[u64],
-    h_or_value: &[u64],
-    num_matches: u32,
-    num_input_blocks: u32,
-    num_match_packed_blocks: u32,
-    num_final_blocks: u32,
-    max_output_is_zero: bool,
+    matches: &MatchValues<Clear>,
+    or_value: Clear,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
@@ -9238,7 +8817,71 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     grouping_factor: LweBskGroupingFactor,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_in_ct.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_out.as_ref().d_blocks.0.d_vec.gpu_index(0)
+    );
+
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let num_input_blocks = lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let h_match_inputs: Vec<u64> = matches
+        .get_values()
+        .par_iter()
+        .map(|(input, _output)| *input)
+        .flat_map(|input_value: Clear| {
+            BlockDecomposer::new(input_value, num_bits_in_message)
+                .take(num_input_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+
+    let max_output_value = matches
+        .get_values()
+        .iter()
+        .copied()
+        .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
+        .expect("luts is not empty at this point")
+        .1;
+
+    let max_val_u64: u64 = max_output_value.cast_into();
+    let num_blocks_match = if max_val_u64 == 0 {
+        1
+    } else {
+        (max_val_u64.ilog2() + 1).div_ceil(num_bits_in_message)
+    };
+    let num_match_packed_blocks = num_blocks_match.div_ceil(2);
+
+    let h_match_outputs: Vec<u64> = matches
+        .get_values()
+        .par_iter()
+        .map(|(_input, output)| *output)
+        .flat_map(|output_value: Clear| {
+            BlockDecomposer::new(output_value, 2 * num_bits_in_message)
+                .take(num_match_packed_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+
+    let num_final_blocks = lwe_array_out.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let h_or_value: Vec<u64> = BlockDecomposer::new(or_value, num_bits_in_message)
+        .take(num_final_blocks as usize)
+        .map(|block_value: Clear| block_value.cast_into())
+        .collect();
+
+    let max_output_is_zero = max_output_value == Clear::ZERO;
+    let num_matches = matches.get_values().len() as u32;
 
     let mut ffi_out_degrees: Vec<u64> = lwe_array_out
         .as_ref()
@@ -9319,4 +8962,1193 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     cleanup_cuda_unchecked_match_value_or_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(lwe_array_out.as_mut(), &ffi_out_struct);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_contains<
+    T: UnsignedInteger,
+    B: Numeric,
+    C: CudaIntegerRadixCiphertext,
+>(
+    streams: &CudaStreams,
+    output: &mut CudaBooleanBlock,
+    inputs: &[C],
+    value: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_inputs = inputs.len() as u32;
+    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
+    let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_output = prepare_cuda_radix_ffi(
+        &output.0.ciphertext,
+        &mut output_degrees,
+        &mut output_noise_levels,
+    );
+
+    let mut value_degrees: Vec<u64> = value.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut value_noise_levels: Vec<u64> =
+        value.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_value = prepare_cuda_radix_ffi(value, &mut value_degrees, &mut value_noise_levels);
+
+    let mut ffi_inputs_degrees: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let mut ffi_inputs_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let ffi_inputs: Vec<CudaRadixCiphertextFFI> = inputs
+        .iter()
+        .map(|ct| {
+            let degrees = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.degree.get())
+                .collect();
+            let noise_levels = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.noise_level.0)
+                .collect();
+            ffi_inputs_degrees.push(degrees);
+            ffi_inputs_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                ct.as_ref(),
+                ffi_inputs_degrees.last_mut().unwrap(),
+                ffi_inputs_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_contains_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_contains_64(
+        streams.ffi(),
+        &raw mut ffi_output,
+        ffi_inputs.as_ptr(),
+        &raw const ffi_value,
+        num_inputs,
+        num_blocks,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_contains_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(&mut output.0.ciphertext, &ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
+    T: UnsignedInteger,
+    B: Numeric,
+    C: CudaIntegerRadixCiphertext,
+    Clear: DecomposableInto<u64>,
+>(
+    streams: &CudaStreams,
+    output: &mut CudaBooleanBlock,
+    inputs: &[C],
+    clear: Clear,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    if !inputs.is_empty() {
+        assert_eq!(
+            streams.gpu_indexes[0],
+            inputs[0].as_ref().d_blocks.0.d_vec.gpu_index(0)
+        );
+    }
+
+    let num_inputs = inputs.len() as u32;
+    let num_blocks = inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let h_clear_blocks: Vec<u64> = BlockDecomposer::new(clear, num_bits_in_message)
+        .take(num_blocks as usize)
+        .map(|block_value| block_value.cast_into())
+        .collect();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
+    let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_output = prepare_cuda_radix_ffi(
+        &output.0.ciphertext,
+        &mut output_degrees,
+        &mut output_noise_levels,
+    );
+
+    let mut ffi_inputs_degrees: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let mut ffi_inputs_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let ffi_inputs: Vec<CudaRadixCiphertextFFI> = inputs
+        .iter()
+        .map(|ct| {
+            let degrees = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.degree.get())
+                .collect();
+            let noise_levels = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.noise_level.0)
+                .collect();
+            ffi_inputs_degrees.push(degrees);
+            ffi_inputs_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                ct.as_ref(),
+                ffi_inputs_degrees.last_mut().unwrap(),
+                ffi_inputs_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_contains_clear_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_contains_clear_64(
+        streams.ffi(),
+        &raw mut ffi_output,
+        ffi_inputs.as_ptr(),
+        h_clear_blocks.as_ptr(),
+        num_inputs,
+        num_blocks,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_contains_clear_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(&mut output.0.ciphertext, &ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
+    T: UnsignedInteger,
+    B: Numeric,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+>(
+    streams: &CudaStreams,
+    output: &mut CudaBooleanBlock,
+    input: &CudaRadixCiphertext,
+    clears: &[Clear],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_clears = clears.len() as u32;
+    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let h_decomposed_cleartexts: Vec<u64> = clears
+        .par_iter()
+        .flat_map(|input_value| {
+            BlockDecomposer::new(*input_value, num_bits_in_message)
+                .take(num_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
+    let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_output = prepare_cuda_radix_ffi(
+        &output.0.ciphertext,
+        &mut output_degrees,
+        &mut output_noise_levels,
+    );
+
+    let mut input_degrees: Vec<u64> = input.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut input_noise_levels: Vec<u64> =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_is_in_clears_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_clears,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_is_in_clears_64(
+        streams.ffi(),
+        &raw mut ffi_output,
+        &raw const ffi_input,
+        h_decomposed_cleartexts.as_ptr(),
+        num_clears,
+        num_blocks,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_is_in_clears_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(&mut output.0.ciphertext, &ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_compute_final_index_from_selectors<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    selectors: &[CudaBooleanBlock],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+
+    let num_inputs = selectors.len() as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut ffi_selectors_degrees: Vec<Vec<u64>> = Vec::with_capacity(selectors.len());
+    let mut ffi_selectors_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(selectors.len());
+    let ffi_selectors: Vec<CudaRadixCiphertextFFI> = selectors
+        .iter()
+        .map(|ct| {
+            let degrees = vec![ct.0.ciphertext.info.blocks[0].degree.get()];
+            let noise_levels = vec![ct.0.ciphertext.info.blocks[0].noise_level.0];
+            ffi_selectors_degrees.push(degrees);
+            ffi_selectors_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                &ct.0.ciphertext,
+                ffi_selectors_degrees.last_mut().unwrap(),
+                ffi_selectors_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_compute_final_index_from_selectors_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_compute_final_index_from_selectors_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        ffi_selectors.as_ptr(),
+        num_inputs,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_compute_final_index_from_selectors_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
+    T: UnsignedInteger,
+    B: Numeric,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    input: &CudaRadixCiphertext,
+    clears: &[Clear],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_clears = clears.len() as u32;
+    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let h_decomposed_cleartexts: Vec<u64> = clears
+        .par_iter()
+        .flat_map(|input_value| {
+            BlockDecomposer::new(*input_value, num_bits_in_message)
+                .take(num_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut input_degrees: Vec<u64> = input.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut input_noise_levels: Vec<u64> =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_index_in_clears_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_clears,
+        num_blocks,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_index_in_clears_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        &raw const ffi_input,
+        h_decomposed_cleartexts.as_ptr(),
+        num_clears,
+        num_blocks,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_index_in_clears_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
+    T: UnsignedInteger,
+    B: Numeric,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    input: &CudaRadixCiphertext,
+    clears: &[Clear],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_bits_in_message = message_modulus.0.ilog2();
+    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let unique_elements: Vec<(usize, &Clear)> = clears
+        .iter()
+        .enumerate()
+        .unique_by(|&(_, value)| value)
+        .collect();
+
+    let num_unique = unique_elements.len() as u32;
+
+    let h_unique_values: Vec<u64> = unique_elements
+        .par_iter()
+        .flat_map(|(_, input_value)| {
+            BlockDecomposer::new(**input_value, num_bits_in_message)
+                .take(num_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    let num_packed_blocks = (num_blocks_index as usize).div_ceil(2);
+    let bits_per_packed_block = 2 * num_bits_in_message;
+
+    let h_unique_indices: Vec<u64> = unique_elements
+        .par_iter()
+        .flat_map(|(index, _)| {
+            let val = *index as u64;
+            (0..num_packed_blocks).into_par_iter().map(move |b| {
+                let shift = b as u32 * bits_per_packed_block;
+                if shift >= 64 {
+                    0
+                } else {
+                    (val >> shift) & ((1 << bits_per_packed_block) - 1)
+                }
+            })
+        })
+        .collect();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut input_degrees: Vec<u64> = input.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut input_noise_levels: Vec<u64> =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_first_index_in_clears_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_unique,
+        num_blocks,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_first_index_in_clears_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        &raw const ffi_input,
+        h_unique_values.as_ptr(),
+        h_unique_indices.as_ptr(),
+        num_unique,
+        num_blocks,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_first_index_in_clears_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
+    T: UnsignedInteger,
+    B: Numeric,
+    C: CudaIntegerRadixCiphertext,
+    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    inputs: &[C],
+    clear: Clear,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+
+    let num_inputs = inputs.len() as u32;
+    let num_blocks = inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_bits_in_message = message_modulus.0.ilog2();
+
+    let h_clear_blocks: Vec<u64> = BlockDecomposer::new(clear, num_bits_in_message)
+        .take(num_blocks as usize)
+        .map(|block_value| block_value.cast_into())
+        .collect();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut ffi_inputs_degrees: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let mut ffi_inputs_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let ffi_inputs: Vec<CudaRadixCiphertextFFI> = inputs
+        .iter()
+        .map(|ct| {
+            let degrees = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.degree.get())
+                .collect();
+            let noise_levels = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.noise_level.0)
+                .collect();
+            ffi_inputs_degrees.push(degrees);
+            ffi_inputs_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                ct.as_ref(),
+                ffi_inputs_degrees.last_mut().unwrap(),
+                ffi_inputs_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_first_index_of_clear_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_first_index_of_clear_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        ffi_inputs.as_ptr(),
+        h_clear_blocks.as_ptr(),
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_first_index_of_clear_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
+    T: UnsignedInteger,
+    B: Numeric,
+    C: CudaIntegerRadixCiphertext,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    inputs: &[C],
+    value: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_inputs = inputs.len() as u32;
+    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut value_degrees: Vec<u64> = value.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut value_noise_levels: Vec<u64> =
+        value.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_value = prepare_cuda_radix_ffi(value, &mut value_degrees, &mut value_noise_levels);
+
+    let mut ffi_inputs_degrees: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let mut ffi_inputs_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let ffi_inputs: Vec<CudaRadixCiphertextFFI> = inputs
+        .iter()
+        .map(|ct| {
+            let degrees = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.degree.get())
+                .collect();
+            let noise_levels = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.noise_level.0)
+                .collect();
+            ffi_inputs_degrees.push(degrees);
+            ffi_inputs_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                ct.as_ref(),
+                ffi_inputs_degrees.last_mut().unwrap(),
+                ffi_inputs_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_first_index_of_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_first_index_of_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        ffi_inputs.as_ptr(),
+        &raw const ffi_value,
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_first_index_of_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_index_of<
+    T: UnsignedInteger,
+    B: Numeric,
+    C: CudaIntegerRadixCiphertext,
+>(
+    streams: &CudaStreams,
+    index_ct: &mut CudaRadixCiphertext,
+    match_ct: &mut CudaBooleanBlock,
+    inputs: &[C],
+    value: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+
+    let num_inputs = inputs.len() as u32;
+    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut index_degrees = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut index_noise_levels = index_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut ffi_index =
+        prepare_cuda_radix_ffi(index_ct, &mut index_degrees, &mut index_noise_levels);
+
+    let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
+    let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
+    let mut ffi_match = prepare_cuda_radix_ffi(
+        &match_ct.0.ciphertext,
+        &mut match_degrees,
+        &mut match_noise_levels,
+    );
+
+    let mut value_degrees: Vec<u64> = value.info.blocks.iter().map(|b| b.degree.get()).collect();
+    let mut value_noise_levels: Vec<u64> =
+        value.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let ffi_value = prepare_cuda_radix_ffi(value, &mut value_degrees, &mut value_noise_levels);
+
+    let mut ffi_inputs_degrees: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let mut ffi_inputs_noise_levels: Vec<Vec<u64>> = Vec::with_capacity(inputs.len());
+    let ffi_inputs: Vec<CudaRadixCiphertextFFI> = inputs
+        .iter()
+        .map(|ct| {
+            let degrees = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.degree.get())
+                .collect();
+            let noise_levels = ct
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|b| b.noise_level.0)
+                .collect();
+            ffi_inputs_degrees.push(degrees);
+            ffi_inputs_noise_levels.push(noise_levels);
+
+            prepare_cuda_radix_ffi(
+                ct.as_ref(),
+                ffi_inputs_degrees.last_mut().unwrap(),
+                ffi_inputs_noise_levels.last_mut().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_unchecked_index_of_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_unchecked_index_of_64(
+        streams.ffi(),
+        &raw mut ffi_index,
+        &raw mut ffi_match,
+        ffi_inputs.as_ptr(),
+        &raw const ffi_value,
+        num_inputs,
+        num_blocks,
+        num_blocks_index,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_unchecked_index_of_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(index_ct, &ffi_index);
+    update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
 }

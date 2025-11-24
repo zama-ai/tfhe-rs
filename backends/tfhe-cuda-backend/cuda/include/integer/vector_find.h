@@ -18,13 +18,13 @@ template <typename Torus> struct int_equality_selectors_buffer {
   CudaRadixCiphertextFFI *tmp_many_luts_output;
 
   CudaStreams active_streams;
-  std::vector<CudaStreams> sub_streams_vec;
+  CudaStreams *sub_streams;
   cudaEvent_t incoming_event;
-  std::vector<std::vector<cudaEvent_t>> outgoing_events;
+  cudaEvent_t *outgoing_events;
   uint32_t num_streams;
 
-  std::vector<CudaRadixCiphertextFFI *> tmp_block_comparisons_vec;
-  std::vector<int_comparison_buffer<Torus> *> reduction_buffers;
+  CudaRadixCiphertextFFI **tmp_block_comparisons;
+  int_comparison_buffer<Torus> **reduction_buffers;
 
   int_equality_selectors_buffer(CudaStreams streams, int_radix_params params,
                                 uint32_t num_possible_values,
@@ -42,17 +42,18 @@ template <typename Torus> struct int_equality_selectors_buffer {
     this->num_streams = num_streams_to_use;
 
     this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
 
     incoming_event = cuda_create_event(streams.gpu_index(0));
 
-    sub_streams_vec.resize(num_streams_to_use);
-    outgoing_events.resize(num_streams_to_use);
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events = new cudaEvent_t[num_streams_to_use * num_gpus];
 
     for (uint32_t i = 0; i < num_streams_to_use; i++) {
-      sub_streams_vec[i].create_on_same_gpus(active_streams);
-      outgoing_events[i].resize(active_streams.count());
-      for (uint32_t j = 0; j < active_streams.count(); j++) {
-        outgoing_events[i][j] = cuda_create_event(active_streams.gpu_index(j));
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        outgoing_events[i * num_gpus + j] =
+            cuda_create_event(active_streams.gpu_index(j));
       }
     }
 
@@ -88,17 +89,19 @@ template <typename Torus> struct int_equality_selectors_buffer {
         params.message_modulus * num_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->tmp_block_comparisons_vec.resize(this->num_streams);
-    this->reduction_buffers.resize(this->num_streams);
+    this->tmp_block_comparisons =
+        new CudaRadixCiphertextFFI *[this->num_streams];
+    this->reduction_buffers =
+        new int_comparison_buffer<Torus> *[this->num_streams];
     for (uint32_t j = 0; j < this->num_streams; j++) {
-      this->tmp_block_comparisons_vec[j] = new CudaRadixCiphertextFFI;
+      this->tmp_block_comparisons[j] = new CudaRadixCiphertextFFI;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0),
-          this->tmp_block_comparisons_vec[j], num_blocks,
-          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+          this->tmp_block_comparisons[j], num_blocks, params.big_lwe_dimension,
+          size_tracker, allocate_gpu_memory);
 
       this->reduction_buffers[j] = new int_comparison_buffer<Torus>(
-          sub_streams_vec[j], COMPARISON_TYPE::EQ, params, num_blocks, false,
+          sub_streams[j], COMPARISON_TYPE::EQ, params, num_blocks, false,
           allocate_gpu_memory, size_tracker);
     }
   }
@@ -112,33 +115,37 @@ template <typename Torus> struct int_equality_selectors_buffer {
                                    this->allocate_gpu_memory);
     delete this->tmp_many_luts_output;
 
-    for (auto ct : this->tmp_block_comparisons_vec) {
+    for (uint32_t i = 0; i < this->num_streams; i++) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     ct, this->allocate_gpu_memory);
-      delete ct;
+                                     this->tmp_block_comparisons[i],
+                                     this->allocate_gpu_memory);
+      delete this->tmp_block_comparisons[i];
     }
-    this->tmp_block_comparisons_vec.clear();
+    delete[] this->tmp_block_comparisons;
 
-    for (auto buffer : this->reduction_buffers) {
-      buffer->release(streams);
-      delete buffer;
+    for (uint32_t i = 0; i < this->num_streams; i++) {
+      this->reduction_buffers[i]->release(streams);
+      delete this->reduction_buffers[i];
     }
-    this->reduction_buffers.clear();
+    delete[] this->reduction_buffers;
 
     cuda_event_destroy(incoming_event, streams.gpu_index(0));
-    for (uint j = 0; j < num_streams; j++) {
-      for (uint k = 0; k < active_streams.count(); k++) {
-        cuda_event_destroy(outgoing_events[j][k], active_streams.gpu_index(k));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint32_t i = 0; i < num_streams; i++) {
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        cuda_event_destroy(outgoing_events[i * num_gpus + j],
+                           active_streams.gpu_index(j));
       }
     }
-    outgoing_events.clear();
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-
-    for (auto &stream : sub_streams_vec) {
-      stream.release();
-    }
-    sub_streams_vec.clear();
   }
 };
 
@@ -151,15 +158,15 @@ template <typename Torus> struct int_possible_results_buffer {
   uint32_t num_lut_accumulators;
   uint32_t lut_stride;
 
-  std::vector<int_radix_lut<Torus> *> stream_luts_vec;
+  int_radix_lut<Torus> **stream_luts;
 
   CudaStreams active_streams;
-  std::vector<CudaStreams> sub_streams_vec;
+  CudaStreams *sub_streams;
   cudaEvent_t incoming_event;
-  std::vector<std::vector<cudaEvent_t>> outgoing_events;
+  cudaEvent_t *outgoing_events;
   uint32_t num_streams;
 
-  std::vector<CudaRadixCiphertextFFI *> tmp_many_luts_output_vec;
+  CudaRadixCiphertextFFI **tmp_many_luts_output;
 
   int_possible_results_buffer(CudaStreams streams, int_radix_params params,
                               uint32_t num_blocks, uint32_t num_possible_values,
@@ -176,17 +183,18 @@ template <typename Torus> struct int_possible_results_buffer {
     this->num_streams = num_streams_to_use;
 
     this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
 
     incoming_event = cuda_create_event(streams.gpu_index(0));
 
-    sub_streams_vec.resize(num_streams_to_use);
-    outgoing_events.resize(num_streams_to_use);
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events = new cudaEvent_t[num_streams_to_use * num_gpus];
 
     for (uint32_t i = 0; i < num_streams_to_use; i++) {
-      sub_streams_vec[i].create_on_same_gpus(active_streams);
-      outgoing_events[i].resize(active_streams.count());
-      for (uint32_t j = 0; j < active_streams.count(); j++) {
-        outgoing_events[i][j] = cuda_create_event(active_streams.gpu_index(j));
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        outgoing_events[i * num_gpus + j] =
+            cuda_create_event(active_streams.gpu_index(j));
       }
     }
 
@@ -207,11 +215,13 @@ template <typename Torus> struct int_possible_results_buffer {
     this->num_lut_accumulators =
         (total_luts_needed + max_luts_per_call - 1) / max_luts_per_call;
 
-    stream_luts_vec.reserve(num_streams * num_lut_accumulators);
+    stream_luts =
+        new int_radix_lut<Torus> *[num_streams * num_lut_accumulators];
 
     std::vector<std::function<Torus(Torus)>> fns;
     fns.reserve(max_luts_per_call);
 
+    uint32_t lut_count = 0;
     for (uint32_t s = 0; s < num_streams; s++) {
       uint32_t lut_value_start = 0;
 
@@ -221,7 +231,7 @@ template <typename Torus> struct int_possible_results_buffer {
             std::min(max_luts_per_call, total_luts_needed - lut_value_start);
 
         int_radix_lut<Torus> *current_lut = new int_radix_lut<Torus>(
-            sub_streams_vec[s], params, 1, 1, luts_in_this_call,
+            sub_streams[s], params, 1, 1, luts_in_this_call,
             allocate_gpu_memory, size_tracker);
 
         for (uint32_t j = 0; j < luts_in_this_call; j++) {
@@ -236,51 +246,56 @@ template <typename Torus> struct int_possible_results_buffer {
             params.message_modulus, params.carry_modulus, fns,
             allocate_gpu_memory);
 
-        current_lut->broadcast_lut(sub_streams_vec[s].active_gpu_subset(1));
-        stream_luts_vec.push_back(current_lut);
+        current_lut->broadcast_lut(sub_streams[s].active_gpu_subset(1));
+        stream_luts[lut_count++] = current_lut;
         lut_value_start += luts_in_this_call;
       }
     }
     fns.clear();
 
-    this->tmp_many_luts_output_vec.resize(this->num_streams);
+    this->tmp_many_luts_output =
+        new CudaRadixCiphertextFFI *[this->num_streams];
     for (uint32_t j = 0; j < this->num_streams; j++) {
-      this->tmp_many_luts_output_vec[j] = new CudaRadixCiphertextFFI;
+      this->tmp_many_luts_output[j] = new CudaRadixCiphertextFFI;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0),
-          this->tmp_many_luts_output_vec[j], max_luts_per_call,
+          this->tmp_many_luts_output[j], max_luts_per_call,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     }
   }
 
   void release(CudaStreams streams) {
-    for (auto lut : stream_luts_vec) {
-      lut->release(streams);
-      delete lut;
+    for (uint32_t i = 0; i < num_streams * num_lut_accumulators; i++) {
+      stream_luts[i]->release(streams);
+      delete stream_luts[i];
     }
-    stream_luts_vec.clear();
+    delete[] stream_luts;
 
-    for (auto ct : this->tmp_many_luts_output_vec) {
+    for (uint32_t i = 0; i < this->num_streams; i++) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     ct, this->allocate_gpu_memory);
-      delete ct;
+                                     this->tmp_many_luts_output[i],
+                                     this->allocate_gpu_memory);
+      delete this->tmp_many_luts_output[i];
     }
-    this->tmp_many_luts_output_vec.clear();
+    delete[] this->tmp_many_luts_output;
 
     cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
     for (uint j = 0; j < num_streams; j++) {
-      for (uint k = 0; k < active_streams.count(); k++) {
-        cuda_event_destroy(outgoing_events[j][k], active_streams.gpu_index(k));
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
       }
     }
-    outgoing_events.clear();
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-
-    for (auto &stream : sub_streams_vec) {
-      stream.release();
-    }
-    sub_streams_vec.clear();
   }
 };
 
@@ -289,23 +304,23 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
   bool allocate_gpu_memory;
   uint32_t chunk_size;
 
-  std::vector<int_radix_lut<Torus> *> stream_identity_luts;
+  int_radix_lut<Torus> **stream_identity_luts;
   int_radix_lut<Torus> *message_extract_lut;
   int_radix_lut<Torus> *carry_extract_lut;
 
   CudaStreams active_streams;
-  std::vector<CudaStreams> sub_streams_vec;
+  CudaStreams *sub_streams;
   cudaEvent_t incoming_event;
-  std::vector<std::vector<cudaEvent_t>> outgoing_events;
+  cudaEvent_t *outgoing_events;
 
   cudaEvent_t reduction_done_event;
-  std::vector<cudaEvent_t> message_done_events;
-  std::vector<cudaEvent_t> carry_done_events;
+  cudaEvent_t *message_done_events;
+  cudaEvent_t *carry_done_events;
 
   uint32_t num_streams;
 
-  std::vector<CudaRadixCiphertextFFI *> partial_aggregated_vectors;
-  std::vector<CudaRadixCiphertextFFI *> partial_temp_vectors;
+  CudaRadixCiphertextFFI **partial_aggregated_vectors;
+  CudaRadixCiphertextFFI **partial_temp_vectors;
 
   CudaRadixCiphertextFFI *message_ct;
   CudaRadixCiphertextFFI *carry_ct;
@@ -327,37 +342,37 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     this->num_streams = num_streams_to_use;
 
     this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
 
     this->incoming_event = cuda_create_event(streams.gpu_index(0));
     this->reduction_done_event = cuda_create_event(streams.gpu_index(0));
 
-    this->message_done_events.resize(active_streams.count());
-    this->carry_done_events.resize(active_streams.count());
-    for (uint32_t i = 0; i < active_streams.count(); i++) {
+    this->message_done_events = new cudaEvent_t[num_gpus];
+    this->carry_done_events = new cudaEvent_t[num_gpus];
+    for (uint32_t i = 0; i < num_gpus; i++) {
       this->message_done_events[i] =
           cuda_create_event(active_streams.gpu_index(i));
       this->carry_done_events[i] =
           cuda_create_event(active_streams.gpu_index(i));
     }
 
-    this->sub_streams_vec.resize(num_streams);
-    this->outgoing_events.resize(num_streams);
+    this->sub_streams = new CudaStreams[num_streams];
+    this->outgoing_events = new cudaEvent_t[num_streams * num_gpus];
 
     for (uint32_t i = 0; i < num_streams; i++) {
-      this->sub_streams_vec[i].create_on_same_gpus(active_streams);
-      this->outgoing_events[i].resize(active_streams.count());
-      for (uint32_t j = 0; j < active_streams.count(); j++) {
-        this->outgoing_events[i][j] =
+      this->sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        this->outgoing_events[i * num_gpus + j] =
             cuda_create_event(active_streams.gpu_index(j));
       }
     }
 
-    this->stream_identity_luts.reserve(num_streams);
+    this->stream_identity_luts = new int_radix_lut<Torus> *[num_streams];
     std::function<Torus(Torus)> id_fn = [](Torus x) -> Torus { return x; };
 
     for (uint32_t i = 0; i < num_streams; i++) {
       int_radix_lut<Torus> *lut =
-          new int_radix_lut<Torus>(sub_streams_vec[i], params, 1, num_blocks,
+          new int_radix_lut<Torus>(sub_streams[i], params, 1, num_blocks,
                                    allocate_gpu_memory, size_tracker);
 
       generate_device_accumulator<Torus>(
@@ -366,8 +381,8 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           id_fn, allocate_gpu_memory);
 
-      lut->broadcast_lut(sub_streams_vec[i].active_gpu_subset(num_blocks));
-      this->stream_identity_luts.push_back(lut);
+      lut->broadcast_lut(sub_streams[i].active_gpu_subset(num_blocks));
+      this->stream_identity_luts[i] = lut;
     }
 
     std::function<Torus(Torus)> msg_fn = [params](Torus x) -> Torus {
@@ -378,7 +393,7 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     };
 
     this->message_extract_lut =
-        new int_radix_lut<Torus>(sub_streams_vec[0], params, 1, num_blocks,
+        new int_radix_lut<Torus>(sub_streams[0], params, 1, num_blocks,
                                  allocate_gpu_memory, size_tracker);
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0),
@@ -388,10 +403,10 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         msg_fn, allocate_gpu_memory);
     this->message_extract_lut->broadcast_lut(
-        sub_streams_vec[0].active_gpu_subset(num_blocks));
+        sub_streams[0].active_gpu_subset(num_blocks));
 
     this->carry_extract_lut =
-        new int_radix_lut<Torus>(sub_streams_vec[1], params, 1, num_blocks,
+        new int_radix_lut<Torus>(sub_streams[1], params, 1, num_blocks,
                                  allocate_gpu_memory, size_tracker);
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0),
@@ -401,10 +416,11 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         carry_fn, allocate_gpu_memory);
     this->carry_extract_lut->broadcast_lut(
-        sub_streams_vec[1].active_gpu_subset(num_blocks));
+        sub_streams[1].active_gpu_subset(num_blocks));
 
-    this->partial_aggregated_vectors.resize(num_streams);
-    this->partial_temp_vectors.resize(num_streams);
+    this->partial_aggregated_vectors =
+        new CudaRadixCiphertextFFI *[num_streams];
+    this->partial_temp_vectors = new CudaRadixCiphertextFFI *[num_streams];
 
     for (uint32_t i = 0; i < num_streams; i++) {
       this->partial_aggregated_vectors[i] = new CudaRadixCiphertextFFI;
@@ -433,11 +449,11 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
   }
 
   void release(CudaStreams streams) {
-    for (auto lut : stream_identity_luts) {
-      lut->release(streams);
-      delete lut;
+    for (uint32_t i = 0; i < num_streams; i++) {
+      stream_identity_luts[i]->release(streams);
+      delete stream_identity_luts[i];
     }
-    stream_identity_luts.clear();
+    delete[] stream_identity_luts;
 
     this->message_extract_lut->release(streams);
     delete this->message_extract_lut;
@@ -446,17 +462,17 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
 
     for (uint32_t i = 0; i < num_streams; i++) {
       release_radix_ciphertext_async(
-          sub_streams_vec[i].stream(0), sub_streams_vec[i].gpu_index(0),
+          sub_streams[i].stream(0), sub_streams[i].gpu_index(0),
           this->partial_aggregated_vectors[i], this->allocate_gpu_memory);
       delete this->partial_aggregated_vectors[i];
 
       release_radix_ciphertext_async(
-          sub_streams_vec[i].stream(0), sub_streams_vec[i].gpu_index(0),
+          sub_streams[i].stream(0), sub_streams[i].gpu_index(0),
           this->partial_temp_vectors[i], this->allocate_gpu_memory);
       delete this->partial_temp_vectors[i];
     }
-    partial_aggregated_vectors.clear();
-    partial_temp_vectors.clear();
+    delete[] partial_aggregated_vectors;
+    delete[] partial_temp_vectors;
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->message_ct, this->allocate_gpu_memory);
@@ -467,24 +483,28 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
 
     cuda_event_destroy(incoming_event, streams.gpu_index(0));
     cuda_event_destroy(reduction_done_event, streams.gpu_index(0));
-    for (uint i = 0; i < active_streams.count(); i++) {
+    uint32_t num_gpus = active_streams.count();
+    for (uint i = 0; i < num_gpus; i++) {
       cuda_event_destroy(message_done_events[i], active_streams.gpu_index(i));
       cuda_event_destroy(carry_done_events[i], active_streams.gpu_index(i));
     }
+    delete[] message_done_events;
+    delete[] carry_done_events;
 
     for (uint j = 0; j < num_streams; j++) {
-      for (uint k = 0; k < active_streams.count(); k++) {
-        cuda_event_destroy(outgoing_events[j][k], active_streams.gpu_index(k));
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
       }
     }
-    outgoing_events.clear();
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-
-    for (auto &stream : sub_streams_vec) {
-      stream.release();
-    }
-    sub_streams_vec.clear();
   }
 };
 
@@ -679,6 +699,1031 @@ template <typename Torus> struct int_unchecked_match_value_or_buffer {
     delete this->tmp_or_value;
 
     cuda_drop_async(this->d_or_value, streams.stream(0), streams.gpu_index(0));
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_contains_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_comparison_buffer<Torus> *reduction_buffer;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_contains_buffer(CudaStreams streams, int_radix_params params,
+                                uint32_t num_inputs, uint32_t num_blocks,
+                                bool allocate_gpu_memory,
+                                uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events = new cudaEvent_t[num_streams_to_use * num_gpus];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        outgoing_events[i * num_gpus + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->reduction_buffer =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->reduction_buffer->release(streams);
+    delete this->reduction_buffer;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_contains_clear_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_comparison_buffer<Torus> *reduction_buffer;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *tmp_clear_val;
+  Torus *d_clear_val;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_contains_clear_buffer(CudaStreams streams,
+                                      int_radix_params params,
+                                      uint32_t num_inputs, uint32_t num_blocks,
+                                      bool allocate_gpu_memory,
+                                      uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events = new cudaEvent_t[num_streams_to_use * num_gpus];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        outgoing_events[i * num_gpus + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->reduction_buffer =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->tmp_clear_val = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_clear_val,
+        num_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->d_clear_val = (Torus *)cuda_malloc_with_size_tracking_async(
+        num_blocks * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
+        size_tracker, allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->reduction_buffer->release(streams);
+    delete this->reduction_buffer;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_clear_val,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_clear_val;
+
+    cuda_drop_async(this->d_clear_val, streams.stream(0), streams.gpu_index(0));
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_is_in_clears_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_clears;
+
+  int_equality_selectors_buffer<Torus> *eq_buffer;
+  int_comparison_buffer<Torus> *reduction_buffer;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *unpacked_selectors;
+
+  int_unchecked_is_in_clears_buffer(CudaStreams streams,
+                                    int_radix_params params,
+                                    uint32_t num_clears, uint32_t num_blocks,
+                                    bool allocate_gpu_memory,
+                                    uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_clears = num_clears;
+
+    this->eq_buffer = new int_equality_selectors_buffer<Torus>(
+        streams, params, num_clears, num_blocks, allocate_gpu_memory,
+        size_tracker);
+
+    this->reduction_buffer =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_clears, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_clears, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->unpacked_selectors = new CudaRadixCiphertextFFI[num_clears];
+
+    for (uint32_t i = 0; i < num_clears; i++) {
+      as_radix_ciphertext_slice<Torus>(&this->unpacked_selectors[i],
+                                       this->packed_selectors, i, i + 1);
+    }
+  }
+
+  void release(CudaStreams streams) {
+    this->eq_buffer->release(streams);
+    delete this->eq_buffer;
+
+    this->reduction_buffer->release(streams);
+    delete this->reduction_buffer;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    delete[] this->unpacked_selectors;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_final_index_from_selectors_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_possible_results_buffer<Torus> *possible_results_buf;
+  int_aggregate_one_hot_buffer<Torus> *aggregate_buf;
+  int_comparison_buffer<Torus> *reduction_buf;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *unpacked_selectors;
+  CudaRadixCiphertextFFI *possible_results_ct_list;
+
+  uint64_t *h_indices;
+
+  int_final_index_from_selectors_buffer(CudaStreams streams,
+                                        int_radix_params params,
+                                        uint32_t num_inputs,
+                                        uint32_t num_blocks_index,
+                                        bool allocate_gpu_memory,
+                                        uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+    this->possible_results_buf = new int_possible_results_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->reduction_buf =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->unpacked_selectors = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      as_radix_ciphertext_slice<Torus>(&this->unpacked_selectors[i],
+                                       this->packed_selectors, i, i + 1);
+    }
+
+    this->possible_results_ct_list = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          &this->possible_results_ct_list[i], packed_len,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    }
+
+    uint32_t num_bits_in_message = log2_int(params.message_modulus);
+    uint32_t bits_per_packed_block = 2 * num_bits_in_message;
+
+    h_indices = new uint64_t[num_inputs * packed_len];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      uint64_t val = i;
+      for (uint32_t b = 0; b < packed_len; b++) {
+        uint64_t mask = (1ULL << bits_per_packed_block) - 1;
+        uint64_t block_val = (val >> (b * bits_per_packed_block)) & mask;
+        h_indices[i * packed_len + b] = block_val;
+      }
+    }
+  }
+
+  void release(CudaStreams streams) {
+    this->possible_results_buf->release(streams);
+    delete this->possible_results_buf;
+
+    this->aggregate_buf->release(streams);
+    delete this->aggregate_buf;
+
+    this->reduction_buf->release(streams);
+    delete this->reduction_buf;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    delete[] this->unpacked_selectors;
+
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     &this->possible_results_ct_list[i],
+                                     this->allocate_gpu_memory);
+    }
+    delete[] this->possible_results_ct_list;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+
+    delete[] h_indices;
+  }
+};
+
+template <typename Torus> struct int_unchecked_index_in_clears_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_clears;
+
+  int_equality_selectors_buffer<Torus> *eq_selectors_buf;
+  int_final_index_from_selectors_buffer<Torus> *final_index_buf;
+
+  int_unchecked_index_in_clears_buffer(CudaStreams streams,
+                                       int_radix_params params,
+                                       uint32_t num_clears, uint32_t num_blocks,
+                                       uint32_t num_blocks_index,
+                                       bool allocate_gpu_memory,
+                                       uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_clears = num_clears;
+
+    this->eq_selectors_buf = new int_equality_selectors_buffer<Torus>(
+        streams, params, num_clears, num_blocks, allocate_gpu_memory,
+        size_tracker);
+
+    this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
+        streams, params, num_clears, num_blocks_index, allocate_gpu_memory,
+        size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    this->eq_selectors_buf->release(streams);
+    delete this->eq_selectors_buf;
+
+    this->final_index_buf->release(streams);
+    delete this->final_index_buf;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_first_index_in_clears_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_unique;
+
+  int_equality_selectors_buffer<Torus> *eq_selectors_buf;
+  int_possible_results_buffer<Torus> *possible_results_buf;
+  int_aggregate_one_hot_buffer<Torus> *aggregate_buf;
+  int_comparison_buffer<Torus> *reduction_buf;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *unpacked_selectors;
+  CudaRadixCiphertextFFI *possible_results_ct_list;
+
+  int_unchecked_first_index_in_clears_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_unique,
+      uint32_t num_blocks, uint32_t num_blocks_index, bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_unique = num_unique;
+
+    this->eq_selectors_buf = new int_equality_selectors_buffer<Torus>(
+        streams, params, num_unique, num_blocks, allocate_gpu_memory,
+        size_tracker);
+
+    uint32_t packed_len = (num_blocks_index + 1) / 2;
+    this->possible_results_buf = new int_possible_results_buffer<Torus>(
+        streams, params, packed_len, num_unique, allocate_gpu_memory,
+        size_tracker);
+
+    this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
+        streams, params, packed_len, num_unique, allocate_gpu_memory,
+        size_tracker);
+
+    this->reduction_buf =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_unique, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_unique, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->unpacked_selectors = new CudaRadixCiphertextFFI[num_unique];
+    for (uint32_t i = 0; i < num_unique; i++) {
+      as_radix_ciphertext_slice<Torus>(&this->unpacked_selectors[i],
+                                       this->packed_selectors, i, i + 1);
+    }
+
+    this->possible_results_ct_list = new CudaRadixCiphertextFFI[num_unique];
+    for (uint32_t i = 0; i < num_unique; i++) {
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          &this->possible_results_ct_list[i], packed_len,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    }
+  }
+
+  void release(CudaStreams streams) {
+    this->eq_selectors_buf->release(streams);
+    delete this->eq_selectors_buf;
+
+    this->possible_results_buf->release(streams);
+    delete this->possible_results_buf;
+
+    this->aggregate_buf->release(streams);
+    delete this->aggregate_buf;
+
+    this->reduction_buf->release(streams);
+    delete this->reduction_buf;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    delete[] this->unpacked_selectors;
+
+    for (uint32_t i = 0; i < num_unique; i++) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     &this->possible_results_ct_list[i],
+                                     this->allocate_gpu_memory);
+    }
+    delete[] this->possible_results_ct_list;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_possible_results_buffer<Torus> *possible_results_buf;
+  int_aggregate_one_hot_buffer<Torus> *aggregate_buf;
+  int_comparison_buffer<Torus> *reduction_buf;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *unpacked_selectors;
+  CudaRadixCiphertextFFI *possible_results_ct_list;
+  CudaRadixCiphertextFFI *tmp_clear_val;
+  Torus *d_clear_val;
+  uint64_t *h_indices;
+
+  int_radix_lut<Torus> *prefix_sum_lut;
+  int_radix_lut<Torus> *cleanup_lut;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_first_index_of_clear_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_inputs,
+      uint32_t num_blocks, uint32_t num_blocks_index, bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events =
+        new cudaEvent_t[num_streams_to_use * active_streams.count()];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < active_streams.count(); j++) {
+        outgoing_events[i * active_streams.count() + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->possible_results_buf = new int_possible_results_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->reduction_buf =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->unpacked_selectors = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      as_radix_ciphertext_slice<Torus>(&this->unpacked_selectors[i],
+                                       this->packed_selectors, i, i + 1);
+    }
+
+    this->possible_results_ct_list = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          &this->possible_results_ct_list[i], packed_len,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    }
+
+    this->tmp_clear_val = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_clear_val,
+        num_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->d_clear_val = (Torus *)cuda_malloc_with_size_tracking_async(
+        num_blocks * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
+        size_tracker, allocate_gpu_memory);
+
+    h_indices = nullptr;
+    if (allocate_gpu_memory) {
+      uint32_t num_bits_in_message = log2_int(params.message_modulus);
+      uint32_t bits_per_packed_block = 2 * num_bits_in_message;
+
+      h_indices = new uint64_t[num_inputs * packed_len];
+      for (uint32_t i = 0; i < num_inputs; i++) {
+        uint64_t val = i;
+        for (uint32_t b = 0; b < packed_len; b++) {
+          uint64_t mask = (1ULL << bits_per_packed_block) - 1;
+          uint64_t block_val = (val >> (b * bits_per_packed_block)) & mask;
+          h_indices[i * packed_len + b] = block_val;
+        }
+      }
+    }
+
+    const Torus ALREADY_SEEN = 2;
+    auto prefix_sum_fn = [ALREADY_SEEN](Torus current,
+                                        Torus previous) -> Torus {
+      if (previous == 1 || previous == ALREADY_SEEN) {
+        return ALREADY_SEEN;
+      }
+      return current;
+    };
+    this->prefix_sum_lut = new int_radix_lut<Torus>(
+        streams, params, 2, num_inputs, allocate_gpu_memory, size_tracker);
+
+    generate_device_accumulator_bivariate<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->prefix_sum_lut->get_lut(0, 0),
+        this->prefix_sum_lut->get_degree(0),
+        this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        prefix_sum_fn, allocate_gpu_memory);
+    this->prefix_sum_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+
+    auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
+      Torus val = x % params.message_modulus;
+      if (val == ALREADY_SEEN)
+        return 0;
+      return val;
+    };
+    this->cleanup_lut = new int_radix_lut<Torus>(
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->cleanup_lut->get_lut(0, 0), this->cleanup_lut->get_degree(0),
+        this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        cleanup_fn, allocate_gpu_memory);
+    this->cleanup_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->possible_results_buf->release(streams);
+    delete this->possible_results_buf;
+
+    this->aggregate_buf->release(streams);
+    delete this->aggregate_buf;
+
+    this->reduction_buf->release(streams);
+    delete this->reduction_buf;
+
+    this->prefix_sum_lut->release(streams);
+    delete this->prefix_sum_lut;
+
+    this->cleanup_lut->release(streams);
+    delete this->cleanup_lut;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    delete[] this->unpacked_selectors;
+
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     &this->possible_results_ct_list[i],
+                                     this->allocate_gpu_memory);
+    }
+    delete[] this->possible_results_ct_list;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_clear_val,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_clear_val;
+
+    cuda_drop_async(this->d_clear_val, streams.stream(0), streams.gpu_index(0));
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+
+    delete[] h_indices;
+  }
+};
+
+template <typename Torus> struct int_unchecked_first_index_of_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_possible_results_buffer<Torus> *possible_results_buf;
+  int_aggregate_one_hot_buffer<Torus> *aggregate_buf;
+  int_comparison_buffer<Torus> *reduction_buf;
+
+  CudaRadixCiphertextFFI *packed_selectors;
+  CudaRadixCiphertextFFI *unpacked_selectors;
+  CudaRadixCiphertextFFI *possible_results_ct_list;
+  uint64_t *h_indices;
+
+  int_radix_lut<Torus> *prefix_sum_lut;
+  int_radix_lut<Torus> *cleanup_lut;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_first_index_of_buffer(CudaStreams streams,
+                                      int_radix_params params,
+                                      uint32_t num_inputs, uint32_t num_blocks,
+                                      uint32_t num_blocks_index,
+                                      bool allocate_gpu_memory,
+                                      uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events =
+        new cudaEvent_t[num_streams_to_use * active_streams.count()];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < active_streams.count(); j++) {
+        outgoing_events[i * active_streams.count() + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->possible_results_buf = new int_possible_results_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
+        streams, params, packed_len, num_inputs, allocate_gpu_memory,
+        size_tracker);
+
+    this->reduction_buf =
+        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
+                                         allocate_gpu_memory, size_tracker);
+
+    this->packed_selectors = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_selectors,
+        num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->unpacked_selectors = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      as_radix_ciphertext_slice<Torus>(&this->unpacked_selectors[i],
+                                       this->packed_selectors, i, i + 1);
+    }
+
+    this->possible_results_ct_list = new CudaRadixCiphertextFFI[num_inputs];
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0),
+          &this->possible_results_ct_list[i], packed_len,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    }
+
+    h_indices = nullptr;
+    if (allocate_gpu_memory) {
+      uint32_t num_bits_in_message = log2_int(params.message_modulus);
+      uint32_t bits_per_packed_block = 2 * num_bits_in_message;
+
+      h_indices = new uint64_t[num_inputs * packed_len];
+      for (uint32_t i = 0; i < num_inputs; i++) {
+        uint64_t val = i;
+        for (uint32_t b = 0; b < packed_len; b++) {
+          uint64_t mask = (1ULL << bits_per_packed_block) - 1;
+          uint64_t block_val = (val >> (b * bits_per_packed_block)) & mask;
+          h_indices[i * packed_len + b] = block_val;
+        }
+      }
+    }
+
+    const Torus ALREADY_SEEN = 2;
+    auto prefix_sum_fn = [ALREADY_SEEN](Torus current,
+                                        Torus previous) -> Torus {
+      if (previous == 1 || previous == ALREADY_SEEN) {
+        return ALREADY_SEEN;
+      }
+      return current;
+    };
+    this->prefix_sum_lut = new int_radix_lut<Torus>(
+        streams, params, 2, num_inputs, allocate_gpu_memory, size_tracker);
+
+    generate_device_accumulator_bivariate<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->prefix_sum_lut->get_lut(0, 0),
+        this->prefix_sum_lut->get_degree(0),
+        this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        prefix_sum_fn, allocate_gpu_memory);
+    this->prefix_sum_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+
+    auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
+      Torus val = x % params.message_modulus;
+      if (val == ALREADY_SEEN)
+        return 0;
+      return val;
+    };
+    this->cleanup_lut = new int_radix_lut<Torus>(
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        this->cleanup_lut->get_lut(0, 0), this->cleanup_lut->get_degree(0),
+        this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        cleanup_fn, allocate_gpu_memory);
+    this->cleanup_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->possible_results_buf->release(streams);
+    delete this->possible_results_buf;
+
+    this->aggregate_buf->release(streams);
+    delete this->aggregate_buf;
+
+    this->reduction_buf->release(streams);
+    delete this->reduction_buf;
+
+    this->prefix_sum_lut->release(streams);
+    delete this->prefix_sum_lut;
+
+    this->cleanup_lut->release(streams);
+    delete this->cleanup_lut;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_selectors,
+                                   this->allocate_gpu_memory);
+    delete this->packed_selectors;
+
+    delete[] this->unpacked_selectors;
+
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     &this->possible_results_ct_list[i],
+                                     this->allocate_gpu_memory);
+    }
+    delete[] this->possible_results_ct_list;
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+
+    delete[] h_indices;
+  }
+};
+
+template <typename Torus> struct int_unchecked_index_of_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_final_index_from_selectors_buffer<Torus> *final_index_buf;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_index_of_buffer(CudaStreams streams, int_radix_params params,
+                                uint32_t num_inputs, uint32_t num_blocks,
+                                uint32_t num_blocks_index,
+                                bool allocate_gpu_memory,
+                                uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events =
+        new cudaEvent_t[num_streams_to_use * active_streams.count()];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < active_streams.count(); j++) {
+        outgoing_events[i * active_streams.count() + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
+        streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
+        size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->final_index_buf->release(streams);
+    delete this->final_index_buf;
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }

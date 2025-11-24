@@ -28,22 +28,23 @@ __host__ void host_compute_equality_selectors(
 
   for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams_vec[j].stream(i),
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
                              mem_ptr->incoming_event,
-                             mem_ptr->sub_streams_vec[j].gpu_index(i));
+                             mem_ptr->sub_streams[j].gpu_index(i));
     }
   }
 
   uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
 
     uint32_t stream_idx = i % num_streams;
 
-    CudaStreams current_stream = mem_ptr->sub_streams_vec[stream_idx];
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
 
     CudaRadixCiphertextFFI *current_tmp_block_comparisons =
-        mem_ptr->tmp_block_comparisons_vec[stream_idx];
+        mem_ptr->tmp_block_comparisons[stream_idx];
     int_comparison_buffer<Torus> *current_reduction_buffer =
         mem_ptr->reduction_buffers[stream_idx];
 
@@ -75,10 +76,11 @@ __host__ void host_compute_equality_selectors(
 
   for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j][i],
-                        mem_ptr->sub_streams_vec[j].stream(i),
-                        mem_ptr->sub_streams_vec[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events[j][i],
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
                              streams.gpu_index(0));
     }
   }
@@ -110,24 +112,25 @@ __host__ void host_create_possible_results(
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
   uint32_t num_lut_accumulators = mem_ptr->num_lut_accumulators;
   uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
                     streams.gpu_index(0));
 
   for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams_vec[j].stream(i),
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
                              mem_ptr->incoming_event,
-                             mem_ptr->sub_streams_vec[j].gpu_index(i));
+                             mem_ptr->sub_streams[j].gpu_index(i));
     }
   }
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
 
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams_vec[stream_idx];
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
     CudaRadixCiphertextFFI *current_tmp_buffer =
-        mem_ptr->tmp_many_luts_output_vec[stream_idx];
+        mem_ptr->tmp_many_luts_output[stream_idx];
 
     CudaRadixCiphertextFFI const *current_selector = &lwe_array_in_list[i];
     CudaRadixCiphertextFFI *current_output = &lwe_array_out_list[i];
@@ -138,7 +141,7 @@ __host__ void host_create_possible_results(
 
       uint32_t lut_index = stream_idx * num_lut_accumulators + k;
 
-      int_radix_lut<Torus> *current_lut = mem_ptr->stream_luts_vec[lut_index];
+      int_radix_lut<Torus> *current_lut = mem_ptr->stream_luts[lut_index];
 
       uint32_t luts_in_this_call = current_lut->num_many_lut;
 
@@ -172,10 +175,11 @@ __host__ void host_create_possible_results(
 
   for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j][i],
-                        mem_ptr->sub_streams_vec[j].stream(i),
-                        mem_ptr->sub_streams_vec[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events[j][i],
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
                              streams.gpu_index(0));
     }
   }
@@ -206,15 +210,16 @@ __host__ void host_aggregate_one_hot_vector(
   int_radix_params params = mem_ptr->params;
   uint32_t chunk_size = mem_ptr->chunk_size;
   uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
                     streams.gpu_index(0));
 
   for (uint32_t s = 0; s < num_streams; s++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams_vec[s].stream(i),
+      cuda_stream_wait_event(mem_ptr->sub_streams[s].stream(i),
                              mem_ptr->incoming_event,
-                             mem_ptr->sub_streams_vec[s].gpu_index(i));
+                             mem_ptr->sub_streams[s].gpu_index(i));
     }
   }
 
@@ -223,7 +228,7 @@ __host__ void host_aggregate_one_hot_vector(
 
   for (uint32_t s = 0; s < num_streams; s++) {
 
-    CudaStreams current_stream = mem_ptr->sub_streams_vec[s];
+    CudaStreams current_stream = mem_ptr->sub_streams[s];
 
     CudaRadixCiphertextFFI *current_agg =
         mem_ptr->partial_aggregated_vectors[s];
@@ -287,10 +292,11 @@ __host__ void host_aggregate_one_hot_vector(
 
   for (uint32_t s = 0; s < num_streams; s++) {
     for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[s][i],
-                        mem_ptr->sub_streams_vec[s].stream(i),
-                        mem_ptr->sub_streams_vec[s].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events[s][i],
+      cuda_event_record(mem_ptr->outgoing_events[s * num_gpus + i],
+                        mem_ptr->sub_streams[s].stream(i),
+                        mem_ptr->sub_streams[s].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[s * num_gpus + i],
                              streams.gpu_index(0));
     }
   }
@@ -322,8 +328,8 @@ __host__ void host_aggregate_one_hot_vector(
       streams.stream(0), streams.gpu_index(0), temp_agg, 0, num_blocks,
       final_agg, 0, num_blocks);
 
-  CudaStreams message_stream = mem_ptr->sub_streams_vec[0];
-  CudaStreams carry_stream = mem_ptr->sub_streams_vec[1];
+  CudaStreams message_stream = mem_ptr->sub_streams[0];
+  CudaStreams carry_stream = mem_ptr->sub_streams[1];
 
   cuda_event_record(mem_ptr->reduction_done_event, streams.stream(0),
                     streams.gpu_index(0));
@@ -497,4 +503,610 @@ __host__ void host_unchecked_match_value_or(
   host_cmux<Torus>(streams, lwe_array_out, mem_ptr->tmp_match_bool,
                    mem_ptr->tmp_match_result, mem_ptr->tmp_or_value,
                    mem_ptr->cmux_buffer, bsks, (Torus **)ksks);
+}
+
+template <typename Torus>
+uint64_t
+scratch_cuda_unchecked_contains(CudaStreams streams,
+                                int_unchecked_contains_buffer<Torus> **mem_ptr,
+                                int_radix_params params, uint32_t num_inputs,
+                                uint32_t num_blocks, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_contains_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void
+host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
+                        CudaRadixCiphertextFFI const *inputs,
+                        CudaRadixCiphertextFFI const *value,
+                        uint32_t num_inputs, uint32_t num_blocks,
+                        int_unchecked_contains_buffer<Torus> *mem_ptr,
+                        void *const *bsks, Torus *const *ksks) {
+
+  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                             mem_ptr->incoming_event,
+                             mem_ptr->sub_streams[j].gpu_index(i));
+    }
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+    CudaRadixCiphertextFFI current_selector_block;
+    as_radix_ciphertext_slice<Torus>(&current_selector_block,
+                                     mem_ptr->packed_selectors, i, i + 1);
+
+    host_equality_check<Torus>(current_stream, &current_selector_block,
+                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
+                               bsks, ksks, num_blocks);
+  }
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
+                             streams.gpu_index(0));
+    }
+  }
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
+      bsks, (Torus **)ksks, num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_contains_clear(
+    CudaStreams streams, int_unchecked_contains_clear_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_contains_clear_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_contains_clear(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
+    uint32_t num_inputs, uint32_t num_blocks,
+    int_unchecked_contains_clear_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
+                           num_blocks * sizeof(Torus), streams.stream(0),
+                           streams.gpu_index(0));
+
+  set_trivial_radix_ciphertext_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_clear_val,
+      mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
+      mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
+
+  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                             mem_ptr->incoming_event,
+                             mem_ptr->sub_streams[j].gpu_index(i));
+    }
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+    CudaRadixCiphertextFFI current_selector_block;
+    as_radix_ciphertext_slice<Torus>(&current_selector_block,
+                                     mem_ptr->packed_selectors, i, i + 1);
+
+    host_equality_check<Torus>(current_stream, &current_selector_block,
+                               input_ct, mem_ptr->tmp_clear_val,
+                               mem_ptr->eq_buffers[stream_idx], bsks, ksks,
+                               num_blocks);
+  }
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
+                             streams.gpu_index(0));
+    }
+  }
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
+      bsks, (Torus **)ksks, num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_is_in_clears(
+    CudaStreams streams, int_unchecked_is_in_clears_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_is_in_clears_buffer<Torus>(
+      streams, params, num_clears, num_blocks, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void
+host_unchecked_is_in_clears(CudaStreams streams, CudaRadixCiphertextFFI *output,
+                            CudaRadixCiphertextFFI const *input,
+                            const uint64_t *h_cleartexts, uint32_t num_clears,
+                            uint32_t num_blocks,
+                            int_unchecked_is_in_clears_buffer<Torus> *mem_ptr,
+                            void *const *bsks, Torus *const *ksks) {
+
+  host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
+                                         input, num_blocks, h_cleartexts,
+                                         mem_ptr->eq_buffer, bsks, ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
+      bsks, (Torus **)ksks, num_clears);
+}
+
+template <typename Torus>
+__host__ void host_compute_final_index_from_selectors(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *selectors,
+    uint32_t num_inputs, uint32_t num_blocks_index,
+    int_final_index_from_selectors_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    CudaRadixCiphertextFFI const *src_selector = &selectors[i];
+
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->packed_selectors, i,
+        i + 1, src_selector, 0, 1);
+  }
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      num_inputs, mem_ptr->h_indices, packed_len, mem_ptr->possible_results_buf,
+      bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->possible_results_ct_list, num_inputs,
+      packed_len, mem_ptr->aggregate_buf, bsks, ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->packed_selectors, mem_ptr->reduction_buf,
+      bsks, (Torus **)ksks, num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_compute_final_index_from_selectors(
+    CudaStreams streams, int_final_index_from_selectors_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks_index,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_final_index_from_selectors_buffer<Torus>(
+      streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_index_in_clears(
+    CudaStreams streams, int_unchecked_index_in_clears_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_index_in_clears_buffer<Torus>(
+      streams, params, num_clears, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_index_in_clears(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
+    const uint64_t *h_cleartexts, uint32_t num_clears, uint32_t num_blocks,
+    uint32_t num_blocks_index,
+    int_unchecked_index_in_clears_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  host_compute_equality_selectors<Torus>(
+      streams, mem_ptr->final_index_buf->unpacked_selectors, input, num_blocks,
+      h_cleartexts, mem_ptr->eq_selectors_buf, bsks, ksks);
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->final_index_buf->possible_results_ct_list,
+      mem_ptr->final_index_buf->unpacked_selectors, num_clears,
+      mem_ptr->final_index_buf->h_indices, packed_len,
+      mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->final_index_buf->possible_results_ct_list,
+      num_clears, packed_len, mem_ptr->final_index_buf->aggregate_buf, bsks,
+      ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->final_index_buf->packed_selectors,
+      mem_ptr->final_index_buf->reduction_buf, bsks, (Torus **)ksks,
+      num_clears);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_first_index_in_clears(
+    CudaStreams streams,
+    int_unchecked_first_index_in_clears_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_unique, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_first_index_in_clears_buffer<Torus>(
+      streams, params, num_unique, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_first_index_in_clears(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
+    const uint64_t *h_unique_values, const uint64_t *h_unique_indices,
+    uint32_t num_unique, uint32_t num_blocks, uint32_t num_blocks_index,
+    int_unchecked_first_index_in_clears_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks) {
+
+  host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
+                                         input, num_blocks, h_unique_values,
+                                         mem_ptr->eq_selectors_buf, bsks, ksks);
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      num_unique, h_unique_indices, packed_len, mem_ptr->possible_results_buf,
+      bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->possible_results_ct_list, num_unique,
+      packed_len, mem_ptr->aggregate_buf, bsks, ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->packed_selectors, mem_ptr->reduction_buf,
+      bsks, (Torus **)ksks, num_unique);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_first_index_of_clear(
+    CudaStreams streams,
+    int_unchecked_first_index_of_clear_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_first_index_of_clear_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_first_index_of_clear(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    const uint64_t *h_clear_val, uint32_t num_inputs, uint32_t num_blocks,
+    uint32_t num_blocks_index,
+    int_unchecked_first_index_of_clear_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks) {
+
+  cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
+                           num_blocks * sizeof(Torus), streams.stream(0),
+                           streams.gpu_index(0));
+
+  set_trivial_radix_ciphertext_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_clear_val,
+      mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
+      mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
+
+  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                             mem_ptr->incoming_event,
+                             mem_ptr->sub_streams[j].gpu_index(i));
+    }
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+    CudaRadixCiphertextFFI current_selector_block;
+    as_radix_ciphertext_slice<Torus>(&current_selector_block,
+                                     mem_ptr->packed_selectors, i, i + 1);
+
+    host_equality_check<Torus>(current_stream, &current_selector_block,
+                               input_ct, mem_ptr->tmp_clear_val,
+                               mem_ptr->eq_buffers[stream_idx], bsks, ksks,
+                               num_blocks);
+  }
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
+                             streams.gpu_index(0));
+    }
+  }
+
+  for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
+    uint32_t count = num_inputs - offset;
+
+    CudaRadixCiphertextFFI current_slice;
+    as_radix_ciphertext_slice<Torus>(&current_slice, mem_ptr->packed_selectors,
+                                     offset, num_inputs);
+
+    CudaRadixCiphertextFFI prev_slice;
+    as_radix_ciphertext_slice<Torus>(&prev_slice, mem_ptr->packed_selectors, 0,
+                                     count);
+
+    integer_radix_apply_bivariate_lookup_table<Torus>(
+        streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
+        mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+  }
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem_ptr->packed_selectors, mem_ptr->packed_selectors, bsks, ksks,
+      mem_ptr->cleanup_lut, num_inputs);
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      num_inputs, (const uint64_t *)mem_ptr->h_indices, packed_len,
+      mem_ptr->possible_results_buf, bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->possible_results_ct_list, num_inputs,
+      packed_len, mem_ptr->aggregate_buf, bsks, ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->packed_selectors, mem_ptr->reduction_buf,
+      bsks, (Torus **)ksks, num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_first_index_of(
+    CudaStreams streams, int_unchecked_first_index_of_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_first_index_of_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_first_index_of(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index,
+    int_unchecked_first_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                             mem_ptr->incoming_event,
+                             mem_ptr->sub_streams[j].gpu_index(i));
+    }
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+    CudaRadixCiphertextFFI current_selector_block;
+    as_radix_ciphertext_slice<Torus>(&current_selector_block,
+                                     mem_ptr->packed_selectors, i, i + 1);
+
+    host_equality_check<Torus>(current_stream, &current_selector_block,
+                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
+                               bsks, ksks, num_blocks);
+  }
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
+                             streams.gpu_index(0));
+    }
+  }
+
+  for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
+    uint32_t count = num_inputs - offset;
+
+    CudaRadixCiphertextFFI current_slice;
+    as_radix_ciphertext_slice<Torus>(&current_slice, mem_ptr->packed_selectors,
+                                     offset, num_inputs);
+
+    CudaRadixCiphertextFFI prev_slice;
+    as_radix_ciphertext_slice<Torus>(&prev_slice, mem_ptr->packed_selectors, 0,
+                                     count);
+
+    integer_radix_apply_bivariate_lookup_table<Torus>(
+        streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
+        mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+  }
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem_ptr->packed_selectors, mem_ptr->packed_selectors, bsks, ksks,
+      mem_ptr->cleanup_lut, num_inputs);
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      num_inputs, (const uint64_t *)mem_ptr->h_indices, packed_len,
+      mem_ptr->possible_results_buf, bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->possible_results_ct_list, num_inputs,
+      packed_len, mem_ptr->aggregate_buf, bsks, ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->packed_selectors, mem_ptr->reduction_buf,
+      bsks, (Torus **)ksks, num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_index_of(
+    CudaStreams streams, int_unchecked_index_of_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_index_of_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_index_of(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index,
+    int_unchecked_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                    streams.gpu_index(0));
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                             mem_ptr->incoming_event,
+                             mem_ptr->sub_streams[j].gpu_index(i));
+    }
+  }
+
+  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t num_gpus = mem_ptr->active_streams.count();
+
+  for (uint32_t i = 0; i < num_inputs; i++) {
+    uint32_t stream_idx = i % num_streams;
+    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+    CudaRadixCiphertextFFI current_selector_block;
+    as_radix_ciphertext_slice<Torus>(&current_selector_block,
+                                     mem_ptr->final_index_buf->packed_selectors,
+                                     i, i + 1);
+
+    host_equality_check<Torus>(current_stream, &current_selector_block,
+                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
+                               bsks, ksks, num_blocks);
+  }
+
+  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                        mem_ptr->sub_streams[j].stream(i),
+                        mem_ptr->sub_streams[j].gpu_index(i));
+      cuda_stream_wait_event(streams.stream(0),
+                             mem_ptr->outgoing_events[j * num_gpus + i],
+                             streams.gpu_index(0));
+    }
+  }
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->final_index_buf->possible_results_ct_list,
+      mem_ptr->final_index_buf->unpacked_selectors, num_inputs,
+      (const uint64_t *)mem_ptr->final_index_buf->h_indices, packed_len,
+      mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->final_index_buf->possible_results_ct_list,
+      num_inputs, packed_len, mem_ptr->final_index_buf->aggregate_buf, bsks,
+      ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, mem_ptr->final_index_buf->packed_selectors,
+      mem_ptr->final_index_buf->reduction_buf, bsks, (Torus **)ksks,
+      num_inputs);
 }

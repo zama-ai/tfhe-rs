@@ -18,7 +18,7 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_apply_bivariate_lut, cuda_backend_apply_many_univariate_lut,
     cuda_backend_apply_univariate_lut, cuda_backend_cast_to_unsigned,
-    cuda_backend_compute_prefix_sum_hillis_steele, cuda_backend_extend_radix_with_sign_msb,
+    cuda_backend_extend_radix_with_sign_msb,
     cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
     cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
     cuda_backend_trim_radix_blocks_lsb, cuda_backend_trim_radix_blocks_msb, CudaServerKey, PBSType,
@@ -1092,134 +1092,6 @@ impl CudaServerKey {
         }
 
         ciphertexts
-    }
-
-    /// Applies the lookup table on the range of ciphertexts
-    ///
-    /// The output must have exactly block_range.len() blocks
-    pub(crate) fn compute_prefix_sum_hillis_steele(
-        &self,
-        output: &mut CudaRadixCiphertext,
-        generates_or_propagates: &mut CudaRadixCiphertext,
-        lut: &BivariateLookupTableOwned,
-        block_range: std::ops::Range<usize>,
-        streams: &CudaStreams,
-    ) {
-        if block_range.is_empty() {
-            return;
-        }
-        assert_eq!(
-            generates_or_propagates.d_blocks.lwe_dimension(),
-            output.d_blocks.lwe_dimension()
-        );
-
-        let lwe_dimension = generates_or_propagates.d_blocks.lwe_dimension();
-        let lwe_size = lwe_dimension.to_lwe_size().0;
-        let num_blocks = block_range.len();
-
-        let mut generates_or_propagates_slice = generates_or_propagates
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
-            .unwrap();
-        let mut generates_or_propagates_degrees = vec![0; num_blocks];
-        let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
-        for (i, block_index) in (block_range.clone()).enumerate() {
-            generates_or_propagates_degrees[i] =
-                generates_or_propagates.info.blocks[block_index].degree.0;
-            generates_or_propagates_noise_levels[i] = generates_or_propagates.info.blocks
-                [block_index]
-                .noise_level
-                .0;
-        }
-        let mut output_slice = output
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
-            .unwrap();
-        let mut output_degrees = vec![0_u64; num_blocks];
-        let mut output_noise_levels = vec![0_u64; num_blocks];
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_compute_prefix_sum_hillis_steele(
-                        streams,
-                        &mut output_slice,
-                        &mut output_degrees,
-                        &mut output_noise_levels,
-                        &mut generates_or_propagates_slice,
-                        &mut generates_or_propagates_degrees,
-                        &mut generates_or_propagates_noise_levels,
-                        lut.acc.acc.as_ref(),
-                        lut.acc.degree.0,
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        num_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_compute_prefix_sum_hillis_steele(
-                        streams,
-                        &mut output_slice,
-                        &mut output_degrees,
-                        &mut output_noise_levels,
-                        &mut generates_or_propagates_slice,
-                        &mut generates_or_propagates_degrees,
-                        &mut generates_or_propagates_noise_levels,
-                        lut.acc.acc.as_ref(),
-                        lut.acc.degree.0,
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        num_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        None,
-                    );
-                }
-            }
-        }
-
-        for (i, info) in output.info.blocks[block_range.start..block_range.end]
-            .iter_mut()
-            .enumerate()
-        {
-            info.degree = Degree(output_degrees[i]);
-            info.noise_level = NoiseLevel(output_noise_levels[i]);
-        }
-        for (i, info) in generates_or_propagates.info.blocks[block_range.start..block_range.end]
-            .iter_mut()
-            .enumerate()
-        {
-            info.degree = Degree(generates_or_propagates_degrees[i]);
-            info.noise_level = NoiseLevel(generates_or_propagates_noise_levels[i]);
-        }
     }
 
     pub(crate) fn extend_radix_with_sign_msb<T: CudaIntegerRadixCiphertext>(
