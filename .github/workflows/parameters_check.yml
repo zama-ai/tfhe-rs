@@ -12,6 +12,7 @@ on:
       - '.github/workflows/parameters_check.yml'
       - 'ci/lattice_estimator.sage'
       - 'tfhe/examples/utilities/params_to_file.rs'
+      - 'tfhe/src/shortint/parameters/*'
   push:
     branches:
       - "main"
