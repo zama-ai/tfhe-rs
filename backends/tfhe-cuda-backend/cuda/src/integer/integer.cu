@@ -284,46 +284,6 @@ void cleanup_cuda_apply_bivariate_lut_64(CudaStreamsFFI streams,
   POP_RANGE()
 }
 
-uint64_t scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
-    CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint64_t lut_degree, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
-
-  return scratch_cuda_apply_bivariate_lut<uint64_t>(
-      CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
-      static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      lut_degree, allocate_gpu_memory);
-}
-
-void cuda_integer_compute_prefix_sum_hillis_steele_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
-    CudaRadixCiphertextFFI *generates_or_propagates, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks) {
-
-  host_compute_prefix_sum_hillis_steele<uint64_t>(
-      CudaStreams(streams), output_radix_lwe, generates_or_propagates,
-      (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      num_radix_blocks);
-}
-
-void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
-    CudaStreamsFFI streams, int8_t **mem_ptr_void) {
-  int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
-  mem_ptr->release(CudaStreams(streams));
-  delete mem_ptr;
-  *mem_ptr_void = nullptr;
-}
-
 void cuda_integer_reverse_blocks_64_inplace(CudaStreamsFFI streams,
                                             CudaRadixCiphertextFFI *lwe_array) {
 
