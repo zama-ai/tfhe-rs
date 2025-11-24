@@ -643,17 +643,13 @@ template <typename Torus> struct int_unchecked_match_value_or_buffer {
         num_final_blocks * sizeof(Torus), streams.stream(0),
         streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
-    if (!max_output_is_zero) {
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), this->tmp_match_result,
-          num_final_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
-    }
-
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_match_result,
+        num_final_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_match_bool, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_or_value,
         num_final_blocks, params.big_lwe_dimension, size_tracker,
@@ -667,11 +663,9 @@ template <typename Torus> struct int_unchecked_match_value_or_buffer {
     this->cmux_buffer->release(streams);
     delete this->cmux_buffer;
 
-    if (!max_output_is_zero) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tmp_match_result,
-                                     this->allocate_gpu_memory);
-    }
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_match_result,
+                                   this->allocate_gpu_memory);
     delete this->tmp_match_result;
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
