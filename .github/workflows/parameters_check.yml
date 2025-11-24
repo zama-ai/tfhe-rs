@@ -76,9 +76,34 @@ jobs:
         run: |
           CARGO_PROFILE=devo make write_params_to_file
 
+      - name: Get start time
+        if: ${{ always() }}
+        id: start-time
+        run: |
+          echo "value=$(date +%s)" >> "${GITHUB_OUTPUT}"
+
       - name: Perform security check
         run: |
           PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage
+
+      - name: Get time elapsed
+        if: ${{ always() }}
+        shell: python
+        env:
+          START_DATE: ${{ steps.start-time.outputs.value }}
+        run: |
+          import datetime
+          import math
+          import os
+          
+          env_file = os.environ["GITHUB_ENV"]
+          
+          start_date = datetime.datetime.fromtimestamp(int(os.environ["START_DATE"]))
+          end_date = datetime.datetime.now()
+          total_minutes = math.floor((end_date - start_date).total_seconds() / 60)
+          
+          with open(env_file, "a") as f:
+            f.write(f"TIME_ELAPSED={total_minutes}\n")
 
       - name: Slack Notification
         if: ${{ always() }}
@@ -88,7 +113,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "Security check for parameters finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Security check for parameters finished with status: ${{ job.status }} (analysis took: ${{ env.TIME_ELAPSED }} mins). (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
