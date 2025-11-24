@@ -102,13 +102,22 @@ jobs:
     steps:
       - name: Parse runners
         shell: python
-        run: | # zizmor: ignore[template-injection] these env variables are safe
-          runners = ["${{ needs.setup-instance.outputs.runner-name }}", ]
-          if "${{ inputs.extra-runners-to-use }}":
-            split_runners = "${{ inputs.extra-runners-to-use }}".replace(" ", "").split(",")
+        env:
+          INPUTS_EXTRA_RUNNERS_TO_USE: ${{ inputs.extra-runners-to-use }}
+          REMOTE_RUNNER_LABEL: ${{ needs.setup-instance.outputs.runner-name }}
+        run: |
+          import os
+          
+          inputs_extra_runners = os.environ["INPUTS_EXTRA_RUNNERS_TO_USE"]
+          remote_runner_label = os.environ["REMOTE_RUNNER_LABEL"]
+          env_file = os.environ["GITHUB_ENV"]
+          
+          runners = [remote_runner_label, ]
+          if inputs_extra_runners:
+            split_runners = inputs_extra_runners.replace(" ", "").split(",")
             runners.extend(split_runners)
 
-          with open("${{ github.env }}", "a") as f:
+          with open(env_file, "a") as f:
             f.write(f"""RUNNERS=["{'", "'.join(runners)}"]\n""")
 
       - name: Set martix runners outputs
