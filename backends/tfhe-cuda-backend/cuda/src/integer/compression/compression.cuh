@@ -136,9 +136,9 @@ host_integer_compress(CudaStreams streams,
   }
 
   // Modulus switch
-  int size = num_glwes * compression_params.glwe_dimension *
-                 compression_params.polynomial_size +
-             glwe_array_out->total_lwe_bodies_count;
+  uint32_t size = num_glwes * compression_params.glwe_dimension *
+                      compression_params.polynomial_size +
+                  glwe_array_out->total_lwe_bodies_count;
 
   host_modulus_switch_inplace<Torus>(streams.stream(0), streams.gpu_index(0),
                                      tmp_glwe_array_out, size,
