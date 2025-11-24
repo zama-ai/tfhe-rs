@@ -49,18 +49,19 @@ To do so, you need to build a list containing all the ciphertexts that have to b
 There is no constraint regarding the size of the list.
 
 There are two possible approaches:
+
 - **Single list**: Compressing several ciphertexts into a single list. This generally yields a better compression ratio between output and input sizes;
 - **Multiple lists**: Using multiple lists. This offers more flexibility, since compression might happen at different times in the code, but could lead to larger outputs.
 
-In more details, the optimal ratio is achieved with a list whose size is 
-equal to the `lwe_per_glwe` field from the `CompressionParameters`. 
+In more details, the optimal ratio is achieved with a list whose size is
+equal to the `lwe_per_glwe` field from the `CompressionParameters`.
 
 The following example shows how to compress and decompress a list containing 4 messages: one 32-bits integer, one 64-bit integer, one boolean, and one 2-bit integer.
 
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2,
+    MetaParametersFinder, Log2PFail, Constraint, Version, Backend,
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
@@ -68,12 +69,16 @@ use tfhe::{
 };
 
 fn main() {
-    let config =
-        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
-            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
-            .build();
+    let parameters = MetaParametersFinder::new(
+        Constraint::LessThanOrEqual(Log2PFail(-128.0)),
+        Version(1, 4, 0),
+        Backend::Cpu
+    )
+    .with_compression(true)
+    .find()
+    .expect("Could not find suitable parameters");
 
-    let ck = tfhe::ClientKey::generate(config);
+    let ck = tfhe::ClientKey::generate(parameters);
     let sk = tfhe::ServerKey::new(&ck);
 
     set_server_key(sk);
