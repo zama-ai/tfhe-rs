@@ -482,7 +482,7 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   size_t total_mem, free_mem;
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
   // Estimate the size of one chunk
-  uint64_t size_one_chunk = max_num_pbs * polynomial_size *
+  uint64_t size_one_chunk = (uint64_t)max_num_pbs * polynomial_size *
                             (glwe_dimension + 1) * (glwe_dimension + 1) *
                             level_count * sizeof(Torus);
 
@@ -494,7 +494,9 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   PANIC_IF_FALSE(
       max_num_chunks > 0,
       "Cuda error (multi-bit PBS): Not enough GPU memory to allocate PBS "
-      "temporary arrays.");
+      "temporary arrays. free_mem: %lu, size_one_chunk: %lu, max_num_chunks: "
+      "%u, max_num_pbs %u",
+      free_mem, size_one_chunk, max_num_chunks, max_num_pbs);
   int x = num_sms * max_blocks_per_sm;
   int count = 0;
 
