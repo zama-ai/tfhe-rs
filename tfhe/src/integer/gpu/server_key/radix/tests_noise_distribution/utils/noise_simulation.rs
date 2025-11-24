@@ -196,12 +196,24 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                *output_cuda_lwe = input.duplicate(&side_resources.streams);
+                let mut internal_output = input.duplicate(&side_resources.streams);
                 cuda_modulus_switch_ciphertext(
-                    output_cuda_lwe,
+                    &mut internal_output.0.d_vec,
                     output_modulus_log.0 as u32,
                     &side_resources.streams,
                 );
+                let mut cpu_lwe = internal_output.to_lwe_ciphertext_list(&side_resources.streams);
+
+                let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
+                for val in cpu_lwe.as_mut_view().into_container().iter_mut() {
+                    *val <<= shift_to_map_to_native;
+                }
+                let d_after_ms = CudaLweCiphertextList::from_lwe_ciphertext_list(
+                    &cpu_lwe,
+                    &side_resources.streams,
+                );
+
+                *output_cuda_lwe = d_after_ms;
             }
             (Self::U128(_input), Self::U128(_output_cuda_lwe)) => {
                 panic!("U128 modulus switch not implemented for CudaDynLwe - only U64 is supported")

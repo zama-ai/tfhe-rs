@@ -166,3 +166,13 @@ void cuda_integer_extract_glwe_128(
                             (__uint128_t *)glwe_array_out, glwe_list,
                             glwe_index);
 }
+
+void cuda_integer_extract_glwe_64(
+    CudaStreamsFFI streams, void *glwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *glwe_list,
+    uint32_t const glwe_index) {
+
+  CudaStreams _streams = CudaStreams(streams);
+  host_extract<__uint64_t>(_streams.stream(0), _streams.gpu_index(0),
+                           (__uint64_t *)glwe_array_out, glwe_list, glwe_index);
+}

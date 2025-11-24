@@ -876,18 +876,14 @@ pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_async<T: UnsignedInteger>
 }
 
 pub fn cuda_modulus_switch_ciphertext<Scalar>(
-    output_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    output_lwe_ciphertext: &mut CudaVec<Scalar>,
     log_modulus: u32,
     streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_modulus_switch_ciphertext_async(
-            streams,
-            &mut output_lwe_ciphertext.0.d_vec,
-            log_modulus,
-        );
+        cuda_modulus_switch_ciphertext_async(streams, &mut *output_lwe_ciphertext, log_modulus);
     }
     streams.synchronize();
 }

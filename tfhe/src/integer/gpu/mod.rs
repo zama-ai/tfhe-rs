@@ -10248,10 +10248,21 @@ pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
     );
     let packed_glwe_list_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_list);
 
-    cuda_integer_extract_glwe_128(
-        streams.ffi(),
-        glwe_array_out.0.d_vec.as_mut_c_ptr(0),
-        &raw const packed_glwe_list_ffi,
-        glwe_index,
-    );
+    if std::mem::size_of::<T>() == 16 {
+        cuda_integer_extract_glwe_128(
+            streams.ffi(),
+            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+            &raw const packed_glwe_list_ffi,
+            glwe_index,
+        );
+    } else if std::mem::size_of::<T>() == 8 {
+        cuda_integer_extract_glwe_64(
+            streams.ffi(),
+            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+            &raw const packed_glwe_list_ffi,
+            glwe_index,
+        );
+    } else {
+        panic!("Unsupported integer size for CUDA GLWE extraction");
+    }
 }
