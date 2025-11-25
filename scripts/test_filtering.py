@@ -74,6 +74,12 @@ parser.add_argument(
     action="store_true",
     help="Do not run tests with big parameters set (e.g. 3bits message with 3 bits carry) for GPU",
 )
+parser.add_argument(
+    "--run-prod-only",
+    action="store_true",
+    help="Specify to run the CPU tests with the prod KS_PBS 2_2 parameters, \
+        only the 'layer' parameter will be taken into account if this flag is specified",
+)
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
@@ -177,10 +183,8 @@ def filter_integer_tests(input_args):
     return " and ".join(filter_expression)
 
 
-def filter_shortint_tests(input_args):
-    multi_bit_filter, group_filter = (
-        ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
-    )
+def shortint_normal_filter(input_args):
+    multi_bit_filter = "_multi_bit_group_[0-9]" if input_args.multi_bit else ""
 
     if input_args.fast_tests:
         msg_carry_pairs = [(2, 1), (2, 2), (2, 3)]
@@ -203,12 +207,25 @@ def filter_shortint_tests(input_args):
             msg_carry_pairs.append((4, 4))
 
     filter_expression = [
-        f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks(32)?_pbs.*/)"
+        f"test(/^shortint::.*_param{multi_bit_filter}_message_{msg}_carry_{carry}\
+(_compact_pk)?_ks(32)?_pbs.*/)"
         for msg, carry in msg_carry_pairs
     ]
-    filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2/)")
 
+    filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2_ks32_pbs/)")
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
+
+    return filter_expression
+
+
+def filter_shortint_tests(input_args):
+    # We special case the CPU KS_PBS 2_2 parameters to be able to run them alone
+    if input_args.run_prod_only:
+        filter_expression = [
+            "test(/^shortint::.*_param_prod/)",
+        ]
+    else:
+        filter_expression = shortint_normal_filter(input_args)
 
     opt_in_tests = " or ".join(filter_expression)
 
