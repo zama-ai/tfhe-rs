@@ -17,7 +17,7 @@ use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateK
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
@@ -327,8 +327,8 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
 }
 
 create_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 #[allow(clippy::too_many_arguments)]
@@ -804,6 +804,6 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
 }
 
 create_parameterized_test!(noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
