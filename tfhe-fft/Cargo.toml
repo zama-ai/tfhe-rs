@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-fft"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 description = "tfhe-fft is a pure Rust high performance fast Fourier transform library."
 readme = "README.md"
