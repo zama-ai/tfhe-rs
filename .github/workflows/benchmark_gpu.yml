@@ -33,6 +33,8 @@ on:
           - integer_zk
           - integer_aes
           - integer_aes256
+          - hlapi_erc20
+          - hlapi_dex
           - hlapi_noise_squash
       op_flavor:
         description: "Operations set to run"
