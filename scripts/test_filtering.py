@@ -204,6 +204,8 @@ def filter_shortint_tests(input_args):
         f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks(32)?_pbs.*/)"
         for msg, carry in msg_carry_pairs
     ]
+    filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2/)")
+
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
 
     opt_in_tests = " or ".join(filter_expression)
