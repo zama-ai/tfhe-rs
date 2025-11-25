@@ -39,6 +39,9 @@ The following values are generated:
 | `glwe_after_spec_br` | The glwe returned by the application of the spec blind rotation on the mod switched ciphertexts.             | `GlweCiphertext<Vec<u64>>` | rot spec LUT |
 | `lwe_after_spec_pbs` | The lwe returned by the application of the sample extract operation on the output of the spec blind rotation | `LweCiphertext<Vec<u64>>`  | `spec(A)`    |
 
+Ciphertexts with the `_karatsuba` suffix are generated using the Karatsuba polynomial multiplication algorithm in the blind rotation, while default ciphertexts are generated using an FFT multiplication.
+This makes it easier to reproduce bit exact results.
+
 ### Encodings
 #### Non native encoding
 Warning: TFHE-rs uses a specific encoding for non native (ie: u32, u64) power of two ciphertext modulus. This encoding puts the encoded value in the high bits of the native integer.
