@@ -3029,7 +3029,11 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
+    T: UnsignedInteger,
+    B: Numeric,
+    KST: Numeric,
+>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     num_blocks_intermediate: u32,
@@ -3038,7 +3042,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, 
     has_at_least_one_set: &[T],
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
-    key_switching_key: &CudaVec<u64>,
+    key_switching_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,

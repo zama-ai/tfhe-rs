@@ -174,7 +174,6 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
                      KSTorus *const *ksks, void *const *bsks,
                      const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
-
   if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
     set_zero_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), ct, 0, ct->num_radix_blocks);
@@ -207,7 +206,6 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
 
   host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams);
 }
-
 
 template <typename Torus, typename KSTorus>
 __host__ void host_signed_scalar_mul_high(

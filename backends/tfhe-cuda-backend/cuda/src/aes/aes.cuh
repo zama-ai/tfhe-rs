@@ -122,9 +122,11 @@ aes_flush_inplace(CudaStreams streams, CudaRadixCiphertextFFI *data,
  *
  */
 template <typename Torus, typename KSTorus>
-__host__ __forceinline__ void aes_scalar_add_one_flush_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *data,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, KSTorus *const *ksks) {
+__host__ __forceinline__ void
+aes_scalar_add_one_flush_inplace(CudaStreams streams,
+                                 CudaRadixCiphertextFFI *data,
+                                 int_aes_encrypt_buffer<Torus> *mem,
+                                 void *const *bsks, KSTorus *const *ksks) {
 
   host_add_scalar_one_inplace<Torus>(streams, data, mem->params.message_modulus,
                                      mem->params.carry_modulus);
@@ -846,7 +848,8 @@ template <typename Torus, typename KSTorus>
 __host__ void vectorized_aes_encrypt_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *all_states_bitsliced,
     CudaRadixCiphertextFFI const *round_keys, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, KSTorus *const *ksks) {
+    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t BITS_PER_BYTE = 8;
   constexpr uint32_t STATE_BYTES = 16;
@@ -991,7 +994,8 @@ template <typename Torus, typename KSTorus>
 __host__ void vectorized_aes_full_adder_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *transposed_states,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, KSTorus *const *ksks) {
+    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t NUM_BITS = 128;
 
@@ -1096,7 +1100,8 @@ __host__ void host_integer_aes_ctr_encrypt(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, KSTorus *const *ksks) {
+    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t NUM_BITS = 128;
 

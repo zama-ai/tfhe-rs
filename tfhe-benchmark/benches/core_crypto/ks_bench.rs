@@ -13,9 +13,7 @@ use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::core_crypto::prelude::*;
 
-use tfhe::core_crypto::prelude::{
-    DynamicDistribution,
-};
+use tfhe::core_crypto::prelude::DynamicDistribution;
 
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
 fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
@@ -371,22 +369,25 @@ mod cuda {
                 &mut secret_generator,
             );
 
-            let glwe_sk_32: GlweSecretKeyOwned<u32> = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dimension,
-                polynomial_size,
-                &mut secret_generator,
-            );
+            let glwe_sk_32: GlweSecretKeyOwned<u32> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    glwe_dimension,
+                    polynomial_size,
+                    &mut secret_generator,
+                );
 
-            let lwe_sk_64: LweSecretKeyOwned<Scalar> = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut secret_generator,
-            );
+            let lwe_sk_64: LweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_lwe_secret_key(
+                    lwe_dimension,
+                    &mut secret_generator,
+                );
 
-            let glwe_sk_64: GlweSecretKeyOwned<Scalar> = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dimension,
-                polynomial_size,
-                &mut secret_generator,
-            );
+            let glwe_sk_64: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    glwe_dimension,
+                    polynomial_size,
+                    &mut secret_generator,
+                );
 
             let big_lwe_sk_64 = glwe_sk_64.into_lwe_secret_key();
 

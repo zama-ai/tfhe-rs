@@ -111,9 +111,9 @@ template <typename Torus, typename KSTorus>
 __host__ void host_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, KSTorus const *ksk, uint32_t lwe_dimension_in,
-    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples) {
+    Torus const *lwe_input_indexes, KSTorus const *ksk,
+    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
 
   cuda_set_device(gpu_index);
 

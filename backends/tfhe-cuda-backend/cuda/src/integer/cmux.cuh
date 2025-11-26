@@ -42,12 +42,13 @@ __host__ void zero_out_if(CudaStreams streams,
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_cmux(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_condition,
-    CudaRadixCiphertextFFI const *lwe_array_true,
-    CudaRadixCiphertextFFI const *lwe_array_false,
-    int_cmux_buffer<Torus> *mem_ptr, void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_cmux(CudaStreams streams,
+                        CudaRadixCiphertextFFI *lwe_array_out,
+                        CudaRadixCiphertextFFI const *lwe_condition,
+                        CudaRadixCiphertextFFI const *lwe_array_true,
+                        CudaRadixCiphertextFFI const *lwe_array_false,
+                        int_cmux_buffer<Torus> *mem_ptr, void *const *bsks,
+                        KSTorus *const *ksks) {
 
   if (lwe_array_out->num_radix_blocks != lwe_array_true->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")

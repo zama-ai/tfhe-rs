@@ -656,7 +656,10 @@ mod cuda_utils {
     }
 
     #[allow(dead_code)]
-    impl<T: UnsignedInteger> CudaLocalKeys<T> where T: CastInto<u32> {
+    impl<T: UnsignedInteger> CudaLocalKeys<T>
+    where
+        T: CastInto<u32>,
+    {
         pub fn from_cpu_keys(
             cpu_keys: &CpuKeys<T>,
             ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
@@ -681,10 +684,13 @@ mod cuda_utils {
     }
 
     /// Instantiate Cuda computing keys to each available GPU.
-    pub fn cuda_local_keys_core<T: UnsignedInteger> (
+    pub fn cuda_local_keys_core<T: UnsignedInteger>(
         cpu_keys: &CpuKeys<T>,
         ms_noise_reduction: Option<CudaModulusSwitchNoiseReductionConfiguration>,
-    ) -> Vec<CudaLocalKeys<T>> where T: CastInto<u32> {
+    ) -> Vec<CudaLocalKeys<T>>
+    where
+        T: CastInto<u32>,
+    {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
         for i in 0..gpu_count {

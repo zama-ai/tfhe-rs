@@ -6,8 +6,8 @@ use crate::core_crypto::gpu::{
     DecompositionLevelCount,
 };
 use crate::core_crypto::prelude::{
-    lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
-    UnsignedInteger, CastInto
+    lwe_keyswitch_key_input_key_element_encrypted_size, CastInto, LweKeyswitchKeyOwned, LweSize,
+    UnsignedInteger,
 };
 use itertools::Itertools;
 use std::any::TypeId;
@@ -48,16 +48,14 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
         );
 
         if TypeId::of::<T>() == TypeId::of::<O>() {
-            if (std::mem::size_of::<T>() == 8) {
+            if size_of::<T>() == 8 {
                 panic!("Forced KSK to u32 not working!");
             }
             unsafe {
-                let casted = unsafe {
-                    std::slice::from_raw_parts(
-                        h_ksk.as_ref().as_ptr() as *const T,
-                        h_ksk.as_ref().len(),
-                    )
-                };
+                let casted = std::slice::from_raw_parts(
+                    h_ksk.as_ref().as_ptr() as *const T,
+                    h_ksk.as_ref().len(),
+                );
                 convert_lwe_keyswitch_key_async(streams, &mut d_vec, casted);
             }
         } else {

@@ -81,6 +81,21 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub thread_count: ThreadCount,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct MultiBitTestKS32Params<Scalar: UnsignedInteger> {
+    pub input_lwe_dimension: LweDimension,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
+    pub message_modulus_log: MessageModulusLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+    pub grouping_factor: LweBskGroupingFactor,
+    pub thread_count: ThreadCount,
+}
+
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct NoiseSquashingMultiBitTestParameters<Scalar: UnsignedInteger> {

@@ -506,7 +506,8 @@ template <typename Torus, typename KSTorus>
 __host__ void integer_radix_apply_univariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
-    KSTorus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks) {
+    KSTorus *const *ksks, int_radix_lut<Torus> *lut,
+    uint32_t num_radix_blocks) {
   PUSH_RANGE("apply lut")
   // apply_lookup_table
   auto params = lut->params;
@@ -1849,11 +1850,13 @@ uint64_t scratch_cuda_apply_many_univariate_lut(
 }
 
 template <typename Torus, typename KSTorus>
-void host_apply_many_univariate_lut(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI const *radix_lwe_in, int_radix_lut<Torus> *mem,
-    KSTorus *const *ksks, void *const *bsks, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+void host_apply_many_univariate_lut(CudaStreams streams,
+                                    CudaRadixCiphertextFFI *radix_lwe_out,
+                                    CudaRadixCiphertextFFI const *radix_lwe_in,
+                                    int_radix_lut<Torus> *mem,
+                                    KSTorus *const *ksks, void *const *bsks,
+                                    uint32_t num_many_lut,
+                                    uint32_t lut_stride) {
 
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, radix_lwe_out, radix_lwe_in, bsks, ksks, mem, num_many_lut,
@@ -1884,12 +1887,12 @@ uint64_t scratch_cuda_apply_bivariate_lut(
 
 template <typename Torus, typename KSTorus>
 void host_apply_bivariate_lut(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *radix_lwe_out,
-                                 CudaRadixCiphertextFFI const *radix_lwe_in_1,
-                                 CudaRadixCiphertextFFI const *radix_lwe_in_2,
-                                 int_radix_lut<Torus> *mem, KSTorus *const *ksks,
-                                 void *const *bsks, uint32_t num_radix_blocks,
-                                 uint32_t shift) {
+                              CudaRadixCiphertextFFI *radix_lwe_out,
+                              CudaRadixCiphertextFFI const *radix_lwe_in_1,
+                              CudaRadixCiphertextFFI const *radix_lwe_in_2,
+                              int_radix_lut<Torus> *mem, KSTorus *const *ksks,
+                              void *const *bsks, uint32_t num_radix_blocks,
+                              uint32_t shift) {
 
   integer_radix_apply_bivariate_lookup_table<Torus>(
       streams, radix_lwe_out, radix_lwe_in_1, radix_lwe_in_2, bsks, ksks, mem,
@@ -2308,11 +2311,12 @@ void host_single_borrow_propagate(CudaStreams streams,
 /// LUT In scalar bitops we use a number of blocks that may be lower or equal to
 /// the input and output numbers of blocks
 template <typename InputTorus, typename KSTorus>
-__host__ void integer_radix_apply_noise_squashing(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in,
-    int_noise_squashing_lut<InputTorus> *lut, void *const *bsks,
-    KSTorus *const *ksks) {
+__host__ void
+integer_radix_apply_noise_squashing(CudaStreams streams,
+                                    CudaRadixCiphertextFFI *lwe_array_out,
+                                    CudaRadixCiphertextFFI const *lwe_array_in,
+                                    int_noise_squashing_lut<InputTorus> *lut,
+                                    void *const *bsks, KSTorus *const *ksks) {
 
   PUSH_RANGE("apply noise squashing")
   auto params = lut->params;
