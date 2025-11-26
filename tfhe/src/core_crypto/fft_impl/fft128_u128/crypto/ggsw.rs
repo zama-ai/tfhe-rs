@@ -288,7 +288,7 @@ pub(crate) fn collect_next_term_split_avx512(
             let mod_b_mask_lo = simd.splat_u64x8(mod_b_mask_lo);
             let mod_b_mask_hi = simd.splat_u64x8(mod_b_mask_hi);
 
-            let base_log_gt_64 = pulp::b8(if base_log > 64 { u8::MAX } else { 0 });
+            let base_log_gt_64 = simd.splat_u64x8(if base_log > 64 { u64::MAX } else { 0 });
             let shift_minus_64 = simd.splat_u64x8(shift.wrapping_sub(64));
             let shift_complement = simd.splat_u64x8(64u64.wrapping_sub(shift));
             let shift = simd.splat_u64x8(shift);
@@ -308,9 +308,11 @@ pub(crate) fn collect_next_term_split_avx512(
                 let res_lo = simd.and_u64x8(vstate_lo, mod_b_mask_lo);
                 let res_hi = simd.and_u64x8(vstate_hi, mod_b_mask_hi);
 
-                vstate_lo = simd.select_u64x8(
-                    base_log_gt_64,
-                    pulp::cast(simd.shr_dyn_i64x8(pulp::cast(vstate_hi), base_log_minus_64)),
+                vstate_lo = simd.or_u64x8(
+                    simd.and_u64x8(
+                        base_log_gt_64,
+                        pulp::cast(simd.shr_dyn_i64x8(pulp::cast(vstate_hi), base_log_minus_64)),
+                    ),
                     simd.or_u64x8(
                         simd.shl_dyn_u64x8(vstate_hi, base_log_complement),
                         simd.shr_dyn_u64x8(vstate_lo, base_log),

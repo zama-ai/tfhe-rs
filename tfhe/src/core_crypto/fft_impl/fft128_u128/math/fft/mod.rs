@@ -46,14 +46,16 @@ pub fn arithmetic_shr_split_u128(lo: u64, hi: u64, shift: u64) -> (u64, u64) {
         }
     }
 
-    let res_lo;
+    let res_lo = (arithmetic_shr(hi, shift.wrapping_sub(64))
+        & (if shift > 64 { u64::MAX } else { 0 }))
+        | (zeroing_shl(hi, 64u64.wrapping_sub(shift)) | zeroing_shr(lo, shift));
     // This will zero out or fill with 1s depending on the sign bit
     let res_hi = arithmetic_shr(hi, shift);
-    if shift < 64 {
-        res_lo = zeroing_shl(hi, 64 - shift) | zeroing_shr(lo, shift);
-    } else {
-        res_lo = arithmetic_shr(hi, shift - 64)
-    }
+    // if shift < 64 {
+    //     res_lo = zeroing_shl(hi, 64 - shift) | zeroing_shr(lo, shift);
+    // } else {
+    //     res_lo = arithmetic_shr(hi, shift - 64)
+    // }
 
     (res_lo, res_hi)
 }
@@ -1424,8 +1426,6 @@ mod tests {
 
             for shift in 0..127 {
                 for case in [positive, negative] {
-                    println!("{case}");
-
                     let case_lo = case as u64;
                     let case_hi = (case >> 64) as u64;
 
