@@ -41,8 +41,8 @@ use crate::shortint::server_key::tests::noise_distribution::dp_ks_pbs128_packing
 };
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
+    DynLwe, NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
+    NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, DecryptionAndNoiseResult, NoiseSample,

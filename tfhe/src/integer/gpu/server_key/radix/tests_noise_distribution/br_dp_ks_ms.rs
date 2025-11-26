@@ -13,7 +13,6 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameter
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::gpu::unchecked_small_scalar_mul_integer_async;
-use crate::integer::server_key::ServerKey;
 use crate::integer::{CompressedServerKey, IntegerCiphertext};
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::NoiseLevel;
@@ -29,8 +28,8 @@ use crate::shortint::parameters::{AtomicPatternParameters, MetaParameters, Varia
 use crate::shortint::server_key::tests::noise_distribution::br_dp_ks_ms::br_dp_ks_any_ms;
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    DynLwe, NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus,
+    DynLwe, NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -59,7 +58,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters) {
 
     let max_scalar_mul = sks.key.max_noise_level.get();
 
-    let ms_ciphertext_modulus: CiphertextModulus<u64> =
+    let _ms_ciphertext_modulus: CiphertextModulus<u64> =
         CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap();
 
     let id_lut = cuda_sks.generate_lookup_table(|x| x);

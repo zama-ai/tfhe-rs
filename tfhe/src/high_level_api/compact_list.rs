@@ -13,6 +13,7 @@ use crate::integer::parameters::{
 };
 use crate::named::Named;
 use crate::prelude::CiphertextList;
+use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::MessageModulus;
 use crate::HlExpandable;
 use tfhe_versionable::Versionize;
@@ -350,7 +351,8 @@ impl CompactCiphertextList {
                         .unwrap(),
                     dest_server_key: &cuda_key.key.key,
                 };
-                let expander = gpu_inner.expand(&ksk, streams)?;
+                let expander =
+                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -390,7 +392,8 @@ impl CompactCiphertextList {
                     dest_server_key: &cuda_key.key.key,
                 };
                 let streams = &cuda_key.streams;
-                let expander = gpu_inner.expand(&ksk, streams)?;
+                let expander =
+                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),

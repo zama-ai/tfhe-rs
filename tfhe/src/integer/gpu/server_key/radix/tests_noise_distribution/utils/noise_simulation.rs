@@ -357,7 +357,9 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaServerKey {
                     output_cuda_lwe,
                     &input_indexes,
                     &output_indexes,
+                    false,
                     &side_resources.streams,
+                    false,
                 );
             }
             (CudaDynLwe::U32(_), CudaDynLwe::U32(_)) => {

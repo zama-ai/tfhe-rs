@@ -137,7 +137,7 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters) {
                 sks.key.atomic_pattern.kind(),
             );
             let radix_ct = crate::integer::RadixCiphertext::from_blocks(vec![cpu_ct]);
-            let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_ct, &streams);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_ct, &streams);
             d_ct.ciphertext
         })
         .collect();
@@ -194,7 +194,6 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
     let thread_cks: crate::integer::ClientKey;
     let thread_sks: crate::integer::ServerKey;
     let thread_cuda_sks: CudaServerKey;
-    let thread_sks;
     let thread_compression_private_key;
     let thread_cuda_compression_key;
     let (cks, sks, cuda_sks, compression_private_key, cuda_compression_key) =
@@ -215,7 +214,7 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
             thread_cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
             thread_compression_private_key = thread_cks.new_compression_private_key(comp_params);
-            let (compressed_compression_key, compressed_decompression_key) = thread_cks
+            let (compressed_compression_key, _compressed_decompression_key) = thread_cks
                 .new_compressed_compression_decompression_keys(&thread_compression_private_key);
             thread_cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
 
@@ -330,7 +329,7 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
                                 &compute_encoding,
                             )
                         }
-                        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                        AtomicPatternClientKey::KeySwitch32(_ks32_atomic_pattern_client_key) => {
                             panic!("KS32 Atomic Pattern not supported on GPU tests yet");
                             // let ks32_params = ks32_atomic_pattern_client_key.parameters;
                             // let compute_encoding_32 = ShortintEncoding {
@@ -493,14 +492,6 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(meta_params: MetaParameters
         cks.new_compressed_compression_decompression_keys(&private_compression_key);
     let compression_key = compressed_compression_key.decompress();
     let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
-    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-        cks.parameters().glwe_dimension(),
-        cks.parameters().polynomial_size(),
-        cks.parameters().message_modulus(),
-        cks.parameters().carry_modulus(),
-        cks.parameters().ciphertext_modulus(),
-        &streams,
-    );
 
     let noise_simulation_bsk =
         NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
@@ -783,29 +774,16 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(meta_params: MetaParameters
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
     let private_compression_key = cks.new_compression_private_key(comp_params);
-    let (compressed_compression_key, compressed_decompression_key) =
+    let (compressed_compression_key, _compressed_decompression_key) =
         cks.new_compressed_compression_decompression_keys(&private_compression_key);
-    //let compression_key = compressed_compression_key.decompress();
-    let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
-    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-        cks.parameters().glwe_dimension(),
-        cks.parameters().polynomial_size(),
-        cks.parameters().message_modulus(),
-        cks.parameters().carry_modulus(),
-        cks.parameters().ciphertext_modulus(),
-        &streams,
-    );
 
-    // let cks = ClientKey::new(params);
-    // let sks = ServerKey::new(&cks);
-    // let compression_private_key = cks.new_compression_private_key(comp_params);
-    // let compression_key = cks.new_compression_key(&compression_private_key);
+    let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
 
     let lwe_per_glwe = cuda_compression_key.lwe_per_glwe;
 
-    let total_runs_for_expected_fails = 2; // pfail_test_meta
-                                           // .total_runs_for_expected_fails()
-                                           // .div_ceil(lwe_per_glwe.0.try_into().unwrap());
+    let total_runs_for_expected_fails = pfail_test_meta
+        .total_runs_for_expected_fails()
+        .div_ceil(lwe_per_glwe.0.try_into().unwrap());
 
     println!(
         "Actual runs with {} samples per run: {total_runs_for_expected_fails}",

@@ -12,6 +12,7 @@
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include "zk/zk_enums.h"
 #include "zk/zk_utilities.h"
 #include <functional>
 
@@ -54,15 +55,24 @@ __host__ void host_expand_without_verification(
       compact_lwe_lists.total_num_lwes * sizeof(expand_job<Torus>),
       streams.stream(0), streams.gpu_index(0), true);
 
+  if (mem_ptr->expand_kind == EXPAND_KIND::NO_CASTING) {
+    host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
+                                   lwe_array_out, d_expand_jobs, num_lwes);
+    return;
+  }
+
   host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
                                  expanded_lwes, d_expand_jobs, num_lwes);
 
-  auto ksks = casting_keys;
   auto lwe_array_input = expanded_lwes;
+  auto ksks = casting_keys;
   auto message_and_carry_extract_luts = mem_ptr->message_and_carry_extract_luts;
 
   auto lut = mem_ptr->message_and_carry_extract_luts;
   if (casting_key_type == SMALL_TO_BIG) {
+    if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      PANIC("SANITY_CHECK not supported for SMALL_TO_BIG casting");
+    }
     // Keyswitch from small to big key if needed
     auto ksed_small_to_big_expanded_lwes =
         mem_ptr->tmp_ksed_small_to_big_expanded_lwes;
@@ -95,6 +105,17 @@ __host__ void host_expand_without_verification(
   into_radix_ciphertext(output, lwe_array_out, 2 * num_lwes, lwe_dimension);
   auto input = new CudaRadixCiphertextFFI;
   into_radix_ciphertext(input, lwe_array_input, 2 * num_lwes, lwe_dimension);
+
+  // This is a special case only for our noise sanity checks
+  // If we are doing a SANITY_CHECK expand, we just apply the identity LUT
+  // This replicates the CPU fallback behaviour of the casting expand
+  if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, output, input, bsks, ksks, mem_ptr->identity_lut,
+        2 * num_lwes);
+    return;
+  }
+
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, output, input, bsks, ksks, message_and_carry_extract_luts,
       2 * num_lwes);
@@ -106,13 +127,13 @@ __host__ uint64_t scratch_cuda_expand_without_verification(
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     uint32_t num_compact_lists, int_radix_params computing_params,
     int_radix_params casting_params, KS_TYPE casting_key_type,
-    bool allocate_gpu_memory) {
+    bool allocate_gpu_memory, EXPAND_KIND expand_kind) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new zk_expand_mem<Torus>(
       streams, computing_params, casting_params, casting_key_type,
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
-      allocate_gpu_memory, size_tracker);
+      allocate_gpu_memory, size_tracker, expand_kind);
   return size_tracker;
 }
 
