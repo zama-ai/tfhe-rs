@@ -8,6 +8,11 @@ MODE="$1"
 TARGET_DIR="$2"
 CHECKSUM_FILE="checksums.sha256"
 
+if [ -z "$(uname -a | grep x86)" ]; then
+	 echo "Wrong architecture for test vectors, only x86 is supported"
+	 exit 1
+fi
+
 if [ -z "$MODE" ] || [ -z "$TARGET_DIR" ]; then
     echo "Usage: $0 <mode> <target dir>"
     echo "Modes:"
