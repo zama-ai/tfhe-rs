@@ -1424,6 +1424,8 @@ mod tests {
 
             for shift in 0..127 {
                 for case in [positive, negative] {
+                    println!("{case}");
+
                     let case_lo = case as u64;
                     let case_hi = (case >> 64) as u64;
 
