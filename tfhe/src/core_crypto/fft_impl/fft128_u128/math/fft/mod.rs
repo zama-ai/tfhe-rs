@@ -1373,6 +1373,56 @@ impl Fft128View<'_> {
     }
 }
 
+/// Workaround implementation of the arithmetic shift on 64 bits integer for avx2
+#[inline(always)]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub(crate) fn mm256_sra_epi64_avx2(
+    simd: pulp::x86::V3,
+    input: pulp::i64x4,
+    shift: pulp::u64x4,
+) -> pulp::i64x4 {
+    struct Sra64 {
+        simd: pulp::x86::V3,
+        input: pulp::i64x4,
+        shift: pulp::u64x4,
+    }
+
+    impl pulp::NullaryFnOnce for Sra64 {
+        type Output = pulp::i64x4;
+
+        fn call(self) -> Self::Output {
+            let Self { simd, input, shift } = self;
+
+            // Proposed algorithm:
+            // take the top bit (sign)
+            // turn it into a mask m (0 -> 0, 1 -> u64::MAX)
+            // compute x = a ^ m
+            // compute y = shr_logical(x, b)
+            // compute result = y ^ m
+
+            let zero = simd.splat_u64x4(0);
+
+            let input = pulp::cast(input);
+            // Get the MSB giving the sign
+            let sign = simd.shr_const_u64x4::<63>(input);
+            // 0 if input >= 0 else == -1 == 0xFFFF_FFFF_FFFF_FFFF == u64::MAX
+            let sign_mask = simd.wrapping_sub_u64x4(zero, sign);
+            // If sign_mask == 0 values stays the same
+            // else all bits are inverted, the nice property is that if the top bit is a 1 then it
+            // becomes a 0 (see shr comment as to why it's awesome)
+            let masked_input = simd.xor_u64x4(input, sign_mask);
+            // If sign_mask == 0, we are shifting in 0s and the last inversion won't change anything
+            // It works as expected
+            // If sign_mask == -1 then the 0s we shift in will be inverted at the last step and so
+            // the logical shift is acting as an arithmetic shift
+            let shifted = simd.shr_dyn_u64x4(masked_input, shift);
+            pulp::cast(simd.xor_u64x4(shifted, sign_mask))
+        }
+    }
+
+    simd.vectorize(Sra64 { simd, input, shift })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1443,6 +1493,47 @@ mod tests {
                 let (res_lo, res_hi) = arithmetic_shr_split_u128(case_lo, case_hi, 128);
                 let res_as_u128 = (res_lo as u128) | ((res_hi as u128) << 64);
                 assert_eq!(res_as_u128, expected);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_sra_avx2() {
+        use rand::prelude::*;
+
+        let Some(simd) = pulp::x86::V3::try_new() else {
+            return;
+        };
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..1000 {
+            for shift in 0..63 {
+                let shift = [shift as u64; 4];
+                for range in [0i64..=i64::MAX, i64::MIN..=-1] {
+                    let input: [i64; 4] = core::array::from_fn(|_| rng.gen_range(range.clone()));
+
+                    let res_i64 = mm256_sra_epi64_avx2(simd, pulp::cast(input), pulp::cast(shift));
+                    let res_as_array: [i64; 4] = pulp::cast(res_i64);
+
+                    let expected: [i64; 4] = core::array::from_fn(|idx| input[idx] >> shift[idx]);
+
+                    assert_eq!(res_as_array, expected);
+                }
+            }
+
+            // Shift hardcoded as 64
+            for range in [0i64..=i64::MAX, i64::MIN..=-1] {
+                let shift = [64u64; 4];
+                let input: [i64; 4] = core::array::from_fn(|_| rng.gen_range(range.clone()));
+
+                let res_i64 = mm256_sra_epi64_avx2(simd, pulp::cast(input), pulp::cast(shift));
+                let res_as_array: [i64; 4] = pulp::cast(res_i64);
+
+                let expected: [i64; 4] =
+                    core::array::from_fn(|idx| if input[idx] > 0 { 0 } else { -1 });
+
+                assert_eq!(res_as_array, expected);
             }
         }
     }

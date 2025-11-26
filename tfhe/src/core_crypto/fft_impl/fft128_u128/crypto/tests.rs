@@ -1,5 +1,6 @@
 use super::super::super::{fft128, fft128_u128};
 use super::super::math::fft::Fft128View;
+use super::ggsw::collect_next_term_split_scalar;
 use crate::core_crypto::fft_impl::common::tests::{
     gen_keys_or_get_from_cache_if_enabled, generate_keys,
 };
@@ -252,5 +253,149 @@ fn test_split_pbs() {
         fourier_bsk.blind_rotate_u128(&mut lwe_out_split, &lwe_in, &accumulator, fft, stack);
 
         assert_eq!(lwe_out_split, lwe_out_non_split);
+    }
+}
+
+#[test]
+fn test_decomposition_edge_case_sign_handling_split_u128() {
+    let decomposer = SignedDecomposer::new(DecompositionBaseLog(40), DecompositionLevelCount(3));
+    // This value triggers a negative state at the start of the decomposition, invalid code using
+    // logic shift will wrongly compute an intermediate value by not keeping the sign of the
+    // state on the last level if base_log * (level_count + 1) > Scalar::BITS, the logic shift will
+    // shift in 0s instead of the 1s to keep the sign information
+    let val = 170141183460604905165246226680529368983u128;
+    let base_log = decomposer.base_log;
+
+    let expected = [-421613125320i128, 482008863255, -549755813888];
+
+    let decomp_state = decomposer.init_decomposer_state(val);
+    let mut decomp_state_lo = decomp_state as u64;
+    let mut decomp_state_hi = (decomp_state >> 64) as u64;
+
+    let mod_b_mask = (1u128 << decomposer.base_log) - 1;
+    let mod_b_mask_lo = mod_b_mask as u64;
+    let mod_b_mask_hi = (mod_b_mask >> 64) as u64;
+
+    for expect in expected {
+        let mut decomp_term_lo = 0u64;
+        let mut decomp_term_hi = 0u64;
+
+        collect_next_term_split_scalar(
+            core::slice::from_mut(&mut decomp_term_lo),
+            core::slice::from_mut(&mut decomp_term_hi),
+            core::slice::from_mut(&mut decomp_state_lo),
+            core::slice::from_mut(&mut decomp_state_hi),
+            mod_b_mask_lo,
+            mod_b_mask_hi,
+            base_log,
+        );
+
+        let term_value_u128 = ((decomp_term_hi as u128) << 64) | decomp_term_lo as u128;
+        let term_value_i128 = term_value_u128 as i128;
+
+        assert_eq!(term_value_i128, expect);
+    }
+}
+
+#[test]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn test_decomposition_edge_case_sign_handling_split_u128_avx2() {
+    use super::ggsw::collect_next_term_split_avx2;
+
+    let Some(simd) = pulp::x86::V3::try_new() else {
+        return;
+    };
+
+    let decomposer = SignedDecomposer::new(DecompositionBaseLog(40), DecompositionLevelCount(3));
+    // This value triggers a negative state at the start of the decomposition, invalid code using
+    // logic shift will wrongly compute an intermediate value by not keeping the sign of the
+    // state on the last level if base_log * (level_count + 1) > Scalar::BITS, the logic shift will
+    // shift in 0s instead of the 1s to keep the sign information
+    let val = 170141183460604905165246226680529368983u128;
+    let base_log = decomposer.base_log;
+
+    let expected = [-421613125320i128, 482008863255, -549755813888];
+
+    let decomp_state = decomposer.init_decomposer_state(val);
+    let mut decomp_state_lo = [decomp_state as u64; 4];
+    let mut decomp_state_hi = [(decomp_state >> 64) as u64; 4];
+
+    let mod_b_mask = (1u128 << decomposer.base_log) - 1;
+    let mod_b_mask_lo = mod_b_mask as u64;
+    let mod_b_mask_hi = (mod_b_mask >> 64) as u64;
+
+    for expect in expected {
+        let mut decomp_term_lo = [0u64; 4];
+        let mut decomp_term_hi = [0u64; 4];
+
+        collect_next_term_split_avx2(
+            simd,
+            &mut decomp_term_lo,
+            &mut decomp_term_hi,
+            &mut decomp_state_lo,
+            &mut decomp_state_hi,
+            mod_b_mask_lo,
+            mod_b_mask_hi,
+            base_log,
+        );
+
+        for (decomp_term_hi, decomp_term_lo) in decomp_term_hi.into_iter().zip(decomp_term_lo) {
+            let term_value_u128 = ((decomp_term_hi as u128) << 64) | decomp_term_lo as u128;
+            let term_value_i128 = term_value_u128 as i128;
+
+            assert_eq!(term_value_i128, expect);
+        }
+    }
+}
+
+#[test]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(feature = "avx512")]
+fn test_decomposition_edge_case_sign_handling_split_u128_avx512() {
+    use super::ggsw::collect_next_term_split_avx512;
+
+    let Some(simd) = pulp::x86::V4::try_new() else {
+        return;
+    };
+
+    let decomposer = SignedDecomposer::new(DecompositionBaseLog(40), DecompositionLevelCount(3));
+    // This value triggers a negative state at the start of the decomposition, invalid code using
+    // logic shift will wrongly compute an intermediate value by not keeping the sign of the
+    // state on the last level if base_log * (level_count + 1) > Scalar::BITS, the logic shift will
+    // shift in 0s instead of the 1s to keep the sign information
+    let val = 170141183460604905165246226680529368983u128;
+    let base_log = decomposer.base_log;
+
+    let expected = [-421613125320i128, 482008863255, -549755813888];
+
+    let decomp_state = decomposer.init_decomposer_state(val);
+    let mut decomp_state_lo = [decomp_state as u64; 8];
+    let mut decomp_state_hi = [(decomp_state >> 64) as u64; 8];
+
+    let mod_b_mask = (1u128 << decomposer.base_log) - 1;
+    let mod_b_mask_lo = mod_b_mask as u64;
+    let mod_b_mask_hi = (mod_b_mask >> 64) as u64;
+
+    for expect in expected {
+        let mut decomp_term_lo = [0u64; 8];
+        let mut decomp_term_hi = [0u64; 8];
+
+        collect_next_term_split_avx512(
+            simd,
+            &mut decomp_term_lo,
+            &mut decomp_term_hi,
+            &mut decomp_state_lo,
+            &mut decomp_state_hi,
+            mod_b_mask_lo,
+            mod_b_mask_hi,
+            base_log,
+        );
+
+        for (decomp_term_hi, decomp_term_lo) in decomp_term_hi.into_iter().zip(decomp_term_lo) {
+            let term_value_u128 = ((decomp_term_hi as u128) << 64) | decomp_term_lo as u128;
+            let term_value_i128 = term_value_u128 as i128;
+
+            assert_eq!(term_value_i128, expect);
+        }
     }
 }

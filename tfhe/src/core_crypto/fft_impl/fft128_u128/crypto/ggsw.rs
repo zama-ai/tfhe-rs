@@ -1,4 +1,6 @@
-use super::super::math::fft::{wrapping_add, wrapping_sub, zeroing_shl, zeroing_shr, Fft128View};
+use super::super::math::fft::{
+    arithmetic_shr_split_u128, wrapping_add, wrapping_sub, zeroing_shl, zeroing_shr, Fft128View,
+};
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::traits::container::Split;
 use crate::core_crypto::commons::traits::contiguous_entity_container::{
@@ -235,7 +237,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "avx512")]
-fn collect_next_term_split_avx512(
+pub(crate) fn collect_next_term_split_avx512(
     simd: pulp::x86::V4,
     glwe_decomp_term_lo: &mut [u64],
     glwe_decomp_term_hi: &mut [u64],
@@ -286,6 +288,7 @@ fn collect_next_term_split_avx512(
             let mod_b_mask_lo = simd.splat_u64x8(mod_b_mask_lo);
             let mod_b_mask_hi = simd.splat_u64x8(mod_b_mask_hi);
 
+            let base_log_gt_64 = pulp::b8(if base_log > 64 { u8::MAX } else { 0 });
             let shift_minus_64 = simd.splat_u64x8(shift.wrapping_sub(64));
             let shift_complement = simd.splat_u64x8(64u64.wrapping_sub(shift));
             let shift = simd.splat_u64x8(shift);
@@ -305,14 +308,15 @@ fn collect_next_term_split_avx512(
                 let res_lo = simd.and_u64x8(vstate_lo, mod_b_mask_lo);
                 let res_hi = simd.and_u64x8(vstate_hi, mod_b_mask_hi);
 
-                vstate_lo = simd.or_u64x8(
-                    simd.shr_dyn_u64x8(vstate_hi, base_log_minus_64),
+                vstate_lo = simd.select_u64x8(
+                    base_log_gt_64,
+                    pulp::cast(simd.shr_dyn_i64x8(pulp::cast(vstate_hi), base_log_minus_64)),
                     simd.or_u64x8(
                         simd.shl_dyn_u64x8(vstate_hi, base_log_complement),
                         simd.shr_dyn_u64x8(vstate_lo, base_log),
                     ),
                 );
-                vstate_hi = simd.shr_dyn_u64x8(vstate_hi, base_log);
+                vstate_hi = pulp::cast(simd.shr_dyn_i64x8(pulp::cast(vstate_hi), base_log));
 
                 let res_sub1_lo = simd.wrapping_sub_u64x8(res_lo, simd.splat_u64x8(1));
                 let overflow =
@@ -367,7 +371,7 @@ fn collect_next_term_split_avx512(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn collect_next_term_split_avx2(
+pub(crate) fn collect_next_term_split_avx2(
     simd: pulp::x86::V3,
     glwe_decomp_term_lo: &mut [u64],
     glwe_decomp_term_hi: &mut [u64],
@@ -392,7 +396,9 @@ fn collect_next_term_split_avx2(
 
         #[inline(always)]
         fn call(self) -> Self::Output {
-            use super::super::math::fft::{wrapping_add_avx2, wrapping_sub_avx2};
+            use super::super::math::fft::{
+                mm256_sra_epi64_avx2, wrapping_add_avx2, wrapping_sub_avx2,
+            };
 
             let Self {
                 simd,
@@ -418,6 +424,7 @@ fn collect_next_term_split_avx2(
             let mod_b_mask_lo = simd.splat_u64x4(mod_b_mask_lo);
             let mod_b_mask_hi = simd.splat_u64x4(mod_b_mask_hi);
 
+            let base_log_gt_64 = simd.splat_u64x4(if base_log > 64 { u64::MAX } else { 0 });
             let shift_minus_64 = simd.splat_u64x4(shift.wrapping_sub(64));
             let shift_complement = simd.splat_u64x4(64u64.wrapping_sub(shift));
             let shift = simd.splat_u64x4(shift);
@@ -438,13 +445,20 @@ fn collect_next_term_split_avx2(
                 let res_hi = simd.and_u64x4(vstate_hi, mod_b_mask_hi);
 
                 vstate_lo = simd.or_u64x4(
-                    simd.shr_dyn_u64x4(vstate_hi, base_log_minus_64),
+                    simd.and_u64x4(
+                        base_log_gt_64,
+                        pulp::cast(mm256_sra_epi64_avx2(
+                            simd,
+                            pulp::cast(vstate_hi),
+                            base_log_minus_64,
+                        )),
+                    ),
                     simd.or_u64x4(
                         simd.shl_dyn_u64x4(vstate_hi, base_log_complement),
                         simd.shr_dyn_u64x4(vstate_lo, base_log),
                     ),
                 );
-                vstate_hi = simd.shr_dyn_u64x4(vstate_hi, base_log);
+                vstate_hi = pulp::cast(mm256_sra_epi64_avx2(simd, pulp::cast(vstate_hi), base_log));
 
                 let res_sub1_lo = simd.wrapping_sub_u64x4(res_lo, simd.splat_u64x4(1));
                 let overflow = pulp::cast(simd.cmp_eq_u64x4(res_lo, simd.splat_u64x4(0)));
@@ -497,7 +511,7 @@ fn collect_next_term_split_avx2(
     });
 }
 
-fn collect_next_term_split_scalar(
+pub(crate) fn collect_next_term_split_scalar(
     glwe_decomp_term_lo: &mut [u64],
     glwe_decomp_term_hi: &mut [u64],
     decomposition_states_lo: &mut [u64],
@@ -518,13 +532,8 @@ fn collect_next_term_split_scalar(
         let res_hi = *state_hi & mod_b_mask_hi;
         let base_log = base_log as u64;
 
-        if base_log < 64 {
-            *state_lo = zeroing_shl(*state_hi, 64 - base_log) | zeroing_shr(*state_lo, base_log);
-            *state_hi = zeroing_shr(*state_hi, base_log);
-        } else {
-            *state_lo = zeroing_shr(*state_hi, base_log - 64);
-            *state_hi = 0;
-        }
+        (*state_lo, *state_hi) = arithmetic_shr_split_u128(*state_lo, *state_hi, base_log);
+
         let (res_sub1_lo, overflow) = res_lo.overflowing_sub(1);
         let res_sub1_hi = res_hi.wrapping_sub(overflow as u64);
 
