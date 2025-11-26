@@ -5,14 +5,14 @@
 #include "integer/cmux.h"
 #include "radix_ciphertext.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void zero_out_if(CudaStreams streams,
                           CudaRadixCiphertextFFI *lwe_array_out,
                           CudaRadixCiphertextFFI const *lwe_array_input,
                           CudaRadixCiphertextFFI const *lwe_condition,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
                           int_radix_lut<Torus> *predicate, void *const *bsks,
-                          Torus *const *ksks, uint32_t num_radix_blocks) {
+                          KSTorus *const *ksks, uint32_t num_radix_blocks) {
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks >= num_radix_blocks &&
           lwe_array_input->num_radix_blocks >= num_radix_blocks,
@@ -41,14 +41,14 @@ __host__ void zero_out_if(CudaStreams streams,
       num_radix_blocks);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_cmux(CudaStreams streams,
                         CudaRadixCiphertextFFI *lwe_array_out,
                         CudaRadixCiphertextFFI const *lwe_condition,
                         CudaRadixCiphertextFFI const *lwe_array_true,
                         CudaRadixCiphertextFFI const *lwe_array_false,
                         int_cmux_buffer<Torus> *mem_ptr, void *const *bsks,
-                        Torus *const *ksks) {
+                        KSTorus *const *ksks) {
 
   if (lwe_array_out->num_radix_blocks != lwe_array_true->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
