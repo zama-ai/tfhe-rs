@@ -1199,7 +1199,13 @@ gen_test_vectors:
 # `comm` is used to compare the checksums, and will also notify of any added file
 .PHONY: check_test_vectors
 check_test_vectors:
-	./scripts/test_vectors.sh check apps/test-vectors
+	@# Test vectors are not compatible between architectures
+	@if uname -a | grep -q x86; then \
+		./scripts/test_vectors.sh check apps/test-vectors; \
+	else \
+		echo "Cannot check test vectors on non x86 platform for now."; \
+	fi
+
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
