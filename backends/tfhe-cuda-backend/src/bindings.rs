@@ -363,44 +363,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_apply_bivariate_lut_64(
-        streams: CudaStreamsFFI,
-        mem_ptr: *mut *mut i8,
-        input_lut: *const ffi::c_void,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        input_lwe_ciphertext_count: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        lut_degree: u64,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_apply_bivariate_lut_64(
-        streams: CudaStreamsFFI,
-        output_radix_lwe: *mut CudaRadixCiphertextFFI,
-        input_radix_lwe_1: *const CudaRadixCiphertextFFI,
-        input_radix_lwe_2: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        ksks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
-        num_radix_blocks: u32,
-        shift: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_apply_bivariate_lut_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
-}
-unsafe extern "C" {
     pub fn cuda_apply_many_univariate_lut_64(
         streams: CudaStreamsFFI,
         output_radix_lwe: *mut CudaRadixCiphertextFFI,
@@ -2144,6 +2106,89 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_unchecked_index_of_clear_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_unchecked_all_eq_slices_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_inputs: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_unchecked_all_eq_slices_64(
+        streams: CudaStreamsFFI,
+        match_ct: *mut CudaRadixCiphertextFFI,
+        lhs: *const CudaRadixCiphertextFFI,
+        rhs: *const CudaRadixCiphertextFFI,
+        num_inputs: u32,
+        num_blocks: u32,
+        mem: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_unchecked_all_eq_slices_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_unchecked_contains_sub_slice_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_lhs: u32,
+        num_rhs: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_unchecked_contains_sub_slice_64(
+        streams: CudaStreamsFFI,
+        match_ct: *mut CudaRadixCiphertextFFI,
+        lhs: *const CudaRadixCiphertextFFI,
+        rhs: *const CudaRadixCiphertextFFI,
+        num_rhs: u32,
+        num_blocks: u32,
+        mem: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_unchecked_contains_sub_slice_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );

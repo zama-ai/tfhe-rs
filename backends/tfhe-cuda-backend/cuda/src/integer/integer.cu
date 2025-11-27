@@ -241,49 +241,6 @@ void cuda_apply_many_univariate_lut_64(
       num_many_lut, lut_stride);
 }
 
-uint64_t scratch_cuda_apply_bivariate_lut_64(
-    CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint64_t lut_degree, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
-
-  return scratch_cuda_apply_bivariate_lut<uint64_t>(
-      CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
-      static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      lut_degree, allocate_gpu_memory);
-}
-
-void cuda_apply_bivariate_lut_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
-    CudaRadixCiphertextFFI const *input_radix_lwe_1,
-    CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
-    uint32_t shift) {
-
-  host_apply_bivariate_lut<uint64_t>(
-      CudaStreams(streams), output_radix_lwe, input_radix_lwe_1,
-      input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
-      (uint64_t **)(ksks), bsks, num_radix_blocks, shift);
-}
-
-void cleanup_cuda_apply_bivariate_lut_64(CudaStreamsFFI streams,
-                                         int8_t **mem_ptr_void) {
-  PUSH_RANGE("cleanup bivar lut")
-  int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
-  mem_ptr->release(CudaStreams(streams));
-  delete mem_ptr;
-  *mem_ptr_void = nullptr;
-  POP_RANGE()
-}
-
 void cuda_integer_reverse_blocks_64_inplace(CudaStreamsFFI streams,
                                             CudaRadixCiphertextFFI *lwe_array) {
 
