@@ -48,9 +48,6 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
         );
 
         if TypeId::of::<T>() == TypeId::of::<O>() {
-            if size_of::<T>() == 8 {
-                panic!("Forced KSK to u32 not working!");
-            }
             unsafe {
                 let casted = std::slice::from_raw_parts(
                     h_ksk.as_ref().as_ptr() as *const T,

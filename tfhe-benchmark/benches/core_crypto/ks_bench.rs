@@ -457,7 +457,7 @@ mod cuda {
 
                     bench_id = format!("{bench_name}::throughput::{name}");
                     let blocks: usize = 1;
-                    let elements = throughput_num_threads(blocks, 1);
+                    let elements = 256; //throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.sample_size(50);
