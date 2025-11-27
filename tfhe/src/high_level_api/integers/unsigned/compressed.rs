@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::integers::{
@@ -5,9 +7,7 @@ use crate::backward_compatibility::integers::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
-use crate::high_level_api::integers::unsigned::base::{
-    FheUint, FheUintConformanceParams, FheUintId,
-};
+use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{FheTryEncrypt, Tagged};
@@ -15,11 +15,12 @@ use crate::high_level_api::{global_state, ClientKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{
     CompressedModulusSwitchedRadixCiphertext,
+    CompressedModulusSwitchedRadixCiphertextConformanceParams,
     CompressedRadixCiphertext as IntegerCompressedRadixCiphertext,
 };
-use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
-use crate::Tag;
+use crate::shortint::AtomicPatternParameters;
+use crate::{ServerKey, Tag};
 
 /// Compressed [FheUint]
 ///
@@ -151,10 +152,51 @@ where
     }
 }
 
-impl<Id: FheUintId> ParameterSetConformant for CompressedFheUint<Id> {
-    type ParameterSet = FheUintConformanceParams<Id>;
+#[derive(Copy, Clone)]
+pub struct CompressedFheUintConformanceParams<Id: FheUintId> {
+    pub(crate) params: CompressedRadixCiphertextConformanceParams,
+    pub(crate) id: PhantomData<Id>,
+}
 
-    fn is_conformant(&self, params: &FheUintConformanceParams<Id>) -> bool {
+impl<Id: FheUintId, P: Into<AtomicPatternParameters>> From<P>
+    for CompressedFheUintConformanceParams<Id>
+{
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: CompressedRadixCiphertextConformanceParams(
+                CompressedModulusSwitchedRadixCiphertextConformanceParams {
+                    shortint_params: params.to_compressed_modswitched_conformance_param(),
+                    num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+                },
+            ),
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheUintId> From<&ServerKey> for CompressedFheUintConformanceParams<Id> {
+    fn from(sk: &ServerKey) -> Self {
+        Self {
+            params: CompressedRadixCiphertextConformanceParams(
+                CompressedModulusSwitchedRadixCiphertextConformanceParams {
+                    shortint_params: sk
+                        .key
+                        .pbs_key()
+                        .key
+                        .compressed_modswitched_conformance_params(),
+                    num_blocks_per_integer: Id::num_blocks(sk.key.pbs_key().message_modulus()),
+                },
+            ),
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheUintId> ParameterSetConformant for CompressedFheUint<Id> {
+    type ParameterSet = CompressedFheUintConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &CompressedFheUintConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
             id: _,
@@ -176,12 +218,19 @@ pub enum CompressedRadixCiphertext {
     ModulusSwitched(CompressedModulusSwitchedRadixCiphertext),
 }
 
+#[derive(Copy, Clone)]
+pub struct CompressedRadixCiphertextConformanceParams(
+    pub(crate) CompressedModulusSwitchedRadixCiphertextConformanceParams,
+);
+
+impl CompressedRadixCiphertextConformanceParams {}
+
 impl ParameterSetConformant for CompressedRadixCiphertext {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+    type ParameterSet = CompressedRadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &CompressedRadixCiphertextConformanceParams) -> bool {
         match self {
-            Self::Seeded(ct) => ct.is_conformant(params),
-            Self::ModulusSwitched(ct) => ct.is_conformant(params),
+            Self::Seeded(ct) => ct.is_conformant(&params.0.into()),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&params.0),
         }
     }
 }
@@ -267,7 +316,7 @@ mod test {
 
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
-        assert!(ct.is_conformant(&FheUintConformanceParams::from(
+        assert!(ct.is_conformant(&CompressedFheUintConformanceParams::from(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         )));
 
@@ -291,9 +340,11 @@ mod test {
 
                     breaker(i, &mut ct_clone);
 
-                    assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
-                        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    )));
+                    assert!(
+                        !ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
+                            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                        ))
+                    );
                 }
             }
         }
@@ -322,9 +373,11 @@ mod test {
 
                 breaker(i, &mut ct_clone);
 
-                assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                )));
+                assert!(
+                    !ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
+                        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                    ))
+                );
             }
         }
     }
@@ -339,7 +392,7 @@ mod test {
 
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
-        assert!(ct.is_conformant(&FheUintConformanceParams::from(
+        assert!(ct.is_conformant(&CompressedFheUintConformanceParams::from(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         )));
 
@@ -359,9 +412,11 @@ mod test {
                     .seed
                     .0 = rng.gen::<u128>();
             }
-            assert!(ct_clone.is_conformant(&FheUintConformanceParams::from(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-            )));
+            assert!(
+                ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                ))
+            );
 
             let mut ct_clone_decompressed = ct_clone.decompress();
 

@@ -359,7 +359,7 @@ macro_rules! create_integer_wrapper_type {
 
             impl_safe_serialize_on_type!([<Compressed $name>]);
 
-            impl_safe_deserialize_conformant_on_type!([<Compressed $name>],  [<$name ConformanceParams>]);
+            impl_safe_deserialize_conformant_on_type!([<Compressed $name>],  [<Compressed $name ConformanceParams>]);
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compressed_ $name:snake _decompress>](
