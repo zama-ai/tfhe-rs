@@ -753,13 +753,6 @@ pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]
 pub struct LweCiphertextConformanceParams<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub ct_modulus: CiphertextModulus<T>,
-    pub ms_decompression_method: MsDecompressionType,
-}
-
-#[derive(Copy, Clone)]
-pub enum MsDecompressionType {
-    ClassicPbs,
-    MultiBitPbs(LweBskGroupingFactor),
 }
 
 impl<C: Container> ParameterSetConformant for LweCiphertext<C>
@@ -777,9 +770,14 @@ where
             ciphertext_modulus,
         } = self;
 
-        check_encrypted_content_respects_mod(data, lwe_ct_parameters.ct_modulus)
-            && self.lwe_size() == lwe_ct_parameters.lwe_dim.to_lwe_size()
-            && *ciphertext_modulus == lwe_ct_parameters.ct_modulus
+        let LweCiphertextConformanceParams {
+            lwe_dim,
+            ct_modulus,
+        } = lwe_ct_parameters;
+
+        check_encrypted_content_respects_mod(data, *ct_modulus)
+            && self.lwe_size() == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }
 

@@ -17,6 +17,7 @@ macro_rules! expand_pub_use_fhe_type(
 
                     // ConformanceParams
                     [<$fhe_type_name ConformanceParams>],
+                    [<Compressed $fhe_type_name ConformanceParams>],
                 )*
             };
         }

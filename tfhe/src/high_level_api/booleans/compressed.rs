@@ -9,9 +9,12 @@ use crate::high_level_api::traits::Tagged;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
-use crate::shortint::CompressedCiphertext;
-use crate::{ClientKey, FheBool, FheBoolConformanceParams, Tag};
+use crate::shortint::ciphertext::{
+    CompressedModulusSwitchedCiphertext, CompressedModulusSwitchedCiphertextConformanceParams,
+    Degree,
+};
+use crate::shortint::{AtomicPatternParameters, CompressedCiphertext};
+use crate::{ClientKey, FheBool, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -111,12 +114,35 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
     }
 }
 
-impl ParameterSetConformant for CompressedFheBool {
-    type ParameterSet = FheBoolConformanceParams;
+#[derive(Copy, Clone)]
+pub struct CompressedFheBoolConformanceParams(
+    pub(crate) CompressedModulusSwitchedCiphertextConformanceParams,
+);
 
-    fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
+impl<P: Into<AtomicPatternParameters>> From<P> for CompressedFheBoolConformanceParams {
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self(params.to_compressed_modswitched_conformance_param())
+    }
+}
+
+impl From<&ServerKey> for CompressedFheBoolConformanceParams {
+    fn from(sk: &ServerKey) -> Self {
+        Self(
+            sk.key
+                .pbs_key()
+                .key
+                .compressed_modswitched_conformance_params(),
+        )
+    }
+}
+
+impl ParameterSetConformant for CompressedFheBool {
+    type ParameterSet = CompressedFheBoolConformanceParams;
+
+    fn is_conformant(&self, params: &CompressedFheBoolConformanceParams) -> bool {
         match &self.inner {
-            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&params.0),
+            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&params.0.into()),
             InnerCompressedFheBool::ModulusSwitched(ct) => ct.is_conformant(&params.0),
         }
     }

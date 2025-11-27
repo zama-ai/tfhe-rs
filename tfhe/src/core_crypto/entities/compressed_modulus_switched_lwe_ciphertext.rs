@@ -135,16 +135,39 @@ impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Pack
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum MsDecompressionType {
+    ClassicPbs,
+    MultiBitPbs(LweBskGroupingFactor),
+}
+
+#[derive(Copy, Clone)]
+pub struct CompressedModulusSwitchedLweCiphertextConformanceParams<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    pub ct_params: LweCiphertextConformanceParams<Scalar>,
+    pub ms_decompression_method: MsDecompressionType,
+}
+
 impl<Scalar: UnsignedInteger> ParameterSetConformant
     for CompressedModulusSwitchedLweCiphertext<Scalar>
 {
-    type ParameterSet = LweCiphertextConformanceParams<Scalar>;
+    type ParameterSet = CompressedModulusSwitchedLweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextConformanceParams<Scalar>) -> bool {
+    fn is_conformant(
+        &self,
+        compressed_ct_parameters: &CompressedModulusSwitchedLweCiphertextConformanceParams<Scalar>,
+    ) -> bool {
         let Self {
             packed_integers,
             lwe_dimension,
         } = self;
+
+        let CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params,
+            ms_decompression_method,
+        } = compressed_ct_parameters;
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
 
@@ -153,12 +176,9 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
         let len = number_bits_to_pack.div_ceil(Scalar::BITS);
 
         packed_integers.packed_coeffs().len() == len
-            && *lwe_dimension == lwe_ct_parameters.lwe_dim
-            && lwe_ct_parameters.ct_modulus.is_power_of_two()
-            && matches!(
-                lwe_ct_parameters.ms_decompression_method,
-                MsDecompressionType::ClassicPbs
-            )
+            && *lwe_dimension == ct_params.lwe_dim
+            && ct_params.ct_modulus.is_power_of_two()
+            && matches!(ms_decompression_method, MsDecompressionType::ClassicPbs)
     }
 }
 
