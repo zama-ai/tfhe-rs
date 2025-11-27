@@ -9,8 +9,8 @@ use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
     CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256, CompressedFheUint32,
-    CompressedPublicKey, CompressedServerKey, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16,
-    FheUint256, FheUint32, FheUint32ConformanceParams,
+    CompressedFheUint32ConformanceParams, CompressedPublicKey, CompressedServerKey, FheInt16,
+    FheInt32, FheInt8, FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
 
@@ -506,12 +506,12 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
         .serialize_into(&a, &mut serialized)
         .unwrap();
 
-    let params = FheUint32ConformanceParams::from(&server_key);
+    let params = CompressedFheUint32ConformanceParams::from(&server_key);
     let deserialized_a = DeserializationConfig::new(1 << 20)
         .deserialize_from::<CompressedFheUint32>(serialized.as_slice(), &params)
         .unwrap();
 
-    assert!(deserialized_a.is_conformant(&FheUint32ConformanceParams::from(block_params)));
+    assert!(deserialized_a.is_conformant(&CompressedFheUint32ConformanceParams::from(block_params)));
 
     let decrypted: u32 = deserialized_a.decompress().decrypt(&client_key);
     assert_eq!(decrypted, clear_a);
