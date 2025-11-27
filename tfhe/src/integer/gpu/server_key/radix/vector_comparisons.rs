@@ -1,43 +1,13 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::server_key::radix::{
-    CudaBlockInfo, CudaRadixCiphertext, CudaRadixCiphertextInfo,
+use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{
+    cuda_backend_unchecked_all_eq_slices, cuda_backend_unchecked_contains_sub_slice, PBSType,
 };
-use crate::integer::gpu::server_key::CudaServerKey;
-use crate::shortint::ciphertext::Degree;
-use crate::shortint::parameters::NoiseLevel;
 
 impl CudaServerKey {
-    #[allow(clippy::unused_self)]
-    pub(crate) fn convert_integer_radixes_vec_to_single_integer_radix_ciphertext<T>(
-        &self,
-        radixes: &[T],
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let packed_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
-            radixes
-                .iter()
-                .map(|ciphertext| &ciphertext.as_ref().d_blocks),
-            streams,
-        );
-        let vec_block_info: Vec<CudaBlockInfo> = radixes
-            .iter()
-            .flat_map(|ct| ct.as_ref().info.blocks.clone())
-            .collect();
-        let radix_info = CudaRadixCiphertextInfo {
-            blocks: vec_block_info,
-        };
-        CudaIntegerRadixCiphertext::from(CudaRadixCiphertext {
-            d_blocks: packed_list,
-            info: radix_info,
-        })
-    }
-
     /// Compares two slices containing ciphertexts and returns an encryption of `true` if all
     /// pairs are equal, otherwise, returns an encryption of `false`.
     ///
@@ -61,7 +31,7 @@ impl CudaServerKey {
             );
             return trivial_bool;
         }
-        // If both are empty, return true
+
         if lhs.is_empty() {
             let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
 
@@ -82,73 +52,70 @@ impl CudaServerKey {
             return trivial_bool;
         }
 
-        let block_equality_lut = self.generate_lookup_table_bivariate(|l, r| u64::from(l == r));
+        let trivial_bool =
+            self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams);
+        let mut match_ct = CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_bool.into_inner());
 
-        let packed_lhs_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
-            lhs.iter().map(|ciphertext| &ciphertext.as_ref().d_blocks),
-            streams,
-        );
-        let packed_rhs_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
-            rhs.iter().map(|ciphertext| &ciphertext.as_ref().d_blocks),
-            streams,
-        );
-        let num_radix_blocks = packed_rhs_list.lwe_ciphertext_count().0;
-        let block_info = CudaBlockInfo {
-            degree: Degree(0),
-            message_modulus: lhs
-                .first()
-                .unwrap()
-                .as_ref()
-                .info
-                .blocks
-                .first()
-                .unwrap()
-                .message_modulus,
-            carry_modulus: lhs
-                .first()
-                .unwrap()
-                .as_ref()
-                .info
-                .blocks
-                .first()
-                .unwrap()
-                .carry_modulus,
-            atomic_pattern: lhs
-                .first()
-                .unwrap()
-                .as_ref()
-                .info
-                .blocks
-                .first()
-                .unwrap()
-                .atomic_pattern,
-            noise_level: NoiseLevel::ZERO,
-        };
-        let info = CudaRadixCiphertextInfo {
-            blocks: vec![block_info; num_radix_blocks],
-        };
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_all_eq_slices(
+                        streams,
+                        &mut match_ct,
+                        lhs,
+                        rhs,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_all_eq_slices(
+                        streams,
+                        &mut match_ct,
+                        lhs,
+                        rhs,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
 
-        let packed_lhs = CudaRadixCiphertext {
-            d_blocks: packed_lhs_list,
-            info: info.clone(),
-        };
-        let packed_rhs = CudaRadixCiphertext {
-            d_blocks: packed_rhs_list,
-            info,
-        };
-
-        let mut comparison_blocks: CudaUnsignedRadixCiphertext =
-            self.create_trivial_radix(0, num_radix_blocks, streams);
-
-        self.apply_bivariate_lookup_table(
-            comparison_blocks.as_mut(),
-            &packed_lhs,
-            &packed_rhs,
-            &block_equality_lut,
-            0..num_radix_blocks,
-            streams,
-        );
-        self.unchecked_are_all_comparisons_block_true(&comparison_blocks, streams)
+        match_ct
     }
 
     /// Compares two slices containing ciphertexts and returns an encryption of `true` if all
@@ -290,16 +257,78 @@ impl CudaServerKey {
             return trivial_bool;
         }
 
-        let windows_results = lhs
-            .windows(rhs.len())
-            .map(|lhs_sub_slice| self.unchecked_all_eq_slices(lhs_sub_slice, rhs, streams).0)
-            .collect::<Vec<_>>();
-        let packed_windows_results = self
-            .convert_integer_radixes_vec_to_single_integer_radix_ciphertext(
-                &windows_results,
-                streams,
+        if rhs.is_empty() {
+            let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
+            let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
+                trivial_ct.duplicate(streams).into_inner(),
             );
-        self.unchecked_is_at_least_one_comparisons_block_true(&packed_windows_results, streams)
+            return trivial_bool;
+        }
+
+        let trivial_bool =
+            self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams);
+        let mut match_ct = CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_bool.into_inner());
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_contains_sub_slice(
+                        streams,
+                        &mut match_ct,
+                        lhs,
+                        rhs,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_contains_sub_slice(
+                        streams,
+                        &mut match_ct,
+                        lhs,
+                        rhs,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+
+        match_ct
     }
 
     /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise

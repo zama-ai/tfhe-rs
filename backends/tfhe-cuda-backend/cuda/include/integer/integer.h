@@ -131,25 +131,6 @@ void cuda_apply_univariate_lut_64(CudaStreamsFFI streams,
 void cleanup_cuda_apply_univariate_lut_64(CudaStreamsFFI streams,
                                           int8_t **mem_ptr_void);
 
-uint64_t scratch_cuda_apply_bivariate_lut_64(
-    CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, uint64_t lut_degree,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
-
-void cuda_apply_bivariate_lut_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
-    CudaRadixCiphertextFFI const *input_radix_lwe_1,
-    CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
-    uint32_t shift);
-
-void cleanup_cuda_apply_bivariate_lut_64(CudaStreamsFFI streams,
-                                         int8_t **mem_ptr_void);
-
 void cuda_apply_many_univariate_lut_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
@@ -985,6 +966,46 @@ void cuda_unchecked_index_of_clear_64(
 
 void cleanup_cuda_unchecked_index_of_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_unchecked_all_eq_slices_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_inputs, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
+                                     CudaRadixCiphertextFFI *match_ct,
+                                     CudaRadixCiphertextFFI const *lhs,
+                                     CudaRadixCiphertextFFI const *rhs,
+                                     uint32_t num_inputs, uint32_t num_blocks,
+                                     int8_t *mem, void *const *bsks,
+                                     void *const *ksks);
+
+void cleanup_cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
+                                             int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_unchecked_contains_sub_slice_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_lhs, uint32_t num_rhs, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
+                                          CudaRadixCiphertextFFI *match_ct,
+                                          CudaRadixCiphertextFFI const *lhs,
+                                          CudaRadixCiphertextFFI const *rhs,
+                                          uint32_t num_rhs, uint32_t num_blocks,
+                                          int8_t *mem, void *const *bsks,
+                                          void *const *ksks);
+
+void cleanup_cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
+                                                  int8_t **mem_ptr_void);
 
 uint64_t scratch_cuda_cast_to_signed_64(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
