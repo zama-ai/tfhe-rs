@@ -183,6 +183,165 @@ public:
   }
 };
 
+struct MultiStreamMultiGpu {
+private:
+  CudaStreams *_sub_streams;
+  uint32_t _num_streams_per_gpu;
+  uint32_t _num_gpus;
+
+  cudaEvent_t _incoming_event;
+  cudaEvent_t *_outgoing_events;
+
+  MultiStreamMultiGpu(const MultiStreamMultiGpu &) = delete;
+  MultiStreamMultiGpu &operator=(const MultiStreamMultiGpu &) = delete;
+
+public:
+  MultiStreamMultiGpu(const CudaStreams &base_streams,
+                      uint32_t num_streams_per_gpu) {
+
+    _sub_streams = nullptr;
+    _outgoing_events = nullptr;
+    _incoming_event = nullptr;
+
+    _num_streams_per_gpu = num_streams_per_gpu;
+    _num_gpus = base_streams.count();
+
+    if (num_streams_per_gpu > 0) {
+      _sub_streams = new CudaStreams[num_streams_per_gpu];
+      for (uint32_t i = 0; i < num_streams_per_gpu; ++i) {
+        _sub_streams[i].create_on_same_gpus(base_streams);
+      }
+    }
+
+    if (_num_gpus > 0) {
+      _incoming_event = cuda_create_event(base_streams.gpu_index(0));
+    }
+
+    uint32_t total_events = num_streams_per_gpu * _num_gpus;
+    if (total_events > 0) {
+      _outgoing_events = new cudaEvent_t[total_events];
+      for (uint32_t s = 0; s < num_streams_per_gpu; ++s) {
+        for (uint32_t g = 0; g < _num_gpus; ++g) {
+          _outgoing_events[s * _num_gpus + g] =
+              cuda_create_event(base_streams.gpu_index(g));
+        }
+      }
+    }
+  }
+
+  CudaStreams &operator[](uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _num_streams_per_gpu,
+                   "MultiStreamMultiGpu index out of bounds");
+    return _sub_streams[idx];
+  }
+
+  uint32_t num_streams() const { return _num_streams_per_gpu; }
+
+  void sync_from(const CudaStreams &main_stream) {
+    cuda_event_record(_incoming_event, main_stream.stream(0),
+                      main_stream.gpu_index(0));
+
+    for (uint32_t s = 0; s < _num_streams_per_gpu; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(_sub_streams[s].stream(g), _incoming_event,
+                               _sub_streams[s].gpu_index(g));
+      }
+    }
+  }
+
+  void
+  sync_specific_streams_from(const CudaStreams &main_stream,
+                             std::initializer_list<uint32_t> stream_indices) {
+    cuda_event_record(_incoming_event, main_stream.stream(0),
+                      main_stream.gpu_index(0));
+
+    for (uint32_t s_idx : stream_indices) {
+      PANIC_IF_FALSE(s_idx < _num_streams_per_gpu,
+                     "MultiStreamMultiGpu: stream index out of bounds");
+
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(_sub_streams[s_idx].stream(g), _incoming_event,
+                               _sub_streams[s_idx].gpu_index(g));
+      }
+    }
+  }
+
+  void sync_to(const CudaStreams &main_stream) {
+    for (uint32_t s = 0; s < _num_streams_per_gpu; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_event_record(_outgoing_events[s * _num_gpus + g],
+                          _sub_streams[s].stream(g),
+                          _sub_streams[s].gpu_index(g));
+      }
+    }
+
+    for (uint32_t s = 0; s < _num_streams_per_gpu; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(main_stream.stream(0),
+                               _outgoing_events[s * _num_gpus + g],
+                               main_stream.gpu_index(0));
+      }
+    }
+  }
+
+  void
+  sync_specific_streams_to(const CudaStreams &main_stream,
+                           std::initializer_list<uint32_t> stream_indices) {
+    for (uint32_t s_idx : stream_indices) {
+      PANIC_IF_FALSE(s_idx < _num_streams_per_gpu,
+                     "MultiStreamMultiGpu: stream index out of bounds");
+
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_event_record(_outgoing_events[s_idx * _num_gpus + g],
+                          _sub_streams[s_idx].stream(g),
+                          _sub_streams[s_idx].gpu_index(g));
+      }
+    }
+
+    for (uint32_t s_idx : stream_indices) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(main_stream.stream(0),
+                               _outgoing_events[s_idx * _num_gpus + g],
+                               main_stream.gpu_index(0));
+      }
+    }
+  }
+
+  void release(const CudaStreams &main_streams) {
+
+    cuda_synchronize_stream(main_streams.stream(0), main_streams.gpu_index(0));
+
+    if (_outgoing_events && _sub_streams) {
+      for (uint32_t s = 0; s < _num_streams_per_gpu; ++s) {
+        for (uint32_t g = 0; g < _num_gpus; ++g) {
+          cuda_event_destroy(_outgoing_events[s * _num_gpus + g],
+                             _sub_streams[s].gpu_index(g));
+        }
+      }
+      delete[] _outgoing_events;
+      _outgoing_events = nullptr;
+    }
+
+    if (_incoming_event && _sub_streams) {
+      cuda_event_destroy(_incoming_event, _sub_streams[0].gpu_index(0));
+      _incoming_event = nullptr;
+    }
+
+    if (_sub_streams) {
+      for (uint32_t i = 0; i < _num_streams_per_gpu; ++i) {
+        _sub_streams[i].release();
+      }
+      delete[] _sub_streams;
+      _sub_streams = nullptr;
+    }
+  }
+
+  ~MultiStreamMultiGpu() {
+    PANIC_IF_FALSE(_sub_streams == nullptr,
+                   "MultiStreamMultiGpu: must call release before destruction");
+  }
+};
+
 struct CudaStreamsBarrier {
 private:
   std::vector<cudaEvent_t> _events;
