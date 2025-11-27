@@ -13,8 +13,8 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::{
     generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, CompressedFheInt16,
-    CompressedFheInt32, ConfigBuilder, DeserializationConfig, FheInt256, FheInt32,
-    FheInt32ConformanceParams, FheInt8, SerializationConfig,
+    CompressedFheInt32, CompressedFheInt32ConformanceParams, ConfigBuilder, DeserializationConfig,
+    FheInt256, FheInt32, FheInt32ConformanceParams, FheInt8, SerializationConfig,
 };
 use rand::{random, thread_rng, Rng};
 
@@ -242,12 +242,12 @@ fn test_safe_deserialize_conformant_compressed_fhe_int32() {
         .serialize_into(&a, &mut serialized)
         .unwrap();
 
-    let params = FheInt32ConformanceParams::from(&server_key);
+    let params = CompressedFheInt32ConformanceParams::from(&server_key);
     let deserialized_a = DeserializationConfig::new(1 << 20)
         .deserialize_from::<CompressedFheInt32>(serialized.as_slice(), &params)
         .unwrap();
 
-    let params = FheInt32ConformanceParams::from(block_params);
+    let params = CompressedFheInt32ConformanceParams::from(block_params);
     assert!(deserialized_a.is_conformant(&params));
 
     let decrypted: i32 = deserialized_a.decompress().decrypt(&client_key);

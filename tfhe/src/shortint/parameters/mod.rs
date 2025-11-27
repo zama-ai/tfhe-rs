@@ -65,6 +65,7 @@ pub use v1_5 as current_params;
 
 pub use super::atomic_pattern::{AtomicPatternKind, AtomicPatternParameters};
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
+use super::ciphertext::CompressedModulusSwitchedCiphertextConformanceParams;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParams;
 pub use super::PBSOrder;
@@ -364,6 +365,15 @@ impl PBSParameters {
         match self {
             Self::PBS(param) => param.to_shortint_conformance_param(),
             Self::MultiBitPBS(param) => param.to_shortint_conformance_param(),
+        }
+    }
+
+    pub fn to_compressed_modswitched_conformance_param(
+        &self,
+    ) -> CompressedModulusSwitchedCiphertextConformanceParams {
+        match self {
+            Self::PBS(param) => param.to_compressed_modswitched_conformance_param(),
+            Self::MultiBitPBS(param) => param.to_compressed_modswitched_conformance_param(),
         }
     }
 }

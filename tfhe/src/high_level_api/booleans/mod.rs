@@ -1,5 +1,5 @@
 pub use base::{FheBool, FheBoolConformanceParams};
-pub use compressed::CompressedFheBool;
+pub use compressed::{CompressedFheBool, CompressedFheBoolConformanceParams};
 pub use squashed_noise::SquashedNoiseFheBool;
 
 pub(in crate::high_level_api) use compressed::InnerCompressedFheBool;
