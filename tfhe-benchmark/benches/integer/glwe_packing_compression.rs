@@ -1,6 +1,7 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
+    OperatorType, ParamType,
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
@@ -17,139 +18,163 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
 
-    let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let comp_param = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-    let cks = ClientKey::new(param);
-
-    let private_compression_key = cks.new_compression_private_key(comp_param);
-
-    let (compression_key, decompression_key) =
-        cks.new_compression_decompression_keys(&private_compression_key);
-
-    let log_message_modulus = param.message_modulus.0.ilog2() as usize;
-
-    for bit_size in [
-        2,
-        8,
-        16,
-        32,
-        64,
-        128,
-        256,
-        comp_param.lwe_per_glwe().0 * log_message_modulus,
-    ] {
-        assert_eq!(bit_size % log_message_modulus, 0);
-        let num_blocks = bit_size / log_message_modulus;
-
-        let bench_id_pack;
-        let bench_id_unpack;
-
-        match get_bench_type() {
-            BenchmarkType::Latency => {
-                let ct = cks.encrypt_radix(0_u32, num_blocks);
-
-                let mut builder = CompressedCiphertextListBuilder::new();
-
-                builder.push(ct);
-
-                bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
-                bench_group.bench_function(&bench_id_pack, |b| {
-                    b.iter(|| {
-                        let compressed = builder.build(&compression_key);
-
-                        _ = black_box(compressed);
-                    })
-                });
-
-                let compressed = builder.build(&compression_key);
-
-                bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
-                bench_group.bench_function(&bench_id_unpack, |b| {
-                    b.iter(|| {
-                        let unpacked: RadixCiphertext =
-                            compressed.get(0, &decompression_key).unwrap().unwrap();
-
-                        _ = black_box(unpacked);
-                    })
-                });
-            }
-            BenchmarkType::Throughput => {
-                // Execute the operation once to know its cost.
-                let ct = cks.encrypt_radix(0_u32, num_blocks);
-                let mut builder = CompressedCiphertextListBuilder::new();
-                builder.push(ct);
-                let compressed = builder.build(&compression_key);
-
-                reset_pbs_count();
-                let _: RadixCiphertext = compressed.get(0, &decompression_key).unwrap().unwrap();
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
-                let num_block =
-                    (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-                let elements = throughput_num_threads(num_block, pbs_count);
-                // FIXME thread usage seemed to be somewhat more "efficient".
-                //  For example, with bit_size = 2, my laptop is only using around 2/3 of the
-                // available threads  Thread usage increases with bit_size = 8 but
-                // still isn't fully loaded.
-                bench_group.throughput(Throughput::Elements(elements));
-
-                let builders = (0..elements)
-                    .map(|_| {
-                        let ct = cks.encrypt_radix(0_u32, num_blocks);
-                        let mut builder = CompressedCiphertextListBuilder::new();
-                        builder.push(ct);
-
-                        builder
-                    })
-                    .collect::<Vec<_>>();
-
-                bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
-                bench_group.bench_function(&bench_id_pack, |b| {
-                    b.iter(|| {
-                        builders.par_iter().for_each(|builder| {
-                            builder.build(&compression_key);
-                        })
-                    })
-                });
-
-                let compressed = builders
-                    .iter()
-                    .map(|builder| builder.build(&compression_key))
-                    .collect::<Vec<_>>();
-
-                bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
-                bench_group.bench_function(&bench_id_unpack, |b| {
-                    b.iter(|| {
-                        compressed.par_iter().for_each(|comp| {
-                            comp.get::<RadixCiphertext>(0, &decompression_key)
-                                .unwrap()
-                                .unwrap();
-                        })
-                    })
-                });
-            }
+    let param_pairs = match get_param_type() {
+        ParamType::ClassicalWhitepaper | ParamType::ClassicalWhitepaperSpecialCase => {
+            vec![
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                ),
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                ),
+            ]
         }
+        _ => vec![(
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )],
+    };
 
-        write_to_json::<u64, _>(
-            &bench_id_pack,
-            (comp_param, param.into()),
-            comp_param.name(),
-            "pack",
-            &OperatorType::Atomic,
-            bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_blocks],
-        );
+    for (param, comp_param) in param_pairs {
+        let cks = ClientKey::new(param);
 
-        write_to_json::<u64, _>(
-            &bench_id_unpack,
-            (comp_param, param.into()),
-            comp_param.name(),
-            "unpack",
-            &OperatorType::Atomic,
-            bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_blocks],
-        );
+        let private_compression_key = cks.new_compression_private_key(comp_param);
+
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
+
+        let log_message_modulus = param.message_modulus.0.ilog2() as usize;
+        let comp_param_name = comp_param.name();
+
+        for bit_size in [
+            2,
+            4,
+            8,
+            16,
+            32,
+            64,
+            128,
+            256,
+            comp_param.lwe_per_glwe().0 * log_message_modulus,
+        ] {
+            assert_eq!(bit_size % log_message_modulus, 0);
+            let num_blocks = bit_size / log_message_modulus;
+
+            let bench_id_pack;
+            let bench_id_unpack;
+
+            match get_bench_type() {
+                BenchmarkType::Latency => {
+                    let ct = cks.encrypt_radix(0_u32, num_blocks);
+
+                    let mut builder = CompressedCiphertextListBuilder::new();
+
+                    builder.push(ct);
+
+                    bench_id_pack = format!("{bench_name}::{comp_param_name}::pack_u{bit_size}");
+                    bench_group.bench_function(&bench_id_pack, |b| {
+                        b.iter(|| {
+                            let compressed = builder.build(&compression_key);
+
+                            _ = black_box(compressed);
+                        })
+                    });
+
+                    let compressed = builder.build(&compression_key);
+
+                    bench_id_unpack =
+                        format!("{bench_name}::{comp_param_name}::unpack_u{bit_size}");
+                    bench_group.bench_function(&bench_id_unpack, |b| {
+                        b.iter(|| {
+                            let unpacked: RadixCiphertext =
+                                compressed.get(0, &decompression_key).unwrap().unwrap();
+
+                            _ = black_box(unpacked);
+                        })
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    // Execute the operation once to know its cost.
+                    let ct = cks.encrypt_radix(0_u32, num_blocks);
+                    let mut builder = CompressedCiphertextListBuilder::new();
+                    builder.push(ct);
+                    let compressed = builder.build(&compression_key);
+
+                    reset_pbs_count();
+                    let _: RadixCiphertext =
+                        compressed.get(0, &decompression_key).unwrap().unwrap();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
+                    let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
+                        .ceil() as usize;
+                    let elements = throughput_num_threads(num_block, pbs_count);
+                    // FIXME thread usage seemed to be somewhat more "efficient".
+                    //  For example, with bit_size = 2, my laptop is only using around 2/3 of the
+                    // available threads  Thread usage increases with bit_size = 8 but
+                    // still isn't fully loaded.
+                    bench_group.throughput(Throughput::Elements(elements));
+
+                    let builders = (0..elements)
+                        .map(|_| {
+                            let ct = cks.encrypt_radix(0_u32, num_blocks);
+                            let mut builder = CompressedCiphertextListBuilder::new();
+                            builder.push(ct);
+
+                            builder
+                        })
+                        .collect::<Vec<_>>();
+
+                    bench_id_pack =
+                        format!("{bench_name}::throughput::{comp_param_name}::pack_u{bit_size}");
+                    bench_group.bench_function(&bench_id_pack, |b| {
+                        b.iter(|| {
+                            builders.par_iter().for_each(|builder| {
+                                builder.build(&compression_key);
+                            })
+                        })
+                    });
+
+                    let compressed = builders
+                        .iter()
+                        .map(|builder| builder.build(&compression_key))
+                        .collect::<Vec<_>>();
+
+                    bench_id_unpack =
+                        format!("{bench_name}::throughput::{comp_param_name}::unpack_u{bit_size}");
+                    bench_group.bench_function(&bench_id_unpack, |b| {
+                        b.iter(|| {
+                            compressed.par_iter().for_each(|comp| {
+                                comp.get::<RadixCiphertext>(0, &decompression_key)
+                                    .unwrap()
+                                    .unwrap();
+                            })
+                        })
+                    });
+                }
+            }
+
+            write_to_json::<u64, _>(
+                &bench_id_pack,
+                (comp_param, param.into()),
+                comp_param.name(),
+                "pack",
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus.0.ilog2(); num_blocks],
+            );
+
+            write_to_json::<u64, _>(
+                &bench_id_unpack,
+                (comp_param, param.into()),
+                comp_param.name(),
+                "unpack",
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus.0.ilog2(); num_blocks],
+            );
+        }
     }
 
     bench_group.finish()
@@ -200,6 +225,7 @@ mod cuda {
         } = config;
 
         let log_message_modulus = param.message_modulus().0.ilog2() as usize;
+        let comp_param_name = comp_param.name();
 
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
@@ -224,7 +250,7 @@ mod cuda {
 
                 builder.push(d_ct, &stream);
 
-                bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
+                bench_id_pack = format!("{bench_name}::{comp_param_name}::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed = builder.build(&cuda_compression_key, &stream);
@@ -249,7 +275,8 @@ mod cuda {
                 // Encrypt
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
-                bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
+                bench_id_pack =
+                    format!("{bench_name}::throughput::{comp_param_name}::pack_u{bit_size}");
                 let cuda_compression_key_vec = (0..get_number_of_gpus())
                     .into_par_iter()
                     .map(|i| {
@@ -318,6 +345,7 @@ mod cuda {
         } = config;
 
         let log_message_modulus = param.message_modulus().0.ilog2() as usize;
+        let comp_param_name = comp_param.name();
 
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
@@ -352,7 +380,7 @@ mod cuda {
 
                 let compressed = builder.build(&cuda_compression_key, &stream);
 
-                bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
+                bench_id_unpack = format!("{bench_name}::{comp_param_name}::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: CudaUnsignedRadixCiphertext = compressed
@@ -380,7 +408,8 @@ mod cuda {
                 // Encrypt
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
-                bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
+                bench_id_unpack =
+                    format!("{bench_name}::throughput::{comp_param_name}::unpack_u{bit_size}");
                 let builders = (0..elements)
                     .into_par_iter()
                     .map(|i| {

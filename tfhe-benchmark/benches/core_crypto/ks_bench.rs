@@ -910,9 +910,13 @@ pub fn packing_ks_group() {
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical => cuda_ks_group(),
+        ParamType::Classical
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => cuda_ks_group(),
         ParamType::ClassicalDocumentation => cuda_ks_group_documentation(),
-        ParamType::MultiBit => cuda_multi_bit_ks_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => cuda_multi_bit_ks_group(),
         ParamType::MultiBitDocumentation => cuda_multi_bit_ks_group_documentation(),
     };
 }
@@ -924,8 +928,13 @@ fn go_through_cpu_bench_groups() {
             ks_group();
             packing_ks_group()
         }
-        ParamType::ClassicalDocumentation => ks_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_group(),
+        ParamType::ClassicalDocumentation
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => ks_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitDocumentation
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => multi_bit_ks_group(),
     }
 }
 

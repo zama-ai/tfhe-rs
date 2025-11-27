@@ -1685,6 +1685,7 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 
+
 .PHONY: bench_custom # Run benchmarks with a user-defined command
 bench_custom: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-benchmark $(BENCH_CUSTOM_COMMAND)

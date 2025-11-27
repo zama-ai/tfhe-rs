@@ -279,7 +279,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
         .collect::<Vec<PBSParameters>>();
     let multi_bit_params = SHORTINT_MULTI_BIT_BENCH_PARAMS
         .iter()
-        .map(|p| (*p).into())
+        .map(|(_, p)| (*p).into())
         .collect::<Vec<PBSParameters>>();
     params.extend(&multi_bit_params);
 

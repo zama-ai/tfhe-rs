@@ -352,6 +352,7 @@ const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
 const HPU_BENCH_BIT_SIZES: [usize; 5] = [8, 16, 32, 64, 128];
 const MULTI_BIT_CPU_SIZES: [usize; 5] = [8, 16, 32, 40, 64];
 const BENCH_BIT_SIZES_DOCUMENTATION: [usize; 5] = [8, 16, 32, 64, 128];
+const BENCH_BIT_SIZES_WHITEPAPER: [usize; 7] = [4, 8, 16, 32, 64, 128, 256];
 
 #[derive(Default)]
 pub enum BitSizesSet {
@@ -359,6 +360,7 @@ pub enum BitSizesSet {
     Fast,
     All,
     Documentation,
+    Whitepaper,
 }
 
 impl BitSizesSet {
@@ -368,6 +370,7 @@ impl BitSizesSet {
             "fast" => Ok(BitSizesSet::Fast),
             "all" => Ok(BitSizesSet::All),
             "documentation" => Ok(BitSizesSet::Documentation),
+            "whitepaper" => Ok(BitSizesSet::Whitepaper),
             _ => Err(format!("bit sizes set '{raw_value}' is not supported")),
         }
     }
@@ -384,7 +387,10 @@ impl EnvConfig {
     pub fn new() -> Self {
         let is_multi_bit = matches!(
             get_param_type(),
-            ParamType::MultiBit | ParamType::MultiBitDocumentation
+            ParamType::MultiBit
+                | ParamType::MultiBitDocumentation
+                | ParamType::MultiBitWhitepaper
+                | ParamType::MultiBitWhitepaperSpecialCase
         );
 
         EnvConfig {
@@ -399,6 +405,7 @@ impl EnvConfig {
             BitSizesSet::Fast => return FAST_BENCH_BIT_SIZES.to_vec(),
             BitSizesSet::All => BENCH_BIT_SIZES.to_vec(),
             BitSizesSet::Documentation => return BENCH_BIT_SIZES_DOCUMENTATION.to_vec(),
+            BitSizesSet::Whitepaper => return BENCH_BIT_SIZES_WHITEPAPER.to_vec(),
         };
 
         if self.is_multi_bit {
@@ -445,6 +452,10 @@ pub enum ParamType {
     // Variants dedicated to documentation illustration.
     ClassicalDocumentation,
     MultiBitDocumentation,
+    ClassicalWhitepaper,
+    MultiBitWhitepaper,
+    ClassicalWhitepaperSpecialCase,
+    MultiBitWhitepaperSpecialCase,
 }
 
 impl ParamType {
@@ -455,6 +466,10 @@ impl ParamType {
             "multi_bit" => Ok(ParamType::MultiBit),
             "classical_documentation" => Ok(ParamType::ClassicalDocumentation),
             "multi_bit_documentation" => Ok(ParamType::MultiBitDocumentation),
+            "classical_whitepaper" => Ok(ParamType::ClassicalWhitepaper),
+            "multi_bit_whitepaper" => Ok(ParamType::MultiBitWhitepaper),
+            "classical_whitepaper_special_case" => Ok(ParamType::ClassicalWhitepaperSpecialCase),
+            "multi_bit_whitepaper_special_case" => Ok(ParamType::MultiBitWhitepaperSpecialCase),
             _ => Err(format!("parameters type '{raw_value}' is not supported")),
         }
     }

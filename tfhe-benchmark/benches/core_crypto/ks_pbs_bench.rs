@@ -1,5 +1,5 @@
 use benchmark::params::{
-    benchmark_parameters, multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
+    benchmark_parameters, multi_bit_benchmark_parameters, multi_bit_num_threads,
 };
 use benchmark::utilities::{
     get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
@@ -494,7 +494,7 @@ fn multi_bit_ks_pbs<
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{benchmark_parameters, multi_bit_benchmark_parameters_with_grouping};
+    use super::{benchmark_parameters, multi_bit_benchmark_parameters};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, get_bench_type, throughput_num_threads,
         write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
@@ -1137,10 +1137,7 @@ mod cuda {
 
     pub fn cuda_multi_bit_ks_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_multi_bit_ks_pbs(
-            &mut criterion,
-            &multi_bit_benchmark_parameters_with_grouping(),
-        );
+        cuda_multi_bit_ks_pbs(&mut criterion, &multi_bit_benchmark_parameters());
     }
 }
 
@@ -1154,26 +1151,34 @@ pub fn ks_pbs_group() {
 
 pub fn multi_bit_ks_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_ks_pbs(
-        &mut criterion,
-        &multi_bit_benchmark_parameters_with_grouping(),
-        true,
-    );
+    multi_bit_ks_pbs(&mut criterion, &multi_bit_benchmark_parameters(), true);
 }
 
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical | ParamType::ClassicalDocumentation => cuda_ks_pbs_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => cuda_multi_bit_ks_pbs_group(),
+        ParamType::Classical
+        | ParamType::ClassicalDocumentation
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => cuda_ks_pbs_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitDocumentation
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => cuda_multi_bit_ks_pbs_group(),
     };
 }
 
 #[cfg(not(feature = "gpu"))]
 fn go_through_cpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical | ParamType::ClassicalDocumentation => ks_pbs_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_pbs_group(),
+        ParamType::Classical
+        | ParamType::ClassicalDocumentation
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => ks_pbs_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitDocumentation
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => multi_bit_ks_pbs_group(),
     }
 }
 
