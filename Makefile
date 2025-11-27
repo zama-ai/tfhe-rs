@@ -735,13 +735,11 @@ test_integer_gpu_debug:
 .PHONY: test_high_level_api_gpu_valgrind # Run the tests of the integer module with Debug flags for CUDA
 test_high_level_api_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export TFHE_SPEC="tfhe" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
 
 .PHONY: test_high_level_api_gpu_sanitizer # Run the tests of the integer module with Debug flags for CUDA
 test_high_level_api_gpu_sanitizer: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export TFHE_SPEC="tfhe" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
