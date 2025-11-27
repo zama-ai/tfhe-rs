@@ -3742,6 +3742,14 @@ criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
 criterion_group!(oprf, oprf::unsigned_oprf);
 
+// Group used to generate benchmarks meant to be published in tfhe-rs white paper.
+criterion_group!(
+    whitepaper_special_case,
+    add_parallelized,
+    mul_parallelized,
+    bitand_parallelized
+);
+
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
@@ -3811,6 +3819,7 @@ fn go_through_cpu_bench_groups(val: &str) {
             unchecked_scalar_ops_comp()
         }
         "misc" => misc(),
+        "whitepaper" => whitepaper_special_case(),
         _ => panic!("unknown benchmark operations flavor"),
     };
 }
