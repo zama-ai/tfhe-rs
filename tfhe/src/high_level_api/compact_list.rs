@@ -409,20 +409,6 @@ impl CompactCiphertextList {
     }
 
     pub fn expand(&self) -> crate::Result<CompactCiphertextListExpander> {
-        // For WASM
-        #[allow(irrefutable_let_patterns)]
-        if let InnerCompactCiphertextList::Cpu(inner) = &self.inner {
-            if !inner.is_packed() && !inner.needs_casting() {
-                // No ServerKey required, short-circuit to avoid the global state call
-                return Ok(CompactCiphertextListExpander {
-                    inner: InnerCompactCiphertextListExpander::Cpu(inner.expand(
-                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                    )?),
-                    tag: self.tag.clone(),
-                });
-            }
-        }
-
         global_state::try_with_internal_keys(|maybe_keys| {
             maybe_keys.map_or_else(
                 || Err(crate::high_level_api::errors::UninitializedServerKey.into()),
@@ -641,24 +627,6 @@ mod zk {
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
-            #[allow(irrefutable_let_patterns)]
-            if let InnerProvenCompactCiphertextList::Cpu(inner) = &self.inner {
-                // For WASM
-                if !inner.is_packed() && !inner.needs_casting() {
-                    let expander = inner.verify_and_expand(
-                        crs,
-                        &pk.key.key,
-                        metadata,
-                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                    )?;
-                    // No ServerKey required, short circuit to avoid the global state call
-                    return Ok(CompactCiphertextListExpander {
-                        inner: InnerCompactCiphertextListExpander::Cpu(expander),
-                        tag: self.tag.clone(),
-                    });
-                }
-            }
-
             global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
                 Some(InternalServerKey::Cpu(cpu_key)) => match &self.inner {
@@ -748,22 +716,6 @@ mod zk {
         ///
         /// If you are here you were probably looking for it: use at your own risks.
         pub fn expand_without_verification(&self) -> crate::Result<CompactCiphertextListExpander> {
-            #[allow(irrefutable_let_patterns)]
-            if let InnerProvenCompactCiphertextList::Cpu(inner) = &self.inner {
-                // For WASM
-                if !inner.is_packed() && !inner.needs_casting() {
-                    // No ServerKey required, short circuit to avoid the global state call
-                    return Ok(CompactCiphertextListExpander {
-                        inner: InnerCompactCiphertextListExpander::Cpu(
-                            inner.expand_without_verification(
-                                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                            )?,
-                        ),
-                        tag: self.tag.clone(),
-                    });
-                }
-            }
-
             global_state::try_with_internal_keys(|maybe_keys| {
                 match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
