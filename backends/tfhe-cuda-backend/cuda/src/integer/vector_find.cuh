@@ -24,25 +24,16 @@ __host__ void host_compute_equality_selectors(
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
 
     uint32_t stream_idx = i % num_streams;
 
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI *current_tmp_block_comparisons =
         mem_ptr->tmp_block_comparisons[stream_idx];
@@ -75,16 +66,8 @@ __host__ void host_compute_equality_selectors(
         current_reduction_buffer, bsks, (Torus **)ksks, num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 }
 
 template <typename Torus>
@@ -113,23 +96,14 @@ __host__ void host_create_possible_results(
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
   uint32_t num_lut_accumulators = mem_ptr->num_lut_accumulators;
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
 
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
     CudaRadixCiphertextFFI *current_tmp_buffer =
         mem_ptr->tmp_many_luts_output[stream_idx];
 
@@ -174,16 +148,8 @@ __host__ void host_create_possible_results(
     }
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 }
 
 template <typename Torus>
@@ -211,25 +177,16 @@ __host__ void host_aggregate_one_hot_vector(
   int_radix_params params = mem_ptr->params;
   uint32_t chunk_size = mem_ptr->chunk_size;
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t s = 0; s < num_streams; s++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[s].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[s].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t inputs_per_stream =
       (num_input_ciphertexts + num_streams - 1) / num_streams;
 
   for (uint32_t s = 0; s < num_streams; s++) {
 
-    CudaStreams current_stream = mem_ptr->sub_streams[s];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[s];
 
     CudaRadixCiphertextFFI *current_agg =
         mem_ptr->partial_aggregated_vectors[s];
@@ -291,16 +248,8 @@ __host__ void host_aggregate_one_hot_vector(
     }
   }
 
-  for (uint32_t s = 0; s < num_streams; s++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[s * num_gpus + i],
-                        mem_ptr->sub_streams[s].stream(i),
-                        mem_ptr->sub_streams[s].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[s * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   CudaRadixCiphertextFFI *final_agg = mem_ptr->partial_aggregated_vectors[0];
 
@@ -329,20 +278,14 @@ __host__ void host_aggregate_one_hot_vector(
       streams.stream(0), streams.gpu_index(0), temp_agg, 0, num_blocks,
       final_agg, 0, num_blocks);
 
-  CudaStreams message_stream = mem_ptr->sub_streams[0];
-  CudaStreams carry_stream = mem_ptr->sub_streams[1];
+  CudaStreams message_stream = mem_ptr->internal_cuda_streams[0];
+  CudaStreams carry_stream = mem_ptr->internal_cuda_streams[1];
 
-  cuda_event_record(mem_ptr->reduction_done_event, streams.stream(0),
-                    streams.gpu_index(0));
+  uint32_t stream_indexes[] = {0, 1};
+  size_t num_stream_indexes = 2;
 
-  for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-    cuda_stream_wait_event(message_stream.stream(i),
-                           mem_ptr->reduction_done_event,
-                           message_stream.gpu_index(i));
-    cuda_stream_wait_event(carry_stream.stream(i),
-                           mem_ptr->reduction_done_event,
-                           carry_stream.gpu_index(i));
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_slice_wait_for_main_stream_0(
+      streams, stream_indexes, num_stream_indexes);
 
   //
   // Extract message part on a first substream
@@ -358,17 +301,8 @@ __host__ void host_aggregate_one_hot_vector(
       carry_stream, carry_ct, temp_agg, bsks, ksks, mem_ptr->carry_extract_lut,
       num_blocks);
 
-  for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-    cuda_event_record(mem_ptr->message_done_events[i], message_stream.stream(i),
-                      message_stream.gpu_index(i));
-    cuda_event_record(mem_ptr->carry_done_events[i], carry_stream.stream(i),
-                      carry_stream.gpu_index(i));
-
-    cuda_stream_wait_event(streams.stream(0), mem_ptr->message_done_events[i],
-                           streams.gpu_index(0));
-    cuda_stream_wait_event(streams.stream(0), mem_ptr->carry_done_events[i],
-                           streams.gpu_index(0));
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams_slice(
+      streams, stream_indexes, num_stream_indexes);
 
   //
   // Pack the message and carry parts into the output LWE array
@@ -530,23 +464,14 @@ host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
                         int_unchecked_contains_buffer<Torus> *mem_ptr,
                         void *const *bsks, Torus *const *ksks) {
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -559,16 +484,8 @@ host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
                                bsks, ksks, num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
@@ -606,23 +523,14 @@ __host__ void host_unchecked_contains_clear(
       mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
       mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -636,16 +544,8 @@ __host__ void host_unchecked_contains_clear(
                                num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
@@ -853,23 +753,14 @@ __host__ void host_unchecked_first_index_of_clear(
       mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
       mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -883,16 +774,8 @@ __host__ void host_unchecked_first_index_of_clear(
                                num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
     uint32_t count = num_inputs - offset;
@@ -953,23 +836,14 @@ __host__ void host_unchecked_first_index_of(
     int_unchecked_first_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -982,16 +856,8 @@ __host__ void host_unchecked_first_index_of(
                                bsks, ksks, num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
     uint32_t count = num_inputs - offset;
@@ -1052,23 +918,14 @@ __host__ void host_unchecked_index_of(
     int_unchecked_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
-  cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                    streams.gpu_index(0));
-
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                             mem_ptr->incoming_event,
-                             mem_ptr->sub_streams[j].gpu_index(i));
-    }
-  }
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
 
   uint32_t num_streams = mem_ptr->num_streams;
-  uint32_t num_gpus = mem_ptr->active_streams.count();
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
     CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -1082,16 +939,8 @@ __host__ void host_unchecked_index_of(
                                bsks, ksks, num_blocks);
   }
 
-  for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-    for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-      cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                        mem_ptr->sub_streams[j].stream(i),
-                        mem_ptr->sub_streams[j].gpu_index(i));
-      cuda_stream_wait_event(streams.stream(0),
-                             mem_ptr->outgoing_events[j * num_gpus + i],
-                             streams.gpu_index(0));
-    }
-  }
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
@@ -1144,23 +993,14 @@ __host__ void host_unchecked_index_of_clear(
         streams.stream(0), streams.gpu_index(0), packed_selectors, 0,
         num_inputs);
   } else {
-    cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
-                      streams.gpu_index(0));
-
-    for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-      for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-        cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
-                               mem_ptr->incoming_event,
-                               mem_ptr->sub_streams[j].gpu_index(i));
-      }
-    }
+    mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+        streams);
 
     uint32_t num_streams = mem_ptr->num_streams;
-    uint32_t num_gpus = mem_ptr->active_streams.count();
 
     for (uint32_t i = 0; i < num_inputs; i++) {
       uint32_t stream_idx = i % num_streams;
-      CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+      CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
 
       CudaRadixCiphertextFFI const *input_ct = &inputs[i];
 
@@ -1174,16 +1014,8 @@ __host__ void host_unchecked_index_of_clear(
           num_scalar_blocks);
     }
 
-    for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
-      for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
-        cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
-                          mem_ptr->sub_streams[j].stream(i),
-                          mem_ptr->sub_streams[j].gpu_index(i));
-        cuda_stream_wait_event(streams.stream(0),
-                               mem_ptr->outgoing_events[j * num_gpus + i],
-                               streams.gpu_index(0));
-      }
-    }
+    mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+        streams);
   }
 
   uint32_t packed_len = (num_blocks_index + 1) / 2;
