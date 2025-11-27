@@ -183,6 +183,214 @@ public:
   }
 };
 
+struct InternalCudaStreams {
+private:
+  CudaStreams *_internal_cuda_streams;
+  uint32_t _num_internal_cuda_streams;
+  uint32_t _num_gpus;
+
+  cudaEvent_t _incoming_event;
+  cudaEvent_t *_outgoing_events;
+
+  InternalCudaStreams(const InternalCudaStreams &) = delete;
+  InternalCudaStreams &operator=(const InternalCudaStreams &) = delete;
+
+public:
+  InternalCudaStreams() {
+    _internal_cuda_streams = nullptr;
+    _incoming_event = nullptr;
+    _outgoing_events = nullptr;
+    _num_internal_cuda_streams = 0;
+    _num_gpus = 0;
+  }
+
+  void create_internal_cuda_streams_on_same_gpus(
+      const CudaStreams &base_streams, uint32_t num_internal_cuda_streams) {
+
+    PANIC_IF_FALSE(_internal_cuda_streams == nullptr,
+                   "InternalCudaStreams: object already initialized.");
+
+    _num_internal_cuda_streams = num_internal_cuda_streams;
+    _num_gpus = base_streams.count();
+
+    if (num_internal_cuda_streams > 0) {
+      _internal_cuda_streams = new CudaStreams[num_internal_cuda_streams];
+      for (uint32_t i = 0; i < num_internal_cuda_streams; ++i) {
+        _internal_cuda_streams[i].create_on_same_gpus(base_streams);
+      }
+    }
+
+    if (_num_gpus > 0) {
+      _incoming_event = cuda_create_event(base_streams.gpu_index(0));
+    }
+
+    uint32_t total_events = num_internal_cuda_streams * _num_gpus;
+
+    if (total_events > 0) {
+      _outgoing_events = new cudaEvent_t[total_events];
+      for (uint32_t s = 0; s < num_internal_cuda_streams; ++s) {
+        for (uint32_t g = 0; g < _num_gpus; ++g) {
+          _outgoing_events[s * _num_gpus + g] =
+              cuda_create_event(base_streams.gpu_index(g));
+        }
+      }
+    }
+  }
+
+  CudaStreams &operator[](uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _num_internal_cuda_streams,
+                   "InternalCudaStreams index out of bounds");
+    return _internal_cuda_streams[idx];
+  }
+
+  uint32_t num_streams() const { return _num_internal_cuda_streams; }
+
+  void
+  internal_streams_wait_for_main_stream_0(const CudaStreams &main_streams) {
+
+    PANIC_IF_FALSE(main_streams.gpu_index(0) ==
+                       _internal_cuda_streams[0].gpu_index(0),
+                   "InternalCudaStreams: gpu_index(0) of main_streams should "
+                   "be the same as _internal_cuda_streams[0].");
+
+    cuda_event_record(_incoming_event, main_streams.stream(0),
+                      main_streams.gpu_index(0));
+
+    for (uint32_t s = 0; s < _num_internal_cuda_streams; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(_internal_cuda_streams[s].stream(g),
+                               _incoming_event,
+                               _internal_cuda_streams[s].gpu_index(g));
+      }
+    }
+  }
+
+  void
+  internal_streams_slice_wait_for_main_stream_0(const CudaStreams &main_streams,
+                                                const uint32_t *stream_indices,
+                                                size_t num_indices) {
+
+    PANIC_IF_FALSE(main_streams.gpu_index(0) ==
+                       _internal_cuda_streams[0].gpu_index(0),
+                   "InternalCudaStreams: gpu_index(0) of main_streams should "
+                   "be the same as _internal_cuda_streams[0].");
+
+    cuda_event_record(_incoming_event, main_streams.stream(0),
+                      main_streams.gpu_index(0));
+
+    for (size_t i = 0; i < num_indices; ++i) {
+      uint32_t s_idx = stream_indices[i];
+      PANIC_IF_FALSE(s_idx < _num_internal_cuda_streams,
+                     "InternalCudaStreams: stream index out of bounds");
+
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(_internal_cuda_streams[s_idx].stream(g),
+                               _incoming_event,
+                               _internal_cuda_streams[s_idx].gpu_index(g));
+      }
+    }
+  }
+
+  void
+  main_stream_0_wait_for_internal_streams(const CudaStreams &main_streams) {
+
+    PANIC_IF_FALSE(main_streams.gpu_index(0) ==
+                       _internal_cuda_streams[0].gpu_index(0),
+                   "InternalCudaStreams: gpu_index(0) of main_streams should "
+                   "be the same as _internal_cuda_streams[0].");
+
+    for (uint32_t s = 0; s < _num_internal_cuda_streams; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_event_record(_outgoing_events[s * _num_gpus + g],
+                          _internal_cuda_streams[s].stream(g),
+                          _internal_cuda_streams[s].gpu_index(g));
+      }
+    }
+
+    for (uint32_t s = 0; s < _num_internal_cuda_streams; ++s) {
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(main_streams.stream(0),
+                               _outgoing_events[s * _num_gpus + g],
+                               main_streams.gpu_index(0));
+      }
+    }
+  }
+
+  void
+  main_stream_0_wait_for_internal_streams_slice(const CudaStreams &main_streams,
+                                                const uint32_t *stream_indices,
+                                                size_t num_indices) {
+
+    PANIC_IF_FALSE(main_streams.gpu_index(0) ==
+                       _internal_cuda_streams[0].gpu_index(0),
+                   "InternalCudaStreams: gpu_index(0) of main_streams should "
+                   "be the same as _internal_cuda_streams[0].");
+
+    for (size_t i = 0; i < num_indices; ++i) {
+      uint32_t s_idx = stream_indices[i];
+      PANIC_IF_FALSE(s_idx < _num_internal_cuda_streams,
+                     "InternalCudaStreams: stream index out of bounds");
+
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_event_record(_outgoing_events[s_idx * _num_gpus + g],
+                          _internal_cuda_streams[s_idx].stream(g),
+                          _internal_cuda_streams[s_idx].gpu_index(g));
+      }
+    }
+
+    for (size_t i = 0; i < num_indices; ++i) {
+      uint32_t s_idx = stream_indices[i];
+      for (uint32_t g = 0; g < _num_gpus; ++g) {
+        cuda_stream_wait_event(main_streams.stream(0),
+                               _outgoing_events[s_idx * _num_gpus + g],
+                               main_streams.gpu_index(0));
+      }
+    }
+  }
+
+  void release(const CudaStreams &main_streams) {
+
+    PANIC_IF_FALSE(main_streams.gpu_index(0) ==
+                       _internal_cuda_streams[0].gpu_index(0),
+                   "InternalCudaStreams: gpu_index(0) of main_streams should "
+                   "be the same as _internal_cuda_streams[0].");
+
+    cuda_synchronize_stream(main_streams.stream(0), main_streams.gpu_index(0));
+
+    if (_outgoing_events && _internal_cuda_streams) {
+      for (uint32_t s = 0; s < _num_internal_cuda_streams; ++s) {
+        for (uint32_t g = 0; g < _num_gpus; ++g) {
+          cuda_event_destroy(_outgoing_events[s * _num_gpus + g],
+                             _internal_cuda_streams[s].gpu_index(g));
+        }
+      }
+      delete[] _outgoing_events;
+      _outgoing_events = nullptr;
+    }
+
+    if (_incoming_event && _internal_cuda_streams) {
+      cuda_event_destroy(_incoming_event,
+                         _internal_cuda_streams[0].gpu_index(0));
+      _incoming_event = nullptr;
+    }
+
+    if (_internal_cuda_streams) {
+      for (uint32_t i = 0; i < _num_internal_cuda_streams; ++i) {
+        _internal_cuda_streams[i].release();
+      }
+      delete[] _internal_cuda_streams;
+      _internal_cuda_streams = nullptr;
+    }
+  }
+
+  ~InternalCudaStreams() {
+    PANIC_IF_FALSE(_internal_cuda_streams == nullptr &&
+                       _incoming_event == nullptr &&
+                       _outgoing_events == nullptr,
+                   "InternalCudaStreams: must call release before destruction");
+  }
+};
+
 struct CudaStreamsBarrier {
 private:
   std::vector<cudaEvent_t> _events;
