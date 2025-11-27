@@ -498,7 +498,7 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
     num_samples: u32,
 ) {
     if TypeId::of::<KT>() == TypeId::of::<u32>() {
-        cuda_keyswitch_lwe_ciphertext_vector_32(
+        cuda_keyswitch_lwe_ciphertext_vector_64_32(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             lwe_array_out.as_mut_c_ptr(0),
@@ -513,7 +513,7 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
             num_samples,
         );
     } else if TypeId::of::<KT>() == TypeId::of::<u64>() {
-        cuda_keyswitch_lwe_ciphertext_vector_64(
+        cuda_keyswitch_lwe_ciphertext_vector_64_64(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             lwe_array_out.as_mut_c_ptr(0),
