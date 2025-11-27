@@ -116,7 +116,7 @@ EXCLUDED_BIG_PARAMETERS_GPU = [
 ]
 
 
-def filter_integer_tests(input_args):
+def integer_normal_filter(input_args):
     (multi_bit_filter, group_filter) = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
@@ -174,6 +174,17 @@ def filter_integer_tests(input_args):
             filter_expression = ["test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
         elif input_args.backend == "cpu":
             filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
+
+    return filter_expression
+
+
+def filter_integer_tests(input_args):
+    if input_args.run_prod_only:
+        filter_expression = [
+            "test(/^integer::.*_param_prod/)",
+        ]
+    else:
+        filter_expression = integer_normal_filter(input_args)
 
     return " and ".join(filter_expression)
 
