@@ -101,7 +101,7 @@ template <typename Torus> struct int_equality_selectors_buffer {
           size_tracker, allocate_gpu_memory);
 
       this->reduction_buffers[j] = new int_comparison_buffer<Torus>(
-          sub_streams[j], COMPARISON_TYPE::EQ, params, num_blocks, false,
+          streams, COMPARISON_TYPE::EQ, params, num_blocks, false,
           allocate_gpu_memory, size_tracker);
     }
   }
@@ -461,14 +461,14 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     delete this->carry_extract_lut;
 
     for (uint32_t i = 0; i < num_streams; i++) {
-      release_radix_ciphertext_async(
-          sub_streams[i].stream(0), sub_streams[i].gpu_index(0),
-          this->partial_aggregated_vectors[i], this->allocate_gpu_memory);
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     this->partial_aggregated_vectors[i],
+                                     this->allocate_gpu_memory);
       delete this->partial_aggregated_vectors[i];
 
-      release_radix_ciphertext_async(
-          sub_streams[i].stream(0), sub_streams[i].gpu_index(0),
-          this->partial_temp_vectors[i], this->allocate_gpu_memory);
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     this->partial_temp_vectors[i],
+                                     this->allocate_gpu_memory);
       delete this->partial_temp_vectors[i];
     }
     delete[] partial_aggregated_vectors;
@@ -752,7 +752,7 @@ template <typename Torus> struct int_unchecked_contains_buffer {
     this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
     for (uint32_t i = 0; i < num_streams; i++) {
       this->eq_buffers[i] = new int_comparison_buffer<Torus>(
-          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
           size_tracker);
     }
 
@@ -853,7 +853,7 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
     this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
     for (uint32_t i = 0; i < num_streams; i++) {
       this->eq_buffers[i] = new int_comparison_buffer<Torus>(
-          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
           size_tracker);
     }
 
@@ -1272,7 +1272,7 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
     this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
     for (uint32_t i = 0; i < num_streams; i++) {
       this->eq_buffers[i] = new int_comparison_buffer<Torus>(
-          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
           size_tracker);
     }
 
@@ -1496,7 +1496,7 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
     for (uint32_t i = 0; i < num_streams; i++) {
       this->eq_buffers[i] = new int_comparison_buffer<Torus>(
-          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
           size_tracker);
     }
 
@@ -1690,7 +1690,94 @@ template <typename Torus> struct int_unchecked_index_of_buffer {
     this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
     for (uint32_t i = 0; i < num_streams; i++) {
       this->eq_buffers[i] = new int_comparison_buffer<Torus>(
-          sub_streams[i], EQ, params, num_blocks, false, allocate_gpu_memory,
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
+          size_tracker);
+    }
+
+    this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
+        streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
+        size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    for (uint32_t i = 0; i < num_streams; i++) {
+      eq_buffers[i]->release(streams);
+      delete eq_buffers[i];
+    }
+    delete[] eq_buffers;
+
+    this->final_index_buf->release(streams);
+    delete this->final_index_buf;
+
+    cuda_event_destroy(incoming_event, streams.gpu_index(0));
+
+    uint32_t num_gpus = active_streams.count();
+    for (uint j = 0; j < num_streams; j++) {
+      for (uint k = 0; k < num_gpus; k++) {
+        cuda_event_destroy(outgoing_events[j * num_gpus + k],
+                           active_streams.gpu_index(k));
+      }
+    }
+    delete[] outgoing_events;
+
+    for (uint32_t i = 0; i < num_streams; i++) {
+      sub_streams[i].release();
+    }
+    delete[] sub_streams;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+template <typename Torus> struct int_unchecked_index_of_clear_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+
+  int_comparison_buffer<Torus> **eq_buffers;
+  int_final_index_from_selectors_buffer<Torus> *final_index_buf;
+
+  CudaStreams active_streams;
+  CudaStreams *sub_streams;
+  cudaEvent_t incoming_event;
+  cudaEvent_t *outgoing_events;
+  uint32_t num_streams;
+
+  int_unchecked_index_of_clear_buffer(CudaStreams streams,
+                                      int_radix_params params,
+                                      uint32_t num_inputs, uint32_t num_blocks,
+                                      uint32_t num_blocks_index,
+                                      bool allocate_gpu_memory,
+                                      uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+
+    uint32_t num_streams_to_use =
+        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_inputs);
+    if (num_streams_to_use == 0)
+      num_streams_to_use = 1;
+
+    this->num_streams = num_streams_to_use;
+    this->active_streams = streams.active_gpu_subset(num_blocks);
+    uint32_t num_gpus = active_streams.count();
+
+    incoming_event = cuda_create_event(streams.gpu_index(0));
+    sub_streams = new CudaStreams[num_streams_to_use];
+    outgoing_events = new cudaEvent_t[num_streams_to_use * num_gpus];
+
+    for (uint32_t i = 0; i < num_streams_to_use; i++) {
+      sub_streams[i].create_on_same_gpus(active_streams);
+      for (uint32_t j = 0; j < num_gpus; j++) {
+        outgoing_events[i * num_gpus + j] =
+            cuda_create_event(active_streams.gpu_index(j));
+      }
+    }
+
+    this->eq_buffers = new int_comparison_buffer<Torus> *[num_streams];
+    for (uint32_t i = 0; i < num_streams; i++) {
+      this->eq_buffers[i] = new int_comparison_buffer<Torus>(
+          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
           size_tracker);
     }
 

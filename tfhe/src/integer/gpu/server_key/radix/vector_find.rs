@@ -5,14 +5,13 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
-    cuda_backend_compute_final_index_from_selectors,
     cuda_backend_get_unchecked_match_value_or_size_on_gpu,
     cuda_backend_get_unchecked_match_value_size_on_gpu, cuda_backend_unchecked_contains,
     cuda_backend_unchecked_contains_clear, cuda_backend_unchecked_first_index_in_clears,
     cuda_backend_unchecked_first_index_of, cuda_backend_unchecked_first_index_of_clear,
     cuda_backend_unchecked_index_in_clears, cuda_backend_unchecked_index_of,
-    cuda_backend_unchecked_is_in_clears, cuda_backend_unchecked_match_value,
-    cuda_backend_unchecked_match_value_or, PBSType,
+    cuda_backend_unchecked_index_of_clear, cuda_backend_unchecked_is_in_clears,
+    cuda_backend_unchecked_match_value, cuda_backend_unchecked_match_value_or, PBSType,
 };
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::prelude::CastInto;
@@ -1490,12 +1489,80 @@ impl CudaServerKey {
             );
             return (trivial_ct, trivial_bool);
         }
-        let selectors = cts
-            .iter()
-            .map(|ct| self.scalar_eq(ct, clear, streams))
-            .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(&selectors, streams)
+        let num_inputs = cts.len();
+        let num_blocks_index =
+            (num_inputs.ilog2() + 1).div_ceil(self.message_modulus.0.ilog2()) as usize;
+
+        let mut index_ct: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(num_blocks_index, streams);
+
+        let trivial_bool =
+            self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams);
+        let mut match_ct = CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_bool.into_inner());
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_unchecked_index_of_clear(
+                        streams,
+                        index_ct.as_mut(),
+                        &mut match_ct,
+                        cts,
+                        clear,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_unchecked_index_of_clear(
+                        streams,
+                        index_ct.as_mut(),
+                        &mut match_ct,
+                        cts,
+                        clear,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+
+        (index_ct, match_ct)
     }
 
     /// Returns the encrypted index of the of clear `value` in the ciphertext slice
@@ -1931,83 +1998,5 @@ impl CudaServerKey {
             &tmp_value
         };
         self.unchecked_first_index_of(cts, value, streams)
-    }
-
-    fn compute_final_index_from_selectors(
-        &self,
-        selectors: &[CudaBooleanBlock],
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
-        let num_inputs = selectors.len();
-        let num_blocks_index =
-            (num_inputs.ilog2() + 1).div_ceil(self.message_modulus.0.ilog2()) as usize;
-
-        let mut index_ct: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(num_blocks_index, streams);
-
-        let trivial_bool =
-            self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams);
-        let mut match_ct = CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_bool.into_inner());
-
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_compute_final_index_from_selectors(
-                        streams,
-                        index_ct.as_mut(),
-                        &mut match_ct,
-                        selectors,
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_compute_final_index_from_selectors(
-                        streams,
-                        index_ct.as_mut(),
-                        &mut match_ct,
-                        selectors,
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        None,
-                    );
-                }
-            }
-        }
-
-        (index_ct, match_ct)
     }
 }
