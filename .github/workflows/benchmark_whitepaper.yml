@@ -1,0 +1,18 @@
+# Run all benchmarks displayed in the tfhe-rs whitepaper.
+name: benchmark_whitepaper
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
+jobs:
+  placeholder-job:
+    name: benchmark_whitepaper/placeholder-job
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a Placeholder Workflow"
