@@ -350,7 +350,8 @@ macro_rules! define_signed_comparison_test_functions {
             {
                 // Non parallelized does not support 1_1
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 
                 TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
 
@@ -364,7 +365,8 @@ macro_rules! define_signed_comparison_test_functions {
             {
                 TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 
                 TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
 
@@ -378,7 +380,8 @@ macro_rules! define_signed_comparison_test_functions {
             {
                 // Non parallelized does not support PARAM_MESSAGE_1_CARRY_1_KS_PBS,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as smart test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -394,7 +397,8 @@ macro_rules! define_signed_comparison_test_functions {
             {
                 TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as smart test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -410,7 +414,8 @@ macro_rules! define_signed_comparison_test_functions {
             {
                 TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as default test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -720,7 +725,8 @@ mod no_coverage {
     create_parameterized_test!(integer_signed_unchecked_min_parallelized_128_bits);
     create_parameterized_test!(integer_signed_smart_max_parallelized_128_bits {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -730,7 +736,8 @@ mod no_coverage {
     });
     create_parameterized_test!(integer_signed_smart_min_parallelized_128_bits {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -740,7 +747,8 @@ mod no_coverage {
     });
     create_parameterized_test!(integer_signed_max_parallelized_128_bits {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
@@ -750,7 +758,8 @@ mod no_coverage {
     });
     create_parameterized_test!(integer_signed_min_parallelized_128_bits {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
