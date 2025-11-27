@@ -5,6 +5,7 @@
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
 #include "integer/radix_ciphertext.cuh"
+#include "integer/scalar_comparison.cuh"
 #include "integer/vector_find.h"
 
 template <typename Torus>
@@ -1107,6 +1108,99 @@ __host__ void host_unchecked_index_of(
 
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, match_ct, mem_ptr->final_index_buf->packed_selectors,
+      mem_ptr->final_index_buf->reduction_buf, bsks, (Torus **)ksks,
+      num_inputs);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_unchecked_index_of_clear(
+    CudaStreams streams, int_unchecked_index_of_clear_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_unchecked_index_of_clear_buffer<Torus>(
+      streams, params, num_inputs, num_blocks, num_blocks_index,
+      allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_unchecked_index_of_clear(
+    CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    const Torus *d_scalar_blocks, bool is_scalar_obviously_bigger,
+    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
+    uint32_t num_blocks_index,
+    int_unchecked_index_of_clear_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  CudaRadixCiphertextFFI *packed_selectors =
+      mem_ptr->final_index_buf->packed_selectors;
+
+  if (is_scalar_obviously_bigger) {
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), packed_selectors, 0,
+        num_inputs);
+  } else {
+    cuda_event_record(mem_ptr->incoming_event, streams.stream(0),
+                      streams.gpu_index(0));
+
+    for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+      for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+        cuda_stream_wait_event(mem_ptr->sub_streams[j].stream(i),
+                               mem_ptr->incoming_event,
+                               mem_ptr->sub_streams[j].gpu_index(i));
+      }
+    }
+
+    uint32_t num_streams = mem_ptr->num_streams;
+    uint32_t num_gpus = mem_ptr->active_streams.count();
+
+    for (uint32_t i = 0; i < num_inputs; i++) {
+      uint32_t stream_idx = i % num_streams;
+      CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
+
+      CudaRadixCiphertextFFI const *input_ct = &inputs[i];
+
+      CudaRadixCiphertextFFI current_selector_dest;
+      as_radix_ciphertext_slice<Torus>(&current_selector_dest, packed_selectors,
+                                       i, i + 1);
+
+      host_scalar_equality_check<Torus>(
+          current_stream, &current_selector_dest, input_ct, d_scalar_blocks,
+          mem_ptr->eq_buffers[stream_idx], bsks, (Torus **)ksks, num_blocks,
+          num_scalar_blocks);
+    }
+
+    for (uint32_t j = 0; j < mem_ptr->num_streams; j++) {
+      for (uint32_t i = 0; i < mem_ptr->active_streams.count(); i++) {
+        cuda_event_record(mem_ptr->outgoing_events[j * num_gpus + i],
+                          mem_ptr->sub_streams[j].stream(i),
+                          mem_ptr->sub_streams[j].gpu_index(i));
+        cuda_stream_wait_event(streams.stream(0),
+                               mem_ptr->outgoing_events[j * num_gpus + i],
+                               streams.gpu_index(0));
+      }
+    }
+  }
+
+  uint32_t packed_len = (num_blocks_index + 1) / 2;
+
+  host_create_possible_results<Torus>(
+      streams, mem_ptr->final_index_buf->possible_results_ct_list,
+      mem_ptr->final_index_buf->unpacked_selectors, num_inputs,
+      (const uint64_t *)mem_ptr->final_index_buf->h_indices, packed_len,
+      mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
+
+  host_aggregate_one_hot_vector<Torus>(
+      streams, index_ct, mem_ptr->final_index_buf->possible_results_ct_list,
+      num_inputs, packed_len, mem_ptr->final_index_buf->aggregate_buf, bsks,
+      ksks);
+
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, match_ct, packed_selectors,
       mem_ptr->final_index_buf->reduction_buf, bsks, (Torus **)ksks,
       num_inputs);
 }
