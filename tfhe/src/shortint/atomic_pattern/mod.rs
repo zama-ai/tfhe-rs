@@ -20,7 +20,10 @@ use crate::core_crypto::prelude::{
 };
 
 use super::backward_compatibility::atomic_pattern::*;
-use super::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
+use super::ciphertext::{
+    CompressedModulusSwitchedCiphertext, CompressedModulusSwitchedCiphertextConformanceParams,
+    Degree,
+};
 use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::engine::ShortintEngine;
 use super::parameters::{
@@ -605,6 +608,19 @@ impl AtomicPatternParameters {
             Self::Standard(pbsparameters) => pbsparameters.to_shortint_conformance_param(),
             Self::KeySwitch32(key_switch32_pbsparameters) => {
                 key_switch32_pbsparameters.to_shortint_conformance_param()
+            }
+        }
+    }
+
+    pub fn to_compressed_modswitched_conformance_param(
+        &self,
+    ) -> CompressedModulusSwitchedCiphertextConformanceParams {
+        match self {
+            Self::Standard(pbsparameters) => {
+                pbsparameters.to_compressed_modswitched_conformance_param()
+            }
+            Self::KeySwitch32(key_switch32_pbsparameters) => {
+                key_switch32_pbsparameters.to_compressed_modswitched_conformance_param()
             }
         }
     }
