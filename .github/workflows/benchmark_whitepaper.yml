@@ -3,16 +3,112 @@ name: benchmark_whitepaper
 
 on:
   workflow_dispatch:
+    inputs:
+      run-integer-benchmarks:
+        description: "Run integer benchmarks"
+        type: boolean
+        default: true
+      run-core-crypto-benchmarks:
+        description: "Run core-crypto benchmarks"
+        type: boolean
+        default: true
+      generate-latex:
+        description: "Generate LaTeX tables"
+        type: boolean
+        default: true
 
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
 jobs:
-  placeholder-job:
-    name: benchmark_whitepaper/placeholder-job
-    runs-on: ubuntu-latest
+  run-benchmarks-cpu-integer:
+    name: benchmark_whitepaper/run-benchmarks-cpu-integer
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-integer-benchmarks
+    with:
+      command: integer, integer_compression
+      op_flavor: default
+      bench_type: latency
+      params_type: classical_whitepaper
+      precisions_set: whitepaper
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-    steps:
-      - run: |
-          echo "Hello this is a Placeholder Workflow"
+  run-benchmarks-cpu-integer-special-case:
+    name: benchmark_whitepaper/run-benchmarks-cpu-integer-special-case
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-integer-benchmarks
+    with:
+      command: integer
+      op_flavor: whitepaper
+      bench_type: latency
+      params_type: classical_whitepaper_special_case + multi_bit_whitepaper_special_case
+      precisions_set: whitepaper
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+
+  run-benchmarks-cpu-core-crypto:
+    name: benchmark_whitepaper/run-benchmarks-cpu-core-crypto
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-core-crypto-benchmarks
+    with:
+      command: ks, pbs, ks_pbs
+      bench_type: latency
+      params_type: classical_whitepaper + multi_bit_whitepaper
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+#  generate-latex-with-benchmarks-run:
+#    name: benchmark-documentation/generate-svgs-with-benchmarks-run
+#    if: ${{ always() &&
+#      (inputs.run-cpu-benchmarks || inputs.run-gpu-benchmarks ||inputs.run-hpu-benchmarks) &&
+#      inputs.generate-svgs }}
+#    needs: [
+#      run-benchmarks-cpu-integer, run-benchmarks-cpu-integer-special-case,
+#      run-benchmarks-cpu-core-crypto,
+#    ]
+#    uses: ./.github/workflows/generate_svgs.yml
+#    with:
+#      time_span_days: 5
+#      generate-integer-latex: ${{ inputs.run-integer-benchmarks }}
+#      generate-core-crypto-latex: ${{ inputs.run-core-crypto-benchmarks }}
+#    secrets:
+#      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+#      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+#      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+#
+#  generate-latex-without-benchmarks-run:
+#    name: benchmark-documentation/generate-svgs-without-benchmarks-run
+#    if: ${{ !(inputs.run-integer-benchmarks || inputs.run-core-crypto-benchmarks) &&
+#      inputs.generate-latex }}
+#    uses: ./.github/workflows/generate_svgs.yml
+#    with:
+#      time_span_days: 60
+#    secrets:
+#      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+#      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+#      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
