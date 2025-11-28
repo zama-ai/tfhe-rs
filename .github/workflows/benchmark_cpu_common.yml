@@ -135,8 +135,8 @@ jobs:
           backend: aws
           profile: bench
 
-  integer-benchmarks:
-    name: benchmark_cpu_common/integer-benchmarks
+  cpu-benchmarks:
+    name: benchmark_cpu_common/cpu-benchmarks
     needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440  # 24 hours
@@ -256,7 +256,7 @@ jobs:
   teardown-instance:
     name: benchmark_cpu_common/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, integer-benchmarks ]
+    needs: [ setup-instance, cpu-benchmarks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
