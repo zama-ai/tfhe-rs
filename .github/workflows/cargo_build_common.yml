@@ -47,6 +47,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
