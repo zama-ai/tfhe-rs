@@ -591,18 +591,21 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
             .unwrap();
 
         let params = if i == 0 {
-            CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    .to_shortint_conformance_param(),
-                num_elements_constraint: ListSizeConstraint::exact_size(clears.len()),
-            }
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(clears.len()),
+            )
+            .allow_unpacked()
         } else if i == 1 {
-            CompactCiphertextListConformanceParams {
-                shortint_params:
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                        .to_shortint_conformance_param(),
-                num_elements_constraint: ListSizeConstraint::exact_size(clears.len()),
-            }
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(clears.len()),
+            )
+            .allow_unpacked()
         } else {
             panic!("Unexpected parameter set")
         };
