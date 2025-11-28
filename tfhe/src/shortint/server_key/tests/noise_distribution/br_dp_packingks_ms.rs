@@ -8,7 +8,6 @@ use super::utils::{
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Ciphertext, Degree, NoiseLevel};
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys};
@@ -237,57 +236,41 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper(
         &mut side_resources,
     );
 
-    let compute_large_lwe_secret_key = cks.encryption_key();
-    let compression_glwe_secret_key = &compression_private_key.post_packing_ks_key;
-
     let compute_encoding = sks.encoding(PaddingBit::Yes);
     let compression_encoding = ShortintEncoding {
         carry_modulus: CarryModulus(1),
         ..compute_encoding
     };
 
+    let compute_large_lwe_secret_key = cks.encryption_key();
+    let compute_large_lwe_secret_key_with_compression_encoding_dyn = DynLweSecretKeyView::U64 {
+        key: compute_large_lwe_secret_key,
+        encoding: compression_encoding,
+    };
+    let compression_glwe_secret_key = &compression_private_key.post_packing_ks_key;
+
     (
         before_packing
             .into_iter()
             .map(|(input, pbs_result, dp_result)| {
-                (
-                    match &cks.atomic_pattern {
-                        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                input.as_ref_64(),
-                                &standard_atomic_pattern_client_key.lwe_secret_key,
-                                msg,
-                                &compute_encoding,
-                            )
-                        }
-                        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-                            let ks32_params = ks32_atomic_pattern_client_key.parameters;
-                            let compute_encoding_32 = ShortintEncoding {
-                                ciphertext_modulus: ks32_params.post_keyswitch_ciphertext_modulus,
-                                message_modulus: ks32_params.message_modulus,
-                                carry_modulus: ks32_params.carry_modulus,
-                                padding_bit: PaddingBit::Yes,
-                            };
+                let compute_large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+                let compute_small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
 
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                input.as_ref_32(),
-                                &ks32_atomic_pattern_client_key.lwe_secret_key,
-                                msg.try_into().unwrap(),
-                                &compute_encoding_32,
-                            )
-                        }
-                    },
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        pbs_result.as_ref_64(),
-                        &compute_large_lwe_secret_key,
+                (
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &input,
+                        &compute_small_lwe_secret_key_dyn,
                         msg,
-                        &compute_encoding,
                     ),
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        dp_result.as_ref_64(),
-                        &compute_large_lwe_secret_key,
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &pbs_result,
+                        &compute_large_lwe_secret_key_dyn,
                         msg,
-                        &compression_encoding,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &dp_result,
+                        &compute_large_lwe_secret_key_with_compression_encoding_dyn,
+                        msg,
                     ),
                 )
             })
