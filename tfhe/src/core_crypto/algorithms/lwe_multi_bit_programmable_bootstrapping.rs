@@ -2718,3 +2718,153 @@ pub fn multi_bit_programmable_bootstrap_f128_lwe_ciphertext<
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
+    AllocateMultiBitModSwitchResult, LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate,
+    MultiBitModSwitch,
+};
+
+impl<
+        Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+        C: Container<Element = Scalar> + Sync,
+    > AllocateMultiBitModSwitchResult for LweCiphertext<C>
+{
+    type Output = StandardMultiBitModulusSwitchedCt<Scalar, Vec<Scalar>>;
+    type SideResources = ();
+
+    fn allocate_multi_bit_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // We will mod switch but we keep the current modulus as the noise is interesting in the
+        // context of the input modulus
+        Self::Output {
+            input: LweCiphertextOwned::from_container(
+                self.as_ref().to_vec(),
+                self.ciphertext_modulus(),
+            ),
+            // Placeholder values for those as they will be filled during mod switch
+            // Choose defaults that should crash things
+            grouping_factor: LweBskGroupingFactor(usize::MAX),
+            log_modulus: CiphertextModulusLog(usize::MAX),
+        }
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+        C: Container<Element = Scalar>,
+        OutCont: ContainerMut<Element = Scalar> + Sync,
+    > MultiBitModSwitch<StandardMultiBitModulusSwitchedCt<Scalar, OutCont>> for LweCiphertext<C>
+{
+    type SideResources = ();
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut StandardMultiBitModulusSwitchedCt<Scalar, OutCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert_eq!(output.input.ciphertext_modulus(), self.ciphertext_modulus());
+
+        let StandardMultiBitModulusSwitchedCt {
+            input: output_input,
+            grouping_factor: output_grouping_factor,
+            log_modulus: output_log_modulus,
+        } = output;
+
+        *output_grouping_factor = grouping_factor;
+        *output_log_modulus = output_modulus_log;
+        output_input.as_mut().copy_from_slice(self.as_ref());
+
+        // Nothing to do given the mod switch will be lazily evaluated by the following multi bit
+        // blind rotation
+    }
+}
+
+impl<
+        InputScalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+        InputCont: Container<Element = InputScalar> + Sync,
+        OutputScalar: UnsignedTorus + Sync,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+        KeyCont: Container<Element = c64> + Sync,
+    >
+    LweMultiBitFftBlindRotate<
+        StandardMultiBitModulusSwitchedCt<InputScalar, InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for FourierLweMultiBitBootstrapKey<KeyCont>
+{
+    type SideResources = (ThreadCount, bool);
+
+    fn lwe_multi_bit_fft_blind_rotate(
+        &self,
+        input: &StandardMultiBitModulusSwitchedCt<InputScalar, InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let (thread_count, deterministic_execution) = *side_resources;
+
+        let mut local_accumulator = GlweCiphertext::from_container(
+            accumulator.as_ref().to_vec(),
+            accumulator.polynomial_size(),
+            accumulator.ciphertext_modulus(),
+        );
+
+        multi_bit_blind_rotate_assign(
+            input,
+            &mut local_accumulator,
+            self,
+            thread_count,
+            deterministic_execution,
+        );
+
+        extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+    }
+}
+
+impl<
+        InputScalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+        InputCont: Container<Element = InputScalar> + Sync,
+        OutputScalar: UnsignedTorus + Sync,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+        KeyCont: Container<Element = f64> + Sync + Split,
+    >
+    LweMultiBitFft128BlindRotate<
+        StandardMultiBitModulusSwitchedCt<InputScalar, InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for Fourier128LweMultiBitBootstrapKey<KeyCont>
+{
+    type SideResources = ThreadCount;
+
+    fn lwe_multi_bit_fft_128_blind_rotate(
+        &self,
+        input: &StandardMultiBitModulusSwitchedCt<InputScalar, InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let thread_count = *side_resources;
+
+        let mut local_accumulator = GlweCiphertext::from_container(
+            accumulator.as_ref().to_vec(),
+            accumulator.polynomial_size(),
+            accumulator.ciphertext_modulus(),
+        );
+
+        multi_bit_f128_deterministic_blind_rotate_assign(
+            input,
+            &mut local_accumulator,
+            self,
+            thread_count,
+        );
+
+        extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+    }
+}
