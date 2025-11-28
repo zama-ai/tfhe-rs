@@ -243,6 +243,23 @@ fn test_decomposition_edge_case_sign_handling() {
 }
 
 #[test]
+fn test_decomposition_edge_case_sign_handling_u128() {
+    let decomposer = SignedDecomposer::new(DecompositionBaseLog(40), DecompositionLevelCount(3));
+    let val: u128 = 170141183460604905165246226680529368983;
+
+    let rounded = decomposer.closest_representable(val);
+    let recomp = decomposer.recompose(decomposer.decompose(val)).unwrap();
+    let decomp = decomposer.decompose(val);
+    assert_eq!(rounded, recomp);
+
+    let expected = [-421613125320i128, 482008863255, -549755813888];
+
+    for (term, expect) in decomp.zip(expected) {
+        assert_eq!(term.value() as i128, expect, "Problem with term {term:?}");
+    }
+}
+
+#[test]
 fn test_recompose_exhaustive() {
     let base_log = DecompositionBaseLog(10);
     let level = DecompositionLevelCount(3);

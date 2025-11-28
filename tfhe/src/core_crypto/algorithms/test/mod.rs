@@ -383,15 +383,13 @@ pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
 };
 
 pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
+    lwe_dimension: LweDimension(918),
+    glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.12345)),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000000000000000000008645717832544903,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
+    pbs_base_log: DecompositionBaseLog(24),
+    pbs_level: DecompositionLevelCount(3),
     ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
 };
 
