@@ -110,10 +110,10 @@ fn main() {
     let mut buffer = vec![];
     safe_serialize(&compact_list, &mut buffer, 1 << 20).unwrap();
 
-    let conformance_params = CompactCiphertextListConformanceParams {
-        shortint_params: params_1.to_shortint_conformance_param(),
-        num_elements_constraint: ListSizeConstraint::exact_size(2),
-    };
+    let conformance_params =
+        CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+           params_1.try_into().unwrap(),
+           ListSizeConstraint::exact_size(2));
     safe_deserialize_conformant::<CompactCiphertextList>(buffer.as_slice(), 1 << 20, &conformance_params)
         .unwrap();
 }
