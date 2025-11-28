@@ -1,6 +1,7 @@
 pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
 use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::StandardMultiBitModulusSwitchedCt;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::math::random::Gaussian;
@@ -21,7 +22,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
-    PlaintextList,
+    LweSecretKeyView, PlaintextList,
 };
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
@@ -41,7 +42,7 @@ use crate::shortint::parameters::{
     CompressionParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, PBSParameters, ShortintKeySwitchingParameters,
 };
-use crate::shortint::public_key::CompactPublicKey;
+use crate::shortint::public_key::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::encrypt_new_noiseless_lwe;
 use crate::shortint::server_key::{
     AtomicPatternServerKey, LookupTable, ModulusSwitchConfiguration,
@@ -239,14 +240,14 @@ impl<'rhs> LweUncorrelatedSub<&'rhs Self> for DynLwe {
 }
 
 impl AllocateStandardModSwitchResult for DynLwe {
-    type Output = Self;
+    type Output = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_standard_mod_switch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        match self {
+        DynModSwitchedLwe::ModSwitchedLwe(match self {
             Self::U32(lwe_ciphertext) => {
                 Self::U32(lwe_ciphertext.allocate_standard_mod_switch_result(side_resources))
             }
@@ -256,7 +257,7 @@ impl AllocateStandardModSwitchResult for DynLwe {
             Self::U128(lwe_ciphertext) => {
                 Self::U128(lwe_ciphertext.allocate_standard_mod_switch_result(side_resources))
             }
-        }
+        })
     }
 }
 
@@ -284,15 +285,35 @@ impl StandardModSwitch<Self> for DynLwe {
     }
 }
 
+impl StandardModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(output) => {
+                self.standard_mod_switch(output_modulus_log, output, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch")
+            }
+        }
+    }
+}
+
 impl AllocateCenteredBinaryShiftedStandardModSwitchResult for DynLwe {
-    type Output = Self;
+    type Output = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        match self {
+        DynModSwitchedLwe::ModSwitchedLwe(match self {
             Self::U32(lwe_ciphertext) => Self::U32(
                 lwe_ciphertext
                     .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources),
@@ -305,7 +326,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for DynLwe {
                 lwe_ciphertext
                     .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources),
             ),
-        }
+        })
     }
 }
 
@@ -340,6 +361,122 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for DynLwe {
             _ => panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch"),
         }
     }
+}
+
+impl CenteredBinaryShiftedStandardModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn centered_binary_shifted_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(output) => self
+                .centered_binary_shifted_and_standard_mod_switch(
+                    output_modulus_log,
+                    output,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts for DynLwe CenteredBinaryShiftedStandardModSwitch"
+                )
+            }
+        }
+    }
+}
+
+pub enum DynStandardMultiBitModulusSwitchedCt {
+    U32(StandardMultiBitModulusSwitchedCt<u32, Vec<u32>>),
+    U64(StandardMultiBitModulusSwitchedCt<u64, Vec<u64>>),
+    U128(StandardMultiBitModulusSwitchedCt<u128, Vec<u128>>),
+}
+
+impl DynStandardMultiBitModulusSwitchedCt {
+    pub fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::U32(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+            Self::U64(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+            Self::U128(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+        }
+    }
+
+    pub fn raw_modulus_float(&self) -> f64 {
+        match self {
+            Self::U32(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+            Self::U64(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+            Self::U128(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+        }
+    }
+}
+
+pub enum DynModSwitchedLwe {
+    ModSwitchedLwe(DynLwe),
+    MultiBitModSwitchedLwe(DynStandardMultiBitModulusSwitchedCt),
+}
+
+impl DynModSwitchedLwe {
+    pub fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::ModSwitchedLwe(dyn_lwe) => dyn_lwe.lwe_dimension(),
+            Self::MultiBitModSwitchedLwe(dyn_standard_multi_bit_modulus_switched_ct) => {
+                dyn_standard_multi_bit_modulus_switched_ct.lwe_dimension()
+            }
+        }
+    }
+
+    pub fn raw_modulus_float(&self) -> f64 {
+        match self {
+            Self::ModSwitchedLwe(dyn_lwe) => dyn_lwe.raw_modulus_float(),
+            Self::MultiBitModSwitchedLwe(dyn_standard_multi_bit_modulus_switched_ct) => {
+                dyn_standard_multi_bit_modulus_switched_ct.raw_modulus_float()
+            }
+        }
+    }
+}
+
+pub(crate) enum DynLweSecretKeyView<'data> {
+    U32 {
+        key: LweSecretKeyView<'data, u32>,
+        encoding: ShortintEncoding<u32>,
+    },
+    U64 {
+        key: LweSecretKeyView<'data, u64>,
+        encoding: ShortintEncoding<u64>,
+    },
+    // U128 not required for now so not instantiated
 }
 
 impl ClientKey {
@@ -394,6 +531,89 @@ impl ClientKey {
                     &mut engine.encryption_generator,
                 ))
             }
+        }
+    }
+
+    pub(crate) fn small_lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        match &self.atomic_pattern {
+            AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                let params = standard_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: standard_atomic_pattern_client_key.small_lwe_secret_key(),
+                    encoding,
+                }
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                let params = ks32_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U32 {
+                    key: ks32_atomic_pattern_client_key.small_lwe_secret_key(),
+                    encoding,
+                }
+            }
+        }
+    }
+
+    pub(crate) fn large_lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        match &self.atomic_pattern {
+            AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                let params = standard_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: standard_atomic_pattern_client_key.large_lwe_secret_key(),
+                    encoding,
+                }
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                let params = ks32_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: ks32_atomic_pattern_client_key.large_lwe_secret_key(),
+                    encoding,
+                }
+            }
+        }
+    }
+}
+
+impl<KeyCont: Container<Element = u64>> CompactPrivateKey<KeyCont> {
+    pub(crate) fn lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        let params = self.parameters();
+        let encoding = ShortintEncoding {
+            ciphertext_modulus: params.ciphertext_modulus,
+            message_modulus: params.message_modulus,
+            carry_modulus: params.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        };
+
+        DynLweSecretKeyView::U64 {
+            key: self.key(),
+            encoding,
         }
     }
 }
@@ -722,7 +942,7 @@ impl LweKeyswitch<DynLwe, DynLwe> for ServerKey {
 
 impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
     type AfterDriftOutput = DynLwe;
-    type AfterMsOutput = DynLwe;
+    type AfterMsOutput = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_drift_technique_standard_mod_switch_result(
@@ -748,7 +968,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
                                     side_resources,
                                 );
 
-                            (DynLwe::U64(after_drift), DynLwe::U64(after_ms))
+                            (
+                                DynLwe::U64(after_drift),
+                                DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(after_ms)),
+                            )
                         }
                         ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                             "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -778,7 +1001,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
                                     side_resources,
                                 );
 
-                            (DynLwe::U32(after_drift), DynLwe::U32(after_ms))
+                            (
+                                DynLwe::U32(after_drift),
+                                DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U32(after_ms)),
+                            )
                         }
                         ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                             "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -900,6 +1126,33 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for ServerKey {
     }
 }
 
+impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynModSwitchedLwe> for ServerKey {
+    type SideResources = ();
+
+    fn drift_technique_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &DynLwe,
+        after_drift_technique: &mut DynLwe,
+        after_mod_switch: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match after_mod_switch {
+            DynModSwitchedLwe::ModSwitchedLwe(after_mod_switch) => self
+                .drift_technique_and_standard_mod_switch(
+                    output_modulus_log,
+                    input,
+                    after_drift_technique,
+                    after_mod_switch,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for ServerKey DriftTechniqueStandardModSwitch")
+            }
+        }
+    }
+}
+
 impl<C: Container<Element = u64>> AllocateLweBootstrapResult for LookupTable<C> {
     type Output = DynLwe;
     type SideResources = ();
@@ -968,6 +1221,29 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
             }
             AtomicPatternServerKey::Dynamic(_) => {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynModSwitchedLwe, DynLwe, LookupTable<C>>
+    for ServerKey
+{
+    type SideResources = ();
+
+    fn lwe_classic_fft_pbs(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<C>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match input {
+            DynModSwitchedLwe::ModSwitchedLwe(input) => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for ServerKey LweClassicFftBootstrap")
             }
         }
     }
@@ -1059,7 +1335,7 @@ impl NoiseSquashingKey {
 
 impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
     type AfterDriftOutput = DynLwe;
-    type AfterMsOutput = DynLwe;
+    type AfterMsOutput = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_drift_technique_standard_mod_switch_result(
@@ -1083,7 +1359,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
                     let (after_drift, after_ms) = modulus_switch_noise_reduction_key
                         .allocate_drift_technique_standard_mod_switch_result(side_resources);
 
-                    (DynLwe::U64(after_drift), DynLwe::U64(after_ms))
+                    (
+                        DynLwe::U64(after_drift),
+                        DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(after_ms)),
+                    )
                 }
                 ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                     "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -1198,6 +1477,36 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
     }
 }
 
+impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynModSwitchedLwe> for NoiseSquashingKey {
+    type SideResources = ();
+
+    fn drift_technique_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &DynLwe,
+        after_drift_technique: &mut DynLwe,
+        after_mod_switch: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match after_mod_switch {
+            DynModSwitchedLwe::ModSwitchedLwe(after_mod_switch) => self
+                .drift_technique_and_standard_mod_switch(
+                    output_modulus_log,
+                    input,
+                    after_drift_technique,
+                    after_mod_switch,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts \
+                    for NoiseSquashingKey DriftTechniqueStandardModSwitch"
+                )
+            }
+        }
+    }
+}
+
 impl<OutputCont, AccCont>
     LweClassicFft128Bootstrap<DynLwe, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
     for NoiseSquashingKey
@@ -1252,6 +1561,35 @@ where
                         panic!("MultiBit ServerKey does support classic PBS")
                     }
                 }
+            }
+        }
+    }
+}
+
+impl<OutputCont, AccCont>
+    LweClassicFft128Bootstrap<DynModSwitchedLwe, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
+    for NoiseSquashingKey
+where
+    OutputCont: ContainerMut<Element = u128>,
+    AccCont: Container<Element = u128>,
+{
+    type SideResources = ();
+
+    fn lwe_classic_fft_128_pbs(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match input {
+            DynModSwitchedLwe::ModSwitchedLwe(input) => {
+                self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts for NoiseSquashingKey LweClassicFft128Bootstrap"
+                )
             }
         }
     }

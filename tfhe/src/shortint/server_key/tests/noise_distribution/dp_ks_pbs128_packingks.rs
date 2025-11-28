@@ -6,7 +6,6 @@ use super::utils::{mean_and_variance_check, DecryptionAndNoiseResult, NoiseSampl
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
@@ -451,117 +450,45 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         .map(
             |(input, after_dp, after_ks, after_drift, after_ms, after_pbs128)| {
                 let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
-                match &cks.atomic_pattern {
-                    AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-                        let params = standard_atomic_pattern_client_key.parameters;
-                        let u64_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let large_lwe_secret_key =
-                            standard_atomic_pattern_client_key.large_lwe_secret_key();
-                        let small_lwe_secret_key =
-                            standard_atomic_pattern_client_key.small_lwe_secret_key();
-                        (
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &input.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_dp.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ks.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &before_ms.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ms.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_pbs128,
-                                &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
-                                msg.into(),
-                                &u128_encoding,
-                            ),
-                        )
-                    }
-                    AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-                        let msg_u32: u32 = msg.try_into().unwrap();
-                        let params = ks32_atomic_pattern_client_key.parameters;
-                        let u32_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let u64_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let large_lwe_secret_key =
-                            ks32_atomic_pattern_client_key.large_lwe_secret_key();
-                        let small_lwe_secret_key =
-                            ks32_atomic_pattern_client_key.small_lwe_secret_key();
-                        (
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &input.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_dp.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ks.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &before_ms.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ms.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_pbs128,
-                                &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
-                                msg.into(),
-                                &u128_encoding,
-                            ),
-                        )
-                    }
-                }
+
+                let large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+                let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
+
+                (
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &input,
+                        &large_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &after_dp,
+                        &large_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &after_ks,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        before_ms,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+                        &after_ms,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    // This one is a "raw" LWE given today we don't need to manage several unsigned
+                    // integer types after a PBS128
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &after_pbs128,
+                        &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
+                        msg.into(),
+                        &u128_encoding,
+                    ),
+                )
             },
         )
         .collect();
