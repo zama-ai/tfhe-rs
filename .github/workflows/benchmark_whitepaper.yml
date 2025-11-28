@@ -42,44 +42,44 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-cpu-integer-special-case:
-    name: benchmark_whitepaper/run-benchmarks-cpu-integer-special-case
-    uses: ./.github/workflows/benchmark_cpu_common.yml
-    if: inputs.run-integer-benchmarks
-    with:
-      command: integer
-      op_flavor: whitepaper
-      bench_type: latency
-      params_type: classical_whitepaper_special_case + multi_bit_whitepaper_special_case
-      precisions_set: whitepaper
-    secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-
-
-  run-benchmarks-cpu-core-crypto:
-    name: benchmark_whitepaper/run-benchmarks-cpu-core-crypto
-    uses: ./.github/workflows/benchmark_cpu_common.yml
-    if: inputs.run-core-crypto-benchmarks
-    with:
-      command: ks, pbs, ks_pbs
-      bench_type: latency
-      params_type: classical_whitepaper + multi_bit_whitepaper
-    secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+#  run-benchmarks-cpu-integer-special-case:
+#    name: benchmark_whitepaper/run-benchmarks-cpu-integer-special-case
+#    uses: ./.github/workflows/benchmark_cpu_common.yml
+#    if: inputs.run-integer-benchmarks
+#    with:
+#      command: integer
+#      op_flavor: whitepaper
+#      bench_type: latency
+#      params_type: classical_whitepaper_special_case + multi_bit_whitepaper_special_case
+#      precisions_set: whitepaper
+#    secrets:
+#      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+#      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+#      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+#      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+#      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+#      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+#      SLAB_URL: ${{ secrets.SLAB_URL }}
+#      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+#
+#
+#  run-benchmarks-cpu-core-crypto:
+#    name: benchmark_whitepaper/run-benchmarks-cpu-core-crypto
+#    uses: ./.github/workflows/benchmark_cpu_common.yml
+#    if: inputs.run-core-crypto-benchmarks
+#    with:
+#      command: ks, pbs, ks_pbs
+#      bench_type: latency
+#      params_type: classical_whitepaper + multi_bit_whitepaper
+#    secrets:
+#      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+#      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+#      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+#      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+#      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+#      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+#      SLAB_URL: ${{ secrets.SLAB_URL }}
+#      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
 #  generate-latex-with-benchmarks-run:
 #    name: benchmark-documentation/generate-svgs-with-benchmarks-run
