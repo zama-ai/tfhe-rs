@@ -5916,82 +5916,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_extend_radix_with_sign_msb<T: UnsignedInteger, B: Numeric>(
-    streams: &CudaStreams,
-    output: &mut CudaRadixCiphertext,
-    ct: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    num_additional_blocks: u32,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) {
-    let message_modulus = ct.info.blocks.first().unwrap().message_modulus;
-    let carry_modulus = ct.info.blocks.first().unwrap().carry_modulus;
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let mut input_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut input_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
-    let cuda_ffi_radix_input =
-        prepare_cuda_radix_ffi(ct, &mut input_degrees, &mut input_noise_levels);
-
-    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
-    let mut cuda_ffi_radix_output =
-        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
-
-    scratch_cuda_extend_radix_with_sign_msb_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        1u32,
-        num_additional_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-
-    cuda_extend_radix_with_sign_msb_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_output,
-        &raw const cuda_ffi_radix_input,
-        mem_ptr,
-        num_additional_blocks,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
-
-    cleanup_cuda_extend_radix_with_sign_msb_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
-
-    update_noise_degree(output, &cuda_ffi_radix_output);
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -10183,4 +10107,85 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
 
     update_noise_degree(index_ct, &ffi_index);
     update_noise_degree(&mut match_ct.0.ciphertext, &ffi_match);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    input_is_signed: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+
+    let num_input_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let target_num_blocks = output.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_cast_to_signed_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_input_blocks,
+        target_num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        input_is_signed,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_cast_to_signed_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        mem_ptr,
+        input_is_signed,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_cast_to_signed_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(output, &cuda_ffi_output);
 }

@@ -1354,44 +1354,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_extend_radix_with_sign_msb_64(
-        streams: CudaStreamsFFI,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        num_blocks: u32,
-        num_additional_blocks: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_extend_radix_with_sign_msb_64(
-        streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        num_additional_blocks: u32,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_extend_radix_with_sign_msb_64(
-        streams: CudaStreamsFFI,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
     pub fn scratch_cuda_integer_signed_scalar_div_radix_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2185,6 +2147,42 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_cast_to_signed_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_input_blocks: u32,
+        target_num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        input_is_signed: bool,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_cast_to_signed_64(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem: *mut i8,
+        input_is_signed: bool,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_cast_to_signed_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
