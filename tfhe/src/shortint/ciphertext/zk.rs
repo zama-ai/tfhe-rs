@@ -1,6 +1,7 @@
 use super::Degree;
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::AllocateDriftTechniqueStandardModSwitchResult;
 use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextListConformanceParams};
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
@@ -272,13 +273,23 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
         let max_elements_per_compact_list = *max_lwe_count_per_compact_list;
 
         let mut remaining_len = *total_expected_lwe_count;
+        let mut first_is_packed = None;
 
         for (compact_ct_list, proof) in proved_lists {
-            if !proof.is_conformant(zk_conformance_params) {
+            match first_is_packed {
+                None => first_is_packed = Some(compact_ct_list.is_packed()),
+                Some(first_is_packed) => {
+                    if first_is_packed != compact_ct_list.is_packed() {
+                        return false;
+                    }
+                }
+            };
+
+            if remaining_len == 0 {
                 return false;
             }
 
-            if remaining_len == 0 {
+            if !proof.is_conformant(zk_conformance_params) {
                 return false;
             }
 
@@ -293,6 +304,12 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
                 remaining_len = 0;
             }
 
+            let degree = if compact_ct_list.is_packed() {
+                Degree::new(message_modulus.0 * message_modulus.0 - 1)
+            } else {
+                Degree::new(message_modulus.0 - 1)
+            };
+
             let params = CiphertextListConformanceParams {
                 ct_list_params: LweCiphertextListConformanceParams {
                     lwe_dim: *encryption_lwe_dimension,
@@ -301,7 +318,8 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
                 },
                 message_modulus: *message_modulus,
                 carry_modulus: *carry_modulus,
-                degree: Degree::new(message_modulus.0 * message_modulus.0 - 1),
+
+                degree,
                 expansion_kind: *expansion_kind,
             };
 
