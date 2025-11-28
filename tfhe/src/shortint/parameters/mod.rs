@@ -5,7 +5,6 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
-use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
 use crate::core_crypto::commons::math::random::{CompressionSeed, Uniform};
 pub use crate::core_crypto::commons::parameters::{
@@ -196,25 +195,6 @@ pub struct CiphertextListConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub expansion_kind: CompactCiphertextListExpansionKind,
-}
-
-impl CiphertextConformanceParams {
-    pub fn to_ct_list_conformance_parameters(
-        &self,
-        list_constraint: ListSizeConstraint,
-    ) -> CiphertextListConformanceParams {
-        CiphertextListConformanceParams {
-            ct_list_params: LweCiphertextListConformanceParams {
-                lwe_dim: self.ct_params.lwe_dim,
-                ct_modulus: self.ct_params.ct_modulus,
-                lwe_ciphertext_count_constraint: list_constraint,
-            },
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            degree: self.degree,
-            expansion_kind: self.atomic_pattern.into(),
-        }
-    }
 }
 
 impl From<ClassicPBSParameters> for PBSParameters {
