@@ -6,9 +6,7 @@ use super::utils::{
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -235,100 +233,20 @@ fn encrypt_dp_ks_any_ms_inner_helper(
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
 
-    match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            let output_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let large_lwe_secret_key = standard_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_lwe_secret_key = standard_atomic_pattern_client_key.small_lwe_secret_key();
-            (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &output_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_dp.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &output_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks.as_lwe_64(),
-                    &small_lwe_secret_key,
-                    msg,
-                    &output_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_64(),
-                    &small_lwe_secret_key,
-                    msg,
-                    &output_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_64(),
-                    &small_lwe_secret_key,
-                    msg,
-                    &output_encoding,
-                ),
-            )
-        }
-        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-            let msg_u32: u32 = msg.try_into().unwrap();
-            let params = ks32_atomic_pattern_client_key.parameters;
-            let small_key_encoding = ShortintEncoding {
-                ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let big_key_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let large_lwe_secret_key = ks32_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_lwe_secret_key = ks32_atomic_pattern_client_key.small_lwe_secret_key();
-            (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &big_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_dp.as_lwe_64(),
-                    &large_lwe_secret_key,
-                    msg,
-                    &big_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_32(),
-                    &small_lwe_secret_key,
-                    msg_u32,
-                    &small_key_encoding,
-                ),
-            )
-        }
-    }
+    let large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+    let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
+
+    (
+        DecryptionAndNoiseResult::new_from_dyn_lwe(&input, &large_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(&after_dp, &large_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(&after_ks, &small_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(before_ms, &small_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+            &after_ms,
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+    )
 }
 
 fn encrypt_dp_ks_any_ms_noise_helper(

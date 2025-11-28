@@ -9,9 +9,7 @@ use super::utils::{
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
-use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
 use crate::shortint::parameters::test_params::{
@@ -26,7 +24,6 @@ use crate::shortint::parameters::{
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::ServerKey;
-use crate::shortint::PaddingBit;
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -163,97 +160,19 @@ fn cpk_ks_any_ms_inner_helper(
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks_ds);
 
-    match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            let params = standard_atomic_pattern_client_key.parameters;
-            let encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
+    let cpk_lwe_secret_key_dyn = cpk_private_key.lwe_secret_key_as_dyn();
+    let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
 
-            let cpk_lwe_secret_key = cpk_private_key.key();
-
-            let small_compute_lwe_secret_key =
-                standard_atomic_pattern_client_key.small_lwe_secret_key();
-            (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_64(),
-                    &cpk_lwe_secret_key,
-                    msg,
-                    &encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks_ds.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &encoding,
-                ),
-            )
-        }
-        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-            let params = ks32_atomic_pattern_client_key.parameters;
-            let compute_encoding_u32 = ShortintEncoding {
-                ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let compute_encoding_u64 = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-
-            let cpk_lwe_secret_key = cpk_private_key.key();
-
-            let small_compute_lwe_secret_key =
-                ks32_atomic_pattern_client_key.small_lwe_secret_key();
-
-            let msg_u32: u32 = msg.try_into().unwrap();
-
-            (
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &input.as_lwe_64(),
-                    &cpk_lwe_secret_key,
-                    msg,
-                    &compute_encoding_u64,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks_ds.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-            )
-        }
-    }
+    (
+        DecryptionAndNoiseResult::new_from_dyn_lwe(&input, &cpk_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(&after_ks_ds, &small_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(before_ms, &small_lwe_secret_key_dyn, msg),
+        DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+            &after_ms,
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

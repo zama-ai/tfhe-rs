@@ -34,6 +34,9 @@ use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
+use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
+    DynLwe, DynLweSecretKeyView, DynModSwitchedLwe,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PrecisionWithPadding {
@@ -436,6 +439,42 @@ impl DecryptionAndNoiseResult {
             }
         } else {
             Self::DecryptionFailed
+        }
+    }
+
+    pub fn new_from_dyn_lwe(
+        ct: &DynLwe,
+        secret_key: &DynLweSecretKeyView<'_>,
+        expected_msg: u64,
+    ) -> Self {
+        match (ct, secret_key) {
+            (DynLwe::U32(lwe_ciphertext), DynLweSecretKeyView::U32 { key, encoding }) => {
+                Self::new_from_lwe(
+                    lwe_ciphertext,
+                    key,
+                    expected_msg.try_into().unwrap(),
+                    encoding,
+                )
+            }
+            (DynLwe::U64(lwe_ciphertext), DynLweSecretKeyView::U64 { key, encoding }) => {
+                Self::new_from_lwe(lwe_ciphertext, key, expected_msg, encoding)
+            }
+            _ => panic!("Incompatible types in DecryptionAndNoiseResult::new_from_dyn_lwe"),
+        }
+    }
+
+    pub fn new_from_dyn_modswitched_lwe(
+        ct: &DynModSwitchedLwe,
+        secret_key: &DynLweSecretKeyView<'_>,
+        expected_msg: u64,
+    ) -> Self {
+        match ct {
+            DynModSwitchedLwe::ModSwitchedLwe(dyn_lwe) => {
+                Self::new_from_dyn_lwe(dyn_lwe, secret_key, expected_msg)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(
+                _dyn_standard_multi_bit_modulus_switched_ct,
+            ) => todo!(),
         }
     }
 
