@@ -8,13 +8,6 @@ on:
         type: boolean
         default: true
 
-env:
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
 permissions: { }
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
