@@ -657,3 +657,21 @@ class SVGFormatter(GenericFormatter):
         array = BenchArray(parsed_data, self.layer)
 
         return self.generate_svg_table(array)
+
+
+class LatexFormatter(GenericFormatter):
+    """
+    Formatter to generate LaTex table.
+    """
+
+    def generate_latex_table(
+        self,
+        generic_array: BenchArray,
+    ) -> str:
+        latex_array = (
+            markdown_table(generic_array.array)
+            .set_params(row_sep="markdown", quote=False, padding_weight="right")
+            .get_markdown()
+        )
+
+        return latex_array

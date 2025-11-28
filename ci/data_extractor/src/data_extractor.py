@@ -25,6 +25,7 @@ import formatters.core
 import formatters.hlapi
 import formatters.integer
 import regression
+import whitepaper
 from benchmark_specs import BenchType, Layer, OperandType, RustType
 from formatters.common import BenchArray, CSVFormatter, MarkdownFormatter, SVGFormatter
 
@@ -33,13 +34,20 @@ import utils
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
 parser.add_argument(
-    "output_file", help="File storing parsed results (with no extension)"
+    "output_file",
+    help=(
+        "File storing parsed results (with no extension)."
+        "If --generate-whitepaper-latex is provided this file "
+        "will be turned into a directory to store all the LaTex tables "
+    ),
 )
 parser.add_argument(
     "-c" "--config-file",
     dest="config_file",
-    help="Location of configuration file containing credentials to connect to "
-    "PostgreSQL instance",
+    help=(
+        "Location of configuration file containing credentials to connect to "
+        "PostgreSQL instance"
+    ),
 )
 parser.add_argument(
     "--bench-date",
@@ -166,6 +174,12 @@ exclusive_generation_group.add_argument(
     dest="generate_regression_json",
     action="store_true",
     help="Generate JSON file with regression data with all the results from base branch and the latest results of the development branch",
+)
+exclusive_generation_group.add_argument(
+    "--generate-whitepaper-latex",
+    dest="generate_whitepaper_latex",
+    action="store_true",
+    help="Generate LaTeX tables for tfhe-rs whitepaper",
 )
 
 
@@ -418,9 +432,18 @@ if __name__ == "__main__":
 
     if args.generate_regression_json:
         try:
-            regression.perform_regression_json_generation(conn, user_config)
+            regression.perform_json_generation(conn, user_config)
         except RuntimeError as err:
-            print(f"Failed to perform performance regression JSON: {err}")
+            print(f"Failed to perform performance regression JSON generation: {err}")
+            sys.exit(2)
+        else:
+            sys.exit(0)
+
+    if args.generate_whitepaper_latex:
+        try:
+            whitepaper.perform_latex_generation(conn, user_config)
+        except RuntimeError as err:
+            print(f"Failed to perform whitepaper LaTex tables generation: {err}")
             sys.exit(2)
         else:
             sys.exit(0)

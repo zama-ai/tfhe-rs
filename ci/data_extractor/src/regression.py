@@ -146,7 +146,7 @@ def parse_toml_file(
         )
 
 
-def perform_regression_json_generation(
+def perform_json_generation(
     conn: connector.PostgreConnector, user_config: config.UserConfig
 ):
     """
