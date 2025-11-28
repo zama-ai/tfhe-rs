@@ -718,10 +718,7 @@ mod test_integer {
     use crate::high_level_api::{generate_keys, ConfigBuilder};
     use crate::prelude::*;
     use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
-    use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-    };
+    use crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
     use crate::{
         set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
         CompactPublicKey, FheUint8,
@@ -751,18 +748,20 @@ mod test_integer {
 
         assert_eq!(size as usize, buffer.len());
 
-        let to_param_set = |list_size_constraint| CompactCiphertextListConformanceParams {
-            shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                .to_shortint_conformance_param(),
-            num_elements_constraint: list_size_constraint,
+        let to_param_set = |list_size_constraint| {
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                public_key.parameters(),
+                list_size_constraint,
+            )
         };
 
         for param_set in [
-            CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
-                    .to_shortint_conformance_param(),
-                num_elements_constraint: ListSizeConstraint::exact_size(3),
-            },
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(3),
+            ),
             to_param_set(ListSizeConstraint::exact_size(2)),
             to_param_set(ListSizeConstraint::exact_size(4)),
             to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
@@ -779,22 +778,91 @@ mod test_integer {
             ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
             ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
         ] {
-            let params = CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    .to_shortint_conformance_param(),
-                num_elements_constraint: len_constraint,
-            };
+            let params = to_param_set(len_constraint);
 
             DeserializationConfig::new(1 << 20)
                 .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
                 .unwrap();
         }
 
-        let params = CompactCiphertextListConformanceParams {
-            shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                .to_shortint_conformance_param(),
-            num_elements_constraint: ListSizeConstraint::exact_size(3),
+        let params = to_param_set(ListSizeConstraint::exact_size(3));
+        let ct2 = DeserializationConfig::new(1 << 20)
+            .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+            .unwrap();
+
+        let mut cts = Vec::with_capacity(3);
+        let expander = ct2.expand().unwrap();
+        for i in 0..3 {
+            cts.push(expander.get::<FheUint8>(i).unwrap().unwrap());
+        }
+
+        let dec: Vec<u8> = cts.iter().map(|a| a.decrypt(&client_key)).collect();
+
+        assert_eq!(&msg[..], &dec);
+    }
+
+    #[test]
+    fn safe_deserialization_ct_list_packed() {
+        let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
+        set_server_key(sks);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let msg = [27u8, 10, 3];
+
+        let ct_list = CompactCiphertextList::builder(&public_key)
+            .push(27u8)
+            .push(10u8)
+            .push(3u8)
+            .build_packed();
+
+        let mut buffer = vec![];
+
+        let config = SerializationConfig::new(1 << 20).disable_versioning();
+
+        let size = config.serialized_size(&ct_list).unwrap();
+        config.serialize_into(&ct_list, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
+
+        let to_param_set = |list_size_constraint| {
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                public_key.parameters(),
+                list_size_constraint,
+            )
         };
+
+        for param_set in [
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(3),
+            ),
+            to_param_set(ListSizeConstraint::exact_size(2)),
+            to_param_set(ListSizeConstraint::exact_size(4)),
+            to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
+            to_param_set(ListSizeConstraint::try_size_in_range(4, 5).unwrap()),
+        ] {
+            assert!(DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &param_set)
+                .is_err());
+        }
+
+        for len_constraint in [
+            ListSizeConstraint::exact_size(3),
+            ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
+            ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
+            ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
+        ] {
+            let params = to_param_set(len_constraint);
+
+            DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+                .unwrap();
+        }
+
+        let params = to_param_set(ListSizeConstraint::exact_size(3));
         let ct2 = DeserializationConfig::new(1 << 20)
             .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
             .unwrap();
@@ -834,18 +902,20 @@ mod test_integer {
 
         assert_eq!(size as usize, buffer.len());
 
-        let to_param_set = |list_size_constraint| CompactCiphertextListConformanceParams {
-            shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                .to_shortint_conformance_param(),
-            num_elements_constraint: list_size_constraint,
+        let to_param_set = |list_size_constraint| {
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                public_key.parameters(),
+                list_size_constraint,
+            )
         };
 
         for param_set in [
-            CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
-                    .to_shortint_conformance_param(),
-                num_elements_constraint: ListSizeConstraint::exact_size(3),
-            },
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(3),
+            ),
             to_param_set(ListSizeConstraint::exact_size(2)),
             to_param_set(ListSizeConstraint::exact_size(4)),
             to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
@@ -862,22 +932,14 @@ mod test_integer {
             ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
             ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
         ] {
-            let params = CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    .to_shortint_conformance_param(),
-                num_elements_constraint: len_constraint,
-            };
+            let params = to_param_set(len_constraint);
 
             DeserializationConfig::new(1 << 20)
                 .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
                 .unwrap();
         }
 
-        let params = CompactCiphertextListConformanceParams {
-            shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                .to_shortint_conformance_param(),
-            num_elements_constraint: ListSizeConstraint::exact_size(3),
-        };
+        let params = to_param_set(ListSizeConstraint::exact_size(3));
         let ct2 = DeserializationConfig::new(1 << 20)
             .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
             .unwrap();
