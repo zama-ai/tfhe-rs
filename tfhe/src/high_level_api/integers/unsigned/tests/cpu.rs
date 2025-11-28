@@ -534,10 +534,11 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
         .serialize_into(&a, &mut serialized)
         .unwrap();
 
-    let params = CompactCiphertextListConformanceParams {
-        shortint_params: block_params.to_shortint_conformance_param(),
-        num_elements_constraint: ListSizeConstraint::exact_size(clears.len()),
-    };
+    let params = CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+        pk.parameters(),
+        ListSizeConstraint::exact_size(clears.len()),
+    )
+    .allow_unpacked();
     let deserialized_a = DeserializationConfig::new(1 << 20)
         .deserialize_from::<CompactCiphertextList>(serialized.as_slice(), &params)
         .unwrap();
