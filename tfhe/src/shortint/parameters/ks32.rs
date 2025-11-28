@@ -7,9 +7,11 @@ pub use crate::core_crypto::commons::parameters::{
     NoiseEstimationMeasureBound, PolynomialSize, RSigmaFactor,
 };
 use crate::core_crypto::prelude::{
-    LweCiphertextConformanceParams, LweKeyswitchKeyConformanceParams, MsDecompressionType,
+    CompressedModulusSwitchedLweCiphertextConformanceParams, LweCiphertextConformanceParams,
+    LweKeyswitchKeyConformanceParams, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::KeySwitch32PBSParametersVersions;
+use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertextConformanceParams;
 use crate::shortint::parameters::ModulusSwitchType;
 
 use super::{
@@ -143,13 +145,44 @@ impl KeySwitch32PBSParameters {
             ct_params: LweCiphertextConformanceParams {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
-                ms_decompression_method: MsDecompressionType::ClassicPbs,
             },
             message_modulus,
             carry_modulus,
             atomic_pattern: AtomicPatternKind::KeySwitch32,
             degree,
             noise_level,
+        }
+    }
+
+    pub fn to_compressed_modswitched_conformance_param(
+        &self,
+    ) -> CompressedModulusSwitchedCiphertextConformanceParams {
+        let expected_dim = self
+            .glwe_dimension
+            .to_equivalent_lwe_dimension(self.polynomial_size);
+
+        let message_modulus = self.message_modulus;
+        let ciphertext_modulus = self.ciphertext_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        let degree = Degree::new(message_modulus.0 - 1);
+
+        let ct_params = LweCiphertextConformanceParams {
+            lwe_dim: expected_dim,
+            ct_modulus: ciphertext_modulus,
+        };
+
+        let compressed_ct_params = CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params,
+            ms_decompression_type: MsDecompressionType::ClassicPbs,
+        };
+
+        CompressedModulusSwitchedCiphertextConformanceParams {
+            ct_params: compressed_ct_params,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern: AtomicPatternKind::KeySwitch32,
+            degree,
         }
     }
 

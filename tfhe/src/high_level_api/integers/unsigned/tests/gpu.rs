@@ -18,9 +18,9 @@ use crate::shortint::parameters::{
 use crate::{
     set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams,
     CompactPublicKey, CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256,
-    CompressedFheUint32, ConfigBuilder, DeserializationConfig, FheBool, FheInt16, FheInt32,
-    FheInt8, FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams, FheUint8,
-    GpuIndex, MatchValues, SerializationConfig,
+    CompressedFheUint32, CompressedFheUint32ConformanceParams, ConfigBuilder,
+    DeserializationConfig, FheBool, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16, FheUint256,
+    FheUint32, FheUint32ConformanceParams, FheUint8, GpuIndex, MatchValues, SerializationConfig,
 };
 use rand::{random, Rng};
 
@@ -554,9 +554,11 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32_gpu() {
             .unwrap();
 
         let params = if i == 0 {
-            FheUint32ConformanceParams::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            CompressedFheUint32ConformanceParams::from(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
         } else if i == 1 {
-            FheUint32ConformanceParams::from(
+            CompressedFheUint32ConformanceParams::from(
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             )
         } else {

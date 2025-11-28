@@ -1,5 +1,7 @@
 use crate::high_level_api::integers::signed::base::{FheInt, FheIntConformanceParams, FheIntId};
-use crate::high_level_api::integers::signed::compressed::CompressedFheInt;
+use crate::high_level_api::integers::signed::compressed::{
+    CompressedFheInt, CompressedFheIntConformanceParams,
+};
 use crate::high_level_api::{FheId, IntegerId};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
@@ -52,6 +54,7 @@ macro_rules! static_int_type {
 
             // Conformance Params
             pub type [<FheInt $num_bits ConformanceParams>] = FheIntConformanceParams<[<FheInt $num_bits Id>]>;
+            pub type [<CompressedFheInt $num_bits ConformanceParams>] = CompressedFheIntConformanceParams<[<FheInt $num_bits Id>]>;
         }
     };
 }

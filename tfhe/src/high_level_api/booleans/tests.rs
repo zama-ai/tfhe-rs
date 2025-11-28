@@ -318,6 +318,7 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
 
 mod cpu {
     use super::*;
+    use crate::high_level_api::booleans::compressed::CompressedFheBoolConformanceParams;
     use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::FheBoolConformanceParams;
@@ -707,12 +708,14 @@ mod cpu {
             .serialize_into(&a, &mut serialized)
             .unwrap();
 
-        let params = FheBoolConformanceParams::from(&server_key);
+        let params = CompressedFheBoolConformanceParams::from(&server_key);
         let deserialized_a = DeserializationConfig::new(1 << 20)
             .deserialize_from::<CompressedFheBool>(serialized.as_slice(), &params)
             .unwrap();
 
-        assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
+        assert!(
+            deserialized_a.is_conformant(&CompressedFheBoolConformanceParams::from(block_params))
+        );
 
         let decrypted: bool = deserialized_a.decompress().decrypt(&keys);
         assert_eq!(decrypted, clear_a);

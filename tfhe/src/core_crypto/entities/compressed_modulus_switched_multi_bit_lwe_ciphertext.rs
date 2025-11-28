@@ -511,9 +511,12 @@ impl MultiBitModulusSwitchedLweCiphertext for FromCompressionMultiBitModulusSwit
 impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetConformant
     for CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>
 {
-    type ParameterSet = LweCiphertextConformanceParams<Scalar>;
+    type ParameterSet = CompressedModulusSwitchedLweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextConformanceParams<Scalar>) -> bool {
+    fn is_conformant(
+        &self,
+        compressed_ct_parameters: &CompressedModulusSwitchedLweCiphertextConformanceParams<Scalar>,
+    ) -> bool {
         let Self {
             body,
             packed_mask,
@@ -523,22 +526,30 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
             grouping_factor,
         } = self;
 
-        let lwe_dim = lwe_dimension.0;
+        let CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params,
+            ms_decompression_type,
+        } = compressed_ct_parameters;
+
+        let LweCiphertextConformanceParams {
+            lwe_dim: params_lwe_dim,
+            ct_modulus,
+        } = ct_params;
 
         *body >> packed_mask.log_modulus().0 == Scalar::ZERO
-            && packed_mask.is_conformant(&lwe_dim)
+            && packed_mask.is_conformant(&lwe_dimension.0)
             && packed_diffs
                 .as_ref()
-                .is_none_or(|packed_diffs| packed_diffs.is_conformant(&lwe_dim))
-            && *lwe_dimension == lwe_ct_parameters.lwe_dim
-            && lwe_ct_parameters.ct_modulus.is_power_of_two()
-            && match lwe_ct_parameters.ms_decompression_method {
+                .is_none_or(|packed_diffs| packed_diffs.is_conformant(&lwe_dimension.0))
+            && lwe_dimension == params_lwe_dim
+            && ct_modulus.is_power_of_two()
+            && match ms_decompression_type {
                 MsDecompressionType::ClassicPbs => false,
                 MsDecompressionType::MultiBitPbs(expected_grouping_factor) => {
                     expected_grouping_factor.0 == grouping_factor.0
                 }
             }
-            && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+            && uncompressed_ciphertext_modulus == ct_modulus
     }
 }
 

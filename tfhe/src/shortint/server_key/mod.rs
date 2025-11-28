@@ -84,7 +84,9 @@ use super::atomic_pattern::{
 use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
-use super::ciphertext::unchecked_create_trivial_with_lwe_size;
+use super::ciphertext::{
+    unchecked_create_trivial_with_lwe_size, CompressedModulusSwitchedCiphertextConformanceParams,
+};
 use super::noise_squashing::Shortint128BootstrappingKey;
 use super::parameters::KeySwitch32PBSParameters;
 use super::PBSParameters;
@@ -728,12 +730,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn conformance_params(&self) -> CiphertextConformanceParams {
         let lwe_dim = self.ciphertext_lwe_dimension();
 
-        let ms_decompression_method = self.atomic_pattern.ciphertext_decompression_method();
-
         let ct_params = LweCiphertextConformanceParams {
             lwe_dim,
             ct_modulus: self.ciphertext_modulus,
-            ms_decompression_method,
         };
 
         CiphertextConformanceParams {
@@ -743,6 +742,30 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             degree: Degree::new(self.message_modulus.0 - 1),
             atomic_pattern: self.atomic_pattern.kind(),
             noise_level: NoiseLevel::NOMINAL,
+        }
+    }
+
+    pub fn compressed_modswitched_conformance_params(
+        &self,
+    ) -> CompressedModulusSwitchedCiphertextConformanceParams {
+        let lwe_dim = self.ciphertext_lwe_dimension();
+
+        let ct_params = LweCiphertextConformanceParams {
+            lwe_dim,
+            ct_modulus: self.ciphertext_modulus,
+        };
+
+        let compressed_ct = CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params,
+            ms_decompression_type: self.atomic_pattern.ciphertext_decompression_method(),
+        };
+
+        CompressedModulusSwitchedCiphertextConformanceParams {
+            ct_params: compressed_ct,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            degree: Degree::new(self.message_modulus.0 - 1),
+            atomic_pattern: self.atomic_pattern.kind(),
         }
     }
 

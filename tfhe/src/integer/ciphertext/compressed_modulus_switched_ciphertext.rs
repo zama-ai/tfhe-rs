@@ -7,7 +7,10 @@ use crate::integer::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertextVersions,
 };
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, MaxDegree};
+use crate::shortint::ciphertext::{
+    CompressedModulusSwitchedCiphertext, CompressedModulusSwitchedCiphertextConformanceParams,
+    MaxDegree,
+};
 use crate::shortint::parameters::Degree;
 
 /// An object to store a ciphertext using less memory.
@@ -44,9 +47,12 @@ pub struct CompressedModulusSwitchedRadixCiphertext(
 );
 
 impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
-    type ParameterSet = RadixCiphertextConformanceParams;
+    type ParameterSet = CompressedModulusSwitchedRadixCiphertextConformanceParams;
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+    fn is_conformant(
+        &self,
+        params: &CompressedModulusSwitchedRadixCiphertextConformanceParams,
+    ) -> bool {
         let Self(ct) = self;
 
         ct.is_conformant(params)
@@ -87,9 +93,12 @@ pub struct CompressedModulusSwitchedSignedRadixCiphertext(
 );
 
 impl ParameterSetConformant for CompressedModulusSwitchedSignedRadixCiphertext {
-    type ParameterSet = RadixCiphertextConformanceParams;
+    type ParameterSet = CompressedModulusSwitchedRadixCiphertextConformanceParams;
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+    fn is_conformant(
+        &self,
+        params: &CompressedModulusSwitchedRadixCiphertextConformanceParams,
+    ) -> bool {
         let Self(ct) = self;
 
         ct.is_conformant(params)
@@ -103,10 +112,30 @@ pub(crate) struct CompressedModulusSwitchedRadixCiphertextGeneric {
     pub last_block: Option<CompressedModulusSwitchedCiphertext>,
 }
 
-impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric {
-    type ParameterSet = RadixCiphertextConformanceParams;
+#[derive(Copy, Clone)]
+pub struct CompressedModulusSwitchedRadixCiphertextConformanceParams {
+    pub shortint_params: CompressedModulusSwitchedCiphertextConformanceParams,
+    pub num_blocks_per_integer: usize,
+}
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+impl From<CompressedModulusSwitchedRadixCiphertextConformanceParams>
+    for RadixCiphertextConformanceParams
+{
+    fn from(value: CompressedModulusSwitchedRadixCiphertextConformanceParams) -> Self {
+        Self {
+            shortint_params: value.shortint_params.into(),
+            num_blocks_per_integer: value.num_blocks_per_integer,
+        }
+    }
+}
+
+impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric {
+    type ParameterSet = CompressedModulusSwitchedRadixCiphertextConformanceParams;
+
+    fn is_conformant(
+        &self,
+        params: &CompressedModulusSwitchedRadixCiphertextConformanceParams,
+    ) -> bool {
         let Self {
             paired_blocks,
             last_block,

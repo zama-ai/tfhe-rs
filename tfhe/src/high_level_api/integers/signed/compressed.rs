@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::integers::{
@@ -6,20 +8,20 @@ use crate::backward_compatibility::integers::{
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state;
-use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{
+    CompressedModulusSwitchedRadixCiphertextConformanceParams,
     CompressedModulusSwitchedSignedRadixCiphertext,
     CompressedSignedRadixCiphertext as IntegerCompressedSignedRadixCiphertext,
 };
-use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::{ClientKey, Tag};
+use crate::shortint::AtomicPatternParameters;
+use crate::{ClientKey, ServerKey, Tag};
 
 /// Compressed [FheInt]
 ///
@@ -153,10 +155,51 @@ where
     }
 }
 
-impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
-    type ParameterSet = FheIntConformanceParams<Id>;
+#[derive(Copy, Clone)]
+pub struct CompressedFheIntConformanceParams<Id: FheIntId> {
+    pub(crate) params: CompressedSignedRadixCiphertextConformanceParams,
+    pub(crate) id: PhantomData<Id>,
+}
 
-    fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
+impl<Id: FheIntId, P: Into<AtomicPatternParameters>> From<P>
+    for CompressedFheIntConformanceParams<Id>
+{
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: CompressedSignedRadixCiphertextConformanceParams(
+                CompressedModulusSwitchedRadixCiphertextConformanceParams {
+                    shortint_params: params.to_compressed_modswitched_conformance_param(),
+                    num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+                },
+            ),
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> From<&ServerKey> for CompressedFheIntConformanceParams<Id> {
+    fn from(sk: &ServerKey) -> Self {
+        Self {
+            params: CompressedSignedRadixCiphertextConformanceParams(
+                CompressedModulusSwitchedRadixCiphertextConformanceParams {
+                    shortint_params: sk
+                        .key
+                        .pbs_key()
+                        .key
+                        .compressed_modswitched_conformance_params(),
+                    num_blocks_per_integer: Id::num_blocks(sk.key.pbs_key().message_modulus()),
+                },
+            ),
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
+    type ParameterSet = CompressedFheIntConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &CompressedFheIntConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
             id: _,
@@ -178,12 +221,17 @@ pub enum CompressedSignedRadixCiphertext {
     ModulusSwitched(CompressedModulusSwitchedSignedRadixCiphertext),
 }
 
+#[derive(Copy, Clone)]
+pub struct CompressedSignedRadixCiphertextConformanceParams(
+    pub(crate) CompressedModulusSwitchedRadixCiphertextConformanceParams,
+);
+
 impl ParameterSetConformant for CompressedSignedRadixCiphertext {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+    type ParameterSet = CompressedSignedRadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &CompressedSignedRadixCiphertextConformanceParams) -> bool {
         match self {
-            Self::Seeded(ct) => ct.is_conformant(params),
-            Self::ModulusSwitched(ct) => ct.is_conformant(params),
+            Self::Seeded(ct) => ct.is_conformant(&params.0.into()),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&params.0),
         }
     }
 }

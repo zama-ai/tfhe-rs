@@ -17,6 +17,7 @@ macro_rules! expand_pub_use_fhe_type(
 
                     // ConformanceParams
                     [<$fhe_type_name ConformanceParams>],
+                    [<Compressed $fhe_type_name ConformanceParams>],
                 )*
             };
         }
@@ -74,7 +75,8 @@ use strum::FromRepr;
 mod tests;
 
 pub use crate::high_level_api::booleans::{
-    CompressedFheBool, FheBool, FheBoolConformanceParams, SquashedNoiseFheBool,
+    CompressedFheBool, CompressedFheBoolConformanceParams, FheBool, FheBoolConformanceParams,
+    SquashedNoiseFheBool,
 };
 
 #[cfg(feature = "extended-types")]

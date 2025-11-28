@@ -1,5 +1,9 @@
-use crate::core_crypto::prelude::{LweCiphertextConformanceParams, MsDecompressionType};
+use crate::core_crypto::prelude::{
+    CompressedModulusSwitchedLweCiphertextConformanceParams, LweCiphertextConformanceParams,
+    MsDecompressionType,
+};
 use crate::shortint::backward_compatibility::parameters::ClassicPBSParametersVersions;
+use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertextConformanceParams;
 use crate::shortint::parameters::{
     AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
     DecompositionBaseLog, DecompositionLevelCount, Degree, DynamicDistribution,
@@ -121,13 +125,52 @@ impl ClassicPBSParameters {
             ct_params: LweCiphertextConformanceParams {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
-                ms_decompression_method: MsDecompressionType::ClassicPbs,
             },
             message_modulus,
             carry_modulus,
             atomic_pattern,
             degree,
             noise_level,
+        }
+    }
+
+    pub fn to_compressed_modswitched_conformance_param(
+        &self,
+    ) -> CompressedModulusSwitchedCiphertextConformanceParams {
+        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
+            EncryptionKeyChoice::Big => (
+                AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+                self.glwe_dimension
+                    .to_equivalent_lwe_dimension(self.polynomial_size),
+            ),
+            EncryptionKeyChoice::Small => (
+                AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
+                self.lwe_dimension,
+            ),
+        };
+
+        let message_modulus = self.message_modulus;
+        let ciphertext_modulus = self.ciphertext_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        let degree = Degree::new(message_modulus.0 - 1);
+
+        let ct_params = LweCiphertextConformanceParams {
+            lwe_dim: expected_dim,
+            ct_modulus: ciphertext_modulus,
+        };
+
+        let compressed_ct_params = CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params,
+            ms_decompression_type: MsDecompressionType::ClassicPbs,
+        };
+
+        CompressedModulusSwitchedCiphertextConformanceParams {
+            ct_params: compressed_ct_params,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            degree,
         }
     }
 }

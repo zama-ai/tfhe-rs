@@ -4,7 +4,7 @@ use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
-use crate::core_crypto::prelude::LweCiphertextConformanceParams;
+use crate::core_crypto::prelude::CompressedModulusSwitchedLweCiphertextConformanceParams;
 use crate::shortint::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedCiphertextVersions,
     InternalCompressedModulusSwitchedCiphertextVersions,
@@ -48,10 +48,32 @@ pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) atomic_pattern: AtomicPatternKind,
 }
 
-impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
-    type ParameterSet = CiphertextConformanceParams;
+#[derive(Copy, Clone)]
+pub struct CompressedModulusSwitchedCiphertextConformanceParams {
+    pub ct_params: CompressedModulusSwitchedLweCiphertextConformanceParams<u64>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub degree: Degree,
+    pub atomic_pattern: AtomicPatternKind,
+}
 
-    fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
+impl From<CompressedModulusSwitchedCiphertextConformanceParams> for CiphertextConformanceParams {
+    fn from(value: CompressedModulusSwitchedCiphertextConformanceParams) -> Self {
+        Self {
+            ct_params: value.ct_params.ct_params,
+            message_modulus: value.message_modulus,
+            carry_modulus: value.carry_modulus,
+            degree: value.degree,
+            noise_level: NoiseLevel::NOMINAL,
+            atomic_pattern: value.atomic_pattern,
+        }
+    }
+}
+
+impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
+    type ParameterSet = CompressedModulusSwitchedCiphertextConformanceParams;
+
+    fn is_conformant(&self, param: &CompressedModulusSwitchedCiphertextConformanceParams) -> bool {
         let Self {
             compressed_modulus_switched_lwe_ciphertext,
             degree,
@@ -60,11 +82,19 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
             atomic_pattern,
         } = self;
 
-        compressed_modulus_switched_lwe_ciphertext.is_conformant(&param.ct_params)
-            && *message_modulus == param.message_modulus
-            && *carry_modulus == param.carry_modulus
-            && *atomic_pattern == param.atomic_pattern
-            && *degree == param.degree
+        let CompressedModulusSwitchedCiphertextConformanceParams {
+            ct_params,
+            message_modulus: param_message_modulus,
+            carry_modulus: param_carry_modulus,
+            degree: param_degree,
+            atomic_pattern: param_atomic_pattern,
+        } = param;
+
+        compressed_modulus_switched_lwe_ciphertext.is_conformant(ct_params)
+            && message_modulus == param_message_modulus
+            && carry_modulus == param_carry_modulus
+            && atomic_pattern == param_atomic_pattern
+            && degree == param_degree
     }
 }
 
@@ -76,9 +106,12 @@ pub(crate) enum InternalCompressedModulusSwitchedCiphertext {
 }
 
 impl ParameterSetConformant for InternalCompressedModulusSwitchedCiphertext {
-    type ParameterSet = LweCiphertextConformanceParams<u64>;
+    type ParameterSet = CompressedModulusSwitchedLweCiphertextConformanceParams<u64>;
 
-    fn is_conformant(&self, param: &LweCiphertextConformanceParams<u64>) -> bool {
+    fn is_conformant(
+        &self,
+        param: &CompressedModulusSwitchedLweCiphertextConformanceParams<u64>,
+    ) -> bool {
         match self {
             Self::Classic(a) => a.is_conformant(param),
             Self::MultiBit(a) => a.is_conformant(param),
