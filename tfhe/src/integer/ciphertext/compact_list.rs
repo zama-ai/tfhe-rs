@@ -1,6 +1,6 @@
 use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
-use crate::core_crypto::prelude::Numeric;
+use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
 use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
 use crate::integer::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
@@ -13,7 +13,8 @@ use crate::shortint::ciphertext::Degree;
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
 use crate::shortint::parameters::{
-    CastingFunctionsOwned, CiphertextConformanceParams, ShortintCompactCiphertextListCastingMode,
+    CastingFunctionsOwned, CiphertextListConformanceParams,
+    ShortintCompactCiphertextListCastingMode,
 };
 #[cfg(feature = "zk-pok")]
 use crate::shortint::parameters::{
@@ -405,13 +406,52 @@ impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, params: &CompactCiphertextListConformanceParams) -> bool {
-        let Self { ct_list: _, info } = self;
+        let Self { ct_list, info } = self;
 
-        if !params.num_elements_constraint.is_valid(info.len()) {
+        let CompactCiphertextListConformanceParams {
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
+            num_elements_constraint,
+        } = params;
+
+        if !num_elements_constraint.is_valid(info.len()) {
             return false;
         }
 
-        self.is_conformant_with_shortint_params(params.shortint_params)
+        let is_packed = self.is_packed();
+
+        let total_expected_num_blocks: usize = info
+            .iter()
+            .map(|a| a.num_blocks(self.message_modulus()))
+            .sum();
+
+        let total_expected_lwe_count =
+            total_expected_num_blocks.div_ceil(if is_packed { 2 } else { 1 });
+
+        let degree = if is_packed {
+            Degree::new(message_modulus.0 * message_modulus.0 - 1)
+        } else {
+            Degree::new(message_modulus.0 - 1)
+        };
+
+        let shortint_params = CiphertextListConformanceParams {
+            expansion_kind: *expansion_kind,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            ct_list_params: LweCiphertextListConformanceParams {
+                lwe_dim: *encryption_lwe_dimension,
+                lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(
+                    total_expected_lwe_count,
+                ),
+                ct_modulus: *ciphertext_modulus,
+            },
+            degree,
+        };
+
+        ct_list.is_conformant(&shortint_params)
     }
 }
 
@@ -951,28 +991,6 @@ impl CompactCiphertextList {
     pub fn message_modulus(&self) -> MessageModulus {
         self.ct_list.message_modulus
     }
-
-    fn is_conformant_with_shortint_params(
-        &self,
-        shortint_params: CiphertextConformanceParams,
-    ) -> bool {
-        let Self { ct_list, info } = self;
-
-        let mut num_blocks: usize = info
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(self.message_modulus()))
-            .sum();
-        // This expects packing, halve the number of blocks with enough capacity
-        if shortint_params.degree.get()
-            == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
-        {
-            num_blocks = num_blocks.div_ceil(2);
-        }
-        let shortint_list_params = shortint_params
-            .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(num_blocks));
-        ct_list.is_conformant(&shortint_list_params)
-    }
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1167,15 +1185,6 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
         let Self { ct_list, info } = self;
 
         let is_packed = self.is_packed();
-
-        let all_have_same_packing = ct_list
-            .proved_lists
-            .iter()
-            .all(|(list, _)| list.is_packed() == is_packed);
-
-        if !all_have_same_packing {
-            return false;
-        }
 
         let total_expected_num_blocks: usize = info
             .iter()
