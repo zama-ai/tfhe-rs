@@ -1,7 +1,8 @@
 use super::dp_ks_ms::any_ms;
 use super::utils::noise_simulation::{
-    DynLwe, NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
-    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
+    DynLwe, DynLweSecretKeyView, NoiseSimulationGlwe, NoiseSimulationLwe,
+    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
+    NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -22,7 +23,6 @@ use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListMeta, ReRandomizationSeed,
 };
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
@@ -278,185 +278,76 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper(
 
     let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
 
-    match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-            let params = standard_atomic_pattern_client_key.parameters;
-            let comp_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                // Adapt to the compression which has no carry bits
-                carry_modulus: CarryModulus(1),
-                padding_bit: PaddingBit::Yes,
-            };
-            let compute_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
+    let params = cks.parameters();
+    let compute_encoding = ShortintEncoding {
+        ciphertext_modulus: params.ciphertext_modulus(),
+        message_modulus: params.message_modulus(),
+        carry_modulus: params.carry_modulus(),
+        padding_bit: PaddingBit::Yes,
+    };
+    let comp_encoding = ShortintEncoding {
+        // Adapt to the compression which has no carry bits
+        carry_modulus: CarryModulus(1),
+        ..compute_encoding
+    };
 
-            let cpk_lwe_secret_key = cpk_private_key.key();
-            let comp_lwe_secret_key = comp_private_key.post_packing_ks_key.as_lwe_secret_key();
+    let cpk_lwe_secret_key_dyn = cpk_private_key.lwe_secret_key_as_dyn();
+    let comp_lwe_secret_key = comp_private_key.post_packing_ks_key.as_lwe_secret_key();
+    let comp_lwe_secret_key_dyn = DynLweSecretKeyView::U64 {
+        key: comp_lwe_secret_key,
+        encoding: comp_encoding,
+    };
 
-            let large_compute_lwe_secret_key =
-                standard_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_compute_lwe_secret_key =
-                standard_atomic_pattern_client_key.small_lwe_secret_key();
-            (
-                (
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &input.as_lwe_64(),
-                        &comp_lwe_secret_key,
-                        msg,
-                        &comp_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &after_br.as_lwe_64(),
-                        &large_compute_lwe_secret_key,
-                        msg,
-                        &compute_encoding,
-                    ),
-                ),
-                (
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &input_zero_rerand.as_lwe_64(),
-                        &cpk_lwe_secret_key,
-                        msg,
-                        &compute_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &after_ksed_zero_rerand.as_lwe_64(),
-                        &large_compute_lwe_secret_key,
-                        msg,
-                        &compute_encoding,
-                    ),
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_rerand.as_lwe_64(),
-                    &large_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_dp.as_lwe_64(),
-                    &large_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_64(),
-                    &small_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding,
-                ),
-            )
-        }
-        AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-            let params = ks32_atomic_pattern_client_key.parameters;
-            let comp_encoding = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                // Adapt to the compression which has no carry bits
-                carry_modulus: CarryModulus(1),
-                padding_bit: PaddingBit::Yes,
-            };
-            let compute_encoding_u32 = ShortintEncoding {
-                ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
-            let compute_encoding_u64 = ShortintEncoding {
-                ciphertext_modulus: params.ciphertext_modulus(),
-                message_modulus: params.message_modulus(),
-                carry_modulus: params.carry_modulus(),
-                padding_bit: PaddingBit::Yes,
-            };
+    let large_compute_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+    let small_compute_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
 
-            let cpk_lwe_secret_key = cpk_private_key.key();
-            let comp_lwe_secret_key = comp_private_key.post_packing_ks_key.as_lwe_secret_key();
-
-            let large_compute_lwe_secret_key =
-                ks32_atomic_pattern_client_key.large_lwe_secret_key();
-            let small_compute_lwe_secret_key =
-                ks32_atomic_pattern_client_key.small_lwe_secret_key();
-
-            let msg_u32: u32 = msg.try_into().unwrap();
-
-            (
-                (
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &input.as_lwe_64(),
-                        &comp_lwe_secret_key,
-                        msg,
-                        &comp_encoding,
-                    ),
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &after_br.as_lwe_64(),
-                        &large_compute_lwe_secret_key,
-                        msg,
-                        &compute_encoding_u64,
-                    ),
-                ),
-                (
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &input_zero_rerand.as_lwe_64(),
-                        &cpk_lwe_secret_key,
-                        msg,
-                        &compute_encoding_u64,
-                    ),
-                    DecryptionAndNoiseResult::new_from_lwe(
-                        &after_ksed_zero_rerand.as_lwe_64(),
-                        &large_compute_lwe_secret_key,
-                        msg,
-                        &compute_encoding_u64,
-                    ),
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_rerand.as_lwe_64(),
-                    &large_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding_u64,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_dp.as_lwe_64(),
-                    &large_compute_lwe_secret_key,
-                    msg,
-                    &compute_encoding_u64,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ks.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &before_ms.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-                DecryptionAndNoiseResult::new_from_lwe(
-                    &after_ms.as_lwe_32(),
-                    &small_compute_lwe_secret_key,
-                    msg_u32,
-                    &compute_encoding_u32,
-                ),
-            )
-        }
-    }
+    (
+        (
+            DecryptionAndNoiseResult::new_from_dyn_lwe(&input, &comp_lwe_secret_key_dyn, msg),
+            DecryptionAndNoiseResult::new_from_dyn_lwe(
+                &after_br,
+                &large_compute_lwe_secret_key_dyn,
+                msg,
+            ),
+        ),
+        (
+            DecryptionAndNoiseResult::new_from_dyn_lwe(
+                &input_zero_rerand,
+                &cpk_lwe_secret_key_dyn,
+                msg,
+            ),
+            DecryptionAndNoiseResult::new_from_dyn_lwe(
+                &after_ksed_zero_rerand,
+                &large_compute_lwe_secret_key_dyn,
+                msg,
+            ),
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &after_rerand,
+            &large_compute_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &after_dp,
+            &large_compute_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &after_ks,
+            &small_compute_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            before_ms,
+            &small_compute_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+            &after_ms,
+            &small_compute_lwe_secret_key_dyn,
+            msg,
+        ),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
