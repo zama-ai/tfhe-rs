@@ -57,15 +57,52 @@ class RustType(enum.Enum):
 
     FheUint2 = 2
     FheUint4 = 4
+    FheUint6 = 6
     FheUint8 = 8
+    FheUint10 = 10
+    FheUint12 = 12
+    FheUint14 = 14
     FheUint16 = 16
     FheUint32 = 32
     FheUint64 = 64
     FheUint128 = 128
     FheUint256 = 256
+    FheUint512 = 512
+
+    @staticmethod
+    def from_int(value):
+        match value:
+            case 2:
+                return RustType.FheUint2
+            case 4:
+                return RustType.FheUint4
+            case 6:
+                return RustType.FheUint6
+            case 8:
+                return RustType.FheUint8
+            case 10:
+                return RustType.FheUint10
+            case 12:
+                return RustType.FheUint12
+            case 14:
+                return RustType.FheUint14
+            case 16:
+                return RustType.FheUint16
+            case 32:
+                return RustType.FheUint32
+            case 64:
+                return RustType.FheUint64
+            case 128:
+                return RustType.FheUint128
+            case 256:
+                return RustType.FheUint256
+            case 512:
+                return RustType.FheUint512
+            case _:
+                raise NotImplementedError
 
 
-ALL_RUST_TYPES = [
+ALL_RUST_INTEGER_TYPES = [
     RustType.FheUint2,
     RustType.FheUint4,
     RustType.FheUint8,
@@ -492,9 +529,19 @@ class BenchDetails:
                 self.operation_name = parts[2] if parts[1] == "cuda" else parts[1]
             case Layer.HLApi:
                 if parts[1] in ["cuda", "hpu"]:
-                    self.operation_name = "::".join(parts[2:-1])
+                    if "_PARAM_" in parts[-2]:
+                        # Case for arithmetic operations (add, sub, mul,...)
+                        self.operation_name = "::".join(parts[2:-2])
+                    else:
+                        # Case for higher-level operation (erc20 transfer, dex,...)
+                        self.operation_name = "::".join(parts[2:-1])
                 else:
-                    self.operation_name = "::".join(parts[1:-1])
+                    if "_PARAM_" in parts[-2]:
+                        # Case for arithmetic operations (add, sub, mul,...)
+                        self.operation_name = "::".join(parts[1:-2])
+                    else:
+                        # Case for higher-level operation (erc20 transfer, dex,...)
+                        self.operation_name = "::".join(parts[1:-1])
                 self.rust_type = parts[-1].partition("_mean")[0]
             case Layer.Shortint:
                 self.operation_name = parts[1]

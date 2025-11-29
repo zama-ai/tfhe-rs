@@ -18,8 +18,15 @@ import argparse
 import datetime
 import formatter
 import sys
-from formatter import CSVFormatter, GenericFormatter, MarkdownFormatter, SVGFormatter
+from formatter import (
+    CSVFormatter,
+    GenericFormatter,
+    MarkdownFormatter,
+    SVGFormatter,
+    BenchArray,
+)
 
+import comparison
 import config
 import connector
 import regression
@@ -89,6 +96,12 @@ parser.add_argument(
     choices=["cpu", "gpu", "hpu"],
     default="cpu",
     help="Backend on which benchmarks have run",
+)
+parser.add_argument(
+    "--backends-comparison",
+    dest="backends_comparison",
+    action="store_true",
+    help="Produce a comparison between backends on 64 bits ciphertext/ciphertext integer operations",
 )
 parser.add_argument(
     "--tfhe-rs-layer",
@@ -265,8 +278,6 @@ def perform_data_extraction(
     layer: Layer,
     operand_type: OperandType,
     output_filename: str,
-    generate_markdown: bool = False,
-    generate_svg: bool = False,
 ):
     """
     Extracts, formats, and processes benchmark data for a specified operand type and
@@ -285,13 +296,9 @@ def perform_data_extraction(
     :param output_filename: The base filename for the output files where results
         will be saved.
     :type output_filename: str
-    :param generate_markdown: Boolean flag indicating whether to generate an
-        output file in Markdown (.md) format.
-    :type generate_markdown: bool
-    :param generate_svg: Boolean flag indicating whether to generate an output
-        file in SVG (.svg) format.
-    :type generate_svg: bool
-    :return: None
+
+    :return: Generic formatted arrays
+    :rtype: list[BenchArray]
     """
     try:
         res = conn.fetch_benchmark_data(user_config, operand_type)
@@ -332,6 +339,18 @@ def perform_data_extraction(
         excluded_types=[RustType.FheUint2, RustType.FheUint4, RustType.FheUint256],
     )
 
+    return generic_arrays
+
+
+def generate_files_from_arrays(
+    generic_arrays: list[BenchArray],
+    user_config: config.UserConfig,
+    layer: Layer,
+    output_filename: str,
+    file_suffix: str = "",
+    generate_markdown: bool = False,
+    generate_svg: bool = False,
+):
     for array in generic_arrays:
         metadata_suffix = ""
         if array.metadata:
@@ -397,6 +416,23 @@ if __name__ == "__main__":
         else:
             sys.exit(0)
 
+    if args.backends_comparison:
+        try:
+            arrays = comparison.perform_backends_comparison(conn, user_config)
+            generate_files_from_arrays(
+                arrays,
+                user_config,
+                layer,
+                user_config.output_file,
+                generate_markdown=args.generate_markdown,
+                generate_svg=args.generate_svg,
+            )
+        except RuntimeError as err:
+            print(f"Failed to perform backends comparison: {err}")
+            sys.exit(2)
+        else:
+            sys.exit(0)
+
     hardware_list = (
         args.hardware_comp.lower().split(",") if args.hardware_comp else None
     )
@@ -412,11 +448,16 @@ if __name__ == "__main__":
         if layer == Layer.CoreCrypto and operand_type == OperandType.PlainText:
             continue
 
-        perform_data_extraction(
+        file_suffix = f"_{operand_type.lower()}"
+        arrays = perform_data_extraction(
+            user_config, layer, operand_type, user_config.output_file, file_suffix
+        )
+        generate_files_from_arrays(
+            arrays,
             user_config,
             layer,
-            operand_type,
             user_config.output_file,
+            file_suffix=file_suffix,
             generate_markdown=args.generate_markdown,
             generate_svg=args.generate_svg,
         )

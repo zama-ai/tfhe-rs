@@ -5,22 +5,20 @@ on:
     inputs:
       backend:
         type: string
-        required: true
       hardware_name:
         type: string
-        required: true
       layer:
         type: string
-        required: true
       pbs_kind: # Valid values are 'classical', 'multi_bit' or 'any'
         type: string
-        required: true
       grouping_factor: # Valid values are 2, 3, or 4
         type: string
         default: 4
       bench_type: # Valid values are 'latency', 'throughput'
         type: string
-        required: true
+      backend_comparison:
+        type: boolean
+        default: false
       time_span_days:
         type: string
         default: 60
@@ -50,6 +48,7 @@ jobs:
           persist-credentials: 'false'
 
       - name: Produce table from database
+        if: inputs.backend_comparison == false
         run: |
           python3 -m pip install -r ci/data_extractor/requirements.txt
           python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
@@ -71,6 +70,21 @@ jobs:
           PBS_KIND: ${{ inputs.pbs_kind }}
           GROUPING_FACTOR: ${{ inputs.grouping_factor }}
           BENCH_TYPE: ${{ inputs.bench_type }}
+          TIME_SPAN: ${{ inputs.time_span_days }}
+          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+      - name: Produce backends comparison table from database
+        if: inputs.backend_comparison == true
+        run: |
+          python3 -m pip install -r ci/data_extractor/requirements.txt
+          python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          --generate-svg \
+          --backend-comparison\
+          --time-span-days "${TIME_SPAN}"
+        env:
+          OUTPUT_FILENAME: ${{ inputs.output_filename }}
           TIME_SPAN: ${{ inputs.time_span_days }}
           DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
           DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}

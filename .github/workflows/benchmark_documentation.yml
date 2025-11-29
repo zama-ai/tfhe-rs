@@ -185,10 +185,12 @@ jobs:
           path: svg_tables
           merge-multiple: 'true'
 
+      # Perform best effort to copy SVG tables. If the copy fails or files don't exist, the PR will still be created.
       - name: Copy SVG tables to documentation location
         run: |
-          cp -f svg_tables/*integer-benchmark*.svg "${PATH_TO_DOC_ASSETS}"
-          cp -f svg_tables/*pbs-benchmark-tuniform*.svg "${PATH_TO_DOC_ASSETS}"
+          cp -f svg_tables/*integer-benchmark*.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
+          cp -f svg_tables/*pbs-benchmark-tuniform*.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
+          cp -f svg_tables/cpu-gpu-hpu-integer-benchmark-fheuint64-tuniform-2m128-ciphertext.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
 
       - name: Get current date
         id: get-date

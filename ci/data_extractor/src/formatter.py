@@ -1,5 +1,4 @@
 import collections
-import copy
 import enum
 import pathlib
 import xml.dom.minidom
@@ -7,7 +6,7 @@ from collections.abc import Callable
 
 import svg
 from benchmark_specs import (
-    ALL_RUST_TYPES,
+    ALL_RUST_INTEGER_TYPES,
     Backend,
     BenchDetails,
     CoreCryptoOperation,
@@ -48,6 +47,10 @@ def compute_comparisons(*results):
     return gains
 
 
+OPERATION_SIZE_COLUMN_HEADER = "Operation \\ Size"
+OPERATION_PRECISION_COLUMN_HEADER = "Operation \\ Precision (bits)"
+
+
 class OperationDisplayName(enum.StrEnum):
     Negation = "Negation (-)"
     AddSub = "Add / Sub (+,-)"
@@ -67,13 +70,74 @@ class OperationDisplayName(enum.StrEnum):
 
 
 class BenchArray:
-    def __init__(self, array, layer, metadata: dict = None):
+    """
+    Represents a structured collection of benchmark data encapsulated with metadata.
+
+    :ivar array: The primary dataset stored as a list of dictionaries.
+    :type array: list[dict]
+    :ivar layer: The associated layer information for this dataset.
+    :type layer: Layer
+    :ivar metadata: Additional metadata associated with the dataset.
+    :type metadata: dict, optional
+    """
+
+    def __init__(self, array: list[dict], layer: Layer, metadata: dict = None):
         self.array = array
         self.layer = layer
         self.metadata = metadata
 
     def __repr__(self):
         return f"BenchArray(layer={self.layer}, metadata={self.metadata})"
+
+    def replace_column_name(self, current: str, new: str):
+        """
+        Replaces the name of a column for the whole array.
+        If the ``current`` column name does not exist, the array is left unchanged.
+
+        :param current: The column name to be replaced.
+        :type current: str
+        :param new: The new column name to replace the current one.
+        :type new: str
+        :return: None
+        """
+        for line in self.array:
+            try:
+                line[new] = line.pop(current)
+            except KeyError:
+                # Column name doesn't exist on this line, ignoring
+                continue
+
+    def extend(self, *others, ops_column_name: str = None):
+        """
+        Extends the current array with values from other benchmark arrays by combining
+        and updating the entries based on a specified column name. This method merges
+        items from the current array and other provided arrays by using the values
+        from the specified column as keys.
+
+        :param others: Additional benchmark arrays to merge into the current array.
+            Each `other` must have a similar structure as the current array.
+        :type others: iterable[BenchArray]
+        :param ops_column_name: The name of the column whose values will be used as
+            keys for merging arrays. This parameter is optional, but required for
+            the merge operation to function correctly.
+        :type ops_column_name: str
+        :return: None
+        """
+        array_as_dict = {}
+        for item in self.array:
+            op_name = item.pop(ops_column_name)
+            array_as_dict[op_name] = item
+
+        for other_bench_array in others:
+            for item in other_bench_array.array:
+                op_name = item.pop(ops_column_name)
+                array_as_dict[op_name].update(item)
+
+        array_as_list = []
+        for op_name, values in array_as_dict.items():
+            array_as_list.append({ops_column_name: op_name, **values})
+
+        self.array = array_as_list
 
 
 class GenericFormatter:
@@ -142,6 +206,8 @@ class GenericFormatter:
                 return self._format_integer_data(data, conversion_func)
             case Layer.CoreCrypto:
                 return self._format_core_crypto_data(data, conversion_func)
+            case Layer.HLApi:
+                return self._format_hlapi_data(data, conversion_func)
             case _:
                 raise NotImplementedError(f"layer '{self.layer}' not supported yet")
 
@@ -199,10 +265,35 @@ class GenericFormatter:
 
         return formatted
 
+    @staticmethod
+    def _format_hlapi_data(data: dict[BenchDetails : list[int]], conversion_func):
+        formatted = collections.defaultdict(
+            lambda: {
+                2: "N/A",
+                4: "N/A",
+                8: "N/A",
+                10: "N/A",
+                12: "N/A",
+                14: "N/A",
+                16: "N/A",
+                32: "N/A",
+                64: "N/A",
+                128: "N/A",
+            }
+        )
+        for details, timings in data.items():
+            test_name = details.operation_name.lstrip("ops::")
+            bit_width = details.bit_size
+            value = conversion_func(timings[-1])
+            formatted[test_name][bit_width] = value
+
+        return formatted
+
     def generate_array(
         self,
         data,
         operand_type: OperandType = None,
+        included_types: list[RustType] = ALL_RUST_INTEGER_TYPES,
         excluded_types: list[RustType] = None,
     ) -> list[BenchArray]:
         """
@@ -218,7 +309,11 @@ class GenericFormatter:
         :param operand_type: Specifies the type of operand to guide the array generation.
             Defaults to `None`.
         :type operand_type: OperandType, optional
+        :param included_types: A list of `RustType` to include in array generation.
+            Defaults to `benchmark_specs.ALL_RUST_INTEGER_TYPES`.
+        :type included_types: list[RustType], optional
         :param excluded_types: A list of `RustType` to exclude from array generation.
+            Note that any type available in excluded_types takes precedence over the same type in included_types.
             Defaults to `None`.
         :type excluded_types: list[RustType], optional
 
@@ -230,7 +325,7 @@ class GenericFormatter:
         match self.layer:
             case Layer.Integer:
                 return self._generate_unsigned_integer_array(
-                    data, operand_type, excluded_types
+                    data, operand_type, included_types, excluded_types
                 )
             case Layer.CoreCrypto:
                 return self._generate_core_crypto_showcase_arrays(data)
@@ -241,6 +336,7 @@ class GenericFormatter:
         self,
         data,
         operand_type: OperandType = None,
+        included_types: list[RustType] = ALL_RUST_INTEGER_TYPES,
         excluded_types: list[RustType] = None,
     ):
         match operand_type:
@@ -284,7 +380,7 @@ class GenericFormatter:
                 ]
             case Backend.HPU:
                 operations = [
-                    f"{prefix}_neg",
+                    f"{prefix}_sub",  # Negation operation doesn't exist in HPU yet
                     (
                         f"{prefix}_add"
                         if operand_type == OperandType.CipherText
@@ -339,12 +435,12 @@ class GenericFormatter:
             OperationDisplayName.Select,
         ]
 
-        types = ALL_RUST_TYPES.copy()
+        types = included_types.copy()
         excluded_types = excluded_types if excluded_types is not None else []
         for excluded in excluded_types:
             types.remove(excluded)
 
-        first_column_header = "Operation \\ Size"
+        first_column_header = OPERATION_SIZE_COLUMN_HEADER
 
         # Adapt list to plaintext benchmarks results.
         if operand_type == OperandType.PlainText and self.backend != Backend.HPU:
@@ -373,14 +469,17 @@ class GenericFormatter:
             operations.pop(0)
             display_names.pop(0)
 
-        data_without_excluded_types = copy.deepcopy(data)
-        for v in data_without_excluded_types.values():
-            for excluded in excluded_types:
-                try:
-                    v.pop(excluded.value)
-                except KeyError:
-                    # Type is not contained in the results, ignoring
-                    continue
+        data_without_excluded_types = {}
+        for op, values in data.items():
+            try:
+                data_without_excluded_types[op] = {
+                    typ: val
+                    for typ, val in values.items()
+                    if RustType.from_int(typ) in types
+                }
+            except NotImplementedError:
+                # Unknown type from database, ignoring
+                continue
 
         filtered_data = filter(lambda t: t in operations, data_without_excluded_types)
         # Get operation names as key of the dict to ease fetching
@@ -493,7 +592,7 @@ class GenericFormatter:
                     # Operation is not supposed to appear in the formatted array.
                     continue
 
-        first_column_header = "Operation \\ Precision (bits)"
+        first_column_header = OPERATION_PRECISION_COLUMN_HEADER
 
         arrays = []
         for key, results in sorted_results.items():
@@ -705,27 +804,38 @@ class SVGFormatter(GenericFormatter):
 
             match layer:
                 case Layer.Integer:
-                    type_name_width = type_ident.strip("FheUint")
-                    header_elements.extend(
-                        [
-                            # Rust type class
+                    if type_ident.startswith("FheUint"):
+                        type_name_width = type_ident.strip("FheUint")
+                        header_elements.extend(
+                            [
+                                # Rust type class
+                                self._build_svg_text(
+                                    curr_x + per_timing_col_width / 2,
+                                    row_height / 3,
+                                    "FheUint",
+                                    fill=WHITE_COLOR,
+                                    font_weight="bold",
+                                ),
+                                # Actual size of the Rust type
+                                self._build_svg_text(
+                                    curr_x + per_timing_col_width / 2,
+                                    2 * row_height / 3 + 3,
+                                    type_name_width,
+                                    fill=WHITE_COLOR,
+                                    font_weight="bold",
+                                ),
+                            ]
+                        )
+                    else:  # Backends comparison (CPU, GPU, HPU)
+                        header_elements.append(
                             self._build_svg_text(
                                 curr_x + per_timing_col_width / 2,
-                                row_height / 3,
-                                "FheUint",
+                                row_height / 2,
+                                type_ident,
                                 fill=WHITE_COLOR,
                                 font_weight="bold",
-                            ),
-                            # Actual size of the Rust type
-                            self._build_svg_text(
-                                curr_x + per_timing_col_width / 2,
-                                2 * row_height / 3 + 3,
-                                type_name_width,
-                                fill=WHITE_COLOR,
-                                font_weight="bold",
-                            ),
-                        ]
-                    )
+                            )
+                        )
                 case Layer.CoreCrypto:
                     header_elements.append(
                         # Core_crypto arrays contains only ciphertext modulus size as headers

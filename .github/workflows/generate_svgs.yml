@@ -137,6 +137,19 @@ jobs:
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
+  backend-comparison-latency-table:
+    name: generate_documentation_svgs/backend-comparison-latency-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs && inputs.generate-gpu-svgs && inputs.generate-hpu-svgs
+    with:
+      backend_comparison: true
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: cpu-gpu-hpu-integer-benchmark-fheuint64-tuniform-2m128-ciphertext
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
   # -----------------------------------------------------------
   # PBS benchmarks tables
   # -----------------------------------------------------------
