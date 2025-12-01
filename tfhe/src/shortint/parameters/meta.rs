@@ -11,9 +11,12 @@ use crate::shortint::backward_compatibility::parameters::{
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters,
+    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::AtomicPatternParameters;
+use crate::shortint::{
+    AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
+    MultiBitPBSParameters, PBSParameters,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DedicatedCompactPublicKeyParametersVersions)]
