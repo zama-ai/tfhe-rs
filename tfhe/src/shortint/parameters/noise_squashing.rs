@@ -1,5 +1,6 @@
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::shortint::backward_compatibility::parameters::noise_squashing::*;
+use crate::shortint::backward_compatibility::parameters::MetaNoiseSquashingParametersVersions;
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweCiphertextCount, MessageModulus, ModulusSwitchType,
@@ -143,7 +144,8 @@ pub struct NoiseSquashingCompressionParameters {
     pub ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(MetaNoiseSquashingParametersVersions)]
 pub struct MetaNoiseSquashingParameters {
     /// Parameters to do the actual noise squashing
     pub parameters: NoiseSquashingParameters,
