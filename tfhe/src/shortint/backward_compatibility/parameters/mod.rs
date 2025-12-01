@@ -8,9 +8,10 @@ use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize,
 };
+use crate::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
 use crate::shortint::parameters::{
-    CiphertextModulus32, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
-    ShortintParameterSetInner, SupportedCompactPkeZkScheme,
+    Backend, CiphertextModulus32, MetaNoiseSquashingParameters, ModulusSwitchNoiseReductionParams,
+    ModulusSwitchType, ShortintParameterSetInner, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
@@ -25,6 +26,11 @@ pub enum MessageModulusVersions {
 #[derive(VersionsDispatch)]
 pub enum CarryModulusVersions {
     V0(CarryModulus),
+}
+
+#[derive(VersionsDispatch)]
+pub enum BackendVersions {
+    V0(Backend),
 }
 
 #[derive(Version)]
@@ -260,4 +266,19 @@ pub enum KeySwitch32PBSParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum ModulusSwitchTypeVersions {
     V0(ModulusSwitchType),
+}
+
+#[derive(VersionsDispatch)]
+pub enum MetaNoiseSquashingParametersVersions {
+    V0(MetaNoiseSquashingParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum DedicatedCompactPublicKeyParametersVersions {
+    V0(DedicatedCompactPublicKeyParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum MetaParametersVersions {
+    V0(MetaParameters),
 }

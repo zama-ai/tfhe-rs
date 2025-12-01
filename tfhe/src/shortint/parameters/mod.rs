@@ -90,7 +90,8 @@ pub use parameters_wopbs::*;
 pub use test_params::TestParameters;
 
 /// Backend supported by tfhe-rs
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Deserialize, Serialize, Versionize)]
+#[versionize(BackendVersions)]
 pub enum Backend {
     Cpu,
     CudaGpu,
