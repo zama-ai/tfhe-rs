@@ -19,10 +19,14 @@
 
 /tfhe/src/high_level_api/               @tmontaigu
 
+/tfhe-benchmark/                        @soonum
+
 /Makefile                               @IceTDrinker @soonum
 
 /mockups/tfhe-hpu-mockup                @zama-ai/hardware
 
 /.github/                               @soonum
+/ci/                                    @soonum
+/scripts/                               @soonum
 
 /CODEOWNERS                             @IceTDrinker
