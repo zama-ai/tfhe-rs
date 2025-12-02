@@ -196,13 +196,14 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                let internal_output = input.duplicate(&side_resources.streams);
+                let mut internal_output = input.duplicate(&side_resources.streams);
                 cuda_modulus_switch_ciphertext(
-                    &mut output_cuda_lwe.0.d_vec,
+                    &mut internal_output.0.d_vec,
                     output_modulus_log.0 as u32,
                     &side_resources.streams,
                 );
                 let mut cpu_lwe = internal_output.to_lwe_ciphertext_list(&side_resources.streams);
+
                 let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
                 for val in cpu_lwe.as_mut_view().into_container().iter_mut() {
                     *val <<= shift_to_map_to_native;
@@ -556,7 +557,7 @@ impl LweClassicFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
                 // Create indexes for PBS
                 let num_ct_blocks = 1;
                 let lwe_indexes: Vec<u64> = (0..num_ct_blocks)
-                    .map(<usize as CastInto<u64>>::cast_into)
+                    .map(|x| <usize as CastInto<u64>>::cast_into(x))
                     .collect();
                 let mut d_lut_vector_indexes =
                     unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
@@ -617,5 +618,51 @@ impl AllocateLweBootstrapResult for CudaGlweCiphertextList<u128> {
             &side_resources.streams,
         );
         CudaDynLwe::U128(cuda_lwe)
+    }
+}
+
+// Implement LweClassicFft128Bootstrap for CudaNoiseSquashingKey using 128-bit PBS CUDA function
+impl
+    crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweClassicFft128Bootstrap<
+        CudaDynLwe,
+        CudaDynLwe,
+        CudaGlweCiphertextList<u128>,
+    > for crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_classic_fft_128_pbs(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u128>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext_async;
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
+                // Get the bootstrap key from self - it's already u128 type
+                let bsk = match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => d_bsk,
+                    CudaBootstrappingKey::MultiBit(_) => {
+                        panic!("MultiBit bootstrapping keys are not supported for 128-bit PBS");
+                    }
+                };
+
+                unsafe {
+                    cuda_programmable_bootstrap_128_lwe_ciphertext_async(
+                        input_cuda_lwe,
+                        output_cuda_lwe,
+                        accumulator,
+                        bsk,
+                        &side_resources.streams,
+                    );
+                    side_resources.streams.synchronize();
+                }
+            }
+            _ => panic!("128-bit PBS expects U64 input and U128 output for CudaDynLwe"),
+        }
     }
 }

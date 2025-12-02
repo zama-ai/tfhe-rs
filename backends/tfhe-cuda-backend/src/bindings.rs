@@ -2307,6 +2307,22 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_integer_extract_glwe_128(
+        streams: CudaStreamsFFI,
+        glwe_array_out: *mut ffi::c_void,
+        glwe_list: *const CudaPackedGlweCiphertextListFFI,
+        glwe_index: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_extract_glwe_64(
+        streams: CudaStreamsFFI,
+        glwe_array_out: *mut ffi::c_void,
+        glwe_list: *const CudaPackedGlweCiphertextListFFI,
+        glwe_index: u32,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_rerand_64(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
