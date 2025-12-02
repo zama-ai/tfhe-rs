@@ -1,10 +1,15 @@
-#[cfg(feature = "gpu")]
-use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(not(feature = "gpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
+use benchmark::params_aliases::{
+    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
+#[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{
+    get_bench_type, get_param_type, write_to_json, BenchmarkType, OperatorType, ParamType,
+};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
@@ -1434,9 +1439,17 @@ fn main() {
 
 #[cfg(feature = "gpu")]
 fn main() {
-    let params = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let config = match get_param_type() {
+        ParamType::Classical => {
+            let params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            ConfigBuilder::with_custom_parameters(params).build()
+        }
+        _ => {
+            let params = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            ConfigBuilder::with_custom_parameters(params).build()
+        }
+    };
 
-    let config = ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
