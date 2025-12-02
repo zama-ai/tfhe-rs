@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
-    AllocateLweKeyswitchResult, AllocateStandardModSwitchResult,
+    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
     CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
     LweClassicFftBootstrap, LweKeyswitch, ScalarMul, StandardModSwitch,
 };
@@ -13,17 +13,21 @@ use crate::core_crypto::gpu::cuda_modulus_switch_ciphertext;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::list_compression::server_keys::{
+    CudaCompressionKey, CudaNoiseSquashingCompressionKey,
+};
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaRadixCiphertextInfo};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async, CudaStreams,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulusSwitchConfig;
-
+use crate::shortint::server_key::tests::noise_distribution::utils::traits::LwePackingKeyswitch;
 /// Side resources for CUDA operations in noise simulation
 #[derive(Clone)]
 pub struct CudaSideResources {
@@ -126,6 +130,19 @@ impl CudaDynLwe {
         }
     }
 
+    pub fn as_ct_128_cpu(&self, streams: &CudaStreams) -> LweCiphertext<Vec<u128>> {
+        match self {
+            Self::U32(_) => panic!("Tried getting a u32 CudaLweCiphertextList as u128."),
+            Self::U64(_) => panic!("Tried getting a u64 CudaLweCiphertextList as u128."),
+            Self::U128(_cuda_lwe) => {
+                let cpu_lwe_list = self.as_lwe_128().to_lwe_ciphertext_list(streams);
+                LweCiphertext::from_container(
+                    cpu_lwe_list.clone().into_container(),
+                    cpu_lwe_list.ciphertext_modulus(),
+                )
+            }
+        }
+    }
     pub fn from_lwe_32(cuda_lwe: CudaLweCiphertextList<u32>) -> Self {
         Self::U32(cuda_lwe)
     }
@@ -137,6 +154,19 @@ impl CudaDynLwe {
     pub fn from_lwe_128(cuda_lwe: CudaLweCiphertextList<u128>) -> Self {
         Self::U128(cuda_lwe)
     }
+}
+
+/// Converts a CudaGlweCiphertextList<u64> to a GlweCiphertext<Vec<u64>>
+pub fn cuda_glwe_list_to_glwe_ciphertext(
+    cuda_glwe_list: &CudaGlweCiphertextList<u64>,
+    streams: &CudaStreams,
+) -> GlweCiphertext<Vec<u64>> {
+    let cpu_glwe_list = cuda_glwe_list.to_glwe_ciphertext_list(streams);
+    GlweCiphertext::from_container(
+        cpu_glwe_list.clone().into_container(),
+        cpu_glwe_list.polynomial_size(),
+        cpu_glwe_list.ciphertext_modulus(),
+    )
 }
 
 impl ScalarMul<u64> for CudaDynLwe {
@@ -311,13 +341,14 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 panic!("U32 modulus switch not implemented for CudaDynLwe - only U64 is supported");
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                let internal_output = input.duplicate(&side_resources.streams);
+                let mut internal_output = input.duplicate(&side_resources.streams);
                 cuda_modulus_switch_ciphertext(
-                    &mut output_cuda_lwe.0.d_vec,
+                    &mut internal_output.0.d_vec,
                     output_modulus_log.0 as u32,
                     &side_resources.streams,
                 );
                 let mut cpu_lwe = internal_output.to_lwe_ciphertext_list(&side_resources.streams);
+
                 let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
                 for val in cpu_lwe.as_mut_view().into_container().iter_mut() {
                     *val <<= shift_to_map_to_native;
@@ -678,5 +709,220 @@ impl AllocateLweBootstrapResult for CudaGlweCiphertextList<u128> {
             &side_resources.streams,
         );
         CudaDynLwe::U128(cuda_lwe)
+    }
+}
+
+// Implement LweClassicFft128Bootstrap for CudaNoiseSquashingKey using 128-bit PBS CUDA function
+impl
+    crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweClassicFft128Bootstrap<
+        CudaDynLwe,
+        CudaDynLwe,
+        CudaGlweCiphertextList<u128>,
+    > for crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_classic_fft_128_pbs(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u128>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext_async;
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
+                // Get the bootstrap key from self - it's already u128 type
+                let bsk = match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => d_bsk,
+                    CudaBootstrappingKey::MultiBit(_) => {
+                        panic!("MultiBit bootstrapping keys are not supported for 128-bit PBS");
+                    }
+                };
+
+                unsafe {
+                    cuda_programmable_bootstrap_128_lwe_ciphertext_async(
+                        input_cuda_lwe,
+                        output_cuda_lwe,
+                        accumulator,
+                        bsk,
+                        &side_resources.streams,
+                    );
+                    side_resources.streams.synchronize();
+                }
+            }
+            _ => panic!("128-bit PBS expects U64 input and U128 output for CudaDynLwe"),
+        }
+    }
+}
+/// Wrapper struct for CudaCompressionKey to implement packing keyswitch traits
+pub struct CudaPackingKeyswitchKey64<'a> {
+    cuda_pksk: &'a CudaLwePackingKeyswitchKey<u64>,
+}
+
+impl<'a> CudaPackingKeyswitchKey64<'a> {
+    pub fn new(compression_key: &'a CudaCompressionKey) -> Self {
+        Self {
+            cuda_pksk: &compression_key.packing_key_switching_key,
+        }
+    }
+}
+
+impl AllocateLwePackingKeyswitchResult for CudaPackingKeyswitchKey64<'_> {
+    type Output = CudaGlweCiphertextList<u64>;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let glwe_dimension = self.cuda_pksk.output_glwe_size().to_glwe_dimension();
+        let polynomial_size = self.cuda_pksk.output_polynomial_size();
+        let ciphertext_modulus = self.cuda_pksk.ciphertext_modulus();
+
+        CudaGlweCiphertextList::new(
+            glwe_dimension,
+            polynomial_size,
+            GlweCiphertextCount(1),
+            ciphertext_modulus,
+            &side_resources.streams,
+        )
+    }
+}
+
+impl LwePackingKeyswitch<[&CudaDynLwe], CudaGlweCiphertextList<u64>>
+    for CudaPackingKeyswitchKey64<'_>
+{
+    type SideResources = CudaSideResources;
+
+    fn keyswitch_lwes_and_pack_in_glwe(
+        &self,
+        input: &[&CudaDynLwe],
+        output: &mut CudaGlweCiphertextList<u64>,
+        side_resources: &mut CudaSideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64;
+        let input_lwe_ciphertext_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+            input.iter().map(|ciphertext| ciphertext.as_lwe_64()),
+            &side_resources.streams,
+        );
+
+        cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+            self.cuda_pksk,
+            &input_lwe_ciphertext_list,
+            output,
+            &side_resources.streams,
+        );
+    }
+}
+
+// Implement StandardModSwitch traits for CudaGlweCiphertextList<u64>
+impl AllocateStandardModSwitchResult for CudaGlweCiphertextList<u64> {
+    type Output = Self;
+    type SideResources = CudaSideResources;
+
+    fn allocate_standard_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        Self::new(
+            self.glwe_dimension(),
+            self.polynomial_size(),
+            self.glwe_ciphertext_count(),
+            self.ciphertext_modulus(),
+            &side_resources.streams,
+        )
+    }
+}
+
+impl StandardModSwitch<Self> for CudaGlweCiphertextList<u64> {
+    type SideResources = CudaSideResources;
+
+    fn standard_mod_switch(
+        &self,
+        storage_log_modulus: CiphertextModulusLog,
+        output: &mut Self,
+        side_resources: &mut CudaSideResources,
+    ) {
+        let mut internal_output = self.duplicate(&side_resources.streams);
+
+        cuda_modulus_switch_ciphertext(
+            &mut internal_output.0.d_vec,
+            storage_log_modulus.0 as u32,
+            &side_resources.streams,
+        );
+        side_resources.streams.synchronize();
+        let mut cpu_glwe = internal_output.to_glwe_ciphertext_list(&side_resources.streams);
+
+        let shift_to_map_to_native = u64::BITS - storage_log_modulus.0 as u32;
+        for val in cpu_glwe.as_mut_view().into_container().iter_mut() {
+            *val <<= shift_to_map_to_native;
+        }
+        let d_after_ms = Self::from_glwe_ciphertext_list(&cpu_glwe, &side_resources.streams);
+
+        *output = d_after_ms;
+    }
+}
+
+/// GPU packing keyswitch key wrapper for noise distribution tests
+pub struct CudaPackingKeyswitchKey128<'a> {
+    cuda_pksk: &'a CudaLwePackingKeyswitchKey<u128>,
+}
+
+impl<'a> CudaPackingKeyswitchKey128<'a> {
+    pub fn new(compression_key: &'a CudaNoiseSquashingCompressionKey) -> Self {
+        Self {
+            cuda_pksk: &compression_key.packing_key_switching_key,
+        }
+    }
+}
+
+impl AllocateLwePackingKeyswitchResult for CudaPackingKeyswitchKey128<'_> {
+    type Output = CudaGlweCiphertextList<u128>;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let glwe_dimension = self.cuda_pksk.output_glwe_size().to_glwe_dimension();
+        let polynomial_size = self.cuda_pksk.output_polynomial_size();
+        let ciphertext_modulus = self.cuda_pksk.ciphertext_modulus();
+
+        CudaGlweCiphertextList::new(
+            glwe_dimension,
+            polynomial_size,
+            GlweCiphertextCount(1),
+            ciphertext_modulus,
+            &side_resources.streams,
+        )
+    }
+}
+
+impl LwePackingKeyswitch<[&CudaDynLwe], CudaGlweCiphertextList<u128>>
+    for CudaPackingKeyswitchKey128<'_>
+{
+    type SideResources = CudaSideResources;
+
+    fn keyswitch_lwes_and_pack_in_glwe(
+        &self,
+        input: &[&CudaDynLwe],
+        output: &mut CudaGlweCiphertextList<u128>,
+        side_resources: &mut CudaSideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_128;
+        let input_lwe_ciphertext_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+            input.iter().map(|ciphertext| ciphertext.as_lwe_128()),
+            &side_resources.streams,
+        );
+
+        cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_128(
+            self.cuda_pksk,
+            &input_lwe_ciphertext_list,
+            output,
+            &side_resources.streams,
+        );
     }
 }

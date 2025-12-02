@@ -839,7 +839,7 @@ pub fn cuda_modulus_switch_ciphertext<Scalar>(
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_modulus_switch_ciphertext_async(streams, output_lwe_ciphertext, log_modulus);
+        cuda_modulus_switch_ciphertext_async(streams, &mut *output_lwe_ciphertext, log_modulus);
     }
     streams.synchronize();
 }
