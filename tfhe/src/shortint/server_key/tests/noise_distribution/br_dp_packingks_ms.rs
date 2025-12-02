@@ -25,6 +25,8 @@ use crate::shortint::server_key::ServerKey;
 use crate::shortint::{PaddingBit, ShortintEncoding};
 use rayon::prelude::*;
 
+pub const SAMPLES_PER_MSG_PACKING_KS_NOISE: usize = 1000;
+
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn br_dp_packing_ks_ms<
