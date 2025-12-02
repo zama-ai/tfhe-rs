@@ -80,6 +80,12 @@ pub enum ComparisonType {
     MAX = 6,
     MIN = 7,
 }
+#[repr(u32)]
+pub enum ZKType {
+    NoCasting = 0,
+    Casting = 1,
+    SanityCheck = 2,
+}
 
 fn resolve_noise_reduction_type(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
@@ -7597,6 +7603,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, B: Numeric>(
     grouping_factor: LweBskGroupingFactor,
     num_lwes_per_compact_list: &[u32],
     is_boolean: &[bool],
+    zk_type: ZKType,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
@@ -7665,6 +7672,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, B: Numeric>(
         pbs_type as u32,
         casting_key_type as u32,
         true,
+        zk_type as u32,
         noise_reduction_type as u32,
     );
     cuda_expand_without_verification_64(
@@ -10218,12 +10226,13 @@ pub unsafe fn unchecked_small_scalar_mul_integer_async(
 
     cuda_small_scalar_multiplication_integer_64_inplace(
         streams.ffi(),
-        &raw mut cuda_ffi_lwe_array,
+        &mut cuda_ffi_lwe_array,
         small_scalar,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
     );
 }
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
