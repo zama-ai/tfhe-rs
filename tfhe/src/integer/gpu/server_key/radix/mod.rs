@@ -63,6 +63,8 @@ mod aes256;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]
+mod tests_noise_distribution;
+#[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;

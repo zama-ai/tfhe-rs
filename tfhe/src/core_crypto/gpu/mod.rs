@@ -5,6 +5,25 @@ pub mod vec;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+#[cfg(feature = "integer")]
+use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
+
+/// Side resources for CUDA operations in noise simulation
+#[cfg(feature = "integer")]
+#[derive(Clone)]
+pub struct CudaSideResources {
+    pub streams: CudaStreams,
+    pub block_info: CudaBlockInfo,
+}
+#[cfg(feature = "integer")]
+impl CudaSideResources {
+    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        Self {
+            streams: streams.clone(),
+            block_info,
+        }
+    }
+}
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
     GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize,
@@ -829,6 +848,19 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
         lwe_array_out.len() as u32,
         log_modulus,
     );
+}
+
+pub fn cuda_modulus_switch_ciphertext<Scalar>(
+    output_lwe_ciphertext: &mut CudaVec<Scalar>,
+    log_modulus: u32,
+    streams: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_modulus_switch_ciphertext_async(streams, output_lwe_ciphertext, log_modulus);
+    }
+    streams.synchronize();
 }
 
 /// Addition of a vector of LWE ciphertexts
