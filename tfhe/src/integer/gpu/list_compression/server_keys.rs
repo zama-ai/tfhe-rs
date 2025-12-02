@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
@@ -16,7 +17,8 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_compress, cuda_backend_decompress, cuda_backend_get_compression_size_on_gpu,
-    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu, PBSType,
+    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu, extract_glwe_async,
+    PBSType,
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
@@ -196,6 +198,30 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             data: self.data.duplicate(streams),
             meta: self.meta,
         }
+    }
+    pub fn extract_glwe(
+        &self,
+        glwe_index: usize,
+        streams: &CudaStreams,
+    ) -> CudaGlweCiphertextList<T> {
+        let meta = self
+            .meta
+            .as_ref()
+            .expect("CudaPackedGlweCiphertextList meta must be set to extract GLWE");
+
+        let mut output_cuda_glwe_list = CudaGlweCiphertextList::new(
+            meta.glwe_dimension,
+            meta.polynomial_size,
+            GlweCiphertextCount(1),
+            meta.ciphertext_modulus,
+            streams,
+        );
+
+        unsafe {
+            extract_glwe_async(streams, &mut output_cuda_glwe_list, self, glwe_index as u32);
+        }
+        streams.synchronize();
+        output_cuda_glwe_list
     }
 }
 
