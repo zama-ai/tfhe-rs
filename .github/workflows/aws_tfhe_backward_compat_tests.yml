@@ -94,8 +94,8 @@ jobs:
 
       # Pull token was stored by action/checkout to be used by lfs, we don't need it anymore
       - name: Remove git credentials
-        run: |
-          git config --local --unset-all http.https://github.com/.extraheader
+        run: | # Starting version 6.0, action/checkout uses a dedicated file for git credentials
+          git config --local --unset-all http.https://github.com/.extraheader || rm "${RUNNER_TEMP}"/git-credentials-*.config
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
