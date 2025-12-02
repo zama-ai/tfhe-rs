@@ -21,10 +21,9 @@ on:
       command:
         description: "Benchmark command to run"
         type: choice
-        default: integer_multi_bit
+        default: integer
         options:
           - integer
-          - integer_multi_bit
           - integer_compression
           - pbs
           - pbs128
