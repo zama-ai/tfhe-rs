@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::fs::{File, create_dir_all, read_dir, remove_dir_all, remove_file};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
@@ -38,7 +39,7 @@ const ENCODING: Encoding = Encoding {
     msg_bits: 4,
 };
 
-const SPEC_LUT: fn(u64) -> u64 = |x| (x * 2) & (1u64 << ENCODING.msg_bits);
+const SPEC_LUT: fn(u64) -> u64 = |x| (x * 2) % (ENCODING.msg_modulus() as u64);
 const ID_LUT: fn(u64) -> u64 = |x| x;
 
 const DATA_DIR: &str = "./data";
@@ -112,6 +113,10 @@ fn store_data<Data: Serialize, P: AsRef<Path>>(path: P, data: &Data, name: &str)
     ciborium::ser::into_writer(data, &mut file).unwrap();
 }
 
+fn assert_data_not_zero<Scalar: UnsignedInteger, Data: AsRef<[Scalar]>>(data: &Data) {
+    assert!(data.as_ref().iter().any(|&x| x != Scalar::ZERO));
+}
+
 #[allow(clippy::too_many_arguments)]
 fn generate_test_vectors<P: AsRef<Path>>(
     path: P,
@@ -139,10 +144,12 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let glwe_secret_key: GlweSecretKey<Vec<u64>> =
         GlweSecretKey::generate_new_binary(glwe_dimension, polynomial_size, &mut secret_generator);
     let large_lwe_secret_key = glwe_secret_key.as_lwe_secret_key();
+    assert_data_not_zero(&large_lwe_secret_key);
     store_data(path, &large_lwe_secret_key, "large_lwe_secret_key");
 
     let small_lwe_secret_key: LweSecretKey<Vec<u64>> =
         LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);
+    assert_data_not_zero(&small_lwe_secret_key);
     store_data(path, &small_lwe_secret_key, "small_lwe_secret_key");
 
     let lwe_noise_distribution = Gaussian::from_standard_dev(StandardDev(lwe_noise_stddev), 0.);
@@ -156,6 +163,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
         encoding.ciphertext_modulus,
         &mut encryption_generator,
     );
+    assert_data_not_zero(&lwe_a);
     store_data(path, &lwe_a, "lwe_a");
 
     let plaintext_b = encoding.encode(MSG_B);
@@ -166,6 +174,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
         encoding.ciphertext_modulus,
         &mut encryption_generator,
     );
+    assert_data_not_zero(&lwe_b);
     store_data(path, &lwe_b, "lwe_b");
 
     let mut lwe_sum = LweCiphertext::new(
@@ -180,6 +189,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let res = encoding.decode(decrypted_sum);
 
     assert_eq!(res, MSG_A + MSG_B);
+    assert_data_not_zero(&lwe_sum);
     store_data(path, &lwe_sum, "lwe_sum");
 
     let mut lwe_prod = LweCiphertext::new(
@@ -194,6 +204,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let res = encoding.decode(decrypted_prod);
 
     assert_eq!(res, MSG_A * MSG_B);
+    assert_data_not_zero(&lwe_prod);
     store_data(path, &lwe_prod, "lwe_prod");
 
     let ksk = allocate_and_generate_new_lwe_keyswitch_key(
@@ -205,6 +216,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
         encoding.ciphertext_modulus,
         &mut encryption_generator,
     );
+    assert_data_not_zero(&ksk);
     store_data(path, &ksk, "ksk");
 
     let mut lwe_ks = LweCiphertext::new(
@@ -218,6 +230,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let res = encoding.decode(decrypted_ks);
 
     assert_eq!(res, MSG_A);
+    assert_data_not_zero(&lwe_ks);
     store_data(path, &lwe_ks, "lwe_ks");
 
     let bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
@@ -229,6 +242,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
         encoding.ciphertext_modulus,
         &mut encryption_generator,
     );
+    assert_data_not_zero(bsk.deref());
     store_data(path, &bsk, "bsk");
 
     let mut fourier_bsk = FourierLweBootstrapKey::new(
@@ -246,11 +260,14 @@ fn generate_test_vectors<P: AsRef<Path>>(
 
     let modswitched = lwe_ciphertext_modulus_switch(lwe_in_ms, log_modulus);
     let lwe_ms = modswitched_to_lwe(&modswitched);
+    assert_data_not_zero(&lwe_ms);
     store_data(path, &lwe_ms, "lwe_ms");
 
     let mut id_lut = encoding.encode_lut(glwe_dimension, polynomial_size, ID_LUT);
+    assert_data_not_zero(&id_lut);
 
     blind_rotate_assign(&modswitched, &mut id_lut, &fourier_bsk);
+    assert_data_not_zero(&id_lut);
     store_data(path, &id_lut, "glwe_after_id_br");
 
     let mut lwe_pbs_id = LweCiphertext::new(
@@ -267,11 +284,14 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let res = encoding.decode(decrypted_pbs_id);
 
     assert_eq!(res, MSG_A);
+    assert_data_not_zero(&lwe_pbs_id);
     store_data(path, &lwe_pbs_id, "lwe_after_id_pbs");
 
     let mut spec_lut = encoding.encode_lut(glwe_dimension, polynomial_size, SPEC_LUT);
+    assert_data_not_zero(&spec_lut);
 
     blind_rotate_assign(&modswitched, &mut spec_lut, &fourier_bsk);
+    assert_data_not_zero(&spec_lut);
     store_data(path, &spec_lut, "glwe_after_spec_br");
 
     let mut lwe_pbs_spec = LweCiphertext::new(
@@ -288,6 +308,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
     let res = encoding.decode(decrypted_pbs_spec);
 
     assert_eq!(res, SPEC_LUT(MSG_A));
+    assert_data_not_zero(&lwe_pbs_spec);
     store_data(path, &lwe_pbs_spec, "lwe_after_spec_pbs");
 }
 
