@@ -1616,7 +1616,14 @@ bench_hlapi_erc20: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ERC20 operations on GPU
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+    cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_hlapi_erc20_gpu_classical # Run benchmarks for ERC20 operations on GPU with classical parameters
+bench_hlapi_erc20_gpu_classical: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=classical \
     cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -1630,7 +1637,14 @@ bench_hlapi_dex: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_dex_gpu # Run benchmarks for DEX operations on GPU
 bench_hlapi_dex_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-dex \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_hlapi_dex_gpu_classical # Run benchmarks for DEX operations on GPU with classical parameters
+bench_hlapi_dex_gpu_classical: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
