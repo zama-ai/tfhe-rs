@@ -228,6 +228,10 @@ fn test_single_level_decompose_balanced() {
 #[test]
 fn test_decomposition_edge_case_sign_handling() {
     let decomposer = SignedDecomposer::new(DecompositionBaseLog(17), DecompositionLevelCount(3));
+    // This value triggers a negative state at the start of the decomposition, invalid code using
+    // logic shift will wrongly compute an intermediate value by not keeping the sign of the
+    // state on the last level if base_log * (level_count + 1) > Scalar::BITS, the logic shift will
+    // shift in 0s instead of the 1s to keep the sign information
     let val: u64 = 0x8000_00e3_55b0_c827;
 
     let rounded = decomposer.closest_representable(val);
