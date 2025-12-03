@@ -1101,8 +1101,9 @@ template <typename Torus> struct int_fullprop_buffer {
     cuda_memcpy_with_size_tracking_async_to_gpu(
         lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
-    auto active_streams = streams.active_gpu_subset(2);
-    lut->broadcast_lut(active_streams);
+    //
+    // No broadcast is needed because full prop is done on 1 single GPU.
+    //
 
     tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
