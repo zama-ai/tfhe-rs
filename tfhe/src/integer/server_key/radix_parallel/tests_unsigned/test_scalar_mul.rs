@@ -17,7 +17,8 @@ create_parameterized_test!(
         },
         no_coverage => {
             TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         }
     }
 );
@@ -28,7 +29,8 @@ create_parameterized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         }
     }
 );

@@ -20,7 +20,8 @@ create_parameterized_test!(integer_default_leading_ones);
 create_parameterized_test!(integer_default_ilog2);
 create_parameterized_test!(integer_default_checked_ilog2 {
     // This uses comparisons, so require more than 1 bit
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     // 2M128 is too slow for 4_4, it is estimated to be 2x slower
     TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,

@@ -121,7 +121,11 @@ def filter_integer_tests(input_args):
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
     backend_filter = ""
-    if not input_args.long_tests:
+    if input_args.run_prod_only:
+        filter_expression = [
+            "test(/^integer::.*_param_prod/)",
+        ]
+    elif not input_args.long_tests:
         if input_args.backend == "gpu":
             backend_filter = "gpu::"
             if multi_bit_filter:
@@ -164,22 +168,28 @@ def filter_integer_tests(input_args):
                 f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
             )
         excluded_tests = (
-            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
+            EXCLUDED_INTEGER_FAST_TESTS
+            if input_args.fast_tests
+            else EXCLUDED_INTEGER_TESTS
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
     else:
         if input_args.backend == "gpu":
-            filter_expression = ["test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
+            filter_expression = [
+                "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
+            ]
         elif input_args.backend == "cpu":
-            filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
-
+            filter_expression = [
+                "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
+            ]
 
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
-    filter =  filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")
-
+    filter_expression.append(
+        f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)"
+    )
     return " and ".join(filter_expression)
 
 

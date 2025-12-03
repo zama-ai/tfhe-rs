@@ -439,10 +439,7 @@ mod tests {
     use crate::integer::{
         gen_keys, ClientKey, IntegerKeyKind, RadixCiphertext, SignedRadixCiphertext,
     };
-    use crate::shortint::parameters::test_params::{
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use crate::shortint::ShortintParameterSet;
 
     fn assert_store_unsigned_matches(
@@ -471,12 +468,13 @@ mod tests {
 
     #[test]
     fn test_compression_serialization_unsigned() {
-        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let meta_params = TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let params = meta_params.compute_parameters.into();
 
         let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
-        let private_compression_key = cks
-            .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let private_compression_key =
+            cks.new_compression_private_key(meta_params.compression_parameters.unwrap());
 
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
@@ -538,12 +536,13 @@ mod tests {
 
     #[test]
     fn test_compression_serialization_signed() {
-        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let meta_params = TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let params = meta_params.compute_parameters.into();
 
         let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
-        let private_compression_key = cks
-            .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let private_compression_key =
+            cks.new_compression_private_key(meta_params.compression_parameters.unwrap());
 
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
