@@ -235,6 +235,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
     );
 }
 
+/// See [`collect_next_term_split_scalar`]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "avx512")]
 pub(crate) fn collect_next_term_split_avx512(
@@ -370,6 +371,7 @@ pub(crate) fn collect_next_term_split_avx512(
     });
 }
 
+/// See [`collect_next_term_split_scalar`]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub(crate) fn collect_next_term_split_avx2(
     simd: pulp::x86::V3,
@@ -511,6 +513,7 @@ pub(crate) fn collect_next_term_split_avx2(
     });
 }
 
+/// See [`crate::core_crypto::commons::math::decomposition::decompose_one_level`]
 pub(crate) fn collect_next_term_split_scalar(
     glwe_decomp_term_lo: &mut [u64],
     glwe_decomp_term_hi: &mut [u64],
