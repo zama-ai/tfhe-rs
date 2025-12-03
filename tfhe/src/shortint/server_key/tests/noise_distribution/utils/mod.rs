@@ -1,9 +1,12 @@
 pub mod noise_simulation;
-pub use noise_simulation::traits;
+pub mod traits;
 
 use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_encryption::{
     allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
+};
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::{
+    MultiBitModulusSwitchedLweCiphertext, StandardMultiBitModulusSwitchedCt,
 };
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
 use crate::core_crypto::algorithms::test::round_decode;
@@ -14,7 +17,7 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
     minimal_lwe_variance_for_132_bits_security_tuniform,
 };
-use crate::core_crypto::commons::numeric::{CastFrom, UnsignedInteger};
+use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DynamicDistribution, LweCiphertextCount, LweDimension, PlaintextCount,
 };
@@ -29,13 +32,13 @@ use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
-use crate::core_crypto::entities::{Cleartext, PlaintextList};
+use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    DynLwe, DynLweSecretKeyView, DynModSwitchedLwe,
+    DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -402,6 +405,40 @@ pub enum DecryptionAndNoiseResult {
 }
 
 impl DecryptionAndNoiseResult {
+    pub fn new_from_plaintext<Scalar: UnsignedInteger + CastFrom<u64>>(
+        decrypted_plaintext: Plaintext<Scalar>,
+        expected_msg: Scalar,
+        encoding: &ShortintEncoding<Scalar>,
+    ) -> Self {
+        let delta = encoding.delta();
+        let cleartext_modulus_with_padding = encoding.full_cleartext_space();
+
+        // We apply the modulus on the cleartext + the padding bit
+        let decoded_msg =
+            round_decode(decrypted_plaintext.0, delta) % cleartext_modulus_with_padding;
+
+        let expected_plaintext = expected_msg * delta;
+
+        // decrypted_plaintext = expected_plaintext + error
+        // The order below computes:
+        // decrypted_plaintext - expected_plaintext in a modular way, which is what we want
+        // It only changes the average value sign, so that it is more intuitive when comparing to
+        // theory
+        let noise = torus_modular_diff(
+            decrypted_plaintext.0,
+            expected_plaintext,
+            encoding.ciphertext_modulus,
+        );
+
+        if decoded_msg == expected_msg {
+            Self::DecryptionSucceeded {
+                noise: NoiseSample { value: noise },
+            }
+        } else {
+            Self::DecryptionFailed
+        }
+    }
+
     pub fn new_from_lwe<Scalar: UnsignedInteger + CastFrom<u64>, CtCont, KeyCont>(
         ct: &LweCiphertext<CtCont>,
         secret_key: &LweSecretKey<KeyCont>,
@@ -412,34 +449,9 @@ impl DecryptionAndNoiseResult {
         CtCont: Container<Element = Scalar>,
         KeyCont: Container<Element = Scalar>,
     {
-        let decrypted_plaintext = decrypt_lwe_ciphertext(secret_key, ct).0;
+        let decrypted_plaintext = decrypt_lwe_ciphertext(secret_key, ct);
 
-        let delta = encoding.delta();
-        let cleartext_modulus_with_padding = encoding.full_cleartext_space();
-
-        // We apply the modulus on the cleartext + the padding bit
-        let decoded_msg = round_decode(decrypted_plaintext, delta) % cleartext_modulus_with_padding;
-
-        let expected_plaintext = expected_msg * delta;
-
-        // decrypted_plaintext = expected_plaintext + error
-        // The order below computes:
-        // decrypted_plaintext - expected_plaintext in a modular way, which is what we want
-        // It only changes the average value sign, so that it is more intuitive when comparing to
-        // theory
-        let noise = torus_modular_diff(
-            decrypted_plaintext,
-            expected_plaintext,
-            ct.ciphertext_modulus(),
-        );
-
-        if decoded_msg == expected_msg {
-            Self::DecryptionSucceeded {
-                noise: NoiseSample { value: noise },
-            }
-        } else {
-            Self::DecryptionFailed
-        }
+        Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
     }
 
     pub fn new_from_dyn_lwe(
@@ -463,6 +475,43 @@ impl DecryptionAndNoiseResult {
         }
     }
 
+    pub fn new_from_dyn_multi_bit_mod_switched_lwe(
+        ct: &DynStandardMultiBitModulusSwitchedCt,
+        secret_key: &DynLweSecretKeyView<'_>,
+        expected_msg: u64,
+    ) -> Self {
+        match (ct, secret_key) {
+            (
+                DynStandardMultiBitModulusSwitchedCt::U32(standard_multi_bit_modulus_switched_ct),
+                DynLweSecretKeyView::U32 { key, encoding },
+            ) => {
+                let decrypted_plaintext = decrypt_multi_bit_mod_switched_lwe_ciphertext(
+                    key,
+                    standard_multi_bit_modulus_switched_ct,
+                );
+                Self::new_from_plaintext(
+                    decrypted_plaintext,
+                    expected_msg.try_into().unwrap(),
+                    encoding,
+                )
+            }
+            (
+                DynStandardMultiBitModulusSwitchedCt::U64(standard_multi_bit_modulus_switched_ct),
+                DynLweSecretKeyView::U64 { key, encoding },
+            ) => {
+                let decrypted_plaintext = decrypt_multi_bit_mod_switched_lwe_ciphertext(
+                    key,
+                    standard_multi_bit_modulus_switched_ct,
+                );
+                Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
+            }
+            _ => panic!(
+                "Incompatible types in \
+                DecryptionAndNoiseResult::new_from_dyn_multi_bit_mod_switched_lwe"
+            ),
+        }
+    }
+
     pub fn new_from_dyn_modswitched_lwe(
         ct: &DynModSwitchedLwe,
         secret_key: &DynLweSecretKeyView<'_>,
@@ -473,8 +522,12 @@ impl DecryptionAndNoiseResult {
                 Self::new_from_dyn_lwe(dyn_lwe, secret_key, expected_msg)
             }
             DynModSwitchedLwe::MultiBitModSwitchedLwe(
-                _dyn_standard_multi_bit_modulus_switched_ct,
-            ) => todo!(),
+                dyn_standard_multi_bit_modulus_switched_ct,
+            ) => Self::new_from_dyn_multi_bit_mod_switched_lwe(
+                dyn_standard_multi_bit_modulus_switched_ct,
+                secret_key,
+                expected_msg,
+            ),
         }
     }
 
@@ -636,6 +689,64 @@ pub fn expected_pfail_for_precision(
     let measured_std_score = correctness_threshold / measured_std_dev;
 
     statrs::function::erf::erfc(measured_std_score / core::f64::consts::SQRT_2)
+}
+
+pub fn decrypt_multi_bit_mod_switched_lwe_ciphertext<Scalar, CtCont, KeyCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    mod_switched_lwe: &StandardMultiBitModulusSwitchedCt<Scalar, CtCont>,
+) -> Plaintext<Scalar>
+where
+    Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>,
+    CtCont: Container<Element = Scalar> + Sync,
+    KeyCont: Container<Element = Scalar>,
+{
+    let mut result: Scalar = mod_switched_lwe
+        .switched_modulus_input_lwe_body()
+        .cast_into();
+
+    let log_modulus = mod_switched_lwe.log_modulus;
+    let grouping_factor = mod_switched_lwe.grouping_factor();
+
+    let shift_to_native = Scalar::BITS - log_modulus.0;
+
+    result <<= shift_to_native;
+
+    for (loop_idx, lwe_key_bits) in lwe_secret_key
+        .as_ref()
+        .chunks_exact(grouping_factor.0)
+        .enumerate()
+    {
+        let selector = {
+            let mut selector = 0usize;
+            for bit in lwe_key_bits.iter() {
+                let bit: usize = (*bit).cast_into();
+                selector <<= 1;
+                selector |= bit;
+            }
+            if selector == 0 {
+                // We dont generate a mod switched value for selector == 0 it corresponds to key
+                // bits == 0
+                None
+            } else {
+                // We subtract 1 to be coherent with the fact the first mod switched value is not
+                // generated
+                Some(selector - 1)
+            }
+        };
+
+        if let Some(selector) = selector {
+            let mod_switched: Scalar = mod_switched_lwe
+                .switched_modulus_input_mask_per_group(loop_idx)
+                .nth(selector)
+                .unwrap()
+                .cast_into();
+            // Put in the high bits same as the body to be able to measure the noise in the
+            // encompassing modulus
+            let mod_switched = mod_switched << shift_to_native;
+            result = result.wrapping_sub(mod_switched);
+        }
+    }
+    Plaintext(result)
 }
 
 #[test]
