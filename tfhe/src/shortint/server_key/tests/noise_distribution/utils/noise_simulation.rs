@@ -9,15 +9,16 @@ use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::gen
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
-    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
-    CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
-    LweClassicFft128Bootstrap, LweClassicFftBootstrap, LweKeyswitch, LwePackingKeyswitch,
-    LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, StandardModSwitch,
+    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateMultiBitModSwitchResult,
+    AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
+    DriftTechniqueStandardModSwitch, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
+    LweKeyswitch, LwePackingKeyswitch, LweUncorrelatedAdd, LweUncorrelatedSub, MultiBitModSwitch,
+    ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweDimension, LweSize,
-    PlaintextCount, PolynomialSize,
+    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweBskGroupingFactor,
+    LweDimension, LweSize, PlaintextCount, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
@@ -388,6 +389,76 @@ impl CenteredBinaryShiftedStandardModSwitch<DynModSwitchedLwe> for DynLwe {
     }
 }
 
+impl AllocateMultiBitModSwitchResult for DynLwe {
+    type Output = DynModSwitchedLwe;
+    type SideResources = ();
+
+    fn allocate_multi_bit_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        DynModSwitchedLwe::MultiBitModSwitchedLwe(match self {
+            Self::U32(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U32(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+            Self::U64(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U64(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+            Self::U128(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U128(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+        })
+    }
+}
+
+impl MultiBitModSwitch<DynStandardMultiBitModulusSwitchedCt> for DynLwe {
+    type SideResources = ();
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynStandardMultiBitModulusSwitchedCt,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match (self, output) {
+            (Self::U32(input), DynStandardMultiBitModulusSwitchedCt::U32(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            (Self::U64(input), DynStandardMultiBitModulusSwitchedCt::U64(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            (Self::U128(input), DynStandardMultiBitModulusSwitchedCt::U128(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            _ => panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch"),
+        }
+    }
+}
+
+impl MultiBitModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for DynLwe MultiBitModSwitch")
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(
+                dyn_standard_multi_bit_modulus_switched_ct,
+            ) => self.multi_bit_mod_switch(
+                grouping_factor,
+                output_modulus_log,
+                dyn_standard_multi_bit_modulus_switched_ct,
+                side_resources,
+            ),
+        }
+    }
+}
+
 pub enum DynStandardMultiBitModulusSwitchedCt {
     U32(StandardMultiBitModulusSwitchedCt<u32, Vec<u32>>),
     U64(StandardMultiBitModulusSwitchedCt<u64, Vec<u64>>),
@@ -720,6 +791,7 @@ pub enum NoiseSimulationModulusSwitchConfig<DriftKey> {
     Standard,
     DriftTechniqueNoiseReduction(DriftKey),
     CenteredMeanNoiseReduction,
+    MultiBit(LweBskGroupingFactor),
 }
 
 impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
@@ -829,6 +901,7 @@ impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
             Self::CenteredMeanNoiseReduction => {
                 NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
             }
+            Self::MultiBit(gf) => NoiseSimulationModulusSwitchConfig::MultiBit(*gf),
         }
     }
 
@@ -840,6 +913,7 @@ impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
                 // Half case subtracted before entering the blind rotate
                 -1.0f64 / (4.0 * polynomial_size.0 as f64)
             }
+            Self::MultiBit(_) => 0.0f64,
         }
     }
 }

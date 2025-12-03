@@ -51,7 +51,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
             AfterMsOutput = MsResult,
