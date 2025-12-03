@@ -9,6 +9,20 @@ use crate::interface::FFIMode;
 mod mem_alloc;
 use mem_alloc::{MemAlloc, MemChunk};
 
+// Some V80 constants
+// Chunk_size inherited from XRT limitation
+// NB: In Xilinx v80 implementation the HBM PC are not directly accessible.
+// Indeed, there is an extra level of abstraction called port:
+// Each HBM has 2 PC, and each PC has 2 Port.
+// To keep thing simple this is hided from the SW, thus instead of viewing the board memory as:
+//  * 2HBM with 8Bank each and 2PC per bank -> 32 memory
+// It's seen as:
+// * 2HBM with 8Bank each and 4PC per bank -> 64PC
+pub const MEM_BANK_NB: usize = 64;
+pub const MEM_BANK_SIZE_MB: usize = 512;
+pub const MEM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
+pub const MEM_BASE_ADDR: u64 = 0x40_0000_0000;
+
 /// Specify kind of the target memory
 /// Used for target that has DDR and HBM
 /// Hbm is targeted based on attach PC number, the DDR otherwise is targeted based on offset
@@ -121,6 +135,18 @@ impl HpuHw {
         }
     }
 
+    /// Absolute read without preallocation
+    /// Allocation was inherited from XRT not needed anymor
+    pub fn read_abs<T: Sized + bytemuck::Pod>(&self, addr: u64, data: &mut [T]) {
+        let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
+        self.0.read_abs_bytes(addr, data_bytes);
+    }
+
+    pub fn write_abs<T: Sized + bytemuck::Pod>(&mut self, addr: u64, data: &[T]) {
+        let data_bytes = bytemuck::cast_slice::<T, u8>(data);
+        self.0.write_abs_bytes(addr, data_bytes);
+    }
+
     /// Handle on-board memory init through ffi
     #[inline(always)]
     #[allow(unused_variables)]
@@ -131,6 +157,7 @@ impl HpuHw {
     ) {
         self.0.init_mem(config, params)
     }
+
     /// Handle on-board memory allocation through ffi
     #[inline(always)]
     pub fn alloc(&mut self, props: MemZoneProperties) -> MemZone {

@@ -8,25 +8,12 @@
 //! Indeed, all the required logic is present in the backend driver to view any memspace as an
 //! aggregation of 16MiB slices
 
+use super::*;
 use crate::entities::{hpu_big_lwe_ciphertext_size, HpuParameters};
 use crate::ffi;
 use crate::interface::{page_align, HpuConfig};
 
 use std::collections::VecDeque;
-
-// Some V80 constants
-// Chunk_size inherited from XRT limitation
-// NB: In Xilinx v80 implementation the HBM PC are not directly accessible.
-// Indeed, there is an extra level of abstraction called port:
-// Each HBM has 2 PC, and each PC has 2 Port.
-// To keep thing simple this is hided from the SW, thus instead of viewing the board memory as:
-//  * 2HBM with 8Bank each and 2PC per bank -> 32 memory
-// It's seen as:
-// * 2HBM with 8Bank each and 4PC per bank -> 64PC
-const MEM_BANK_NB: usize = 64;
-const MEM_BANK_SIZE_MB: usize = 512;
-const MEM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
-const MEM_BASE_ADDR: u64 = 0x40_0000_0000;
 
 #[derive(Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct MemChunk {

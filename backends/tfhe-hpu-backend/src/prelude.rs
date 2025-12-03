@@ -14,6 +14,9 @@ pub use super::interface::{
     HpuVarWrapped, QueueConfig, ShellString, ACKQ_EMPTY,
 };
 
+/// Load parser utility
+pub use super::isc_trace;
+
 #[cfg(feature = "io-dump")]
 /// Expose io_dump init function
 pub use super::interface::io_dump::set_hpu_io_dump;

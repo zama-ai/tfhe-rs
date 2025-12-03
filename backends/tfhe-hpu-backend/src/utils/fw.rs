@@ -71,6 +71,10 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     use_tiers: bool,
 
+    /// Whether to use a massively parallel implementation
+    #[arg(long)]
+    parallel: Option<bool>,
+
     /// Flush PBS batches to force a specific scheduling
     #[arg(long, default_value_t = true)]
     flush: bool,
@@ -171,6 +175,7 @@ fn main() -> Result<(), anyhow::Error> {
             fill_batch_fifo: args.fill_batch_fifo,
             min_batch_size: args.min_batch_size,
             use_tiers: args.use_tiers,
+            parallel: args.parallel,
             flush: args.flush,
             flush_behaviour: args.flush_behaviour,
             parallel: None,

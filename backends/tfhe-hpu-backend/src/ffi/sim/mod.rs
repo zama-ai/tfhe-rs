@@ -61,6 +61,37 @@ impl HpuHw {
         }));
     }
 
+    pub fn read_abs_bytes(&self, addr: u64, bytes: &mut [u8]) {
+        let mut ipc = self.ipc.lock().unwrap();
+        let rd_ack = ipc
+            .b_req_ack(IpcReq::Read {
+                addr: addr,
+                size_b: bytes.len(),
+            })
+            .expect("Error with IpcMaster Read request");
+
+        if let IpcAck::Read { data } = rd_ack {
+            bytes.copy_from_slice(&*data);
+        } else {
+            panic!("Received unmatch IpcAck, expect IpcAck::Read, get {rd_ack:?}.");
+        }
+    }
+
+    pub fn write_abs_bytes(&mut self, addr: u64, bytes: &[u8]) {
+        let mut ipc = self.ipc.lock().unwrap();
+        let wr_ack = ipc
+            .b_req_ack(IpcReq::Write {
+                addr: addr,
+                data: IpcSharedMemory::from_bytes(bytes),
+            })
+            .expect("Error with IpcMaster Read request");
+
+        if let IpcAck::Write() = wr_ack {
+        } else {
+            panic!("Received unmatch IpcAck, expect IpcAck::Write, get {wr_ack:?}.");
+        }
+    }
+
     /// Handle on-board memory allocation
     pub fn alloc(&mut self, props: ffi::MemZoneProperties) -> MemZone {
         let chunks = self

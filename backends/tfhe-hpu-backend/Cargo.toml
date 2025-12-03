@@ -11,10 +11,11 @@ readme = "README.md"
 keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
+default=["utils"]
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
-utils = ["clap", "clap-num", "bitvec", "serde_json", "bincode", "serde_derive"]
+utils = ["io-dump", "clap", "clap-num", "bitvec", "serde_json", "bincode", "serde_derive", "deku"]
 
 [build-dependencies]
 cxx-build = "1.0"
@@ -64,6 +65,9 @@ serde_json = { version = "1.0", optional = true }
 # Dependencies used for v80 pdi handling
 bincode = { workspace = true, optional = true }
 serde_derive = { version = "1.0", optional = true }
+
+# Dependencies used for isc trace handling
+deku = {version = "0.20", optional = true}
 
 # Binary for manual debugging
 # Enable to access Hpu register and drive some custom sequence by hand
