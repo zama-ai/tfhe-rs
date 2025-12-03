@@ -87,7 +87,8 @@ template <typename Torus> struct int_cmux_buffer {
   int_cmux_buffer(CudaStreams streams,
                   std::function<Torus(Torus)> predicate_lut_f,
                   int_radix_params params, uint32_t num_radix_blocks,
-                  bool allocate_gpu_memory, uint64_t &size_tracker) {
+                  bool allocate_gpu_memory, uint64_t &size_tracker,
+                  Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
 
     this->params = params;
