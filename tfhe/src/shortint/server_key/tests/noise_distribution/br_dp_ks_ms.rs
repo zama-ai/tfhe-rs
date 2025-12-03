@@ -1,6 +1,6 @@
 use super::dp_ks_ms::dp_ks_any_ms;
 use super::utils::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
@@ -19,6 +19,7 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MetaParameters};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
@@ -60,8 +61,8 @@ pub fn br_dp_ks_any_ms<
 )
 where
     // We need to be able to allocate the result and bootstrap the Input
-    Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    PBSKey: LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
+    Accumulator: AllocateGenericBootstrapResult<Output = PBSResult, SideResources = Resources>,
+    PBSKey: LweGenericBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
     // Result of the PBS/Blind rotate needs to be multipliable by the scalar
     PBSResult: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
@@ -87,8 +88,8 @@ where
             SideResources = Resources,
         >,
 {
-    let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk.lwe_classic_fft_pbs(&input, &mut pbs_result, accumulator, side_resources);
+    let mut pbs_result = accumulator.allocate_generic_bootstrap_result(side_resources);
+    bsk.lwe_generic_bootstrap(&input, &mut pbs_result, accumulator, side_resources);
     let (pbs_result, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_any_ms(
         pbs_result,
         scalar,
@@ -169,6 +170,7 @@ create_parameterized_test!(sanity_check_encrypt_br_dp_ks_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
 });
 
 fn encrypt_br_dp_ks_any_ms_inner_helper(
@@ -308,7 +310,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters) {
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+        NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
 
     let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let br_input_modulus_log = sks.br_input_modulus_log();
@@ -410,6 +412,7 @@ create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters) {
@@ -476,4 +479,5 @@ create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
 });
