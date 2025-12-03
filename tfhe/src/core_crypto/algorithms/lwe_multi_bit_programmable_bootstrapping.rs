@@ -2721,8 +2721,8 @@ pub fn multi_bit_programmable_bootstrap_f128_lwe_ciphertext<
 
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateMultiBitModSwitchResult, LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate,
-    MultiBitModSwitch,
+    AllocateMultiBitModSwitchResult, LweMultiBitFft128BlindRotate, LweMultiBitFft128Bootstrap,
+    LweMultiBitFftBlindRotate, LweMultiBitFftBootstrap, MultiBitModSwitch,
 };
 
 impl<
@@ -2866,5 +2866,76 @@ impl<
         );
 
         extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+    }
+}
+
+impl<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
+        InputCont: Container<Element = Scalar> + Sync,
+        OutputCont: ContainerMut<Element = Scalar>,
+        AccCont: Container<Element = Scalar>,
+        KeyCont: Container<Element = c64> + Sync,
+    >
+    LweMultiBitFftBootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for FourierLweMultiBitBootstrapKey<KeyCont>
+{
+    type SideResources = (ThreadCount, bool);
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let (thread_count, deterministic_execution) = *side_resources;
+
+        multi_bit_programmable_bootstrap_lwe_ciphertext(
+            input,
+            output,
+            accumulator,
+            self,
+            thread_count,
+            deterministic_execution,
+        );
+    }
+}
+
+impl<
+        InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
+        InputCont: Container<Element = InputScalar> + Sync,
+        OutputScalar: UnsignedTorus + Sync,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+        KeyCont: Container<Element = f64> + Sync + Split,
+    >
+    LweMultiBitFft128Bootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for Fourier128LweMultiBitBootstrapKey<KeyCont>
+{
+    type SideResources = (ThreadCount, bool);
+
+    fn lwe_multi_bit_fft_128_bootstrap(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let (thread_count, deterministic_execution) = *side_resources;
+
+        multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+            input,
+            output,
+            accumulator,
+            self,
+            thread_count,
+            deterministic_execution,
+        );
     }
 }

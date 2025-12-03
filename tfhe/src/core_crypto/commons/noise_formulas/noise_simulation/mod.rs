@@ -6,6 +6,9 @@ pub mod modulus_switch;
 pub mod traits;
 
 pub use lwe_keyswitch::NoiseSimulationLweKeyswitchKey;
+pub use lwe_multi_bit_programmable_bootstrap::{
+    NoiseSimulationLweMultiBitFourier128Bsk, NoiseSimulationLweMultiBitFourierBsk,
+};
 pub use lwe_packing_keyswitch::NoiseSimulationLwePackingKeyswitchKey;
 pub use lwe_programmable_bootstrap::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
