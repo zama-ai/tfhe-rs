@@ -624,6 +624,24 @@ impl AtomicPatternParameters {
             }
         }
     }
+
+    pub fn set_deterministic_execution(&mut self, do_it: bool) {
+        match self {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(_) => (),
+                PBSParameters::MultiBitPBS(multi_bit_pbsparameters) => {
+                    multi_bit_pbsparameters.deterministic_execution = do_it
+                }
+            },
+            AtomicPatternParameters::KeySwitch32(_) => (),
+        }
+    }
+
+    pub fn with_deterministic_execution(mut self) -> Self {
+        self.set_deterministic_execution(true);
+
+        self
+    }
 }
 
 impl ParameterSetConformant for AtomicPatternServerKey {
