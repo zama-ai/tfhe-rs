@@ -129,19 +129,21 @@ create_parameterized_test!(integer_unchecked_min {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
     },
     no_coverage => {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
         TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     }
 });
 
-fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
+fn integer_encrypt_decrypt<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -154,11 +156,12 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
+fn integer_encrypt_decrypt_128_bits<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
     for _ in 0..10 {
         let clear = rng.gen::<u128>();
 
@@ -170,10 +173,11 @@ fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters) {
+fn integer_encrypt_decrypt_128_bits_specific_values<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
     {
         let a = u64::MAX as u128;
         let ct = cks.encrypt_radix(a, num_block);
@@ -218,10 +222,11 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
     }
 }
 
-fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters) {
+fn integer_encrypt_decrypt_256_bits_specific_values<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_block = 256u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
     {
         let a = (u64::MAX as u128) << 64;
         let b = 0;
@@ -242,11 +247,12 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters)
     }
 }
 
-fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
+fn integer_encrypt_decrypt_256_bits<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_block = 256u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
 
     for _ in 0..10 {
         let clear0 = rng.gen::<u128>();
@@ -262,7 +268,8 @@ fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
+fn integer_encrypt_auto_cast<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // The goal is to test that encrypting a value stored in a type
     // for which the bit count does not match the target block count of the encrypted
     // radix properly applies upcasting/downcasting
@@ -270,7 +277,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let mut rng = rand::thread_rng();
 
-    let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_blocks = 32u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
 
     // Positive signed value
     let value = rng.gen_range(0..=i32::MAX);
@@ -311,11 +318,12 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     assert_eq!(value as u16, d);
 }
 
-fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
+fn integer_smart_add_128_bits<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
 
     for _ in 0..100 {
         let clear_0 = rng.gen::<u128>();
@@ -346,12 +354,14 @@ fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_add(param: ClassicPBSParameters) {
+fn integer_unchecked_add<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add);
     unchecked_add_test(param, executor);
 }
 
-fn integer_smart_add(param: ClassicPBSParameters) {
+fn integer_smart_add<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_add);
     smart_add_test(param, executor);
 }
@@ -404,15 +414,16 @@ where
     smart_bitxor_test(param, executor);
 }
 
-fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
+fn integer_unchecked_small_scalar_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0;
+    let scalar_modulus = param.message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -430,15 +441,16 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
+fn integer_smart_small_scalar_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0;
+    let scalar_modulus = param.message_modulus().0;
 
     let mut clear_res;
     for _ in 0..NB_TESTS_SMALLER {
@@ -463,13 +475,14 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_blockshift(param: ClassicPBSParameters) {
+fn integer_blockshift<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -484,19 +497,20 @@ fn integer_blockshift(param: ClassicPBSParameters) {
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         assert_eq!(
-            (clear * param.message_modulus.0.pow(power as u32) as u64) % modulus,
+            (clear * param.message_modulus().0.pow(power as u32) as u64) % modulus,
             dec_res
         );
     }
 }
 
-fn integer_blockshift_right(param: ClassicPBSParameters) {
+fn integer_blockshift_right<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -511,19 +525,20 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         assert_eq!(
-            (clear / param.message_modulus.0.pow(power as u32) as u64) % modulus,
+            (clear / param.message_modulus().0.pow(power as u32) as u64) % modulus,
             dec_res
         );
     }
 }
 
-fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
+fn integer_smart_scalar_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -565,7 +580,8 @@ where
     unchecked_neg_test(param, executor);
 }
 
-fn integer_smart_neg(param: ClassicPBSParameters) {
+fn integer_smart_neg<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg);
     smart_neg_test(param, executor);
 }
@@ -578,7 +594,8 @@ where
     unchecked_sub_test(param, executor);
 }
 
-fn integer_smart_sub(param: ClassicPBSParameters) {
+fn integer_smart_sub<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_sub);
     smart_sub_test(param, executor);
 }
@@ -591,15 +608,16 @@ where
     unchecked_block_mul_test(param, executor);
 }
 
-fn integer_smart_block_mul(param: ClassicPBSParameters) {
+fn integer_smart_block_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
 
-    let block_modulus = param.message_modulus.0;
+    let block_modulus = param.message_modulus().0;
 
     for _ in 0..5 {
         // Define the cleartexts
@@ -675,7 +693,8 @@ where
     smart_scalar_sub_test(param, executor);
 }
 
-fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_decomposition_overflow<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // This is a regression test.
     //
     // The purpose here is to check the behaviour when the scalar value has less bits
@@ -683,7 +702,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 
     let mut rng = rand::thread_rng();
 
-    let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = (128_f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -828,47 +847,56 @@ fn integer_signed_decryption_correctly_sign_extend(param: impl Into<TestParamete
     assert_eq!(trivial.decrypt_trivial::<i128>().unwrap(), value as i128);
 }
 
-fn integer_scalar_blockslice(param: ClassicPBSParameters) {
+fn integer_scalar_blockslice<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_blockslice);
     scalar_blockslice_test(param, executor);
 }
 
-fn integer_scalar_blockslice_assign(param: ClassicPBSParameters) {
+fn integer_scalar_blockslice_assign<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_blockslice_assign);
     scalar_blockslice_assign_test(param, executor);
 }
 
-fn integer_unchecked_scalar_slice(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_slice<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice);
     unchecked_scalar_bitslice_test(param, executor);
 }
 
-fn integer_unchecked_scalar_slice_assign(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_slice_assign<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice_assign);
     unchecked_scalar_bitslice_assign_test(param, executor);
 }
 
-fn integer_default_scalar_slice(param: ClassicPBSParameters) {
+fn integer_default_scalar_slice<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice);
     default_scalar_bitslice_test(param, executor);
 }
 
-fn integer_default_scalar_slice_assign(param: ClassicPBSParameters) {
+fn integer_default_scalar_slice_assign<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign);
     default_scalar_bitslice_assign_test(param, executor);
 }
 
-fn integer_smart_scalar_slice(param: ClassicPBSParameters) {
+fn integer_smart_scalar_slice<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice);
     smart_scalar_bitslice_test(param, executor);
 }
 
-fn integer_smart_scalar_slice_assign(param: ClassicPBSParameters) {
+fn integer_smart_scalar_slice_assign<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign);
     smart_scalar_bitslice_assign_test(param, executor);
 }
 
-fn integer_unchecked_min(param: ClassicPBSParameters) {
+fn integer_unchecked_min<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min);
     test_unchecked_minmax(param, 2, executor, std::cmp::min::<u64>);
 }

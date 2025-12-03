@@ -227,14 +227,15 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
     }
 }
 
-fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
+fn integer_unchecked_crt_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     let mut rng = rand::thread_rng();
 
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     for _ in 0..NB_TESTS {
@@ -253,9 +254,10 @@ fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_add(param: ClassicPBSParameters) {
+fn integer_smart_crt_add<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
@@ -279,12 +281,13 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_mul(param: ClassicPBSParameters) {
+fn integer_smart_crt_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     println!("BASIS = {basis:?}");
@@ -308,9 +311,10 @@ fn integer_smart_crt_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_neg(param: ClassicPBSParameters) {
+fn integer_smart_crt_neg<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
@@ -334,9 +338,10 @@ fn integer_smart_crt_neg(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
+fn integer_smart_crt_scalar_add<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
@@ -358,9 +363,10 @@ fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
+fn integer_smart_crt_scalar_mul<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
@@ -382,9 +388,10 @@ fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
+fn integer_smart_crt_scalar_sub<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
@@ -409,9 +416,10 @@ fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_crt_sub(param: ClassicPBSParameters) {
+fn integer_smart_crt_sub<P: Into<TestParameters>>(param: P) {
+    let param: TestParameters = param.into();
     // Define CRT basis, and global modulus
-    let basis = make_basis(param.message_modulus.0);
+    let basis = make_basis(param.message_modulus().0);
     let modulus = basis.iter().product::<u64>();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);

@@ -18,7 +18,8 @@ create_parameterized_test!(
         },
         no_coverage => {
             TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
             // 2M128 is too slow for 4_4, it is estimated to be 2x slower
             TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
@@ -37,7 +38,8 @@ create_parameterized_test!(
         },
         no_coverage => {
             TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
             // 2M128 is too slow for 4_4, it is estimated to be 2x slower
             TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
