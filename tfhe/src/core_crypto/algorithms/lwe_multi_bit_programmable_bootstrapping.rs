@@ -1084,18 +1084,10 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between output ({:?}) and accumulator ({:?})",
+        output.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
 
@@ -1795,18 +1787,10 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between output ({:?}) and accumulator ({:?})",
+        output.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
 
@@ -1866,14 +1850,6 @@ pub fn std_multi_bit_f128_blind_rotate_assign<Scalar, InputCont, OutputCont, Key
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
     );
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
@@ -2213,18 +2189,10 @@ pub fn std_multi_bit_programmable_bootstrap_f128_lwe_ciphertext<
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between output ({:?}) and accumulator ({:?})",
+        output.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
 
