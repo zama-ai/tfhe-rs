@@ -420,18 +420,14 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
 mod test {
     use super::*;
     use crate::integer::noise_squashing::NoiseSquashingKey;
-    use crate::shortint::parameters::test_params::{
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use rand::Rng;
 
     #[test]
     fn test_compressed_noise_squashed_ciphertext_list() {
-        let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let noise_squashing_parameters =
-            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let meta_param = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let param = meta_param.compute_parameters;
+        let noise_squashing_parameters = meta_param.noise_squashing_parameters.unwrap().parameters;
 
         // The goal is to test that encrypting a value stored in a type
         // for which the bit count does not match the target block count of the encrypted
@@ -442,7 +438,11 @@ mod test {
         let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
 
         let noise_squashing_compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            meta_param
+                .noise_squashing_parameters
+                .unwrap()
+                .compression_parameters
+                .unwrap(),
         );
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);

@@ -9,13 +9,15 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Seed, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
 
 create_parameterized_test!(random_op_sequence {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 pub(crate) type SignedBinaryOpExecutor = Box<

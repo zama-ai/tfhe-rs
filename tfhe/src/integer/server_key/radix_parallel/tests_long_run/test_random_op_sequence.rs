@@ -7,6 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::OpSequenceCpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, MatchValues, Seed, Tag};
 use std::cmp::{max, min};
@@ -14,11 +15,13 @@ use std::num::NonZeroU64;
 use std::sync::Arc;
 
 create_parameterized_test!(random_op_sequence {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 create_parameterized_test!(random_op_sequence_data_generator {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 pub(crate) type BinaryOpExecutor = Box<
