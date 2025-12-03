@@ -1,5 +1,5 @@
 # Test vectors for TFHE
-These test vectors are generated using [TFHE-rs](https://github.com/zama-ai/tfhe-rs), with the git tag `tfhe-test-vectors-0.1.0`.
+These test vectors are generated using [TFHE-rs](https://github.com/zama-ai/tfhe-rs), with the git tag `tfhe-test-vectors-0.2.0`.
 
 They are TFHE-rs objects serialized in the [cbor format](https://cbor.io/). You can deserialize them using any cbor library for the language of your choice. For example, using the [cbor2](https://pypi.org/project/cbor2/) program, run: `cbor2 --pretty toy_params/lwe_a.cbor`.
 
@@ -38,6 +38,9 @@ The following values are generated:
 | `lwe_after_id_pbs`   | The lwe returned by the application of the sample extract operation on the output of the id blind rotation   | `LweCiphertext<Vec<u64>>`  | `A`          |
 | `glwe_after_spec_br` | The glwe returned by the application of the spec blind rotation on the mod switched ciphertexts.             | `GlweCiphertext<Vec<u64>>` | rot spec LUT |
 | `lwe_after_spec_pbs` | The lwe returned by the application of the sample extract operation on the output of the spec blind rotation | `LweCiphertext<Vec<u64>>`  | `spec(A)`    |
+
+Ciphertexts with the `_karatsuba` suffix are generated using the Karatsuba polynomial multiplication algorithm in the blind rotation, while default ciphertexts are generated using an FFT multiplication.
+This makes it easier to reproduce bit exact results.
 
 ### Encodings
 #### Non native encoding
