@@ -1284,21 +1284,25 @@ mod zk_pok_tests {
     };
     use crate::shortint::ciphertext::Degree;
     use crate::shortint::parameters::test_params::{
+        TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
         TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
     };
-    use crate::shortint::parameters::{
-        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkVerificationOutcome};
     use rand::random;
 
     fn test_zk_list(is_packed: bool) {
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1388,9 +1392,16 @@ mod zk_pok_tests {
 
     #[test]
     fn test_empty_list() {
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1487,9 +1498,16 @@ mod zk_pok_tests {
     /// is modified
     #[test]
     fn test_attack_list_info() {
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1607,9 +1625,16 @@ mod zk_pok_tests {
 
     #[test]
     fn test_attack_proven_list_metadata() {
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1719,9 +1744,16 @@ mod zk_pok_tests {
 
     #[test]
     fn test_several_proven_lists() {
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1782,9 +1814,16 @@ mod zk_pok_tests {
     fn test_malicious_boolean_proven_lists() {
         use super::DataKind;
 
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let pke_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .pke_params;
+        let ksk_params = params
+            .dedicated_compact_public_key_parameters
+            .unwrap()
+            .ksk_params;
+        let fhe_params = params.compute_parameters;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
