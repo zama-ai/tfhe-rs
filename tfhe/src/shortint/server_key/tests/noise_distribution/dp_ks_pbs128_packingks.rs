@@ -67,7 +67,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -158,7 +160,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
