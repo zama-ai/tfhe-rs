@@ -136,6 +136,7 @@ fn decomposition_bit_trick<Scalar: UnsignedInteger>(
     ((res.wrapping_sub(Scalar::ONE) | state) & res) >> (base_log - 1)
 }
 
+/// See [reference](https://eprint.iacr.org/2021/1161.pdf)
 #[inline]
 pub(crate) fn decompose_one_level<S: UnsignedInteger>(
     base_log: usize,
