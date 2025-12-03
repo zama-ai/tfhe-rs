@@ -30,7 +30,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -76,6 +78,17 @@ where
 
             (None, ms_result)
         }
+        NoiseSimulationModulusSwitchConfig::MultiBit(grouping_factor) => {
+            let mut ms_result = input.allocate_multi_bit_mod_switch_result(side_resources);
+            input.multi_bit_mod_switch(
+                grouping_factor,
+                br_input_modulus_log,
+                &mut ms_result,
+                side_resources,
+            );
+
+            (None, ms_result)
+        }
     }
 }
 
@@ -114,7 +127,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
