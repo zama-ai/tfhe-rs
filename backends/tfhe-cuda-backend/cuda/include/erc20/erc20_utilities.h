@@ -20,24 +20,27 @@ template <typename Torus> struct int_erc20_buffer {
   cudaEvent_t *outgoing_events1;
   cudaEvent_t *outgoing_events2;
   bool allocate_gpu_memory;
+  Torus *preallocated_h_lut;
 
   int_erc20_buffer(CudaStreams streams, int_radix_params params,
                    uint32_t num_radix_blocks, bool allocate_gpu_memory,
                    uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
+    preallocated_h_lut = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     diff_buffer = new int_comparison_buffer<Torus>(
         streams, COMPARISON_TYPE::GT, params, num_radix_blocks, false,
-        allocate_gpu_memory, size_tracker);
-    mul_buffer = new int_mul_memory<Torus>(streams, params, false, true,
-                                           num_radix_blocks,
-                                           allocate_gpu_memory, size_tracker);
+        allocate_gpu_memory, size_tracker, preallocated_h_lut);
+    mul_buffer = new int_mul_memory<Torus>(
+        streams, params, false, true, num_radix_blocks, allocate_gpu_memory,
+        size_tracker, preallocated_h_lut);
     add_buffer = new int_sc_prop_memory<Torus>(
         streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, preallocated_h_lut);
     sub_buffer = new int_sub_and_propagate<Torus>(
         streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, preallocated_h_lut);
     tmp_amount = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_amount, num_radix_blocks,
@@ -101,5 +104,6 @@ template <typename Torus> struct int_erc20_buffer {
 
     sub_streams_1.release();
     sub_streams_2.release();
+    free(preallocated_h_lut);
   }
 };

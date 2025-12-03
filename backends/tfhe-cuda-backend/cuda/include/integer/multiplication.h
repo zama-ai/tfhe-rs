@@ -21,7 +21,7 @@ template <typename Torus> struct int_mul_memory {
   int_mul_memory(CudaStreams streams, int_radix_params params,
                  bool const is_boolean_left, bool const is_boolean_right,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                 uint64_t &size_tracker) {
+                 uint64_t &size_tracker, Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->boolean_mul = is_boolean_left || is_boolean_right;
     this->params = params;
@@ -43,7 +43,7 @@ template <typename Torus> struct int_mul_memory {
           zero_out_predicate_lut->get_degree(0),
           zero_out_predicate_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
-          zero_out_predicate_lut_f, gpu_memory_allocated);
+          zero_out_predicate_lut_f, gpu_memory_allocated, preallocated_h_lut);
 
       auto active_streams = streams.active_gpu_subset(num_radix_blocks);
       zero_out_predicate_lut->broadcast_lut(active_streams);

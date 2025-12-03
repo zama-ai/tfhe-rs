@@ -142,7 +142,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator_with_cpu_prealloc<Torus>(
+    generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
         lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
         polynomial_size, message_modulus, carry_modulus, scalar_last_leaf_lut_f,
@@ -235,7 +235,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     };
 
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
+    generate_device_accumulator_bivariate<Torus>(
         streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
         lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
         polynomial_size, message_modulus, carry_modulus,
@@ -269,7 +269,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
       int_radix_lut<Torus> *one_block_lut =
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
-      generate_device_accumulator_with_cpu_prealloc<Torus>(
+      generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
@@ -413,7 +413,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
+    generate_device_accumulator_bivariate<Torus>(
         streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
         lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
         polynomial_size, message_modulus, carry_modulus,
@@ -515,7 +515,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
     };
 
     auto signed_msb_lut = mem_ptr->signed_msb_lut;
-    generate_device_accumulator_bivariate_with_cpu_prealloc<Torus>(
+    generate_device_accumulator_bivariate<Torus>(
         msb_streams.stream(0), streams.gpu_index(0),
         signed_msb_lut->get_lut(0, 0), signed_msb_lut->get_degree(0),
         signed_msb_lut->get_max_degree(0), params.glwe_dimension,
@@ -561,7 +561,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
       int_radix_lut<Torus> *one_block_lut =
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
-      generate_device_accumulator_with_cpu_prealloc<Torus>(
+      generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,

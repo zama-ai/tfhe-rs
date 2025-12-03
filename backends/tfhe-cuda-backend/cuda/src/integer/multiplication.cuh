@@ -366,7 +366,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
 
   mem_ptr->setup_lookup_tables(streams, num_radix_in_vec,
-                               current_blocks->degrees);
+                               current_blocks->degrees,
+                               mem_ptr->preallocated_h_lut);
 
   while (needs_processing) {
     auto luts_message_carry = mem_ptr->luts_message_carry;

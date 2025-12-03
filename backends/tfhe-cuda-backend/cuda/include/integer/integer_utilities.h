@@ -77,7 +77,8 @@ void generate_device_accumulator_bivariate(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
     uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    std::function<Torus(Torus, Torus)> f, bool gpu_memory_allocated);
+    std::function<Torus(Torus, Torus)> f, bool gpu_memory_allocated,
+    Torus *preallocated_h_lut = nullptr);
 
 template <typename Torus>
 void generate_device_accumulator_bivariate_with_factor(
@@ -114,14 +115,16 @@ void generate_device_accumulator(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
-    std::function<Torus(Torus)> f, bool gpu_memory_allocated);
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated,
+    Torus *preallocated_h_lut = nullptr);
 
 template <typename Torus>
 void generate_many_lut_device_accumulator(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degrees,
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
-    std::vector<std::function<Torus(Torus)>> &f, bool gpu_memory_allocated);
+    std::vector<std::function<Torus(Torus)>> &f, bool gpu_memory_allocated,
+    Torus *preallocated_h_lut = nullptr);
 
 struct radix_columns {
   std::vector<uint32_t> columns_counter;
@@ -1160,6 +1163,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   bool mem_reuse = false;
   bool allocated_luts_message_carry;
+  Torus *preallocated_h_lut;
 
   void setup_index_buffers(CudaStreams streams, uint64_t &size_tracker) {
 
@@ -1206,7 +1210,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   }
 
   void setup_lookup_tables(CudaStreams streams, uint32_t num_radix_in_vec,
-                           const uint64_t *const degrees) {
+                           const uint64_t *const degrees,
+                           Torus *preallocated_h_lut = nullptr) {
     uint32_t message_modulus = params.message_modulus;
     bool _needs_processing = false;
     radix_columns current_columns(degrees, num_blocks_in_radix,
@@ -1257,13 +1262,13 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
           luts_message_carry->get_degree(0),
           luts_message_carry->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, message_modulus, params.carry_modulus,
-          lut_f_message, gpu_memory_allocated);
+          lut_f_message, gpu_memory_allocated, preallocated_h_lut);
       generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), carry_acc,
           luts_message_carry->get_degree(1),
           luts_message_carry->get_max_degree(1), params.glwe_dimension,
           params.polynomial_size, message_modulus, params.carry_modulus,
-          lut_f_carry, gpu_memory_allocated);
+          lut_f_carry, gpu_memory_allocated, preallocated_h_lut);
       auto active_gpu_count_mc = streams.active_gpu_subset(pbs_count);
       luts_message_carry->broadcast_lut(active_gpu_count_mc);
     }
@@ -1272,7 +1277,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       CudaStreams streams, int_radix_params params,
       uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
       bool reduce_degrees_for_single_carry_propagation,
-      bool allocate_gpu_memory, uint64_t &size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker,
+      Torus *preallocated_h_lut = nullptr) {
     this->params = params;
     this->mem_reuse = false;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
@@ -1284,6 +1290,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
+    this->preallocated_h_lut = preallocated_h_lut;
 
     setup_index_buffers(streams, size_tracker);
     // because we setup_lut in host function for sum_ciphertexts to save memory
@@ -1318,7 +1325,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       CudaRadixCiphertextFFI *small_lwe_vector,
       int_radix_lut<Torus> *reused_lut,
       bool reduce_degrees_for_single_carry_propagation,
-      bool allocate_gpu_memory, uint64_t &size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker,
+      Torus *preallocated_h_lut = nullptr) {
     this->mem_reuse = true;
     this->params = params;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
@@ -1334,6 +1342,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
     this->luts_message_carry = reused_lut;
+    this->preallocated_h_lut = preallocated_h_lut;
 
     uint64_t message_modulus_bits = (uint64_t)std::log2(params.message_modulus);
     uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
@@ -1395,10 +1404,12 @@ template <typename Torus> struct int_seq_group_prop_memory {
   int_radix_lut<Torus> *lut_sequential_algorithm;
   uint32_t grouping_size;
   bool gpu_memory_allocated;
+  Torus *h_seq_lut_indexes;
 
   int_seq_group_prop_memory(CudaStreams streams, int_radix_params params,
                             uint32_t group_size, uint32_t big_lwe_size_bytes,
-                            bool allocate_gpu_memory, uint64_t &size_tracker) {
+                            bool allocate_gpu_memory, uint64_t &size_tracker,
+                            Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1413,7 +1424,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
         allocate_gpu_memory);
 
     int num_seq_luts = grouping_size - 1;
-    Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
+    h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
     lut_sequential_algorithm =
         new int_radix_lut<Torus>(streams, params, num_seq_luts, num_seq_luts,
                                  allocate_gpu_memory, size_tracker);
@@ -1427,7 +1438,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
           lut_sequential_algorithm->get_degree(index),
           lut_sequential_algorithm->get_max_degree(index), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_lut_sequential,
-          gpu_memory_allocated);
+          gpu_memory_allocated, preallocated_h_lut);
       h_seq_lut_indexes[index] = index;
     }
     Torus *seq_lut_indexes = lut_sequential_algorithm->get_lut_indexes(0, 0);
@@ -1436,7 +1447,6 @@ template <typename Torus> struct int_seq_group_prop_memory {
         streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     auto active_streams = streams.active_gpu_subset(num_seq_luts);
     lut_sequential_algorithm->broadcast_lut(active_streams);
-    free(h_seq_lut_indexes);
   };
   void release(CudaStreams streams) {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -1446,6 +1456,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
     delete group_resolved_carries;
     delete lut_sequential_algorithm;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    free(h_seq_lut_indexes);
   };
 };
 
@@ -1457,7 +1468,8 @@ template <typename Torus> struct int_hs_group_prop_memory {
 
   int_hs_group_prop_memory(CudaStreams streams, int_radix_params params,
                            uint32_t num_groups, uint32_t big_lwe_size_bytes,
-                           bool allocate_gpu_memory, uint64_t &size_tracker) {
+                           bool allocate_gpu_memory, uint64_t &size_tracker,
+                           Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1487,7 +1499,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
         lut_hillis_steele->get_lut(0, 0), lut_hillis_steele->get_degree(0),
         lut_hillis_steele->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, f_lut_hillis_steele,
-        gpu_memory_allocated);
+        gpu_memory_allocated, preallocated_h_lut);
     auto active_streams = streams.active_gpu_subset(num_groups);
     lut_hillis_steele->broadcast_lut(active_streams);
   };
@@ -1511,7 +1523,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
   int_shifted_blocks_and_states_memory(
       CudaStreams streams, int_radix_params params, uint32_t num_radix_blocks,
       uint32_t num_many_lut, uint32_t grouping_size, bool allocate_gpu_memory,
-      uint64_t &size_tracker) {
+      uint64_t &size_tracker, Torus *preallocated_h_lut = nullptr) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -1561,7 +1573,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         streams.stream(0), streams.gpu_index(0), first_block_lut,
         first_block_lut_degrees, first_block_lut_max_degree, glwe_dimension,
         polynomial_size, message_modulus, carry_modulus, f_first_grouping_luts,
-        gpu_memory_allocated);
+        gpu_memory_allocated, preallocated_h_lut);
 
     // luts for other blocks of the first grouping
     for (int lut_id = 1; lut_id < grouping_size; lut_id++) {
@@ -1584,7 +1596,8 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
       generate_many_lut_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), lut, lut_degrees,
           lut_max_degree, glwe_dimension, polynomial_size, message_modulus,
-          carry_modulus, f_grouping_luts, gpu_memory_allocated);
+          carry_modulus, f_grouping_luts, gpu_memory_allocated,
+          preallocated_h_lut);
     }
 
     // luts for the rest of groupings (except for the last block)
@@ -1610,7 +1623,8 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
       generate_many_lut_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), lut, lut_degrees,
           lut_max_degree, glwe_dimension, polynomial_size, message_modulus,
-          carry_modulus, f_grouping_luts, gpu_memory_allocated);
+          carry_modulus, f_grouping_luts, gpu_memory_allocated,
+          preallocated_h_lut);
     }
 
     // For the last block we need to generate a new lut
@@ -1635,7 +1649,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         streams.stream(0), streams.gpu_index(0), last_block_lut,
         last_block_lut_degrees, last_block_lut_max_degree, glwe_dimension,
         polynomial_size, message_modulus, carry_modulus, f_last_grouping_luts,
-        gpu_memory_allocated);
+        gpu_memory_allocated, preallocated_h_lut);
 
     // Generate the indexes to switch between luts within the pbs
     uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -1706,11 +1720,12 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   uint32_t group_size;
   bool use_sequential_algorithm_to_resolve_group_carries;
   bool gpu_memory_allocated;
+  Torus *h_second_lut_indexes;
 
   int_prop_simu_group_carries_memory(
       CudaStreams streams, int_radix_params params, uint32_t num_radix_blocks,
       uint32_t grouping_size, uint32_t num_groups, bool allocate_gpu_memory,
-      uint64_t &size_tracker) {
+      uint64_t &size_tracker, Torus *preallocated_h_lut = nullptr) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -1803,7 +1818,8 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           luts_array_second_step->get_degree(lut_id),
           luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus,
-          f_first_grouping_inner_propagation, gpu_memory_allocated);
+          f_first_grouping_inner_propagation, gpu_memory_allocated,
+          preallocated_h_lut);
     }
 
     auto f_first_grouping_outer_propagation =
@@ -1818,7 +1834,8 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         luts_array_second_step->get_degree(lut_id),
         luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
         polynomial_size, message_modulus, carry_modulus,
-        f_first_grouping_outer_propagation, gpu_memory_allocated);
+        f_first_grouping_outer_propagation, gpu_memory_allocated,
+        preallocated_h_lut);
 
     // for other groupings inner propagation
     for (int index = 0; index < grouping_size; index++) {
@@ -1842,7 +1859,8 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           luts_array_second_step->get_degree(lut_id),
           luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus,
-          f_other_groupings_inner_propagation, gpu_memory_allocated);
+          f_other_groupings_inner_propagation, gpu_memory_allocated,
+          preallocated_h_lut);
     }
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
@@ -1864,7 +1882,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
             luts_array_second_step->get_degree(lut_id),
             luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
             polynomial_size, message_modulus, carry_modulus,
-            f_group_propagation, gpu_memory_allocated);
+            f_group_propagation, gpu_memory_allocated, preallocated_h_lut);
       }
     } else {
       uint32_t lut_id = 2 * grouping_size;
@@ -1882,10 +1900,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           luts_array_second_step->get_degree(lut_id),
           luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_group_propagation,
-          gpu_memory_allocated);
+          gpu_memory_allocated, preallocated_h_lut);
     }
 
-    Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
+    h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
 
     for (int index = 0; index < num_radix_blocks; index++) {
       uint32_t grouping_index = index / grouping_size;
@@ -1937,15 +1955,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
       seq_group_prop_mem = new int_seq_group_prop_memory<Torus>(
           streams, params, grouping_size, big_lwe_size_bytes,
-          allocate_gpu_memory, size_tracker);
+          allocate_gpu_memory, size_tracker, preallocated_h_lut);
 
     } else {
       hs_group_prop_mem = new int_hs_group_prop_memory<Torus>(
           streams, params, num_groups, big_lwe_size_bytes, allocate_gpu_memory,
-          size_tracker);
+          size_tracker, preallocated_h_lut);
     }
-
-    free(h_second_lut_indexes);
   };
 
   // needed for the division to update the lut indexes
@@ -1996,6 +2012,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     delete luts_array_second_step;
     delete[] h_scalar_array_cum_sum;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    free(h_second_lut_indexes);
   };
 };
 
@@ -2020,7 +2037,8 @@ template <typename Torus> struct int_sc_prop_memory {
 
   int_sc_prop_memory(CudaStreams streams, int_radix_params params,
                      uint32_t num_radix_blocks, uint32_t requested_flag_in,
-                     bool allocate_gpu_memory, uint64_t &size_tracker) {
+                     bool allocate_gpu_memory, uint64_t &size_tracker,
+                     Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -2040,11 +2058,11 @@ template <typename Torus> struct int_sc_prop_memory {
 
     shifted_blocks_state_mem = new int_shifted_blocks_and_states_memory<Torus>(
         streams, params, num_radix_blocks, num_many_lut, grouping_size,
-        allocate_gpu_memory, size_tracker);
+        allocate_gpu_memory, size_tracker, preallocated_h_lut);
 
     prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
         streams, params, num_radix_blocks, grouping_size, num_groups,
-        allocate_gpu_memory, size_tracker);
+        allocate_gpu_memory, size_tracker, preallocated_h_lut);
 
     //  Step 3 elements
     int num_luts_message_extract =
@@ -2061,8 +2079,8 @@ template <typename Torus> struct int_sc_prop_memory {
         streams.stream(0), streams.gpu_index(0),
         lut_message_extract->get_lut(0, 0), lut_message_extract->get_degree(0),
         lut_message_extract->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_message_extract,
-        gpu_memory_allocated);
+        message_modulus, carry_modulus, f_message_extract, gpu_memory_allocated,
+        preallocated_h_lut);
 
     // This store a single block that with be used to store the overflow or
     // carry results
@@ -2120,7 +2138,7 @@ template <typename Torus> struct int_sc_prop_memory {
           lut_overflow_flag_prep->get_degree(0),
           lut_overflow_flag_prep->get_max_degree(0), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_fp,
-          gpu_memory_allocated);
+          gpu_memory_allocated, preallocated_h_lut);
 
       auto active_streams = streams.active_gpu_subset(1);
       lut_overflow_flag_prep->broadcast_lut(active_streams);
@@ -2152,7 +2170,7 @@ template <typename Torus> struct int_sc_prop_memory {
           lut_message_extract->get_degree(1),
           lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_last,
-          gpu_memory_allocated);
+          gpu_memory_allocated, preallocated_h_lut);
 
       Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
       for (int index = 0; index < num_radix_blocks + 1; index++) {
@@ -2179,7 +2197,7 @@ template <typename Torus> struct int_sc_prop_memory {
           lut_message_extract->get_degree(1),
           lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_carry_last,
-          gpu_memory_allocated);
+          gpu_memory_allocated, preallocated_h_lut);
 
       Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
       for (int index = 0; index < num_radix_blocks + 1; index++) {

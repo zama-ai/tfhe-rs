@@ -134,7 +134,7 @@ __host__ void are_all_comparisons_block_true(
         auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
           return x == chunk_length;
         };
-        generate_device_accumulator_with_cpu_prealloc<Torus>(
+        generate_device_accumulator<Torus>(
             streams.stream(0), streams.gpu_index(0),
             is_max_value_lut->get_lut(0, 1), is_max_value_lut->get_degree(1),
             is_max_value_lut->get_max_degree(1), glwe_dimension,
@@ -482,7 +482,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     y = x;
     f = sign_handler_f;
   }
-  generate_device_accumulator_with_cpu_prealloc<Torus>(
+  generate_device_accumulator<Torus>(
       streams.stream(0), streams.gpu_index(0), last_lut->get_lut(0, 0),
       last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, f, true,

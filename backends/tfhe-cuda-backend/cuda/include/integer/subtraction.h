@@ -142,14 +142,15 @@ template <typename Torus> struct int_sub_and_propagate {
 
   int_sub_and_propagate(CudaStreams streams, const int_radix_params params,
                         uint32_t num_radix_blocks, uint32_t requested_flag_in,
-                        bool allocate_gpu_memory, uint64_t &size_tracker) {
+                        bool allocate_gpu_memory, uint64_t &size_tracker,
+                        Torus *preallocated_h_lut = nullptr) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     this->sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, params, num_radix_blocks, requested_flag_in,
-        allocate_gpu_memory, size_tracker);
+        allocate_gpu_memory, size_tracker, preallocated_h_lut);
 
     this->neg_rhs_array = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

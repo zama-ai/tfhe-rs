@@ -384,7 +384,8 @@ template <typename Torus> struct int_comparison_buffer {
   int_comparison_buffer(CudaStreams streams, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
                         bool is_signed, bool allocate_gpu_memory,
-                        uint64_t &size_tracker) {
+                        uint64_t &size_tracker,
+                        Torus *preallocated_h_lut_from_elsewhere = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -426,7 +427,8 @@ template <typename Torus> struct int_comparison_buffer {
         streams.stream(0), streams.gpu_index(0), identity_lut->get_lut(0, 0),
         identity_lut->get_degree(0), identity_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, identity_lut_f, gpu_memory_allocated);
+        params.carry_modulus, identity_lut_f, gpu_memory_allocated,
+        preallocated_h_lut_from_elsewhere);
     identity_lut->broadcast_lut(active_streams);
 
     uint32_t total_modulus = params.message_modulus * params.carry_modulus;
@@ -441,7 +443,8 @@ template <typename Torus> struct int_comparison_buffer {
         streams.stream(0), streams.gpu_index(0), is_zero_lut->get_lut(0, 0),
         is_zero_lut->get_degree(0), is_zero_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_zero_f, gpu_memory_allocated);
+        params.carry_modulus, is_zero_f, gpu_memory_allocated,
+        preallocated_h_lut_from_elsewhere);
 
     is_zero_lut->broadcast_lut(active_streams);
 
@@ -456,7 +459,8 @@ template <typename Torus> struct int_comparison_buffer {
             else
               return (x == IS_INFERIOR);
           },
-          params, num_radix_blocks, allocate_gpu_memory, size_tracker);
+          params, num_radix_blocks, allocate_gpu_memory, size_tracker,
+          preallocated_h_lut_from_elsewhere);
     case COMPARISON_TYPE::GT:
     case COMPARISON_TYPE::GE:
     case COMPARISON_TYPE::LT:

@@ -43,7 +43,8 @@ template <typename Torus> struct int_cmux_buffer {
   int_cmux_buffer(CudaStreams streams,
                   std::function<Torus(Torus)> predicate_lut_f,
                   int_radix_params params, uint32_t num_radix_blocks,
-                  bool allocate_gpu_memory, uint64_t &size_tracker) {
+                  bool allocate_gpu_memory, uint64_t &size_tracker,
+                  Torus *preallocated_h_lut = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
 
     this->params = params;
@@ -88,20 +89,21 @@ template <typename Torus> struct int_cmux_buffer {
         streams.stream(0), streams.gpu_index(0), predicate_lut->get_lut(0, 0),
         predicate_lut->get_degree(0), predicate_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, inverted_lut_f, gpu_memory_allocated);
+        params.carry_modulus, inverted_lut_f, gpu_memory_allocated,
+        preallocated_h_lut);
 
     generate_device_accumulator_bivariate<Torus>(
         streams.stream(0), streams.gpu_index(0), predicate_lut->get_lut(0, 1),
         predicate_lut->get_degree(1), predicate_lut->get_max_degree(1),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, lut_f, gpu_memory_allocated);
+        params.carry_modulus, lut_f, gpu_memory_allocated, preallocated_h_lut);
 
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0),
         message_extract_lut->get_lut(0, 0), message_extract_lut->get_degree(0),
         message_extract_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
-        message_extract_lut_f, gpu_memory_allocated);
+        message_extract_lut_f, gpu_memory_allocated, preallocated_h_lut);
     Torus *h_lut_indexes = predicate_lut->h_lut_indexes;
     for (int index = 0; index < 2 * num_radix_blocks; index++) {
       if (index < num_radix_blocks) {
