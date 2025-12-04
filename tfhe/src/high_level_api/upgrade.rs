@@ -549,7 +549,7 @@ mod tests {
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     };
     use crate::upgrade::{DecompressionUpgradeKey, UpgradeKeyChain};
     use crate::*;
@@ -621,7 +621,7 @@ mod tests {
 
     #[test]
     fn test_keychain_upgrade() {
-        let compute_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let compute_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
         let compression_parameters = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(compute_params)
