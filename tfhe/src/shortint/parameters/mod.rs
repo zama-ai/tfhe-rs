@@ -113,7 +113,7 @@ pub struct MessageModulus(pub u64);
 
 impl MessageModulus {
     pub fn corresponding_max_degree(&self) -> MaxDegree {
-        MaxDegree::new(self.0 - 1)
+        MaxDegree::new(self.0.saturating_sub(1))
     }
 }
 
