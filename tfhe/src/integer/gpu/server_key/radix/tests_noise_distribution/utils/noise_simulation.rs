@@ -60,6 +60,22 @@ impl CudaDynLwe {
         }
     }
 
+    pub fn as_ct_64_cpu(&self, cuda_side_resources: &CudaSideResources) -> LweCiphertext<Vec<u64>> {
+        match self {
+            Self::U32(_) => panic!("Tried getting a u32 CudaLweCiphertextList as u64."),
+            Self::U64(_cuda_lwe) => {
+                let cpu_lwe_list = self
+                    .as_lwe_64()
+                    .to_lwe_ciphertext_list(&cuda_side_resources.streams);
+                LweCiphertext::from_container(
+                    cpu_lwe_list.clone().into_container(),
+                    cpu_lwe_list.ciphertext_modulus(),
+                )
+            }
+            Self::U128(_) => panic!("Tried getting a u128 CudaLweCiphertextList as u64."),
+        }
+    }
+
     pub fn as_lwe_128(&self) -> &CudaLweCiphertextList<u128> {
         match self {
             Self::U32(_) => panic!("Tried getting a u32 CudaLweCiphertextList as u128."),
