@@ -30,6 +30,21 @@ impl DataKind {
             }
         }
     }
+
+    pub(crate) fn total_block_count(
+        info: &[Self],
+        message_modulus: MessageModulus,
+    ) -> Result<usize, ()> {
+        if message_modulus.0 == 0 {
+            return Err(());
+        }
+
+        info.iter()
+            .try_fold(0usize, |acc, &x| {
+                acc.checked_add(x.num_blocks(message_modulus))
+            })
+            .ok_or(())
+    }
 }
 
 pub trait Expandable: Sized {
