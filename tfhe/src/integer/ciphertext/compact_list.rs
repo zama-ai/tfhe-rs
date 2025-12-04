@@ -952,17 +952,27 @@ impl CompactCiphertextList {
         self.ct_list.message_modulus
     }
 
+    /// Computes the expected number of blocks based on the `info` metadata.
+    ///
+    /// Returns an error if the sum overflows
+    fn expected_num_block(&self) -> Result<usize, ()> {
+        DataKind::total_block_count(&self.info, self.message_modulus())
+    }
+
     fn is_conformant_with_shortint_params(
         &self,
         shortint_params: CiphertextConformanceParams,
     ) -> bool {
-        let Self { ct_list, info } = self;
+        let Self {
+            ct_list,
+            info: _info,
+        } = self;
 
-        let mut num_blocks: usize = info
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(self.message_modulus()))
-            .sum();
+        let Ok(mut num_blocks) = self.expected_num_block() else {
+            // Return early if the sum overflowed
+            return false;
+        };
+
         // This expects packing, halve the number of blocks with enough capacity
         if shortint_params.degree.get()
             == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
@@ -1099,6 +1109,13 @@ impl ProvenCompactCiphertextList {
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.info.get(index).copied()
     }
+
+    /// Computes the expected number of blocks based on the `info` metadata.
+    ///
+    /// Returns an error if the sum overflows
+    fn expected_num_block(&self) -> Result<usize, ()> {
+        DataKind::total_block_count(&self.info, self.message_modulus())
+    }
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1164,7 +1181,10 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
     type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self { ct_list, info } = self;
+        let Self {
+            ct_list,
+            info: _info,
+        } = self;
 
         let is_packed = self.is_packed();
 
@@ -1177,10 +1197,10 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             return false;
         }
 
-        let total_expected_num_blocks: usize = info
-            .iter()
-            .map(|a| a.num_blocks(self.message_modulus()))
-            .sum();
+        let Ok(total_expected_num_blocks) = self.expected_num_block() else {
+            // Return early if the sum overflowed
+            return false;
+        };
 
         let total_expected_lwe_count =
             total_expected_num_blocks.div_ceil(if is_packed { 2 } else { 1 });
