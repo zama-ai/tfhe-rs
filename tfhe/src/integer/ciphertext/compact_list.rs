@@ -430,10 +430,10 @@ impl ParameterSetConformant for CompactCiphertextList {
             return false;
         }
 
-        let total_expected_num_blocks: usize = info
-            .iter()
-            .map(|a| a.num_blocks(self.message_modulus()))
-            .sum();
+        let Ok(total_expected_num_blocks) = self.expected_num_block() else {
+            // Return early if the sum overflowed
+            return false;
+        };
 
         let total_expected_lwe_count = if is_packed {
             total_expected_num_blocks.div_ceil(2)
@@ -1001,6 +1001,13 @@ impl CompactCiphertextList {
     pub fn message_modulus(&self) -> MessageModulus {
         self.ct_list.message_modulus
     }
+
+    /// Computes the expected number of blocks based on the `info` metadata.
+    ///
+    /// Returns an error if the sum overflows
+    fn expected_num_block(&self) -> Result<usize, ()> {
+        DataKind::total_block_count(&self.info, self.message_modulus())
+    }
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1127,6 +1134,13 @@ impl ProvenCompactCiphertextList {
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.info.get(index).copied()
     }
+
+    /// Computes the expected number of blocks based on the `info` metadata.
+    ///
+    /// Returns an error if the sum overflows
+    fn expected_num_block(&self) -> Result<usize, ()> {
+        DataKind::total_block_count(&self.info, self.message_modulus())
+    }
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1233,10 +1247,10 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             return false;
         }
 
-        let total_expected_num_blocks: usize = info
-            .iter()
-            .map(|a| a.num_blocks(self.message_modulus()))
-            .sum();
+        let Ok(total_expected_num_blocks) = self.expected_num_block() else {
+            // Return early if the sum overflowed
+            return false;
+        };
 
         let total_expected_lwe_count = if is_packed {
             total_expected_num_blocks.div_ceil(2)
