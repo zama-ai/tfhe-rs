@@ -10,7 +10,6 @@ use crate::integer::BooleanBlock;
 #[cfg(feature = "zk-pok")]
 use crate::integer::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
-use std::convert::Infallible;
 use std::num::NonZero;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
@@ -36,15 +35,24 @@ pub struct CompactCiphertextListV0 {
 }
 
 impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
-    type Error = Infallible;
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
-        let radix_count =
-            self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer;
+        let lwe_count = self.ct_list.ct_list.lwe_ciphertext_count().0;
+
+        if !lwe_count % self.num_blocks_per_integer == 0 {
+            return Err(crate::error!("Invalid CompactCiphertextListV0, the total lwe count should be a multiple of num_blocks_per_integer"));
+        }
+
+        let radix_count = lwe_count
+            .checked_div(self.num_blocks_per_integer)
+            .ok_or_else(|| {
+                crate::error!("Invalid CompactCiphertextListV0, num_blocks_per_integer is 0")
+            })?;
+
         // Since we can't guess the type of data here, we set them by default as unsigned integer.
         // Since it this data comes from 0.6, if it is included in a homogeneous compact list it
         // will be converted to the right type at expand time.
-
         let info = NonZero::new(self.num_blocks_per_integer)
             .map(|n| vec![DataKind::Unsigned(n); radix_count])
             .unwrap_or_default();
