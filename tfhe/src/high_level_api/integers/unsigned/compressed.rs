@@ -263,7 +263,7 @@ where
 mod test {
     use super::*;
     use crate::core_crypto::prelude::UnsignedInteger;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::shortint::{CiphertextModulus, CompressedCiphertext};
     use crate::{generate_keys, set_server_key, CompressedFheUint8, ConfigBuilder};
     use rand::{thread_rng, Rng};
@@ -315,7 +315,7 @@ mod test {
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&CompressedFheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
         )));
 
         let breaker_lists = [
@@ -340,7 +340,7 @@ mod test {
 
                     assert!(
                         !ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
-                            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
                         ))
                     );
                 }
@@ -373,7 +373,7 @@ mod test {
 
                 assert!(
                     !ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
-                        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
                     ))
                 );
             }
@@ -391,7 +391,7 @@ mod test {
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&CompressedFheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
         )));
 
         let mut rng = thread_rng();
@@ -410,9 +410,10 @@ mod test {
                     .seed
                     .0 = rng.gen::<u128>();
             }
+
             assert!(
                 ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
                 ))
             );
 

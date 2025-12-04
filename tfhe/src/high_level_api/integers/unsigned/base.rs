@@ -1850,7 +1850,10 @@ mod test {
     use super::*;
     use crate::core_crypto::prelude::UnsignedInteger;
     use crate::prelude::*;
-    use crate::shortint::parameters::{AtomicPatternKind, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
+    use crate::shortint::parameters::{
+        AtomicPatternKind, PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    };
     use crate::shortint::{CiphertextModulus, PBSOrder};
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     use rand::{thread_rng, Rng};
@@ -1880,7 +1883,7 @@ mod test {
         let ct = FheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&FheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
         )));
 
         let breaker_lists = [
@@ -1940,7 +1943,7 @@ mod test {
                 breaker(i, &mut ct_clone);
 
                 assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
                 )));
             }
         }
@@ -1957,7 +1960,7 @@ mod test {
         let ct = FheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&FheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
         )));
 
         let mut rng = thread_rng();
@@ -1975,7 +1978,7 @@ mod test {
             }
 
             assert!(ct.is_conformant(&FheUintConformanceParams::from(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
             )));
 
             ct_clone += &ct_clone.clone();

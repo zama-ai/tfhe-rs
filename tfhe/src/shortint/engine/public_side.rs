@@ -4,6 +4,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
 use crate::shortint::{
     Ciphertext, ClientKey, CompressedPublicKey, PaddingBit, PublicKey, ShortintEncoding,
@@ -47,12 +48,11 @@ impl ShortintEngine {
             client_key.parameters().ciphertext_modulus(),
             &mut self.encryption_generator,
         );
+
         PublicKey {
             lwe_public_key,
             parameters: client_key.parameters(),
-            atomic_pattern: AtomicPatternKind::Standard(
-                client_key.parameters().encryption_key_choice().into(),
-            ),
+            atomic_pattern: client_key.atomic_pattern.kind(),
         }
     }
 

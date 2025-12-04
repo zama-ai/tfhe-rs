@@ -67,8 +67,8 @@ impl PublicKey {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
 
-    pub fn parameters(&self) -> crate::shortint::PBSParameters {
-        self.key.parameters.pbs_parameters().unwrap()
+    pub fn parameters(&self) -> crate::shortint::ShortintParameterSet {
+        self.key.parameters
     }
 
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
