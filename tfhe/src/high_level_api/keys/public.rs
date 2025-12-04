@@ -57,7 +57,7 @@ impl PublicKey {
     }
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {
-        self.key.parameters().message_modulus()
+        self.key.key.parameters.message_modulus()
     }
 }
 

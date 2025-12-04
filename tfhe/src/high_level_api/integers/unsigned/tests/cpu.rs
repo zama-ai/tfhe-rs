@@ -5,7 +5,6 @@ use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUin
 use crate::integer::U256;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::test_params::*;
-use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
     CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256, CompressedFheUint32,
@@ -470,7 +469,7 @@ fn test_match_value() {
 
 #[test]
 fn test_safe_deserialize_conformant_fhe_uint32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
@@ -494,7 +493,7 @@ fn test_safe_deserialize_conformant_fhe_uint32() {
 
 #[test]
 fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
@@ -519,7 +518,7 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
 
 #[test]
 fn test_safe_deserialize_conformant_compact_fhe_uint32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key);
@@ -555,9 +554,9 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
 
 #[test]
 fn test_cpk_encrypt_cast_compute_hl() {
-    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param_fhe = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+    let param_pke_only = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+    let param_ksk = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let num_block = 4usize;
 
@@ -604,10 +603,9 @@ fn test_cpk_encrypt_cast_compute_hl() {
 
 #[test]
 fn test_compressed_cpk_encrypt_cast_compute_hl() {
-    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
+    let param_fhe = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+    let param_pke_only = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+    let param_ksk = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let num_block = 4usize;
 
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
