@@ -65,7 +65,7 @@ pub struct LweSize(pub usize);
 impl LweSize {
     /// Return the associated [`LweDimension`].
     pub fn to_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.0 - 1)
+        LweDimension(self.0.saturating_sub(1))
     }
 }
 
@@ -79,7 +79,7 @@ pub struct LweDimension(pub usize);
 impl LweDimension {
     /// Return the associated [`LweSize`].
     pub fn to_lwe_size(&self) -> LweSize {
-        LweSize(self.0 + 1)
+        LweSize(self.0.saturating_add(1))
     }
 }
 
@@ -467,5 +467,28 @@ impl NormalizedHammingWeightBound {
         } else {
             Err(())
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_bad_lwe_size() {
+        // Check that it does not underflow
+        let lwe_size = LweSize(0);
+
+        let lwe_dim = lwe_size.to_lwe_dimension();
+        assert_eq!(lwe_dim.0, 0);
+    }
+
+    #[test]
+    fn test_bad_lwe_dimension() {
+        // Check that it does not overflow
+        let lwe_dim = LweDimension(usize::MAX);
+
+        let lwe_size = lwe_dim.to_lwe_size();
+        assert_eq!(lwe_size.0, usize::MAX);
     }
 }
