@@ -82,7 +82,9 @@ impl Upgrade<CompactCiphertextListV1> for CompactCiphertextListV0 {
             degree: self.degree,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            expansion_kind: CompactCiphertextListExpansionKind::NoCasting(self.pbs_order),
+            expansion_kind: CompactCiphertextListExpansionKind::NoCasting(
+                AtomicPatternKind::Standard(self.pbs_order),
+            ),
             noise_level: self.noise_level,
         })
     }

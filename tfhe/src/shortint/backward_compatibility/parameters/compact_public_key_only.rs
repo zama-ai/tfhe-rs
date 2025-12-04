@@ -7,10 +7,31 @@ use super::parameters::{
     CompactCiphertextListExpansionKind, DynamicDistribution, SupportedCompactPkeZkScheme,
 };
 use super::prelude::*;
+use crate::shortint::AtomicPatternKind;
+
+#[derive(Version)]
+pub enum CompactCiphertextListExpansionKindV0 {
+    RequiresCasting,
+    NoCasting(PBSOrder),
+}
+
+impl Upgrade<CompactCiphertextListExpansionKind> for CompactCiphertextListExpansionKindV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactCiphertextListExpansionKind, Self::Error> {
+        Ok(match self {
+            Self::RequiresCasting => CompactCiphertextListExpansionKind::RequiresCasting,
+            Self::NoCasting(pbsorder) => {
+                CompactCiphertextListExpansionKind::NoCasting(AtomicPatternKind::Standard(pbsorder))
+            }
+        })
+    }
+}
 
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListExpansionKindVersions {
-    V0(CompactCiphertextListExpansionKind),
+    V0(CompactCiphertextListExpansionKindV0),
+    V1(CompactCiphertextListExpansionKind),
 }
 
 #[derive(Version)]
