@@ -490,9 +490,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind = compute_params.atomic_pattern().into();
             cpk_params
         };
 
@@ -699,9 +697,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 
@@ -809,9 +806,8 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 

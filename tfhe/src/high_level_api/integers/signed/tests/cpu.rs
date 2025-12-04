@@ -7,10 +7,10 @@ use crate::prelude::{
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
     TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
 };
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::{
     generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, CompressedFheInt16,
     CompressedFheInt32, CompressedFheInt32ConformanceParams, ConfigBuilder, DeserializationConfig,
@@ -205,7 +205,7 @@ fn test_leading_trailing_zeros_ones() {
 
 #[test]
 fn test_safe_deserialize_conformant_fhe_int32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
@@ -230,7 +230,7 @@ fn test_safe_deserialize_conformant_fhe_int32() {
 
 #[test]
 fn test_safe_deserialize_conformant_compressed_fhe_int32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());

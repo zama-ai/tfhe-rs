@@ -628,24 +628,25 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
-    use crate::shortint::parameters::current_params::*;
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt32, FheUint32};
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+    #[cfg(feature = "gpu")]
+    use crate::shortint::parameters::v1_6::{
+        V1_6_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_6_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_6_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_6_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    #[cfg(feature = "gpu")]
+    use crate::ConfigBuilder;
+    use crate::{generate_keys, set_server_key, FheBool, FheInt32, FheUint32};
     use rand::Rng;
 
     #[test]
     fn test_compressed_squashed_noise_ciphertext_list() {
-        let params = V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let noise_squashing_params =
-            V1_6_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let noise_squashing_compression_params =
-            V1_6_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let meta_params = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 
-        let config = ConfigBuilder::with_custom_parameters(params)
-            .enable_noise_squashing(noise_squashing_params)
-            .enable_noise_squashing_compression(noise_squashing_compression_params)
-            .build();
-
-        let (cks, sks) = generate_keys(config);
+        let (cks, sks) = generate_keys(meta_params);
 
         let mut rng = rand::thread_rng();
 
