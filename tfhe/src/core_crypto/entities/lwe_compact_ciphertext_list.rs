@@ -46,14 +46,20 @@ pub fn lwe_compact_ciphertext_list_mask_count(
     lwe_dimension: LweDimension,
     lwe_ciphertext_count: LweCiphertextCount,
 ) -> LweMaskCount {
-    LweMaskCount(
-        lwe_ciphertext_count.0 / lwe_dimension.0
-            + if lwe_ciphertext_count.0 % lwe_dimension.0 == 0 {
-                0
-            } else {
-                1
-            },
-    )
+    if lwe_dimension.0 == 0 {
+        return LweMaskCount(0);
+    }
+
+    let base = lwe_ciphertext_count.0 / lwe_dimension.0;
+    let remainder = if lwe_ciphertext_count.0 % lwe_dimension.0 == 0 {
+        0
+    } else {
+        1
+    };
+
+    // Cannot overflow since base can only be equal to usize::MAX if lwe_ciphertext_count is
+    // usize::MAX and lwe_dimension is 1, and in that case remainder is 0
+    LweMaskCount(base + remainder)
 }
 
 pub fn lwe_compact_ciphertext_list_size(
@@ -393,5 +399,21 @@ impl<Scalar: UnsignedInteger> LweCompactCiphertextListOwned<Scalar> {
             lwe_ciphertext_count,
             ciphertext_modulus,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_bad_lwe_list_mask_count() {
+        let lwe_dim = LweDimension(0);
+        let lwe_ct_count = LweCiphertextCount(33);
+
+        assert_eq!(
+            lwe_compact_ciphertext_list_mask_count(lwe_dim, lwe_ct_count).0,
+            0
+        );
     }
 }
