@@ -27,8 +27,7 @@ pub use crate::high_level_api::strings::traits::*;
 #[cfg(feature = "gpu")]
 pub use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
-    DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu,
+    DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheErc20, FheMaxSizeOnGpu, FheMinSizeOnGpu,
     FheOrdSizeOnGpu, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu,
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
-    FheErc20,
 };
