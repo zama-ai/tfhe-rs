@@ -7,7 +7,9 @@ use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_boot
     multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul,
     multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul,
 };
-use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweMultiBitFftBlindRotate;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
+    LweMultiBitFftBlindRotate, LweMultiBitFftBootstrap,
+};
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus,
 };
@@ -206,5 +208,22 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
             Variance(accumulator.variance_per_occupied_slot().0 + br_additive_variance.0),
             accumulator.modulus(),
         );
+    }
+}
+
+impl LweMultiBitFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+    for NoiseSimulationLweMultiBitFourierBsk
+{
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &NoiseSimulationLwe,
+        output: &mut NoiseSimulationLwe,
+        accumulator: &NoiseSimulationGlwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        // Noise-wise it is the same
+        self.lwe_multi_bit_fft_blind_rotate(input, output, accumulator, side_resources);
     }
 }
