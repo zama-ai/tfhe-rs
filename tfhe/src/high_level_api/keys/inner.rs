@@ -117,7 +117,7 @@ impl Default for IntegerConfig {
     fn default() -> Self {
         #[cfg(not(feature = "gpu"))]
         let params =
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into();
         #[cfg(feature = "gpu")]
         let params =
             crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
