@@ -21,39 +21,19 @@ __host__ void host_erc20_assign(CudaStreams streams,
   host_integer_mult_radix<Torus, params>(
       streams, mem_ptr->tmp_amount, amount, false, mem_ptr->has_enough_funds,
       true, bsks, ksks, mem_ptr->mul_buffer, num_radix_blocks);
-  cuda_event_record(mem_ptr->incoming_events[0], streams.stream(0),
-                    streams.gpu_index(0));
-  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
-    cuda_stream_wait_event(mem_ptr->sub_streams_1.stream(j),
-                           mem_ptr->incoming_events[0],
-                           mem_ptr->sub_streams_1.gpu_index(j));
-    cuda_stream_wait_event(mem_ptr->sub_streams_2.stream(j),
-                           mem_ptr->incoming_events[0],
-                           mem_ptr->sub_streams_1.gpu_index(j));
-  }
 
+  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
+      streams);
   // stream1
   host_add_and_propagate_single_carry(
-      mem_ptr->sub_streams_1, to_amount, mem_ptr->tmp_amount, nullptr, nullptr,
-      mem_ptr->add_buffer, bsks, ksks, FLAG_NONE, 0);
-  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
-    cuda_event_record(mem_ptr->outgoing_events1[j],
-                      mem_ptr->sub_streams_1.stream(j),
-                      mem_ptr->sub_streams_1.gpu_index(j));
-  }
+      mem_ptr->internal_cuda_streams[0], to_amount, mem_ptr->tmp_amount,
+      nullptr, nullptr, mem_ptr->add_buffer, bsks, ksks, FLAG_NONE, 0);
   // stream2
   host_sub_and_propagate_single_carry(
-      mem_ptr->sub_streams_2, to_amount, mem_ptr->tmp_amount, nullptr, nullptr,
-      mem_ptr->sub_buffer, bsks, ksks, FLAG_NONE, 0);
-  for (int j = 0; j < mem_ptr->active_streams.count(); j++) {
-    cuda_event_record(mem_ptr->outgoing_events2[j],
-                      mem_ptr->sub_streams_2.stream(j),
-                      mem_ptr->sub_streams_2.gpu_index(j));
-    cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events1[j],
-                           streams.gpu_index(0));
-    cuda_stream_wait_event(streams.stream(0), mem_ptr->outgoing_events2[j],
-                           streams.gpu_index(0));
-  }
+      mem_ptr->internal_cuda_streams[1], to_amount, mem_ptr->tmp_amount,
+      nullptr, nullptr, mem_ptr->sub_buffer, bsks, ksks, FLAG_NONE, 0);
+  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
+      streams);
 }
 
 template <typename Torus>

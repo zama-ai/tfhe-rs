@@ -18,7 +18,10 @@ use crate::high_level_api::traits::{
     FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu,
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
 };
-use crate::high_level_api::traits::{DivRem, FheErc20, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign};
+use crate::high_level_api::traits::{
+    DivRem, FheEq, FheErc20, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
+    RotateRightAssign,
+};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as IntegerCudaReRandomizationKey;
 #[cfg(feature = "gpu")]
