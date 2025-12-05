@@ -3,7 +3,7 @@
 //!
 //! Provide two concrete implementation of those traits
 //! * DigitOperations (DOp)
-//! * IntegerOperarions (IOp)
+//! * IntegerOperations (IOp)
 
 pub mod fw_impl;
 pub mod isc_sim;
@@ -72,7 +72,7 @@ impl From<FwParameters> for asm::DigitParameters {
 }
 
 /// Fw trait abstraction
-/// Use to handle Fw implemantion in an abstract way
+/// Use to handle Fw implementation in an abstract way
 #[enum_dispatch]
 pub trait Fw {
     /// Expand a program of IOp into a program of DOp

@@ -36,7 +36,7 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
  *
  */
 // Each thread in x are used to calculate one output.
-// threads in y are used to paralelize the lwe_dimension_in loop.
+// threads in y are used to parallelize the lwe_dimension_in loop.
 // shared memory is used to store intermediate results of the reduction.
 // Note: To reduce register pressure we have slightly changed the algorithm,
 // the idea consists in calculating the negate value of the output. So, instead

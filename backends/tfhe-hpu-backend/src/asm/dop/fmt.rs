@@ -69,7 +69,7 @@ impl From<&PeArithHex> for PeArithInsn {
 }
 
 /// PeaMsg instructions
-/// Arithmetic operation that use one destination register, one source register and an immediat
+/// Arithmetic operation that use one destination register, one source register and an immediate
 /// value
 #[bitfield(u32)]
 pub struct PeArithMsgHex {

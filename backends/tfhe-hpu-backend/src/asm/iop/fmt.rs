@@ -60,7 +60,7 @@ impl From<&Operand> for OperandHex {
 }
 
 #[bitfield(u32)]
-pub struct ImmediatHeaderHex {
+pub struct ImmediateHeaderHex {
     #[bits(16)]
     lsb_msg: u16,
     #[bits(12)]
@@ -73,8 +73,8 @@ pub struct ImmediatHeaderHex {
     kind: u8,
 }
 
-impl From<&ImmediatHeaderHex> for field::ImmediatHeader {
-    fn from(value: &ImmediatHeaderHex) -> Self {
+impl From<&ImmediateHeaderHex> for field::ImmediateHeader {
+    fn from(value: &ImmediateHeaderHex) -> Self {
         let kind = if value.kind() == OperandKind::Src as u8 {
             OperandKind::Src
         } else if value.kind() == OperandKind::Dst as u8 {
@@ -94,8 +94,8 @@ impl From<&ImmediatHeaderHex> for field::ImmediatHeader {
     }
 }
 
-impl From<&field::ImmediatHeader> for ImmediatHeaderHex {
-    fn from(value: &field::ImmediatHeader) -> Self {
+impl From<&field::ImmediateHeader> for ImmediateHeaderHex {
+    fn from(value: &field::ImmediateHeader) -> Self {
         Self::new()
             .with_lsb_msg(value.lsb_msg)
             .with_block(value.block.0)

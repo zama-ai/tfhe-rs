@@ -113,7 +113,7 @@ impl UCore {
                         patch_imm(iop, imm);
                         dop_patch
                     }
-                    // TODO Patch immediat
+                    // TODO Patch immediate
                     _ => dop_patch,
                 }
             })
@@ -126,7 +126,7 @@ impl UCore {
     }
 }
 
-/// Utility function to patch immediat argument
+/// Utility function to patch immediate argument
 fn patch_imm(iop: &hpu_asm::IOp, imm: &mut hpu_asm::ImmId) {
     *imm = match imm {
         hpu_asm::ImmId::Cst(val) => hpu_asm::ImmId::Cst(*val),

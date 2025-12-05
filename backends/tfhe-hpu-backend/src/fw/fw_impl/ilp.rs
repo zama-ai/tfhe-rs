@@ -100,11 +100,11 @@ pub fn iop_adds(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic addx function
     iop_addx(prog, &mut dst, None, &src_a, &src_b);
 }
@@ -134,18 +134,18 @@ pub fn iop_overflow_adds(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic addx function
     iop_addx(prog, &mut dst, Some(&mut flag[0]), &src_a, &src_b);
 }
 
 /// Generic Add operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_addx(
     prog: &mut Program,
@@ -191,7 +191,7 @@ pub fn iop_sub(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -207,11 +207,11 @@ pub fn iop_subs(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic subx function
     iop_subx(prog, &mut dst, None, &src_a, &src_b);
 }
@@ -224,7 +224,7 @@ pub fn iop_overflow_sub(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -241,18 +241,18 @@ pub fn iop_overflow_subs(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic subx function
     iop_subx(prog, &mut dst, Some(&mut flag[0]), &src_a, &src_b);
 }
 
 /// Generic sub operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_subx(
     prog: &mut Program,
@@ -324,18 +324,18 @@ pub fn iop_ssub(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic subx function
     iop_ssubx(prog, &mut dst, None, &src_a, &src_b);
 }
 
 /// Generic SSUB operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_ssubx(
     prog: &mut Program,
@@ -406,11 +406,11 @@ pub fn iop_overflow_ssub(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic ssubx function
     iop_ssubx(prog, &mut dst, Some(&mut flag[0]), &src_a, &src_b);
 }
@@ -422,7 +422,7 @@ pub fn iop_mul(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -437,11 +437,11 @@ pub fn iop_muls(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic mulx function
     iop_mulx(prog, &mut dst, None, &src_a, &src_b);
 }
@@ -454,7 +454,7 @@ pub fn iop_overflow_mul(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
@@ -471,18 +471,18 @@ pub fn iop_overflow_muls(prog: &mut Program) {
     let mut flag = prog.iop_template_var(OperandKind::Dst, 1);
     // SrcA -> Operand
     let src_a = prog.iop_template_var(OperandKind::Src, 0);
-    // SrcB -> Immediat
+    // SrcB -> Immediate
     let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic mulx function
     iop_mulx(prog, &mut dst, Some(&mut flag[0]), &src_a, &src_b);
 }
 
 /// Generic mul operation
 /// One destination and two sources operation
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_mulx(
     prog: &mut Program,
@@ -994,11 +994,11 @@ pub fn iop_shift_scalar_right(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amount-> Immediat
+    // Amount-> Immediate
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SHIFTS_R Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SHIFTS_R Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic rotx function
     iop_scalar_shiftrotx(prog, ShiftKind::ShiftRight, &mut dst, &src, &amount);
 }
@@ -1010,11 +1010,11 @@ pub fn iop_shift_scalar_left(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amount-> Immediat
+    // Amount-> Immediate
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("SHIFTS_L Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("SHIFTS_L Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic rotx function
     iop_scalar_shiftrotx(prog, ShiftKind::ShiftLeft, &mut dst, &src, &amount);
 }
@@ -1026,11 +1026,11 @@ pub fn iop_rotate_scalar_right(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amount-> Immediat
+    // Amount-> Immediate
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("ROTS_R Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("ROTS_R Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic rotx function
     iop_scalar_shiftrotx(prog, ShiftKind::RotRight, &mut dst, &src, &amount);
 }
@@ -1041,11 +1041,11 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amount-> Immediat
+    // Amount-> Immediate
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
-    prog.push_comment("ROTS_L Operand::Dst Operand::Src Operand::Immediat".to_string());
+    prog.push_comment("ROTS_L Operand::Dst Operand::Src Operand::Immediate".to_string());
     // Deferred implementation to generic rotx function
     iop_scalar_shiftrotx(prog, ShiftKind::RotRight, &mut dst, &src, &amount);
 }
@@ -1118,7 +1118,7 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
 
 /// Generic Cmp operation
 /// One destination block and two sources operands
-/// Source could be Operand or Immediat
+/// Source could be Operand or Immediate
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_cmpx(
     prog: &mut Program,

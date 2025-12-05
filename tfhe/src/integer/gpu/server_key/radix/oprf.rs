@@ -17,7 +17,7 @@ use crate::integer::gpu::{get_grouped_oprf_size_on_gpu, grouped_oprf_async, Cuda
 impl CudaServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -56,7 +56,7 @@ impl CudaServerKey {
 
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -115,7 +115,7 @@ impl CudaServerKey {
 
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in its full range using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -155,7 +155,7 @@ impl CudaServerKey {
 
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust

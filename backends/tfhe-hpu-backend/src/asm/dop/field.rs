@@ -81,7 +81,7 @@ pub enum ImmId {
 }
 
 impl ImmId {
-    /// Create new immediat template
+    /// Create new immediate template
     pub fn new_var(tid: u8, bid: u8) -> Self {
         Self::Var { tid, bid }
     }
@@ -132,7 +132,7 @@ pub struct PeArithInsn {
 }
 
 /// PeaMsg instructions
-/// Arithmetic operation that use one destination register, one source register and an immediat
+/// Arithmetic operation that use one destination register, one source register and an immediate
 /// value
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeArithMsgInsn {
