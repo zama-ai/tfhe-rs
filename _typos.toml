@@ -13,6 +13,7 @@ extend-ignore-identifiers-re = [
     # Example in trivium
     "C9217BA0D762ACA1",
     "0x[0-9a-fA-F]+",
+    "xrt_coreutil",
 ]
 
 [files]

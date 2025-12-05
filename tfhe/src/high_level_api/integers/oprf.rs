@@ -94,7 +94,7 @@ impl<Id: FheUintId> FheUint<Id> {
     }
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -188,7 +188,7 @@ impl<Id: FheUintId> FheUint<Id> {
 impl<Id: FheIntId> FheInt<Id> {
     /// Generates an encrypted signed integer
     /// taken uniformly in its full range using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -275,7 +275,7 @@ impl<Id: FheIntId> FheInt<Id> {
     }
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust

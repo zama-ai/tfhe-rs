@@ -92,8 +92,8 @@ pub enum Candidate {
 }
 
 pub enum CandidateResult {
-    SatisfiyingBound(Candidate),
-    BestNotSatisfiyingBound(Candidate),
+    SatisfyingBound(Candidate),
+    BestNotSatisfyingBound(Candidate),
 }
 
 pub fn choose_candidate_to_improve_modulus_switch_noise_for_binary_key<Scalar, C1, C2>(
@@ -155,7 +155,7 @@ where
     let mut best_measure = base_measure;
 
     if base_measure <= bound.0 {
-        return CandidateResult::SatisfiyingBound(best_candidate);
+        return CandidateResult::SatisfyingBound(best_candidate);
     }
 
     for (index, encryption_of_zero) in encryptions_of_zero.iter().enumerate() {
@@ -187,11 +187,11 @@ where
         }
 
         if measure <= bound.0 {
-            return CandidateResult::SatisfiyingBound(best_candidate);
+            return CandidateResult::SatisfyingBound(best_candidate);
         }
     }
 
-    CandidateResult::BestNotSatisfiyingBound(best_candidate)
+    CandidateResult::BestNotSatisfyingBound(best_candidate)
 }
 
 /// This function can be called before doing a modulus switch.
@@ -222,13 +222,13 @@ pub fn improve_lwe_ciphertext_modulus_switch_noise_for_binary_key<Scalar, C1, C2
 
     #[cfg(test)]
     assert!(
-        matches!(candidate, CandidateResult::SatisfiyingBound(_)),
+        matches!(candidate, CandidateResult::SatisfyingBound(_)),
         "MS noise reduction bound not reached for any candidate"
     );
 
     let candidate = match candidate {
-        CandidateResult::SatisfiyingBound(candidate) => candidate,
-        CandidateResult::BestNotSatisfiyingBound(candidate) => candidate,
+        CandidateResult::SatisfyingBound(candidate) => candidate,
+        CandidateResult::BestNotSatisfyingBound(candidate) => candidate,
     };
 
     match candidate {

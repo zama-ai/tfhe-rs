@@ -127,7 +127,7 @@ $ cargo run --release
 
 You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../configuration/rust-configuration.md)
 
-## Perforance tips
+## Performance tips
 Performance can be further improved by setting `lto="fat"` in `Cargo.toml`
 ```toml
 [profile.release]

@@ -382,9 +382,9 @@ impl Program {
     }
 
     /// Create templated arguments
-    /// kind is used to specify if it's bind to src/dst or immediat template
+    /// kind is used to specify if it's bind to src/dst or immediate template
     /// pos_id is used to bind the template to an IOp operand position
-    // TODO pass the associated operand or immediat to obtain the inner blk properties instead of
+    // TODO pass the associated operand or immediate to obtain the inner blk properties instead of
     // using the global one
     pub fn iop_template_var(&mut self, kind: asm::OperandKind, pos_id: u8) -> Vec<MetaVarCell> {
         let nb_blk = self.params().blk_w() as u8;

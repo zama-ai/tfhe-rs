@@ -75,7 +75,7 @@ impl Operand {
     }
 }
 
-/// Create a dedicated type for a collection of Immediat
+/// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
 #[derive(Debug, Clone)]
 pub struct OperandBundle(Vec<Operand>);
@@ -142,32 +142,32 @@ impl OperandBundle {
 
 // Immediate operands
 // ------------------------------------------------------------------------------------------------
-/// Immediat Size
-/// => Number of valid digit in following immediat
+/// Immediate Size
+/// => Number of valid digit in following immediate
 /// To obtain the number of valid bits, user should multiply by the msg_width
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ImmBlock(pub u16);
 
-/// Immediat header
+/// Immediate header
 /// Use to implement top-level parser manually
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ImmediatHeader {
+pub struct ImmediateHeader {
     pub(super) lsb_msg: u16,
     pub(super) block: ImmBlock,
     pub(super) is_last: bool,
     pub(super) kind: OperandKind,
 }
 
-/// Full Immediat representation (i.e. header + data)
+/// Full Immediate representation (i.e. header + data)
 #[derive(Debug, Clone, PartialEq)]
-pub struct Immediat {
+pub struct Immediate {
     pub(super) kind: OperandKind,
     pub(super) is_last: bool,
     pub(super) block: ImmBlock,
     pub(super) msg: Vec<u16>,
 }
 
-impl Immediat {
+impl Immediate {
     /// Access imm msg for template patching
     /// Extract the correct block (i.e. MSG_WIDTH chunk)
     pub fn msg_block(&self, bid: u8) -> u16 {
@@ -217,7 +217,7 @@ impl Immediat {
     }
 }
 
-impl Immediat {
+impl Immediate {
     #[tracing::instrument(level = "trace", ret)]
     pub fn from_words(stream: &[IOpWordRepr]) -> Result<(Self, usize), HexParsingError> {
         // Keep track of the current peak index
@@ -226,7 +226,7 @@ impl Immediat {
         // 1. Parse header
         let header = if let Some(header_word) = stream.get(peak_words) {
             peak_words += 1;
-            ImmediatHeader::from(&fmt::ImmediatHeaderHex::from_bits(*header_word))
+            ImmediateHeader::from(&fmt::ImmediateHeaderHex::from_bits(*header_word))
         } else {
             return Err(HexParsingError::EmptyStream);
         };
@@ -276,13 +276,13 @@ impl Immediat {
 
     pub fn to_words(&self) -> Vec<IOpWordRepr> {
         let mut words = Vec::new();
-        let header = ImmediatHeader {
+        let header = ImmediateHeader {
             lsb_msg: *self.msg.first().unwrap_or(&0),
             block: self.block,
             is_last: self.is_last,
             kind: self.kind,
         };
-        words.push(fmt::ImmediatHeaderHex::from(&header).into_bits());
+        words.push(fmt::ImmediateHeaderHex::from(&header).into_bits());
 
         if self.msg.len() > 1 {
             for imm in self.msg[1..]
@@ -302,10 +302,10 @@ impl Immediat {
     }
 }
 
-/// Create a dedicated type for a collection of Immediat
+/// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
 #[derive(Debug, Clone)]
-pub struct ImmBundle(Vec<Immediat>);
+pub struct ImmBundle(Vec<Immediate>);
 
 impl ImmBundle {
     #[tracing::instrument(level = "trace", ret)]
@@ -315,7 +315,7 @@ impl ImmBundle {
 
         let mut imm_list = Vec::new();
         loop {
-            let (imm, peaked) = Immediat::from_words(&stream[peak_words..])?;
+            let (imm, peaked) = Immediate::from_words(&stream[peak_words..])?;
             peak_words += peaked;
 
             let is_last = imm.is_last;
@@ -335,9 +335,9 @@ impl ImmBundle {
     }
 }
 
-impl From<Vec<Immediat>> for ImmBundle {
+impl From<Vec<Immediate>> for ImmBundle {
     #[tracing::instrument(level = "trace", ret)]
-    fn from(inner: Vec<Immediat>) -> Self {
+    fn from(inner: Vec<Immediate>) -> Self {
         let mut inner = inner;
         // Enforce correct is_last handling
         inner.iter_mut().for_each(|op| op.is_last = false);
@@ -349,7 +349,7 @@ impl From<Vec<Immediat>> for ImmBundle {
 }
 
 impl std::ops::Deref for ImmBundle {
-    type Target = Vec<Immediat>;
+    type Target = Vec<Immediate>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -392,7 +392,7 @@ use std::collections::VecDeque;
 /// Implement construction
 /// Used to construct IOp from Backend HpuVar
 impl IOp {
-    pub fn new(opcode: IOpcode, dst: Vec<Operand>, src: Vec<Operand>, imm: Vec<Immediat>) -> Self {
+    pub fn new(opcode: IOpcode, dst: Vec<Operand>, src: Vec<Operand>, imm: Vec<Immediate>) -> Self {
         let dst_align = dst.iter().map(|x| x.block).max().unwrap();
         let src_align = src.iter().map(|x| x.block).max().unwrap();
         let has_imm = !imm.is_empty();
@@ -504,7 +504,7 @@ impl IOp {
             src
         };
 
-        // 4. Parse Immediat [Optional]
+        // 4. Parse Immediate [Optional]
         let (imm, peaked) = if header.has_imm {
             ImmBundle::from_words(&stream.as_slices().0[peak_words..])?
         } else {
@@ -533,7 +533,7 @@ impl IOp {
         words.extend(self.dst.to_words());
         // 3. Sources
         words.extend(self.src.to_words());
-        // 4. Immediat
+        // 4. Immediate
         words.extend(self.imm.to_words());
         words
     }

@@ -31,7 +31,7 @@
   lut_pc = {Hbm={pc=34}}
 
   fw_size= 16777216 # i.e. 16 MiB
-  fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discret DDR
+  fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discrete DDR
 
   bsk_pc = [
     {Hbm={pc=8}},
