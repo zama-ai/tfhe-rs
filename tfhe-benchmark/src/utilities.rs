@@ -787,6 +787,7 @@ mod cuda_utils {
     #[allow(unused_imports)]
     #[cfg(feature = "integer")]
     pub use cuda_integer_utils::*;
+    use tfhe::core_crypto::prelude::CastInto;
 }
 
 #[cfg(feature = "gpu")]

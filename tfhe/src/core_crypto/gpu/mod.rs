@@ -485,21 +485,25 @@ pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn keyswitch_async_gemm<T: UnsignedInteger>(
+pub unsafe fn keyswitch_async_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_out: &mut CudaVec<KST>,
     lwe_out_indexes: &CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
     lwe_in_indexes: &CudaVec<T>,
     input_lwe_dimension: LweDimension,
     output_lwe_dimension: LweDimension,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KST>,
     base_log: DecompositionBaseLog,
     l_gadget: DecompositionLevelCount,
     num_samples: u32,
     ks_tmp_buffer: *const ffi::c_void,
     uses_trivial_indices: bool,
 ) {
+    assert!(
+        TypeId::of::<KST>() == TypeId::of::<u64>(),
+        "GEMM KS does not yet support 32-b modulus"
+    );
     cuda_keyswitch_gemm_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -525,33 +529,50 @@ pub unsafe fn keyswitch_async_gemm<T: UnsignedInteger>(
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn keyswitch_async<T: UnsignedInteger>(
+pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_out: &mut CudaVec<KT>,
     lwe_out_indexes: &CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
     lwe_in_indexes: &CudaVec<T>,
     input_lwe_dimension: LweDimension,
     output_lwe_dimension: LweDimension,
-    keyswitch_key: &CudaVec<T>,
+    keyswitch_key: &CudaVec<KT>,
     base_log: DecompositionBaseLog,
     l_gadget: DecompositionLevelCount,
     num_samples: u32,
 ) {
-    cuda_keyswitch_lwe_ciphertext_vector_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_out_indexes.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        lwe_in_indexes.as_c_ptr(0),
-        keyswitch_key.as_c_ptr(0),
-        input_lwe_dimension.0 as u32,
-        output_lwe_dimension.0 as u32,
-        base_log.0 as u32,
-        l_gadget.0 as u32,
-        num_samples,
-    );
+    if TypeId::of::<KT>() == TypeId::of::<u32>() {
+        cuda_keyswitch_lwe_ciphertext_vector_64_32(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_out_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            lwe_in_indexes.as_c_ptr(0),
+            keyswitch_key.as_c_ptr(0),
+            input_lwe_dimension.0 as u32,
+            output_lwe_dimension.0 as u32,
+            base_log.0 as u32,
+            l_gadget.0 as u32,
+            num_samples,
+        );
+    } else if TypeId::of::<KT>() == TypeId::of::<u64>() {
+        cuda_keyswitch_lwe_ciphertext_vector_64_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_out_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            lwe_in_indexes.as_c_ptr(0),
+            keyswitch_key.as_c_ptr(0),
+            input_lwe_dimension.0 as u32,
+            output_lwe_dimension.0 as u32,
+            base_log.0 as u32,
+            l_gadget.0 as u32,
+            num_samples,
+        );
+    }
 }
 /// Convert keyswitch key
 ///

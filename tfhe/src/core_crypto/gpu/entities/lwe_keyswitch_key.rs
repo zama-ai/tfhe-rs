@@ -6,9 +6,10 @@ use crate::core_crypto::gpu::{
     DecompositionLevelCount,
 };
 use crate::core_crypto::prelude::{
-    lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
+    lwe_keyswitch_key_input_key_element_encrypted_size, CastInto, LweKeyswitchKeyOwned, LweSize,
     UnsignedInteger,
 };
+use std::any::TypeId;
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -22,12 +23,15 @@ pub struct CudaLweKeyswitchKey<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
-    pub fn from_lwe_keyswitch_key(h_ksk: &LweKeyswitchKeyOwned<T>, streams: &CudaStreams) -> Self {
+    pub fn from_lwe_keyswitch_key<O: UnsignedInteger + CastInto<T>>(
+        h_ksk: &LweKeyswitchKeyOwned<O>,
+        streams: &CudaStreams,
+    ) -> Self {
         let decomp_base_log = h_ksk.decomposition_base_log();
         let decomp_level_count = h_ksk.decomposition_level_count();
         let input_lwe_size = h_ksk.input_key_lwe_dimension().to_lwe_size();
         let output_lwe_size = h_ksk.output_key_lwe_dimension().to_lwe_size();
-        let ciphertext_modulus = h_ksk.ciphertext_modulus();
+        let ciphertext_modulus = h_ksk.ciphertext_modulus().try_to().unwrap();
 
         // Allocate memory
         let mut d_vec = CudaVec::<T>::new_multi_gpu(
@@ -39,8 +43,14 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
             streams,
         );
 
+        assert!(TypeId::of::<T>() == TypeId::of::<O>());
+
         unsafe {
-            convert_lwe_keyswitch_key_async(streams, &mut d_vec, h_ksk.as_ref());
+            let casted = std::slice::from_raw_parts(
+                h_ksk.as_ref().as_ptr().cast::<T>(),
+                h_ksk.as_ref().len(),
+            );
+            convert_lwe_keyswitch_key_async(streams, &mut d_vec, casted);
         }
 
         streams.synchronize();
