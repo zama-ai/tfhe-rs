@@ -42,6 +42,19 @@ where
     (new_from_amount, new_to_amount)
 }
 
+#[cfg(feature = "gpu")]
+pub fn transfer_backend<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: FheErc20<Output = FheType>,
+    for<'a> &'a FheType: FheErc20<Output = FheType>,
+{
+    from_amount.erc20(to_amount, amount)
+}
+
 /// Parallel variant of [`transfer_whitepaper`].
 pub fn par_transfer_whitepaper<FheType>(
     from_amount: &FheType,
@@ -964,6 +977,14 @@ fn main() {
                 "FheUint64",
                 "transfer::no_cmux",
                 transfer_no_cmux::<FheUint64>,
+            );
+            cuda_bench_transfer_throughput(
+                &mut group,
+                &cks,
+                bench_name,
+                "FheUint64",
+                "transfer::backend",
+                transfer_backend::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
                 &mut group,

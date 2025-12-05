@@ -355,3 +355,9 @@ pub trait FheEqSizeOnGpu<Rhs = Self> {
     fn get_eq_size_on_gpu(&self, amount: Rhs) -> u64;
     fn get_ne_size_on_gpu(&self, amount: Rhs) -> u64;
 }
+#[cfg(feature = "gpu")]
+pub trait FheErc20<Rhs = Self> {
+    type Output;
+
+    fn erc20(self, to: Rhs, amount: Rhs) -> (Self::Output, Self::Output);
+}

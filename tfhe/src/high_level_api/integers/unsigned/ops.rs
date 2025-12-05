@@ -16,10 +16,7 @@ use crate::high_level_api::traits::{
     FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
     RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
 };
-use crate::high_level_api::traits::{
-    DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
-    RotateRightAssign,
-};
+use crate::high_level_api::traits::{DivRem, FheErc20, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 #[cfg(feature = "hpu")]
@@ -3202,6 +3199,71 @@ where
                 )
             } else {
                 0
+            }
+        })
+    }
+}
+#[cfg(feature = "gpu")]
+impl<Id> FheErc20<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    fn erc20(self, to: Self, amount: Self) -> (Self::Output, Self::Output) {
+        <Self as FheErc20<&Self>>::erc20(self, &to, &amount)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> FheErc20<&Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    fn erc20(self, to: &Self, amount: &Self) -> (Self::Output, Self::Output) {
+        <&Self as FheErc20<&Self>>::erc20(&self, to, amount)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> FheErc20<Self> for &FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = FheUint<Id>;
+
+    fn erc20(self, to: Self, amount: Self) -> (Self::Output, Self::Output) {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_cpu_key) => {
+                panic!("Erc20 is not supported on CPU");
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let inner_result = cuda_key.key.key.erc20(
+                    &*self.ciphertext.on_gpu(streams),
+                    &*to.ciphertext.on_gpu(streams),
+                    &*amount.ciphertext.on_gpu(streams),
+                    streams,
+                );
+                (
+                    FheUint::<Id>::new(
+                        inner_result.0,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheUint::<Id>::new(
+                        inner_result.1,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                )
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Erc20 is not supported on HPU");
             }
         })
     }
