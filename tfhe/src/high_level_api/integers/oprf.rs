@@ -92,7 +92,7 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
-    /// Generates an encrypted `num_block` blocks unsigned integer
+    /// Generates an encrypted unsigned integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
     /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
@@ -150,6 +150,66 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
+
+    /// Generates an encrypted unsigned integer
+    /// taken almost uniformly in `[0, excluded_upper_bound[` using the given seed.
+    /// The encrypted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
+    ///
+    /// The norm-1 distance (defined as ∆(, ) := 1/2 Sum[ω∈Ω] |P(ω) − Q(ω)| between the actual distribution and the target uniform distribution is below the `max_distance` argument.
+    ///
+    /// A safe value for `max_distance` is `2^-128`. It is the default value if None is provided.
+    ///
+    /// Higher values allow better performance but must be considered carefully in the context of their target application
+    /// as it may have serious unintended consequences.
+    ///
+    /// ```rust
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let excluded_upper_bound = 3;
+    ///
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range(Seed(0), excluded_upper_bound, None);
+    ///
+    /// let dec_result: u16 = ct_res.decrypt(&client_key);
+    /// assert!(dec_result < excluded_upper_bound as u16);
+    /// ```
+    pub fn generate_oblivious_pseudo_random_custom_range(
+        seed: Seed,
+        excluded_upper_bound: u64,
+        max_distance: Option<f64>,
+    ) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let num_blocks_output = Id::num_blocks(key.message_modulus()) as u64;
+
+                let ct = key
+                    .pbs_key()
+                    .par_generate_oblivious_pseudo_random_unsigned_custom_range2(
+                        seed,
+                        excluded_upper_bound,
+                        num_blocks_output,
+                        max_distance,
+                    );
+
+                Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                panic!("Gpu does not support this operation yet.")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+
     #[cfg(feature = "gpu")]
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
     ///
@@ -273,7 +333,7 @@ impl<Id: FheIntId> FheInt<Id> {
             }
         })
     }
-    /// Generates an encrypted `num_block` blocks signed integer
+    /// Generates an encrypted signed integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
     /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.

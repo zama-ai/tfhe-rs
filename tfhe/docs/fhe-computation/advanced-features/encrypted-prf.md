@@ -8,6 +8,9 @@ This is possible through two methods on `FheUint` and `FheInt`:
 - `generate_oblivious_pseudo_random` which return an integer taken uniformly in the full integer range (`[0; 2^N[` for a `FheUintN` and `[-2^(N-1); 2^(N-1)[` for a `FheIntN`).
 - `generate_oblivious_pseudo_random_bounded` which return an integer taken uniformly in `[0; 2^random_bits_count[`. For a `FheUintN`, we must have  `random_bits_count <= N`. For a `FheIntN`, we must have  `random_bits_count <= N - 1`.
 
+
+TODO: document `generate_oblivious_pseudo_random_custom_range`
+
 Both methods functions take a seed `Seed` as input, which could be any `u128` value.
 They both rely on the use of the usual server key.
 The output is reproducible, i.e., the function is deterministic from the inputs: assuming the same hardware, seed and server key, this function outputs the same random encrypted value.
