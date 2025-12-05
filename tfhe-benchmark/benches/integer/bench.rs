@@ -3,6 +3,7 @@
 mod aes;
 mod aes256;
 mod oprf;
+mod vector_find;
 
 mod rerand;
 
@@ -2802,6 +2803,7 @@ mod cuda {
         cuda_trailing_ones,
         cuda_ilog2,
         oprf::cuda::cuda_unsigned_oprf,
+        vector_find::cuda::cuda_match_value,
     );
 
     criterion_group!(
@@ -2830,6 +2832,7 @@ mod cuda {
         cuda_scalar_div,
         cuda_scalar_rem,
         oprf::cuda::cuda_unsigned_oprf,
+        vector_find::cuda::cuda_match_value,
     );
 
     criterion_group!(
@@ -3742,6 +3745,8 @@ criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
 criterion_group!(oprf, oprf::unsigned_oprf);
 
+criterion_group!(vector_find, vector_find::match_value);
+
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
@@ -3789,10 +3794,12 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
             cast_ops();
-            oprf()
+            oprf();
+            vector_find();
         }
         "fast_default" => {
             default_dedup_ops();
+            vector_find();
         }
         "smart" => {
             smart_ops();
@@ -3831,7 +3838,8 @@ fn main() {
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
             cast_ops();
-            oprf()
+            oprf();
+            vector_find();
         }
     };
 
