@@ -945,10 +945,10 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
-            let pendings_0_in = (0..num_elems)
+            let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let pendings_1_in = (0..num_elems)
+            let pending_1_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
@@ -969,9 +969,9 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
                 .collect::<Vec<_>>();
 
             b.iter(|| {
-                let (amounts_0_out, amounts_1_out): (Vec<_>, Vec<_>) = pendings_0_in
+                let (amounts_0_out, amounts_1_out): (Vec<_>, Vec<_>) = pending_0_in
                     .par_iter()
-                    .zip(pendings_1_in.par_iter())
+                    .zip(pending_1_in.par_iter())
                     .zip(total_tokens_0_in.par_iter())
                     .zip(total_tokens_1_in.par_iter())
                     .zip(total_tokens_0_out.par_iter())
@@ -1084,10 +1084,10 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
-            let pendings_0_in = (0..num_elems)
+            let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let pendings_1_in = (0..num_elems)
+            let pending_1_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
@@ -1116,9 +1116,9 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             let num_streams_per_gpu = 2.min(num_elems / num_gpus);
             let chunk_size = (num_elems / num_gpus) as usize;
             b.iter(|| {
-                pendings_0_in
+                pending_0_in
                     .par_chunks(chunk_size)
-                    .zip(pendings_1_in.par_chunks(chunk_size))
+                    .zip(pending_1_in.par_chunks(chunk_size))
                     .zip(total_tokens_0_in.par_chunks(chunk_size))
                     .zip(total_tokens_1_in.par_chunks(chunk_size))
                     .zip(total_tokens_0_out.par_chunks(chunk_size))
@@ -1131,7 +1131,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
                                 (
                                     (
                                         (
-                                            (pendings_0_in_gpu_i, pendings_1_in_gpu_i),
+                                            (pending_0_in_gpu_i, pending_1_in_gpu_i),
                                             total_tokens_0_in_gpu_i,
                                         ),
                                         total_tokens_1_in_gpu_i,
@@ -1142,10 +1142,10 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
                             ),
                         )| {
                             let stream_chunk_size =
-                                pendings_0_in_gpu_i.len() / num_streams_per_gpu as usize;
-                            pendings_0_in_gpu_i
+                                pending_0_in_gpu_i.len() / num_streams_per_gpu as usize;
+                            pending_0_in_gpu_i
                                 .par_chunks(stream_chunk_size)
-                                .zip(pendings_1_in_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(pending_1_in_gpu_i.par_chunks(stream_chunk_size))
                                 .zip(total_tokens_0_in_gpu_i.par_chunks(stream_chunk_size))
                                 .zip(total_tokens_1_in_gpu_i.par_chunks(stream_chunk_size))
                                 .zip(total_tokens_0_out_gpu_i.par_chunks(stream_chunk_size))
