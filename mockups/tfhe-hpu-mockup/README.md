@@ -75,7 +75,7 @@ Other optional configuration knobs are available:
 * `--freq-hz`, `--register`, `isc-depth`: These knobs are used to override some parameters on the flight. They are useful for quick exploration.
 * `--dump-out`, `--dump-reg`: Use for RTL stimuli generation and debug
 * `--report-out`, `report-trace`: Use for detailed analysis of the performances report
-* `--nops`: Disable tfhe-rs computation. Obsviously led to incorrect behavior but accurate performance estimation.
+* `--nops`: Disable tfhe-rs computation. Obviously led to incorrect behavior but accurate performance estimation.
 * `--log-out`: Write trace message in the given file instead of stdio.
 
 On top of that `tfhe-hpu-mockup` could generate a detailed set of trace points at runtime to help during the debug/exploration phase (e.g. When writing new Hpu firmware).
