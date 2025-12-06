@@ -171,7 +171,7 @@ A document containing scientific and technical details about algorithms implemen
 
 ### Tutorials
 - [[Video tutorial] Implement signed integers using TFHE-rs ](https://www.zama.ai/post/video-tutorial-implement-signed-integers-ssing-tfhe-rs)
-- [Homomorphic parity bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
+- [Homomorphic parity bit](https://docs.zama.org/tfhe-rs/tutorials/parity-bit)
 - [Homomorphic case changing on Ascii string](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
 - [Boolean SHA256 with TFHE-rs](https://www.zama.ai/post/boolean-sha256-tfhe-rs)
 - [Dark market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
