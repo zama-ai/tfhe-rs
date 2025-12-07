@@ -10,7 +10,11 @@
 <hr/>
 
 <p align="center">
-  <a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf"> 📃 Read Handbook</a> |<a href="https://docs.zama.ai/tfhe-rs"> 📒 Documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
+<a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf">📕 Read Handbook</a> |
+<a href="https://docs.zama.ai/tfhe-rs">📒 Documentation</a> |
+<a href="https://docs.zama.org/tfhe-rs/get-started/benchmarks">📊 Benchmarks</a> |
+<a href="https://zama.ai/community">💬 Community support</a> |
+<a href="https://github.com/zama-ai/awesome-zama">📚 FHE resources by Zama</a>
 </p>
 
 
