@@ -47,7 +47,8 @@ production-ready library for all the advanced features of TFHE.
 - **Ciphertext and server key compression** for efficient data transfer
 - **Full Rust API, C bindings to the Rust High-Level API, and client-side JavaScript API using WASM**.
 
-*Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
+*Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/README), and refer to the [TFHE-rs handbook](https://github.com/zama-ai/tfhe-rs-handbook) for a deeper technical overview of the schemes and parameter sets.*
+
 <br></br>
 
 ## Table of Contents
