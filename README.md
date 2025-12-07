@@ -143,7 +143,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 To run this code, use the following command:
-<p align="center"> <code> cargo run --release </code> </p>
+
+```
+cargo run --release
+```
 
 > [!Note]
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
