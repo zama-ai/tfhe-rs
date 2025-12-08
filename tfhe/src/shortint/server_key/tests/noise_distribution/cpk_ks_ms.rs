@@ -15,6 +15,7 @@ use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchin
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
@@ -248,7 +249,9 @@ fn cpk_ks_any_ms_pfail_helper(
 
 fn noise_check_encrypt_cpk_ks_ms_noise(meta_params: MetaParameters) {
     let (params, cpk_params, ksk_ds_params) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -375,11 +378,14 @@ fn noise_check_encrypt_cpk_ks_ms_noise(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_cpk_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_cpk_ks_ms_pfail(meta_params: MetaParameters) {
     let (params, cpk_params, ksk_ds_params) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -469,11 +475,14 @@ fn noise_check_encrypt_cpk_ks_ms_pfail(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_cpk_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn sanity_check_encrypt_cpk_ks_ms_pbs(meta_params: MetaParameters) {
     let (params, cpk_params, ksk_ds_params, orig_cast_mode) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -556,7 +565,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs(meta_params: MetaParameters) {
 
         // Complete the AP by computing the PBS to match shortint
         let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
-        sks.lwe_classic_fft_pbs(&after_ms, &mut pbs_result, &id_lut, &mut ());
+        sks.apply_generic_blind_rotation(&after_ms, &mut pbs_result, &id_lut);
 
         assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
@@ -565,4 +574,5 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs(meta_params: MetaParameters) {
 create_parameterized_test!(sanity_check_encrypt_cpk_ks_ms_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
