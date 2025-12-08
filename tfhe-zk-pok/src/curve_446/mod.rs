@@ -416,3 +416,27 @@ pub mod g2 {
     /// 107680854723992552431070996218129928499826544031468382031848626814251381379173928074140221537929995580031433096217223703806029068859074
     pub const G2_GENERATOR_Y_C1: Fq = MontFp!("107680854723992552431070996218129928499826544031468382031848626814251381379173928074140221537929995580031433096217223703806029068859074");
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::serialization::{InvalidFpError, SerializableFp};
+
+    use super::Fq;
+    use ark_ff::Field;
+
+    #[test]
+    fn test_serialization() {
+        // This one is only used to have the correct number of serialized bytes
+        let a = Fq::ONE;
+        let s: SerializableFp = a.into();
+
+        let mut data = vec![];
+        bincode::serialize_into(&mut data, &s).unwrap();
+        // First u64 is the vec size
+        data[std::mem::size_of::<u64>()..].fill(u8::MAX);
+
+        let s2: SerializableFp = bincode::deserialize(&data).unwrap();
+        let a2 = Fq::try_from(s2);
+        assert!(matches!(a2, Err(InvalidFpError::GreaterThanModulus)));
+    }
+}
