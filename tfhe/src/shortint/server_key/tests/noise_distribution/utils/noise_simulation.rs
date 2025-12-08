@@ -2034,13 +2034,64 @@ impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for Decompres
                 (DynLwe::U64(input), DynLwe::U64(output)) => {
                     bsk.lwe_classic_fft_pbs(input, output, &accumulator.acc, side_resources)
                 }
-                _ => panic!(
-                    "DecompressionKey only supports DynLwe::U64 for noise
-        simulation"
-                ),
+                _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
             },
             ShortintBootstrappingKey::MultiBit { .. } => {
                 panic!("Tried to compute a classic PBS with a multi bit DecompressionKey")
+            }
+        }
+    }
+}
+
+impl LweMultiBitFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<Vec<u64>>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        match &self.bsk {
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution: _,
+            } => match (input, output) {
+                (DynLwe::U64(input), DynLwe::U64(output)) => fourier_bsk
+                    .lwe_multi_bit_fft_bootstrap(
+                        input,
+                        output,
+                        &accumulator.acc,
+                        // Force execution to be deterministic to save on headaches
+                        &mut (*thread_count, true),
+                    ),
+                _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
+            },
+            ShortintBootstrappingKey::Classic { .. } => {
+                panic!("Tried to compute a multi bit PBS with a classic DecompressionKey")
+            }
+        }
+    }
+}
+
+impl LweGenericBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
+    type SideResources = ();
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<Vec<u64>>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self.bsk {
+            ShortintBootstrappingKey::Classic { .. } => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+            }
+            ShortintBootstrappingKey::MultiBit { .. } => {
+                self.lwe_multi_bit_fft_bootstrap(input, output, accumulator, side_resources)
             }
         }
     }
@@ -2342,6 +2393,11 @@ impl NoiseSimulationLweFourierBsk {
         params: AtomicPatternParameters,
         comp_params: CompressionParameters,
     ) -> Self {
+        assert!(
+            matches!(comp_params, CompressionParameters::Classic(_)),
+            "Tried to build a NoiseSimulationLweFourierBsk from non Classic compression parameters"
+        );
+
         Self::new(
             comp_params
                 .packing_ks_glwe_dimension()
@@ -2594,6 +2650,32 @@ impl NoiseSimulationLweMultiBitFourierBsk {
         }
     }
 
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        comp_params: CompressionParameters,
+    ) -> Self {
+        match comp_params {
+            CompressionParameters::Classic(_) => {
+                panic!(
+                    "Tried to build a impl NoiseSimulationLweMultiBitFourierBsk \
+                    from non MultiBit compression parameters"
+                )
+            }
+            CompressionParameters::MultiBit(comp_params) => Self::new(
+                comp_params
+                    .packing_ks_glwe_dimension
+                    .to_equivalent_lwe_dimension(comp_params.packing_ks_polynomial_size),
+                params.glwe_dimension().to_glwe_size(),
+                params.polynomial_size(),
+                comp_params.br_base_log,
+                comp_params.br_level,
+                comp_params.decompression_grouping_factor,
+                params.glwe_noise_distribution(),
+                NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+            ),
+        }
+    }
+
     pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
         match &server_key.atomic_pattern {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
@@ -2615,6 +2697,17 @@ impl NoiseSimulationLweMultiBitFourierBsk {
             AtomicPatternServerKey::Dynamic(_) => {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
             }
+        }
+    }
+
+    pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
+        match &decomp_key.bsk {
+            ShortintBootstrappingKey::Classic { .. } => false,
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => self.matches_actual_bsk(fourier_bsk),
         }
     }
 }
@@ -2644,6 +2737,20 @@ impl NoiseSimulationGenericBootstrapKey {
         }
     }
 
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        comp_params: CompressionParameters,
+    ) -> Self {
+        match comp_params {
+            CompressionParameters::Classic(_) => Self::Classic(
+                NoiseSimulationLweFourierBsk::new_from_comp_parameters(params, comp_params),
+            ),
+            CompressionParameters::MultiBit(_) => Self::MultiBit(
+                NoiseSimulationLweMultiBitFourierBsk::new_from_comp_parameters(params, comp_params),
+            ),
+        }
+    }
+
     pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
         match self {
             Self::Classic(noise_simulation_lwe_fourier_bsk) => {
@@ -2653,6 +2760,21 @@ impl NoiseSimulationGenericBootstrapKey {
                 noise_simulation_lwe_multi_bit_fourier_bsk
                     .matches_actual_shortint_server_key(server_key)
             }
+        }
+    }
+
+    pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
+        match (self, &decomp_key.bsk) {
+            (
+                Self::Classic(noise_simulation_lwe_fourier_bsk),
+                ShortintBootstrappingKey::Classic { .. },
+            ) => noise_simulation_lwe_fourier_bsk.matches_actual_shortint_decomp_key(decomp_key),
+            (
+                Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk),
+                ShortintBootstrappingKey::MultiBit { .. },
+            ) => noise_simulation_lwe_multi_bit_fourier_bsk
+                .matches_actual_shortint_decomp_key(decomp_key),
+            _ => false,
         }
     }
 

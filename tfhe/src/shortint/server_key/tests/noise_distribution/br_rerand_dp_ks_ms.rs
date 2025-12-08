@@ -1,8 +1,7 @@
 use super::dp_ks_ms::any_ms;
 use super::utils::noise_simulation::{
-    DynLwe, DynLweSecretKeyView, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
-    NoiseSimulationModulusSwitchConfig,
+    DynLwe, DynLweSecretKeyView, NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe,
+    NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -31,6 +30,7 @@ use crate::shortint::list_compression::{CompressionPrivateKeys, DecompressionKey
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
@@ -85,8 +85,7 @@ pub fn br_rerand_dp_ks_any_ms<
 )
 where
     Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources>,
-    DecompPBSKey:
-        LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
+    DecompPBSKey: LweGenericBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources>,
     KsKeyRerand: AllocateLweKeyswitchResult<Output = KsedZeroReRand, SideResources = Resources>
         + LweKeyswitch<InputZeroRerand, KsedZeroReRand, SideResources = Resources>,
     PBSResult: for<'a> LweUncorrelatedAdd<
@@ -118,7 +117,7 @@ where
 {
     // BR to decomp
     let mut br_result = decomp_accumulator.allocate_lwe_bootstrap_result(side_resources);
-    decomp_bsk.lwe_classic_fft_pbs(&input, &mut br_result, decomp_accumulator, side_resources);
+    decomp_bsk.lwe_generic_bootstrap(&input, &mut br_result, decomp_accumulator, side_resources);
 
     // Ks the CPK encryption of 0 to be added to BR result
     let mut ksed_zero_rerand = ksk_rerand.allocate_lwe_keyswitch_result(side_resources);
@@ -482,7 +481,9 @@ fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
 
 fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -520,7 +521,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_decomp_bsk =
-        NoiseSimulationLweFourierBsk::new_from_comp_parameters(params, compression_params);
+        NoiseSimulationGenericBootstrapKey::new_from_comp_parameters(params, compression_params);
 
     let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
     let compute_br_input_modulus_log = sks.br_input_modulus_log();
@@ -684,11 +685,14 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -791,11 +795,14 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
-        let compute_params = meta_params.compute_parameters;
+        let compute_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
         // To avoid the expand logic of shortint which would force a keyswitch + LUT eval after
         // expand
@@ -943,7 +950,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
 
         // Complete the AP by computing the PBS to match shortint
         let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
-        sks.lwe_classic_fft_pbs(&after_ms, &mut pbs_result, &id_lut, &mut ());
+        sks.apply_generic_blind_rotation(&after_ms, &mut pbs_result, &id_lut);
 
         assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
@@ -952,4 +959,5 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
 create_parameterized_test!(sanity_check_encrypt_br_rerand_dp_ks_ms_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
