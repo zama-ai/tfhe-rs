@@ -330,9 +330,9 @@ jobs:
           REGRESSION_PROFILE: ${{ needs.prepare-benchmarks.outputs.selected-regression-profile }}
           TFHE_BACKEND: ${{ needs.prepare-benchmarks.outputs.tfhe-backend }}
           HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
-          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
-          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATABASE_USER }}
-          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
       - name: Generate regression report
         run: |
