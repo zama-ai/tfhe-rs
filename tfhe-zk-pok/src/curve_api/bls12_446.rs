@@ -958,7 +958,7 @@ mod gt {
 mod zp {
     use super::*;
     use crate::curve_446::FrConfig;
-    use crate::serialization::InvalidArraySizeError;
+    use crate::serialization::InvalidFpError;
     use ark_ff::{Fp, FpConfig, MontBackend, PrimeField};
     use tfhe_versionable::Versionize;
     use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -1013,7 +1013,7 @@ mod zp {
         }
     }
     impl TryFrom<SerializableFp> for Zp {
-        type Error = InvalidArraySizeError;
+        type Error = InvalidFpError;
 
         fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
             Ok(Self {
