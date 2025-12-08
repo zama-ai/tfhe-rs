@@ -314,10 +314,10 @@ jobs:
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: '3.12'
+          pip-install: -r ci/data_extractor/requirements.txt -r ci/perf_regression/requirements.txt
 
       - name: Fetch data
         run: |
-          python3 -m pip install -r ci/data_extractor/requirements.txt
           python3 ci/data_extractor/src/data_extractor.py regression_data \
           --generate-regression-json \
           --regression-profiles ci/regression.toml \
@@ -336,7 +336,6 @@ jobs:
 
       - name: Generate regression report
         run: |
-          python3 -m pip install -r ci/perf_regression/requirements.txt
           python3 ci/perf_regression/perf_regression.py check_regression \
           --results-file regression_data.json \
           --generate-report
