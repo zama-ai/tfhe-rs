@@ -165,40 +165,67 @@ where
     let num_input_random_bits: u64 = 4;
     let num_blocks_output = 64;
     let excluded_upper_bound = 10;
-    let random_input_upper_bound = 1 << num_input_random_bits;
-
-    let mut density = vec![0_usize; excluded_upper_bound as usize];
-    for i in 0..random_input_upper_bound {
-        let index = ((i * excluded_upper_bound) as f64 / random_input_upper_bound as f64) as usize;
-        density[index] += 1;
-    }
-
-    let theoretical_pdf: Vec<f64> = density
-        .iter()
-        .map(|count| *count as f64 / random_input_upper_bound as f64)
-        .collect();
 
     let values: Vec<u64> = (0..sample_count)
         .map(|seed| {
             let img = executor.execute((
                 Seed(seed as u128),
                 num_input_random_bits,
-                excluded_upper_bound as u64,
+                excluded_upper_bound,
                 num_blocks_output,
             ));
             cks.decrypt(&img)
         })
         .collect();
 
+    let p_value_upper_bound = p_value_upper_bound_oprf_almost_uniformity_from_values(
+        &values,
+        num_input_random_bits,
+        excluded_upper_bound,
+    );
+
+    assert!(p_value_limit < p_value_upper_bound);
+}
+
+pub fn p_value_upper_bound_oprf_almost_uniformity_from_values(
+    values: &[u64],
+    num_input_random_bits: u64,
+    excluded_upper_bound: u64,
+) -> f64 {
+    let density = oprf_density_function(excluded_upper_bound, num_input_random_bits);
+
+    let theoretical_pdf = probability_density_function_from_density(&density);
+
     let mut bins = vec![0_u64; excluded_upper_bound as usize];
-    for value in values {
+    for value in values.iter().copied() {
         bins[value as usize] += 1;
     }
 
     let cumulative_bins = cumulate(&bins);
     let theoretical_cdf = cumulate(&theoretical_pdf);
     let sup_diff = sup_diff(&cumulative_bins, &theoretical_cdf);
-    let p_value_upper_bound = dkw_alpha_from_epsilon(sample_count as f64, sup_diff);
 
-    assert!(p_value_limit < p_value_upper_bound);
+    dkw_alpha_from_epsilon(values.len() as f64, sup_diff)
+}
+
+pub fn oprf_density_function(excluded_upper_bound: u64, num_input_random_bits: u64) -> Vec<usize> {
+    let random_input_upper_bound = 1 << num_input_random_bits;
+
+    let mut density = vec![0_usize; excluded_upper_bound as usize];
+
+    for i in 0..random_input_upper_bound {
+        let output = ((i * excluded_upper_bound) >> num_input_random_bits) as usize;
+
+        density[output] += 1;
+    }
+    density
+}
+
+pub fn probability_density_function_from_density(density: &[usize]) -> Vec<f64> {
+    let total_count: usize = density.iter().copied().sum();
+
+    density
+        .iter()
+        .map(|count| *count as f64 / total_count as f64)
+        .collect()
 }
