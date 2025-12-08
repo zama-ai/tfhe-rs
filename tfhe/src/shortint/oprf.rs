@@ -487,7 +487,7 @@ pub(crate) mod test {
         );
     }
 
-    fn uniformity_p_value<F>(f: F, sample_count: usize, distinct_values: u64) -> f64
+    pub fn uniformity_p_value<F>(f: F, sample_count: usize, distinct_values: u64) -> f64
     where
         F: Sync + Fn(usize) -> u64,
     {
@@ -495,8 +495,11 @@ pub(crate) mod test {
 
         let mut values_count = HashMap::new();
 
-        for i in &values {
-            assert!(*i < distinct_values, "i {} dv{}", *i, distinct_values);
+        for i in values.iter().copied() {
+            assert!(
+                i < distinct_values,
+                "i (={i}) is supposed to be smaller than distinct_values (={distinct_values})",
+            );
 
             *values_count.entry(i).or_insert(0) += 1;
         }
