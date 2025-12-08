@@ -1588,13 +1588,15 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 
 .PHONY: bench_hlapi # Run benchmarks for integer operations
 bench_hlapi: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
 bench_hlapi_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
@@ -1603,6 +1605,7 @@ bench_hlapi_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
+	__TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
@@ -1665,14 +1668,14 @@ bench_tfhe_zk_pok: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_noise_squash # Run benchmarks for noise squash operation
 bench_hlapi_noise_squash: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_noise_squash_gpu # Run benchmarks for noise squash operation on GPU
 bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
