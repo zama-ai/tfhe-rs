@@ -65,3 +65,15 @@ pub trait LweMultiBitFftBootstrap<Input, Output, Accumulator> {
         side_resources: &mut Self::SideResources,
     );
 }
+
+pub trait LweMultiBitFft128Bootstrap<Input, Output, Accumulator> {
+    type SideResources;
+
+    fn lwe_multi_bit_fft_128_bootstrap(
+        &self,
+        input: &Input,
+        output: &mut Output,
+        accumulator: &Accumulator,
+        side_resources: &mut Self::SideResources,
+    );
+}

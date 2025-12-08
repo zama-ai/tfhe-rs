@@ -10,7 +10,8 @@ pub use add_sub::{LweUncorrelatedAdd, LweUncorrelatedSub};
 pub use lwe_keyswitch::{AllocateLweKeyswitchResult, LweKeyswitch};
 pub use lwe_multi_bit_programmable_bootstrap::{
     AllocateLweMultiBitBlindRotateResult, AllocateLweMultiBitBootstrapResult,
-    LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate, LweMultiBitFftBootstrap,
+    LweMultiBitFft128BlindRotate, LweMultiBitFft128Bootstrap, LweMultiBitFftBlindRotate,
+    LweMultiBitFftBootstrap,
 };
 pub use lwe_packing_keyswitch::{AllocateLwePackingKeyswitchResult, LwePackingKeyswitch};
 pub use lwe_programmable_bootstrap::{

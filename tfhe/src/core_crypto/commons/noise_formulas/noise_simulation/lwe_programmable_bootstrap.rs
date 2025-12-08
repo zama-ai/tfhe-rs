@@ -11,7 +11,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     LweClassicFft128Bootstrap, LweClassicFftBootstrap,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus,
+    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus, PBS_128_MANTISSA_SIZE,
 };
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweSize, LweDimension,
@@ -278,8 +278,7 @@ impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    // Current PBS 128 implem has 104 bits of equivalent mantissa
-                    104.0f64,
+                    PBS_128_MANTISSA_SIZE,
                     self.modulus().as_f64(),
                 )
             }
@@ -290,8 +289,7 @@ impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    // Current PBS 128 implem has 104 bits of equivalent mantissa
-                    104.0f64,
+                    PBS_128_MANTISSA_SIZE,
                     self.modulus().as_f64(),
                 )
             }
