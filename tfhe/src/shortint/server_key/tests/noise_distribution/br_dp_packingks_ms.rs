@@ -14,6 +14,7 @@ use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys};
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CiphertextModulusLog, CompressionParameters,
@@ -52,8 +53,7 @@ pub fn br_dp_packing_ks_ms<
 )
 where
     Accumulator: AllocateLweBootstrapResult<Output = PBSResult, SideResources = Resources> + Sync,
-    PBSKey:
-        LweClassicFftBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources> + Sync,
+    PBSKey: LweGenericBootstrap<InputCt, PBSResult, Accumulator, SideResources = Resources> + Sync,
     PBSResult: ScalarMul<DPScalar, Output = DPResult, SideResources = Resources> + Send,
     PackingKsk: AllocateLwePackingKeyswitchResult<Output = PackingKsResult, SideResources = Resources>
         + for<'a> LwePackingKeyswitch<[&'a DPResult], PackingKsResult, SideResources = Resources>,
@@ -69,7 +69,7 @@ where
         .zip(side_resources.par_iter_mut())
         .map(|(input, side_resources)| {
             let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-            bsk.lwe_classic_fft_pbs(&input, &mut pbs_result, accumulator, side_resources);
+            bsk.lwe_generic_bootstrap(&input, &mut pbs_result, accumulator, side_resources);
             let after_dp = pbs_result.scalar_mul(scalar, side_resources);
 
             (input, pbs_result, after_dp)
@@ -97,7 +97,9 @@ where
 
 fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters) {
     let (params, comp_params) = (
-        meta_params.compute_parameters,
+        meta_params
+            .compute_parameters
+            .with_deterministic_execution(),
         meta_params.compression_parameters.unwrap(),
     );
     let cks = ClientKey::new(params);
@@ -160,6 +162,7 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters) {
 create_parameterized_test!(sanity_check_encrypt_br_dp_packing_ks_ms {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 #[allow(clippy::type_complexity)]
@@ -375,7 +378,9 @@ fn encrypt_br_dp_packing_ks_ms_pfail_helper(
 
 fn noise_check_encrypt_br_dp_packing_ks_ms_noise(meta_params: MetaParameters) {
     let (params, comp_params) = (
-        meta_params.compute_parameters,
+        meta_params
+            .compute_parameters
+            .with_deterministic_execution(),
         meta_params.compression_parameters.unwrap(),
     );
     let cks = ClientKey::new(params);
@@ -384,7 +389,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise(meta_params: MetaParameters) {
     let compression_key = cks.new_compression_key(&compression_private_key);
 
     let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+        NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_packing_key =
         NoiseSimulationLwePackingKeyswitchKey::new_from_comp_parameters(params, comp_params);
 
@@ -503,12 +508,15 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_br_dp_packing_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(meta_params: MetaParameters) {
     let (pfail_test_meta, params, comp_params) = {
         let (mut params, comp_params) = (
-            meta_params.compute_parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
             meta_params.compression_parameters.unwrap(),
         );
 
@@ -520,7 +528,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(meta_params: MetaParameters) {
         assert_eq!(original_carry_modulus.0, 4);
 
         let noise_simulation_bsk =
-            NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+            NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
         let noise_simulation_packing_key =
             NoiseSimulationLwePackingKeyswitchKey::new_from_comp_parameters(params, comp_params);
 
@@ -668,4 +676,5 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(meta_params: MetaParameters) {
 create_parameterized_test!(noise_check_encrypt_br_dp_packing_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
