@@ -12,7 +12,9 @@ use crate::backward_compatibility::{
 };
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ec::AffineRepr;
-use ark_ff::{BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, QuadExtConfig, QuadExtField};
+use ark_ff::{
+    BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, PrimeField, QuadExtConfig, QuadExtField,
+};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -47,6 +49,34 @@ impl Display for InvalidArraySizeError {
 
 impl Error for InvalidArraySizeError {}
 
+#[derive(Debug)]
+pub enum InvalidFpError {
+    InvalidArraySizeError(InvalidArraySizeError),
+    GreaterThanModulus,
+}
+
+impl From<InvalidArraySizeError> for InvalidFpError {
+    fn from(value: InvalidArraySizeError) -> Self {
+        Self::InvalidArraySizeError(value)
+    }
+}
+
+impl Display for InvalidFpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidArraySizeError(e) => e.fmt(f),
+            Self::GreaterThanModulus => {
+                write!(
+                    f,
+                    "The deserialized value was bigger than what its type modulus allowed"
+                )
+            }
+        }
+    }
+}
+
+impl Error for InvalidFpError {}
+
 /// Tries to convert a Vec into a constant size array, and returns an [`InvalidArraySizeError`] if
 /// the size does not match
 pub(crate) fn try_vec_to_array<T, const N: usize>(
@@ -77,16 +107,20 @@ impl<P: FpConfig<N>, const N: usize> From<Fp<P, N>> for SerializableFp {
 }
 
 impl<P: FpConfig<N>, const N: usize> TryFrom<SerializableFp> for Fp<P, N> {
-    type Error = InvalidArraySizeError;
+    type Error = InvalidFpError;
 
     fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
-        Ok(Fp(BigInt(try_vec_to_array(value.val)?), PhantomData))
+        let fp = BigInt(try_vec_to_array(value.val)?);
+        if fp >= Fp::<P, N>::MODULUS {
+            return Err(InvalidFpError::GreaterThanModulus);
+        }
+        Ok(Fp(fp, PhantomData))
     }
 }
 
 #[derive(Debug)]
 pub enum InvalidSerializedAffineError {
-    InvalidFp(InvalidArraySizeError),
+    InvalidFp(InvalidFpError),
     InvalidCompressedXCoordinate,
 }
 
@@ -115,8 +149,8 @@ impl Error for InvalidSerializedAffineError {
     }
 }
 
-impl From<InvalidArraySizeError> for InvalidSerializedAffineError {
-    fn from(value: InvalidArraySizeError) -> Self {
+impl From<InvalidFpError> for InvalidSerializedAffineError {
+    fn from(value: InvalidFpError) -> Self {
         Self::InvalidFp(value)
     }
 }
@@ -163,7 +197,7 @@ impl<F> SerializableAffine<F> {
 
 impl<F, C: SWCurveConfig> TryFrom<SerializableAffine<F>> for Affine<C>
 where
-    F: TryInto<C::BaseField, Error = InvalidArraySizeError>,
+    F: TryInto<C::BaseField, Error = InvalidFpError>,
 {
     type Error = InvalidSerializedAffineError;
 
@@ -207,9 +241,9 @@ where
 
 impl<F, P: QuadExtConfig> TryFrom<SerializableQuadExtField<F>> for QuadExtField<P>
 where
-    F: TryInto<P::BaseField, Error = InvalidArraySizeError>,
+    F: TryInto<P::BaseField, Error = InvalidFpError>,
 {
-    type Error = InvalidArraySizeError;
+    type Error = InvalidFpError;
 
     fn try_from(value: SerializableQuadExtField<F>) -> Result<Self, Self::Error> {
         Ok(QuadExtField {
@@ -244,9 +278,9 @@ where
 
 impl<F, P6: Fp6Config> TryFrom<SerializableCubicExtField<F>> for Fp6<P6>
 where
-    F: TryInto<Fp2<P6::Fp2Config>, Error = InvalidArraySizeError>,
+    F: TryInto<Fp2<P6::Fp2Config>, Error = InvalidFpError>,
 {
-    type Error = InvalidArraySizeError;
+    type Error = InvalidFpError;
 
     fn try_from(value: SerializableCubicExtField<F>) -> Result<Self, Self::Error> {
         Ok(Fp6 {
