@@ -18,7 +18,8 @@ use benchmark::params_aliases::{
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
+    OperatorType,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -392,6 +393,8 @@ bench_sns_only_type!(FheUint128);
 bench_decomp_sns_comp_type!(FheUint64);
 
 fn main() {
+    let env_config = EnvConfig::new();
+
     #[cfg(feature = "hpu")]
     panic!("Noise squashing is not supported on HPU");
 
@@ -430,17 +433,24 @@ fn main() {
 
     let mut c = Criterion::default().configure_from_args();
 
-    bench_sns_only_fhe_uint2(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint4(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint6(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint8(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint10(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint12(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint14(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint16(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint32(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint64(&mut c, params.as_slice());
-    bench_sns_only_fhe_uint128(&mut c, params.as_slice());
+    match env_config.bit_sizes_set {
+        BitSizesSet::Fast => {
+            bench_sns_only_fhe_uint64(&mut c, params.as_slice());
+        }
+        _ => {
+            bench_sns_only_fhe_uint2(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint4(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint6(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint8(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint10(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint12(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint14(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint16(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint32(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint64(&mut c, params.as_slice());
+            bench_sns_only_fhe_uint128(&mut c, params.as_slice());
+        }
+    }
 
     bench_decomp_sns_comp_fhe_uint64(&mut c, params.as_slice());
 
