@@ -529,7 +529,7 @@ mod g2 {
 }
 
 mod gt {
-    use crate::serialization::InvalidArraySizeError;
+    use crate::serialization::InvalidFpError;
 
     use super::*;
     use ark_ec::pairing::Pairing;
@@ -550,7 +550,7 @@ mod gt {
     }
 
     impl TryFrom<SerializableFp12> for Gt {
-        type Error = InvalidArraySizeError;
+        type Error = InvalidFpError;
 
         fn try_from(value: SerializableFp12) -> Result<Self, Self::Error> {
             Ok(Self {
@@ -682,7 +682,7 @@ mod gt {
 }
 
 mod zp {
-    use crate::serialization::InvalidArraySizeError;
+    use crate::serialization::InvalidFpError;
 
     use super::*;
     use ark_ff::Fp;
@@ -737,7 +737,7 @@ mod zp {
         }
     }
     impl TryFrom<SerializableFp> for Zp {
-        type Error = InvalidArraySizeError;
+        type Error = InvalidFpError;
 
         fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
             Ok(Self {
