@@ -322,9 +322,9 @@ class ProfileDefinition:
 
         match self.backend:
             case TfheBackend.Cpu:
-                features.append("nightly-avx512")
+                features.append("avx512")
             case TfheBackend.Gpu:
-                features.extend(["gpu", "nightly-avx512"])
+                features.extend(["gpu", "avx512"])
             case TfheBackend.Hpu:
                 features.extend(["hpu", "hpu-v80"])
 
