@@ -12,6 +12,7 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MetaParameters};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
@@ -165,7 +166,9 @@ where
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
 fn sanity_check_encrypt_dp_ks_pbs(meta_params: MetaParameters) {
-    let params = meta_params.compute_parameters;
+    let params = meta_params
+        .compute_parameters
+        .with_deterministic_execution();
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
@@ -191,7 +194,7 @@ fn sanity_check_encrypt_dp_ks_pbs(meta_params: MetaParameters) {
 
         // Complete the AP by computing the PBS to match shortint
         let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
-        sks.lwe_classic_fft_pbs(&after_ms, &mut pbs_result, &id_lut, &mut ());
+        sks.apply_generic_blind_rotation(&after_ms, &mut pbs_result, &id_lut);
 
         let mut shortint_res =
             sks.unchecked_scalar_mul(&input_zero, max_scalar_mul.try_into().unwrap());
@@ -205,6 +208,7 @@ create_parameterized_test!(sanity_check_encrypt_dp_ks_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn encrypt_dp_ks_any_ms_inner_helper(
@@ -323,7 +327,9 @@ fn encrypt_dp_ks_any_ms_pfail_helper(
 }
 
 fn noise_check_encrypt_dp_ks_ms_noise(meta_params: MetaParameters) {
-    let params = meta_params.compute_parameters;
+    let params = meta_params
+        .compute_parameters
+        .with_deterministic_execution();
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
@@ -415,11 +421,14 @@ create_parameterized_test!(noise_check_encrypt_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_dp_ks_ms_pfail(meta_params: MetaParameters) {
     let (pfail_test_meta, params) = {
-        let mut ap_params = meta_params.compute_parameters;
+        let mut ap_params = meta_params
+            .compute_parameters
+            .with_deterministic_execution();
 
         let original_message_modulus = ap_params.message_modulus();
         let original_carry_modulus = ap_params.carry_modulus();
@@ -481,4 +490,5 @@ create_parameterized_test!(noise_check_encrypt_dp_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
