@@ -60,6 +60,8 @@ env:
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16"
+  LINELINT_VERSION: 0.0.6
+  LINELINT_CHECKSUM: "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b"
 
 permissions:
   contents: read
@@ -147,6 +149,15 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Install newline linter
+        if: inputs.run-build && matrix.runner == env.EXTERNAL_CONTRIBUTION_RUNNER
+        run: |
+          wget "https://github.com/fernandrone/linelint/releases/download/${LINELINT_VERSION}/linelint-linux-amd64"
+          echo "${LINELINT_CHECKSUM} linelint-linux-amd64" > checksum
+          sha256sum -c checksum
+          chmod +x linelint-linux-amd64
+          ln -s "$(pwd)/linelint-linux-amd64" /usr/local/bin/linelint
 
       - name: Run pcc checks batch
         if: inputs.run-pcc-cpu-batch
