@@ -48,6 +48,7 @@ macro_rules! export_concrete_array_types {
 }
 
 pub use crate::core_crypto::commons::math::random::{Seed, XofSeed};
+pub use crate::high_level_api::integers::oprf::RangeForRandom;
 pub use crate::integer::server_key::MatchValues;
 use crate::{error, Error, Versionize};
 use backward_compatibility::compressed_ciphertext_list::SquashedNoiseCiphertextStateVersions;
