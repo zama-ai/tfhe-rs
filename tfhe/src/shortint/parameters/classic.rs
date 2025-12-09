@@ -173,4 +173,8 @@ impl ClassicPBSParameters {
             degree,
         }
     }
+
+    pub const fn pbs_order(&self) -> PBSOrder {
+        self.encryption_key_choice.into_pbs_order()
+    }
 }

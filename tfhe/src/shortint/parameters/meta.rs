@@ -11,9 +11,12 @@ use crate::shortint::backward_compatibility::parameters::{
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters,
+    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::AtomicPatternParameters;
+use crate::shortint::{
+    AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
+    MultiBitPBSParameters, PBSParameters,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DedicatedCompactPublicKeyParametersVersions)]
@@ -716,43 +719,57 @@ impl MetaParametersFinder {
             return candidates.pop().map(|(param, _)| param);
         }
 
+        fn filter_candidtes(
+            candidates: Vec<(MetaParameters, &str)>,
+            filter: impl Fn(&(MetaParameters, &str)) -> bool,
+        ) -> Vec<(MetaParameters, &str)> {
+            let filtered = candidates
+                .iter()
+                .copied()
+                .filter(filter)
+                .collect::<Vec<_>>();
+
+            // The filter keeps elements, based on what tfhe-rs sees as better default
+            // However, it's possible, that the input candidates list does not include
+            // anything that matches the filter
+            // e.g. the use selected MultiBitPBS on CPU, but our cpu filter prefers ClassicPBS
+            // therefor nothing will match, so we return the original list instead
+            if filtered.is_empty() {
+                candidates
+            } else {
+                filtered
+            }
+        }
+
+        let mut candidates = match self.backend {
+            // On CPU we prefer Classical PBS with TUniform
+            Backend::Cpu => filter_candidtes(candidates, |(params, _)| {
+                matches!(
+                    params.compute_parameters,
+                    AtomicPatternParameters::Standard(PBSParameters::PBS(_))
+                ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
+            }),
+            // On GPU we prefer MultiBit PBS with TUniform
+            Backend::CudaGpu => filter_candidtes(candidates, |(params, _)| {
+                matches!(
+                    params.compute_parameters,
+                    AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(_))
+                ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
+            }),
+        };
+
         // highest failure probability is the last element,
         // and higher failure probability means better performance
         //
         // Since pfails are negative e.g: -128, -40 for 2^-128 and 2^-40
-        // the closest pfail the constraint is the last one
+        // the closest pfail to the constraint is the last one
         candidates.sort_by(|(a, _), (b, _)| {
             a.failure_probability()
                 .partial_cmp(&b.failure_probability())
                 .unwrap()
         });
 
-        match self.backend {
-            // On CPU we prefer Classical PBS with TUniform
-            Backend::Cpu => candidates
-                .iter()
-                .rfind(|(params, _)| {
-                    matches!(
-                        params.compute_parameters,
-                        AtomicPatternParameters::Standard(PBSParameters::PBS(_))
-                    ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
-                })
-                .copied()
-                .or_else(|| candidates.pop())
-                .map(|(param, _)| param),
-            // On GPU we prefer MultiBit PBS with TUniform
-            Backend::CudaGpu => candidates
-                .iter()
-                .rfind(|(params, _)| {
-                    matches!(
-                        params.compute_parameters,
-                        AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(_))
-                    ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
-                })
-                .copied()
-                .or_else(|| candidates.pop())
-                .map(|(param, _)| param),
-        }
+        candidates.last().copied().map(|(params, _)| params)
     }
 
     /// Returns all known meta parameter that satisfy the choices
