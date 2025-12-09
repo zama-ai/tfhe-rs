@@ -25,7 +25,7 @@ use crate::core_crypto::prelude::{
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
 use core::mem::transmute;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -234,9 +234,9 @@ pub fn blind_rotate_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?
-        .try_and(cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?)
+) -> StackReq {
+    StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)
+        .and(cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft))
 }
 
 /// Return the required memory for [`Fourier128LweBootstrapKey::bootstrap`].
@@ -244,10 +244,13 @@ pub fn bootstrap_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_scratch::<Scalar>(glwe_size, polynomial_size, fft)?.try_and(
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
-    )
+) -> StackReq {
+    blind_rotate_scratch::<Scalar>(glwe_size, polynomial_size, fft).and(StackReq::new_aligned::<
+        Scalar,
+    >(
+        glwe_size.0 * polynomial_size.0,
+        CACHELINE_ALIGN,
+    ))
 }
 
 impl<Cont> Fourier128LweBootstrapKey<Cont>
@@ -470,7 +473,7 @@ where
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         fft: &Self::Fft,
-    ) -> Result<StackReq, SizeOverflow> {
+    ) -> StackReq {
         bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft.as_view())
     }
 
@@ -489,9 +492,9 @@ where
         self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack);
     }
 
-    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
+    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> StackReq {
         let _ = fft;
-        Ok(StackReq::empty())
+        StackReq::empty()
     }
 }
 

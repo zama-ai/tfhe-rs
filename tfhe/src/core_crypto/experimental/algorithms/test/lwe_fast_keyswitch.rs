@@ -147,21 +147,16 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
         ks1_polynomial_size,
         fft_ks,
     )
-    .unwrap()
-    .try_unaligned_bytes_required()
-    .unwrap();
+    .unaligned_bytes_required();
 
     let ks_buffer_size_req = ks_buffer_size_req.max(
         convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft_ks)
-            .unwrap()
             .unaligned_bytes_required(),
     );
     let pbs_buffer_size_req = programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<
         Scalar,
     >(glwe_dimension.to_glwe_size(), polynomial_size, fft_pbs)
-    .unwrap()
-    .try_unaligned_bytes_required()
-    .unwrap();
+    .unaligned_bytes_required();
 
     ks_buffers.resize(ks_buffer_size_req);
     pbs_buffers.resize(pbs_buffer_size_req);

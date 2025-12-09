@@ -1,7 +1,7 @@
 use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use aligned_vec::avec;
-use dyn_stack::GlobalPodBuffer;
+use dyn_stack::PodBuffer;
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
@@ -23,11 +23,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             *x = generator.random_uniform();
         }
 
-        let mut mem = GlobalPodBuffer::new(
-            fft.forward_scratch()
-                .unwrap()
-                .and(fft.backward_scratch().unwrap()),
-        );
+        let mut mem = PodBuffer::new(fft.forward_scratch().and(fft.backward_scratch()));
         let stack = PodStack::new(&mut mem);
 
         // Simple roundtrip
@@ -125,11 +121,7 @@ fn test_product<Scalar: UnsignedTorus>() {
                 *y >>= Scalar::BITS - integer_magnitude;
             }
 
-            let mut mem = GlobalPodBuffer::new(
-                fft.forward_scratch()
-                    .unwrap()
-                    .and(fft.backward_scratch().unwrap()),
-            );
+            let mut mem = PodBuffer::new(fft.forward_scratch().and(fft.backward_scratch()));
             let stack = PodStack::new(&mut mem);
 
             fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack);

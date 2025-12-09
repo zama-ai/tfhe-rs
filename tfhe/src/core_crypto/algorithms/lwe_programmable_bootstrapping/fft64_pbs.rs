@@ -17,7 +17,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 
 /// Perform a blind rotation given an input [`modulus switched LWE
@@ -208,7 +208,6 @@ pub fn blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
             fourier_bsk.polynomial_size(),
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -254,7 +253,7 @@ pub fn blind_rotate_assign_mem_optimized_requirement<OutputScalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     blind_rotate_assign_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
 }
 
@@ -290,7 +289,6 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
             ggsw.polynomial_size(),
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -382,12 +380,10 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///     polynomial_size,
 ///     fft,
 /// )
-/// .unwrap()
 /// .unaligned_bytes_required();
 ///
 /// let buffer_size_req = buffer_size_req.max(
 ///     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
-///         .unwrap()
 ///         .unaligned_bytes_required(),
 /// );
 ///
@@ -478,7 +474,7 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     impl_add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
@@ -533,7 +529,6 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
             ggsw.polynomial_size(),
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -646,12 +641,10 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///
 /// let buffer_size_req =
 ///     cmux_assign_mem_optimized_requirement::<u64>(glwe_size, polynomial_size, fft)
-///         .unwrap()
 ///         .unaligned_bytes_required();
 ///
 /// let buffer_size_req = buffer_size_req.max(
 ///     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
-///         .unwrap()
 ///         .unaligned_bytes_required(),
 /// );
 ///
@@ -768,7 +761,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
@@ -969,7 +962,6 @@ pub fn programmable_bootstrap_lwe_ciphertext<
             fourier_bsk.polynomial_size(),
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -1051,7 +1043,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputSca
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
 }
 
@@ -1139,7 +1131,7 @@ pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Out
     polynomial_size: PolynomialSize,
     ciphertext_count: CiphertextCount,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     batch_bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, ciphertext_count, fft)
 }
 

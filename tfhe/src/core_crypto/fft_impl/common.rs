@@ -5,7 +5,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CiphertextModulusLog, ContainerMut};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 
 pub fn modulus_switch<Scalar: UnsignedInteger>(
     input: Scalar,
@@ -35,7 +35,7 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self;
 
-    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow>;
+    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> StackReq;
 
     fn fill_with_forward_fourier<ContBsk>(
         &mut self,
@@ -49,7 +49,7 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         fft: &Self::Fft,
-    ) -> Result<StackReq, SizeOverflow>;
+    ) -> StackReq;
 
     fn bootstrap<ContLweOut, ContLweIn, ContAcc>(
         &self,
@@ -72,7 +72,7 @@ pub mod tests {
     use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
     use crate::core_crypto::keycache::KeyCacheAccess;
     use crate::core_crypto::prelude::*;
-    use dyn_stack::{GlobalPodBuffer, PodStack};
+    use dyn_stack::{PodBuffer, PodStack};
     use serde::de::DeserializeOwned;
     use serde::Serialize;
 
@@ -160,9 +160,9 @@ pub mod tests {
         fourier_bsk.fill_with_forward_fourier(
             &std_bootstrapping_key,
             &fft,
-            PodStack::new(&mut GlobalPodBuffer::new(
-                K::fill_with_forward_fourier_scratch(&fft).unwrap(),
-            )),
+            PodStack::new(&mut PodBuffer::new(K::fill_with_forward_fourier_scratch(
+                &fft,
+            ))),
         );
 
         // Our 4 bits message space
@@ -209,14 +209,11 @@ pub mod tests {
             &lwe_ciphertext_in,
             &accumulator,
             &fft,
-            PodStack::new(&mut GlobalPodBuffer::new(
-                K::bootstrap_scratch(
-                    std_bootstrapping_key.glwe_size(),
-                    std_bootstrapping_key.polynomial_size(),
-                    &fft,
-                )
-                .unwrap(),
-            )),
+            PodStack::new(&mut PodBuffer::new(K::bootstrap_scratch(
+                std_bootstrapping_key.glwe_size(),
+                std_bootstrapping_key.polynomial_size(),
+                &fft,
+            ))),
         );
 
         // Decrypt the PBS result

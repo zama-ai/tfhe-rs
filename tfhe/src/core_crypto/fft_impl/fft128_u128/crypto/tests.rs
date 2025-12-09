@@ -7,7 +7,7 @@ use crate::core_crypto::fft_impl::common::tests::{
 use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{GlobalPodBuffer, PodStack};
+use dyn_stack::{PodBuffer, PodStack};
 
 #[test]
 fn test_split_external_product() {
@@ -83,13 +83,12 @@ fn test_split_external_product() {
         &ggsw,
         &glwe,
         fft,
-        PodStack::new(&mut GlobalPodBuffer::new(
+        PodStack::new(&mut PodBuffer::new(
             fft128::crypto::ggsw::add_external_product_assign_scratch::<u128>(
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
                 fft,
-            )
-            .unwrap(),
+            ),
         )),
     );
 
@@ -113,13 +112,12 @@ fn test_split_external_product() {
         &glwe_lo,
         &glwe_hi,
         fft,
-        PodStack::new(&mut GlobalPodBuffer::new(
+        PodStack::new(&mut PodBuffer::new(
             fft128::crypto::ggsw::add_external_product_assign_scratch::<u128>(
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
                 fft,
-            )
-            .unwrap(),
+            ),
         )),
     );
 
@@ -170,14 +168,11 @@ fn test_split_pbs() {
         ciphertext_modulus,
     );
 
-    let mut mem = GlobalPodBuffer::new(
-        fft128::crypto::bootstrap::bootstrap_scratch::<u128>(
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            fft,
-        )
-        .unwrap(),
-    );
+    let mut mem = PodBuffer::new(fft128::crypto::bootstrap::bootstrap_scratch::<u128>(
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        fft,
+    ));
     let stack = PodStack::new(&mut mem);
 
     for _ in 0..20 {

@@ -38,14 +38,14 @@ Additionally, an optional 128-bit negacyclic FFT module is provided.
 ```rust
 use tfhe_fft::c64;
 use tfhe_fft::ordered::{Method, Plan};
-use dyn_stack::{GlobalPodBuffer, PodStack};
+use dyn_stack::{PodBuffer, PodStack};
 use num_complex::ComplexFloat;
 use std::time::Duration;
 
 fn main() {
     const N: usize = 4;
     let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
-    let mut scratch_memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+    let mut scratch_memory = PodBuffer::new(plan.fft_scratch()).unwrap();
     let stack = PodStack::new(&mut scratch_memory);
 
     let data = [

@@ -124,7 +124,7 @@ pub fn bench_ffts(c: &mut Criterion) {
         1 << 15,
         1 << 16,
     ] {
-        let mut mem = dyn_stack::GlobalPodBuffer::new(StackReq::all_of([
+        let mut mem = dyn_stack::PodBuffer::new(StackReq::all_of(&[
             StackReq::new_aligned::<c64>(2 * n, 256), // scratch
             StackReq::new_aligned::<c64>(n, 256),     // src
             StackReq::new_aligned::<c64>(n, 256),     // dst

@@ -92,7 +92,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                         fourier_bsk.polynomial_size(),
                         fft,
                     )
-                    .unwrap()
                     .unaligned_bytes_required(),
                 );
 
@@ -165,7 +164,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                         fourier_bsk.polynomial_size(),
                                         fft.as_view(),
                                     )
-                                        .unwrap()
                                         .unaligned_bytes_required(),
                                 );
 
@@ -321,7 +319,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                 CiphertextCount(count),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -404,7 +401,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                                         fourier_bsk.polynomial_size(),
                                         fft.as_view(),
                                     )
-                                        .unwrap()
                                         .unaligned_bytes_required(),
                                 );
 
@@ -772,9 +768,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                         params.polynomial_size.unwrap(),
                         ntt,
                     )
-                    .unwrap()
-                    .try_unaligned_bytes_required()
-                    .unwrap();
+                    .unaligned_bytes_required();
 
                 buffers.resize(stack_size);
 
@@ -844,9 +838,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                                     params.polynomial_size.unwrap(),
                                     ntt.as_view(),
                                 )
-                                    .unwrap()
-                                    .try_unaligned_bytes_required()
-                                    .unwrap();
+                                    .unaligned_bytes_required();
 
                                 buffer.resize(stack_size);
 

@@ -11,7 +11,7 @@ use crate::core_crypto::prelude::test::{
     TestResources, FFT_WOPBS_N1024_PARAMS, FFT_WOPBS_N2048_PARAMS, FFT_WOPBS_N512_PARAMS,
     FFT_WOPBS_PARAMS,
 };
-use dyn_stack::GlobalPodBuffer;
+use dyn_stack::PodBuffer;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -159,19 +159,19 @@ pub fn test_extract_bits() {
     let input_lwe_dimension = lwe_big_sk.lwe_dimension();
 
     let req = || {
-        StackReq::try_any_of([
-            fill_with_forward_fourier_scratch(fft)?,
+        StackReq::any_of(&[
+            fill_with_forward_fourier_scratch(fft),
             extract_bits_scratch::<u64>(
                 input_lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
                 fft,
-            )?,
+            ),
         ])
     };
-    let req = req().unwrap();
-    let mut mem = GlobalPodBuffer::new(req);
+    let req = req();
+    let mut mem = PodBuffer::try_new(req).unwrap();
     let stack = PodStack::new(&mut mem);
 
     fourier_bsk
@@ -348,16 +348,13 @@ fn test_circuit_bootstrapping_binary() {
             ciphertext_modulus,
         );
 
-        let mut mem = GlobalPodBuffer::new(
-            circuit_bootstrap_boolean_scratch::<u64>(
-                lwe_in.lwe_size(),
-                fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                glwe_dimension.to_glwe_size(),
-                polynomial_size,
-                fft,
-            )
-            .unwrap(),
-        );
+        let mut mem = PodBuffer::new(circuit_bootstrap_boolean_scratch::<u64>(
+            lwe_in.lwe_size(),
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            fft,
+        ));
         let stack = PodStack::new(&mut mem);
         // Execute the CBS
         circuit_bootstrap_boolean(
@@ -539,7 +536,7 @@ pub fn test_cmux_tree() {
                 &mut rsc.encryption_random_generator,
             );
 
-            let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
+            let mut mem = PodBuffer::try_new(fill_with_forward_fourier_scratch(fft)).unwrap();
             let stack = PodStack::new(&mut mem);
             fourier_ggsw
                 .as_mut_view()
@@ -548,10 +545,12 @@ pub fn test_cmux_tree() {
 
         let mut result_cmux_tree =
             GlweCiphertext::new(0_u64, glwe_size, polynomial_size, ciphertext_modulus);
-        let mut mem = GlobalPodBuffer::new(
-            cmux_tree_memory_optimized_scratch::<u64>(glwe_size, polynomial_size, nb_ggsw, fft)
-                .unwrap(),
-        );
+        let mut mem = PodBuffer::new(cmux_tree_memory_optimized_scratch::<u64>(
+            glwe_size,
+            polynomial_size,
+            nb_ggsw,
+            fft,
+        ));
         cmux_tree_memory_optimized(
             result_cmux_tree.as_mut_view(),
             lut.as_view(),
@@ -656,16 +655,13 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             ciphertext_modulus,
         );
 
-        let mut mem = GlobalPodBuffer::new(
-            extract_bits_scratch::<u64>(
-                input_lwe_dimension,
-                ksk_lwe_big_to_small.output_key_lwe_dimension(),
-                fourier_bsk.glwe_size(),
-                polynomial_size,
-                fft,
-            )
-            .unwrap(),
-        );
+        let mut mem = PodBuffer::new(extract_bits_scratch::<u64>(
+            input_lwe_dimension,
+            ksk_lwe_big_to_small.output_key_lwe_dimension(),
+            fourier_bsk.glwe_size(),
+            polynomial_size,
+            fft,
+        ));
         extract_bits(
             extracted_bits_lwe_list.as_mut_view(),
             lwe_in.as_view(),
@@ -729,20 +725,17 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         );
 
         // Perform circuit bootstrap + vertical packing
-        let mut mem = GlobalPodBuffer::new(
-            circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
-                extracted_bits_lwe_list.lwe_ciphertext_count(),
-                vertical_packing_lwe_list_out.lwe_ciphertext_count(),
-                extracted_bits_lwe_list.lwe_size(),
-                lut_poly_list.polynomial_count(),
-                fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                fourier_bsk.glwe_size(),
-                vec_pfpksk.output_polynomial_size(),
-                level_cbs,
-                fft,
-            )
-            .unwrap(),
-        );
+        let mut mem = PodBuffer::new(circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
+            extracted_bits_lwe_list.lwe_ciphertext_count(),
+            vertical_packing_lwe_list_out.lwe_ciphertext_count(),
+            extracted_bits_lwe_list.lwe_size(),
+            lut_poly_list.polynomial_count(),
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            fourier_bsk.glwe_size(),
+            vec_pfpksk.output_polynomial_size(),
+            level_cbs,
+            fft,
+        ));
         circuit_bootstrap_boolean_vertical_packing(
             lut_poly_list.as_view(),
             fourier_bsk.as_view(),
@@ -864,20 +857,17 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
         let lut_as_polynomial_list = PolynomialList::from_container(lut, polynomial_size);
 
         // Perform circuit bootstrap + vertical packing
-        let mut mem = GlobalPodBuffer::new(
-            circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
-                extracted_bits.lwe_ciphertext_count(),
-                output_cbs_vp.lwe_ciphertext_count(),
-                extracted_bits.lwe_size(),
-                lut_as_polynomial_list.polynomial_count(),
-                fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                fourier_bsk.glwe_size(),
-                cbs_pfpksk.output_polynomial_size(),
-                level_cbs,
-                fft,
-            )
-            .unwrap(),
-        );
+        let mut mem = PodBuffer::new(circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
+            extracted_bits.lwe_ciphertext_count(),
+            output_cbs_vp.lwe_ciphertext_count(),
+            extracted_bits.lwe_size(),
+            lut_as_polynomial_list.polynomial_count(),
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            fourier_bsk.glwe_size(),
+            cbs_pfpksk.output_polynomial_size(),
+            level_cbs,
+            fft,
+        ));
         circuit_bootstrap_boolean_vertical_packing(
             lut_as_polynomial_list.as_view(),
             fourier_bsk.as_view(),
