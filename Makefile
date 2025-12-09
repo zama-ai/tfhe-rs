@@ -559,9 +559,9 @@ check_rust_bindings_did_not_change:
 
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_cargo_dylint
-	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe --no-deps -- \
+	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe --no-deps -- \
 		--features=boolean,shortint,integer,strings,zk-pok
-	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
+	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
 		--features=experimental
 
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
