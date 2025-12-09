@@ -11,7 +11,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
     extract_bits, extract_bits_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
 
@@ -365,7 +365,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     extract_bits_scratch::<Scalar>(
         lwe_dimension,
         ksk_output_key_lwe_dimension,
@@ -514,7 +514,6 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///
 /// let buffer_size_req =
 ///     convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-///         .unwrap()
 ///         .unaligned_bytes_required();
 /// let buffer_size_req = buffer_size_req.max(
 ///     extract_bits_from_lwe_ciphertext_mem_optimized_requirement::<u64>(
@@ -524,7 +523,6 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///         polynomial_size,
 ///         fft,
 ///     )
-///     .unwrap()
 ///     .unaligned_bytes_required(),
 /// );
 /// let buffer_size_req = buffer_size_req.max(
@@ -541,7 +539,6 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///         cbs_level_count,
 ///         fft,
 ///     )
-///     .unwrap()
 ///     .unaligned_bytes_required(),
 /// );
 ///
@@ -711,7 +708,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     fpksk_output_polynomial_size: PolynomialSize,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     circuit_bootstrap_boolean_vertical_packing_scratch::<Scalar>(
         lwe_list_in_count,
         lwe_list_out_count,

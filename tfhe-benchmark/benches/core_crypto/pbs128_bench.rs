@@ -117,7 +117,6 @@ fn pbs_128(c: &mut Criterion) {
             fourier_bsk.polynomial_size(),
             fft
         )
-        .unwrap()
         .unaligned_bytes_required()
     ];
 

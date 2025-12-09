@@ -15,7 +15,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 
 pub fn extract_bits_scratch<Scalar>(
@@ -24,34 +24,32 @@ pub fn extract_bits_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
 
-    let lwe_in_buffer =
-        StackReq::try_new_aligned::<Scalar>(input_lwe_dimension.to_lwe_size().0, align)?;
+    let lwe_in_buffer = StackReq::new_aligned::<Scalar>(input_lwe_dimension.to_lwe_size().0, align);
     let lwe_out_ks_buffer =
-        StackReq::try_new_aligned::<Scalar>(ksk_after_key_size.to_lwe_size().0, align)?;
-    let pbs_accumulator =
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align)?;
-    let lwe_out_pbs_buffer = StackReq::try_new_aligned::<Scalar>(
+        StackReq::new_aligned::<Scalar>(ksk_after_key_size.to_lwe_size().0, align);
+    let pbs_accumulator = StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align);
+    let lwe_out_pbs_buffer = StackReq::new_aligned::<Scalar>(
         glwe_size
             .to_glwe_dimension()
             .to_equivalent_lwe_dimension(polynomial_size)
             .to_lwe_size()
             .0,
         align,
-    )?;
+    );
     let lwe_bit_left_shift_buffer = lwe_in_buffer;
-    let bootstrap_scratch = bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft)?;
+    let bootstrap_scratch = bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft);
 
     lwe_in_buffer
-        .try_and(lwe_out_ks_buffer)?
-        .try_and(pbs_accumulator)?
-        .try_and(lwe_out_pbs_buffer)?
-        .try_and(StackReq::try_any_of([
+        .and(lwe_out_ks_buffer)
+        .and(pbs_accumulator)
+        .and(lwe_out_pbs_buffer)
+        .and(StackReq::any_of(&[
             lwe_bit_left_shift_buffer,
             bootstrap_scratch,
-        ])?)
+        ]))
 }
 
 /// Function to extract `number_of_bits_to_extract` from an [`LweCiphertext`] starting at the bit
@@ -227,9 +225,9 @@ pub fn circuit_bootstrap_boolean_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_new_aligned::<Scalar>(bsk_output_lwe_size.0, CACHELINE_ALIGN)?.try_and(
-        homomorphic_shift_boolean_scratch::<Scalar>(lwe_in_size, glwe_size, polynomial_size, fft)?,
+) -> StackReq {
+    StackReq::new_aligned::<Scalar>(bsk_output_lwe_size.0, CACHELINE_ALIGN).and(
+        homomorphic_shift_boolean_scratch::<Scalar>(lwe_in_size, glwe_size, polynomial_size, fft),
     )
 }
 
@@ -345,18 +343,14 @@ pub fn homomorphic_shift_boolean_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
-    StackReq::try_new_aligned::<Scalar>(lwe_in_size.0, align)?
-        .try_and(StackReq::try_new_aligned::<Scalar>(
+    StackReq::new_aligned::<Scalar>(lwe_in_size.0, align)
+        .and(StackReq::new_aligned::<Scalar>(
             polynomial_size.0 * glwe_size.0,
             align,
-        )?)?
-        .try_and(bootstrap_scratch::<Scalar>(
-            glwe_size,
-            polynomial_size,
-            fft,
-        )?)
+        ))
+        .and(bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft))
 }
 
 /// Homomorphic shift for LWE without padding bit
@@ -445,18 +439,18 @@ pub fn cmux_tree_memory_optimized_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     nb_layer: usize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    let t_scratch = StackReq::try_new_aligned::<Scalar>(
+) -> StackReq {
+    let t_scratch = StackReq::new_aligned::<Scalar>(
         polynomial_size.0 * glwe_size.0 * nb_layer,
         CACHELINE_ALIGN,
-    )?;
+    );
 
-    StackReq::try_all_of([
-        t_scratch,                             // t_0
-        t_scratch,                             // t_1
-        StackReq::try_new::<usize>(nb_layer)?, // t_fill
-        t_scratch,                             // diff
-        add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+    StackReq::all_of(&[
+        t_scratch,                        // t_0
+        t_scratch,                        // t_1
+        StackReq::new::<usize>(nb_layer), // t_fill
+        t_scratch,                        // diff
+        add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft),
     ])
 }
 
@@ -477,10 +471,12 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
         let polynomial_size = ggsw_list.polynomial_size();
         let nb_layer = ggsw_list.count();
 
-        debug_assert!(stack.can_hold(
-            cmux_tree_memory_optimized_scratch::<Scalar>(glwe_size, polynomial_size, nb_layer, fft)
-                .unwrap()
-        ));
+        debug_assert!(stack.can_hold(cmux_tree_memory_optimized_scratch::<Scalar>(
+            glwe_size,
+            polynomial_size,
+            nb_layer,
+            fft
+        )));
 
         // These are accumulator that will be used to propagate the result from layer to layer
         // At index 0 you have the lut that will be loaded, and then the result for each layer gets
@@ -596,40 +592,40 @@ pub fn circuit_bootstrap_boolean_vertical_packing_scratch<Scalar>(
     fpksk_output_polynomial_size: PolynomialSize,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     // We deduce the number of luts in the vec_lut from the number of cipherxtexts in lwe_list_out
     let number_of_luts = lwe_list_out_count.0;
     let small_lut_size = PolynomialCount(big_lut_polynomial_count.0 / number_of_luts);
 
-    StackReq::try_all_of([
-        StackReq::try_new_aligned::<c64>(
+    StackReq::all_of(&[
+        StackReq::new_aligned::<c64>(
             lwe_list_in_count.0 * fpksk_output_polynomial_size.0 / 2
                 * glwe_size.0
                 * glwe_size.0
                 * level_cbs.0,
             CACHELINE_ALIGN,
-        )?,
-        StackReq::try_new_aligned::<Scalar>(
+        ),
+        StackReq::new_aligned::<Scalar>(
             fpksk_output_polynomial_size.0 * glwe_size.0 * glwe_size.0 * level_cbs.0,
             CACHELINE_ALIGN,
-        )?,
-        StackReq::try_any_of([
+        ),
+        StackReq::any_of(&[
             circuit_bootstrap_boolean_scratch::<Scalar>(
                 lwe_in_size,
                 bsk_output_lwe_size,
                 glwe_size,
                 fpksk_output_polynomial_size,
                 fft,
-            )?,
-            fill_with_forward_fourier_scratch(fft)?,
+            ),
+            fill_with_forward_fourier_scratch(fft),
             vertical_packing_scratch::<Scalar>(
                 glwe_size,
                 fpksk_output_polynomial_size,
                 small_lut_size,
                 lwe_list_in_count.0,
                 fft,
-            )?,
-        ])?,
+            ),
+        ]),
     ])
 }
 
@@ -662,7 +658,6 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             level_cbs,
             fft
         )
-        .unwrap()
     ));
     debug_assert!(
         lwe_list_out.lwe_size().to_lwe_dimension() == fourier_bsk.output_lwe_dimension(),
@@ -742,7 +737,7 @@ pub fn vertical_packing_scratch<Scalar>(
     lut_polynomial_count: PolynomialCount,
     ggsw_list_count: usize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let bits = core::mem::size_of::<Scalar>() * 8;
 
     // Get the base 2 logarithm (rounded down) of the number of polynomials in the list i.e. if
@@ -757,18 +752,18 @@ pub fn vertical_packing_scratch<Scalar>(
         log_lut_number
     };
 
-    StackReq::try_all_of([
+    StackReq::all_of(&[
         // cmux_tree_lut_res
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
-        StackReq::try_any_of([
-            wop_blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+        StackReq::new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN),
+        StackReq::any_of(&[
+            wop_blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft),
             cmux_tree_memory_optimized_scratch::<Scalar>(
                 glwe_size,
                 polynomial_size,
                 log_number_of_luts_for_cmux_tree,
                 fft,
-            )?,
-        ])?,
+            ),
+        ]),
     ])
 }
 
@@ -833,10 +828,10 @@ pub fn wop_blind_rotate_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_all_of([
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
-        cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+) -> StackReq {
+    StackReq::all_of(&[
+        StackReq::new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN),
+        cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft),
     ])
 }
 
