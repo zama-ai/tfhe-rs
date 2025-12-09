@@ -17,6 +17,7 @@ use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
@@ -85,7 +86,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweGenericBlindRotate128<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
@@ -99,7 +100,7 @@ where
     );
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk_128.lwe_classic_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    bsk_128.lwe_generic_blind_rotate_128(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
@@ -178,7 +179,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
     // We need to be able to apply the PBS
-    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>
+    Bsk: LweGenericBlindRotate128<MsResult, PbsResult, Accumulator, SideResources = Resources>
         + Sync,
     PackingKey: AllocateLwePackingKeyswitchResult<Output = PackingResult, SideResources = Resources>
         + for<'a> LwePackingKeyswitch<[&'a PbsResult], PackingResult, SideResources = Resources>,
@@ -243,8 +244,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
             meta_noise_squashing_params.compression_parameters.unwrap(),
         )
     };
@@ -317,14 +322,14 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
     let compressed = noise_squashing_compression_key
         .compress_noise_squashed_ciphertexts_into_list(&noise_squashed);
 
-    let underlying_glwes = compressed.glwe_ciphertext_list;
+    let underlying_glwes = &compressed.glwe_ciphertext_list;
 
     assert_eq!(underlying_glwes.len(), 1);
 
     let extracted = underlying_glwes[0].extract();
 
     // Bodies that were not filled are discarded
-    after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
+    after_packing.get_mut_body().as_mut()[compressed.len()..].fill(0);
 
     assert_eq!(after_packing.as_view(), extracted.as_view());
 }
@@ -332,6 +337,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
 create_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 #[allow(clippy::too_many_arguments)]
@@ -593,8 +599,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
             meta_noise_squashing_params.compression_parameters.unwrap(),
         )
     };
@@ -615,7 +625,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk128 =
-        NoiseSimulationLweFourier128Bsk::new_from_parameters(params, noise_squashing_params);
+        NoiseSimulationGenericBootstrapKey128::new_from_parameters(params, noise_squashing_params);
     let noise_simulation_packing_key =
         NoiseSimulationLwePackingKeyswitchKey::new_from_noise_squashing_parameters(
             noise_squashing_params,
@@ -737,4 +747,5 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
 create_parameterized_test!(noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
