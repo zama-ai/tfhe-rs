@@ -1237,6 +1237,10 @@ check_intra_md_links: install_mlc
 check_md_links: install_mlc
 	mlc --match-file-extension tfhe/docs
 
+.PHONY: check_main_readme_links # Check main README links
+check_main_readme_links: install_mlc
+	mlc README.md
+
 .PHONY: check_doc_paths_use_dash # Check paths use "-" instead of "_" in docs for gitbook compatibility
 check_doc_paths_use_dash:
 	python3 ./scripts/check_doc_paths_use_dash.py
@@ -1868,6 +1872,7 @@ fpcc:
 	$(call run_recipe_with_details,check_md_docs_are_tested)
 	$(call run_recipe_with_details,check_intra_md_links)
 	$(call run_recipe_with_details,check_doc_paths_use_dash)
+	$(call run_recipe_with_details,check_main_readme_links)
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt fmt_js
