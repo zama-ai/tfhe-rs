@@ -3,6 +3,7 @@ use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_boot
     multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul,
     multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul,
 };
+use crate::core_crypto::commons::noise_formulas::noise_simulation::PBS_FFT_64_MANTISSA_SIZE;
 use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
     minimal_lwe_variance_for_132_bits_security_tuniform,
@@ -48,6 +49,7 @@ where
                 polynomial_size,
                 pbs_decomposition_base_log,
                 pbs_decomposition_level_count,
+                PBS_FFT_64_MANTISSA_SIZE,
                 modulus_as_f64,
             )
         }
@@ -58,6 +60,7 @@ where
                 polynomial_size,
                 pbs_decomposition_base_log,
                 pbs_decomposition_level_count,
+                PBS_FFT_64_MANTISSA_SIZE,
                 modulus_as_f64,
             )
         }
