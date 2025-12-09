@@ -2,9 +2,10 @@
 
 This document explains how the choice of cryptographic parameters impacts both the security and efficiency of FHE algorithms. The chosen parameters determine the error probability (sometimes referred to failure probability) and overall performance of computations using fully homomorphic encryption. This error probability is due to the noisy nature of FHE computations (see [here](../../getting-started/security-and-cryptography.md) for more details about the encryption process).
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator). 
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator).
 
 ## Default parameters
+
 Currently, the default parameters use blocks that contain 2 bits of message and 2 bits of carry - a tweaked uniform (TUniform, defined [here](../../getting-started/security-and-cryptography.md#noise)) noise distribution, and have a bootstrapping failure probability $$p_{error} \le 2^{-128}$$.
 These are particularly suitable for applications that need to be secure in the IND-CPA^D model (see [here](../../getting-started/security-and-cryptography.md#security) for more details).
 
@@ -34,6 +35,7 @@ Parameter sets are versioned for backward compatibility. This means that each se
 All parameter sets are stored as variables inside the `tfhe::shortint::parameters` module, with submodules named after the versions of **TFHE-rs** in which these parameters where added. For example, parameters added in **TFHE-rs** v1.0 can be found inside `tfhe::shortint::parameters::v1_0`.
 
 The naming convention of these parameters indicates their capabilities. Taking `tfhe::parameters::v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128` as an example:
+
 - `V1_0`: these parameters were introduced in **TFHE-rs** v1.0
 - `MESSAGE_2`: LWE blocks include 2 bits of message
 - `CARRY_2`: LWE blocks include 2 bits of carry
@@ -43,8 +45,69 @@ The naming convention of these parameters indicates their capabilities. Taking `
 
 For convenience, aliases are provided for the most used sets of parameters and stored in the module `tfhe::shortint::parameters::aliases`. Note, however, that these parameters are not stable over time and are always updated to the latest **TFHE-rs** version. For this reason, they should only be used for prototyping and are not suitable for production use cases.
 
-
 ## How to choose the parameter sets
+
+Since tfhe-rs 1.5, there is a `MetaParameterFinder` which enables to search for suitable parameters given some choice of constraints.
+
+### Note
+
+It is recommended to serialize the parameters found if you plan on re-using them, as the heuristics used by the `MetaParametersFinder` are susceptible to change across TFHE-rs versions
+
+```rust
+use tfhe::shortint::parameters::{MetaParametersFinder, Log2PFail, Constraint, Version, Backend, NoiseDistributionChoice, NoiseDistributionKind};
+use tfhe::{FheUint32, CompressedCiphertextListBuilder, generate_keys, set_server_key};
+use tfhe::prelude::*;
+
+fn main() {
+    // Create a finder with minimal constraints
+    let finder = MetaParametersFinder::new(
+        // We want parameters that have a failure probability `pfail` that is: pfail <= 2^-64
+        Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+        // We want parameters meant for CPU execution
+        Backend::Cpu
+    );
+
+    let parameters = finder
+        .find()
+        .expect("Could not find suitable parameters");
+
+    // It is recommended to serialize the parameters found if you plan on re-using them
+    let mut serialized_params = vec![];
+    tfhe::safe_serialization::safe_serialize(&parameters, &mut serialized_params, 1 << 10).unwrap();
+    
+
+    let (client_key, server_key) = generate_keys(parameters);
+
+    // We can add other constraints:
+    let finder = finder
+        // Find parameters from the 1.4 version
+        // By default, the finder looks in the current tfhe-rs version
+        .with_version(Version(1, 4))
+        // We want to use compression (CompressedCiphertextList)
+        // So we require parameters that support it
+        .with_compression(true) 
+        .with_noise_distribution(
+            // Allow any noise distribution that is not TUniform
+            NoiseDistributionChoice::allow_all()
+            .deny(NoiseDistributionKind::TUniform)
+        );
+
+
+    let parameters = finder
+        .find()
+        .expect("Could not find suitable parameters");
+
+    let (client_key, server_key) = generate_keys(parameters);
+
+    let a = FheUint32::encrypt(1337u32, &client_key);
+    set_server_key(server_key);
+    let compressed_list = CompressedCiphertextListBuilder::new()
+        .push(a)
+        .build()
+        .unwrap();
+}
+```
+
 You can override the default parameters with the `with_custom_parameters(block_parameters)` method of the `Config` object. For example, to use a Gaussian distribution instead of the TUniform one, you can modify your configuration as follows:
 
 ```rust
