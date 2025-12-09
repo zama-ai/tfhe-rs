@@ -9,7 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
 
@@ -32,7 +32,6 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCo
 
     buffers.resize(
         convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-            .unwrap()
             .unaligned_bytes_required(),
     );
 
@@ -152,7 +151,7 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, Outp
 /// Return the required memory for [`convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized`].
 pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     fill_with_forward_fourier_scratch(fft)
 }
 

@@ -577,7 +577,6 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -801,7 +800,6 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -1316,7 +1314,7 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
         let produce_multi_bit_fourier_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
             let mut buffers = ComputationBuffers::new();
 
-            buffers.resize(fft.forward_scratch().unwrap().unaligned_bytes_required());
+            buffers.resize(fft.forward_scratch().unaligned_bytes_required());
 
             let mut std_ggsw_buffer = GgswCiphertext::new(
                 Scalar::ZERO,
@@ -1413,7 +1411,6 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -1579,7 +1576,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
         let produce_multi_bit_fourier_ggsw = |thread_id| {
             let mut buffers = ComputationBuffers::new();
 
-            buffers.resize(fft.forward_scratch().unwrap().unaligned_bytes_required());
+            buffers.resize(fft.forward_scratch().unaligned_bytes_required());
 
             let mut std_ggsw_buffer = GgswCiphertext::new(
                 Scalar::ZERO,
@@ -1672,7 +1669,6 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -2091,7 +2087,6 @@ pub fn std_multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, 
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -2513,7 +2508,6 @@ pub fn multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyC
                 multi_bit_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 

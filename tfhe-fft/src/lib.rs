@@ -35,13 +35,13 @@
 #![cfg_attr(not(feature = "std"), doc = "```ignore")]
 //! use tfhe_fft::c64;
 //! use tfhe_fft::ordered::{Plan, Method};
-//! use dyn_stack::{PodStack, GlobalPodBuffer};
+//! use dyn_stack::{PodStack, PodBuffer};
 //! use num_complex::ComplexFloat;
 //! use std::time::Duration;
 //!
 //! const N: usize = 4;
 //! let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
-//! let mut scratch_memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+//! let mut scratch_memory = PodBuffer::try_new(plan.fft_scratch()).unwrap();
 //! let stack = PodStack::new(&mut scratch_memory);
 //!
 //! let data = [

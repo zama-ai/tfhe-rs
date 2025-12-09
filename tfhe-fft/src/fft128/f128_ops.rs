@@ -1025,7 +1025,9 @@ pub mod x86 {
 mod tests {
     use super::*;
     use more_asserts::assert_le;
-    use rug::{ops::Pow, Float, Integer};
+    #[cfg(feature = "std")]
+    use rug::ops::Pow;
+    use rug::{Float, Integer};
 
     const PREC: u32 = 1024;
 
