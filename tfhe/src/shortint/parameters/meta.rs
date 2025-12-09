@@ -11,9 +11,12 @@ use crate::shortint::backward_compatibility::parameters::{
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters,
+    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::AtomicPatternParameters;
+use crate::shortint::{
+    AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
+    MultiBitPBSParameters, PBSParameters,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DedicatedCompactPublicKeyParametersVersions)]
@@ -199,24 +202,6 @@ impl Version {
     }
 }
 
-impl PartialOrd for Version {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Version {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let major_cmp = self.major().cmp(&other.major());
-
-        if major_cmp != std::cmp::Ordering::Equal {
-            return major_cmp;
-        }
-
-        self.minor().cmp(&other.minor())
-    }
-}
-
 /// Allows specification of constraints for the multi-bit PBS
 pub struct MultiBitPBSChoice {
     pub(crate) grouping_factor: Constraint<usize>,
@@ -369,7 +354,7 @@ impl Default for CompactPkeZkSchemeChoice {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct PkeSwitchChoice(EnumSet<EncryptionKeyChoice>);
+pub struct PkeKeyswitchTargetChoice(EnumSet<EncryptionKeyChoice>);
 
 impl CastInto<usize> for EncryptionKeyChoice {
     fn cast_into(self) -> usize {
@@ -377,7 +362,7 @@ impl CastInto<usize> for EncryptionKeyChoice {
     }
 }
 
-impl PkeSwitchChoice {
+impl PkeKeyswitchTargetChoice {
     pub fn new() -> Self {
         Self(EnumSet::new())
     }
@@ -403,7 +388,7 @@ impl PkeSwitchChoice {
     }
 }
 
-impl Default for PkeSwitchChoice {
+impl Default for PkeKeyswitchTargetChoice {
     fn default() -> Self {
         Self::new()
     }
@@ -412,7 +397,7 @@ impl Default for PkeSwitchChoice {
 /// Constraints for the dedicated compact public key
 pub struct DedicatedPublicKeyChoice {
     zk_scheme: CompactPkeZkSchemeChoice,
-    pke_switch: PkeSwitchChoice,
+    pke_keyswitch_target: PkeKeyswitchTargetChoice,
     require_re_rand: bool,
 }
 
@@ -428,8 +413,8 @@ impl DedicatedPublicKeyChoice {
     }
 
     /// Sets the keyswitch constraints scheme constraints
-    pub fn with_pke_switch(mut self, pke_switch: PkeSwitchChoice) -> Self {
-        self.pke_switch = pke_switch;
+    pub fn with_pke_switch(mut self, pke_switch: PkeKeyswitchTargetChoice) -> Self {
+        self.pke_keyswitch_target = pke_switch;
         self
     }
 
@@ -443,7 +428,7 @@ impl DedicatedPublicKeyChoice {
             return false;
         }
 
-        self.pke_switch
+        self.pke_keyswitch_target
             .is_compatible(dedicated_pk_params.ksk_params.destination_key)
             && self
                 .zk_scheme
@@ -455,7 +440,7 @@ impl Default for DedicatedPublicKeyChoice {
     fn default() -> Self {
         Self {
             zk_scheme: CompactPkeZkSchemeChoice::allow_all(),
-            pke_switch: PkeSwitchChoice::allow_all(),
+            pke_keyswitch_target: PkeKeyswitchTargetChoice::allow_all(),
             require_re_rand: false,
         }
     }
@@ -571,7 +556,7 @@ impl MetaParametersFinder {
         self
     }
 
-    /// Sets the block moduluses (MessageModulus, CarryModulus)
+    /// Sets the block modulus
     ///
     /// Only MessageModulus is required as MessageModulus == CarryModulus is forced
     pub const fn with_block_modulus(mut self, message_modulus: MessageModulus) -> Self {
@@ -703,8 +688,9 @@ impl MetaParametersFinder {
     /// If more than one parameter is found, this function will apply its
     /// own set of rule to select one of them:
     /// * The parameter with highest pfail is prioritized
-    /// * CPU will favor classical PBS
-    /// * GPU will favor multi-bit PBS
+    /// * CPU will favor classical PBS, with TUniform
+    /// * GPU will favor multi-bit PBS, with TUniform
+    /// * ZKV2 is prioritized
     pub fn find(&self) -> Option<MetaParameters> {
         let mut candidates = self.named_find_all();
 
@@ -716,43 +702,64 @@ impl MetaParametersFinder {
             return candidates.pop().map(|(param, _)| param);
         }
 
+        fn filter_candidtes(
+            candidates: Vec<(MetaParameters, &str)>,
+            filter: impl Fn(&(MetaParameters, &str)) -> bool,
+        ) -> Vec<(MetaParameters, &str)> {
+            let filtered = candidates
+                .iter()
+                .copied()
+                .filter(filter)
+                .collect::<Vec<_>>();
+
+            // The filter keeps elements, based on what tfhe-rs sees as better default
+            // However, it's possible, that the input candidates list does not include
+            // anything that matches the filter
+            // e.g. the use selected MultiBitPBS on CPU, but our cpu filter prefers ClassicPBS
+            // therefor nothing will match, so we return the original list instead
+            if filtered.is_empty() {
+                candidates
+            } else {
+                filtered
+            }
+        }
+
+        let candidates = filter_candidtes(candidates, |(params, _)| {
+            if let Some(pke_params) = params.dedicated_compact_public_key_parameters {
+                return pke_params.pke_params.zk_scheme == SupportedCompactPkeZkScheme::V2;
+            }
+            true
+        });
+
+        let mut candidates = match self.backend {
+            // On CPU we prefer Classical PBS with TUniform
+            Backend::Cpu => filter_candidtes(candidates, |(params, _)| {
+                matches!(
+                    params.compute_parameters,
+                    AtomicPatternParameters::Standard(PBSParameters::PBS(_))
+                ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
+            }),
+            // On GPU we prefer MultiBit PBS with TUniform
+            Backend::CudaGpu => filter_candidtes(candidates, |(params, _)| {
+                matches!(
+                    params.compute_parameters,
+                    AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(_))
+                ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
+            }),
+        };
+
         // highest failure probability is the last element,
         // and higher failure probability means better performance
         //
         // Since pfails are negative e.g: -128, -40 for 2^-128 and 2^-40
-        // the closest pfail the constraint is the last one
+        // the closest pfail to the constraint is the last one
         candidates.sort_by(|(a, _), (b, _)| {
             a.failure_probability()
                 .partial_cmp(&b.failure_probability())
                 .unwrap()
         });
 
-        match self.backend {
-            // On CPU we prefer Classical PBS with TUniform
-            Backend::Cpu => candidates
-                .iter()
-                .rfind(|(params, _)| {
-                    matches!(
-                        params.compute_parameters,
-                        AtomicPatternParameters::Standard(PBSParameters::PBS(_))
-                    ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
-                })
-                .copied()
-                .or_else(|| candidates.pop())
-                .map(|(param, _)| param),
-            // On GPU we prefer MultiBit PBS with TUniform
-            Backend::CudaGpu => candidates
-                .iter()
-                .rfind(|(params, _)| {
-                    matches!(
-                        params.compute_parameters,
-                        AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(_))
-                    ) && params.noise_distribution_kind() == NoiseDistributionKind::TUniform
-                })
-                .copied()
-                .or_else(|| candidates.pop())
-                .map(|(param, _)| param),
-        }
+        candidates.last().copied().map(|(params, _)| params)
     }
 
     /// Returns all known meta parameter that satisfy the choices
@@ -864,13 +871,15 @@ mod tests {
             .with_dedicated_compact_public_key(Some(
                 DedicatedPublicKeyChoice::new()
                     .with_zk_scheme(CompactPkeZkSchemeChoice::not_used())
-                    .with_pke_switch(PkeSwitchChoice::new().allow(EncryptionKeyChoice::Big)),
+                    .with_pke_switch(
+                        PkeKeyswitchTargetChoice::new().allow(EncryptionKeyChoice::Big),
+                    ),
             ));
 
             let params = finder.find();
 
             let mut expected =
-                super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128;
+                super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
             expected.compression_parameters = None;
             expected.noise_squashing_parameters = None;
             expected
@@ -889,14 +898,16 @@ mod tests {
             .with_dedicated_compact_public_key(Some(
                 DedicatedPublicKeyChoice::new()
                     .with_zk_scheme(CompactPkeZkSchemeChoice::not_used())
-                    .with_pke_switch(PkeSwitchChoice::new().allow(EncryptionKeyChoice::Small))
+                    .with_pke_switch(
+                        PkeKeyswitchTargetChoice::new().allow(EncryptionKeyChoice::Small),
+                    )
                     .with_re_randomization(true),
             ));
 
             let params = finder.find();
 
             let mut expected =
-                super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128;
+                super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
             expected.compression_parameters = None;
             expected.noise_squashing_parameters = None;
             assert_eq!(params, Some(expected));
