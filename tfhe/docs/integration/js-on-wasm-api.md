@@ -141,7 +141,7 @@ Some parameter sets lead to the FHE keys exceeding the 2GB memory limit of WASM,
 
 ### Setting up TFHE-rs JS on WASM API for Node.js programs.
 
-To build the JS on WASM bindings for **TFHE-rs**, install [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) and the necessary [`rust toolchain`](https://rustup.rs/). Cone the **TFHE-rs** repository and build using the following commands (this will build using the default branch, you can check out a specific tag depending on your requirements):
+To build the JS on WASM bindings for **TFHE-rs**, install [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) and the necessary [`rust toolchain`](https://rustup.rs/). Clone the **TFHE-rs** repository and build using the following commands (this will build using the default branch, you can check out a specific tag depending on your requirements):
 
 ```shell
 $ git clone https://github.com/zama-ai/tfhe-rs.git
