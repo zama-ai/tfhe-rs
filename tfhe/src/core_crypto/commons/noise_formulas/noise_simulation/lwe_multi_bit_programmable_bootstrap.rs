@@ -7,20 +7,13 @@ use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_boot
     multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul,
     multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul,
 };
-use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap_128::{
-    multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_2_fft_mul,
-    multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_3_fft_mul,
-    multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_4_fft_mul,
-    multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_2_fft_mul,
-    multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_3_fft_mul,
-    multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_4_fft_mul,
-};
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     LweMultiBitFft128BlindRotate, LweMultiBitFft128Bootstrap, LweMultiBitFftBlindRotate,
     LweMultiBitFftBootstrap,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus, PBS_128_MANTISSA_SIZE,
+    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus, PBS_FFT_128_MANTISSA_SIZE,
+    PBS_FFT_64_MANTISSA_SIZE,
 };
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweSize,
@@ -129,6 +122,11 @@ impl NoiseSimulationLweMultiBitFourierBsk {
     pub fn modulus(&self) -> NoiseSimulationModulus {
         self.modulus
     }
+
+    pub fn mantissa_size(&self) -> f64 {
+        let _ = self;
+        PBS_FFT_64_MANTISSA_SIZE
+    }
 }
 
 impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
@@ -160,6 +158,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 3 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
@@ -168,6 +167,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 4 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
@@ -176,6 +176,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 gf => panic!("Unsupported grouping factor: {gf}"),
@@ -187,6 +188,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 3 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
@@ -195,6 +197,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 4 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
@@ -203,6 +206,7 @@ impl LweMultiBitFftBlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 gf => panic!("Unsupported grouping factor: {gf}"),
@@ -336,6 +340,11 @@ impl NoiseSimulationLweMultiBitFourier128Bsk {
     pub fn modulus(&self) -> NoiseSimulationModulus {
         self.modulus
     }
+
+    pub fn mantissa_size(&self) -> f64 {
+        let _ = self;
+        PBS_FFT_128_MANTISSA_SIZE
+    }
 }
 
 impl LweMultiBitFft128BlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
@@ -361,61 +370,61 @@ impl LweMultiBitFft128BlindRotate<NoiseSimulationLwe, NoiseSimulationLwe, NoiseS
 
         let br_additive_variance = match self.noise_distribution() {
             DynamicDistribution::Gaussian(_) => match grouping_factor.0 {
-                2 => multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_2_fft_mul(
+                2 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
-                3 => multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_3_fft_mul(
+                3 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
-                4 => multi_bit_pbs_128_variance_132_bits_security_gaussian_gf_4_fft_mul(
+                4 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 gf => panic!("Unsupported grouping factor: {gf}"),
             },
             DynamicDistribution::TUniform(_) => match grouping_factor.0 {
-                2 => multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_2_fft_mul(
+                2 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
-                3 => multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_3_fft_mul(
+                3 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
-                4 => multi_bit_pbs_128_variance_132_bits_security_tuniform_gf_4_fft_mul(
+                4 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
                     self.input_lwe_dimension(),
                     self.output_glwe_size().to_glwe_dimension(),
                     self.output_polynomial_size(),
                     self.decomp_base_log(),
                     self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
+                    self.mantissa_size(),
                     self.modulus().as_f64(),
                 ),
                 gf => panic!("Unsupported grouping factor: {gf}"),

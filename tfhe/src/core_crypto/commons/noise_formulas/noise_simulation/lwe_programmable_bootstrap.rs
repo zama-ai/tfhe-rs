@@ -3,15 +3,12 @@ use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::{
     pbs_variance_132_bits_security_gaussian_fft_mul,
     pbs_variance_132_bits_security_tuniform_fft_mul,
 };
-use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap_128::{
-    pbs_128_variance_132_bits_security_gaussian_fft_mul,
-    pbs_128_variance_132_bits_security_tuniform_fft_mul,
-};
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     LweClassicFft128Bootstrap, LweClassicFftBootstrap,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus, PBS_128_MANTISSA_SIZE,
+    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationModulus, PBS_FFT_128_MANTISSA_SIZE,
+    PBS_FFT_64_MANTISSA_SIZE,
 };
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweSize, LweDimension,
@@ -108,6 +105,11 @@ impl NoiseSimulationLweFourierBsk {
     pub fn modulus(&self) -> NoiseSimulationModulus {
         self.modulus
     }
+
+    pub fn mantissa_size(&self) -> f64 {
+        let _ = self;
+        PBS_FFT_64_MANTISSA_SIZE
+    }
 }
 
 impl LweClassicFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
@@ -137,6 +139,7 @@ impl LweClassicFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulat
                 self.output_polynomial_size(),
                 self.decomp_base_log(),
                 self.decomp_level_count(),
+                self.mantissa_size(),
                 self.modulus().as_f64(),
             ),
             DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform_fft_mul(
@@ -145,6 +148,7 @@ impl LweClassicFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulat
                 self.output_polynomial_size(),
                 self.decomp_base_log(),
                 self.decomp_level_count(),
+                self.mantissa_size(),
                 self.modulus().as_f64(),
             ),
         };
@@ -248,6 +252,11 @@ impl NoiseSimulationLweFourier128Bsk {
     pub fn modulus(&self) -> NoiseSimulationModulus {
         self.modulus
     }
+
+    pub fn mantissa_size(&self) -> f64 {
+        let _ = self;
+        PBS_FFT_128_MANTISSA_SIZE
+    }
 }
 
 impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
@@ -271,28 +280,24 @@ impl LweClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimu
         assert_eq!(self.modulus(), accumulator.modulus());
 
         let br_additive_variance = match self.noise_distribution() {
-            DynamicDistribution::Gaussian(_) => {
-                pbs_128_variance_132_bits_security_gaussian_fft_mul(
-                    self.input_lwe_dimension(),
-                    self.output_glwe_size().to_glwe_dimension(),
-                    self.output_polynomial_size(),
-                    self.decomp_base_log(),
-                    self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
-                    self.modulus().as_f64(),
-                )
-            }
-            DynamicDistribution::TUniform(_) => {
-                pbs_128_variance_132_bits_security_tuniform_fft_mul(
-                    self.input_lwe_dimension(),
-                    self.output_glwe_size().to_glwe_dimension(),
-                    self.output_polynomial_size(),
-                    self.decomp_base_log(),
-                    self.decomp_level_count(),
-                    PBS_128_MANTISSA_SIZE,
-                    self.modulus().as_f64(),
-                )
-            }
+            DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian_fft_mul(
+                self.input_lwe_dimension(),
+                self.output_glwe_size().to_glwe_dimension(),
+                self.output_polynomial_size(),
+                self.decomp_base_log(),
+                self.decomp_level_count(),
+                self.mantissa_size(),
+                self.modulus().as_f64(),
+            ),
+            DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform_fft_mul(
+                self.input_lwe_dimension(),
+                self.output_glwe_size().to_glwe_dimension(),
+                self.output_polynomial_size(),
+                self.decomp_base_log(),
+                self.decomp_level_count(),
+                self.mantissa_size(),
+                self.modulus().as_f64(),
+            ),
         };
 
         let output_lwe_dimension = self

@@ -16,6 +16,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -25,6 +26,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -40,16 +42,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 2.0)
         * input_lwe_dimension
         * (0.0022
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -86,6 +89,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -95,6 +99,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -110,16 +115,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 3.0)
         * input_lwe_dimension
         * (0.00492
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -156,6 +162,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -165,6 +172,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -180,16 +188,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 4.0)
         * input_lwe_dimension
         * (0.00855
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -226,6 +235,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -235,6 +245,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -250,16 +261,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 2.0)
         * input_lwe_dimension
         * (0.0022
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -302,6 +314,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -311,6 +324,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -326,16 +340,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 3.0)
         * input_lwe_dimension
         * (0.00492
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -378,6 +393,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(
@@ -387,6 +403,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
             output_polynomial_size.0 as f64,
             2.0f64.powi(decomposition_base_log.0 as i32),
             decomposition_level_count.0 as f64,
+            mantissa_size,
             modulus,
         ),
     )
@@ -402,16 +419,17 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 4.0)
         * input_lwe_dimension
         * (0.00855
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
