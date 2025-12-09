@@ -79,7 +79,11 @@ pub use compact_public_key_only::{
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use ks32::KeySwitch32PBSParameters;
-pub use meta::MetaParameters;
+pub use meta::{
+    AtomicPatternChoice, CompactPkeZkSchemeChoice, Constraint, DedicatedPublicKeyChoice, Log2PFail,
+    MetaParameters, MetaParametersFinder, MultiBitPBSChoice, NoiseDistributionChoice,
+    NoiseDistributionKind, NoiseSquashingChoice, PkeKeyswitchTargetChoice, Version,
+};
 pub use multi_bit::MultiBitPBSParameters;
 pub use noise_squashing::{
     MetaNoiseSquashingParameters, NoiseSquashingClassicParameters,

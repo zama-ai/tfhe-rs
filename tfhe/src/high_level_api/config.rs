@@ -168,7 +168,7 @@ impl From<MetaParameters> for Config {
                     .and_then(|ns_p| ns_p.compression_parameters),
                 cpk_re_randomization_ksk_params: meta_params
                     .dedicated_compact_public_key_parameters
-                    .and_then(|dedicated_pke| dedicated_pke.re_randomization_parameters),
+                    .and_then(|params| params.re_randomization_parameters),
             },
         }
     }
