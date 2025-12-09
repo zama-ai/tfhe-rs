@@ -26,6 +26,7 @@ use crate::core_crypto::commons::parameters::{
     CiphertextModulusLog, GlweDimension, GlweSize, LweDimension, PolynomialSize,
 };
 
+pub const PBS_FFT_64_MANTISSA_SIZE: f64 = 53.;
 pub const PBS_FFT_128_MANTISSA_SIZE: f64 = 104.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
