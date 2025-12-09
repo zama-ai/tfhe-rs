@@ -236,14 +236,14 @@ pub struct V80Uuid {
 
 impl std::fmt::Display for V80Uuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "hash: {}", self.hash)?;
-        writeln!(f, "freq: {}", self.freq)?;
-        writeln!(f, "version: {}", self.version)?;
-        writeln!(f, "arch: {:?}", self.arch)?;
-        writeln!(f, "psi: {:?}", self.psi)?;
-        writeln!(f, "host: {:?}", self.host)?;
-        writeln!(f, "user: {}", self.user)?;
-        writeln!(f, "date: {}", self.date)?;
+        write!(f, "hash: {},", self.hash)?;
+        write!(f, "freq: {}", self.freq)?;
+        write!(f, "version: {}", self.version)?;
+        write!(f, "arch: {:?}", self.arch)?;
+        write!(f, "psi: {:?}", self.psi)?;
+        write!(f, "host: {:?}", self.host)?;
+        write!(f, "user: {}", self.user)?;
+        write!(f, "date: {}", self.date)?;
         Ok(())
     }
 }

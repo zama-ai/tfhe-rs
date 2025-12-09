@@ -63,6 +63,9 @@ pub enum Commands {
     /// Hardware trace operation
     #[command(about = "Trace related operations")]
     TraceDump {
+        /// Stop after a given size (Expressed in MiB)
+        #[arg(long, short)]
+        size_mib: Option<usize>,
         #[arg(default_value = "trace_dump.json")]
         file: String,
     },
@@ -274,8 +277,15 @@ fn main() {
             ResetAction::Hard => unimplemented!(),
             ResetAction::Flush => unimplemented!(),
         },
-        Commands::TraceDump { file } => {
-            trace_dump(&mut hpu_hw, &regmap, config.board.trace_depth, &file)
+        Commands::TraceDump { file, size_mib } => {
+            // trace depth is expressed in MiB
+            let size_b = std::cmp::min(
+                config.board.trace_depth,
+                size_mib.unwrap_or(usize::max_value()),
+            ) * 1024
+                * 1024;
+
+            trace_dump(&mut hpu_hw, &regmap, size_b, &file)
         }
     }
 }
@@ -457,10 +467,7 @@ fn soft_reset(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
     }
 }
 
-fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, depth: usize, filename: &str) {
-    // trace depth is expressed in MiB
-    let size_b = depth * 1024 * 1024;
-
+fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, size_b: usize, filename: &str) {
     let offset = {
         let offset_reg: Vec<usize> = ["trc_pc0_lsb", "trc_pc0_msb"]
             .into_iter()
@@ -475,7 +482,7 @@ fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, depth: usize, filename: 
         offset_reg[0] as u64 + ((offset_reg[1] as u64) << 32)
     };
 
-    println!("Dump {depth} MiB of trace [@{offset:x}] inside {filename}");
+    println!("Dump {size_b} bytes of trace [@{offset:x}] inside {filename}");
     let raw_data = read_mem(hw, offset, size_b);
     let trace_stream =
         IscTraceStream::from_bytes(&raw_data).expect("Issue with during trace parsing");

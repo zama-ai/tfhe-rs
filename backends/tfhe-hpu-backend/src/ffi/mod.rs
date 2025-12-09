@@ -50,59 +50,35 @@ pub struct HpuHw(
 impl HpuHw {
     /// Function used to lazily load Hw
     /// It should probe the Hw state and reload it if required
-    pub fn lazy_load(id: u8, mode: &FFIMode, force_reload: bool) -> bool {
+    pub fn lazy_load(node_id: &[u8], mode: &FFIMode, force_reload: bool) {
         #[cfg(feature = "hw-v80")]
         {
             match mode {
-                FFIMode::V80 {
-                    hpu_path,
-                    board_dev_sn,
-                    ami_path,
-                } => {
-                    let (pcie_id, board_sn) = {
-                        let (id, sn) = board_dev_sn
-                            .get(id as usize)
-                            .expect("Request invalid board id");
-                        (id.expand(), sn.expand())
-                    };
+                FFIMode::V80 { hpu_path, ami_path } => {
+                    let board_dev_sn =
+                        v80::get_board_dev_sn().expect("Error with V80_BOARD definition");
+                    let dev_sn = node_id
+                        .iter()
+                        .map(|id| {
+                            let (pcie_id, sn) = board_dev_sn
+                                .get(*id as usize)
+                                .expect("Request invalid board id");
+                            (pcie_id.clone(), sn.clone())
+                        })
+                        .collect::<Vec<_>>();
                     v80::HpuHw::lazy_load(
-                        &pcie_id,
-                        &board_sn,
+                        dev_sn,
                         &hpu_path.expand(),
                         &ami_path.expand(),
                         force_reload,
-                    )
+                    );
                 }
                 _ => panic!("Unsupported config type with ffi::v80"),
             }
         }
         #[cfg(not(feature = "hw-v80"))]
         {
-            let _id = id;
-            let _mode = mode;
-            force_reload
-        }
-    }
-
-    pub fn cfg_dma(id: u8, mode: &FFIMode) {
-        #[cfg(feature = "hw-v80")]
-        {
-            match mode {
-                FFIMode::V80 { board_dev_sn, .. } => {
-                    let pcie_id = {
-                        let (id, _sn) = board_dev_sn
-                            .get(id as usize)
-                            .expect("Request invalid board id");
-                        id.expand()
-                    };
-                    v80::HpuHw::cfg_dma_queues(&pcie_id)
-                }
-                _ => panic!("Unsupported config type with ffi::v80"),
-            }
-        }
-        #[cfg(not(feature = "hw-v80"))]
-        {
-            let _id = id;
+            let _node_id = node_id;
             let _mode = mode;
         }
     }
@@ -136,7 +112,7 @@ impl HpuHw {
     }
 
     /// Absolute read without preallocation
-    /// Allocation was inherited from XRT not needed anymor
+    /// Allocation was inherited from XRT not needed anymore
     pub fn read_abs<T: Sized + bytemuck::Pod>(&self, addr: u64, data: &mut [T]) {
         let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
         self.0.read_abs_bytes(addr, data_bytes);
@@ -181,16 +157,14 @@ impl HpuHw {
         #[cfg(feature = "hw-v80")]
         {
             match mode {
-                FFIMode::V80 {
-                    hpu_path,
-                    board_dev_sn,
-                    ..
-                } => {
+                FFIMode::V80 { hpu_path, .. } => {
+                    let board_dev_sn =
+                        v80::get_board_dev_sn().expect("Error with V80_BOARD definition");
                     let pcie_id = {
                         let (id, _sn) = board_dev_sn
                             .get(id as usize)
                             .expect("Request invalid board id");
-                        id.expand()
+                        id.clone()
                     };
                     Self(
                         v80::HpuHw::open_hpu_hw(&pcie_id, &hpu_path.expand(), retry_rate)

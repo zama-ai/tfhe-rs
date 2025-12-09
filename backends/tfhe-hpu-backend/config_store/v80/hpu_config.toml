@@ -5,18 +5,11 @@
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
   polling_us=2
-  node_id=[0,1,2,3,4]
+  # node_id=[0,1,2,3,4,5,6,7]
+  node_id=[0,1]
 [fpga.ffi.V80]
-  board_dev_sn=[
-    ["24", "XFL1C0NE14KC"],
-    ["41", "XFL1Z1HWB1CW"],
-    ["61", "XFL1ZESW4HGR"],
-    ["e1", "XFL1QKGL4CT4"],
-    ["a1", "XFL1OWN0X5UR"],
-  ]
   hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64_tput.hpu"
   ami_path="${AMI_PATH}/ami.ko"
- 
 
 [rtl]
   bpip_use = true

@@ -381,7 +381,11 @@ impl AmiDriver {
             let ack_nb = ack_str
                 .as_str()
                 .lines()
-                .map(|line| line.trim_ascii().parse::<u32>().unwrap())
+                .map(|line| {
+                    line.trim_ascii().parse::<u32>().unwrap_or_else(|e| {
+                        panic!("Error with iop_ackq_rd in {ami_proc_path}::{ack_str}: {e}")
+                    })
+                })
                 .sum();
             tracing::trace!("Get value {ack_str} from {ami_proc_path} => {ack_nb}",);
             ack_nb

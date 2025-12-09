@@ -22,6 +22,29 @@ use tracing::{debug, info, trace};
 
 use rayon::prelude::*;
 
+/// Runtime configuration of the ucore
+/// This structure is used to configure the ucore fw with custom runtime information
+/// It rely on C-struct layout to keep compatibilities with arm cortex-R SW
+/// NB: This structure is shared at the beginning of Fw memory with 64w of u32 reserved
+#[derive(Debug, Clone)]
+#[repr(C)]
+struct UcoreConfig {
+    node_id: u8,
+    _padding: [u8; 3],
+    // NB: modification in this file must match the one in amc.c
+    _reserved_word: [u32; 63],
+}
+
+impl UcoreConfig {
+    fn new(node_id: u8) -> Self {
+        Self {
+            node_id,
+            _padding: [0; 3],
+            _reserved_word: [u32::max_value(); 63],
+        }
+    }
+}
+
 pub struct HpuNode {
     // Low-level hardware handling
     hpu_hw: ffi::HpuHw,
@@ -135,6 +158,8 @@ impl HpuNode {
 
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
+        hpu_hw.iop_ack_rd();
+
         // TODO add ack flush to prevent error with previous stall execution
 
         // Apply Rtl configuration
@@ -672,9 +697,32 @@ pub fn new_config(params: &HpuParameters) -> HpuConfig {
 }
 
 /// Handle Fw Lut and translation table init
+/// NB: First part of the translation table in the ucore runtime configuration
 impl HpuNode {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
+        // Fw-table memory layout is as follow: [NB: Offset expressed in WORDS]
+        // |---> Hbm/Ddr Offset <- from HpuConfig
+        // |0x00: ...
+        // |      UcoreConfig: Runtime configuration for FW
+        // |FW_RUNTIME_MAX_SIZE:...
+        // |      IOp translation lookup: Based on IntegerWidth, IOpId, NodeId
+        // |      found the matching DOp stream
+        // |FW_RUNTIME_MAX_SIZE + IOP_NUMBER*FW_TABLE_ENTRY*MAX_HPU_IN_CLUSTER: ...
+        // |      DOp stream [Size_in_word] [Dop stream]
+        // |--->
+
+        // Write runtime configuration
+        // FW cut is view as u32 array, cost UcoreConfig accordingly
+        let fw_cfg = UcoreConfig::new(self.hid);
+        let fw_cfg_raw = unsafe {
+            std::slice::from_raw_parts(
+                (&fw_cfg as *const UcoreConfig) as *const u32,
+                std::mem::size_of::<UcoreConfig>().div_ceil(std::mem::size_of::<u32>()),
+            )
+        };
+        self.fw_mem.write_cut_at(0, 0, fw_cfg_raw);
+
         // Create Asm architecture properties and Fw instantiation
         let pe_cfg = PeConfigStore::from((&*self.params, config));
         let fw_name =
@@ -724,8 +772,8 @@ impl HpuNode {
 
         // For each blk_w there are IOp_number * MAX_HPU_IN_CLUSTER
         // Opcode is 8bit -> 256 words entry
-        let mut tr_table_ofst = FW_TABLE_ENTRY * 0x100 * asm::dop::MAX_HPU_IN_CLUSTER;
-        let cut_ofst = self.fw_mem.cut_paddr()[0] as usize;
+        // WARN: tr_table_ofst is relative expressed from DOP_LUT_ADDR i.e. after the runtime config
+        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::dop::MAX_HPU_IN_CLUSTER;
 
         for integer_w in config.firmware.integer_w.iter() {
             // Update fw parameters with concrete integer_width
@@ -813,26 +861,29 @@ impl HpuNode {
             // NB: in rust tuple are cmp from left to right i.e. iop first then vid in our case
             // NB: ucore is a 32b cpu => addr-lut/ translation word must be 32b word
             id_fw.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            let blk_ofst = (blk_w - 1) * 0x100 * MAX_HPU_IN_CLUSTER; // Opcode is 8bit -> 256 words per blk_w
+
+            // Opcode is 8bit -> 256 words per blk_w
+            let blk_ofst = (blk_w - 1) * IOP_NUMBER * MAX_HPU_IN_CLUSTER;
 
             // Default tr_lut with fallback entry
             // Uninit entries point to fist tr-table entry
+            // NB: ucore expect addr with physical memory offset (i.e. Byte offset
+            // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
+            // the entry
             let mut tr_lut = vec![
-                (cut_ofst + (tr_table_ofst * std::mem::size_of::<u32>())) as u32;
-                256 * MAX_HPU_IN_CLUSTER
+                (tr_table_ofst * std::mem::size_of::<u32>()) as u32;
+                IOP_NUMBER * MAX_HPU_IN_CLUSTER
             ];
 
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
-                // NB: ucore expect addr with physical memory offset
-                // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
-                // the entry
                 let byte_ofst = (tr_table_ofst * std::mem::size_of::<u32>()) as u32;
                 tr_lut[id.0 * MAX_HPU_IN_CLUSTER + id.1] = byte_ofst;
 
                 // Write tr-table
                 let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());
-                self.fw_mem.write_cut_at(0, tr_table_ofst, fw_words);
+                self.fw_mem
+                    .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, fw_words);
                 tracing::debug!(
                     "Opcode::{:x}.v{}[{} dops] @{tr_table_ofst:x} [{byte_ofst:x}]",
                     id.0,
@@ -843,7 +894,8 @@ impl HpuNode {
                 tr_table_ofst += fw_words.len();
             }
             // Write lookup table all at once
-            self.fw_mem.write_cut_at(0, blk_ofst, tr_lut.as_slice());
+            self.fw_mem
+                .write_cut_at(0, FW_RUNTIME_MAX_WORD + blk_ofst, tr_lut.as_slice());
             tracing::debug!(
                 "Fw[{blk_w}]:: lut entry @{blk_ofst:x} [{:x}]",
                 blk_ofst * std::mem::size_of::<u32>()

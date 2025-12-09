@@ -62,22 +62,6 @@ do
             fi
             shift 2
             ;;
-        -p|--pcie-dev)
-            if [ -n "${2:-}" ] && [[ ! ${2:-} =~ ^- ]]; then
-                V80_PCIE_DEV="${2}"
-                ((i++))
-                shift 1
-            elif [[ ${#DEVICE[@]} -eq 1 ]]; then
-                V80_PCIE_DEV=${DEVICE[0]%%:*}
-            else
-                echo "Please select a device in following list (1st two digits):"
-                for item in "${DEVICE[@]}"; do
-                    echo "$item"
-                done
-                return 1
-            fi
-            shift 1
-            ;;
         "") # End of input reading
             break ;;
         *)

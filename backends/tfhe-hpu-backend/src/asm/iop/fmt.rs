@@ -188,35 +188,35 @@ pub struct IOpMappingHex {
     #[bits(1)]
     used_0: bool,
     #[bits(3)]
-    phys_0: u8,
+    virt_0: u8,
     #[bits(1)]
     used_1: bool,
     #[bits(3)]
-    phys_1: u8,
+    virt_1: u8,
     #[bits(1)]
     used_2: bool,
     #[bits(3)]
-    phys_2: u8,
+    virt_2: u8,
     #[bits(1)]
     used_3: bool,
     #[bits(3)]
-    phys_3: u8,
+    virt_3: u8,
     #[bits(1)]
     used_4: bool,
     #[bits(3)]
-    phys_4: u8,
+    virt_4: u8,
     #[bits(1)]
     used_5: bool,
     #[bits(3)]
-    phys_5: u8,
+    virt_5: u8,
     #[bits(1)]
     used_6: bool,
     #[bits(3)]
-    phys_6: u8,
+    virt_6: u8,
     #[bits(1)]
     used_7: bool,
     #[bits(3)]
-    phys_7: u8,
+    virt_7: u8,
 }
 
 impl From<&IOpMappingHex> for field::IOpMapping {
@@ -240,22 +240,22 @@ impl From<&field::IOpMapping> for IOpMappingHex {
     fn from(value: &field::IOpMapping) -> Self {
         Self::new()
             // Set used flags
-            .with_used_0(value.phys_id(VirtId(0)).is_some())
-            .with_used_1(value.phys_id(VirtId(1)).is_some())
-            .with_used_2(value.phys_id(VirtId(2)).is_some())
-            .with_used_3(value.phys_id(VirtId(3)).is_some())
-            .with_used_4(value.phys_id(VirtId(4)).is_some())
-            .with_used_5(value.phys_id(VirtId(5)).is_some())
-            .with_used_6(value.phys_id(VirtId(6)).is_some())
-            .with_used_7(value.phys_id(VirtId(7)).is_some())
+            .with_used_0(value.virt_id(PhysId(0)).is_some())
+            .with_used_1(value.virt_id(PhysId(1)).is_some())
+            .with_used_2(value.virt_id(PhysId(2)).is_some())
+            .with_used_3(value.virt_id(PhysId(3)).is_some())
+            .with_used_4(value.virt_id(PhysId(4)).is_some())
+            .with_used_5(value.virt_id(PhysId(5)).is_some())
+            .with_used_6(value.virt_id(PhysId(6)).is_some())
+            .with_used_7(value.virt_id(PhysId(7)).is_some())
             // Set value or 0
-            .with_phys_0(value.phys_id(VirtId(0)).unwrap_or(PhysId(0)).0)
-            .with_phys_1(value.phys_id(VirtId(1)).unwrap_or(PhysId(0)).0)
-            .with_phys_2(value.phys_id(VirtId(2)).unwrap_or(PhysId(0)).0)
-            .with_phys_3(value.phys_id(VirtId(3)).unwrap_or(PhysId(0)).0)
-            .with_phys_4(value.phys_id(VirtId(4)).unwrap_or(PhysId(0)).0)
-            .with_phys_5(value.phys_id(VirtId(5)).unwrap_or(PhysId(0)).0)
-            .with_phys_6(value.phys_id(VirtId(6)).unwrap_or(PhysId(0)).0)
-            .with_phys_7(value.phys_id(VirtId(7)).unwrap_or(PhysId(0)).0)
+            .with_virt_0(value.virt_id(PhysId(0)).unwrap_or(VirtId(0)).0)
+            .with_virt_1(value.virt_id(PhysId(1)).unwrap_or(VirtId(0)).0)
+            .with_virt_2(value.virt_id(PhysId(2)).unwrap_or(VirtId(0)).0)
+            .with_virt_3(value.virt_id(PhysId(3)).unwrap_or(VirtId(0)).0)
+            .with_virt_4(value.virt_id(PhysId(4)).unwrap_or(VirtId(0)).0)
+            .with_virt_5(value.virt_id(PhysId(5)).unwrap_or(VirtId(0)).0)
+            .with_virt_6(value.virt_id(PhysId(6)).unwrap_or(VirtId(0)).0)
+            .with_virt_7(value.virt_id(PhysId(7)).unwrap_or(VirtId(0)).0)
     }
 }

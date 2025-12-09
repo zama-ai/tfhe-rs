@@ -11,7 +11,6 @@ readme = "README.md"
 keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
-default=["utils"]
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]

@@ -14,6 +14,7 @@ pub use super::interface::{
     HpuVarWrapped, QueueConfig, ShellString, ACKQ_EMPTY,
 };
 
+#[cfg(feature = "utils")]
 /// Load parser utility
 pub use super::isc_trace;
 
