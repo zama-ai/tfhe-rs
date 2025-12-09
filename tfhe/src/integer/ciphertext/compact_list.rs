@@ -973,6 +973,10 @@ impl CompactCiphertextList {
         &self,
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        if self.is_empty() {
+            return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        }
+
         let is_packed = self.is_packed();
 
         let expanded_blocks = expansion_helper(
@@ -1112,6 +1116,10 @@ impl ProvenCompactCiphertextList {
     }
 
     pub fn needs_casting(&self) -> bool {
+        if self.is_empty() {
+            return false;
+        }
+
         self.ct_list.proved_lists[0].0.needs_casting()
     }
 
@@ -1286,7 +1294,7 @@ mod zk_pok_tests {
     }
 
     use super::{DataKind, ProvenCompactCiphertextList};
-    use crate::conformance::ParameterSetConformant;
+    use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::integer::ciphertext::{
         CompactCiphertextList, IntegerProvenCompactCiphertextListConformanceParams,
@@ -1307,6 +1315,7 @@ mod zk_pok_tests {
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkVerificationOutcome};
+    use crate::CompactCiphertextListConformanceParams;
     use rand::random;
 
     fn test_zk_list(is_packed: bool) {
@@ -1401,7 +1410,7 @@ mod zk_pok_tests {
     }
 
     #[test]
-    fn test_empty_list() {
+    fn test_zk_empty_list() {
         let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -1494,6 +1503,59 @@ mod zk_pok_tests {
             proven_ct.info = Vec::new();
 
             assert!(!proven_ct.is_conformant(&conformance_params));
+        }
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let conformance_params =
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                pke_params,
+                ListSizeConstraint::exact_size(0),
+            );
+
+        // Test by pushing with zero blocks
+        {
+            let ct = CompactCiphertextList::builder(&pk)
+                .push_with_num_blocks(1u8, 0)
+                .push_with_num_blocks(-1i8, 0)
+                .build_packed()
+                .unwrap();
+
+            assert!(ct.is_empty());
+            assert_eq!(ct.len(), 0);
+            assert!(ct.is_conformant(&conformance_params));
+            assert!(matches!(
+                ct.expand(
+                    IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+                ),
+                Ok(vec) if vec.is_empty()
+            ));
+        }
+
+        // Test by pushing with nothing
+        {
+            let ct = CompactCiphertextList::builder(&pk).build_packed().unwrap();
+
+            assert!(ct.is_empty());
+            assert_eq!(ct.len(), 0);
+            assert!(ct.is_conformant(&conformance_params));
+            assert!(matches!(
+                ct.expand(
+                    IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+                ),
+                Ok(vec) if vec.is_empty()
+            ));
         }
     }
 
