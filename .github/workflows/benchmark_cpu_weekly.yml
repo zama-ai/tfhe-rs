@@ -52,13 +52,13 @@ jobs:
           steps.check_bench_group_2.outputs.is_weekly_bench_group_2 == 'true'
         run: |
           echo "OP_FLAVOR=default" >> "${GITHUB_ENV}"
-          echo "PRECISIONS_SET=false" >> "${GITHUB_ENV}"
+          echo "PRECISIONS_SET=fast" >> "${GITHUB_ENV}"
 
       - name: Quarterly benchmarks
         if: steps.check_quarterly_bench.outputs.is_quarterly_bench == 'true'
         run: |
           echo "OP_FLAVOR=\"default,unchecked\"" >> "${GITHUB_ENV}"
-          echo "PRECISIONS_SET=true" >> "${GITHUB_ENV}"
+          echo "PRECISIONS_SET=all" >> "${GITHUB_ENV}"
 
       - name: Set operation flavor output
         id: set_op_flavor
