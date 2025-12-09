@@ -923,6 +923,10 @@ impl CompactCiphertextList {
         &self,
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        if self.is_empty() {
+            return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        }
+
         let is_packed = self.is_packed();
 
         let expanded_blocks = expansion_helper(
@@ -1087,6 +1091,10 @@ impl ProvenCompactCiphertextList {
     }
 
     pub fn needs_casting(&self) -> bool {
+        if self.is_empty() {
+            return false;
+        }
+
         self.ct_list.proved_lists[0].0.needs_casting()
     }
 
@@ -1319,7 +1327,7 @@ mod zk_pok_tests {
     }
 
     #[test]
-    fn test_empty_list() {
+    fn test_zk_empty_list() {
         let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
