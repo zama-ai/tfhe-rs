@@ -36,7 +36,7 @@ do
 done
 
 if [[ "${rust_toolchain::1}" != "+" ]]; then
-    rust_toolchain=${rust_toolchain:"+${rust_toolchain}"}
+    rust_toolchain=${rust_toolchain:+"+${rust_toolchain}"}
 fi
 
 if ! which typos ; then

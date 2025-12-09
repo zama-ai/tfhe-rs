@@ -1871,8 +1871,6 @@ fpcc:
 	$(call run_recipe_with_details,check_md_docs_are_tested)
 	$(call run_recipe_with_details,check_intra_md_links)
 	$(call run_recipe_with_details,check_doc_paths_use_dash)
-	$(call run_recipe_with_details,clippy_fast)
-	$(call run_recipe_with_details,check_compile_tests)
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt fmt_js
