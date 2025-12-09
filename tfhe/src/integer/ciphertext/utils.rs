@@ -25,6 +25,9 @@ impl DataKind {
             Self::Unsigned(n) | Self::Signed(n) => n.get(),
             Self::Boolean => 1,
             Self::String { n_chars, .. } => {
+                if message_modulus.0 == 0 {
+                    return 0;
+                }
                 let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
                 (n_chars * blocks_per_char) as usize
             }
@@ -93,5 +96,22 @@ impl Expandable for BooleanBlock {
                 "Tried to expand a boolean block while a string is stored".to_string(),
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_string_num_blocks() {
+        let kind = DataKind::String {
+            n_chars: 10,
+            padded: true,
+        };
+
+        let num_blocks = kind.num_blocks(MessageModulus(0));
+
+        assert_eq!(num_blocks, 0);
     }
 }
