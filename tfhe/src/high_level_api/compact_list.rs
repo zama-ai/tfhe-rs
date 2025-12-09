@@ -1159,6 +1159,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_empty_list() {
+        let config = crate::ConfigBuilder::default().build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk).build_packed();
+
+        let expander = compact_list.expand().unwrap();
+
+        assert!(expander.get::<FheBool>(0).unwrap().is_none());
+    }
+
     #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_compact_list() {
@@ -1453,6 +1470,39 @@ mod tests {
 
             assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
         }
+    }
+
+    #[cfg(feature = "zk-pok")]
+    #[test]
+    fn test_empty_proven_list() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+
+        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let expander = compact_list
+            .verify_and_expand(&crs, &pk, &metadata)
+            .unwrap();
+
+        assert!(expander.get::<FheBool>(0).unwrap().is_none());
     }
 
     #[cfg(all(feature = "zk-pok", feature = "gpu"))]
