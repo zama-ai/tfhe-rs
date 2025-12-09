@@ -371,7 +371,6 @@ impl Bootstrapper {
         let fft = fft.as_view();
         self.computation_buffers.resize(
             convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-                .unwrap()
                 .unaligned_bytes_required(),
         );
 
@@ -467,7 +466,6 @@ impl Bootstrapper {
                 fourier_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
         let stack = self.computation_buffers.stack();
@@ -509,7 +507,6 @@ impl Bootstrapper {
                 fourier_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
         let stack = self.computation_buffers.stack();
@@ -556,7 +553,6 @@ impl Bootstrapper {
                 fourier_bsk.polynomial_size(),
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
         let stack = self.computation_buffers.stack();
