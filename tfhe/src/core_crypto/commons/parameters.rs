@@ -413,7 +413,8 @@ pub struct NoiseEstimationMeasureBound(pub f64);
 pub struct ChunkSize(pub usize);
 
 /// The max normalized hamming weight
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(NormalizedHammingWeightBoundVersions)]
 pub struct NormalizedHammingWeightBound(f64);
 
 impl NormalizedHammingWeightBound {

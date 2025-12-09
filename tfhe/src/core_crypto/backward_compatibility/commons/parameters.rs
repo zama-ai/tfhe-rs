@@ -187,3 +187,8 @@ pub enum NoiseEstimationMeasureBoundVersions {
 pub enum ChunkSizeVersions {
     V0(ChunkSize),
 }
+
+#[derive(VersionsDispatch)]
+pub enum NormalizedHammingWeightBoundVersions {
+    V0(NormalizedHammingWeightBound),
+}
