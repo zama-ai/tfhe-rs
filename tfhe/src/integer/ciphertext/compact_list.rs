@@ -1189,10 +1189,15 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
     type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self {
-            ct_list,
-            info: _info,
-        } = self;
+        let Self { ct_list, info } = self;
+
+        // Early return if the list is considered empty
+        match (ct_list.proved_lists.is_empty(), info.is_empty()) {
+            (true, true) => return true,
+            (true, false) => return false,
+            (false, true) => return false,
+            (false, false) => {}
+        }
 
         let is_packed = self.is_packed();
 
@@ -1341,6 +1346,11 @@ mod zk_pok_tests {
         let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
         let pk = CompactPublicKey::new(&compact_private_key);
 
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                pke_params, &crs,
+            );
+
         // Test by pushing with zero blocks
         {
             let proven_ct = CompactCiphertextList::builder(&pk)
@@ -1355,6 +1365,7 @@ mod zk_pok_tests {
                 proven_ct.verify(&crs, &pk, &metadata),
                 ZkVerificationOutcome::Valid
             );
+            assert!(proven_ct.is_conformant(&conformance_params));
             assert!(matches!(
                 proven_ct.verify_and_expand(
                     &crs,
@@ -1378,6 +1389,7 @@ mod zk_pok_tests {
                 proven_ct.verify(&crs, &pk, &metadata),
                 ZkVerificationOutcome::Valid
             );
+            assert!(proven_ct.is_conformant(&conformance_params));
             assert!(matches!(
                 proven_ct.verify_and_expand(
                     &crs,
@@ -1387,6 +1399,32 @@ mod zk_pok_tests {
                 ),
                 Ok(vec) if vec.is_empty()
             ));
+        }
+
+        // Test with empty ct vec and not empty info vec
+        {
+            let mut proven_ct = CompactCiphertextList::builder(&pk)
+                .push(1u8)
+                .push(-1i8)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            proven_ct.ct_list.proved_lists = Vec::new();
+
+            assert!(!proven_ct.is_conformant(&conformance_params));
+        }
+
+        // Test with not empty ct vec and empty info vec
+        {
+            let mut proven_ct = CompactCiphertextList::builder(&pk)
+                .push(1u8)
+                .push(-1i8)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            proven_ct.info = Vec::new();
+
+            assert!(!proven_ct.is_conformant(&conformance_params));
         }
     }
 
