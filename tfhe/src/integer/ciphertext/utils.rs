@@ -25,11 +25,14 @@ impl DataKind {
             Self::Unsigned(n) | Self::Signed(n) => n.get(),
             Self::Boolean => 1,
             Self::String { n_chars, .. } => {
-                if message_modulus.0 == 0 {
+                if message_modulus.0 == 0 || message_modulus.0 == 1 {
                     return 0;
                 }
+
                 let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
-                (n_chars * blocks_per_char) as usize
+                // Use saturating mul to avoid panic here, maybe on the long run this function
+                // should return a Result
+                n_chars.saturating_mul(blocks_per_char) as usize
             }
         }
     }
@@ -103,6 +106,7 @@ impl Expandable for BooleanBlock {
 mod test {
     use super::*;
 
+    /// Check that strings num_blocks does not panic
     #[test]
     fn test_string_num_blocks() {
         let kind = DataKind::String {
@@ -113,5 +117,17 @@ mod test {
         let num_blocks = kind.num_blocks(MessageModulus(0));
 
         assert_eq!(num_blocks, 0);
+
+        let num_blocks = kind.num_blocks(MessageModulus(1));
+
+        assert_eq!(num_blocks, 0);
+
+        let kind = DataKind::String {
+            n_chars: u32::MAX,
+            padded: true,
+        };
+
+        let num_blocks = kind.num_blocks(MessageModulus(2));
+        assert_eq!(num_blocks, u32::MAX as usize);
     }
 }
