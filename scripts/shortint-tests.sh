@@ -8,6 +8,7 @@ function usage() {
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
+    echo "--run-prod-only           Run only the tests using the prod parameters"
     echo "--cargo-profile           The cargo profile used to build tests"
     echo "--tfhe-package            The package spec like tfhe@0.4.2, default=tfhe"
     echo
@@ -19,6 +20,7 @@ multi_bit_argument=
 fast_tests_argument=
 cargo_profile="release"
 tfhe_package="tfhe"
+prod_param_argument=
 
 while [ -n "$1" ]
 do
@@ -38,6 +40,9 @@ do
             multi_bit_argument=--multi-bit
             ;;
 
+        "--run-prod-only")
+          prod_param_argument="--run-prod-only"
+          ;;
         "--cargo-profile" )
             shift
             cargo_profile="$1"
@@ -85,7 +90,7 @@ else
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
-    filter_expression_small_params=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint ${fast_tests_argument} ${multi_bit_argument})
+    filter_expression_small_params=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint ${fast_tests_argument} ${multi_bit_argument} ${prod_param_argument})
 
     # Run tests only no examples or benches with small params and more threads
     cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
@@ -125,7 +130,7 @@ and not test(~smart_add_and_mul)"""
         fi
     fi
 else
-    filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint --big-instance ${fast_tests_argument} ${multi_bit_argument})
+    filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer shortint --big-instance ${fast_tests_argument} ${multi_bit_argument} ${prod_param_argument})
 
     # Run tests only no examples or benches with small params and more threads
     cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
