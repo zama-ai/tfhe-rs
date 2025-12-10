@@ -2,9 +2,9 @@ import copy
 
 import config
 import connector
+from benchmark_specs import Backend, Layer, OperandType, PBSKind, RustType
+from formatters.common import OPERATION_SIZE_COLUMN_HEADER, GenericFormatter
 
-from benchmark_specs import Backend, Layer, RustType, OperandType, PBSKind
-from formatter import GenericFormatter, OPERATION_SIZE_COLUMN_HEADER
 import utils
 
 DEFAULT_CPU_HARDWARE = "hpc7a.96xlarge"

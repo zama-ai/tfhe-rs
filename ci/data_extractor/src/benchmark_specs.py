@@ -47,7 +47,7 @@ class Layer(enum.StrEnum):
             case "core_crypto":
                 return Layer.CoreCrypto
             case _:
-                raise NotImplementedError
+                raise NotImplementedError(f"layer '{layer_name}' not supported")
 
 
 class RustType(enum.Enum):
@@ -99,7 +99,7 @@ class RustType(enum.Enum):
             case 512:
                 return RustType.FheUint512
             case _:
-                raise NotImplementedError
+                raise NotImplementedError(f"Rust type '{value}' not supported")
 
 
 ALL_RUST_INTEGER_TYPES = [
@@ -208,7 +208,7 @@ class PBSKind(enum.StrEnum):
             case "any":
                 return PBSKind.Any
             case _:
-                raise NotImplementedError
+                raise NotImplementedError(f"PBS kind '{pbs_name}' not supported")
 
 
 class NoiseDistribution(enum.StrEnum):
@@ -228,7 +228,7 @@ class NoiseDistribution(enum.StrEnum):
                 return NoiseDistribution.TUniform
             case _:
                 raise NotImplementedError(
-                    f"noise distribution '{distrib_name}' not supported yet"
+                    f"noise distribution '{distrib_name}' not supported"
                 )
 
 
