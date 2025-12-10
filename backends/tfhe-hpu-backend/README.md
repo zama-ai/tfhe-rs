@@ -201,7 +201,7 @@ There are some example applications already available in `tfhe/examples/hpu`:
  * hpu_hlapi: Depict the used of HPU device through HighLevelApi.
  * hpu_bench: Depict the used of HPU device through Integer abstraction level.
 
-In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-v80` features:
+In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs`) with `hpu-v80` features:
 
 > NB: Running examples required to have correctly pulled the `.hpu` files. Those files, due to their size, are backed by git-lfs and disabled by default.
 > In order to retrieve them, run the following command from **TFHE-rs** root folder:
