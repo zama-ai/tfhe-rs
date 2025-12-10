@@ -65,7 +65,7 @@ tfhe-fft = { version = "0.10.0", path = "../tfhe-fft", features = [
 ] }
 tfhe-ntt = { version = "0.7.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
-tfhe-cuda-backend = { version = "0.12.0", path = "../backends/tfhe-cuda-backend", optional = true }
+tfhe-cuda-backend = { version = "0.13.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
 dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
