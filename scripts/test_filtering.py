@@ -164,16 +164,25 @@ def integer_normal_filter(input_args):
                 f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
             )
         excluded_tests = (
-            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
+            EXCLUDED_INTEGER_FAST_TESTS
+            if input_args.fast_tests
+            else EXCLUDED_INTEGER_TESTS
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
+        if not input_args.run_prod_only:
+            filter_expression.append("not test(/.*_param_prod_.*/)")
+
     else:
         if input_args.backend == "gpu":
-            filter_expression = ["test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
+            filter_expression = [
+                "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
+            ]
         elif input_args.backend == "cpu":
-            filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
+            filter_expression = [
+                "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
+            ]
 
     return filter_expression
 
