@@ -169,21 +169,21 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                      CudaRadixCiphertextFFI *comparison_blocks,
                      CudaRadixCiphertextFFI *d,
                      int_comparison_buffer<Torus> *comparison_buffer) {
-      CudaRadixCiphertextFFI *d_msb = new CudaRadixCiphertextFFI;
+      CudaRadixCiphertextFFI d_msb;
       uint32_t slice_start = num_blocks - block_index;
       uint32_t slice_end = d->num_radix_blocks;
-      as_radix_ciphertext_slice<Torus>(d_msb, d, slice_start, slice_end);
-      comparison_blocks->num_radix_blocks = d_msb->num_radix_blocks;
-      if (d_msb->num_radix_blocks == 0) {
+      as_radix_ciphertext_slice<Torus>(&d_msb, d, slice_start, slice_end);
+      comparison_blocks->num_radix_blocks = d_msb.num_radix_blocks;
+      if (d_msb.num_radix_blocks == 0) {
         cuda_memset_async(
             (Torus *)out_boolean_block->ptr, 0,
             sizeof(Torus) * (out_boolean_block->lwe_dimension + 1),
             streams.stream(gpu_index), streams.gpu_index(gpu_index));
       } else {
         host_compare_blocks_with_zero<Torus>(
-            streams.get_ith(gpu_index), comparison_blocks, d_msb,
+            streams.get_ith(gpu_index), comparison_blocks, &d_msb,
             comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
-            d_msb->num_radix_blocks, comparison_buffer->is_zero_lut);
+            d_msb.num_radix_blocks, comparison_buffer->is_zero_lut);
         are_all_comparisons_block_true(
             streams.get_ith(gpu_index), out_boolean_block, comparison_blocks,
             comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
@@ -202,7 +202,6 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
             (Torus *)out_boolean_block->ptr, (Torus *)out_boolean_block->ptr,
             encoded_scalar, radix_params.big_lwe_dimension, 1);
       }
-      delete d_msb;
     };
 
     for (uint j = 0; j < 3; j++) {

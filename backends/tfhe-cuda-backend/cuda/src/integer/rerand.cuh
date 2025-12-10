@@ -63,14 +63,14 @@ void rerand_inplace(
 
   // Add ks output to ct
   // Check sizes
-  auto lwes_ffi = new CudaRadixCiphertextFFI;
-  into_radix_ciphertext(lwes_ffi, lwe_array, num_lwes, output_dimension);
-  auto ksed_zero_lwes_ffi = new CudaRadixCiphertextFFI;
-  into_radix_ciphertext(ksed_zero_lwes_ffi, ksed_zero_lwes, num_lwes,
+  CudaRadixCiphertextFFI lwes_ffi;
+  into_radix_ciphertext(&lwes_ffi, lwe_array, num_lwes, output_dimension);
+  CudaRadixCiphertextFFI ksed_zero_lwes_ffi;
+  into_radix_ciphertext(&ksed_zero_lwes_ffi, ksed_zero_lwes, num_lwes,
                         output_dimension);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), lwes_ffi,
-                       lwes_ffi, ksed_zero_lwes_ffi, num_lwes, message_modulus,
-                       carry_modulus);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,
+                       &lwes_ffi, &ksed_zero_lwes_ffi, num_lwes,
+                       message_modulus, carry_modulus);
 }
 
 template <typename Torus>

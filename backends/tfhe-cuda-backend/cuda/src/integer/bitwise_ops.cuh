@@ -102,21 +102,21 @@ __host__ void host_boolean_bitop(CudaStreams streams,
     return false;
   };
 
-  CudaRadixCiphertextFFI *lwe_array_left = new CudaRadixCiphertextFFI;
-  CudaRadixCiphertextFFI *lwe_array_right = new CudaRadixCiphertextFFI;
+  CudaRadixCiphertextFFI lwe_array_left;
+  CudaRadixCiphertextFFI lwe_array_right;
 
   if (needs_noise_reduction(lwe_array_1)) {
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_lwe_left, 0,
         lwe_array_1->num_radix_blocks, lwe_array_1, 0,
         lwe_array_1->num_radix_blocks);
-    as_radix_ciphertext_slice<Torus>(lwe_array_left, mem_ptr->tmp_lwe_left, 0,
+    as_radix_ciphertext_slice<Torus>(&lwe_array_left, mem_ptr->tmp_lwe_left, 0,
                                      lwe_array_1->num_radix_blocks);
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, lwe_array_left, lwe_array_left, bsks, ksks,
-        mem_ptr->message_extract_lut, lwe_array_left->num_radix_blocks);
+        streams, &lwe_array_left, &lwe_array_left, bsks, ksks,
+        mem_ptr->message_extract_lut, lwe_array_left.num_radix_blocks);
   } else {
-    as_radix_ciphertext_slice<Torus>(lwe_array_left, lwe_array_1, 0,
+    as_radix_ciphertext_slice<Torus>(&lwe_array_left, lwe_array_1, 0,
                                      lwe_array_1->num_radix_blocks);
   }
 
@@ -125,37 +125,37 @@ __host__ void host_boolean_bitop(CudaStreams streams,
         streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_lwe_right, 0,
         lwe_array_2->num_radix_blocks, lwe_array_2, 0,
         lwe_array_2->num_radix_blocks);
-    as_radix_ciphertext_slice<Torus>(lwe_array_right, mem_ptr->tmp_lwe_right, 0,
-                                     lwe_array_2->num_radix_blocks);
+    as_radix_ciphertext_slice<Torus>(&lwe_array_right, mem_ptr->tmp_lwe_right,
+                                     0, lwe_array_2->num_radix_blocks);
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, lwe_array_right, lwe_array_right, bsks, ksks,
-        mem_ptr->message_extract_lut, lwe_array_right->num_radix_blocks);
+        streams, &lwe_array_right, &lwe_array_right, bsks, ksks,
+        mem_ptr->message_extract_lut, lwe_array_right.num_radix_blocks);
   } else {
-    as_radix_ciphertext_slice<Torus>(lwe_array_right, lwe_array_2, 0,
+    as_radix_ciphertext_slice<Torus>(&lwe_array_right, lwe_array_2, 0,
                                      lwe_array_2->num_radix_blocks);
   }
 
   auto lut = mem_ptr->lut;
-  uint64_t degrees[lwe_array_left->num_radix_blocks];
+  uint64_t degrees[lwe_array_left.num_radix_blocks];
   if (mem_ptr->op == BITOP_TYPE::BITAND) {
-    update_degrees_after_bitand(degrees, lwe_array_left->degrees,
-                                lwe_array_right->degrees,
-                                lwe_array_left->num_radix_blocks);
+    update_degrees_after_bitand(degrees, lwe_array_left.degrees,
+                                lwe_array_right.degrees,
+                                lwe_array_left.num_radix_blocks);
   } else if (mem_ptr->op == BITOP_TYPE::BITOR) {
-    update_degrees_after_bitor(degrees, lwe_array_left->degrees,
-                               lwe_array_right->degrees,
-                               lwe_array_left->num_radix_blocks);
+    update_degrees_after_bitor(degrees, lwe_array_left.degrees,
+                               lwe_array_right.degrees,
+                               lwe_array_left.num_radix_blocks);
   } else if (mem_ptr->op == BITOP_TYPE::BITXOR) {
-    update_degrees_after_bitxor(degrees, lwe_array_left->degrees,
-                                lwe_array_right->degrees,
-                                lwe_array_left->num_radix_blocks);
+    update_degrees_after_bitxor(degrees, lwe_array_left.degrees,
+                                lwe_array_right.degrees,
+                                lwe_array_left.num_radix_blocks);
   }
 
   // shift argument is hardcoded as 2 here, because natively message modulus for
   // boolean block should be 2. lookup table is generated with same factor.
   integer_radix_apply_bivariate_lookup_table<Torus>(
-      streams, lwe_array_out, lwe_array_left, lwe_array_right, bsks, ksks, lut,
-      lwe_array_out->num_radix_blocks, 2);
+      streams, lwe_array_out, &lwe_array_left, &lwe_array_right, bsks, ksks,
+      lut, lwe_array_out->num_radix_blocks, 2);
 
   memcpy(lwe_array_out->degrees, degrees,
          lwe_array_out->num_radix_blocks * sizeof(uint64_t));

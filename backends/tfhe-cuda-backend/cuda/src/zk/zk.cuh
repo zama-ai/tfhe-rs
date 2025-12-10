@@ -91,12 +91,12 @@ __host__ void host_expand_without_verification(
   cuda_memset_async(lwe_array_out, 0,
                     (lwe_dimension + 1) * num_lwes * 2 * sizeof(Torus),
                     streams.stream(0), streams.gpu_index(0));
-  auto output = new CudaRadixCiphertextFFI;
-  into_radix_ciphertext(output, lwe_array_out, 2 * num_lwes, lwe_dimension);
-  auto input = new CudaRadixCiphertextFFI;
-  into_radix_ciphertext(input, lwe_array_input, 2 * num_lwes, lwe_dimension);
+  CudaRadixCiphertextFFI output;
+  into_radix_ciphertext(&output, lwe_array_out, 2 * num_lwes, lwe_dimension);
+  CudaRadixCiphertextFFI input;
+  into_radix_ciphertext(&input, lwe_array_input, 2 * num_lwes, lwe_dimension);
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, output, input, bsks, ksks, message_and_carry_extract_luts,
+      streams, &output, &input, bsks, ksks, message_and_carry_extract_luts,
       2 * num_lwes);
 }
 
