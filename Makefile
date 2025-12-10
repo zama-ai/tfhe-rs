@@ -1665,6 +1665,15 @@ bench_hlapi_erc20_hpu: install_rs_check_toolchain
 	--bench hlapi-erc20 \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
 
+
+.PHONY: bench_hlapi_oprf # Run benchmarks for oprf over any range operations
+bench_hlapi_oprf: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-oprf \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+
+
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
