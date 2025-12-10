@@ -934,6 +934,15 @@ test_integer_ci: install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
 
+.PHONY: test_param_prod_integer_ci # Run the tests for integer ci
+test_param_prod_integer_ci: install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+		./scripts/integer-tests.sh \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
+		--run-prod-only --tfhe-package "tfhe"
+
 .PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
 test_unsigned_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \

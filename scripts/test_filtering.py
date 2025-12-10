@@ -121,18 +121,17 @@ def filter_integer_tests(input_args):
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
     backend_filter = ""
-    if input_args.run_prod_only:
-        filter_expression = [
-            "test(/^integer::.*_param_prod/)",
-        ]
-    elif not input_args.long_tests:
+    if not input_args.long_tests:
         if input_args.backend == "gpu":
             backend_filter = "gpu::"
             if multi_bit_filter:
                 # For now, GPU only has specific parameters set for multi-bit
                 multi_bit_filter = "_gpu_multi_bit"
 
-        filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
+        if input_args.run_prod_only:
+            filter_expression = [f"test(/^integer::{backend_filter}.*_param_prod/)"]
+        else:
+            filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
 
         if input_args.multi_bit:
             filter_expression.append("test(~_multi_bit)")
@@ -175,6 +174,9 @@ def filter_integer_tests(input_args):
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
+        if not input_args.run_prod_only:
+            filter_expression.append("not test(/.*_param_prod_.*/)")
+
     else:
         if input_args.backend == "gpu":
             filter_expression = [
@@ -184,11 +186,10 @@ def filter_integer_tests(input_args):
             filter_expression = [
                 "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
             ]
-
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
     filter_expression.append(
-        f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)"
+        "not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)"
     )
     return " and ".join(filter_expression)
 
