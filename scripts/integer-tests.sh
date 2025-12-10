@@ -6,10 +6,12 @@ function usage() {
     echo "$0: integer test runner"
     echo
     echo "--help                    Print this message"
+    echo "--no-run                  Does not run the tests, but prints which tests would be ran (except doctests)"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
     echo "--unsigned-only           Run only unsigned integer tests, by default both signed and unsigned tests are run"
     echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
+    echo "--run-prod-only           Run only the tests using the prod parameters"
     echo "--nightly-tests           Run integer tests configured for nightly runs (3_3 params)"
     echo "--fast-tests              Run integer set but skip a subset of longer tests"
     echo "--long-tests              Run only long run integer tests"
@@ -33,6 +35,8 @@ backend="cpu"
 gpu_feature=""
 avx512_feature=""
 tfhe_package="tfhe"
+prod_param_argument=
+no_run=false
 
 while [ -n "$1" ]
 do
@@ -40,6 +44,14 @@ do
         "--help" | "-h" )
             usage
             exit 0
+            ;;
+
+        "--no-run" )
+            no_run=true
+            ;;
+
+        "--run-prod-only" )
+            prod_param_argument="--run-prod-only"
             ;;
 
         "--rust-toolchain" )
@@ -150,7 +162,7 @@ if [[ "${backend}" == "gpu" ]]; then
     fi
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument} ${prod_param_argument:+$prod_param_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
@@ -168,24 +180,39 @@ fi
 
 echo "${filter_expression}"
 
-cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
-    --tests \
-    --cargo-profile "${cargo_profile}" \
-    --package "${tfhe_package}" \
-    --profile ci \
-    --no-default-features \
-    --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
-    --test-threads "${test_threads}" \
-    -E "$filter_expression"
+if $no_run then; then
+    # This is very close to the run command, but the `--profile ci`
+    # is not 'supported'
+    cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest list \
+        --tests \
+        --cargo-profile "${cargo_profile}" \
+        --package "${tfhe_package}" \
+        --no-default-features \
+        --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
+        -E "$filter_expression"
+else
+    cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
+        --tests \
+        --cargo-profile "${cargo_profile}" \
+        --package "${tfhe_package}" \
+        --profile ci \
+        --no-default-features \
+        --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
+        --test-threads "${test_threads}" \
+        -E "$filter_expression"
 
-if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
-    cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} test \
+    # Unfortunately, we cannot skip running doctest with `--no-run`
+    if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
+      cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --no-default-features \
         --features=integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"
+    fi
 fi
+
+
 
 echo "Test ran in $SECONDS seconds"
