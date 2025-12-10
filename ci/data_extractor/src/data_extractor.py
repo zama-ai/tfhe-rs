@@ -16,21 +16,17 @@ Note that if provided, environment variables will take precedence over the confi
 
 import argparse
 import datetime
-import formatter
 import sys
-from formatter import (
-    CSVFormatter,
-    GenericFormatter,
-    MarkdownFormatter,
-    SVGFormatter,
-    BenchArray,
-)
 
 import comparison
 import config
 import connector
+import formatters.core
+import formatters.hlapi
+import formatters.integer
 import regression
 from benchmark_specs import BenchType, Layer, OperandType, RustType
+from formatters.common import BenchArray, CSVFormatter, MarkdownFormatter, SVGFormatter
 
 import utils
 
@@ -247,7 +243,7 @@ def perform_hardware_comparison(
             output_filename,
         )
 
-    gains_results = formatter.compute_comparisons(*results)
+    gains_results = formatters.compute_comparisons(*results)
     reference_hardware = hardware_list[0]
     for i, hw in enumerate(hardware_list[1:]):
         output_filename = "".join(
@@ -271,6 +267,18 @@ def perform_hardware_comparison(
             csv_formatter.generate_csv(formatted_data),
             output_filename,
         )
+
+
+def get_formatter(layer: Layer):
+    match layer:
+        case Layer.Integer:
+            return formatters.integer.IntegerFormatter
+        case Layer.CoreCrypto:
+            return formatters.core.CoreFormatter
+        case Layer.HLApi:
+            return formatters.hlapi.HlApiFormatter
+        case _:
+            raise NotImplementedError(f"layer '{layer}' not supported yet")
 
 
 def perform_data_extraction(
@@ -312,7 +320,8 @@ def perform_data_extraction(
         case BenchType.Throughput:
             conversion_func = utils.convert_throughput_value_to_readable_text
 
-    generic_formatter = GenericFormatter(
+    generic_formatter_class = get_formatter(layer)
+    generic_formatter = generic_formatter_class(
         layer, user_config.backend, user_config.pbs_kind, user_config.grouping_factor
     )
     formatted_results = generic_formatter.format_data(
@@ -450,7 +459,7 @@ if __name__ == "__main__":
 
         file_suffix = f"_{operand_type.lower()}"
         arrays = perform_data_extraction(
-            user_config, layer, operand_type, user_config.output_file, file_suffix
+            user_config, layer, operand_type, user_config.output_file
         )
         generate_files_from_arrays(
             arrays,

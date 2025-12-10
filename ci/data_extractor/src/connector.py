@@ -5,8 +5,8 @@ import pathlib
 
 import psycopg2
 from benchmark_specs import (
-    BenchDetails,
     Backend,
+    BenchDetails,
     BenchType,
     Layer,
     OperandType,
