@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-csprng"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2021"
 license = "BSD-3-Clause-Clear"
 description = "Cryptographically Secure PRNG used in the TFHE-rs library."
