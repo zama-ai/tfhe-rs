@@ -135,7 +135,7 @@ impl GlweDimension {
 ///
 /// Assuming a polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this new-type contains $N$.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Versionize,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Versionize, Hash,
 )]
 #[versionize(PolynomialSizeVersions)]
 pub struct PolynomialSize(pub usize);
