@@ -1,6 +1,8 @@
 # Run benchmarks on an AWS instance and return parsed results to Slab CI bot.
 name: benchmark_cpu
 
+run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.op_flavor }}, ${{ inputs.precisions_set }}, ${{ inputs.params_type }})
+
 on:
   workflow_dispatch:
     inputs:

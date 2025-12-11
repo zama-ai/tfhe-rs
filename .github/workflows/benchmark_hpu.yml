@@ -1,6 +1,8 @@
 # Run benchmarks on a permanent HPU instance and return parsed results to Slab CI bot.
 name: benchmark_hpu
 
+run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.op_flavor }}, ${{ inputs.precisions_set }})
+
 on:
   workflow_dispatch:
     inputs:

@@ -1,6 +1,8 @@
 # Run CUDA benchmarks on a Hyperstack VM and return parsed results to Slab CI bot.
 name: benchmark_gpu
 
+run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.profile }}, ${{ inputs.op_flavor }}, ${{ inputs.precisions_set }}, ${{ inputs.params_type }})
+
 on:
   workflow_dispatch:
     inputs:
