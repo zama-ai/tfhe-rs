@@ -45,7 +45,7 @@ impl Fft128 {
     }
 }
 
-type PlanMap = GenericPlanMap<usize, PlanWrapper>;
+type PlanMap = GenericPlanMap<PolynomialSize, PlanWrapper>;
 
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
@@ -54,12 +54,12 @@ fn plans() -> &'static PlanMap {
 
 impl Fft128 {
     /// Real polynomial of size `size`.
-    pub fn new(size: PolynomialSize) -> Self {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
-        let n = size.0;
-
-        let plan = global_plans.get_or_init(n, |n| PlanWrapper(Plan::new(n / 2)));
+        let plan = global_plans.get_or_init(polynomial_size, |polynomial_size| {
+            PlanWrapper(Plan::new(polynomial_size.to_fourier_polynomial_size().0))
+        });
 
         Self { plan }
     }
