@@ -320,7 +320,7 @@ mod cpu {
     use super::*;
     use crate::high_level_api::booleans::compressed::CompressedFheBoolConformanceParams;
     use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::FheBoolConformanceParams;
     use rand::random;
 
@@ -675,7 +675,7 @@ mod cpu {
 
     #[test]
     fn test_safe_deserialize_conformant_fhe_bool() {
-        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
         let (keys, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(block_params));
         set_server_key(server_key.clone());
 
@@ -698,7 +698,7 @@ mod cpu {
 
     #[test]
     fn test_safe_deserialize_conformant_compressed_fhe_bool() {
-        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let block_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
         let (keys, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(block_params));
         set_server_key(server_key.clone());
         let clear_a = random::<bool>();

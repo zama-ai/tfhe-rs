@@ -5,12 +5,7 @@ use crate::integer::{
     gen_keys, BooleanBlock, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext,
     SignedRadixCiphertext,
 };
-use crate::shortint::parameters::test_params::{
-    TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
-};
+use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use crate::shortint::ShortintParameterSet;
 use itertools::Itertools;
 use rand::Rng;
@@ -20,12 +15,20 @@ const NUM_BLOCKS: usize = 32;
 
 #[test]
 fn test_ciphertext_re_randomization_after_compression() {
-    let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-    let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let cpk_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-    let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let meta_param = TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+    let params = meta_param.compute_parameters;
+    let comp_params = meta_param.compression_parameters.unwrap();
+    let cpk_params = meta_param
+        .dedicated_compact_public_key_parameters
+        .unwrap()
+        .pke_params;
+    let ks_params = meta_param
+        .dedicated_compact_public_key_parameters
+        .unwrap()
+        .re_randomization_parameters
+        .unwrap();
 
-    let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys::<ShortintParameterSet>(params.into(), IntegerKeyKind::Radix);
 
     let private_compression_key = cks.new_compression_private_key(comp_params);
 
