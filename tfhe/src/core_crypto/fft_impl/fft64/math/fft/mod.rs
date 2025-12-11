@@ -119,9 +119,9 @@ pub fn setup_custom_fft_plan(plan: Plan) {
     let mut write = global_plans.0.write().unwrap();
 
     match write.entry(n.0) {
-        Entry::Occupied(mut occupied_entry) => occupied_entry.get_mut().set(plan).unwrap(),
+        Entry::Occupied(mut occupied_entry) => *occupied_entry.get_mut() = plan,
         Entry::Vacant(vacant_entry) => {
-            vacant_entry.insert(Arc::new(OnceLock::from(plan)));
+            vacant_entry.insert(plan);
         }
     }
 }
