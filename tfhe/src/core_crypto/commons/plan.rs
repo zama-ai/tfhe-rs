@@ -1,33 +1,31 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, RwLock};
 
-pub type PlanMap<Key, Value> = RwLock<HashMap<Key, Arc<OnceLock<Arc<Value>>>>>;
+pub type PlanMap<Key, Value> = RwLock<HashMap<Key, Arc<Value>>>;
 
 pub fn new_from_plan_map<Key: Eq + Hash + Copy, Value>(
     values_map: &PlanMap<Key, Value>,
     key: Key,
     new_value: impl Fn(Key) -> Value,
 ) -> Arc<Value> {
-    let get_plan = || {
-        let plans = values_map.read().unwrap();
-        let plan = plans.get(&key).cloned();
-        drop(plans);
+    let values = values_map.read().unwrap();
 
-        plan.map(|p| p.get_or_init(|| Arc::new(new_value(key))).clone())
-    };
+    let value = values.get(&key).cloned();
+    drop(values);
 
-    get_plan().unwrap_or_else(|| {
-        // If we don't find a plan for the given size, we insert a new OnceLock,
-        // drop the write lock on the map and then let get_plan() initialize the OnceLock
-        // (without holding the write lock on the map).
-        let mut plans = values_map.write().unwrap();
-        if let Entry::Vacant(v) = plans.entry(key) {
-            v.insert(Arc::new(OnceLock::new()));
-        }
-        drop(plans);
+    value.unwrap_or_else(|| {
+        // If we don't find a plan for the given polynomial size and modulus, we insert a
+        // new one (if we still don't find it after getting a write lock)
 
-        get_plan().unwrap()
+        let new_value = Arc::new(new_value(key));
+
+        let mut values = values_map.write().unwrap();
+
+        let value = Arc::clone(values.entry(key).or_insert(new_value));
+
+        drop(values);
+
+        value
     })
 }
