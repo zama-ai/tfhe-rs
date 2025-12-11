@@ -20,24 +20,24 @@ use tfhe::{set_server_key, ClientKey, CompressedServerKey, FheBool, FheUint64};
 
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
-/// and cmuxes based on the comparison result
+/// and uses a cmux to compute the actual amount transferred.
+/// https://docs.zama.org/protocol/zama-protocol-litepaper#creating-confidential-applications
 pub fn transfer_whitepaper<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
 ) -> (FheType, FheType)
 where
-    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType>,
+    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + FheTrivialEncrypt<u64>,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
     let has_enough_funds = (from_amount).ge(amount);
+    let zero_amount = FheType::encrypt_trivial(0u64);
+    let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
 
-    let mut new_to_amount = to_amount + amount;
-    new_to_amount = has_enough_funds.if_then_else(&new_to_amount, to_amount);
-
-    let mut new_from_amount = from_amount - amount;
-    new_from_amount = has_enough_funds.if_then_else(&new_from_amount, from_amount);
+    let new_to_amount = to_amount + &amount_to_transfer;
+    let new_from_amount = from_amount - &amount_to_transfer;
 
     (new_from_amount, new_to_amount)
 }
@@ -49,21 +49,18 @@ pub fn par_transfer_whitepaper<FheType>(
     amount: &FheType,
 ) -> (FheType, FheType)
 where
-    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Send + Sync,
+    FheType:
+        Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Send + Sync + FheTrivialEncrypt<u64>,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
     let has_enough_funds = (from_amount).ge(amount);
+    let zero_amount = FheType::encrypt_trivial(0u64);
+    let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
 
     let (new_to_amount, new_from_amount) = rayon::join(
-        || {
-            let new_to_amount = to_amount + amount;
-            has_enough_funds.if_then_else(&new_to_amount, to_amount)
-        },
-        || {
-            let new_from_amount = from_amount - amount;
-            has_enough_funds.if_then_else(&new_from_amount, from_amount)
-        },
+        || to_amount + &amount_to_transfer,
+        || from_amount - &amount_to_transfer,
     );
 
     (new_from_amount, new_to_amount)
