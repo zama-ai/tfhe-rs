@@ -1,12 +1,11 @@
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
+use crate::core_crypto::commons::plan::GenericPlanMap;
 use crate::core_crypto::commons::utils::izip_eq;
 use core::any::TypeId;
 use dyn_stack::{PodStack, StackReq};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock};
 use tfhe_fft::fft128::{f128, Plan};
 
 #[derive(Clone)]
@@ -46,10 +45,11 @@ impl Fft128 {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<PlanWrapper>>>>>;
+type PlanMap = GenericPlanMap<usize, PlanWrapper>;
+
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
-    PLANS.get_or_init(|| RwLock::new(HashMap::new()))
+    PLANS.get_or_init(GenericPlanMap::new)
 }
 
 impl Fft128 {
@@ -58,34 +58,10 @@ impl Fft128 {
         let global_plans = plans();
 
         let n = size.0;
-        let get_plan = || {
-            let plans = global_plans.read().unwrap();
-            let plan = plans.get(&n).cloned();
-            drop(plans);
 
-            plan.map(|p| {
-                p.get_or_init(|| Arc::new(PlanWrapper(Plan::new(n / 2))))
-                    .clone()
-            })
-        };
+        let plan = global_plans.get_or_init(n, |n| PlanWrapper(Plan::new(n / 2)));
 
-        get_plan().map_or_else(
-            || {
-                // If we don't find a plan for the given size, we insert a new OnceLock,
-                // drop the write lock on the map and then let get_plan() initialize the OnceLock
-                // (without holding the write lock on the map).
-                let mut plans = global_plans.write().unwrap();
-                if let Entry::Vacant(v) = plans.entry(n) {
-                    v.insert(Arc::new(OnceLock::new()));
-                }
-                drop(plans);
-
-                Self {
-                    plan: get_plan().unwrap(),
-                }
-            },
-            |plan| Self { plan },
-        )
+        Self { plan }
     }
 }
 
