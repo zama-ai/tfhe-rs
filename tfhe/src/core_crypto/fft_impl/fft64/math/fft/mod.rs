@@ -102,7 +102,7 @@ impl Fft {
     }
 }
 
-type PlanMap = crate::core_crypto::commons::plan::PlanMap<usize, (Twisties, Plan)>;
+type PlanMap = crate::core_crypto::commons::plan::PlanMap<PolynomialSize, (Twisties, Plan)>;
 
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
@@ -119,7 +119,7 @@ pub fn setup_custom_fft_plan(plan: Plan) {
 
     let mut write = global_plans.write().unwrap();
 
-    match write.entry(n.0) {
+    match write.entry(n) {
         Entry::Occupied(mut occupied_entry) => *occupied_entry.get_mut() = plan,
         Entry::Vacant(vacant_entry) => {
             vacant_entry.insert(plan);
@@ -169,35 +169,38 @@ pub(crate) fn id<From: 'static, To: 'static>(slice: &[From]) -> &[To] {
 
 impl Fft {
     /// Real polynomial of size `size`.
-    pub fn new(size: PolynomialSize) -> Self {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
-        let n = size.0;
+        let new = |polynomial_size: PolynomialSize| {
+            let fourier_polynomial_size = polynomial_size.to_fourier_polynomial_size().0;
 
-        let new = |n| {
             #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
             {
                 (
-                    Twisties::new(n / 2),
-                    Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
+                    Twisties::new(fourier_polynomial_size),
+                    Plan::new(
+                        fourier_polynomial_size,
+                        Method::Measure(Duration::from_millis(10)),
+                    ),
                 )
             }
             #[cfg(feature = "experimental-force_fft_algo_dif4")]
             {
                 (
-                    Twisties::new(n / 2),
+                    Twisties::new(fourier_polynomial_size),
                     Plan::new(
-                        n / 2,
+                        fourier_polynomial_size,
                         Method::UserProvided {
                             base_algo: tfhe_fft::ordered::FftAlgo::Dif4,
-                            base_n: n / 2,
+                            base_n: fourier_polynomial_size,
                         },
                     ),
                 )
             }
         };
 
-        let plan = new_from_plan_map(global_plans, n, new);
+        let plan = new_from_plan_map(global_plans, polynomial_size, new);
 
         Self { plan }
     }

@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 
 use super::parameters::CiphertextModulusLog;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 /// Private enum to avoid end user instantiating a bad CiphertextModulus
 ///
 /// NonZeroU128 allows to always have a correct modulus and to have an enum that is no bigger than a
@@ -22,7 +22,7 @@ enum CiphertextModulusInner {
     Custom(NonZeroU128),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize, Hash)]
 #[serde(
     try_from = "SerializableCiphertextModulus",
     into = "SerializableCiphertextModulus"
