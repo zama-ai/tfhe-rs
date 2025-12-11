@@ -532,7 +532,8 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
       }
     }
   }
-  return (max_num_chunks > divisor) ? divisor : max_num_chunks;
+  const auto ret = (max_num_chunks > divisor) ? divisor : max_num_chunks;
+  return ret;
 }
 
 template uint64_t scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
