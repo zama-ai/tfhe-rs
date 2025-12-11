@@ -449,9 +449,9 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     for uses_gemm_ks in [false, true] {
-                        for uses_simple_indices in [false, true] {
-                            let indices_str = if uses_simple_indices {
-                                "simple"
+                        for uses_trivial_indices in [false, true] {
+                            let indices_str = if uses_trivial_indices {
+                                "trivial"
                             } else {
                                 "complex"
                             };
@@ -516,7 +516,7 @@ mod cuda {
                                         })
                                         .collect::<Vec<_>>();
 
-                                    let indexes_range: Vec<u64> = if uses_simple_indices {
+                                    let indexes_range: Vec<u64> = if uses_trivial_indices {
                                         (0..(elements / gpu_count) as u64).collect()
                                     } else {
                                         (0..(elements / gpu_count) as u64).rev().collect()
@@ -555,7 +555,7 @@ mod cuda {
                                                         output_ct,
                                                         &cuda_indexes_vec[i].d_input,
                                                         &cuda_indexes_vec[i].d_output,
-                                                        uses_simple_indices,
+                                                        uses_trivial_indices,
                                                         local_stream,
                                                         uses_gemm_ks,
                                                     );
