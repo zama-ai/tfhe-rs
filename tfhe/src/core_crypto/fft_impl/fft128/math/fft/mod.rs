@@ -46,7 +46,7 @@ impl Fft128 {
     }
 }
 
-type PlanMap = crate::core_crypto::commons::plan::PlanMap<usize, PlanWrapper>;
+type PlanMap = crate::core_crypto::commons::plan::PlanMap<PolynomialSize, PlanWrapper>;
 
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
@@ -55,12 +55,12 @@ fn plans() -> &'static PlanMap {
 
 impl Fft128 {
     /// Real polynomial of size `size`.
-    pub fn new(size: PolynomialSize) -> Self {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
-        let n = size.0;
-
-        let plan = new_from_plan_map(global_plans, n, |n| PlanWrapper(Plan::new(n / 2)));
+        let plan = new_from_plan_map(global_plans, polynomial_size, |polynomial_size| {
+            PlanWrapper(Plan::new(polynomial_size.to_fourier_polynomial_size().0))
+        });
 
         Self { plan }
     }

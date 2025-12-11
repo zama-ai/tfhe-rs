@@ -24,7 +24,7 @@ impl Ntt64 {
 }
 
 // Key is (polynomial size, modulus).
-type PlanMap = crate::core_crypto::commons::plan::PlanMap<(usize, u64), Plan>;
+type PlanMap = crate::core_crypto::commons::plan::PlanMap<(PolynomialSize, u64), Plan>;
 
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 
@@ -34,21 +34,25 @@ fn plans() -> &'static PlanMap {
 
 impl Ntt64 {
     /// Real polynomial of size `size`.
-    pub fn new(modulus: CiphertextModulus<u64>, size: PolynomialSize) -> Self {
+    pub fn new(modulus: CiphertextModulus<u64>, polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
         assert_eq!(modulus.kind(), CiphertextModulusKind::Other);
 
-        let n = size.0;
         let modulus = modulus.get_custom_modulus() as u64;
 
-        let plan = new_from_plan_map(global_plans, (n, modulus), |(n, modulus)| {
-            Plan::try_new(n, modulus).unwrap_or_else(|| {
-                panic!(
-                    "could not generate an NTT plan for the given (size, modulus) ({n}, {modulus})"
+        let plan = new_from_plan_map(
+            global_plans,
+            (polynomial_size, modulus),
+            |(polynomial_size, modulus)| {
+                Plan::try_new(polynomial_size.0, modulus).unwrap_or_else(|| {
+                    panic!(
+                    "could not generate an NTT plan for the given (size, modulus) ({}, {modulus})",
+                    polynomial_size.0
                 )
-            })
-        });
+                })
+            },
+        );
 
         Self { plan }
     }
