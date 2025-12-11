@@ -1,9 +1,8 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::core_crypto::commons::plan::GenericPlanMap;
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::prelude::*;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock};
 use tfhe_ntt::prime64::Plan;
 
 #[derive(Clone, Debug)]
@@ -24,10 +23,12 @@ impl Ntt64 {
 }
 
 // Key is (polynomial size, modulus).
-type PlanMap = RwLock<HashMap<(usize, u64), Arc<OnceLock<Arc<Plan>>>>>;
+type PlanMap = GenericPlanMap<(usize, u64), Plan>;
+
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
+
 fn plans() -> &'static PlanMap {
-    PLANS.get_or_init(|| RwLock::new(HashMap::new()))
+    PLANS.get_or_init(GenericPlanMap::new)
 }
 
 impl Ntt64 {
@@ -39,39 +40,16 @@ impl Ntt64 {
 
         let n = size.0;
         let modulus = modulus.get_custom_modulus() as u64;
-        let get_plan = || {
-            let plans = global_plans.read().unwrap();
-            let plan = plans.get(&(n, modulus)).cloned();
-            drop(plans);
 
-            plan.map(|p| {
-                p.get_or_init(|| {
-                    Arc::new(Plan::try_new(n, modulus).unwrap_or_else(|| {
-                        panic!("could not generate an NTT plan for the given (size, modulus) ({n}, {modulus})")
-                    }))
-                })
-                .clone()
+        let plan = global_plans.get_or_init((n, modulus), |(n, modulus)| {
+            Plan::try_new(n, modulus).unwrap_or_else(|| {
+                panic!(
+                    "could not generate an NTT plan for the given (size, modulus) ({n}, {modulus})"
+                )
             })
-        };
+        });
 
-        get_plan().map_or_else(
-            || {
-                // If we don't find a plan for the given polynomial size and modulus, we insert a
-                // new OnceLock, drop the write lock on the map and then let
-                // get_plan() initialize the OnceLock (without holding the write
-                // lock on the map).
-                let mut plans = global_plans.write().unwrap();
-                if let Entry::Vacant(v) = plans.entry((n, modulus)) {
-                    v.insert(Arc::new(OnceLock::new()));
-                }
-                drop(plans);
-
-                Self {
-                    plan: get_plan().unwrap(),
-                }
-            },
-            |plan| Self { plan },
-        )
+        Self { plan }
     }
 }
 
