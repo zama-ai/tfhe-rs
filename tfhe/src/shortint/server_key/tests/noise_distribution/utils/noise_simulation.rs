@@ -1,6 +1,8 @@
 pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
+use super::traits::{LweGenericBlindRotate128, LweGenericBootstrap};
 use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::StandardMultiBitModulusSwitchedCt;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::math::random::Gaussian;
@@ -8,20 +10,23 @@ use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::gen
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
-    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
-    CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
-    LweClassicFft128Bootstrap, LweClassicFftBootstrap, LweKeyswitch, LwePackingKeyswitch,
-    LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, StandardModSwitch,
+    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateMultiBitModSwitchResult,
+    AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
+    DriftTechniqueStandardModSwitch, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
+    LweKeyswitch, LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate, LweMultiBitFftBootstrap,
+    LwePackingKeyswitch, LweUncorrelatedAdd, LweUncorrelatedSub, MultiBitModSwitch, ScalarMul,
+    StandardModSwitch,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, GlweSize, LweDimension, LweSize,
-    PlaintextCount, PolynomialSize,
+    CiphertextModulus, CiphertextModulusLog, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, GlweSize, LweBskGroupingFactor, LweDimension, LweSize, PlaintextCount,
+    PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
-    PlaintextList,
+    LweSecretKeyView, PlaintextList,
 };
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
@@ -41,7 +46,7 @@ use crate::shortint::parameters::{
     CompressionParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, PBSParameters, ShortintKeySwitchingParameters,
 };
-use crate::shortint::public_key::CompactPublicKey;
+use crate::shortint::public_key::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::encrypt_new_noiseless_lwe;
 use crate::shortint::server_key::{
     AtomicPatternServerKey, LookupTable, ModulusSwitchConfiguration,
@@ -239,14 +244,14 @@ impl<'rhs> LweUncorrelatedSub<&'rhs Self> for DynLwe {
 }
 
 impl AllocateStandardModSwitchResult for DynLwe {
-    type Output = Self;
+    type Output = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_standard_mod_switch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        match self {
+        DynModSwitchedLwe::ModSwitchedLwe(match self {
             Self::U32(lwe_ciphertext) => {
                 Self::U32(lwe_ciphertext.allocate_standard_mod_switch_result(side_resources))
             }
@@ -256,7 +261,7 @@ impl AllocateStandardModSwitchResult for DynLwe {
             Self::U128(lwe_ciphertext) => {
                 Self::U128(lwe_ciphertext.allocate_standard_mod_switch_result(side_resources))
             }
-        }
+        })
     }
 }
 
@@ -284,15 +289,35 @@ impl StandardModSwitch<Self> for DynLwe {
     }
 }
 
+impl StandardModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(output) => {
+                self.standard_mod_switch(output_modulus_log, output, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch")
+            }
+        }
+    }
+}
+
 impl AllocateCenteredBinaryShiftedStandardModSwitchResult for DynLwe {
-    type Output = Self;
+    type Output = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_centered_binary_shifted_standard_mod_switch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        match self {
+        DynModSwitchedLwe::ModSwitchedLwe(match self {
             Self::U32(lwe_ciphertext) => Self::U32(
                 lwe_ciphertext
                     .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources),
@@ -305,7 +330,7 @@ impl AllocateCenteredBinaryShiftedStandardModSwitchResult for DynLwe {
                 lwe_ciphertext
                     .allocate_centered_binary_shifted_standard_mod_switch_result(side_resources),
             ),
-        }
+        })
     }
 }
 
@@ -340,6 +365,192 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for DynLwe {
             _ => panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch"),
         }
     }
+}
+
+impl CenteredBinaryShiftedStandardModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn centered_binary_shifted_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(output) => self
+                .centered_binary_shifted_and_standard_mod_switch(
+                    output_modulus_log,
+                    output,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts for DynLwe CenteredBinaryShiftedStandardModSwitch"
+                )
+            }
+        }
+    }
+}
+
+impl AllocateMultiBitModSwitchResult for DynLwe {
+    type Output = DynModSwitchedLwe;
+    type SideResources = ();
+
+    fn allocate_multi_bit_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        DynModSwitchedLwe::MultiBitModSwitchedLwe(match self {
+            Self::U32(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U32(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+            Self::U64(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U64(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+            Self::U128(lwe_ciphertext) => DynStandardMultiBitModulusSwitchedCt::U128(
+                lwe_ciphertext.allocate_multi_bit_mod_switch_result(side_resources),
+            ),
+        })
+    }
+}
+
+impl MultiBitModSwitch<DynStandardMultiBitModulusSwitchedCt> for DynLwe {
+    type SideResources = ();
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynStandardMultiBitModulusSwitchedCt,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match (self, output) {
+            (Self::U32(input), DynStandardMultiBitModulusSwitchedCt::U32(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            (Self::U64(input), DynStandardMultiBitModulusSwitchedCt::U64(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            (Self::U128(input), DynStandardMultiBitModulusSwitchedCt::U128(output)) => input
+                .multi_bit_mod_switch(grouping_factor, output_modulus_log, output, side_resources),
+            _ => panic!("Inconsistent inputs/ouptuts for DynLwe StandardModSwitch"),
+        }
+    }
+}
+
+impl MultiBitModSwitch<DynModSwitchedLwe> for DynLwe {
+    type SideResources = ();
+
+    fn multi_bit_mod_switch(
+        &self,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match output {
+            DynModSwitchedLwe::ModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for DynLwe MultiBitModSwitch")
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(
+                dyn_standard_multi_bit_modulus_switched_ct,
+            ) => self.multi_bit_mod_switch(
+                grouping_factor,
+                output_modulus_log,
+                dyn_standard_multi_bit_modulus_switched_ct,
+                side_resources,
+            ),
+        }
+    }
+}
+
+pub enum DynStandardMultiBitModulusSwitchedCt {
+    U32(StandardMultiBitModulusSwitchedCt<u32, Vec<u32>>),
+    U64(StandardMultiBitModulusSwitchedCt<u64, Vec<u64>>),
+    U128(StandardMultiBitModulusSwitchedCt<u128, Vec<u128>>),
+}
+
+impl DynStandardMultiBitModulusSwitchedCt {
+    pub fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::U32(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+            Self::U64(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+            Self::U128(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .lwe_size()
+                    .to_lwe_dimension()
+            }
+        }
+    }
+
+    pub fn raw_modulus_float(&self) -> f64 {
+        match self {
+            Self::U32(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+            Self::U64(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+            Self::U128(standard_multi_bit_modulus_switched_ct) => {
+                standard_multi_bit_modulus_switched_ct
+                    .input
+                    .ciphertext_modulus()
+                    .raw_modulus_float()
+            }
+        }
+    }
+}
+
+pub enum DynModSwitchedLwe {
+    ModSwitchedLwe(DynLwe),
+    MultiBitModSwitchedLwe(DynStandardMultiBitModulusSwitchedCt),
+}
+
+impl DynModSwitchedLwe {
+    pub fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::ModSwitchedLwe(dyn_lwe) => dyn_lwe.lwe_dimension(),
+            Self::MultiBitModSwitchedLwe(dyn_standard_multi_bit_modulus_switched_ct) => {
+                dyn_standard_multi_bit_modulus_switched_ct.lwe_dimension()
+            }
+        }
+    }
+
+    pub fn raw_modulus_float(&self) -> f64 {
+        match self {
+            Self::ModSwitchedLwe(dyn_lwe) => dyn_lwe.raw_modulus_float(),
+            Self::MultiBitModSwitchedLwe(dyn_standard_multi_bit_modulus_switched_ct) => {
+                dyn_standard_multi_bit_modulus_switched_ct.raw_modulus_float()
+            }
+        }
+    }
+}
+
+pub(crate) enum DynLweSecretKeyView<'data> {
+    U32 {
+        key: LweSecretKeyView<'data, u32>,
+        encoding: ShortintEncoding<u32>,
+    },
+    U64 {
+        key: LweSecretKeyView<'data, u64>,
+        encoding: ShortintEncoding<u64>,
+    },
+    // U128 not required for now so not instantiated
 }
 
 impl ClientKey {
@@ -394,6 +605,89 @@ impl ClientKey {
                     &mut engine.encryption_generator,
                 ))
             }
+        }
+    }
+
+    pub(crate) fn small_lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        match &self.atomic_pattern {
+            AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                let params = standard_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: standard_atomic_pattern_client_key.small_lwe_secret_key(),
+                    encoding,
+                }
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                let params = ks32_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U32 {
+                    key: ks32_atomic_pattern_client_key.small_lwe_secret_key(),
+                    encoding,
+                }
+            }
+        }
+    }
+
+    pub(crate) fn large_lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        match &self.atomic_pattern {
+            AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
+                let params = standard_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: standard_atomic_pattern_client_key.large_lwe_secret_key(),
+                    encoding,
+                }
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
+                let params = ks32_atomic_pattern_client_key.parameters;
+                let encoding = ShortintEncoding {
+                    ciphertext_modulus: params.ciphertext_modulus(),
+                    message_modulus: params.message_modulus(),
+                    carry_modulus: params.carry_modulus(),
+                    padding_bit: PaddingBit::Yes,
+                };
+
+                DynLweSecretKeyView::U64 {
+                    key: ks32_atomic_pattern_client_key.large_lwe_secret_key(),
+                    encoding,
+                }
+            }
+        }
+    }
+}
+
+impl<KeyCont: Container<Element = u64>> CompactPrivateKey<KeyCont> {
+    pub(crate) fn lwe_secret_key_as_dyn(&self) -> DynLweSecretKeyView<'_> {
+        let params = self.parameters();
+        let encoding = ShortintEncoding {
+            ciphertext_modulus: params.ciphertext_modulus,
+            message_modulus: params.message_modulus,
+            carry_modulus: params.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        };
+
+        DynLweSecretKeyView::U64 {
+            key: self.key(),
+            encoding,
         }
     }
 }
@@ -500,6 +794,7 @@ pub enum NoiseSimulationModulusSwitchConfig<DriftKey> {
     Standard,
     DriftTechniqueNoiseReduction(DriftKey),
     CenteredMeanNoiseReduction,
+    MultiBit(LweBskGroupingFactor),
 }
 
 impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
@@ -522,11 +817,8 @@ impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
                         }
                     }
                 }
-                PBSParameters::MultiBitPBS(_) => {
-                    panic!(
-                        "Unsupported ShortintBootstrappingKey::MultiBit \
-                        for NoiseSimulationModulusSwitchConfig"
-                    )
+                PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
+                    Self::MultiBit(multi_bit_pbs_parameters.grouping_factor)
                 }
             },
             AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
@@ -559,6 +851,9 @@ impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
                 Self::CenteredMeanNoiseReduction,
                 NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction,
             ) => true,
+            (Self::MultiBit(gf_self), NoiseSimulationModulusSwitchConfig::MultiBit(gf_rhs)) => {
+                *gf_self == gf_rhs
+            }
             _ => false,
         }
     }
@@ -577,6 +872,9 @@ impl NoiseSimulationModulusSwitchConfig<NoiseSimulationDriftTechniqueKey> {
                 Self::CenteredMeanNoiseReduction,
                 NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction,
             ) => true,
+            (Self::MultiBit(self_gf), NoiseSimulationModulusSwitchConfig::MultiBit(other_gf)) => {
+                *self_gf == other_gf
+            }
             _ => false,
         }
     }
@@ -609,6 +907,7 @@ impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
             Self::CenteredMeanNoiseReduction => {
                 NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
             }
+            Self::MultiBit(gf) => NoiseSimulationModulusSwitchConfig::MultiBit(*gf),
         }
     }
 
@@ -620,6 +919,7 @@ impl<DriftKey> NoiseSimulationModulusSwitchConfig<DriftKey> {
                 // Half case subtracted before entering the blind rotate
                 -1.0f64 / (4.0 * polynomial_size.0 as f64)
             }
+            Self::MultiBit(_) => 0.0f64,
         }
     }
 }
@@ -658,8 +958,12 @@ impl ServerKey {
                         modulus_switch_noise_reduction_key,
                         self,
                     ),
-                    ShortintBootstrappingKey::MultiBit { .. } => {
-                        panic!("MultiBit ServerKey does not support the drift technique")
+                    ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk,
+                        thread_count: _,
+                        deterministic_execution: _,
+                    } => {
+                        NoiseSimulationModulusSwitchConfig::MultiBit(fourier_bsk.grouping_factor())
                     }
                 }
             }
@@ -673,12 +977,33 @@ impl ServerKey {
                         self,
                     ),
                     ShortintBootstrappingKey::MultiBit { .. } => {
-                        panic!("MultiBit ServerKey does not support the drift technique")
+                        panic!("KS32 does not support multi bit modswitch currently")
                     }
                 }
             }
             AtomicPatternServerKey::Dynamic(_) => {
                 panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+
+    pub fn apply_generic_blind_rotation<C: Container<Element = u64>>(
+        &self,
+        ms_result: &DynModSwitchedLwe,
+        pbs_result: &mut DynLwe,
+        lut: &LookupTable<C>,
+    ) {
+        // TODO: make this better if it proves useful
+        // Manual dispatch for now given current inconsistency between classic and multi bit case
+        // wrt to blind rotation, classic fft pbs can take an already mod switched ciphertext and
+        // will behave like the blind rotation, it avoided having to define yet another trait and do
+        // a 1000 implem
+        match ms_result {
+            DynModSwitchedLwe::ModSwitchedLwe(_) => {
+                self.lwe_classic_fft_pbs(ms_result, pbs_result, lut, &mut ())
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                self.lwe_multi_bit_fft_blind_rotate(ms_result, pbs_result, lut, &mut ())
             }
         }
     }
@@ -722,7 +1047,7 @@ impl LweKeyswitch<DynLwe, DynLwe> for ServerKey {
 
 impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
     type AfterDriftOutput = DynLwe;
-    type AfterMsOutput = DynLwe;
+    type AfterMsOutput = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_drift_technique_standard_mod_switch_result(
@@ -748,7 +1073,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
                                     side_resources,
                                 );
 
-                            (DynLwe::U64(after_drift), DynLwe::U64(after_ms))
+                            (
+                                DynLwe::U64(after_drift),
+                                DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(after_ms)),
+                            )
                         }
                         ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                             "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -778,7 +1106,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
                                     side_resources,
                                 );
 
-                            (DynLwe::U32(after_drift), DynLwe::U32(after_ms))
+                            (
+                                DynLwe::U32(after_drift),
+                                DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U32(after_ms)),
+                            )
                         }
                         ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                             "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -900,6 +1231,33 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for ServerKey {
     }
 }
 
+impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynModSwitchedLwe> for ServerKey {
+    type SideResources = ();
+
+    fn drift_technique_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &DynLwe,
+        after_drift_technique: &mut DynLwe,
+        after_mod_switch: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match after_mod_switch {
+            DynModSwitchedLwe::ModSwitchedLwe(after_mod_switch) => self
+                .drift_technique_and_standard_mod_switch(
+                    output_modulus_log,
+                    input,
+                    after_drift_technique,
+                    after_mod_switch,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for ServerKey DriftTechniqueStandardModSwitch")
+            }
+        }
+    }
+}
+
 impl<C: Container<Element = u64>> AllocateLweBootstrapResult for LookupTable<C> {
     type Output = DynLwe;
     type SideResources = ();
@@ -973,6 +1331,190 @@ impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynLwe, DynLwe, LookupT
     }
 }
 
+impl<C: Container<Element = u64>>
+    LweMultiBitFftBlindRotate<DynModSwitchedLwe, DynLwe, LookupTable<C>> for ServerKey
+{
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_blind_rotate(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<C>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        match &self.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        panic!("Standard ServerKey does support multi bit PBS")
+                    }
+                    ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk,
+                        thread_count,
+                        deterministic_execution: _,
+                    } => match input {
+                        DynModSwitchedLwe::MultiBitModSwitchedLwe(input) => {
+                            match (input, output) {
+                                (
+                                    DynStandardMultiBitModulusSwitchedCt::U64(input),
+                                    DynLwe::U64(output),
+                                ) => fourier_bsk.lwe_multi_bit_fft_blind_rotate(
+                                    input,
+                                    output,
+                                    &accumulator.acc,
+                                    // let's not cause headaches and force deterministic execution
+                                    &mut (*thread_count, true),
+                                ),
+                                _ => panic!(
+                                    "ShortintBootstrappingKey::MultiBit \
+                                    unsupported configuration for LweMultiBitFftBlindRotate"
+                                ),
+                            }
+                        }
+                        DynModSwitchedLwe::ModSwitchedLwe(_) => {
+                            panic!(
+                                "AtomicPatternServerKey::MultiBit only supports \
+                                DynModSwitchedLwe::MultiBitModSwitchedLwe"
+                            )
+                        }
+                    },
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        panic!("Standard ServerKey does support multi bit PBS")
+                    }
+                    ShortintBootstrappingKey::MultiBit { .. } => {
+                        panic!("AtomicPatternServerKey::KeySwitch32 does support multi bit PBS")
+                    }
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl<C: Container<Element = u64>> LweMultiBitFftBootstrap<DynLwe, DynLwe, LookupTable<C>>
+    for ServerKey
+{
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<C>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        match &self.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        panic!("Standard ServerKey does support multi bit PBS")
+                    }
+                    ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk,
+                        thread_count,
+                        deterministic_execution: _,
+                    } => match (input, output) {
+                        (DynLwe::U64(input), DynLwe::U64(output)) => fourier_bsk
+                            .lwe_multi_bit_fft_bootstrap(
+                                input,
+                                output,
+                                &accumulator.acc,
+                                // let's not cause headaches and force deterministic execution
+                                &mut (*thread_count, true),
+                            ),
+                        _ => {
+                            panic!("AtomicPatternServerKey::MultiBit only supports DynLwe::U64")
+                        }
+                    },
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        panic!("Standard ServerKey does support multi bit PBS")
+                    }
+                    ShortintBootstrappingKey::MultiBit { .. } => {
+                        panic!("AtomicPatternServerKey::KeySwitch32 does support multi bit PBS")
+                    }
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl<C: Container<Element = u64>> LweGenericBootstrap<DynLwe, DynLwe, LookupTable<C>>
+    for ServerKey
+{
+    type SideResources = ();
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<C>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match &self.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+                    }
+                    ShortintBootstrappingKey::MultiBit { .. } => {
+                        self.lwe_multi_bit_fft_bootstrap(input, output, accumulator, side_resources)
+                    }
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => {
+                        self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+                    }
+                    ShortintBootstrappingKey::MultiBit { .. } => {
+                        panic!("AtomicPatternServerKey::KeySwitch32 does support multi bit PBS")
+                    }
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+}
+
+impl<C: Container<Element = u64>> LweClassicFftBootstrap<DynModSwitchedLwe, DynLwe, LookupTable<C>>
+    for ServerKey
+{
+    type SideResources = ();
+
+    fn lwe_classic_fft_pbs(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<C>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match input {
+            DynModSwitchedLwe::ModSwitchedLwe(input) => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!("Inconsistent inputs/ouptuts for ServerKey LweClassicFftBootstrap")
+            }
+        }
+    }
+}
+
 impl NoiseSquashingKey {
     pub fn noise_simulation_modulus_switch_config(
         &self,
@@ -988,9 +1530,11 @@ impl NoiseSquashingKey {
                     modulus_switch_noise_reduction_key,
                     self,
                 ),
-                Shortint128BootstrappingKey::MultiBit { .. } => {
-                    panic!("MultiBit ServerKey does not support the drift technique")
-                }
+                Shortint128BootstrappingKey::MultiBit {
+                    bsk,
+                    thread_count: _,
+                    deterministic_execution: _,
+                } => NoiseSimulationModulusSwitchConfig::MultiBit(bsk.grouping_factor()),
             },
             AtomicPatternNoiseSquashingKey::KeySwitch32(
                 ks32_atomic_pattern_noise_squashing_key,
@@ -1002,8 +1546,8 @@ impl NoiseSquashingKey {
                     modulus_switch_noise_reduction_key,
                     self,
                 ),
-                Shortint128BootstrappingKey::MultiBit { .. } => {
-                    panic!("MultiBit ServerKey does not support the drift technique")
+                Shortint128BootstrappingKey::MultiBit { bsk, .. } => {
+                    NoiseSimulationModulusSwitchConfig::MultiBit(bsk.grouping_factor())
                 }
             },
         }
@@ -1059,7 +1603,7 @@ impl NoiseSquashingKey {
 
 impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
     type AfterDriftOutput = DynLwe;
-    type AfterMsOutput = DynLwe;
+    type AfterMsOutput = DynModSwitchedLwe;
     type SideResources = ();
 
     fn allocate_drift_technique_standard_mod_switch_result(
@@ -1083,7 +1627,10 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
                     let (after_drift, after_ms) = modulus_switch_noise_reduction_key
                         .allocate_drift_technique_standard_mod_switch_result(side_resources);
 
-                    (DynLwe::U64(after_drift), DynLwe::U64(after_ms))
+                    (
+                        DynLwe::U64(after_drift),
+                        DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(after_ms)),
+                    )
                 }
                 ModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!(
                     "ModulusSwitchConfiguration::CenteredMeanNoiseReduction \
@@ -1198,6 +1745,36 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
     }
 }
 
+impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynModSwitchedLwe> for NoiseSquashingKey {
+    type SideResources = ();
+
+    fn drift_technique_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &DynLwe,
+        after_drift_technique: &mut DynLwe,
+        after_mod_switch: &mut DynModSwitchedLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match after_mod_switch {
+            DynModSwitchedLwe::ModSwitchedLwe(after_mod_switch) => self
+                .drift_technique_and_standard_mod_switch(
+                    output_modulus_log,
+                    input,
+                    after_drift_technique,
+                    after_mod_switch,
+                    side_resources,
+                ),
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts \
+                    for NoiseSquashingKey DriftTechniqueStandardModSwitch"
+                )
+            }
+        }
+    }
+}
+
 impl<OutputCont, AccCont>
     LweClassicFft128Bootstrap<DynLwe, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
     for NoiseSquashingKey
@@ -1253,6 +1830,189 @@ where
                     }
                 }
             }
+        }
+    }
+}
+
+impl<OutputCont, AccCont>
+    LweClassicFft128Bootstrap<DynModSwitchedLwe, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
+    for NoiseSquashingKey
+where
+    OutputCont: ContainerMut<Element = u128>,
+    AccCont: Container<Element = u128>,
+{
+    type SideResources = ();
+
+    fn lwe_classic_fft_128_pbs(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match input {
+            DynModSwitchedLwe::ModSwitchedLwe(input) => {
+                self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts for NoiseSquashingKey LweClassicFft128Bootstrap"
+                )
+            }
+        }
+    }
+}
+
+impl<OutputCont, AccCont>
+    LweMultiBitFft128BlindRotate<
+        DynStandardMultiBitModulusSwitchedCt,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for NoiseSquashingKey
+where
+    OutputCont: ContainerMut<Element = u128>,
+    AccCont: Container<Element = u128>,
+{
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_128_blind_rotate(
+        &self,
+        input: &DynStandardMultiBitModulusSwitchedCt,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => {
+                match std_nsk.bootstrapping_key() {
+                    Shortint128BootstrappingKey::Classic { .. } => {
+                        panic!("Classic NoiseSquashingKey does support MultiBit PBS")
+                    }
+                    Shortint128BootstrappingKey::MultiBit {
+                        bsk,
+                        thread_count,
+                        deterministic_execution: _,
+                    } => match input {
+                        DynStandardMultiBitModulusSwitchedCt::U64(input) => {
+                            // This just to satisfy the fact side resources are mutable
+                            let mut thread_count = *thread_count;
+                            bsk.as_view().lwe_multi_bit_fft_128_blind_rotate(
+                                input,
+                                output,
+                                accumulator,
+                                &mut thread_count,
+                            )
+                        }
+                        _ => panic!(
+                            "AtomicPatternNoiseSquashingKey::MultiBit \
+                            only supports DynLwe::U64 input"
+                        ),
+                    },
+                }
+            }
+            AtomicPatternNoiseSquashingKey::KeySwitch32(ks32_nsk) => {
+                match ks32_nsk.bootstrapping_key() {
+                    Shortint128BootstrappingKey::Classic { .. } => {
+                        panic!("Classic NoiseSquashingKey does support MultiBit PBS")
+                    }
+                    Shortint128BootstrappingKey::MultiBit {
+                        bsk,
+                        thread_count,
+                        deterministic_execution: _,
+                    } => match input {
+                        DynStandardMultiBitModulusSwitchedCt::U32(input) => {
+                            // This just to satisfy the fact side resources are mutable
+                            let mut thread_count = *thread_count;
+                            bsk.as_view().lwe_multi_bit_fft_128_blind_rotate(
+                                input,
+                                output,
+                                accumulator,
+                                &mut thread_count,
+                            )
+                        }
+                        _ => panic!(
+                            "AtomicPatternNoiseSquashingKey::KeySwitch32 \
+                            only supports DynLwe::U32 input"
+                        ),
+                    },
+                }
+            }
+        }
+    }
+}
+
+impl<OutputCont, AccCont>
+    LweMultiBitFft128BlindRotate<
+        DynModSwitchedLwe,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for NoiseSquashingKey
+where
+    OutputCont: ContainerMut<Element = u128>,
+    AccCont: Container<Element = u128>,
+{
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_128_blind_rotate(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match input {
+            DynModSwitchedLwe::ModSwitchedLwe(_) => {
+                panic!(
+                    "Inconsistent inputs/ouptuts for NoiseSquashingKey LweMultiBitFft128BlindRotate"
+                )
+            }
+            DynModSwitchedLwe::MultiBitModSwitchedLwe(input) => {
+                self.lwe_multi_bit_fft_128_blind_rotate(input, output, accumulator, side_resources)
+            }
+        }
+    }
+}
+
+impl<OutputCont, AccCont>
+    LweGenericBlindRotate128<DynModSwitchedLwe, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
+    for NoiseSquashingKey
+where
+    OutputCont: ContainerMut<Element = u128>,
+    AccCont: Container<Element = u128>,
+{
+    type SideResources = ();
+
+    fn lwe_generic_blind_rotate_128(
+        &self,
+        input: &DynModSwitchedLwe,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(std_nsk) => {
+                match std_nsk.bootstrapping_key() {
+                    Shortint128BootstrappingKey::Classic { .. } => {
+                        self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+                    }
+                    Shortint128BootstrappingKey::MultiBit { .. } => self
+                        .lwe_multi_bit_fft_128_blind_rotate(
+                            input,
+                            output,
+                            accumulator,
+                            side_resources,
+                        ),
+                }
+            }
+            AtomicPatternNoiseSquashingKey::KeySwitch32(ks32_nsk) => match ks32_nsk
+                .bootstrapping_key()
+            {
+                Shortint128BootstrappingKey::Classic { .. } => {
+                    self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+                }
+                Shortint128BootstrappingKey::MultiBit { .. } => self
+                    .lwe_multi_bit_fft_128_blind_rotate(input, output, accumulator, side_resources),
+            },
         }
     }
 }
@@ -1432,13 +2192,64 @@ impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for Decompres
                 (DynLwe::U64(input), DynLwe::U64(output)) => {
                     bsk.lwe_classic_fft_pbs(input, output, &accumulator.acc, side_resources)
                 }
-                _ => panic!(
-                    "DecompressionKey only supports DynLwe::U64 for noise
-        simulation"
-                ),
+                _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
             },
             ShortintBootstrappingKey::MultiBit { .. } => {
                 panic!("Tried to compute a classic PBS with a multi bit DecompressionKey")
+            }
+        }
+    }
+}
+
+impl LweMultiBitFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
+    type SideResources = ();
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<Vec<u64>>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        match &self.bsk {
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution: _,
+            } => match (input, output) {
+                (DynLwe::U64(input), DynLwe::U64(output)) => fourier_bsk
+                    .lwe_multi_bit_fft_bootstrap(
+                        input,
+                        output,
+                        &accumulator.acc,
+                        // Force execution to be deterministic to save on headaches
+                        &mut (*thread_count, true),
+                    ),
+                _ => panic!("DecompressionKey only supports DynLwe::U64 for noise simulation"),
+            },
+            ShortintBootstrappingKey::Classic { .. } => {
+                panic!("Tried to compute a multi bit PBS with a classic DecompressionKey")
+            }
+        }
+    }
+}
+
+impl LweGenericBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for DecompressionKey {
+    type SideResources = ();
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &DynLwe,
+        output: &mut DynLwe,
+        accumulator: &LookupTable<Vec<u64>>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self.bsk {
+            ShortintBootstrappingKey::Classic { .. } => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources)
+            }
+            ShortintBootstrappingKey::MultiBit { .. } => {
+                self.lwe_multi_bit_fft_bootstrap(input, output, accumulator, side_resources)
             }
         }
     }
@@ -1691,6 +2502,11 @@ impl NoiseSimulationLweFourier128Bsk {
         params: AtomicPatternParameters,
         noise_squashing_params: NoiseSquashingParameters,
     ) -> Self {
+        assert!(
+            matches!(noise_squashing_params, NoiseSquashingParameters::Classic(_)),
+            "Tried to build a classic pbs128 key from MultiBit NoiseSquashingParameters"
+        );
+
         Self::new(
             params.lwe_dimension(),
             noise_squashing_params.glwe_dimension().to_glwe_size(),
@@ -1703,27 +2519,74 @@ impl NoiseSimulationLweFourier128Bsk {
             ),
         )
     }
+
+    pub fn matches_actual_shortint_noise_squashing_key(
+        &self,
+        noise_squashing_key: &NoiseSquashingKey,
+    ) -> bool {
+        match noise_squashing_key.atomic_pattern() {
+            AtomicPatternNoiseSquashingKey::Standard(
+                standard_atomic_pattern_noise_squashing_key,
+            ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                } => self.matches_actual_bsk(bsk),
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                ks32_atomic_pattern_noise_squashing_key,
+            ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
+                Shortint128BootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                } => self.matches_actual_bsk(bsk),
+                Shortint128BootstrappingKey::MultiBit { .. } => false,
+            },
+        }
+    }
 }
 
 impl NoiseSimulationLweFourierBsk {
     // We can't really build a key from an already generated key as we need to know what the noise
     // distribution is.
     pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
-        Self::new(
-            params.lwe_dimension(),
-            params.glwe_dimension().to_glwe_size(),
-            params.polynomial_size(),
-            params.pbs_base_log(),
-            params.pbs_level(),
-            params.glwe_noise_distribution(),
-            NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
-        )
+        match params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(_) => Self::new(
+                    params.lwe_dimension(),
+                    params.glwe_dimension().to_glwe_size(),
+                    params.polynomial_size(),
+                    params.pbs_base_log(),
+                    params.pbs_level(),
+                    params.glwe_noise_distribution(),
+                    NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+                ),
+                PBSParameters::MultiBitPBS(_) => {
+                    panic!("Unsupported Multi Bit for NoiseSimulationLweFourierBsk")
+                }
+            },
+            AtomicPatternParameters::KeySwitch32(_) => Self::new(
+                params.lwe_dimension(),
+                params.glwe_dimension().to_glwe_size(),
+                params.polynomial_size(),
+                params.pbs_base_log(),
+                params.pbs_level(),
+                params.glwe_noise_distribution(),
+                NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+            ),
+        }
     }
 
     pub fn new_from_comp_parameters(
         params: AtomicPatternParameters,
         comp_params: CompressionParameters,
     ) -> Self {
+        assert!(
+            matches!(comp_params, CompressionParameters::Classic(_)),
+            "Tried to build a NoiseSimulationLweFourierBsk from non Classic compression parameters"
+        );
+
         Self::new(
             comp_params
                 .packing_ks_glwe_dimension()
@@ -1924,7 +2787,307 @@ impl NoiseSimulationLweFourierBsk {
     }
 }
 
-impl NoiseSimulationLweFourier128Bsk {
+impl NoiseSimulationLweMultiBitFourierBsk {
+    pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
+        match params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(_) => {
+                    panic!("Unsupported Classic PBS for NoiseSimulationLweFourierBsk")
+                }
+                PBSParameters::MultiBitPBS(params) => Self::new(
+                    params.lwe_dimension,
+                    params.glwe_dimension.to_glwe_size(),
+                    params.polynomial_size,
+                    params.pbs_base_log,
+                    params.pbs_level,
+                    params.grouping_factor,
+                    params.glwe_noise_distribution,
+                    NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus),
+                ),
+            },
+            AtomicPatternParameters::KeySwitch32(_) => {
+                panic!("Unsupported KeySwitch32 for NoiseSimulationLweFourierBsk")
+            }
+        }
+    }
+
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        comp_params: CompressionParameters,
+    ) -> Self {
+        match comp_params {
+            CompressionParameters::Classic(_) => {
+                panic!(
+                    "Tried to build a NoiseSimulationLweMultiBitFourierBsk \
+                    from non MultiBit compression parameters"
+                )
+            }
+            CompressionParameters::MultiBit(comp_params) => Self::new(
+                comp_params
+                    .packing_ks_glwe_dimension
+                    .to_equivalent_lwe_dimension(comp_params.packing_ks_polynomial_size),
+                params.glwe_dimension().to_glwe_size(),
+                params.polynomial_size(),
+                comp_params.br_base_log,
+                comp_params.br_level,
+                comp_params.decompression_grouping_factor,
+                params.glwe_noise_distribution(),
+                NoiseSimulationModulus::from_ciphertext_modulus(params.ciphertext_modulus()),
+            ),
+        }
+    }
+
+    pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
+        match &server_key.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+                match &standard_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => false,
+                    ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                        self.matches_actual_bsk(fourier_bsk)
+                    }
+                }
+            }
+            AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+                match &ks32_atomic_pattern_server_key.bootstrapping_key {
+                    ShortintBootstrappingKey::Classic { .. } => false,
+                    ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                        self.matches_actual_bsk(fourier_bsk)
+                    }
+                }
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Unsupported Dynamic Atomic Pattern for noise simulation")
+            }
+        }
+    }
+
+    pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
+        match &decomp_key.bsk {
+            ShortintBootstrappingKey::Classic { .. } => false,
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => self.matches_actual_bsk(fourier_bsk),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum NoiseSimulationGenericBootstrapKey {
+    Classic(NoiseSimulationLweFourierBsk),
+    MultiBit(NoiseSimulationLweMultiBitFourierBsk),
+}
+
+impl NoiseSimulationGenericBootstrapKey {
+    pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
+        match params {
+            AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+                PBSParameters::PBS(_) => Self::Classic(
+                    NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params),
+                ),
+                PBSParameters::MultiBitPBS(_) => Self::MultiBit(
+                    NoiseSimulationLweMultiBitFourierBsk::new_from_atomic_pattern_parameters(
+                        params,
+                    ),
+                ),
+            },
+            AtomicPatternParameters::KeySwitch32(_) => Self::Classic(
+                NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params),
+            ),
+        }
+    }
+
+    pub fn new_from_comp_parameters(
+        params: AtomicPatternParameters,
+        comp_params: CompressionParameters,
+    ) -> Self {
+        match comp_params {
+            CompressionParameters::Classic(_) => Self::Classic(
+                NoiseSimulationLweFourierBsk::new_from_comp_parameters(params, comp_params),
+            ),
+            CompressionParameters::MultiBit(_) => Self::MultiBit(
+                NoiseSimulationLweMultiBitFourierBsk::new_from_comp_parameters(params, comp_params),
+            ),
+        }
+    }
+
+    pub fn matches_actual_shortint_server_key(&self, server_key: &ServerKey) -> bool {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.matches_actual_shortint_server_key(server_key)
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk
+                    .matches_actual_shortint_server_key(server_key)
+            }
+        }
+    }
+
+    pub fn matches_actual_shortint_decomp_key(&self, decomp_key: &DecompressionKey) -> bool {
+        match (self, &decomp_key.bsk) {
+            (
+                Self::Classic(noise_simulation_lwe_fourier_bsk),
+                ShortintBootstrappingKey::Classic { .. },
+            ) => noise_simulation_lwe_fourier_bsk.matches_actual_shortint_decomp_key(decomp_key),
+            (
+                Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk),
+                ShortintBootstrappingKey::MultiBit { .. },
+            ) => noise_simulation_lwe_multi_bit_fourier_bsk
+                .matches_actual_shortint_decomp_key(decomp_key),
+            _ => false,
+        }
+    }
+
+    pub fn input_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.input_lwe_dimension()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.input_lwe_dimension()
+            }
+        }
+    }
+
+    pub fn output_glwe_size(&self) -> GlweSize {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.output_glwe_size()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.output_glwe_size()
+            }
+        }
+    }
+
+    pub fn output_polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.output_polynomial_size()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.output_polynomial_size()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn decomp_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.decomp_base_log()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.decomp_base_log()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn decomp_level_count(&self) -> DecompositionLevelCount {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.decomp_level_count()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.decomp_level_count()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn grouping_factor(&self) -> Option<LweBskGroupingFactor> {
+        match self {
+            Self::Classic(_) => None,
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                Some(noise_simulation_lwe_multi_bit_fourier_bsk.grouping_factor())
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.noise_distribution()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.noise_distribution()
+            }
+        }
+    }
+
+    pub fn modulus(&self) -> NoiseSimulationModulus {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.modulus()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.modulus()
+            }
+        }
+    }
+}
+
+impl LweGenericBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+    for NoiseSimulationGenericBootstrapKey
+{
+    type SideResources = ();
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &NoiseSimulationLwe,
+        output: &mut NoiseSimulationLwe,
+        accumulator: &NoiseSimulationGlwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.lwe_classic_fft_pbs(
+                    input,
+                    output,
+                    accumulator,
+                    side_resources,
+                );
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.lwe_multi_bit_fft_bootstrap(
+                    input,
+                    output,
+                    accumulator,
+                    side_resources,
+                )
+            }
+        }
+    }
+}
+
+impl NoiseSimulationLweMultiBitFourier128Bsk {
+    pub fn new_from_parameters(
+        params: AtomicPatternParameters,
+        noise_squashing_params: NoiseSquashingParameters,
+    ) -> Self {
+        match noise_squashing_params {
+            NoiseSquashingParameters::Classic(_) => panic!(
+                "Tried to build a NoiseSimulationLweMultiBitFourier128Bsk \
+                from non MultiBit NoiseSquashingParameter"
+            ),
+            NoiseSquashingParameters::MultiBit(noise_squashing_params) => Self::new(
+                params.lwe_dimension(),
+                noise_squashing_params.glwe_dimension.to_glwe_size(),
+                noise_squashing_params.polynomial_size,
+                noise_squashing_params.decomp_base_log,
+                noise_squashing_params.decomp_level_count,
+                noise_squashing_params.grouping_factor,
+                noise_squashing_params.glwe_noise_distribution,
+                NoiseSimulationModulus::from_ciphertext_modulus(
+                    noise_squashing_params.ciphertext_modulus,
+                ),
+            ),
+        }
+    }
+
     pub fn matches_actual_shortint_noise_squashing_key(
         &self,
         noise_squashing_key: &NoiseSquashingKey,
@@ -1933,21 +3096,183 @@ impl NoiseSimulationLweFourier128Bsk {
             AtomicPatternNoiseSquashingKey::Standard(
                 standard_atomic_pattern_noise_squashing_key,
             ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
-                Shortint128BootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key: _,
-                } => self.matches_actual_bsk(bsk),
-                Shortint128BootstrappingKey::MultiBit { .. } => false,
+                Shortint128BootstrappingKey::Classic { .. } => false,
+                Shortint128BootstrappingKey::MultiBit { bsk, .. } => self.matches_actual_bsk(bsk),
             },
             AtomicPatternNoiseSquashingKey::KeySwitch32(
                 ks32_atomic_pattern_noise_squashing_key,
             ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
-                Shortint128BootstrappingKey::Classic {
-                    bsk,
-                    modulus_switch_noise_reduction_key: _,
-                } => self.matches_actual_bsk(bsk),
-                Shortint128BootstrappingKey::MultiBit { .. } => false,
+                Shortint128BootstrappingKey::Classic { .. } => false,
+                Shortint128BootstrappingKey::MultiBit { bsk, .. } => self.matches_actual_bsk(bsk),
             },
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum NoiseSimulationGenericBootstrapKey128 {
+    Classic(NoiseSimulationLweFourier128Bsk),
+    MultiBit(NoiseSimulationLweMultiBitFourier128Bsk),
+}
+
+impl NoiseSimulationGenericBootstrapKey128 {
+    pub fn new_from_parameters(
+        params: AtomicPatternParameters,
+        noise_squashing_params: NoiseSquashingParameters,
+    ) -> Self {
+        match noise_squashing_params {
+            NoiseSquashingParameters::Classic(_) => {
+                Self::Classic(NoiseSimulationLweFourier128Bsk::new_from_parameters(
+                    params,
+                    noise_squashing_params,
+                ))
+            }
+            NoiseSquashingParameters::MultiBit(_) => Self::MultiBit(
+                NoiseSimulationLweMultiBitFourier128Bsk::new_from_parameters(
+                    params,
+                    noise_squashing_params,
+                ),
+            ),
+        }
+    }
+
+    pub fn matches_actual_shortint_noise_squashing_key(
+        &self,
+        noise_squashing_key: &NoiseSquashingKey,
+    ) -> bool {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier128_bsk) => {
+                noise_simulation_lwe_fourier128_bsk
+                    .matches_actual_shortint_noise_squashing_key(noise_squashing_key)
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier128_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier128_bsk
+                    .matches_actual_shortint_noise_squashing_key(noise_squashing_key)
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn input_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.input_lwe_dimension()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.input_lwe_dimension()
+            }
+        }
+    }
+
+    pub fn output_glwe_size(&self) -> GlweSize {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.output_glwe_size()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.output_glwe_size()
+            }
+        }
+    }
+
+    pub fn output_polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.output_polynomial_size()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.output_polynomial_size()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn decomp_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.decomp_base_log()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.decomp_base_log()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn decomp_level_count(&self) -> DecompositionLevelCount {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.decomp_level_count()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.decomp_level_count()
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn grouping_factor(&self) -> Option<LweBskGroupingFactor> {
+        match self {
+            Self::Classic(_) => None,
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                Some(noise_simulation_lwe_multi_bit_fourier_bsk.grouping_factor())
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn noise_distribution(&self) -> DynamicDistribution<u128> {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.noise_distribution()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.noise_distribution()
+            }
+        }
+    }
+
+    pub fn modulus(&self) -> NoiseSimulationModulus {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.modulus()
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.modulus()
+            }
+        }
+    }
+}
+
+impl LweGenericBlindRotate128<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+    for NoiseSimulationGenericBootstrapKey128
+{
+    type SideResources = ();
+
+    fn lwe_generic_blind_rotate_128(
+        &self,
+        input: &NoiseSimulationLwe,
+        output: &mut NoiseSimulationLwe,
+        accumulator: &NoiseSimulationGlwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.lwe_classic_fft_128_pbs(
+                    input,
+                    output,
+                    accumulator,
+                    side_resources,
+                );
+            }
+            Self::MultiBit(noise_simulation_lwe_multi_bit_fourier_bsk) => {
+                noise_simulation_lwe_multi_bit_fourier_bsk.lwe_multi_bit_fft_128_blind_rotate(
+                    input,
+                    output,
+                    accumulator,
+                    side_resources,
+                )
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 use super::*;
 use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs_variance_132_bits_security_gaussian_fft_mul;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::PBS_FFT_64_MANTISSA_SIZE;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -49,6 +50,7 @@ where
         polynomial_size,
         pbs_decomposition_base_log,
         pbs_decomposition_level_count,
+        PBS_FFT_64_MANTISSA_SIZE,
         modulus_as_f64,
     );
 
