@@ -39,6 +39,7 @@ jobs:
   make-release:
     name: make_release_tfhe/make-release
     uses: ./.github/workflows/make_release_common.yml
+    if: ${{ inputs.push_to_crates }}
     with:
       package-name: "tfhe"
       dry-run: ${{ inputs.dry_run }}
@@ -60,6 +61,7 @@ jobs:
   make-release-js:
     name: make_release_tfhe/make-release-js
     needs: make-release
+    if: ${{ always() && needs.make-release.result != 'failure' }}
     runs-on: ubuntu-latest
     # For provenance of npmjs publish
     permissions:
@@ -83,11 +85,16 @@ jobs:
         run: |
           make build_web_js_api_parallel
 
+      - name: Authenticate on NPM
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
         uses: JS-DevTools/npm-publish@7f8fe47b3bea1be0c3aec2b717c5ec1f3e03410b
         with:
-          token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
@@ -105,7 +112,6 @@ jobs:
         if: ${{ inputs.push_node_package }}
         uses: JS-DevTools/npm-publish@7f8fe47b3bea1be0c3aec2b717c5ec1f3e03410b
         with:
-          token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
