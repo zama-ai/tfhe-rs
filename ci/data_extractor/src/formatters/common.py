@@ -187,7 +187,9 @@ class GenericFormatter:
     @staticmethod
     def _format_data(*args, **kwargs):
         # Must be implemented by subclasses
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"format_data() not implemented for this formatter: '{__class__.__name__}'"
+        )
 
     def generate_array(
         self,
@@ -231,7 +233,9 @@ class GenericFormatter:
 
     def _generate_arrays(self, *args, **kwargs):
         # Must be implemented by subclasses
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"generate_arrays() not implemented for this formatter: '{__class__.__name__}'"
+        )
 
 
 class CSVFormatter(GenericFormatter):
