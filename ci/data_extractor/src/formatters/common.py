@@ -659,6 +659,13 @@ class SVGFormatter(GenericFormatter):
         return self.generate_svg_table(array)
 
 
+class LatexColumn:
+    pass
+
+class LatexRow:
+    pass
+
+
 class LatexFormatter(GenericFormatter):
     """
     Formatter to generate LaTex table.

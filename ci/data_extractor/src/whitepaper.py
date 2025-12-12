@@ -6,7 +6,7 @@ import sys
 import config
 import connector
 from benchmark_specs import ErrorFailureProbability
-from formatters.common import GenericFormatter
+from formatters.core import CoreFormatter
 import utils
 
 class Default(dict):
@@ -118,6 +118,11 @@ INTEGER_PARAM_CASES = [
     ),
 ]
 
+INTEGER_SPECIAL_CASE_OPERATIONS_FILTER = [
+    "add_parallelized",
+    "mul_parallelized",
+    "bitand_parallelized",
+]
 
 def _generate_latex_tables(
     conn: connector.PostgreConnector,
@@ -135,7 +140,7 @@ def _generate_latex_tables(
         param_patterns = case.get_parameter_variants()
         res = conn.fetch_benchmark_data(case_config, param_name_patterns=param_patterns)
 
-        generic_formatter = GenericFormatter(
+        generic_formatter = CoreFormatter(
             case_config.layer,
             case_config.backend,
             case_config.pbs_kind,
@@ -145,7 +150,9 @@ def _generate_latex_tables(
             res,
             conversion_func,
         )
-        for r in formatted_results:  # DEBUG
+
+        # TODO créer le tbaleau qui va bien en fonction du cas
+        for r in formatted_results.items():  # DEBUG
             print(r)
 
         print("--------------------------------------------------")
