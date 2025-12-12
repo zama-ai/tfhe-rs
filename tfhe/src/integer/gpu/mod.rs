@@ -7,6 +7,7 @@ pub mod server_key;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
 
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
@@ -10394,4 +10395,45 @@ pub unsafe fn unchecked_small_scalar_mul_integer_async(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
     );
+}
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    glwe_array_out: &mut CudaGlweCiphertextList<T>,
+    glwe_list: &CudaPackedGlweCiphertextList<T>,
+    glwe_index: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_array_out.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_list.data.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let packed_glwe_list_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_list);
+
+    if std::mem::size_of::<T>() == 16 {
+        cuda_integer_extract_glwe_128(
+            streams.ffi(),
+            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+            &raw const packed_glwe_list_ffi,
+            glwe_index,
+        );
+    } else if std::mem::size_of::<T>() == 8 {
+        cuda_integer_extract_glwe_64(
+            streams.ffi(),
+            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+            &raw const packed_glwe_list_ffi,
+            glwe_index,
+        );
+    } else {
+        panic!("Unsupported integer size for CUDA GLWE extraction");
+    }
 }
