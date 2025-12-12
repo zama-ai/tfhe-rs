@@ -16,7 +16,7 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
@@ -249,7 +249,7 @@ impl<'a> FourierGgswCiphertextView<'a> {
 }
 
 /// Return the required memory for [`FourierGgswCiphertextMutView::fill_with_forward_fourier`].
-pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, SizeOverflow> {
+pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> StackReq {
     fft.forward_scratch()
 }
 
@@ -463,23 +463,19 @@ pub fn add_external_product_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
-    let standard_scratch =
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align)?;
+    let standard_scratch = StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align);
     let fourier_polynomial_size = polynomial_size.to_fourier_polynomial_size().0;
     let fourier_scratch =
-        StackReq::try_new_aligned::<c64>(glwe_size.0 * fourier_polynomial_size, align)?;
-    let fourier_scratch_single = StackReq::try_new_aligned::<c64>(fourier_polynomial_size, align)?;
+        StackReq::new_aligned::<c64>(glwe_size.0 * fourier_polynomial_size, align);
+    let fourier_scratch_single = StackReq::new_aligned::<c64>(fourier_polynomial_size, align);
 
-    let substack3 = fft.forward_scratch()?;
-    let substack2 = substack3.try_and(fourier_scratch_single)?;
-    let substack1 = substack2.try_and(standard_scratch)?;
-    let substack0 = StackReq::try_any_of([
-        substack1.try_and(standard_scratch)?,
-        fft.backward_scratch()?,
-    ])?;
-    substack0.try_and(fourier_scratch)
+    let substack3 = fft.forward_scratch();
+    let substack2 = substack3.and(fourier_scratch_single);
+    let substack1 = substack2.and(standard_scratch);
+    let substack0 = StackReq::any_of(&[substack1.and(standard_scratch), fft.backward_scratch()]);
+    substack0.and(fourier_scratch)
 }
 
 /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
@@ -763,7 +759,7 @@ pub fn cmux_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 

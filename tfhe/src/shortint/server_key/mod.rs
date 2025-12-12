@@ -1510,7 +1510,6 @@ pub(crate) fn apply_standard_blind_rotate<OutputScalar, OutputCont>(
             poly_size,
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -1588,9 +1587,7 @@ pub(crate) fn apply_programmable_bootstrap_128<InputScalar, InputCont, OutputSca
                     bsk_polynomial_size,
                     fft,
                 )
-                .unwrap()
-                .try_unaligned_bytes_required()
-                .unwrap();
+                .unaligned_bytes_required();
 
             let br_input_modulus_log = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
             let lwe_ciphertext_to_squash_noise = modulus_switch_noise_reduction_key

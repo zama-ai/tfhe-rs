@@ -268,7 +268,6 @@ where
                     CiphertextCount(ciphertext_count),
                     fft,
                 )
-                .unwrap()
                 .unaligned_bytes_required(),
             );
 
@@ -460,7 +459,6 @@ where
                 polynomial_size,
                 fft,
             )
-            .unwrap()
             .unaligned_bytes_required(),
         );
 
@@ -798,9 +796,7 @@ fn lwe_encrypt_pbs_ntt64_decrypt_custom_mod(params: ClassicTestParams<u64>) {
         polynomial_size,
         ntt,
     )
-    .unwrap()
-    .try_unaligned_bytes_required()
-    .unwrap();
+    .unaligned_bytes_required();
 
     buffers.resize(stack_size);
 
@@ -1097,9 +1093,7 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
             polynomial_size,
             ntt,
         )
-        .unwrap()
-        .try_unaligned_bytes_required()
-        .unwrap();
+        .unaligned_bytes_required();
 
         buffers.resize(stack_size);
 

@@ -3,7 +3,7 @@ use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
 use crate::core_crypto::commons::utils::izip_eq;
 use core::any::TypeId;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -358,12 +358,12 @@ impl Fft128View<'_> {
     }
 
     /// Return the memory required for a backward negacyclic FFT.
-    pub fn backward_scratch(self) -> Result<StackReq, SizeOverflow> {
-        let one = StackReq::try_new_aligned::<f64>(
+    pub fn backward_scratch(self) -> StackReq {
+        let one = StackReq::new_aligned::<f64>(
             self.polynomial_size().0 / 2,
             aligned_vec::CACHELINE_ALIGN,
-        )?;
-        StackReq::try_all_of([one; 4])
+        );
+        StackReq::all_of(&[one; 4])
     }
 
     pub fn forward_as_torus<Scalar: UnsignedTorus>(

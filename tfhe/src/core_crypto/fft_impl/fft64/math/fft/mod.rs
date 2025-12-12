@@ -9,7 +9,7 @@ use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainer
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use std::any::TypeId;
 use std::collections::hash_map::Entry;
@@ -360,18 +360,16 @@ impl FftView<'_> {
     }
 
     /// Return the memory required for a forward negacyclic FFT.
-    pub fn forward_scratch(self) -> Result<StackReq, SizeOverflow> {
+    pub fn forward_scratch(self) -> StackReq {
         self.plan.fft_scratch()
     }
 
     /// Return the memory required for a backward negacyclic FFT.
-    pub fn backward_scratch(self) -> Result<StackReq, SizeOverflow> {
-        self.plan
-            .fft_scratch()?
-            .try_and(StackReq::try_new_aligned::<c64>(
-                self.polynomial_size().to_fourier_polynomial_size().0,
-                aligned_vec::CACHELINE_ALIGN,
-            )?)
+    pub fn backward_scratch(self) -> StackReq {
+        self.plan.fft_scratch().and(StackReq::new_aligned::<c64>(
+            self.polynomial_size().to_fourier_polynomial_size().0,
+            aligned_vec::CACHELINE_ALIGN,
+        ))
     }
 
     /// Perform a negacyclic real FFT of `standard`, viewed as torus elements, and stores the
@@ -773,11 +771,7 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
     dest.par_chunks_mut(chunk_size * f_polynomial_size)
         .zip_eq(origin.par_chunks(chunk_size * polynomial_size.0))
         .for_each(|(fourier_poly_chunk, standard_poly_chunk)| {
-            let stack_len = fft
-                .forward_scratch()
-                .unwrap()
-                .try_unaligned_bytes_required()
-                .unwrap();
+            let stack_len = fft.forward_scratch().unaligned_bytes_required();
             let mut mem = vec![0; stack_len];
 
             let stack = PodStack::new(&mut mem);

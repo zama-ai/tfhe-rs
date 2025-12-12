@@ -23,7 +23,7 @@ use crate::core_crypto::prelude::{
     ModulusSwitchedLweCiphertext,
 };
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
@@ -186,7 +186,7 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
 }
 
 /// Return the required memory for [`FourierLweBootstrapKeyMutView::fill_with_forward_fourier`].
-pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, SizeOverflow> {
+pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> StackReq {
     fft.forward_scratch()
 }
 
@@ -230,16 +230,16 @@ pub fn blind_rotate_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_any_of([
+) -> StackReq {
+    StackReq::any_of(&[
         // tmp_poly allocation
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN)?,
-        StackReq::try_all_of([
+        StackReq::new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN),
+        StackReq::all_of(&[
             // ct1 allocation
-            StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
+            StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN),
             // external product
-            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
-        ])?,
+            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft),
+        ]),
     ])
 }
 
@@ -248,9 +248,9 @@ pub fn bootstrap_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?.try_and(
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
+) -> StackReq {
+    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft).and(
+        StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN),
     )
 }
 
@@ -260,19 +260,19 @@ pub fn batch_blind_rotate_assign_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     ciphertext_count: CiphertextCount,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_any_of([
+) -> StackReq {
+    StackReq::any_of(&[
         // tmp_poly allocation
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN)?,
-        StackReq::try_all_of([
+        StackReq::new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN),
+        StackReq::all_of(&[
             // ct1 allocation
-            StackReq::try_new_aligned::<Scalar>(
+            StackReq::new_aligned::<Scalar>(
                 glwe_ciphertext_size(glwe_size, polynomial_size) * ciphertext_count.0,
                 CACHELINE_ALIGN,
-            )?,
+            ),
             // external product
-            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
-        ])?,
+            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft),
+        ]),
     ])
 }
 
@@ -282,12 +282,12 @@ pub fn batch_bootstrap_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     ciphertext_count: CiphertextCount,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    batch_blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, ciphertext_count, fft)?
-        .try_and(StackReq::try_new_aligned::<Scalar>(
+) -> StackReq {
+    batch_blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, ciphertext_count, fft)
+        .and(StackReq::new_aligned::<Scalar>(
             glwe_ciphertext_size(glwe_size, polynomial_size) * ciphertext_count.0,
             CACHELINE_ALIGN,
-        )?)
+        ))
 }
 
 impl FourierLweBootstrapKeyView<'_> {
@@ -596,7 +596,7 @@ where
         )
     }
 
-    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
+    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> StackReq {
         fill_with_forward_fourier_scratch(fft.as_view())
     }
 
@@ -616,7 +616,7 @@ where
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         fft: &Self::Fft,
-    ) -> Result<StackReq, SizeOverflow> {
+    ) -> StackReq {
         bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft.as_view())
     }
 

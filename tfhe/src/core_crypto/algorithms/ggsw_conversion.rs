@@ -7,7 +7,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 
 /// Convert a [`GGSW ciphertext`](`GgswCiphertext`) with standard coefficients to the Fourier
@@ -29,7 +29,6 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier<Scalar, InputCont, OutputCont
     let mut buffers = ComputationBuffers::new();
     buffers.resize(
         convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
-            .unwrap()
             .unaligned_bytes_required(),
     );
 
@@ -63,6 +62,6 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized<Scalar, InputCo
 /// Return the required memory for [`convert_standard_ggsw_ciphertext_to_fourier_mem_optimized`].
 pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     fill_with_forward_fourier_scratch(fft)
 }

@@ -720,7 +720,6 @@ mod experimental {
                         bsk.polynomial_size(),
                         fft,
                     )
-                    .unwrap()
                     .unaligned_bytes_required(),
                 );
 
@@ -821,7 +820,6 @@ mod experimental {
                                 fourier_bsk.polynomial_size(),
                                 fft,
                             )
-                            .unwrap()
                             .unaligned_bytes_required(),
                         );
                         let stack = buffers.stack();
@@ -927,7 +925,6 @@ mod experimental {
                         self.param.cbs_level,
                         fft,
                     )
-                        .unwrap()
                         .unaligned_bytes_required(),
                 );
 

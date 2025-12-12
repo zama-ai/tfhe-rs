@@ -15,7 +15,7 @@ use crate::core_crypto::fft_impl::fft64::math::polynomial::{
     FourierPolynomialMutView, FourierPolynomialView,
 };
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
 
 /// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
@@ -107,12 +107,10 @@ use tfhe_fft::c64;
 ///
 /// let buffer_size_req =
 ///     glwe_fast_keyswitch_requirement::<u64>(glwe_size_out, polynomial_size, fft)
-///         .unwrap()
 ///         .unaligned_bytes_required();
 ///
 /// let buffer_size_req = buffer_size_req.max(
 ///     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
-///         .unwrap()
 ///         .unaligned_bytes_required(),
 /// );
 ///
@@ -320,21 +318,18 @@ pub fn glwe_fast_keyswitch_requirement<Scalar>(
     glwe_size_out: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
     let standard_scratch =
-        StackReq::try_new_aligned::<Scalar>(glwe_size_out.0 * polynomial_size.0, align)?;
+        StackReq::new_aligned::<Scalar>(glwe_size_out.0 * polynomial_size.0, align);
     let fourier_polynomial_size = polynomial_size.to_fourier_polynomial_size().0;
     let fourier_scratch =
-        StackReq::try_new_aligned::<c64>(glwe_size_out.0 * fourier_polynomial_size, align)?;
-    let fourier_scratch_single = StackReq::try_new_aligned::<c64>(fourier_polynomial_size, align)?;
+        StackReq::new_aligned::<c64>(glwe_size_out.0 * fourier_polynomial_size, align);
+    let fourier_scratch_single = StackReq::new_aligned::<c64>(fourier_polynomial_size, align);
 
-    let substack3 = fft.forward_scratch()?;
-    let substack2 = substack3.try_and(fourier_scratch_single)?;
-    let substack1 = substack2.try_and(standard_scratch)?;
-    let substack0 = StackReq::try_any_of([
-        substack1.try_and(standard_scratch)?,
-        fft.backward_scratch()?,
-    ])?;
-    substack0.try_and(fourier_scratch)
+    let substack3 = fft.forward_scratch();
+    let substack2 = substack3.and(fourier_scratch_single);
+    let substack1 = substack2.and(standard_scratch);
+    let substack0 = StackReq::any_of(&[substack1.and(standard_scratch), fft.backward_scratch()]);
+    substack0.and(fourier_scratch)
 }

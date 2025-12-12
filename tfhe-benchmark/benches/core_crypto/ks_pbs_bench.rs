@@ -106,7 +106,6 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                         fourier_bsk.polynomial_size(),
                         fft,
                     )
-                    .unwrap()
                     .unaligned_bytes_required(),
                 );
 
@@ -196,7 +195,6 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                     fourier_bsk.polynomial_size(),
                                     fft.as_view(),
                                 )
-                                .unwrap()
                                 .unaligned_bytes_required(),
                             );
 

@@ -18,8 +18,8 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 #[cfg(feature = "std")]
 use core::time::Duration;
 #[cfg(feature = "std")]
-use dyn_stack::GlobalPodBuffer;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::PodBuffer;
+use dyn_stack::{PodStack, StackReq};
 
 #[inline(always)]
 fn fwd_butterfly_x2<c64xN: Pod>(
@@ -667,11 +667,8 @@ impl Plan {
 
             #[cfg(feature = "std")]
             Method::Measure(duration) => {
-                let (algo, base_n, _) = measure_fastest(
-                    duration,
-                    n,
-                    PodStack::new(&mut GlobalPodBuffer::new(measure_fastest_scratch(n))),
-                );
+                let mut buf = PodBuffer::try_new(measure_fastest_scratch(n)).unwrap();
+                let (algo, base_n, _) = measure_fastest(duration, n, PodStack::new(&mut buf));
                 (algo, base_n)
             }
         };
@@ -788,10 +785,10 @@ impl Plan {
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
-    /// let scratch = plan.fft_scratch().unwrap();
+    /// let scratch = plan.fft_scratch();
     /// ```
-    pub fn fft_scratch(&self) -> Result<StackReq, SizeOverflow> {
-        StackReq::try_new_aligned::<c64>(self.algo().1, CACHELINE_ALIGN)
+    pub fn fft_scratch(&self) -> StackReq {
+        StackReq::new_aligned::<c64>(self.algo().1, CACHELINE_ALIGN)
     }
 
     /// Performs a forward FFT in place, using the provided stack as scratch space.
@@ -807,12 +804,12 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::unordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer};
+    /// use dyn_stack::{PodStack, PodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
-    /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+    /// let mut memory = PodBuffer::try_new(plan.fft_scratch()).unwrap();
     /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
@@ -907,12 +904,12 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::unordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer};
+    /// use dyn_stack::{PodStack, PodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
-    /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+    /// let mut memory = PodBuffer::try_new(plan.fft_scratch()).unwrap();
     /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
@@ -1057,7 +1054,7 @@ fn bit_rev_twice_inv(nbits: u32, base_nbits: u32, i: usize) -> usize {
 mod tests {
     use super::*;
     use alloc::vec;
-    use dyn_stack::GlobalPodBuffer;
+    use dyn_stack::PodBuffer;
     use num_complex::ComplexFloat;
     use rand::random;
 
@@ -1087,7 +1084,7 @@ mod tests {
                 },
             );
             let base_n = plan.algo().1;
-            let mut mem = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+            let mut mem = PodBuffer::try_new(plan.fft_scratch()).unwrap();
             let stack = PodStack::new(&mut mem);
             plan.fwd(&mut z, stack);
 
@@ -1115,7 +1112,7 @@ mod tests {
                             base_n,
                         },
                     );
-                    let mut mem = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+                    let mut mem = PodBuffer::try_new(plan.fft_scratch()).unwrap();
                     let stack = PodStack::new(&mut mem);
 
                     let mut z_target = z.clone();
@@ -1151,7 +1148,7 @@ mod tests {
                     base_n: 32,
                 },
             );
-            let mut mem = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+            let mut mem = PodBuffer::try_new(plan.fft_scratch()).unwrap();
             let stack = PodStack::new(&mut mem);
             plan.fwd(&mut z, stack);
             plan.inv(&mut z, stack);
@@ -1189,7 +1186,7 @@ mod tests {
                 base_n: 32,
             },
         );
-        let mut mem = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+        let mut mem = PodBuffer::try_new(plan.fft_scratch()).unwrap();
         let stack = PodStack::new(&mut mem);
         plan.fwd(&mut z, stack);
 
@@ -9395,7 +9392,7 @@ mod tests {
 mod tests_serde {
     use super::*;
     use alloc::{vec, vec::Vec};
-    use dyn_stack::GlobalPodBuffer;
+    use dyn_stack::PodBuffer;
     use num_complex::ComplexFloat;
     use rand::random;
 
@@ -9429,12 +9426,7 @@ mod tests_serde {
                 },
             );
 
-            let mut mem = GlobalPodBuffer::new(
-                plan1
-                    .fft_scratch()
-                    .unwrap()
-                    .or(plan2.fft_scratch().unwrap()),
-            );
+            let mut mem = PodBuffer::try_new(plan1.fft_scratch().or(plan2.fft_scratch())).unwrap();
             let stack = PodStack::new(&mut mem);
 
             plan1.fwd(&mut z, stack);

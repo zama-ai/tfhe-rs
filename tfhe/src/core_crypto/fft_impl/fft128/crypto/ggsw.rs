@@ -17,7 +17,7 @@ use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecomp
 use crate::core_crypto::prelude::ContainerMut;
 
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::fft128::f128;
 use tfhe_versionable::Versionize;
 
@@ -380,24 +380,20 @@ pub fn add_external_product_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
-    let standard_scratch =
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align)?;
-    let fourier_scratch = StackReq::try_new_aligned::<f64>(
+    let standard_scratch = StackReq::new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align);
+    let fourier_scratch = StackReq::new_aligned::<f64>(
         glwe_size.0 * polynomial_size.to_fourier_polynomial_size().0,
         align,
-    )?;
+    );
     let fourier_scratch_single =
-        StackReq::try_new_aligned::<f64>(polynomial_size.to_fourier_polynomial_size().0, align)?;
+        StackReq::new_aligned::<f64>(polynomial_size.to_fourier_polynomial_size().0, align);
 
-    let substack2 = StackReq::try_all_of([fourier_scratch_single; 4])?;
-    let substack1 = substack2.try_and(standard_scratch)?;
-    let substack0 = StackReq::try_any_of([
-        substack1.try_and(standard_scratch)?,
-        fft.backward_scratch()?,
-    ])?;
-    substack0.try_and(StackReq::try_all_of([fourier_scratch; 4])?)
+    let substack2 = StackReq::all_of(&[fourier_scratch_single; 4]);
+    let substack1 = substack2.and(standard_scratch);
+    let substack0 = StackReq::any_of(&[substack1.and(standard_scratch), fft.backward_scratch()]);
+    substack0.and(StackReq::all_of(&[fourier_scratch; 4]))
 }
 
 #[cfg_attr(feature = "__profiling", inline(never))]
@@ -798,7 +794,7 @@ pub fn cmux_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 

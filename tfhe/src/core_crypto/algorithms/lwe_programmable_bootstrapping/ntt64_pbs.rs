@@ -18,7 +18,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
@@ -195,7 +195,6 @@ pub fn blind_rotate_ntt64_assign<InputCont, OutputCont, KeyCont>(
             bsk.polynomial_size(),
             ntt,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -465,7 +464,6 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext<InputCont, OutputCont, AccCon
             bsk.polynomial_size(),
             ntt,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -708,22 +706,18 @@ pub(crate) fn ntt64_add_external_product_assign_scratch(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     ntt: Ntt64View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     let align = CACHELINE_ALIGN;
-    let standard_scratch =
-        StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, align)?;
-    let decomp_sign_scratch =
-        StackReq::try_new_aligned::<u8>(glwe_size.0 * polynomial_size.0, align)?;
-    let ntt_scratch = StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, align)?;
-    let ntt_scratch_single = StackReq::try_new_aligned::<u64>(polynomial_size.0, align)?;
+    let standard_scratch = StackReq::new_aligned::<u64>(glwe_size.0 * polynomial_size.0, align);
+    let decomp_sign_scratch = StackReq::new_aligned::<u8>(glwe_size.0 * polynomial_size.0, align);
+    let ntt_scratch = StackReq::new_aligned::<u64>(glwe_size.0 * polynomial_size.0, align);
+    let ntt_scratch_single = StackReq::new_aligned::<u64>(polynomial_size.0, align);
     let _ = &ntt;
 
     let substack2 = ntt_scratch_single;
-    let substack1 = substack2.try_and(standard_scratch)?;
-    let substack0 = substack1
-        .try_and(standard_scratch)?
-        .try_and(decomp_sign_scratch)?;
-    substack0.try_and(ntt_scratch)
+    let substack1 = substack2.and(standard_scratch);
+    let substack0 = substack1.and(standard_scratch).and(decomp_sign_scratch);
+    substack0.and(ntt_scratch)
 }
 
 /// Return the required memory for [`cmux_ntt64_assign`].
@@ -731,7 +725,7 @@ pub(crate) fn ntt64_cmux_scratch(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     ntt: Ntt64View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     ntt64_add_external_product_assign_scratch(glwe_size, polynomial_size, ntt)
 }
 
@@ -740,9 +734,9 @@ pub fn blind_rotate_ntt64_assign_mem_optimized_requirement(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     ntt: Ntt64View<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?
-        .try_and(ntt64_cmux_scratch(glwe_size, polynomial_size, ntt)?)
+) -> StackReq {
+    StackReq::new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)
+        .and(ntt64_cmux_scratch(glwe_size, polynomial_size, ntt))
 }
 
 /// Return the required memory for [`programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`].
@@ -750,8 +744,8 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     ntt: Ntt64View<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_ntt64_assign_mem_optimized_requirement(glwe_size, polynomial_size, ntt)?.try_and(
-        StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
+) -> StackReq {
+    blind_rotate_ntt64_assign_mem_optimized_requirement(glwe_size, polynomial_size, ntt).and(
+        StackReq::new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN),
     )
 }

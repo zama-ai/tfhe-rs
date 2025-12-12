@@ -9,7 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch as bootstrap_scratch_f128;
 use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
 use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, StackReq};
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
 /// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
@@ -208,7 +208,6 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<
             fourier_bsk.polynomial_size(),
             fft,
         )
-        .unwrap()
         .unaligned_bytes_required(),
     );
 
@@ -259,7 +258,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
@@ -408,7 +407,6 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
 ///         fourier_bsk.polynomial_size(),
 ///         fft,
 ///     )
-///     .unwrap()
 ///     .unaligned_bytes_required(),
 /// );
 ///
@@ -465,7 +463,7 @@ pub fn blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
-) -> Result<StackReq, SizeOverflow> {
+) -> StackReq {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
 }
 

@@ -340,9 +340,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         polynomial_size,
         ntt,
     )
-    .unwrap()
-    .try_unaligned_bytes_required()
-    .unwrap();
+    .unaligned_bytes_required();
 
     buffers.resize(stack_size);
 

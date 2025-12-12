@@ -16,8 +16,8 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 #[cfg(feature = "std")]
 use core::time::Duration;
 #[cfg(feature = "std")]
-use dyn_stack::GlobalPodBuffer;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::PodBuffer;
+use dyn_stack::{PodStack, StackReq};
 
 /// Internal FFT algorithm.
 ///
@@ -245,12 +245,8 @@ impl Plan {
             Method::UserProvided(algo) => algo,
             #[cfg(feature = "std")]
             Method::Measure(duration) => {
-                measure_fastest(
-                    duration,
-                    n,
-                    PodStack::new(&mut GlobalPodBuffer::new(measure_fastest_scratch(n))),
-                )
-                .0
+                let mut buf = PodBuffer::try_new(measure_fastest_scratch(n)).unwrap();
+                measure_fastest(duration, n, PodStack::new(&mut buf)).0
             }
         };
 
@@ -313,10 +309,10 @@ impl Plan {
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
-    /// let scratch = plan.fft_scratch().unwrap();
+    /// let scratch = plan.fft_scratch();
     /// ```
-    pub fn fft_scratch(&self) -> Result<StackReq, SizeOverflow> {
-        StackReq::try_new_aligned::<c64>(self.fft_size(), CACHELINE_ALIGN)
+    pub fn fft_scratch(&self) -> StackReq {
+        StackReq::new_aligned::<c64>(self.fft_size(), CACHELINE_ALIGN)
     }
 
     /// Performs a forward FFT in place, using the provided stack as scratch space.
@@ -326,12 +322,12 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::ordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer};
+    /// use dyn_stack::{PodStack, PodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
-    /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+    /// let mut memory = PodBuffer::try_new(plan.fft_scratch()).unwrap();
     /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
@@ -351,12 +347,12 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::ordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer};
+    /// use dyn_stack::{PodStack, PodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
-    /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
+    /// let mut memory = PodBuffer::try_new(plan.fft_scratch()).unwrap();
     /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
