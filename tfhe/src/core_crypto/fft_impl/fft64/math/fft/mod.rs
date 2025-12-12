@@ -5,6 +5,7 @@ use crate::core_crypto::backward_compatibility::fft_impl::{
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
+use crate::core_crypto::commons::plan::new_from_plan_map;
 use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
@@ -12,7 +13,6 @@ use aligned_vec::{avec, ABox};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use std::any::TypeId;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock, RwLock};
@@ -99,7 +99,8 @@ impl Fft {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<(Twisties, Plan)>>>>>;
+type PlanMap = crate::core_crypto::commons::plan::PlanMap<PolynomialSize, (Twisties, Plan)>;
+
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
@@ -147,59 +148,40 @@ pub(crate) fn id<From: 'static, To: 'static>(slice: &[From]) -> &[To] {
 
 impl Fft {
     /// Real polynomial of size `size`.
-    pub fn new(size: PolynomialSize) -> Self {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
-        let n = size.0;
-        let get_plan = || {
-            let plans = global_plans.read().unwrap();
-            let plan = plans.get(&n).cloned();
-            drop(plans);
+        let new = |polynomial_size: PolynomialSize| {
+            let fourier_polynomial_size = polynomial_size.to_fourier_polynomial_size();
 
-            plan.map(|p| {
-                p.get_or_init(|| {
-                    #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
-                    {
-                        Arc::new((
-                            Twisties::new(n / 2),
-                            Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
-                        ))
-                    }
-                    #[cfg(feature = "experimental-force_fft_algo_dif4")]
-                    {
-                        Arc::new((
-                            Twisties::new(n / 2),
-                            Plan::new(
-                                n / 2,
-                                Method::UserProvided {
-                                    base_algo: tfhe_fft::ordered::FftAlgo::Dif4,
-                                    base_n: n / 2,
-                                },
-                            ),
-                        ))
-                    }
-                })
-                .clone()
-            })
+            #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
+            {
+                (
+                    Twisties::new(fourier_polynomial_size.0),
+                    Plan::new(
+                        fourier_polynomial_size.0,
+                        Method::Measure(Duration::from_millis(10)),
+                    ),
+                )
+            }
+            #[cfg(feature = "experimental-force_fft_algo_dif4")]
+            {
+                (
+                    Twisties::new(fourier_polynomial_size.0),
+                    Plan::new(
+                        fourier_polynomial_size.0,
+                        Method::UserProvided {
+                            base_algo: tfhe_fft::ordered::FftAlgo::Dif4,
+                            base_n: fourier_polynomial_size.0,
+                        },
+                    ),
+                )
+            }
         };
 
-        get_plan().map_or_else(
-            || {
-                // If we don't find a plan for the given size, we insert a new OnceLock,
-                // drop the write lock on the map and then let get_plan() initialize the OnceLock
-                // (without holding the write lock on the map).
-                let mut plans = global_plans.write().unwrap();
-                if let Entry::Vacant(v) = plans.entry(n) {
-                    v.insert(Arc::new(OnceLock::new()));
-                }
-                drop(plans);
+        let plan = new_from_plan_map(global_plans, polynomial_size, new);
 
-                Self {
-                    plan: get_plan().unwrap(),
-                }
-            },
-            |plan| Self { plan },
-        )
+        Self { plan }
     }
 }
 
