@@ -44,12 +44,9 @@ jobs:
       package-name: "tfhe"
       dry-run: ${{ inputs.dry_run }}
     permissions:
-      # Needed to detect the GitHub Actions environment
-      actions: read
-      # Needed to create the provenance via GitHub OIDC
-      id-token: write
-      # Needed to upload assets/artifacts
-      contents: write
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -66,10 +63,10 @@ jobs:
     # For provenance of npmjs publish
     permissions:
       contents: read
-      id-token: write # also needed for OIDC token exchange on crates.io
+      id-token: write # also needed for OIDC token exchange on crates.io and npmjs.com
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -85,11 +82,16 @@ jobs:
         run: |
           make build_web_js_api_parallel
 
+      - name: Authenticate on NPM
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
         uses: JS-DevTools/npm-publish@7f8fe47b3bea1be0c3aec2b717c5ec1f3e03410b
         with:
-          token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
@@ -107,7 +109,6 @@ jobs:
         if: ${{ inputs.push_node_package }}
         uses: JS-DevTools/npm-publish@7f8fe47b3bea1be0c3aec2b717c5ec1f3e03410b
         with:
-          token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
