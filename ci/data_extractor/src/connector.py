@@ -218,10 +218,13 @@ class PostgreConnector:
                 pass
 
         if param_name_patterns:
-            formatted_patterns = [f"p.crypto_parameters_alias LIKE '{p}'" for p in param_name_patterns]
+            formatted_patterns = [
+                f"p.crypto_parameters_alias LIKE '{p}'" for p in param_name_patterns
+            ]
             filters.append("({})".format(" OR ".join(formatted_patterns)))
 
-        print(filters)  # DEBUG
+        # for filt in filters:  # DEBUG
+        #     print(filt)  # DEBUG
 
         if operand_type:
             filters.append(f"p.operand_type = '{operand_type.value}'")

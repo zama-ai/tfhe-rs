@@ -6,7 +6,8 @@ import sys
 import config
 import connector
 from benchmark_specs import ErrorFailureProbability
-
+from formatters.common import GenericFormatter
+import utils
 
 class Default(dict):
     def __missing__(self, key):
@@ -17,63 +18,104 @@ class ParametersFilterCase:
     def __init__(
         self,
         param_name_pattern: str,
-        pfails: list[ErrorFailureProbability],
+        pfails: list[ErrorFailureProbability] = None,
         grouping_factors: list[int] = None,
         message_carry_sizes: list[int] = None,
     ):
         self.param_name_pattern = param_name_pattern
-        self.pfails = pfails
+        self.pfails = pfails or []
         self.grouping_factors = grouping_factors or []
         self.message_carry_sizes = message_carry_sizes or []
 
     def get_parameter_variants(self):
-        cases = []
-
-        print("RAW:", self.param_name_pattern)  # DEBUG
-        # TODO il faut gérer le cas où les listes sont vides (produit par 0 ne retourne rien)
-        #   faire des ifs ?
-        # for (pfail, gf, size) in itertools.product(self.pfails, self.grouping_factors, self.message_carry_sizes):
-        #     case = self.param_name_pattern.format_map(Default(gf=gf, msg=size, carry=size, pfail=pfail.to_str()))
-        #     print("\t case:", case)
-
         after_pfails = []
         for pfail in self.pfails:
-            after_pfails.append(self.param_name_pattern.format_map(Default(pfail=pfail.to_str())))
+            after_pfails.append(
+                self.param_name_pattern.format_map(Default(pfail=pfail.to_str()))
+            )
 
         after_grouping_factors = []
-        for gf in self.grouping_factors:
-            self.param_name_pattern.format_map(Default(gf=gf))
+        if after_pfails:
+            for name in after_pfails:
+                for gf in self.grouping_factors:
+                    after_grouping_factors.append(name.format_map(Default(gf=gf)))
+        else:
+            for gf in self.grouping_factors:
+                after_grouping_factors.append(
+                    self.grouping_factors.format_map(Default(gf=gf))
+                )
 
-        for size in self.message_carry_sizes:
-            self.param_name_pattern.format_map(Default(msg=size, carry=size))
+        after_msg_carry_sizes = []
+        if after_grouping_factors:
+            for name in after_grouping_factors:
+                for size in self.message_carry_sizes:
+                    after_msg_carry_sizes.append(
+                        name.format_map(Default(msg=size, carry=size))
+                    )
+        else:
+            for size in self.message_carry_sizes:
+                after_msg_carry_sizes.append(
+                    self.param_name_pattern.format_map(Default(msg=size, carry=size))
+                )
 
-        return cases
+        return (
+            after_msg_carry_sizes
+            or after_grouping_factors
+            or after_pfails
+            or [self.param_name_pattern]
+        )
 
 
 CORE_CRYPTO_PARAM_CASES = [
     ParametersFilterCase(
         "%PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
-        [ErrorFailureProbability.TWO_MINUS_64, ErrorFailureProbability.TWO_MINUS_128],
-    ),  # (pfail: 2m64, 2m128)
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+    ),
     ParametersFilterCase(
         "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",
-        [ErrorFailureProbability.TWO_MINUS_64, ErrorFailureProbability.TWO_MINUS_128],
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
         grouping_factors=[2, 3, 4],
         message_carry_sizes=[1, 2, 3, 4],
-    ),  # 1_1, 2_2, 3_3, 4_4 (gf: 2,3,4) (pfail: 2m64, 2m128)
+    ),
 ]
 
-# TODO faire des itérateurs avec des zip pour combiner les différents cas et faire une seule boucle for
-CORE_CRYPTO_PARAM_PATTERNS = [
-    "%PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",  # (pfail: 2m64, 2m128)
-    "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 3_3, 4_4 (gf: 2,3,4) (pfail: 2m64, 2m128)
-]
-
-INTEGER_PARAM_PATTERNS = [
-    "%PARAM_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 4_4 (pfail: 2m64, 2m128)
-    "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",  # (pfail: 2m64, 2m128)
-    "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",  # (gf: 2,3,4) (pfail: 2m64, 2m128)
-    "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",  # (pfail: 2m64, 2m128)
+INTEGER_PARAM_CASES = [
+    ParametersFilterCase(
+        "%PARAM_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 4_4 (pfail: 2m64, 2m128)
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+        message_carry_sizes=[1, 2, 4],
+    ),
+    ParametersFilterCase(
+        "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+    ),
+    ParametersFilterCase(
+        "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+        grouping_factors=[2, 3, 4],
+    ),
+    ParametersFilterCase(
+        "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+    ),
 ]
 
 
@@ -82,13 +124,35 @@ def _generate_latex_tables(
     user_config: config.UserConfig,
     result_dir: pathlib.Path,
 ):
-    # TODO prendre la valeur minimum dans un groupe d'opération (ex: min/max, gt/ge/lt/le, ...)
+    conversion_func = utils.convert_latency_value_to_readable_text
+
     case_config = copy.deepcopy(user_config)
     case_config.backend = config.Backend.CPU
+    case_config.pbs_kind = config.PBSKind.Any
 
     for case in CORE_CRYPTO_PARAM_CASES:
-        for param in case.get_parameter_variants():
-            print(param)  # DEBUG
+        case_config.layer = config.Layer.CoreCrypto
+        param_patterns = case.get_parameter_variants()
+        res = conn.fetch_benchmark_data(case_config, param_name_patterns=param_patterns)
+
+        generic_formatter = GenericFormatter(
+            case_config.layer,
+            case_config.backend,
+            case_config.pbs_kind,
+            case_config.grouping_factor,
+        )
+        formatted_results = generic_formatter.format_data(
+            res,
+            conversion_func,
+        )
+        for r in formatted_results:  # DEBUG
+            print(r)
+
+        print("--------------------------------------------------")
+        print("--------------------------------------------------")
+        print("--------------------------------------------------")
+
+    # TODO prendre la valeur minimum dans un groupe d'opération (ex: min/max, gt/ge/lt/le, ...)
 
 
 def perform_latex_generation(

@@ -62,6 +62,7 @@ class CoreCryptoResultsKey:
 class CoreFormatter(GenericFormatter):
     @staticmethod
     def _format_data(data: dict[BenchDetails : list[int]], conversion_func):
+        print("aaaaaaaaaaaaaaaaaaa")
         params_set = set()
         for details in data:
             try:
@@ -70,8 +71,11 @@ class CoreFormatter(GenericFormatter):
                 # Might be a Boolean parameters set, ignoring
                 continue
 
+        print("ccccc")
+
         params_set = sorted(params_set)
 
+        print("bbbbbb")
         formatted = collections.defaultdict(
             lambda: {params: "N/A" for params in params_set}
         )
