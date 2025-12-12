@@ -41,6 +41,7 @@ jobs:
   make-release:
     name: make_release_tfhe/make-release
     uses: ./.github/workflows/make_release_common.yml
+    if: ${{ inputs.push_to_crates }}
     with:
       package-name: "tfhe"
       dry-run: ${{ inputs.dry_run }}
@@ -59,6 +60,7 @@ jobs:
   make-release-js:
     name: make_release_tfhe/make-release-js
     needs: make-release
+    if: ${{ always() && needs.make-release.result != 'failure' }}
     runs-on: ubuntu-latest
     # For provenance of npmjs publish
     permissions:
