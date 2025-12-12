@@ -243,7 +243,7 @@ pub const IOP1_2CT_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
     imm: 1,
 };
 
-pub const SIMD_N: usize = 9; //TODO: We need to come up with a way to have this dynamic
+pub const SIMD_N: usize = 12; //TODO: We need to come up with a way to have this dynamic
 pub const IOP1_NCT_F_2NCT: ConstIOpProto<{ SIMD_N }, { 2 * SIMD_N }> = ConstIOpProto {
     used_nodes: NODE_MAP_SINGLE,
     dst: [VarMode::Native; SIMD_N],

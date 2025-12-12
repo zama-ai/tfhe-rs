@@ -4,6 +4,15 @@
 //! A testcase simply bind a IOp to a closure describing it's behavior
 //! WARN: Only one Hpu could be use at a time, thus all test must be run sequentially
 
+//NB: Tests behavior could be altered at runtime with the following env variables:
+//     * HPU_SELECTED_NODE<u8>: Instead of using full cluster as target, use only the specified node
+//     * HPU_FORCE_RELOAD: Force pdi reload even if the uuid match targeted one
+//     * HPU_IO_DUMP<String>: Enable input/output dumping in given path
+//     * HPU_KEY_SEED<u128>: Force key seed value for reproductible results
+//     * HPU_TEST_SEED<u128>: Force test seed value for reproductible results
+//     * HPU_TEST_ITER<usize>: Specify number of iteration for each test (default: 32)
+//     * HPU_TEST_TRIVIAL: Use trivial ciphertext instead of real one
+
 #[cfg(feature = "hpu")]
 mod hpu_test {
     use std::str::FromStr;
@@ -49,6 +58,41 @@ mod hpu_test {
         }
     }
 
+    /// Simple function to retrieved targetd node from environnement
+    /// Also extract force_reload request and return it as bool
+    fn update_config_node(config: &mut HpuConfig) -> bool {
+        match std::env::var("HPU_SELECTED_NODE") {
+            Ok(var) => {
+                let node = if let Some(hex) =
+                    var.strip_prefix("0x").or_else(|| var.strip_prefix("0X"))
+                {
+                    u8::from_str_radix(hex, 16)
+                } else if let Some(bin) = var.strip_prefix("0b").or_else(|| var.strip_prefix("0B"))
+                {
+                    u8::from_str_radix(bin, 2)
+                } else if let Some(oct) = var.strip_prefix("0o").or_else(|| var.strip_prefix("0O"))
+                {
+                    u8::from_str_radix(oct, 8)
+                } else {
+                    var.parse::<u8>() // default: base 10
+                }
+                .unwrap_or_else(|_| {
+                    panic!("HPU_SELECTED_NODE env variable {var} couldn't be casted in u8")
+                });
+                config.fpga.node_id = vec![node];
+            }
+            _ => {
+                // Use all node specify in toml file
+            }
+        }
+
+        // Extract force_reload from env
+        match std::env::var("HPU_FORCE_RELOAD") {
+            Ok(_) => true,
+            _ => false,
+        }
+    }
+
     fn init_hpu_and_associated_material(
     ) -> (std::sync::Mutex<HpuDevice>, tfhe::integer::ClientKey, u128) {
         // Hpu io dump for debug  -------------------------------------------------
@@ -62,7 +106,11 @@ mod hpu_test {
             let config_file = ShellString::new(
                 "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
             );
-            HpuDevice::from_config(&config_file.expand())
+            // Read config and update it based on env variables
+            let mut hpu_config = HpuConfig::from_toml(config_file.expand().as_str());
+            let force_reload = update_config_node(&mut hpu_config);
+
+            HpuDevice::new(hpu_config, force_reload)
                 .expect("Impossible to create HpuDevice from current configuration")
         };
 
@@ -187,6 +235,12 @@ mod hpu_test {
 
                 let width = $user_type::BITS as usize;
                 let num_block = width / device.params().pbs_params.message_width;
+                // NB: To support both mono-hpu IOp and multi-hpu IOp,
+                // input are generated only on the first node.
+                // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
+                //  with the node id you want to target.
+                // This will fallback in mono-hpu setup
+                let targeted_node = hpu_asm::NodeId(device.config().fpga.node_id[0]);
                 (0..iter).map(|_| {
                     // Generate inputs ciphertext
                     let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
@@ -206,7 +260,7 @@ mod hpu_test {
                             } else {
                                 cks.encrypt_radix(clear, block)
                             };
-                            let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
+                            let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device, Some(targeted_node));
                             (clear, hpu_fhe)
                         })
                         .unzip();
