@@ -2,7 +2,9 @@ use benchmark::utilities::{
     hlapi_throughput_num_ops, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
 };
 use criterion::{black_box, Criterion, Throughput};
+use oprf::oprf_any_range2;
 use rand::prelude::*;
+use rayon::prelude::*;
 use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
@@ -16,7 +18,7 @@ use tfhe::{
     KVStore,
 };
 
-use rayon::prelude::*;
+mod oprf;
 
 fn bench_fhe_type<FheType>(
     c: &mut Criterion,
@@ -480,6 +482,8 @@ fn main() {
             }
         }
     }
+
+    oprf_any_range2();
 
     c.final_summary();
 }
