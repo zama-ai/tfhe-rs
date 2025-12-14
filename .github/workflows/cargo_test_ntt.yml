@@ -31,7 +31,7 @@ jobs:
       ntt_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ntt_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           persist-credentials: "false"
@@ -87,7 +87,7 @@ jobs:
         os: ${{fromJson(needs.setup-instance.outputs.matrix_os)}}
       fail-fast: false
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
