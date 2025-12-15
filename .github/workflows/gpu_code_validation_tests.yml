@@ -23,8 +23,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   schedule:
-    # every 3 months
-    - cron: "0 0 1 */3 *"
+    # every month
+    - cron: "0 0 1 * *"
 
 permissions:
   contents: read
@@ -50,7 +50,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
-          profile: gpu-test
+          profile: single-h100
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance

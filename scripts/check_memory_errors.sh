@@ -32,10 +32,9 @@ fi
 RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
           --features=integer,internal-keycache,gpu-debug,zk-pok -p tfhe &> /tmp/test_list.txt
 
-# Filter the tests to get only the HL and a subset of core crypto ones
-TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*|core_crypto::.*gpu.*' | grep -v 'array' | grep -v 'modulus_switch' | grep -v '3_3' | grep -v 'noise_distribution' | grep -v 'flip')
-
 if [[ "${RUN_VALGRIND}" == "1" ]]; then
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*' | grep -v 'array' | grep -v 'flip')
+
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
     --features=integer,internal-keycache,gpu-debug,zk-pok -p tfhe
@@ -57,6 +56,7 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
 fi
 
 if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*|core_crypto::.*gpu.*' | grep -v 'array' | grep -v 'modulus_switch' | grep -v '3_3' | grep -v 'noise_distribution' | grep -v 'flip')
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
     --features=integer,internal-keycache,gpu,zk-pok -p tfhe
