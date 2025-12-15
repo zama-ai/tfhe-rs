@@ -98,6 +98,8 @@ __host__ void host_expand_without_verification(
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, &output, &input, bsks, ksks, message_and_carry_extract_luts,
       2 * num_lwes);
+  release_cpu_radix_ciphertext_async(&input);
+  release_cpu_radix_ciphertext_async(&output);
 }
 
 template <typename Torus>

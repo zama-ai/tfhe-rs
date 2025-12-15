@@ -6,6 +6,8 @@ void release_radix_ciphertext_async(cudaStream_t const stream,
                                     CudaRadixCiphertextFFI *data,
                                     const bool gpu_memory_allocated);
 
+void release_cpu_radix_ciphertext_async(CudaRadixCiphertextFFI *data);
+
 void reset_radix_ciphertext_blocks(CudaRadixCiphertextFFI *data,
                                    uint32_t new_num_blocks);
 
