@@ -129,6 +129,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     auto active_streams = streams.active_gpu_subset(num_blocks_to_process);
     luts->broadcast_lut(active_streams);
 
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_corrections);
   }
 
