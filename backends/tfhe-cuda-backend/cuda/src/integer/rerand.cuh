@@ -71,6 +71,8 @@ void rerand_inplace(
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,
                        &lwes_ffi, &ksed_zero_lwes_ffi, num_lwes,
                        message_modulus, carry_modulus);
+  release_cpu_radix_ciphertext_async(&lwes_ffi);
+  release_cpu_radix_ciphertext_async(&ksed_zero_lwes_ffi);
 }
 
 template <typename Torus>

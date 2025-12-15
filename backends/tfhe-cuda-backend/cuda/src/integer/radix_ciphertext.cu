@@ -10,6 +10,10 @@ void release_radix_ciphertext_async(cudaStream_t const stream,
   free(data->noise_levels);
 }
 
+void release_cpu_radix_ciphertext_async(CudaRadixCiphertextFFI *data) {
+  free(data->degrees);
+  free(data->noise_levels);
+}
 void reset_radix_ciphertext_blocks(CudaRadixCiphertextFFI *data,
                                    uint32_t new_num_blocks) {
   if (new_num_blocks > data->max_num_radix_blocks)
