@@ -80,6 +80,7 @@ impl HpuHw {
         {
             let _node_id = node_id;
             let _mode = mode;
+            let _force_reload = force_reload;
         }
     }
 

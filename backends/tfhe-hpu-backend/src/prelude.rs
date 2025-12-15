@@ -11,7 +11,7 @@ pub use hw_regmap as hpu_regmap;
 /// Load Hw-interface stuff
 pub use super::interface::{
     page_align, BoardConfig, FFIMode, HpuCmd, HpuConfig, HpuDevice, HpuError, HpuImm,
-    HpuVarWrapped, QueueConfig, ShellString, ACKQ_EMPTY,
+    HpuVarWrapped, QueueConfig, ShellString, UcoreConfig, ACKQ_EMPTY, FW_RUNTIME_MAX_WORD,
 };
 
 #[cfg(feature = "utils")]

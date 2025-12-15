@@ -121,7 +121,7 @@ zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
 hpu-v80 = ["hpu", "tfhe-hpu-backend/hw-v80"]
-hpu-debug = ["hpu", "tfhe-hpu-backend/io-dump"]
+hpu-debug = ["hpu", "tfhe-hpu-backend/io-dump", "tfhe-hpu-backend/utils"]
 # End Fpga Hpu features
 
 # Adds more FheUint/FheInt types to the HL

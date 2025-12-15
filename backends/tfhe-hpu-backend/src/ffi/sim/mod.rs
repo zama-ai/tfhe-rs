@@ -5,7 +5,7 @@
 use super::{MemAlloc, MemChunk};
 use crate::ffi::{self, MemZoneProperties};
 use crate::prelude::QueueConfig;
-use ra2m::ra2m_cpn::ffi::ipc::prelude::*;
+use ra2m_ffi::ipc::prelude::*;
 use std::sync::{Arc, Mutex};
 
 pub struct HpuHw {
@@ -82,7 +82,7 @@ impl HpuHw {
         let wr_ack = ipc
             .b_req_ack(IpcReq::Write {
                 addr: addr,
-                data: IpcSharedMemory::from_bytes(bytes),
+                data: ipc_channel::ipc::IpcSharedMemory::from_bytes(bytes),
             })
             .expect("Error with IpcMaster Read request");
 
@@ -134,7 +134,7 @@ impl HpuHw {
         let wr_ack = ipc
             .b_req_ack(IpcReq::Write {
                 addr,
-                data: IpcSharedMemory::from_bytes(&value.to_ne_bytes()),
+                data: ipc_channel::ipc::IpcSharedMemory::from_bytes(&value.to_ne_bytes()),
             })
             .expect("Error with IpcMaster Read request");
 
@@ -290,7 +290,7 @@ impl MemZone {
         let wr_ack = ipc
             .b_req_ack(IpcReq::Write {
                 addr: (ofst + self.addr as usize) as u64,
-                data: IpcSharedMemory::from_bytes(bytes),
+                data: ipc_channel::ipc::IpcSharedMemory::from_bytes(bytes),
             })
             .expect("Error with IpcMaster Read request");
 

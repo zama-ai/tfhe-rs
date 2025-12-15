@@ -22,7 +22,7 @@ pub enum HexParsingError {
 // Vectorized ciphertext operands
 // ------------------------------------------------------------------------------------------------
 /// Type of the operands
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OperandKind {
     Src = 0x0,
     Dst = 0x1,
@@ -32,7 +32,7 @@ pub enum OperandKind {
 
 /// VectorSize
 /// => Number of operands defined in the operands block
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VectorSize(pub u8);
 impl VectorSize {
     /// Create vector size with the correct encoding
@@ -49,7 +49,9 @@ impl VectorSize {
 
 /// OperandSize
 /// => Number of valid digit in each operand block
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct OperandBlock(pub u8);
 impl OperandBlock {
     /// Create vector size with the correct encoding
@@ -65,7 +67,7 @@ impl OperandBlock {
 }
 
 /// Ciphertext vectorized operands with extra parsing flags
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OperandProperties {
     pub block: OperandBlock,
     pub vec_size: VectorSize,
@@ -75,13 +77,13 @@ pub struct OperandProperties {
     pub kind: OperandKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OperandAddr {
     pub base_cid: CtId,
 }
 
 /// Ciphertext vectorized operands with extra parsing flags
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Operand {
     pub props: OperandProperties,
     pub addr: OperandAddr,
@@ -113,7 +115,7 @@ impl Operand {
 
 /// Create a dedicated type for a collection of Immediat
 /// This is to enable trait implementation on it (c.f arg)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OperandBundle(Vec<Operand>);
 
 impl OperandBundle {
@@ -189,7 +191,7 @@ impl OperandBundle {
 /// Immediate Size
 /// => Number of valid digit in following immediate
 /// To obtain the number of valid bits, user should multiply by the msg_width
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImmBlock(pub u16);
 
 /// Immediate header
@@ -203,7 +205,7 @@ pub struct ImmediateHeader {
 }
 
 /// Full Immediate representation (i.e. header + data)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Immediate {
     pub(super) kind: OperandKind,
     pub(super) is_last: bool,
@@ -348,7 +350,7 @@ impl Immediate {
 
 /// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImmBundle(Vec<Immediate>);
 
 impl ImmBundle {
@@ -407,14 +409,14 @@ impl std::ops::Deref for ImmBundle {
 pub struct IOpcode(pub u8);
 
 /// Type of the operands
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FwMode {
     Static = 0x0,
     Dynamic = 0x1,
 }
 
 /// IOpHeader
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IOpHeader {
     pub(super) src_align: OperandBlock,
     pub(super) dst_align: OperandBlock,
@@ -427,7 +429,7 @@ pub struct IOpHeader {
 /// It contain an vector of physical Id
 /// I.e. if vec length = x, it mean that mapping used x virtual id.
 /// Each slot contains the physical associated Id
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IOpMapping(Vec<PhysId>);
 
 impl IOpMapping {
@@ -480,7 +482,7 @@ impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
 }
 
 /// Gather all subparts together
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IOp {
     pub(super) header: IOpHeader,
     pub(super) map: IOpMapping,
@@ -557,7 +559,7 @@ impl IOp {
         let virt_id = self
             .map
             .virt_id(PhysId(hpu_id))
-            .unwrap_or_else(|| panic!("Error: {hpu_id} is not part of iop mapping {self}"));
+            .unwrap_or_else(|| panic!("Error: {hpu_id} is not part of iop mapping {:?}", self.map));
 
         // Fw lookup is composed of an entry for each fw_blk_with.
         // Each entries is composed of IOpWidth entries, itself composed of MAX_HPU_IN_CLUSTER slot

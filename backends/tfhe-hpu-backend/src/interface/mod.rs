@@ -24,6 +24,7 @@ pub const IOP_NUMBER: usize = 256;
 pub use config::{BoardConfig, FFIMode, HpuConfig, QueueConfig, ShellString};
 pub use device::HpuDevice;
 pub use memory::page_align;
+pub use node::UcoreConfig;
 pub use variable::HpuVarWrapped;
 
 use crate::prelude::HpuParameters;

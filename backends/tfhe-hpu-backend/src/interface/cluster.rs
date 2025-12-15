@@ -188,6 +188,29 @@ impl HpuCluster {
         IOpMapping::from((hpu_ord, &proto.used_nodes))
     }
 
+    // /// Compute Hpu mapping for multi-hpu without inter-communication
+    // /// WARN: Temporary solution to enhance throughput of IOp
+    // pub(crate) fn compute_cmd_map(
+    //     &self,
+    //     _hpu_id: &[u8],
+    //     proto: &IOpProto,
+    //     var_pos: &[usize; MAX_HPU_IN_CLUSTER],
+    // ) -> IOpMapping {
+    //     let hpu_ord = var_pos
+    //         .iter()
+    //         .enumerate()
+    //         .filter(|(_id, x)| **x != 0)
+    //         .map(|(id, _val)| id as u8)
+    //         .collect::<Vec<_>>();
+
+    //     assert_eq!(
+    //         1,
+    //         hpu_ord.len(),
+    //         "Current MultiHpu implemenation required Src/Dst on same Node"
+    //     );
+    //     IOpMapping::from((hpu_ord, &proto.used_nodes))
+    // }
+
     /// Workload getter
     pub(crate) fn workload(&self) -> &[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER] {
         &self.workload

@@ -6,6 +6,7 @@ use crate::entities::*;
 use crate::fw::isc_sim::PeConfigStore;
 use crate::fw::{Fw, FwParameters};
 use crate::{asm, ffi};
+use bytemuck::{Pod, Zeroable};
 use rtl::FromRtl;
 
 use itertools::Itertools;
@@ -26,17 +27,20 @@ use rayon::prelude::*;
 /// This structure is used to configure the ucore fw with custom runtime information
 /// It rely on C-struct layout to keep compatibilities with arm cortex-R SW
 /// NB: This structure is shared at the beginning of Fw memory with 64w of u32 reserved
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
-struct UcoreConfig {
-    node_id: u8,
+pub struct UcoreConfig {
+    pub node_id: u8,
     _padding: [u8; 3],
     // NB: modification in this file must match the one in amc.c
     _reserved_word: [u32; 63],
 }
+// SAFETY: UcoreConfig is repr(C) with only Zeroable/Pod types
+unsafe impl Zeroable for UcoreConfig {}
+unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    fn new(node_id: u8) -> Self {
+    pub fn new(node_id: u8) -> Self {
         Self {
             node_id,
             _padding: [0; 3],
@@ -715,13 +719,9 @@ impl HpuNode {
         // Write runtime configuration
         // FW cut is view as u32 array, cost UcoreConfig accordingly
         let fw_cfg = UcoreConfig::new(self.hid);
-        let fw_cfg_raw = unsafe {
-            std::slice::from_raw_parts(
-                (&fw_cfg as *const UcoreConfig) as *const u32,
-                std::mem::size_of::<UcoreConfig>().div_ceil(std::mem::size_of::<u32>()),
-            )
-        };
-        self.fw_mem.write_cut_at(0, 0, fw_cfg_raw);
+        let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
+        let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
+        self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
 
         // Create Asm architecture properties and Fw instantiation
         let pe_cfg = PeConfigStore::from((&*self.params, config));

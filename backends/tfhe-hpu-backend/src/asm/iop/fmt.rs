@@ -222,16 +222,29 @@ pub struct IOpMappingHex {
 impl From<&IOpMappingHex> for field::IOpMapping {
     fn from(value: &IOpMappingHex) -> Self {
         let raw_value = u32::from(*value);
-        let map = (0..MAX_HPU_IN_CLUSTER)
+        let mut vid_pid_map = (0..MAX_HPU_IN_CLUSTER)
             .filter_map(|i| {
                 let raw_pos = (raw_value >> (4 * i)) & 0xf;
                 if (raw_pos & 0x1) == 0x1 {
-                    Some(((raw_pos & 0xe) >> 1) as u8)
+                    Some((((raw_pos & 0xe) >> 1), i as u8))
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>();
+
+        // Sort map by virtual_id
+        vid_pid_map.sort_by_key(|x| x.0);
+
+        // Extract ordered list and check for hole in the mapping
+        let map = {
+            let min = vid_pid_map.iter().map(|x| x.0).min().unwrap_or(0);
+            let max = vid_pid_map.iter().map(|x| x.0).max().unwrap_or(0);
+            if (vid_pid_map.len() != (max + 1) as usize) || (min != 0) {
+                panic!("Invalid mapping: contain hole or duplicate values");
+            }
+            vid_pid_map.iter().map(|x| x.1).collect::<Vec<_>>()
+        };
         Self::from(map)
     }
 }
