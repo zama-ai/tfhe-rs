@@ -656,18 +656,6 @@ async function compactPublicKeyZeroKnowledgeBench() {
         ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
       ),
     },
-    {
-      zk_scheme: "ZKV1",
-      name: shortint_params_name(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-      ),
-      block_params: new ShortintParameters(
-        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-      ),
-      casting_params: new ShortintCompactPublicKeyEncryptionParameters(
-        ShortintCompactPublicKeyEncryptionParametersName.V1_5_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-      ),
-    },
   ];
 
   let bench_results = {};
@@ -696,7 +684,8 @@ async function compactPublicKeyZeroKnowledgeBench() {
     let proof_configs = [
       { crs_bit_size: 64, bits_to_encrypt: [64] },
       { crs_bit_size: 640, bits_to_encrypt: [640] },
-      { crs_bit_size: 2048, bits_to_encrypt: [2048, 64 * 4] }, // 64 * 4 is a production use-case
+      // 64 * 4 and 64 * 10 are production use-cases
+      { crs_bit_size: 2048, bits_to_encrypt: [4 * 64, 10 * 64, 2048] },
       { crs_bit_size: 4096, bits_to_encrypt: [4096] },
     ];
 
