@@ -660,6 +660,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
 
   check_cuda_error(cudaGetLastError());
 
+  buffer->pbs_variant = TBC;
+
   switch (buffer->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if (CUDA_ARCH >= 900)
