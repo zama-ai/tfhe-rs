@@ -34,7 +34,7 @@ impl ProofConfig {
 fn default_proof_config() -> Vec<ProofConfig> {
     vec![
         ProofConfig::new(64usize, &[64usize]),
-        ProofConfig::new(2048, &[4 * 64, 10 * 64, 2048]),
+        ProofConfig::new(2048, &[64, 4 * 64, 2048]),
         ProofConfig::new(4096, &[4096]),
     ]
 }

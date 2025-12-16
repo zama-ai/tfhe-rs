@@ -683,9 +683,8 @@ async function compactPublicKeyZeroKnowledgeBench() {
     // Proof configuration:
     let proof_configs = [
       { crs_bit_size: 64, bits_to_encrypt: [64] },
-      { crs_bit_size: 640, bits_to_encrypt: [640] },
       // 64 * 4 and 64 * 10 are production use-cases
-      { crs_bit_size: 2048, bits_to_encrypt: [4 * 64, 10 * 64, 2048] },
+      { crs_bit_size: 2048, bits_to_encrypt: [64, 4 * 64, 2048] },
       { crs_bit_size: 4096, bits_to_encrypt: [4096] },
     ];
 
