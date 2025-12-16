@@ -5,7 +5,7 @@
 
 std::mutex m;
 bool p2p_enabled = false;
-const int THRESHOLD_MULTI_GPU = 12;
+const int THRESHOLD_MULTI_GPU = 68;
 
 // Enable bidirectional p2p access between all available GPUs and device_0_id
 int32_t cuda_setup_multi_gpu(int device_0_id) {
