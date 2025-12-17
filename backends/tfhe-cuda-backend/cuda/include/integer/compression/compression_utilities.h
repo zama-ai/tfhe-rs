@@ -116,7 +116,8 @@ template <typename Torus> struct int_decompression {
           effective_compression_carry_modulus,
           encryption_params.message_modulus, encryption_params.carry_modulus,
           decompression_rescale_f, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(num_blocks_to_decompress);
+      auto active_streams = streams.active_gpu_subset(
+          num_blocks_to_decompress, decompression_rescale_lut->params.pbs_type);
       decompression_rescale_lut->broadcast_lut(active_streams);
     }
   }

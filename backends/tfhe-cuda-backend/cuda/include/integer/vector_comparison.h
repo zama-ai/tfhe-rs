@@ -38,7 +38,8 @@ template <typename Torus> struct int_unchecked_all_eq_slices_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     uint32_t num_gpus = active_streams.count();
 

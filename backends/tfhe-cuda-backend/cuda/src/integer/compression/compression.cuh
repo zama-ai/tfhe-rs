@@ -339,7 +339,9 @@ host_integer_decompress(CudaStreams streams,
     /// dimension to a big LWE dimension
     auto encryption_params = h_mem_ptr->encryption_params;
     auto lut = h_mem_ptr->decompression_rescale_lut;
-    auto active_streams = streams.active_gpu_subset(num_blocks_to_decompress);
+    auto active_streams = streams.active_gpu_subset(
+        num_blocks_to_decompress,
+        h_mem_ptr->decompression_rescale_lut->params.pbs_type);
     if (active_streams.count() == 1) {
       execute_pbs_async<Torus, Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,

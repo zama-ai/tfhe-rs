@@ -8,7 +8,8 @@
 
 extern std::mutex m;
 extern bool p2p_enabled;
-extern const int THRESHOLD_MULTI_GPU;
+extern const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS;
+extern const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
 
 extern "C" {
 int32_t cuda_setup_multi_gpu(int device_0_id);
@@ -39,7 +40,8 @@ get_variant_element(const std::variant<std::vector<Torus>, Torus> &variant,
   }
 }
 
-uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count);
+uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count,
+                              PBS_TYPE pbs_type);
 
 int get_num_inputs_on_gpu(int total_num_inputs, int gpu_index, int gpu_count);
 
@@ -73,9 +75,10 @@ public:
 
   // Returns a subset of this set as an active subset. An active subset is one
   // that is temporarily used to perform some computation
-  CudaStreams active_gpu_subset(int num_radix_blocks) {
-    return CudaStreams(_streams, _gpu_indexes,
-                       get_active_gpu_count(num_radix_blocks, _gpu_count));
+  CudaStreams active_gpu_subset(int num_radix_blocks, PBS_TYPE pbs_type) {
+    return CudaStreams(
+        _streams, _gpu_indexes,
+        get_active_gpu_count(num_radix_blocks, _gpu_count, pbs_type));
   }
 
   // Returns a CudaStreams struct containing only the ith stream

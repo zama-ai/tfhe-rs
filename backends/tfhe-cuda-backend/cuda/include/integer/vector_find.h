@@ -40,7 +40,8 @@ template <typename Torus> struct int_equality_selectors_buffer {
 
     this->num_streams = num_streams_to_use;
 
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -154,7 +155,8 @@ template <typename Torus> struct int_possible_results_buffer {
 
     this->num_streams = num_streams_to_use;
 
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -207,7 +209,8 @@ template <typename Torus> struct int_possible_results_buffer {
             params.message_modulus, params.carry_modulus, fns,
             allocate_gpu_memory);
 
-        current_lut->broadcast_lut(streams.active_gpu_subset(1));
+        current_lut->broadcast_lut(
+            streams.active_gpu_subset(1, params.pbs_type));
         stream_luts[lut_count++] = current_lut;
         lut_value_start += luts_in_this_call;
       }
@@ -282,7 +285,8 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
 
     this->num_streams = num_streams_to_use;
 
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams);
@@ -300,7 +304,8 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           id_fn, allocate_gpu_memory);
 
-      lut->broadcast_lut(streams.active_gpu_subset(num_blocks));
+      lut->broadcast_lut(
+          streams.active_gpu_subset(num_blocks, params.pbs_type));
       this->stream_identity_luts[i] = lut;
     }
 
@@ -321,7 +326,7 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         msg_fn, allocate_gpu_memory);
     this->message_extract_lut->broadcast_lut(
-        streams.active_gpu_subset(num_blocks));
+        streams.active_gpu_subset(num_blocks, params.pbs_type));
 
     this->carry_extract_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
@@ -333,7 +338,7 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         carry_fn, allocate_gpu_memory);
     this->carry_extract_lut->broadcast_lut(
-        streams.active_gpu_subset(num_blocks));
+        streams.active_gpu_subset(num_blocks, params.pbs_type));
 
     this->partial_aggregated_vectors =
         new CudaRadixCiphertextFFI *[num_streams];
@@ -628,7 +633,8 @@ template <typename Torus> struct int_unchecked_contains_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -703,7 +709,8 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -1094,7 +1101,8 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -1184,7 +1192,8 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
         this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         prefix_sum_fn, allocate_gpu_memory);
-    this->prefix_sum_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+    this->prefix_sum_lut->broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type));
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
       Torus val = x % params.message_modulus;
@@ -1200,7 +1209,8 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
         this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         cleanup_fn, allocate_gpu_memory);
-    this->cleanup_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+    this->cleanup_lut->broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type));
   }
 
   void release(CudaStreams streams) {
@@ -1292,7 +1302,8 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -1372,7 +1383,8 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
         this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         prefix_sum_fn, allocate_gpu_memory);
-    this->prefix_sum_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+    this->prefix_sum_lut->broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type));
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
       Torus val = x % params.message_modulus;
@@ -1388,7 +1400,8 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
         this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         cleanup_fn, allocate_gpu_memory);
-    this->cleanup_lut->broadcast_lut(streams.active_gpu_subset(num_inputs));
+    this->cleanup_lut->broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type));
   }
 
   void release(CudaStreams streams) {
@@ -1462,7 +1475,8 @@ template <typename Torus> struct int_unchecked_index_of_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);
@@ -1523,7 +1537,8 @@ template <typename Torus> struct int_unchecked_index_of_clear_buffer {
       num_streams_to_use = 1;
 
     this->num_streams = num_streams_to_use;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
 
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_streams_to_use);

@@ -45,7 +45,8 @@ host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
     cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
                                  num_clear_blocks * sizeof(Torus),
                                  streams.stream(0), streams.gpu_index(0));
-    auto active_streams = streams.active_gpu_subset(num_clear_blocks);
+    auto active_streams = streams.active_gpu_subset(
+        num_clear_blocks, mem_ptr->lut->params.pbs_type);
     lut->broadcast_lut(active_streams, false);
 
     integer_radix_apply_univariate_lookup_table<Torus>(

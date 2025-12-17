@@ -5,7 +5,8 @@
 
 std::mutex m;
 bool p2p_enabled = false;
-const int THRESHOLD_MULTI_GPU = 12;
+const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS = 12;
+const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS = 68;
 
 // Enable bidirectional p2p access between all available GPUs and device_0_id
 int32_t cuda_setup_multi_gpu(int device_0_id) {
@@ -39,10 +40,13 @@ int32_t cuda_setup_multi_gpu(int device_0_id) {
   return (int32_t)(num_used_gpus);
 }
 
-uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count) {
+uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count,
+                              PBS_TYPE pbs_type) {
+  int threshold = (pbs_type == MULTI_BIT)
+                      ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
+                      : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
   uint32_t ceil_div_inputs =
-      std::max((uint32_t)1,
-               (num_inputs + THRESHOLD_MULTI_GPU - 1) / THRESHOLD_MULTI_GPU);
+      std::max((uint32_t)1, (num_inputs + threshold - 1) / threshold);
   uint32_t active_gpu_count = std::min(ceil_div_inputs, gpu_count);
   return active_gpu_count;
 }

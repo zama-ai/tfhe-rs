@@ -153,7 +153,8 @@ __host__ void are_all_comparisons_block_true(
         cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                  h_lut_indexes, num_chunks * sizeof(Torus),
                                  streams.stream(0), streams.gpu_index(0));
-        auto active_streams = streams.active_gpu_subset(num_chunks);
+        auto active_streams =
+            streams.active_gpu_subset(num_chunks, params.pbs_type);
         is_max_value_lut->broadcast_lut(active_streams);
       }
       lut = is_max_value_lut;
@@ -172,8 +173,8 @@ __host__ void are_all_comparisons_block_true(
                                is_max_value_lut->h_lut_indexes,
                                is_max_value_lut->num_blocks * sizeof(Torus),
                                streams.stream(0), streams.gpu_index(0));
-      auto active_gpu_count_is_max =
-          streams.active_gpu_subset(is_max_value_lut->num_blocks);
+      auto active_gpu_count_is_max = streams.active_gpu_subset(
+          is_max_value_lut->num_blocks, params.pbs_type);
       is_max_value_lut->broadcast_lut(active_gpu_count_is_max, false);
 
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
@@ -488,7 +489,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
       polynomial_size, message_modulus, carry_modulus, f, true,
       tree_buffer->preallocated_h_lut);
 
-  auto active_streams = streams.active_gpu_subset(1);
+  auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
   last_lut->broadcast_lut(active_streams);
 
   // Last leaf

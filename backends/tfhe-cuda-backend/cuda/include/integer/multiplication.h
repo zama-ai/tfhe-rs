@@ -45,7 +45,8 @@ template <typename Torus> struct int_mul_memory {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           zero_out_predicate_lut_f, gpu_memory_allocated);
 
-      auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       zero_out_predicate_lut->broadcast_lut(active_streams);
 
       zero_out_mem = new int_zero_out_if_buffer<Torus>(
@@ -122,7 +123,8 @@ template <typename Torus> struct int_mul_memory {
           streams.stream(0), streams.gpu_index(0),
           luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
           msb_vector_block_count);
-    auto active_streams = streams.active_gpu_subset(total_block_count);
+    auto active_streams =
+        streams.active_gpu_subset(total_block_count, params.pbs_type);
     luts_array->broadcast_lut(active_streams);
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(

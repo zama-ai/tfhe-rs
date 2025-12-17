@@ -108,7 +108,8 @@ template <typename Torus> struct int_overflowing_sub_memory {
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_message_acc, gpu_memory_allocated);
 
-    auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     luts_array->broadcast_lut(active_streams);
     luts_borrow_propagation_sum->broadcast_lut(active_streams);
     message_acc->broadcast_lut(active_streams);

@@ -14,7 +14,8 @@ template <typename Torus> struct int_zero_out_if_buffer {
                          uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
-    auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
     tmp = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -114,9 +115,11 @@ template <typename Torus> struct int_cmux_buffer {
         predicate_lut->get_lut_indexes(0, 0), h_lut_indexes,
         2 * num_radix_blocks * sizeof(Torus), streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
-    auto active_streams_pred = streams.active_gpu_subset(2 * num_radix_blocks);
+    auto active_streams_pred =
+        streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
     predicate_lut->broadcast_lut(active_streams_pred);
-    auto active_streams_msg = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams_msg =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     message_extract_lut->broadcast_lut(active_streams_msg);
   }
 

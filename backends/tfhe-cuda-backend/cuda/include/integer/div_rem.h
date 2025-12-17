@@ -356,7 +356,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           luts[j]->get_degree(0), luts[j]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(num_blocks);
+      auto active_streams =
+          streams.active_gpu_subset(num_blocks, params.pbs_type);
       luts[j]->broadcast_lut(active_streams);
     }
   }
@@ -1012,7 +1013,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           masking_luts_1[i]->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           lut_f_masking, gpu_memory_allocated);
-      auto active_streams_1 = streams.active_gpu_subset(1);
+      auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
       masking_luts_1[i]->broadcast_lut(active_streams_1);
 
       generate_device_accumulator<Torus>(
@@ -1021,7 +1022,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           masking_luts_2[i]->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           lut_f_masking, gpu_memory_allocated);
-      auto active_streams_2 = streams.active_gpu_subset(num_blocks);
+      auto active_streams_2 =
+          streams.active_gpu_subset(num_blocks, params.pbs_type);
       masking_luts_2[i]->broadcast_lut(active_streams_2);
     }
 
@@ -1040,7 +1042,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
                                      message_extract_lut_2};
-    auto active_streams = streams.active_gpu_subset(num_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
       generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0), luts[j]->get_lut(0, 0),
@@ -1128,7 +1131,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     // merge_overflow_flags_luts
     merge_overflow_flags_luts = new int_radix_lut<Torus> *[num_bits_in_message];
-    auto active_gpu_count_for_bits = streams.active_gpu_subset(1);
+    auto active_gpu_count_for_bits =
+        streams.active_gpu_subset(1, params.pbs_type);
     for (int i = 0; i < num_bits_in_message; i++) {
       auto lut_f_bit = [i](Torus x, Torus y) -> Torus {
         return (x == 0 && y == 0) << i;
@@ -1152,7 +1156,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                               uint32_t num_blocks, bool allocate_gpu_memory,
                               uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
-    auto active_streams = streams.active_gpu_subset(2 * num_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(2 * num_blocks, params.pbs_type);
     this->params = params;
 
     if (params.message_modulus == 4 && params.carry_modulus == 4 &&
@@ -1473,7 +1478,8 @@ template <typename Torus> struct int_div_rem_memory {
                      bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
-    this->active_streams = streams.active_gpu_subset(num_blocks);
+    this->active_streams =
+        streams.active_gpu_subset(num_blocks, params.pbs_type);
     this->params = params;
     this->is_signed = is_signed;
 
@@ -1559,7 +1565,7 @@ template <typename Torus> struct int_div_rem_memory {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           f_compare_extracted_signed_bits, gpu_memory_allocated);
       auto active_gpu_count_cmp =
-          streams.active_gpu_subset(1); // only 1 block needed
+          streams.active_gpu_subset(1, params.pbs_type); // only 1 block needed
       compare_signed_bits_lut->broadcast_lut(active_gpu_count_cmp);
     }
   }
