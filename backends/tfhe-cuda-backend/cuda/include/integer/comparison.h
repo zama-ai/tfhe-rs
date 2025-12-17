@@ -52,7 +52,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_max_value_f, gpu_memory_allocated);
 
-    auto active_streams = streams.active_gpu_subset(max_chunks);
+    auto active_streams =
+        streams.active_gpu_subset(max_chunks, params.pbs_type);
     is_max_value->broadcast_lut(active_streams);
   }
 
@@ -108,7 +109,8 @@ template <typename Torus> struct int_comparison_eq_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_non_zero_lut_f, gpu_memory_allocated);
 
-    auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     is_non_zero_lut->broadcast_lut(active_streams);
 
     // Scalar may have up to num_radix_blocks blocks
@@ -238,7 +240,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         tree_inner_leaf_lut->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         block_selector_f, gpu_memory_allocated);
-    auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     tree_inner_leaf_lut->broadcast_lut(active_streams);
   }
 
@@ -390,7 +393,8 @@ template <typename Torus> struct int_comparison_buffer {
     this->op = op;
     this->is_signed = is_signed;
 
-    auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
@@ -523,7 +527,7 @@ template <typename Torus> struct int_comparison_buffer {
           signed_lut->get_degree(0), signed_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, signed_lut_f, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(1);
+      auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
       signed_lut->broadcast_lut(active_streams);
     }
     preallocated_h_lut = (Torus *)malloc(

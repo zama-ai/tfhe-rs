@@ -542,7 +542,8 @@ __host__ void integer_radix_apply_univariate_lookup_table(
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
@@ -645,7 +646,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
@@ -764,7 +766,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
@@ -1812,7 +1815,8 @@ uint64_t scratch_cuda_apply_univariate_lut(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   (*mem_ptr)->broadcast_lut(active_streams);
   POP_RANGE()
   return size_tracker;
@@ -1847,7 +1851,8 @@ uint64_t scratch_cuda_apply_many_univariate_lut(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   (*mem_ptr)->broadcast_lut(active_streams);
   POP_RANGE()
   return size_tracker;
@@ -1883,7 +1888,8 @@ uint64_t scratch_cuda_apply_bivariate_lut(
       (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
-  auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+  auto active_streams =
+      streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
   (*mem_ptr)->broadcast_lut(active_streams);
   POP_RANGE()
   return size_tracker;
@@ -2336,8 +2342,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
 
   // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
   // from the output ct
-  auto active_streams =
-      streams.active_gpu_subset(lwe_array_out->num_radix_blocks);
+  auto active_streams = streams.active_gpu_subset(
+      lwe_array_out->num_radix_blocks, params.pbs_type);
   if (active_streams.count() == 1) {
     execute_keyswitch_async<InputTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],

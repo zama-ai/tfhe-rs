@@ -29,7 +29,8 @@ void host_integer_grouped_oprf(CudaStreams streams,
                                int_grouped_oprf_memory<Torus> *mem_ptr,
                                void *const *bsks) {
 
-  auto active_streams = streams.active_gpu_subset(num_blocks_to_process);
+  auto active_streams = streams.active_gpu_subset(num_blocks_to_process,
+                                                  mem_ptr->params.pbs_type);
   auto lut = mem_ptr->luts;
 
   if (active_streams.count() == 1) {

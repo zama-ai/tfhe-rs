@@ -35,7 +35,8 @@ template <typename Torus> struct int_aes_lut_buffers {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, and_lambda, allocate_gpu_memory);
     auto active_streams_and_lut = streams.active_gpu_subset(
-        SBOX_MAX_AND_GATES * num_aes_inputs * sbox_parallelism);
+        SBOX_MAX_AND_GATES * num_aes_inputs * sbox_parallelism,
+        params.pbs_type);
     this->and_lut->broadcast_lut(active_streams_and_lut);
     this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
@@ -50,8 +51,8 @@ template <typename Torus> struct int_aes_lut_buffers {
         this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, flush_lambda, allocate_gpu_memory);
-    auto active_streams_flush_lut =
-        streams.active_gpu_subset(AES_STATE_BITS * num_aes_inputs);
+    auto active_streams_flush_lut = streams.active_gpu_subset(
+        AES_STATE_BITS * num_aes_inputs, params.pbs_type);
     this->flush_lut->broadcast_lut(active_streams_flush_lut);
     this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
@@ -65,7 +66,8 @@ template <typename Torus> struct int_aes_lut_buffers {
         this->carry_lut->get_degree(0), this->carry_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, carry_lambda, allocate_gpu_memory);
-    auto active_streams_carry_lut = streams.active_gpu_subset(num_aes_inputs);
+    auto active_streams_carry_lut =
+        streams.active_gpu_subset(num_aes_inputs, params.pbs_type);
     this->carry_lut->broadcast_lut(active_streams_carry_lut);
     this->carry_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }

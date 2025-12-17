@@ -59,15 +59,20 @@ template <typename Torus>
 void multi_gpu_alloc_lwe_async(CudaStreams streams, std::vector<Torus *> &dest,
                                uint32_t num_inputs, uint32_t lwe_size,
                                uint64_t &size_tracker_on_gpu_0,
-                               bool allocate_gpu_memory) {
+                               PBS_TYPE pbs_type, bool allocate_gpu_memory) {
   PANIC_IF_FALSE(dest.empty(),
                  "Cuda error: Requested multi-GPU vector is already allocated");
+
+  int threshold = (pbs_type == MULTI_BIT)
+                      ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
+                      : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+
   dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker_on_gpu_i = 0;
     auto inputs_on_gpu = std::min(
         (int)num_inputs,
-        std::max(THRESHOLD_MULTI_GPU,
+        std::max((int)threshold,
                  get_num_inputs_on_gpu(num_inputs, i, streams.count())));
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         inputs_on_gpu * lwe_size * sizeof(Torus), streams.stream(i),
@@ -81,7 +86,7 @@ void multi_gpu_alloc_lwe_async(CudaStreams streams, std::vector<Torus *> &dest,
 
 template void multi_gpu_alloc_lwe_async<__uint128_t>(
     CudaStreams streams, std::vector<__uint128_t *> &dest, uint32_t num_inputs,
-    uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0,
+    uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0, PBS_TYPE pbs_type,
     bool allocate_gpu_memory);
 
 /// Allocates the input/output vector for all devices
@@ -91,16 +96,21 @@ template <typename Torus>
 void multi_gpu_alloc_lwe_many_lut_output_async(
     CudaStreams streams, std::vector<Torus *> &dest, uint32_t num_inputs,
     uint32_t num_many_lut, uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0,
-    bool allocate_gpu_memory) {
+    PBS_TYPE pbs_type, bool allocate_gpu_memory) {
 
   PANIC_IF_FALSE(dest.empty(),
                  "Cuda error: Requested multi-GPU vector is already allocated");
+
+  int threshold = (pbs_type == MULTI_BIT)
+                      ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
+                      : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+
   dest.resize(streams.count());
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker = 0;
     auto inputs_on_gpu = std::min(
         (int)num_inputs,
-        std::max(THRESHOLD_MULTI_GPU,
+        std::max((int)threshold,
                  get_num_inputs_on_gpu(num_inputs, i, streams.count())));
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         num_many_lut * inputs_on_gpu * lwe_size * sizeof(Torus),

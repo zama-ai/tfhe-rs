@@ -39,7 +39,8 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
           },
           allocate_gpu_memory);
 
-      auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       lut->broadcast_lut(active_streams);
 
       this->last_block = new CudaRadixCiphertextFFI;

@@ -388,7 +388,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     current_columns.next_accumulation(total_ciphertexts, total_messages,
                                       needs_processing);
 
-    auto active_streams = streams.active_gpu_subset(total_ciphertexts);
+    auto active_streams =
+        streams.active_gpu_subset(total_ciphertexts, mem_ptr->params.pbs_type);
     GPU_ASSERT(total_ciphertexts <= mem_ptr->luts_message_carry->num_blocks,
                "SUM CT");
 
@@ -442,7 +443,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
         streams.stream(0), streams.gpu_index(0), current_blocks,
         num_radix_blocks, num_radix_blocks + 1);
 
-    auto active_streams = streams.active_gpu_subset(2 * num_radix_blocks);
+    auto active_streams = streams.active_gpu_subset(2 * num_radix_blocks,
+                                                    mem_ptr->params.pbs_type);
 
     if (active_streams.count() == 1) {
       execute_keyswitch_async<Torus>(

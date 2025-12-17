@@ -289,7 +289,8 @@ template <typename Torus> struct zk_expand_mem {
         lut_indexes, h_lut_indexes, num_packed_msgs * num_lwes * sizeof(Torus),
         streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
 
-    auto active_streams = streams.active_gpu_subset(2 * num_lwes);
+    auto active_streams =
+        streams.active_gpu_subset(2 * num_lwes, params.pbs_type);
     message_and_carry_extract_luts->broadcast_lut(active_streams);
 
     message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(

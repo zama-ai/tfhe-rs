@@ -91,7 +91,8 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
           cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           shift_lut_f, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       cur_lut_bivariate->broadcast_lut(active_streams);
 
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
@@ -177,7 +178,8 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
           cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           shift_lut_f, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(num_radix_blocks);
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       cur_lut_bivariate->broadcast_lut(active_streams);
 
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
@@ -220,7 +222,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
                                      uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
 
-    auto active_streams = streams.active_gpu_subset(1);
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
     // In the arithmetic shift, a PBS has to be applied to the last rotated
     // block twice: once to shift it, once to compute the padding block to be
     // copied onto all blocks to the left of the last rotated block
@@ -276,7 +278,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
           shift_last_block_lut_univariate->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, last_block_lut_f, gpu_memory_allocated);
-      auto active_streams_shift_last = streams.active_gpu_subset(1);
+      auto active_streams_shift_last =
+          streams.active_gpu_subset(1, params.pbs_type);
       shift_last_block_lut_univariate->broadcast_lut(active_streams_shift_last);
 
       lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
@@ -302,7 +305,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         padding_block_lut_univariate->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         padding_block_lut_f, gpu_memory_allocated);
-    // auto active_streams = streams.active_gpu_subset(1);
+    // auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
     padding_block_lut_univariate->broadcast_lut(active_streams);
 
     lut_buffers_univariate.push_back(padding_block_lut_univariate);
@@ -344,7 +347,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           blocks_lut_f, gpu_memory_allocated);
       auto active_streams_shift_blocks =
-          streams.active_gpu_subset(num_radix_blocks);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       shift_blocks_lut_bivariate->broadcast_lut(active_streams_shift_blocks);
 
       lut_buffers_bivariate.push_back(shift_blocks_lut_bivariate);

@@ -119,8 +119,8 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         mux_lut->get_degree(0), mux_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, mux_lut_f, gpu_memory_allocated);
-    auto active_gpu_count_mux =
-        streams.active_gpu_subset(bits_per_block * num_radix_blocks);
+    auto active_gpu_count_mux = streams.active_gpu_subset(
+        bits_per_block * num_radix_blocks, params.pbs_type);
     mux_lut->broadcast_lut(active_gpu_count_mux);
 
     auto cleaning_lut_f = [params](Torus x) -> Torus {
@@ -132,7 +132,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cleaning_lut_f, gpu_memory_allocated);
     auto active_gpu_count_cleaning =
-        streams.active_gpu_subset(num_radix_blocks);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     cleaning_lut->broadcast_lut(active_gpu_count_cleaning);
   }
 
