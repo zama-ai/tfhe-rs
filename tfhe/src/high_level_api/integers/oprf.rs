@@ -160,7 +160,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// This function guarantees the the norm-1 distance
     /// (defined as ∆(P,Q) := 1/2 Sum[ω∈Ω] |P(ω) − Q(ω)|)
     /// between the actual distribution and the target uniform distribution
-    /// will be below the `max_distance` argument.
+    /// will be below the `max_distance` argument (which must be in ]0, 1[).
     /// The higher the distance, the more dissimilar the actual distribution is
     /// from the target uniform distribution.
     ///
