@@ -17,7 +17,7 @@ jobs:
       issues: read # Needed to fetch all issues
       pull-requests: write # Needed to write message and close the PR
     steps:
-      - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
+      - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10.1.1
         with:
           stale-pr-message: 'This PR is unverified and has been open for 2 days, it will now be closed. If you want to contribute please sign the CLA as indicated by the bot.'
           days-before-stale: 2
