@@ -34,49 +34,49 @@ void cuda_rerand_64(
 
   switch (rerand_buffer->params.big_lwe_dimension) {
   case 256:
-    rerand_inplace<uint64_t, AmortizedDegree<256>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<256>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 512:
-    rerand_inplace<uint64_t, AmortizedDegree<512>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<512>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 1024:
-    rerand_inplace<uint64_t, AmortizedDegree<1024>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<1024>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 2048:
-    rerand_inplace<uint64_t, AmortizedDegree<2048>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<2048>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 4096:
-    rerand_inplace<uint64_t, AmortizedDegree<4096>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<4096>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 8192:
-    rerand_inplace<uint64_t, AmortizedDegree<8192>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<8192>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
         (uint64_t **)(ksk), rerand_buffer);
     break;
   case 16384:
-    rerand_inplace<uint64_t, AmortizedDegree<16384>>(
+    host_rerand_inplace<uint64_t, AmortizedDegree<16384>>(
         streams, static_cast<uint64_t *>(lwe_array),
         static_cast<const uint64_t *>(
             lwe_flattened_encryptions_of_zero_compact_array_in),
@@ -88,9 +88,6 @@ void cuda_rerand_64(
           " in the interval [256..16384].");
     break;
   }
-
-  cuda_synchronize_stream(static_cast<cudaStream_t>(streams.streams[0]),
-                          streams.gpu_indexes[0]);
 }
 
 void cleanup_cuda_rerand(CudaStreamsFFI streams, int8_t **mem_ptr_void) {

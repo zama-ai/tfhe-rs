@@ -47,7 +47,7 @@ template <typename Torus> struct compact_lwe_list {
 
 template <typename Torus> struct flattened_compact_lwe_lists {
   Torus *d_ptr;
-  Torus **d_ptr_to_compact_list;
+  Torus **ptr_array_to_d_compact_list;
   const uint32_t *h_num_lwes_per_compact_list;
   uint32_t num_compact_lists;
   uint32_t lwe_dimension;
@@ -59,13 +59,13 @@ template <typename Torus> struct flattened_compact_lwe_lists {
                               uint32_t lwe_dimension)
       : d_ptr(d_ptr), h_num_lwes_per_compact_list(h_num_lwes_per_compact_list),
         num_compact_lists(num_compact_lists), lwe_dimension(lwe_dimension) {
-    d_ptr_to_compact_list =
-        static_cast<Torus **>(malloc(num_compact_lists * sizeof(Torus **)));
+    ptr_array_to_d_compact_list =
+        static_cast<Torus **>(malloc(num_compact_lists * sizeof(Torus *)));
     total_num_lwes = 0;
     auto curr_list = d_ptr;
     for (auto i = 0; i < num_compact_lists; ++i) {
       total_num_lwes += h_num_lwes_per_compact_list[i];
-      d_ptr_to_compact_list[i] = curr_list;
+      ptr_array_to_d_compact_list[i] = curr_list;
       curr_list += lwe_dimension + h_num_lwes_per_compact_list[i];
     }
   }
@@ -75,10 +75,12 @@ template <typename Torus> struct flattened_compact_lwe_lists {
       PANIC("index out of range in flattened_compact_lwe_lists::get");
     }
 
-    return compact_lwe_list(d_ptr_to_compact_list[compact_list_index],
+    return compact_lwe_list(ptr_array_to_d_compact_list[compact_list_index],
                             lwe_dimension,
                             h_num_lwes_per_compact_list[compact_list_index]);
   }
+
+  void release() { free(ptr_array_to_d_compact_list); }
 };
 
 /*
@@ -121,7 +123,6 @@ template <typename Torus> struct zk_expand_mem {
       : computing_params(computing_params), casting_params(casting_params),
         num_compact_lists(num_compact_lists),
         casting_key_type(casting_key_type) {
-
     gpu_memory_allocated = allocate_gpu_memory;
 
     // We copy num_lwes_per_compact_list so we get protection against
@@ -314,7 +315,6 @@ template <typename Torus> struct zk_expand_mem {
   }
 
   void release(CudaStreams streams) {
-
     message_and_carry_extract_luts->release(streams);
     delete message_and_carry_extract_luts;
 
