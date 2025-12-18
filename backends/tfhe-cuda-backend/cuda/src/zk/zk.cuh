@@ -100,6 +100,7 @@ __host__ void host_expand_without_verification(
       2 * num_lwes);
   release_cpu_radix_ciphertext_async(&input);
   release_cpu_radix_ciphertext_async(&output);
+  compact_lwe_lists.release();
 }
 
 template <typename Torus>

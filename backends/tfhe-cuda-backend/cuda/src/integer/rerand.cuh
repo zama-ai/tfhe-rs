@@ -10,7 +10,7 @@
 #include "zk/zk_utilities.h"
 
 template <typename Torus, class params>
-void rerand_inplace(
+void host_rerand_inplace(
     CudaStreams const streams, Torus *lwe_array,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *ksk, int_rerand_mem<Torus> *mem_ptr) {
@@ -73,6 +73,7 @@ void rerand_inplace(
                        message_modulus, carry_modulus);
   release_cpu_radix_ciphertext_async(&lwes_ffi);
   release_cpu_radix_ciphertext_async(&ksed_zero_lwes_ffi);
+  compact_lwe_lists.release();
 }
 
 template <typename Torus>
