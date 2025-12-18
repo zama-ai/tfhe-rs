@@ -8,8 +8,13 @@ on:
         description: "Run CPU benchmarks"
         type: boolean
         default: true
-      run-gpu-benchmarks:
-        description: "Run GPU benchmarks"
+      # GPU benchmarks are split because of resource scarcity.
+      run-gpu-integer-benchmarks:
+        description: "Run GPU integer benchmarks"
+        type: boolean
+        default: true
+      run-gpu-core-crypto-benchmarks:
+        description: "Run GPU core-crypto benchmarks"
         type: boolean
         default: true
       run-hpu-benchmarks:
@@ -52,7 +57,7 @@ jobs:
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
     uses: ./.github/workflows/benchmark_gpu_common.yml
-    if: inputs.run-gpu-benchmarks
+    if: inputs.run-gpu-integer-benchmarks
     with:
       profile: multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
@@ -113,7 +118,7 @@ jobs:
   run-benchmarks-gpu-core-crypto:
     name: benchmark_documentation/run-benchmarks-gpu-core-crypto
     uses: ./.github/workflows/benchmark_gpu_common.yml
-    if: inputs.run-gpu-benchmarks
+    if: inputs.run-gpu-core-crypto-benchmarks
     with:
       profile: multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
@@ -133,7 +138,7 @@ jobs:
   generate-svgs-with-benchmarks-run:
     name: benchmark-documentation/generate-svgs-with-benchmarks-run
     if: ${{ always() &&
-      (inputs.run-cpu-benchmarks || inputs.run-gpu-benchmarks ||inputs.run-hpu-benchmarks) &&
+      (inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks ||inputs.run-hpu-benchmarks) &&
       inputs.generate-svgs }}
     needs: [
       run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
@@ -143,7 +148,7 @@ jobs:
     with:
       time_span_days: 5
       generate-cpu-svgs: ${{ inputs.run-cpu-benchmarks }}
-      generate-gpu-svgs: ${{ inputs.run-gpu-benchmarks }}
+      generate-gpu-svgs: ${{ inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks }}
       generate-hpu-svgs: ${{ inputs.run-hpu-benchmarks }}
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
@@ -152,7 +157,7 @@ jobs:
 
   generate-svgs-without-benchmarks-run:
     name: benchmark-documentation/generate-svgs-without-benchmarks-run
-    if: ${{ !(inputs.run-cpu-benchmarks || inputs.run-gpu-benchmarks || inputs.run-hpu-benchmarks) &&
+    if: ${{ !(inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-hpu-benchmarks) &&
       inputs.generate-svgs }}
     uses: ./.github/workflows/generate_svgs.yml
     with:
