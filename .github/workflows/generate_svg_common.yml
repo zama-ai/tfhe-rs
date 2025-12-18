@@ -81,7 +81,7 @@ jobs:
           python3 -m pip install -r ci/data_extractor/requirements.txt
           python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
-          --backend-comparison\
+          --backends-comparison \
           --time-span-days "${TIME_SPAN}"
         env:
           OUTPUT_FILENAME: ${{ inputs.output_filename }}
