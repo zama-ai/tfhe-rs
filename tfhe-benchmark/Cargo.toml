@@ -134,6 +134,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "integer-trivium"
+path = "benches/integer/trivium.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "integer-aes256"
 path = "benches/integer/aes256.rs"
 harness = false
