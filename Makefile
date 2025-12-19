@@ -1485,6 +1485,13 @@ bench_integer_trivium_gpu: install_rs_check_toolchain
 	--bench integer-trivium \
 	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_integer_kreyvium_gpu # Run benchmarks for kreyvium on GPU backend
+bench_integer_kreyvium_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-kreyvium \
+	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
+
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \

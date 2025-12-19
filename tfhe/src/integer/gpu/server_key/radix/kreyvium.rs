@@ -3,25 +3,20 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRa
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::{cuda_backend_trivium_generate_keystream, LweBskGroupingFactor, PBSType};
+use crate::integer::gpu::{
+    cuda_backend_kreyvium_generate_keystream, LweBskGroupingFactor, PBSType,
+};
 
 impl CudaServerKey {
-    /// Generates a Trivium keystream homomorphically on the GPU.
-    ///
-    /// # Arguments
-    /// * `key` - The encrypted secret key.
-    /// * `iv` - The encrypted initialization vector.
-    /// * `num_steps` - The number of keystream bits to generate per input.
-    /// * `streams` - The CUDA streams to use for execution.
-    pub fn trivium_generate_keystream(
+    pub fn kreyvium_generate_keystream(
         &self,
         key: &CudaUnsignedRadixCiphertext,
         iv: &CudaUnsignedRadixCiphertext,
         num_steps: usize,
         streams: &CudaStreams,
     ) -> crate::Result<CudaUnsignedRadixCiphertext> {
-        let num_key_bits = 80;
-        let num_iv_bits = 80;
+        let num_key_bits = 128;
+        let num_iv_bits = 128;
         let batch_size = 64;
 
         if key.as_ref().d_blocks.lwe_ciphertext_count().0 != num_key_bits {
@@ -60,7 +55,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_trivium_generate_keystream(
+                    cuda_backend_kreyvium_generate_keystream(
                         streams,
                         keystream.as_mut(),
                         key.as_ref(),
@@ -83,7 +78,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_trivium_generate_keystream(
+                    cuda_backend_kreyvium_generate_keystream(
                         streams,
                         keystream.as_mut(),
                         key.as_ref(),
