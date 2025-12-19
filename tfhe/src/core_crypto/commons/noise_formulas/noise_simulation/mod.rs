@@ -6,6 +6,9 @@ pub mod modulus_switch;
 pub mod traits;
 
 pub use lwe_keyswitch::NoiseSimulationLweKeyswitchKey;
+pub use lwe_multi_bit_programmable_bootstrap::{
+    NoiseSimulationLweMultiBitFourier128Bsk, NoiseSimulationLweMultiBitFourierBsk,
+};
 pub use lwe_packing_keyswitch::NoiseSimulationLwePackingKeyswitchKey;
 pub use lwe_programmable_bootstrap::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
@@ -22,6 +25,9 @@ use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulusLog, GlweDimension, GlweSize, LweDimension, PolynomialSize,
 };
+
+pub const PBS_FFT_64_MANTISSA_SIZE: f64 = 53.;
+pub const PBS_FFT_128_MANTISSA_SIZE: f64 = 104.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NoiseSimulationModulus {

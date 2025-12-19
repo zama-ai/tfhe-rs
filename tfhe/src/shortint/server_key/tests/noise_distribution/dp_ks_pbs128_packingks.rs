@@ -6,7 +6,6 @@ use super::utils::{mean_and_variance_check, DecryptionAndNoiseResult, NoiseSampl
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
@@ -18,6 +17,7 @@ use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
@@ -68,7 +68,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -84,7 +86,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweGenericBlindRotate128<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
     let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
@@ -98,7 +100,7 @@ where
     );
 
     let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
-    bsk_128.lwe_classic_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    bsk_128.lwe_generic_blind_rotate_128(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
@@ -159,7 +161,9 @@ where
         + AllocateCenteredBinaryShiftedStandardModSwitchResult<
             Output = MsResult,
             SideResources = Resources,
-        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>,
+        > + CenteredBinaryShiftedStandardModSwitch<MsResult, SideResources = Resources>
+        + AllocateMultiBitModSwitchResult<Output = MsResult, SideResources = Resources>
+        + MultiBitModSwitch<MsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -175,7 +179,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
     // We need to be able to apply the PBS
-    Bsk: LweClassicFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>
+    Bsk: LweGenericBlindRotate128<MsResult, PbsResult, Accumulator, SideResources = Resources>
         + Sync,
     PackingKey: AllocateLwePackingKeyswitchResult<Output = PackingResult, SideResources = Resources>
         + for<'a> LwePackingKeyswitch<[&'a PbsResult], PackingResult, SideResources = Resources>,
@@ -240,8 +244,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
             meta_noise_squashing_params.compression_parameters.unwrap(),
         )
     };
@@ -314,14 +322,14 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
     let compressed = noise_squashing_compression_key
         .compress_noise_squashed_ciphertexts_into_list(&noise_squashed);
 
-    let underlying_glwes = compressed.glwe_ciphertext_list;
+    let underlying_glwes = &compressed.glwe_ciphertext_list;
 
     assert_eq!(underlying_glwes.len(), 1);
 
     let extracted = underlying_glwes[0].extract();
 
     // Bodies that were not filled are discarded
-    after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
+    after_packing.get_mut_body().as_mut()[compressed.len()..].fill(0);
 
     assert_eq!(after_packing.as_view(), extracted.as_view());
 }
@@ -329,6 +337,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(meta_params: MetaParame
 create_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 #[allow(clippy::too_many_arguments)]
@@ -451,117 +460,45 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         .map(
             |(input, after_dp, after_ks, after_drift, after_ms, after_pbs128)| {
                 let before_ms = after_drift.as_ref().unwrap_or(&after_ks);
-                match &cks.atomic_pattern {
-                    AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
-                        let params = standard_atomic_pattern_client_key.parameters;
-                        let u64_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let large_lwe_secret_key =
-                            standard_atomic_pattern_client_key.large_lwe_secret_key();
-                        let small_lwe_secret_key =
-                            standard_atomic_pattern_client_key.small_lwe_secret_key();
-                        (
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &input.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_dp.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ks.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &before_ms.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ms.as_lwe_64(),
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_pbs128,
-                                &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
-                                msg.into(),
-                                &u128_encoding,
-                            ),
-                        )
-                    }
-                    AtomicPatternClientKey::KeySwitch32(ks32_atomic_pattern_client_key) => {
-                        let msg_u32: u32 = msg.try_into().unwrap();
-                        let params = ks32_atomic_pattern_client_key.parameters;
-                        let u32_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.post_keyswitch_ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let u64_encoding = ShortintEncoding {
-                            ciphertext_modulus: params.ciphertext_modulus(),
-                            message_modulus: params.message_modulus(),
-                            carry_modulus: params.carry_modulus(),
-                            padding_bit: PaddingBit::Yes,
-                        };
-                        let large_lwe_secret_key =
-                            ks32_atomic_pattern_client_key.large_lwe_secret_key();
-                        let small_lwe_secret_key =
-                            ks32_atomic_pattern_client_key.small_lwe_secret_key();
-                        (
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &input.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_dp.as_lwe_64(),
-                                &large_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ks.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &before_ms.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ms.as_lwe_32(),
-                                &small_lwe_secret_key,
-                                msg_u32,
-                                &u32_encoding,
-                            ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_pbs128,
-                                &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
-                                msg.into(),
-                                &u128_encoding,
-                            ),
-                        )
-                    }
-                }
+
+                let large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+                let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
+
+                (
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &input,
+                        &large_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &after_dp,
+                        &large_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        &after_ks,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_lwe(
+                        before_ms,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+                        &after_ms,
+                        &small_lwe_secret_key_dyn,
+                        msg,
+                    ),
+                    // This one is a "raw" LWE given today we don't need to manage several unsigned
+                    // integer types after a PBS128
+                    DecryptionAndNoiseResult::new_from_lwe(
+                        &after_pbs128,
+                        &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
+                        msg.into(),
+                        &u128_encoding,
+                    ),
+                )
             },
         )
         .collect();
@@ -662,8 +599,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
             meta_noise_squashing_params.compression_parameters.unwrap(),
         )
     };
@@ -684,7 +625,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk128 =
-        NoiseSimulationLweFourier128Bsk::new_from_parameters(params, noise_squashing_params);
+        NoiseSimulationGenericBootstrapKey128::new_from_parameters(params, noise_squashing_params);
     let noise_simulation_packing_key =
         NoiseSimulationLwePackingKeyswitchKey::new_from_noise_squashing_parameters(
             noise_squashing_params,
@@ -806,4 +747,5 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(meta_params: MetaP
 create_parameterized_test!(noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
