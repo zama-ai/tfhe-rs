@@ -10561,3 +10561,98 @@ pub(crate) unsafe fn cuda_backend_trivium_generate_keystream<T: UnsignedInteger,
 
     update_noise_degree(keystream_output, &cuda_ffi_keystream);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_kreyvium_generate_keystream<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    keystream_output: &mut CudaRadixCiphertext,
+    key: &CudaRadixCiphertext,
+    iv: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+    num_steps: u32,
+) {
+    let mut keystream_degrees = keystream_output
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut keystream_noise_levels = keystream_output
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_keystream = prepare_cuda_radix_ffi(
+        keystream_output,
+        &mut keystream_degrees,
+        &mut keystream_noise_levels,
+    );
+
+    let mut key_degrees = key.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut key_noise_levels = key.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_key = prepare_cuda_radix_ffi(key, &mut key_degrees, &mut key_noise_levels);
+
+    let mut iv_degrees = iv.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut iv_noise_levels = iv.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_iv = prepare_cuda_radix_ffi(iv, &mut iv_degrees, &mut iv_noise_levels);
+
+    let num_inputs = (key.info.blocks.len() / 128) as u32;
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_kreyvium_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+        num_inputs,
+    );
+
+    cuda_kreyvium_generate_keystream_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_keystream,
+        &raw const cuda_ffi_key,
+        &raw const cuda_ffi_iv,
+        num_inputs,
+        num_steps,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_kreyvium_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(keystream_output, &cuda_ffi_keystream);
+}

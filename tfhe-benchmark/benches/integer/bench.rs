@@ -2,6 +2,7 @@
 
 mod aes;
 mod aes256;
+mod kreyvium;
 mod oprf;
 mod trivium;
 mod vector_find;

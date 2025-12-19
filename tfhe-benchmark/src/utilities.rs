@@ -6,7 +6,7 @@ use std::{env, fs};
 use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "integer")]
-use tfhe::prelude::*;
+use tfhe::prelude::FheEncrypt;
 
 #[cfg(feature = "boolean")]
 pub mod boolean_utils {
