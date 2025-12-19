@@ -56,6 +56,22 @@ class IntegerFormatter(GenericFormatter):
 
         return formatted
 
+    @staticmethod
+    def _format_data_with_available_sizes(
+        data: dict[BenchDetails : list[int]], conversion_func
+    ):
+        formatted = collections.defaultdict(lambda: collections.defaultdict(lambda: {}))
+
+        for details, timings in data.items():
+            reduced_params = details.get_params_definition()
+            test_name = "_".join((details.sign_flavor.value, details.operation_name))
+            bit_width = details.bit_size
+            value = conversion_func(timings[-1])
+
+            formatted[test_name][reduced_params][bit_width] = value
+
+        return formatted
+
     def _generate_arrays(
         self,
         data,

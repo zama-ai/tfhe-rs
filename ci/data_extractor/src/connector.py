@@ -9,6 +9,7 @@ from benchmark_specs import (
     BenchDetails,
     BenchType,
     Layer,
+    OperandSize,
     OperandType,
     PBSKind,
 )
@@ -302,7 +303,7 @@ class PostgreConnector:
                 raise NoDataFound(msg)
 
             for line in lines:
-                bit_width = line[1]
+                bit_width = OperandSize(line[1])
 
                 bench_details = BenchDetails(layer, line[0], bit_width)
                 value = line[-1] if last_value_only else line[-3]

@@ -25,9 +25,9 @@ import formatters.core
 import formatters.hlapi
 import formatters.integer
 import regression
-import whitepaper
 from benchmark_specs import BenchType, Layer, OperandType, RustType
 from formatters.common import BenchArray, CSVFormatter, MarkdownFormatter, SVGFormatter
+from whitepaper import whitepaper
 
 import utils
 
@@ -442,7 +442,7 @@ if __name__ == "__main__":
     if args.generate_whitepaper_latex:
         try:
             whitepaper.perform_latex_generation(conn, user_config)
-        except RuntimeError as err:
+        except Exception as err:
             print(f"Failed to perform whitepaper LaTex tables generation: {err}")
             sys.exit(2)
         else:

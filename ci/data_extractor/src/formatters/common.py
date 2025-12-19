@@ -1,7 +1,9 @@
 import collections
+import enum
 import pathlib
 import xml.dom.minidom
 from collections.abc import Callable
+from typing import Any
 
 import svg
 from benchmark_specs import (
@@ -12,6 +14,7 @@ from benchmark_specs import (
     ErrorFailureProbability,
     Layer,
     NoiseDistribution,
+    OperandSize,
     OperandType,
     PBSKind,
     RustType,
@@ -186,6 +189,16 @@ class GenericFormatter:
 
     @staticmethod
     def _format_data(*args, **kwargs):
+        # Must be implemented by subclasses
+        raise NotImplementedError
+
+    def format_data_with_available_sizes(
+        self, data: dict[BenchDetails : list[int]], conversion_func
+    ):
+        return self._format_data_with_available_sizes(data, conversion_func)
+
+    @staticmethod
+    def _format_data_with_available_sizes(*args, **kwargs):
         # Must be implemented by subclasses
         raise NotImplementedError
 
@@ -659,11 +672,170 @@ class SVGFormatter(GenericFormatter):
         return self.generate_svg_table(array)
 
 
-class LatexColumn:
-    pass
+# TODO faire une sous classe de certaines enum avec juste une méthode to_latex_str() pour avoir la valeur qui correspond a celle affichée dans le whitepaper
 
-class LatexRow:
-    pass
+
+class ElementType(enum.Enum):
+    Operation = 0
+    ParamComponent = 1
+    SizeComponent = 2
+
+
+class LatexSeparator(enum.StrEnum):
+    BottomRule = r"\bottomrule"
+    MidRule = r"\midrule"
+    HLine = r"\hline"
+
+
+class LatexElement:
+    def __init__(
+        self,
+        elem: Any,
+        elem_type: ElementType,
+        latex_str: str,
+        display_element: bool = True,
+    ):
+        self.elem = elem
+        self.type = elem_type
+        self.latex_str = latex_str
+        self.display_element = display_element
+
+    def format(self):
+        return self.latex_str
+
+
+class LatexRowElement(LatexElement):
+    def __init__(
+        self, *args, display_as_column: bool = False, column_span: int = None, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.display_as_column = display_as_column
+        self.column_span = column_span or 1
+
+    def format(self):
+        if self.display_as_column:
+            return "\n".join(
+                [
+                    f"{LatexSeparator.MidRule}",
+                    f"\\multicolumn{{{self.column_span}}}{{c}}{{\\textbf{{{self.latex_str}}}}} \\\\",
+                    f"{LatexSeparator.MidRule}",
+                ]
+            )
+        else:
+            return self.latex_str
+
+
+class LatexColumnElement(LatexElement):
+    def __init__(self, *args, sub_cols=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sub_columns: list[LatexColumnElement] = sub_cols or []
+
+
+class LatexArraySection:
+    def __init__(self, rows: list):
+        self.rows = rows
+        # TODO intégrer ici la notion de mise en gras du/des résultats les plus petits (enum ?)
+        #  Ca peut être le minimum sur une ligne (ou un partie de ligne, cf multi-bit core)
+        #  ou bien le minimum sur une section entière (cf classic core)
+
+    def format(self, bench_data):
+        lines = []
+
+        # IMPORTANT: data must be sorted with row discriminant first and then column discriminant that would give access to the value
+        for row in self.rows:
+            try:
+                lines.append(self._format_row(row, bench_data))
+            except TypeError:
+                # Row is a single LatexRowElement
+                lines.append(row.format())
+
+        print("Lines:", lines)  # DEBUG
+        return lines
+
+    @staticmethod
+    def _format_row(row, bench_data):
+        operation = None
+        row_filters = []
+        row_values = []
+
+        for elem in row:
+            if isinstance(elem, LatexRowElement):
+                match elem.type:
+                    case ElementType.Operation:
+                        operation = elem.elem
+                    case ElementType.ParamComponent:
+                        row_filters.append(elem.elem)
+
+                if elem.display_element:
+                    row_values.append(elem.format())
+            elif isinstance(elem, LatexColumnElement):
+                bench_values = bench_data.get(operation)
+                if elem.sub_columns:
+                    for sub_col in elem.sub_columns:
+                        for param_def, value in bench_values.items():
+                            if isinstance(sub_col.elem, OperandSize):
+                                bit_size = sub_col.elem
+                                if param_def.components_match(*row_filters, elem.elem):
+                                    try:
+                                        row_values.append(value[bit_size])
+                                    except KeyError:
+                                        # TODO maybe returning a "N/A" value would be better than raising an error
+                                        raise KeyError(
+                                            f"bit size '{bit_size}' not found in bench data (params: {param_def}, values: {value})"
+                                        )
+                            else:
+                                if param_def.components_match(
+                                    *row_filters, elem.elem, sub_col.elem
+                                ):
+                                    # Only one value is stored in the operand size dict.
+                                    _, v = value.popitem()
+                                    row_values.append(v)
+                else:
+                    for param_def, value in bench_values.items():
+                        if isinstance(
+                            value, dict
+                        ):  # TODO If(condition) et else(content) à supprimer
+                            # Handling data from the integer tfhe-rs layer.
+                            bit_size = elem.elem
+                            if param_def.components_match(*row_filters):
+                                try:
+                                    row_values.append(value[bit_size])
+                                except KeyError:
+                                    # TODO maybe returning a "N/A" value would be better than raising an error
+                                    raise KeyError(
+                                        f"bit size '{bit_size}' not found in bench data (params: {param_def}, values: {value})"
+                                    )
+                        else:
+                            # Handling data from the core-crypto tfhe-rs layer.
+                            if param_def.components_match(*row_filters, elem.elem):
+                                row_values.append(value)
+
+        print("Row values:", row_values)
+        return " & ".join(row_values) + r" \\"
+
+
+class LatexTable:
+    def __init__(
+        self,
+        array_section: list[LatexArraySection],
+    ):
+        self.array_sections = array_section
+
+    @staticmethod
+    def get_separator(sep: LatexSeparator):
+        return sep.value
+
+    def format_table(self, bench_data):
+        parts = []
+
+        for section in self.array_sections:
+            parts.extend(section.format(bench_data))
+            parts.append(self.get_separator(LatexSeparator.HLine))
+
+        # Replace the last section separator with a bottom rule
+        parts[-1] = self.get_separator(LatexSeparator.BottomRule)
+
+        return "\n".join(parts)
 
 
 class LatexFormatter(GenericFormatter):
