@@ -565,11 +565,11 @@ where
     fn if_then_zero(&self, ct_then: &FheUint<Id>) -> FheUint<Id> {
         global_state::with_internal_keys(|sks| match sks {
             InternalServerKey::Cpu(_) => {
-                panic!("Cuda does not support if_then_else with clear input")
+                panic!("CPU does not support if_then_zero at this point")
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
-                panic!("Cuda does not support if_then_else with clear input")
+                panic!("Cuda does not support if_then_zero at this point")
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
