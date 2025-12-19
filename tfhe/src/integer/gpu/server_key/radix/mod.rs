@@ -66,6 +66,7 @@ mod tests_noise_distribution;
 mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;
+mod trivium;
 
 impl CudaServerKey {
     /// Create a trivial ciphertext filled with zeros on the GPU.
