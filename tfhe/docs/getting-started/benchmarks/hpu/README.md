@@ -10,3 +10,4 @@ All HPU benchmarks were launched on AMD Alveo v80 FPGAs.
 
 * [Integer operations](hpu-integer-operations.md)
 * [Programmable Bootstrapping](hpu-programmable-bootstrapping.md)
+* [ERC20](hpu-erc20.md)
