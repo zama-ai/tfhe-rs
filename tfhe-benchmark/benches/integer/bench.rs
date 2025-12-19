@@ -3,6 +3,7 @@
 mod aes;
 mod aes256;
 mod oprf;
+mod trivium;
 mod vector_find;
 
 mod rerand;
