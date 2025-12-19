@@ -29,12 +29,13 @@ pub fn transfer_whitepaper<FheType>(
 ) -> (FheType, FheType)
 where
     FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + FheTrivialEncrypt<u64>,
-    FheBool: IfThenElse<FheType>,
+    FheBool: IfThenZero<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
     let has_enough_funds = (from_amount).ge(amount);
-    let zero_amount = FheType::encrypt_trivial(0u64);
-    let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
+    //let zero_amount = FheType::encrypt_trivial(0u64);
+    //let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
+    let amount_to_transfer = has_enough_funds.if_then_zero(amount);
 
     let new_to_amount = to_amount + &amount_to_transfer;
     let new_from_amount = from_amount - &amount_to_transfer;
@@ -51,12 +52,13 @@ pub fn par_transfer_whitepaper<FheType>(
 where
     FheType:
         Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Send + Sync + FheTrivialEncrypt<u64>,
-    FheBool: IfThenElse<FheType>,
+    FheBool: IfThenZero<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
     let has_enough_funds = (from_amount).ge(amount);
-    let zero_amount = FheType::encrypt_trivial(0u64);
-    let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
+    //let zero_amount = FheType::encrypt_trivial(0u64);
+    //let amount_to_transfer = has_enough_funds.select(amount, &zero_amount);
+    let amount_to_transfer = has_enough_funds.if_then_zero(amount);
 
     let (new_to_amount, new_from_amount) = rayon::join(
         || to_amount + &amount_to_transfer,
