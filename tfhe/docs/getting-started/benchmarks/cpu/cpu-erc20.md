@@ -61,7 +61,7 @@ Network communications would also introduce significant overhead.
 For the sake of simplicity, here the focus is only placed on the performance of the FHE operations.
 The latency and throughput of these three ERC20 FHE transfer implementations are compared in the following table:
 
-TODO add SVG
+![](../../../.gitbook/assets/cpu-hlapi-erc20-benchmark-latency-throughput.svg)
 
 The throughput shown here is the maximum that can be achieved with TFHE-rs on CPU, in an ideal scenario where all transactions are independent. 
 In a blockchain protocol, the throughput would be limited by the latency of the network, but also by the necessity to apply other operations 
