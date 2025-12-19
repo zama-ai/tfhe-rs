@@ -7,7 +7,7 @@ use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{
-    FheEq, Flip, IfThenElse, ReRandomize, ScalarIfThenElse, Tagged,
+    FheEq, Flip, IfThenElse, IfThenZero, ReRandomize, ScalarIfThenElse, Tagged,
 };
 use crate::high_level_api::{global_state, CompactPublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
@@ -538,6 +538,56 @@ where
                     proto,
                     opcode,
                     &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheUint::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
+            }
+        })
+    }
+}
+
+impl<Id> IfThenZero<FheUint<Id>> for FheBool
+where
+    Id: FheUintId,
+{
+    /// Conditional selection.
+    ///
+    /// The output value returned depends on the value of `self`.
+    ///
+    /// - if `self` is true, the output will have the value of `ct_then`
+    /// - if `self` is false, the output will be an encryption of 0
+    fn if_then_zero(&self, ct_then: &FheUint<Id>) -> FheUint<Id> {
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(_) => {
+                panic!("CPU does not support if_then_zero at this point")
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda does not support if_then_zero at this point")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_then = ct_then.ciphertext.on_hpu(device);
+                let hpu_cond = self.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ZERO;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_then.clone(), hpu_cond.clone()],
                     &[],
                 )
                 .pop()

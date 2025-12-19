@@ -149,6 +149,10 @@ pub trait IfThenElse<Ciphertext> {
     }
 }
 
+pub trait IfThenZero<Ciphertext> {
+    fn if_then_zero(&self, ct_then: &Ciphertext) -> Ciphertext;
+}
+
 pub trait ScalarIfThenElse<Lhs, Rhs> {
     type Output;
 
