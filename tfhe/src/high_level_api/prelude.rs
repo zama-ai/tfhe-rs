@@ -11,6 +11,7 @@ pub use crate::high_level_api::traits::{
     FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, Flip, IfThenElse,
     OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub, ReRandomize, RotateLeft,
     RotateLeftAssign, RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
+    IfThenZero,
 };
 #[cfg(feature = "hpu")]
 pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
