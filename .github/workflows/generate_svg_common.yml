@@ -91,7 +91,7 @@ jobs:
           DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
       - name: Upload tables
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
           # This will upload all the file generated
