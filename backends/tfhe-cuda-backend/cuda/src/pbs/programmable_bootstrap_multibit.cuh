@@ -373,7 +373,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
         double2 *join_buffer, uint32_t glwe_dimension, uint32_t polynomial_size,
-        uint32_t level_count, uint32_t iteration, uint64_t lwe_chunk_size,
+        uint32_t level_count, uint32_t iteration, uint32_t lwe_chunk_size,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         uint32_t num_many_lut, uint32_t lut_stride) {
   // We use shared memory for the polynomials that are used often during the
@@ -790,7 +790,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
                  uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
-  auto lwe_chunk_size = buffer->lwe_chunk_size;
+  uint32_t lwe_chunk_size = (uint32_t)(buffer->lwe_chunk_size);
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
