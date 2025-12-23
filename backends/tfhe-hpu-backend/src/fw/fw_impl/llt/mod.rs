@@ -113,6 +113,7 @@ pub fn iop_add_simd(prog: &mut Program) {
         prog,
         crate::asm::iop::SIMD_N,
         fw_impl::llt::iop_add_ripple_rtl,
+        None,
     );
 }
 
@@ -227,14 +228,18 @@ pub fn iop_muls(prog: &mut Program) {
 pub fn iop_erc_20(prog: &mut Program) {
     // Add Comment header
     prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
-    iop_erc_20_rtl(prog, 0).add_to_prog(prog);
+    // TODO: Make sweep of kogge_blk_w
+    // All these little parameters would be very handy to write an
+    // exploration/compilation program which would try to minimize latency by
+    // playing with these.
+    iop_erc_20_rtl(prog, 0, Some(10)).add_to_prog(prog);
 }
 
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_erc_20_simd(prog: &mut Program) {
     // Add Comment header
     prog.push_comment("ERC_20_SIMD (new_from, new_to) <- (from, to, amount)".to_string());
-    simd(prog, crate::asm::iop::SIMD_N, fw_impl::llt::iop_erc_20_rtl);
+    simd(prog, crate::asm::iop::SIMD_N, fw_impl::llt::iop_erc_20_rtl, None);
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -381,7 +386,7 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
 ///     (dst_from[0], dst_to[0], ..., dst_from[N-1], dst_to[N-1])
 /// Where N is the batch size
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
+pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8, kogge_blk_w: Option<usize>) -> Rtl {
     // Allocate metavariables:
     // Dest -> Operand
     let dst_from = prog.iop_template_var(OperandKind::Dst, 2 * batch_index);
@@ -391,13 +396,6 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
     let src_to = prog.iop_template_var(OperandKind::Src, 3 * batch_index + 1);
     // Src Amount -> Operand
     let src_amount = prog.iop_template_var(OperandKind::Src, 3 * batch_index + 2);
-
-    // TODO: Make this a parameter or sweep this
-    // All these little parameters would be very handy to write an
-    // exploration/compilation program which would try to minimize latency by
-    // playing with these.
-    let kogge_blk_w = 10;
-    let ripple = true;
 
     {
         let props = prog.params();
@@ -429,19 +427,20 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8) -> Rtl {
             })
             .collect::<Vec<_>>();
 
-        if ripple {
+        if let Some(blk_w) = kogge_blk_w {
+            kogge::add(prog, dst_to, src_to, src_amount.clone(), None, blk_w)
+                + kogge::sub(prog, dst_from, src_from, src_amount, blk_w)
+        } else { // Default to ripple carry
             kogge::ripple_add(dst_to, src_to, src_amount.clone(), None)
                 + kogge::ripple_sub(prog, dst_from, src_from, src_amount)
-        } else {
-            kogge::add(prog, dst_to, src_to, src_amount.clone(), None, kogge_blk_w)
-                + kogge::sub(prog, dst_from, src_from, src_amount, kogge_blk_w)
         }
     }
 }
 
 /// A SIMD implementation of add for maximum throughput
+/// NB: No use of kogge_blk_w here, impl force to use ripple carry
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_add_ripple_rtl(prog: &mut Program, i: u8) -> Rtl {
+pub fn iop_add_ripple_rtl(prog: &mut Program, i: u8, _kogge_blk_w: Option<usize>) -> Rtl {
     // Allocate metavariables:
     let dst = prog.iop_template_var(OperandKind::Dst, i);
     let src_a = prog.iop_template_var(OperandKind::Src, 2 * i);
@@ -899,13 +898,13 @@ fn bw_inv(prog: &mut Program, b: Vec<VarCell>) -> Vec<VarCell> {
 /// Maybe this should go into a SIMD firmware implementation... At some point we
 /// would need a mechanism to choose between implementations on the fly to make
 /// real good use of all of this.
-fn simd<F>(prog: &mut Program, batch_size: usize, rtl_closure: F)
+fn simd<F>(prog: &mut Program, batch_size: usize, rtl_closure: F, kogge_blk_w: Option<usize>)
 where
-    F: Fn(&mut Program, u8) -> Rtl,
+    F: Fn(&mut Program, u8, Option<usize>) -> Rtl,
 {
     (0..batch_size)
         .map(|i| i as u8)
-        .map(|i| rtl_closure(prog, i))
+        .map(|i| rtl_closure(prog, i, kogge_blk_w))
         .sum::<Rtl>()
         .add_to_prog(prog);
 }
