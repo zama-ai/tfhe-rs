@@ -564,12 +564,22 @@ where
     /// - if `self` is false, the output will be an encryption of 0
     fn if_then_zero(&self, ct_then: &FheUint<Id>) -> FheUint<Id> {
         global_state::with_internal_keys(|sks| match sks {
-            InternalServerKey::Cpu(_) => {
-                panic!("CPU does not support if_then_zero at this point")
+            InternalServerKey::Cpu(cpu_sks) => {
+                let ct_condition = self;
+                let mut ct_out = ct_then.ciphertext.on_cpu().clone();
+                cpu_sks.pbs_key().zero_out_if_condition_is_false(
+                    &mut ct_out,
+                    &ct_condition.ciphertext.on_cpu().0,
+                );
+                FheUint::new(
+                    ct_out,
+                    cpu_sks.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
-                panic!("Cuda does not support if_then_zero at this point")
+                panic!("Cuda does not support if_then_zero")
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
