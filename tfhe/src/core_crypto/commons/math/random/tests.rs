@@ -540,10 +540,12 @@ pub fn sup_diff(cumulative_bins: &[u64], theoretical_cdf: &[f64]) -> f64 {
         .iter()
         .copied()
         .zip_eq(theoretical_cdf.iter().copied())
-        .map(|(x, theoretical_cdf)| {
+        .enumerate()
+        .map(|(i, (x, theoretical_cdf))| {
             let empirical_cdf = x as f64 / number_of_samples as f64;
 
-            if theoretical_cdf == 1.0 {
+            if i == cumulative_bins.len() - 1 {
+                assert_eq!(theoretical_cdf, 1.0);
                 assert_eq!(empirical_cdf, 1.0);
             }
 
