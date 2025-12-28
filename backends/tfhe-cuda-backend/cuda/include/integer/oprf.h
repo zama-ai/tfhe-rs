@@ -1,14 +1,15 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_scalar_mul_buffer;
-template <typename Torus> struct int_logical_scalar_shift_buffer;
+template <typename Torus, typename KSTorus> struct int_scalar_mul_buffer;
+template <typename Torus, typename KSTorus>
+struct int_logical_scalar_shift_buffer;
 
-template <typename Torus> struct int_grouped_oprf_memory {
+template <typename Torus, typename KSTorus> struct int_grouped_oprf_memory {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_radix_lut<Torus> *luts;
+  int_radix_lut<Torus, KSTorus> *luts;
   CudaRadixCiphertextFFI *plaintext_corrections;
   Torus *h_lut_indexes;
 
@@ -32,7 +33,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->luts = new int_radix_lut<Torus>(
+    this->luts = new int_radix_lut<Torus, KSTorus>(
         streams, params, message_bits_per_block, num_blocks_to_process,
         allocate_gpu_memory, size_tracker);
 
@@ -151,13 +152,14 @@ template <typename Torus> struct int_grouped_oprf_memory {
   }
 };
 
-template <typename Torus> struct int_grouped_oprf_custom_range_memory {
+template <typename Torus, typename KSTorus>
+struct int_grouped_oprf_custom_range_memory {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_grouped_oprf_memory<Torus> *grouped_oprf_memory;
-  int_scalar_mul_buffer<Torus> *scalar_mul_buffer;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
+  int_grouped_oprf_memory<Torus, KSTorus> *grouped_oprf_memory;
+  int_scalar_mul_buffer<Torus, KSTorus> *scalar_mul_buffer;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *logical_scalar_shift_buffer;
   CudaRadixCiphertextFFI *tmp_oprf_output;
   uint32_t num_random_input_blocks;
 
@@ -173,16 +175,16 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
         (num_input_random_bits + message_bits_per_block - 1) /
         message_bits_per_block;
 
-    this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
+    this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus, KSTorus>(
         streams, params, this->num_random_input_blocks, message_bits_per_block,
         num_input_random_bits, allocate_gpu_memory, size_tracker);
 
-    this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus>(
+    this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus, KSTorus>(
         streams, params, num_blocks_intermediate, num_scalar_bits,
         allocate_gpu_memory, true, size_tracker);
 
     this->logical_scalar_shift_buffer =
-        new int_logical_scalar_shift_buffer<Torus>(
+        new int_logical_scalar_shift_buffer<Torus, KSTorus>(
             streams, RIGHT_SHIFT, params, num_blocks_intermediate,
             allocate_gpu_memory, size_tracker);
 

@@ -9,17 +9,16 @@
 #include "integer/scalar_shifts.cuh"
 #include "radix_ciphertext.cuh"
 
-template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_abs(CudaStreams streams,
-                                           int_abs_buffer<Torus> **mem_ptr,
-                                           bool is_signed, uint32_t num_blocks,
-                                           int_radix_params params,
-                                           bool allocate_gpu_memory) {
+template <typename Torus, typename KSTorus>
+__host__ uint64_t scratch_cuda_integer_abs(
+    CudaStreams streams, int_abs_buffer<Torus, KSTorus> **mem_ptr,
+    bool is_signed, uint32_t num_blocks, int_radix_params params,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   if (is_signed) {
-    *mem_ptr = new int_abs_buffer<Torus>(streams, params, num_blocks,
-                                         allocate_gpu_memory, size_tracker);
+    *mem_ptr = new int_abs_buffer<Torus, KSTorus>(
+        streams, params, num_blocks, allocate_gpu_memory, size_tracker);
   }
   return size_tracker;
 }
@@ -27,7 +26,7 @@ __host__ uint64_t scratch_cuda_integer_abs(CudaStreams streams,
 template <typename Torus>
 __host__ void host_integer_abs(CudaStreams streams, CudaRadixCiphertextFFI *ct,
                                void *const *bsks, uint64_t *const *ksks,
-                               int_abs_buffer<uint64_t> *mem_ptr,
+                               int_abs_buffer<uint64_t, uint64_t> *mem_ptr,
                                bool is_signed) {
   if (!is_signed)
     return;

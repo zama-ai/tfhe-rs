@@ -16,8 +16,8 @@ uint64_t scratch_cuda_logical_scalar_shift_64(
 
   return scratch_cuda_logical_scalar_shift<uint64_t>(
       CudaStreams(streams),
-      (int_logical_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks, params,
-      shift_type, allocate_gpu_memory);
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> **)mem_ptr,
+      num_blocks, params, shift_type, allocate_gpu_memory);
 }
 
 /// The logical scalar shift is the one used for unsigned integers, and
@@ -32,7 +32,7 @@ void cuda_logical_scalar_shift_64_inplace(CudaStreamsFFI streams,
 
   host_logical_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
-      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks), lwe_array->num_radix_blocks);
 }
 
@@ -52,8 +52,8 @@ uint64_t scratch_cuda_arithmetic_scalar_shift_64(
 
   return scratch_cuda_arithmetic_scalar_shift<uint64_t>(
       CudaStreams(streams),
-      (int_arithmetic_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks,
-      params, shift_type, allocate_gpu_memory);
+      (int_arithmetic_scalar_shift_buffer<uint64_t, uint64_t> **)mem_ptr,
+      num_blocks, params, shift_type, allocate_gpu_memory);
 }
 
 /// The arithmetic scalar shift is the one used for the signed right shift.
@@ -71,15 +71,15 @@ void cuda_arithmetic_scalar_shift_64_inplace(CudaStreamsFFI streams,
 
   host_arithmetic_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
-      (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_arithmetic_scalar_shift_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_logical_scalar_shift(CudaStreamsFFI streams,
                                        int8_t **mem_ptr_void) {
 
-  int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
-      (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
+  int_logical_scalar_shift_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
@@ -89,8 +89,8 @@ void cleanup_cuda_logical_scalar_shift(CudaStreamsFFI streams,
 void cleanup_cuda_arithmetic_scalar_shift(CudaStreamsFFI streams,
                                           int8_t **mem_ptr_void) {
 
-  int_arithmetic_scalar_shift_buffer<uint64_t> *mem_ptr =
-      (int_arithmetic_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
+  int_arithmetic_scalar_shift_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_arithmetic_scalar_shift_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;

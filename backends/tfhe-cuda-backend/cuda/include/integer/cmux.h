@@ -1,7 +1,7 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_zero_out_if_buffer {
+template <typename Torus, typename KSTorus> struct int_zero_out_if_buffer {
 
   int_radix_params params;
 
@@ -30,9 +30,9 @@ template <typename Torus> struct int_zero_out_if_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
-template <typename Torus> struct int_cmux_buffer {
-  int_radix_lut<Torus> *predicate_lut;
-  int_radix_lut<Torus> *message_extract_lut;
+template <typename Torus, typename KSTorus> struct int_cmux_buffer {
+  int_radix_lut<Torus, KSTorus> *predicate_lut;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut;
 
   CudaRadixCiphertextFFI *buffer_in;
   CudaRadixCiphertextFFI *buffer_out;
@@ -77,13 +77,13 @@ template <typename Torus> struct int_cmux_buffer {
       return x % params.message_modulus;
     };
 
-    predicate_lut =
-        new int_radix_lut<Torus>(streams, params, 2, 2 * num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    predicate_lut = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 2, 2 * num_radix_blocks, allocate_gpu_memory,
+        size_tracker);
 
     message_extract_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator_bivariate<Torus>(
         streams.stream(0), streams.gpu_index(0), predicate_lut->get_lut(0, 0),

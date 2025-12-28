@@ -15,8 +15,9 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_sub_and_propagate_single_carry<uint64_t>(
-      CudaStreams(streams), (int_sub_and_propagate<uint64_t> **)mem_ptr,
-      num_blocks, params, requested_flag, allocate_gpu_memory);
+      CudaStreams(streams),
+      (int_sub_and_propagate<uint64_t, uint64_t> **)mem_ptr, num_blocks, params,
+      requested_flag, allocate_gpu_memory);
 }
 
 void cuda_sub_and_propagate_single_carry_64_inplace(
@@ -27,16 +28,16 @@ void cuda_sub_and_propagate_single_carry_64_inplace(
   PUSH_RANGE("sub")
   host_sub_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
-      (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      requested_flag, uses_carry);
+      (int_sub_and_propagate<uint64_t, uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), requested_flag, uses_carry);
   POP_RANGE()
 }
 
 void cleanup_cuda_sub_and_propagate_single_carry(CudaStreamsFFI streams,
                                                  int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup sub")
-  int_sub_and_propagate<uint64_t> *mem_ptr =
-      (int_sub_and_propagate<uint64_t> *)(*mem_ptr_void);
+  int_sub_and_propagate<uint64_t, uint64_t> *mem_ptr =
+      (int_sub_and_propagate<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   POP_RANGE()

@@ -2,7 +2,8 @@
 #include "cmux.h"
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_are_all_block_true_buffer {
+template <typename Torus, typename KSTorus>
+struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
 
@@ -12,7 +13,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // This map store LUTs that checks the equality between some input and values
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
-  int_radix_lut<Torus> *is_max_value;
+  int_radix_lut<Torus, KSTorus> *is_max_value;
   Torus *preallocated_h_lut;
   bool gpu_memory_allocated;
 
@@ -39,8 +40,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         max_chunks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
-                                            allocate_gpu_memory, size_tracker);
+    is_max_value = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 2, max_chunks, allocate_gpu_memory, size_tracker);
     auto is_max_value_f = [max_value](Torus x) -> Torus {
       return x == max_value;
     };
@@ -71,15 +72,15 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   }
 };
 
-template <typename Torus> struct int_comparison_eq_buffer {
+template <typename Torus, typename KSTorus> struct int_comparison_eq_buffer {
   int_radix_params params;
   COMPARISON_TYPE op;
 
-  int_radix_lut<Torus> *operator_lut;
-  int_radix_lut<Torus> *is_non_zero_lut;
-  int_radix_lut<Torus> *scalar_comparison_luts;
+  int_radix_lut<Torus, KSTorus> *operator_lut;
+  int_radix_lut<Torus, KSTorus> *is_non_zero_lut;
+  int_radix_lut<Torus, KSTorus> *scalar_comparison_luts;
 
-  int_are_all_block_true_buffer<Torus> *are_all_block_true_buffer;
+  int_are_all_block_true_buffer<Torus, KSTorus> *are_all_block_true_buffer;
   bool gpu_memory_allocated;
 
   int_comparison_eq_buffer(CudaStreams streams, COMPARISON_TYPE op,
@@ -90,9 +91,10 @@ template <typename Torus> struct int_comparison_eq_buffer {
     this->op = op;
     Torus total_modulus = params.message_modulus * params.carry_modulus;
 
-    are_all_block_true_buffer = new int_are_all_block_true_buffer<Torus>(
-        streams, op, params, num_radix_blocks, allocate_gpu_memory,
-        size_tracker);
+    are_all_block_true_buffer =
+        new int_are_all_block_true_buffer<Torus, KSTorus>(
+            streams, op, params, num_radix_blocks, allocate_gpu_memory,
+            size_tracker);
 
     // f(x) -> x == 0
     auto is_non_zero_lut_f = [total_modulus](Torus x) -> Torus {
@@ -100,8 +102,8 @@ template <typename Torus> struct int_comparison_eq_buffer {
     };
 
     is_non_zero_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), is_non_zero_lut->get_lut(0, 0),
@@ -114,7 +116,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
     is_non_zero_lut->broadcast_lut(active_streams);
 
     // Scalar may have up to num_radix_blocks blocks
-    scalar_comparison_luts = new int_radix_lut<Torus>(
+    scalar_comparison_luts = new int_radix_lut<Torus, KSTorus>(
         streams, params, total_modulus, num_radix_blocks, allocate_gpu_memory,
         size_tracker);
 
@@ -144,9 +146,9 @@ template <typename Torus> struct int_comparison_eq_buffer {
     }
     scalar_comparison_luts->broadcast_lut(active_streams);
     if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
-      operator_lut =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      operator_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
 
       generate_device_accumulator_bivariate<Torus>(
           streams.stream(0), streams.gpu_index(0), operator_lut->get_lut(0, 0),
@@ -181,15 +183,16 @@ template <typename Torus> struct int_comparison_eq_buffer {
   }
 };
 
-template <typename Torus> struct int_tree_sign_reduction_buffer {
+template <typename Torus, typename KSTorus>
+struct int_tree_sign_reduction_buffer {
   int_radix_params params;
 
   std::function<Torus(Torus, Torus)> block_selector_f;
 
-  int_radix_lut<Torus> *tree_inner_leaf_lut;
-  int_radix_lut<Torus> *tree_last_leaf_lut;
+  int_radix_lut<Torus, KSTorus> *tree_inner_leaf_lut;
+  int_radix_lut<Torus, KSTorus> *tree_last_leaf_lut;
 
-  int_radix_lut<Torus> *tree_last_leaf_scalar_lut;
+  int_radix_lut<Torus, KSTorus> *tree_last_leaf_scalar_lut;
 
   Torus *preallocated_h_lut;
   CudaRadixCiphertextFFI *tmp_x;
@@ -222,16 +225,16 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     // LUTs
     tree_inner_leaf_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
-    tree_last_leaf_lut = new int_radix_lut<Torus>(
+    tree_last_leaf_lut = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
     preallocated_h_lut = (Torus *)malloc(
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
 
-    tree_last_leaf_scalar_lut = new int_radix_lut<Torus>(
+    tree_last_leaf_scalar_lut = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator_bivariate<Torus>(
@@ -264,7 +267,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
   }
 };
 
-template <typename Torus> struct int_comparison_diff_buffer {
+template <typename Torus, typename KSTorus> struct int_comparison_diff_buffer {
   int_radix_params params;
   COMPARISON_TYPE op;
 
@@ -272,11 +275,11 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
   std::function<Torus(Torus)> operator_f;
 
-  int_tree_sign_reduction_buffer<Torus> *tree_buffer;
+  int_tree_sign_reduction_buffer<Torus, KSTorus> *tree_buffer;
 
   CudaRadixCiphertextFFI *tmp_signs_a;
   CudaRadixCiphertextFFI *tmp_signs_b;
-  int_radix_lut<Torus> *reduce_signs_lut;
+  int_radix_lut<Torus, KSTorus> *reduce_signs_lut;
   bool gpu_memory_allocated;
   Torus *preallocated_h_lut1;
   Torus *preallocated_h_lut2;
@@ -307,7 +310,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
         streams.stream(0), streams.gpu_index(0), tmp_packed, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
+    tree_buffer = new int_tree_sign_reduction_buffer<Torus, KSTorus>(
         streams, operator_f, params, num_radix_blocks, allocate_gpu_memory,
         size_tracker);
     tmp_signs_a = new CudaRadixCiphertextFFI;
@@ -320,8 +323,8 @@ template <typename Torus> struct int_comparison_diff_buffer {
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     // LUTs
     reduce_signs_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
     preallocated_h_lut1 = (Torus *)malloc(
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
     preallocated_h_lut2 = (Torus *)malloc(
@@ -349,19 +352,19 @@ template <typename Torus> struct int_comparison_diff_buffer {
   }
 };
 
-template <typename Torus> struct int_comparison_buffer {
+template <typename Torus, typename KSTorus> struct int_comparison_buffer {
   COMPARISON_TYPE op;
 
   int_radix_params params;
 
   //////////////////
-  int_radix_lut<Torus> *identity_lut;
+  int_radix_lut<Torus, KSTorus> *identity_lut;
   std::function<Torus(Torus)> identity_lut_f;
 
-  int_radix_lut<Torus> *is_zero_lut;
+  int_radix_lut<Torus, KSTorus> *is_zero_lut;
 
-  int_comparison_eq_buffer<Torus> *eq_buffer;
-  int_comparison_diff_buffer<Torus> *diff_buffer;
+  int_comparison_eq_buffer<Torus, KSTorus> *eq_buffer;
+  int_comparison_diff_buffer<Torus, KSTorus> *diff_buffer;
 
   CudaRadixCiphertextFFI *tmp_block_comparisons;
   CudaRadixCiphertextFFI *tmp_lwe_array_out;
@@ -371,14 +374,14 @@ template <typename Torus> struct int_comparison_buffer {
   CudaRadixCiphertextFFI *tmp_packed_input;
 
   // Max Min
-  int_cmux_buffer<Torus> *cmux_buffer;
+  int_cmux_buffer<Torus, KSTorus> *cmux_buffer;
 
   // Signed LUT
-  int_radix_lut<Torus> *signed_lut;
+  int_radix_lut<Torus, KSTorus> *signed_lut;
   bool is_signed;
 
   // Used for scalar comparisons
-  int_radix_lut<Torus> *signed_msb_lut;
+  int_radix_lut<Torus, KSTorus> *signed_msb_lut;
   CudaStreams lsb_streams;
   CudaStreams msb_streams;
   bool gpu_memory_allocated;
@@ -423,8 +426,8 @@ template <typename Torus> struct int_comparison_buffer {
 
     // Cleaning LUT
     identity_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), identity_lut->get_lut(0, 0),
@@ -438,8 +441,9 @@ template <typename Torus> struct int_comparison_buffer {
       return (x % total_modulus) == 0;
     };
 
-    is_zero_lut = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                           allocate_gpu_memory, size_tracker);
+    is_zero_lut =
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), is_zero_lut->get_lut(0, 0),
@@ -452,7 +456,7 @@ template <typename Torus> struct int_comparison_buffer {
     switch (op) {
     case COMPARISON_TYPE::MAX:
     case COMPARISON_TYPE::MIN:
-      cmux_buffer = new int_cmux_buffer<Torus>(
+      cmux_buffer = new int_cmux_buffer<Torus, KSTorus>(
           streams,
           [op](Torus x) -> Torus {
             if (op == COMPARISON_TYPE::MAX)
@@ -465,12 +469,12 @@ template <typename Torus> struct int_comparison_buffer {
     case COMPARISON_TYPE::GE:
     case COMPARISON_TYPE::LT:
     case COMPARISON_TYPE::LE:
-      diff_buffer = new int_comparison_diff_buffer<Torus>(
+      diff_buffer = new int_comparison_diff_buffer<Torus, KSTorus>(
           streams, op, params, num_radix_blocks, allocate_gpu_memory,
           size_tracker);
     case COMPARISON_TYPE::EQ:
     case COMPARISON_TYPE::NE:
-      eq_buffer = new int_comparison_eq_buffer<Torus>(
+      eq_buffer = new int_comparison_eq_buffer<Torus, KSTorus>(
           streams, op, params, num_radix_blocks, allocate_gpu_memory,
           size_tracker);
       break;
@@ -485,9 +489,9 @@ template <typename Torus> struct int_comparison_buffer {
           streams.stream(0), streams.gpu_index(0), tmp_trivial_sign_block, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-      signed_lut = new int_radix_lut<Torus>(streams, params, 1, 1,
-                                            allocate_gpu_memory, size_tracker);
-      signed_msb_lut = new int_radix_lut<Torus>(
+      signed_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, 1, allocate_gpu_memory, size_tracker);
+      signed_msb_lut = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       auto message_modulus = (int)params.message_modulus;
