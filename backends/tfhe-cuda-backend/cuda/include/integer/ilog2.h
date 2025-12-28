@@ -1,11 +1,12 @@
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
+template <typename Torus, typename KSTorus>
+struct int_prepare_count_of_consecutive_bits_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_radix_lut<Torus> *univ_lut_mem;
-  int_radix_lut<Torus> *biv_lut_mem;
+  int_radix_lut<Torus, KSTorus> *univ_lut_mem;
+  int_radix_lut<Torus, KSTorus> *biv_lut_mem;
 
   Direction direction;
   BitValue bit_value;
@@ -23,11 +24,11 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     this->univ_lut_mem =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
     this->biv_lut_mem =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     const uint32_t num_bits = std::log2(this->params.message_modulus);
 
@@ -98,16 +99,18 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
   }
 };
 
-template <typename Torus> struct int_count_of_consecutive_bits_buffer {
+template <typename Torus, typename KSTorus>
+struct int_count_of_consecutive_bits_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   uint32_t counter_num_blocks;
 
-  int_prepare_count_of_consecutive_bits_buffer<Torus> *prepare_mem = nullptr;
+  int_prepare_count_of_consecutive_bits_buffer<Torus, KSTorus> *prepare_mem =
+      nullptr;
   CudaRadixCiphertextFFI *ct_prepared = nullptr;
 
-  int_sum_ciphertexts_vec_memory<Torus> *sum_mem = nullptr;
-  int_sc_prop_memory<Torus> *propagate_mem = nullptr;
+  int_sum_ciphertexts_vec_memory<Torus, KSTorus> *sum_mem = nullptr;
+  int_sc_prop_memory<Torus, KSTorus> *propagate_mem = nullptr;
   CudaRadixCiphertextFFI *cts = nullptr;
 
   int_count_of_consecutive_bits_buffer(CudaStreams streams,
@@ -127,9 +130,10 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
         streams.stream(0), streams.gpu_index(0), ct_prepared, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->prepare_mem = new int_prepare_count_of_consecutive_bits_buffer<Torus>(
-        streams, params, num_radix_blocks, direction, bit_value,
-        allocate_gpu_memory, size_tracker);
+    this->prepare_mem =
+        new int_prepare_count_of_consecutive_bits_buffer<Torus, KSTorus>(
+            streams, params, num_radix_blocks, direction, bit_value,
+            allocate_gpu_memory, size_tracker);
 
     this->cts = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -137,11 +141,11 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
         counter_num_blocks * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+    this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus, KSTorus>(
         streams, params, counter_num_blocks, num_radix_blocks, true,
         allocate_gpu_memory, size_tracker);
 
-    this->propagate_mem = new int_sc_prop_memory<Torus>(
+    this->propagate_mem = new int_sc_prop_memory<Torus, KSTorus>(
         streams, params, counter_num_blocks, FLAG_NONE, allocate_gpu_memory,
         size_tracker);
   }
@@ -172,16 +176,16 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
-template <typename Torus> struct int_ilog2_buffer {
+template <typename Torus, typename KSTorus> struct int_ilog2_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   uint32_t input_num_blocks;
   uint32_t counter_num_blocks;
   uint32_t num_bits_in_ciphertext;
 
-  int_prepare_count_of_consecutive_bits_buffer<Torus> *prepare_mem;
-  int_sum_ciphertexts_vec_memory<Torus> *sum_mem;
-  int_fullprop_buffer<Torus> *final_propagate_mem;
+  int_prepare_count_of_consecutive_bits_buffer<Torus, KSTorus> *prepare_mem;
+  int_sum_ciphertexts_vec_memory<Torus, KSTorus> *sum_mem;
+  int_fullprop_buffer<Torus, KSTorus> *final_propagate_mem;
 
   CudaRadixCiphertextFFI *ct_in_buffer;
   CudaRadixCiphertextFFI *sum_input_cts;
@@ -190,8 +194,8 @@ template <typename Torus> struct int_ilog2_buffer {
   CudaRadixCiphertextFFI *carry_blocks_not;
   CudaRadixCiphertextFFI *rotated_carry_blocks;
 
-  int_radix_lut<Torus> *lut_message_not;
-  int_radix_lut<Torus> *lut_carry_not;
+  int_radix_lut<Torus, KSTorus> *lut_message_not;
+  int_radix_lut<Torus, KSTorus> *lut_carry_not;
 
   int_ilog2_buffer(CudaStreams streams, const int_radix_params params,
                    uint32_t input_num_blocks, uint32_t counter_num_blocks,
@@ -210,9 +214,10 @@ template <typename Torus> struct int_ilog2_buffer {
         input_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->prepare_mem = new int_prepare_count_of_consecutive_bits_buffer<Torus>(
-        streams, params, input_num_blocks, Leading, Zero, allocate_gpu_memory,
-        size_tracker);
+    this->prepare_mem =
+        new int_prepare_count_of_consecutive_bits_buffer<Torus, KSTorus>(
+            streams, params, input_num_blocks, Leading, Zero,
+            allocate_gpu_memory, size_tracker);
 
     uint32_t sum_input_total_blocks =
         (input_num_blocks + 1) * counter_num_blocks;
@@ -222,7 +227,7 @@ template <typename Torus> struct int_ilog2_buffer {
         sum_input_total_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+    this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus, KSTorus>(
         streams, params, counter_num_blocks, input_num_blocks + 1, false,
         allocate_gpu_memory, size_tracker);
 
@@ -232,9 +237,9 @@ template <typename Torus> struct int_ilog2_buffer {
         this->sum_output_not_propagated, counter_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->lut_message_not =
-        new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    this->lut_message_not = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 1, counter_num_blocks, allocate_gpu_memory,
+        size_tracker);
     std::function<Torus(Torus)> lut_message_lambda =
         [this](uint64_t x) -> uint64_t {
       uint64_t message = x % this->params.message_modulus;
@@ -251,9 +256,9 @@ template <typename Torus> struct int_ilog2_buffer {
         streams.active_gpu_subset(counter_num_blocks, params.pbs_type);
     lut_message_not->broadcast_lut(active_streams);
 
-    this->lut_carry_not =
-        new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    this->lut_carry_not = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 1, counter_num_blocks, allocate_gpu_memory,
+        size_tracker);
     std::function<Torus(Torus)> lut_carry_lambda =
         [this](uint64_t x) -> uint64_t {
       uint64_t carry = x / this->params.message_modulus;
@@ -285,7 +290,7 @@ template <typename Torus> struct int_ilog2_buffer {
         counter_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->final_propagate_mem = new int_fullprop_buffer<Torus>(
+    this->final_propagate_mem = new int_fullprop_buffer<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, size_tracker);
   }
 

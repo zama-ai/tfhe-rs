@@ -9,14 +9,15 @@
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_logical_scalar_shift(
-    CudaStreams streams, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_logical_scalar_shift_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
+  *mem_ptr = new int_logical_scalar_shift_buffer<Torus, KSTorus>(
       streams, shift_type, params, num_radix_blocks, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
@@ -25,7 +26,7 @@ __host__ uint64_t scratch_cuda_logical_scalar_shift(
 template <typename Torus, typename KSTorus>
 __host__ void host_logical_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    int_logical_scalar_shift_buffer<Torus, KSTorus> *mem, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_blocks) {
 
   if (lwe_array->num_radix_blocks < num_blocks)
@@ -113,14 +114,15 @@ __host__ void host_logical_scalar_shift_inplace(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
-    CudaStreams streams, int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_arithmetic_scalar_shift_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus>(
+  *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus, KSTorus>(
       streams, shift_type, params, num_radix_blocks, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
@@ -129,7 +131,7 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    int_arithmetic_scalar_shift_buffer<Torus, KSTorus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;

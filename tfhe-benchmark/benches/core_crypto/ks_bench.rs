@@ -860,44 +860,42 @@ mod cuda {
         }
     }
 
-    pub fn cuda_ks_group() {
+    pub fn cuda_ks_group<T: UnsignedTorus + CastInto<usize> + CastFrom<u64>>() {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &benchmark_parameters());
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, T>(&mut criterion, &benchmark_parameters());
         cuda_packing_keyswitch(&mut criterion, &benchmark_parameters());
     }
 
-    pub fn cuda_ks_group_documentation() {
+    pub fn cuda_ks_group_documentation<T: UnsignedTorus + CastInto<usize> + CastFrom<u64>>() {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &benchmark_parameters());
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, T>(&mut criterion, &benchmark_parameters());
     }
 
-    pub fn cuda_multi_bit_ks_group() {
+    pub fn cuda_multi_bit_ks_group<T: UnsignedTorus + CastInto<usize> + CastFrom<u64>>() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
         let multi_bit_parameters = multi_bit_benchmark_parameters()
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &multi_bit_parameters);
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_classical_and_gemm::<u64, T>(&mut criterion, &multi_bit_parameters);
         cuda_packing_keyswitch(&mut criterion, &multi_bit_parameters);
     }
 
-    pub fn cuda_multi_bit_ks_group_documentation() {
+    pub fn cuda_multi_bit_ks_group_documentation<
+        T: UnsignedTorus + CastInto<usize> + CastFrom<u64>,
+    >() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
         let multi_bit_parameters = multi_bit_benchmark_parameters()
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &multi_bit_parameters);
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &multi_bit_parameters);
+        cuda_keyswitch_classical_and_gemm::<u64, T>(&mut criterion, &multi_bit_parameters);
     }
 }
 
@@ -952,10 +950,12 @@ pub fn packing_ks_group() {
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical => cuda_ks_group(),
-        ParamType::ClassicalDocumentation => cuda_ks_group_documentation(),
-        ParamType::MultiBit => cuda_multi_bit_ks_group(),
-        ParamType::MultiBitDocumentation => cuda_multi_bit_ks_group_documentation(),
+        ParamType::Classical => cuda_ks_group::<u64>(),
+        ParamType::ClassicalDocumentation => cuda_ks_group_documentation::<u64>(),
+        ParamType::MultiBit => cuda_multi_bit_ks_group::<u64>(),
+        ParamType::MultiBitDocumentation => cuda_multi_bit_ks_group_documentation::<u64>(),
+        ParamType::ClassicalKs32 => cuda_ks_group::<u32>(),
+        ParamType::MultiBitKs32 => cuda_multi_bit_ks_group::<u32>(),
     };
 }
 
@@ -968,6 +968,8 @@ fn go_through_cpu_bench_groups() {
         }
         ParamType::ClassicalDocumentation => ks_group(),
         ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_group(),
+        ParamType::ClassicalKs32 => panic!("KS32 core crypto benches not implemented on CPU"),
+        ParamType::MultiBitKs32 => panic!("KS32 core crypto benches not implemented on CPU"),
     }
 }
 

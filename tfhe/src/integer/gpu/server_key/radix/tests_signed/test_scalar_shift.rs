@@ -10,6 +10,7 @@ use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_scalar_left_shift);
+
 create_gpu_parameterized_test!(integer_signed_scalar_left_shift);
 create_gpu_parameterized_test!(integer_signed_unchecked_scalar_right_shift);
 create_gpu_parameterized_test!(integer_signed_scalar_right_shift);

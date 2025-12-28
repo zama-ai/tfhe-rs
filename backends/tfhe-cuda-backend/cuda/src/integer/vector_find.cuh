@@ -8,13 +8,13 @@
 #include "integer/scalar_comparison.cuh"
 #include "integer/vector_find.h"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_compute_equality_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
-    int_equality_selectors_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_equality_selectors_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
 
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
@@ -37,7 +37,7 @@ __host__ void host_compute_equality_selectors(
 
     CudaRadixCiphertextFFI *current_tmp_block_comparisons =
         mem_ptr->tmp_block_comparisons[stream_idx];
-    int_comparison_buffer<Torus> *current_reduction_buffer =
+    int_comparison_buffer<Torus, KSTorus> *current_reduction_buffer =
         mem_ptr->reduction_buffers[stream_idx];
 
     const uint64_t *current_clear_blocks =
@@ -70,27 +70,28 @@ __host__ void host_compute_equality_selectors(
       streams);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_compute_equality_selectors(
-    CudaStreams streams, int_equality_selectors_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_equality_selectors_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_possible_values, uint32_t num_blocks,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_equality_selectors_buffer<Torus>(
+  *mem_ptr = new int_equality_selectors_buffer<Torus, KSTorus>(
       streams, params, num_possible_values, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_create_possible_results(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
     CudaRadixCiphertextFFI const *lwe_array_in_list,
     uint32_t num_possible_values, const uint64_t *h_decomposed_cleartexts,
-    uint32_t num_blocks, int_possible_results_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    uint32_t num_blocks, int_possible_results_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t max_packed_value = mem_ptr->max_packed_value;
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
@@ -116,7 +117,8 @@ __host__ void host_create_possible_results(
 
       uint32_t lut_index = stream_idx * num_lut_accumulators + k;
 
-      int_radix_lut<Torus> *current_lut = mem_ptr->stream_luts[lut_index];
+      int_radix_lut<Torus, KSTorus> *current_lut =
+          mem_ptr->stream_luts[lut_index];
 
       uint32_t luts_in_this_call = current_lut->num_many_lut;
 
@@ -152,27 +154,27 @@ __host__ void host_create_possible_results(
       streams);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_create_possible_results(
-    CudaStreams streams, int_possible_results_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_possible_results_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks, uint32_t num_possible_values,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_possible_results_buffer<Torus>(
+  *mem_ptr = new int_possible_results_buffer<Torus, KSTorus>(
       streams, params, num_blocks, num_possible_values, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_aggregate_one_hot_vector(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in_list,
     uint32_t num_input_ciphertexts, uint32_t num_blocks,
-    int_aggregate_one_hot_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_aggregate_one_hot_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
 
   int_radix_params params = mem_ptr->params;
   uint32_t chunk_size = mem_ptr->chunk_size;
@@ -191,7 +193,7 @@ __host__ void host_aggregate_one_hot_vector(
     CudaRadixCiphertextFFI *current_agg =
         mem_ptr->partial_aggregated_vectors[s];
     CudaRadixCiphertextFFI *current_temp = mem_ptr->partial_temp_vectors[s];
-    int_radix_lut<Torus> *current_identity_lut =
+    int_radix_lut<Torus, KSTorus> *current_identity_lut =
         mem_ptr->stream_identity_luts[s];
 
     uint32_t start_idx = s * inputs_per_stream;
@@ -322,28 +324,28 @@ __host__ void host_aggregate_one_hot_vector(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_aggregate_one_hot_vector(
-    CudaStreams streams, int_aggregate_one_hot_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_aggregate_one_hot_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks, uint32_t num_matches,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_aggregate_one_hot_buffer<Torus>(
+  *mem_ptr = new int_aggregate_one_hot_buffer<Torus, KSTorus>(
       streams, params, num_blocks, num_matches, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_match_value(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_result,
     CudaRadixCiphertextFFI *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_ct,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
-    int_unchecked_match_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_match_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->selectors_list, lwe_array_in_ct,
       mem_ptr->num_input_blocks, h_match_inputs, mem_ptr->eq_selectors_buffer,
@@ -382,44 +384,45 @@ __host__ void host_unchecked_match_value(
       mem_ptr->num_matches);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_match_value(
-    CudaStreams streams, int_unchecked_match_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_unchecked_match_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_output_packed_blocks, bool max_output_is_zero,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_match_buffer<Torus>(
+  *mem_ptr = new int_unchecked_match_buffer<Torus, KSTorus>(
       streams, params, num_matches, num_input_blocks, num_output_packed_blocks,
       max_output_is_zero, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_match_value_or(
-    CudaStreams streams, int_unchecked_match_value_or_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_match_value_or_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
     bool max_output_is_zero, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_match_value_or_buffer<Torus>(
+  *mem_ptr = new int_unchecked_match_value_or_buffer<Torus, KSTorus>(
       streams, params, num_matches, num_input_blocks, num_match_packed_blocks,
       num_final_blocks, max_output_is_zero, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_match_value_or(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in_ct,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     const uint64_t *h_or_value,
-    int_unchecked_match_value_or_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_match_value_or_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_unchecked_match_value<Torus>(streams, mem_ptr->tmp_match_result,
                                     mem_ptr->tmp_match_bool, lwe_array_in_ct,
@@ -440,29 +443,29 @@ __host__ void host_unchecked_match_value_or(
                    mem_ptr->cmux_buffer, bsks, (Torus **)ksks);
 }
 
-template <typename Torus>
-uint64_t
-scratch_cuda_unchecked_contains(CudaStreams streams,
-                                int_unchecked_contains_buffer<Torus> **mem_ptr,
-                                int_radix_params params, uint32_t num_inputs,
-                                uint32_t num_blocks, bool allocate_gpu_memory) {
+template <typename Torus, typename KSTorus>
+uint64_t scratch_cuda_unchecked_contains(
+    CudaStreams streams,
+    int_unchecked_contains_buffer<Torus, KSTorus> **mem_ptr,
+    int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_contains_buffer<Torus>(
+  *mem_ptr = new int_unchecked_contains_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void
 host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
                         CudaRadixCiphertextFFI const *inputs,
                         CudaRadixCiphertextFFI const *value,
                         uint32_t num_inputs, uint32_t num_blocks,
-                        int_unchecked_contains_buffer<Torus> *mem_ptr,
-                        void *const *bsks, Torus *const *ksks) {
+                        int_unchecked_contains_buffer<Torus, KSTorus> *mem_ptr,
+                        void *const *bsks, KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -492,27 +495,28 @@ host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
       bsks, (Torus **)ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_contains_clear(
-    CudaStreams streams, int_unchecked_contains_clear_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_contains_clear_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_contains_clear_buffer<Torus>(
+  *mem_ptr = new int_unchecked_contains_clear_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_contains_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
     uint32_t num_inputs, uint32_t num_blocks,
-    int_unchecked_contains_clear_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_contains_clear_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
                            num_blocks * sizeof(Torus), streams.stream(0),
@@ -552,28 +556,28 @@ __host__ void host_unchecked_contains_clear(
       bsks, (Torus **)ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_is_in_clears(
-    CudaStreams streams, int_unchecked_is_in_clears_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_is_in_clears_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_is_in_clears_buffer<Torus>(
+  *mem_ptr = new int_unchecked_is_in_clears_buffer<Torus, KSTorus>(
       streams, params, num_clears, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
-__host__ void
-host_unchecked_is_in_clears(CudaStreams streams, CudaRadixCiphertextFFI *output,
-                            CudaRadixCiphertextFFI const *input,
-                            const uint64_t *h_cleartexts, uint32_t num_clears,
-                            uint32_t num_blocks,
-                            int_unchecked_is_in_clears_buffer<Torus> *mem_ptr,
-                            void *const *bsks, Torus *const *ksks) {
+template <typename Torus, typename KSTorus>
+__host__ void host_unchecked_is_in_clears(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input, const uint64_t *h_cleartexts,
+    uint32_t num_clears, uint32_t num_blocks,
+    int_unchecked_is_in_clears_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
                                          input, num_blocks, h_cleartexts,
@@ -584,13 +588,13 @@ host_unchecked_is_in_clears(CudaStreams streams, CudaRadixCiphertextFFI *output,
       bsks, (Torus **)ksks, num_clears);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_compute_final_index_from_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *selectors,
     uint32_t num_inputs, uint32_t num_blocks_index,
-    int_final_index_from_selectors_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_final_index_from_selectors_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     CudaRadixCiphertextFFI const *src_selector = &selectors[i];
@@ -616,42 +620,44 @@ __host__ void host_compute_final_index_from_selectors(
       bsks, (Torus **)ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_compute_final_index_from_selectors(
-    CudaStreams streams, int_final_index_from_selectors_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_final_index_from_selectors_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks_index,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_final_index_from_selectors_buffer<Torus>(
+  *mem_ptr = new int_final_index_from_selectors_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_index_in_clears(
-    CudaStreams streams, int_unchecked_index_in_clears_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_index_in_clears_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_index_in_clears_buffer<Torus>(
+  *mem_ptr = new int_unchecked_index_in_clears_buffer<Torus, KSTorus>(
       streams, params, num_clears, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_index_in_clears(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
     const uint64_t *h_cleartexts, uint32_t num_clears, uint32_t num_blocks,
     uint32_t num_blocks_index,
-    int_unchecked_index_in_clears_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_index_in_clears_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->final_index_buf->unpacked_selectors, input, num_blocks,
@@ -676,29 +682,29 @@ __host__ void host_unchecked_index_in_clears(
       num_clears);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_first_index_in_clears(
     CudaStreams streams,
-    int_unchecked_first_index_in_clears_buffer<Torus> **mem_ptr,
+    int_unchecked_first_index_in_clears_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_unique, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_first_index_in_clears_buffer<Torus>(
+  *mem_ptr = new int_unchecked_first_index_in_clears_buffer<Torus, KSTorus>(
       streams, params, num_unique, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_first_index_in_clears(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
     const uint64_t *h_unique_values, const uint64_t *h_unique_indices,
     uint32_t num_unique, uint32_t num_blocks, uint32_t num_blocks_index,
-    int_unchecked_first_index_in_clears_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    int_unchecked_first_index_in_clears_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
                                          input, num_blocks, h_unique_values,
@@ -720,29 +726,29 @@ __host__ void host_unchecked_first_index_in_clears(
       bsks, (Torus **)ksks, num_unique);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_first_index_of_clear(
     CudaStreams streams,
-    int_unchecked_first_index_of_clear_buffer<Torus> **mem_ptr,
+    int_unchecked_first_index_of_clear_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_first_index_of_clear_buffer<Torus>(
+  *mem_ptr = new int_unchecked_first_index_of_clear_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_first_index_of_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     const uint64_t *h_clear_val, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index,
-    int_unchecked_first_index_of_clear_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    int_unchecked_first_index_of_clear_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
                            num_blocks * sizeof(Torus), streams.stream(0),
@@ -813,28 +819,29 @@ __host__ void host_unchecked_first_index_of_clear(
       bsks, (Torus **)ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_first_index_of(
-    CudaStreams streams, int_unchecked_first_index_of_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_first_index_of_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_first_index_of_buffer<Torus>(
+  *mem_ptr = new int_unchecked_first_index_of_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_first_index_of(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
     uint32_t num_blocks, uint32_t num_blocks_index,
-    int_unchecked_first_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_first_index_of_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -895,28 +902,29 @@ __host__ void host_unchecked_first_index_of(
       bsks, (Torus **)ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_index_of(
-    CudaStreams streams, int_unchecked_index_of_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_index_of_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_index_of_buffer<Torus>(
+  *mem_ptr = new int_unchecked_index_of_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_index_of(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
     uint32_t num_blocks, uint32_t num_blocks_index,
-    int_unchecked_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_index_of_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -961,29 +969,30 @@ __host__ void host_unchecked_index_of(
       num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_index_of_clear(
-    CudaStreams streams, int_unchecked_index_of_clear_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_index_of_clear_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_index_of_clear_buffer<Torus>(
+  *mem_ptr = new int_unchecked_index_of_clear_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_index_of_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     const Torus *d_scalar_blocks, bool is_scalar_obviously_bigger,
     uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
     uint32_t num_blocks_index,
-    int_unchecked_index_of_clear_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_index_of_clear_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   CudaRadixCiphertextFFI *packed_selectors =
       mem_ptr->final_index_buf->packed_selectors;

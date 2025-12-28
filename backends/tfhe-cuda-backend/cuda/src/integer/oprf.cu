@@ -16,8 +16,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_64(
                           noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf<uint64_t>(
-      CudaStreams(streams), (int_grouped_oprf_memory<uint64_t> **)mem_ptr,
-      params, num_blocks_to_process, message_bits_per_block, total_random_bits,
+      CudaStreams(streams),
+      (int_grouped_oprf_memory<uint64_t, uint64_t> **)mem_ptr, params,
+      num_blocks_to_process, message_bits_per_block, total_random_bits,
       allocate_gpu_memory);
 }
 
@@ -29,14 +30,15 @@ void cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 
   host_integer_grouped_oprf<uint64_t>(
       CudaStreams(streams), radix_lwe_out, (const uint64_t *)seeded_lwe_input,
-      num_blocks_to_process, (int_grouped_oprf_memory<uint64_t> *)mem, bsks);
+      num_blocks_to_process, (int_grouped_oprf_memory<uint64_t, uint64_t> *)mem,
+      bsks);
 }
 
 void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
                                           int8_t **mem_ptr_void) {
 
-  int_grouped_oprf_memory<uint64_t> *mem_ptr =
-      (int_grouped_oprf_memory<uint64_t> *)(*mem_ptr_void);
+  int_grouped_oprf_memory<uint64_t, uint64_t> *mem_ptr =
+      (int_grouped_oprf_memory<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -62,9 +64,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64(
 
   return scratch_cuda_integer_grouped_oprf_custom_range<uint64_t>(
       CudaStreams(streams),
-      (int_grouped_oprf_custom_range_memory<uint64_t> **)mem_ptr, params,
-      num_blocks_intermediate, message_bits_per_block, num_input_random_bits,
-      num_scalar_bits, allocate_gpu_memory);
+      (int_grouped_oprf_custom_range_memory<uint64_t, uint64_t> **)mem_ptr,
+      params, num_blocks_intermediate, message_bits_per_block,
+      num_input_random_bits, num_scalar_bits, allocate_gpu_memory);
 }
 
 void cuda_integer_grouped_oprf_custom_range_64(
@@ -78,14 +80,15 @@ void cuda_integer_grouped_oprf_custom_range_64(
       CudaStreams(streams), radix_lwe_out, num_blocks_intermediate,
       (const uint64_t *)seeded_lwe_input, decomposed_scalar,
       has_at_least_one_set, num_scalars, shift,
-      (int_grouped_oprf_custom_range_memory<uint64_t> *)mem, bsks,
+      (int_grouped_oprf_custom_range_memory<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void) {
-  int_grouped_oprf_custom_range_memory<uint64_t> *mem_ptr =
-      (int_grouped_oprf_custom_range_memory<uint64_t> *)(*mem_ptr_void);
+  int_grouped_oprf_custom_range_memory<uint64_t, uint64_t> *mem_ptr =
+      (int_grouped_oprf_custom_range_memory<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 

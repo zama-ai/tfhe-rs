@@ -6,33 +6,34 @@
 #include "scalar_shifts.h"
 
 // used only when 4 gpus are available
-template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
+template <typename Torus, typename KSTorus>
+struct unsigned_int_div_rem_2_2_memory {
   int_radix_params params;
   bool gpu_memory_allocated;
 
   // memory objects for other operations
-  int_borrow_prop_memory<Torus> *overflow_sub_mem_1;
-  int_borrow_prop_memory<Torus> *overflow_sub_mem_2;
-  int_borrow_prop_memory<Torus> *overflow_sub_mem_3;
-  int_comparison_buffer<Torus> *comparison_buffer_1;
-  int_comparison_buffer<Torus> *comparison_buffer_2;
-  int_comparison_buffer<Torus> *comparison_buffer_3;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
-  int_bitop_buffer<Torus> *bitor_mem_1;
-  int_bitop_buffer<Torus> *bitor_mem_2;
-  int_bitop_buffer<Torus> *bitor_mem_3;
-  int_logical_scalar_shift_buffer<Torus> *shift_mem;
+  int_borrow_prop_memory<Torus, KSTorus> *overflow_sub_mem_1;
+  int_borrow_prop_memory<Torus, KSTorus> *overflow_sub_mem_2;
+  int_borrow_prop_memory<Torus, KSTorus> *overflow_sub_mem_3;
+  int_comparison_buffer<Torus, KSTorus> *comparison_buffer_1;
+  int_comparison_buffer<Torus, KSTorus> *comparison_buffer_2;
+  int_comparison_buffer<Torus, KSTorus> *comparison_buffer_3;
+  int_sub_and_propagate<Torus, KSTorus> *sub_and_propagate_mem;
+  int_bitop_buffer<Torus, KSTorus> *bitor_mem_1;
+  int_bitop_buffer<Torus, KSTorus> *bitor_mem_2;
+  int_bitop_buffer<Torus, KSTorus> *bitor_mem_3;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *shift_mem;
 
   // lookup tables
-  int_radix_lut<Torus> *message_extract_lut_1;
-  int_radix_lut<Torus> *message_extract_lut_2;
-  int_radix_lut<Torus> *zero_out_if_not_1_lut_1;
-  int_radix_lut<Torus> *zero_out_if_not_1_lut_2;
-  int_radix_lut<Torus> *zero_out_if_not_2_lut_1;
-  int_radix_lut<Torus> *zero_out_if_not_2_lut_2;
-  int_radix_lut<Torus> *quotient_lut_1;
-  int_radix_lut<Torus> *quotient_lut_2;
-  int_radix_lut<Torus> *quotient_lut_3;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut_1;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut_2;
+  int_radix_lut<Torus, KSTorus> *zero_out_if_not_1_lut_1;
+  int_radix_lut<Torus, KSTorus> *zero_out_if_not_1_lut_2;
+  int_radix_lut<Torus, KSTorus> *zero_out_if_not_2_lut_1;
+  int_radix_lut<Torus, KSTorus> *zero_out_if_not_2_lut_2;
+  int_radix_lut<Torus, KSTorus> *quotient_lut_1;
+  int_radix_lut<Torus, KSTorus> *quotient_lut_2;
+  int_radix_lut<Torus, KSTorus> *quotient_lut_3;
 
   // sub streams
   CudaStreams sub_streams_1;
@@ -252,21 +253,21 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   void init_lookup_tables(CudaStreams streams, uint32_t num_blocks,
                           bool allocate_gpu_memory, uint64_t &size_tracker) {
 
-    zero_out_if_not_1_lut_1 =
-        new int_radix_lut<Torus>(streams.get_ith(0), params, 1, num_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    zero_out_if_not_1_lut_1 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(0), params, 1, num_blocks, allocate_gpu_memory,
+        size_tracker);
 
-    zero_out_if_not_2_lut_1 =
-        new int_radix_lut<Torus>(streams.get_ith(1), params, 1, num_blocks,
-                                 allocate_gpu_memory, tmp_size_tracker);
+    zero_out_if_not_2_lut_1 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(1), params, 1, num_blocks, allocate_gpu_memory,
+        tmp_size_tracker);
 
-    zero_out_if_not_2_lut_2 =
-        new int_radix_lut<Torus>(streams.get_ith(2), params, 1, num_blocks,
-                                 allocate_gpu_memory, tmp_size_tracker);
+    zero_out_if_not_2_lut_2 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(2), params, 1, num_blocks, allocate_gpu_memory,
+        tmp_size_tracker);
 
-    zero_out_if_not_1_lut_2 =
-        new int_radix_lut<Torus>(streams.get_ith(3), params, 1, num_blocks,
-                                 allocate_gpu_memory, tmp_size_tracker);
+    zero_out_if_not_1_lut_2 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(3), params, 1, num_blocks, allocate_gpu_memory,
+        tmp_size_tracker);
 
     auto zero_out_if_not_1_lut_f = [](Torus x) -> Torus {
       Torus block = x / 2;
@@ -279,8 +280,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
       return block * (Torus)condition;
     };
 
-    int_radix_lut<Torus> *luts[2] = {zero_out_if_not_1_lut_1,
-                                     zero_out_if_not_1_lut_2};
+    int_radix_lut<Torus, KSTorus> *luts[2] = {zero_out_if_not_1_lut_1,
+                                              zero_out_if_not_1_lut_2};
     size_t lut_gpu_indexes[2] = {0, 3};
     for (int j = 0; j < 2; j++) {
       generate_device_accumulator<Torus>(
@@ -304,13 +305,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           params.carry_modulus, zero_out_if_not_2_lut_f, gpu_memory_allocated);
     }
 
-    quotient_lut_1 =
-        new int_radix_lut<Torus>(streams.get_ith(2), params, 1, 1,
-                                 allocate_gpu_memory, tmp_size_tracker);
-    quotient_lut_2 =
-        new int_radix_lut<Torus>(streams.get_ith(1), params, 1, 1,
-                                 allocate_gpu_memory, tmp_size_tracker);
-    quotient_lut_3 = new int_radix_lut<Torus>(
+    quotient_lut_1 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(2), params, 1, 1, allocate_gpu_memory,
+        tmp_size_tracker);
+    quotient_lut_2 = new int_radix_lut<Torus, KSTorus>(
+        streams.get_ith(1), params, 1, 1, allocate_gpu_memory,
+        tmp_size_tracker);
+    quotient_lut_3 = new int_radix_lut<Torus, KSTorus>(
         streams.get_ith(0), params, 1, 1, allocate_gpu_memory, size_tracker);
 
     auto quotient_lut_1_f = [](Torus cond) -> Torus {
@@ -337,9 +338,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, quotient_lut_3_f, gpu_memory_allocated);
 
-    message_extract_lut_1 = new int_radix_lut<Torus>(
+    message_extract_lut_1 = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    message_extract_lut_2 = new int_radix_lut<Torus>(
+    message_extract_lut_2 = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
     auto message_modulus = params.message_modulus;
@@ -377,22 +378,22 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
 
-    sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+    sub_and_propagate_mem = new int_sub_and_propagate<Torus, KSTorus>(
         streams.get_ith(0), params, num_blocks + 1, outputFlag::FLAG_NONE,
         allocate_gpu_memory, size_tracker);
 
-    shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+    shift_mem = new int_logical_scalar_shift_buffer<Torus, KSTorus>(
         streams.get_ith(1), SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params,
         2 * num_blocks, allocate_gpu_memory, tmp_size_tracker);
 
     uint32_t compute_overflow = 1;
-    overflow_sub_mem_1 = new int_borrow_prop_memory<Torus>(
+    overflow_sub_mem_1 = new int_borrow_prop_memory<Torus, KSTorus>(
         streams.get_ith(0), params, num_blocks, compute_overflow,
         allocate_gpu_memory, size_tracker);
-    overflow_sub_mem_2 = new int_borrow_prop_memory<Torus>(
+    overflow_sub_mem_2 = new int_borrow_prop_memory<Torus, KSTorus>(
         streams.get_ith(1), params, num_blocks, compute_overflow,
         allocate_gpu_memory, tmp_size_tracker);
-    overflow_sub_mem_3 = new int_borrow_prop_memory<Torus>(
+    overflow_sub_mem_3 = new int_borrow_prop_memory<Torus, KSTorus>(
         streams.get_ith(2), params, num_blocks, compute_overflow,
         allocate_gpu_memory, tmp_size_tracker);
     uint32_t group_size = overflow_sub_mem_1->group_size;
@@ -420,22 +421,22 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         &second_indexes_for_overflow_sub_gpu_2, &scalars_for_overflow_sub_gpu_2,
         num_blocks, allocate_gpu_memory, tmp_size_tracker);
 
-    comparison_buffer_1 = new int_comparison_buffer<Torus>(
+    comparison_buffer_1 = new int_comparison_buffer<Torus, KSTorus>(
         streams.get_ith(0), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, size_tracker);
-    comparison_buffer_2 = new int_comparison_buffer<Torus>(
+    comparison_buffer_2 = new int_comparison_buffer<Torus, KSTorus>(
         streams.get_ith(1), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, tmp_size_tracker);
-    comparison_buffer_3 = new int_comparison_buffer<Torus>(
+    comparison_buffer_3 = new int_comparison_buffer<Torus, KSTorus>(
         streams.get_ith(2), COMPARISON_TYPE::EQ, params, num_blocks, false,
         allocate_gpu_memory, tmp_size_tracker);
-    bitor_mem_1 = new int_bitop_buffer<Torus>(
+    bitor_mem_1 = new int_bitop_buffer<Torus, KSTorus>(
         streams.get_ith(0), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, size_tracker);
-    bitor_mem_2 = new int_bitop_buffer<Torus>(
+    bitor_mem_2 = new int_bitop_buffer<Torus, KSTorus>(
         streams.get_ith(1), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, tmp_size_tracker);
-    bitor_mem_3 = new int_bitop_buffer<Torus>(
+    bitor_mem_3 = new int_bitop_buffer<Torus, KSTorus>(
         streams.get_ith(2), BITOP_TYPE::BITOR, params, num_blocks,
         allocate_gpu_memory, tmp_size_tracker);
 
@@ -850,24 +851,24 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   }
 };
 
-template <typename Torus> struct unsigned_int_div_rem_memory {
+template <typename Torus, typename KSTorus> struct unsigned_int_div_rem_memory {
   int_radix_params params;
 
   // memory objects for other operations
-  int_logical_scalar_shift_buffer<Torus> *shift_mem_1;
-  int_logical_scalar_shift_buffer<Torus> *shift_mem_2;
-  int_borrow_prop_memory<Torus> *overflow_sub_mem;
-  int_comparison_buffer<Torus> *comparison_buffer;
-  unsigned_int_div_rem_2_2_memory<Torus> *div_rem_2_2_mem;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *shift_mem_1;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *shift_mem_2;
+  int_borrow_prop_memory<Torus, KSTorus> *overflow_sub_mem;
+  int_comparison_buffer<Torus, KSTorus> *comparison_buffer;
+  unsigned_int_div_rem_2_2_memory<Torus, KSTorus> *div_rem_2_2_mem;
 
   // lookup tables
-  int_radix_lut<Torus> **masking_luts_1;
-  int_radix_lut<Torus> **masking_luts_2;
-  int_radix_lut<Torus> *message_extract_lut_1;
-  int_radix_lut<Torus> *message_extract_lut_2;
-  int_radix_lut<Torus> **zero_out_if_overflow_did_not_happen;
-  int_radix_lut<Torus> **zero_out_if_overflow_happened;
-  int_radix_lut<Torus> **merge_overflow_flags_luts;
+  int_radix_lut<Torus, KSTorus> **masking_luts_1;
+  int_radix_lut<Torus, KSTorus> **masking_luts_2;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut_1;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut_2;
+  int_radix_lut<Torus, KSTorus> **zero_out_if_overflow_did_not_happen;
+  int_radix_lut<Torus, KSTorus> **zero_out_if_overflow_happened;
+  int_radix_lut<Torus, KSTorus> **merge_overflow_flags_luts;
 
   // sub streams
   CudaStreams sub_streams_1;
@@ -995,16 +996,18 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     // create and generate masking_luts_1[] and masking_lut_2[]
     // both of them are equal but because they are used in two different
     // executions in parallel we need two different pbs_buffers.
-    masking_luts_1 = new int_radix_lut<Torus> *[params.message_modulus - 1];
-    masking_luts_2 = new int_radix_lut<Torus> *[params.message_modulus - 1];
+    masking_luts_1 =
+        new int_radix_lut<Torus, KSTorus> *[params.message_modulus - 1];
+    masking_luts_2 =
+        new int_radix_lut<Torus, KSTorus> *[params.message_modulus - 1];
     for (int i = 0; i < params.message_modulus - 1; i++) {
       uint32_t shifted_mask = i;
       std::function<Torus(Torus)> lut_f_masking =
           [shifted_mask](Torus x) -> Torus { return x & shifted_mask; };
 
-      masking_luts_1[i] = new int_radix_lut<Torus>(
+      masking_luts_1[i] = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
-      masking_luts_2[i] = new int_radix_lut<Torus>(
+      masking_luts_2[i] = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
       generate_device_accumulator<Torus>(
@@ -1030,9 +1033,9 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     // create and generate message_extract_lut_1 and message_extract_lut_2
     // both of them are equal but because they are used in two different
     // executions in parallel we need two different pbs_buffers.
-    message_extract_lut_1 = new int_radix_lut<Torus>(
+    message_extract_lut_1 = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    message_extract_lut_2 = new int_radix_lut<Torus>(
+    message_extract_lut_2 = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
     auto message_modulus = params.message_modulus;
@@ -1040,8 +1043,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
       return x % message_modulus;
     };
 
-    int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
-                                     message_extract_lut_2};
+    int_radix_lut<Torus, KSTorus> *luts[2] = {message_extract_lut_1,
+                                              message_extract_lut_2};
     auto active_streams =
         streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
@@ -1062,10 +1065,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     };
 
     // create and generate zero_out_if_overflow_did_not_happen
-    zero_out_if_overflow_did_not_happen = new int_radix_lut<Torus> *[2];
-    zero_out_if_overflow_did_not_happen[0] = new int_radix_lut<Torus>(
+    zero_out_if_overflow_did_not_happen =
+        new int_radix_lut<Torus, KSTorus> *[2];
+    zero_out_if_overflow_did_not_happen[0] = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_overflow_did_not_happen[1] = new int_radix_lut<Torus>(
+    zero_out_if_overflow_did_not_happen[1] = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
     auto cur_lut_f = [&](Torus block, Torus overflow_sum) -> Torus {
@@ -1096,10 +1100,10 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     zero_out_if_overflow_did_not_happen[1]->broadcast_lut(active_streams);
 
     // create and generate zero_out_if_overflow_happened
-    zero_out_if_overflow_happened = new int_radix_lut<Torus> *[2];
-    zero_out_if_overflow_happened[0] = new int_radix_lut<Torus>(
+    zero_out_if_overflow_happened = new int_radix_lut<Torus, KSTorus> *[2];
+    zero_out_if_overflow_happened[0] = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    zero_out_if_overflow_happened[1] = new int_radix_lut<Torus>(
+    zero_out_if_overflow_happened[1] = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
     auto overflow_happened_f = [&](Torus block, Torus overflow_sum) -> Torus {
@@ -1130,7 +1134,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     zero_out_if_overflow_happened[1]->broadcast_lut(active_streams);
 
     // merge_overflow_flags_luts
-    merge_overflow_flags_luts = new int_radix_lut<Torus> *[num_bits_in_message];
+    merge_overflow_flags_luts =
+        new int_radix_lut<Torus, KSTorus> *[num_bits_in_message];
     auto active_gpu_count_for_bits =
         streams.active_gpu_subset(1, params.pbs_type);
     for (int i = 0; i < num_bits_in_message; i++) {
@@ -1138,7 +1143,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         return (x == 0 && y == 0) << i;
       };
 
-      merge_overflow_flags_luts[i] = new int_radix_lut<Torus>(
+      merge_overflow_flags_luts[i] = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       generate_device_accumulator_bivariate<Torus>(
@@ -1162,21 +1167,21 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     if (params.message_modulus == 4 && params.carry_modulus == 4 &&
         streams.count() >= 4) {
-      div_rem_2_2_mem = new unsigned_int_div_rem_2_2_memory<Torus>(
+      div_rem_2_2_mem = new unsigned_int_div_rem_2_2_memory<Torus, KSTorus>(
           streams, params, num_blocks, allocate_gpu_memory, size_tracker);
       return;
     }
 
-    shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(
+    shift_mem_1 = new int_logical_scalar_shift_buffer<Torus, KSTorus>(
         streams, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params, 2 * num_blocks,
         allocate_gpu_memory, size_tracker);
 
-    shift_mem_2 = new int_logical_scalar_shift_buffer<Torus>(
+    shift_mem_2 = new int_logical_scalar_shift_buffer<Torus, KSTorus>(
         streams, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params, 2 * num_blocks,
         allocate_gpu_memory, size_tracker);
 
     uint32_t compute_overflow = 1;
-    overflow_sub_mem = new int_borrow_prop_memory<Torus>(
+    overflow_sub_mem = new int_borrow_prop_memory<Torus, KSTorus>(
         streams, params, num_blocks, compute_overflow, allocate_gpu_memory,
         size_tracker);
     uint32_t group_size = overflow_sub_mem->group_size;
@@ -1185,7 +1190,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     create_indexes_for_overflow_sub(streams, num_blocks, group_size, use_seq,
                                     allocate_gpu_memory, size_tracker);
 
-    comparison_buffer = new int_comparison_buffer<Torus>(
+    comparison_buffer = new int_comparison_buffer<Torus, KSTorus>(
         streams, COMPARISON_TYPE::NE, params, num_blocks, false,
         allocate_gpu_memory, size_tracker);
 
@@ -1445,21 +1450,21 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(scalars_for_overflow_sub);
   }
 };
-template <typename Torus> struct int_div_rem_memory {
+template <typename Torus, typename KSTorus> struct int_div_rem_memory {
   int_radix_params params;
   CudaStreams active_streams;
   bool is_signed;
   // memory objects for other operations
-  unsigned_int_div_rem_memory<Torus> *unsigned_mem;
-  int_abs_buffer<Torus> *abs_mem_1;
-  int_abs_buffer<Torus> *abs_mem_2;
-  int_sc_prop_memory<Torus> *scp_mem_1;
-  int_sc_prop_memory<Torus> *scp_mem_2;
-  int_cmux_buffer<Torus> *cmux_quotient_mem;
-  int_cmux_buffer<Torus> *cmux_remainder_mem;
+  unsigned_int_div_rem_memory<Torus, KSTorus> *unsigned_mem;
+  int_abs_buffer<Torus, KSTorus> *abs_mem_1;
+  int_abs_buffer<Torus, KSTorus> *abs_mem_2;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem_1;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem_2;
+  int_cmux_buffer<Torus, KSTorus> *cmux_quotient_mem;
+  int_cmux_buffer<Torus, KSTorus> *cmux_remainder_mem;
 
   // lookup tables
-  int_radix_lut<Torus> *compare_signed_bits_lut;
+  int_radix_lut<Torus, KSTorus> *compare_signed_bits_lut;
 
   // sub streams
   CudaStreams sub_streams_1;
@@ -1483,22 +1488,22 @@ template <typename Torus> struct int_div_rem_memory {
     this->params = params;
     this->is_signed = is_signed;
 
-    unsigned_mem = new unsigned_int_div_rem_memory<Torus>(
+    unsigned_mem = new unsigned_int_div_rem_memory<Torus, KSTorus>(
         streams, params, num_blocks, allocate_gpu_memory, size_tracker);
 
     if (is_signed) {
       Torus sign_bit_pos = 31 - __builtin_clz(params.message_modulus) - 1;
 
       // init memory objects for other integer operations
-      abs_mem_1 = new int_abs_buffer<Torus>(streams, params, num_blocks,
-                                            allocate_gpu_memory, size_tracker);
-      abs_mem_2 = new int_abs_buffer<Torus>(streams, params, num_blocks,
-                                            allocate_gpu_memory, size_tracker);
+      abs_mem_1 = new int_abs_buffer<Torus, KSTorus>(
+          streams, params, num_blocks, allocate_gpu_memory, size_tracker);
+      abs_mem_2 = new int_abs_buffer<Torus, KSTorus>(
+          streams, params, num_blocks, allocate_gpu_memory, size_tracker);
       uint32_t requested_flag = outputFlag::FLAG_NONE;
-      scp_mem_1 = new int_sc_prop_memory<Torus>(
+      scp_mem_1 = new int_sc_prop_memory<Torus, KSTorus>(
           streams, params, num_blocks, requested_flag, allocate_gpu_memory,
           size_tracker);
-      scp_mem_2 = new int_sc_prop_memory<Torus>(
+      scp_mem_2 = new int_sc_prop_memory<Torus, KSTorus>(
           streams, params, num_blocks, requested_flag, allocate_gpu_memory,
           size_tracker);
 
@@ -1509,10 +1514,10 @@ template <typename Torus> struct int_div_rem_memory {
         return (x >> sign_bit_pos) == 1;
       };
 
-      cmux_quotient_mem = new int_cmux_buffer<Torus>(
+      cmux_quotient_mem = new int_cmux_buffer<Torus, KSTorus>(
           streams, quotient_predicate_lut_f, params, num_blocks,
           allocate_gpu_memory, size_tracker);
-      cmux_remainder_mem = new int_cmux_buffer<Torus>(
+      cmux_remainder_mem = new int_cmux_buffer<Torus, KSTorus>(
           streams, remainder_predicate_lut_f, params, num_blocks,
           allocate_gpu_memory, size_tracker);
       // init temporary memory buffers
@@ -1554,7 +1559,7 @@ template <typename Torus> struct int_div_rem_memory {
         return (Torus)(x_sign_bit != y_sign_bit);
       };
 
-      compare_signed_bits_lut = new int_radix_lut<Torus>(
+      compare_signed_bits_lut = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       generate_device_accumulator_bivariate<Torus>(

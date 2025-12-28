@@ -8,7 +8,11 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_cmux::{
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-create_gpu_parameterized_test!(integer_unchecked_if_then_else);
+create_gpu_parameterized_test!(integer_unchecked_if_then_else {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 create_gpu_parameterized_test!(integer_if_then_else);
 
 fn integer_unchecked_if_then_else<P>(param: P)

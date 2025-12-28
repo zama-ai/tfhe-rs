@@ -16,8 +16,9 @@ uint64_t scratch_cuda_unchecked_match_value_64(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_match_value<uint64_t>(
-      CudaStreams(streams), (int_unchecked_match_buffer<uint64_t> **)mem_ptr,
-      params, num_matches, num_input_blocks, num_output_packed_blocks,
+      CudaStreams(streams),
+      (int_unchecked_match_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      num_matches, num_input_blocks, num_output_packed_blocks,
       max_output_is_zero, allocate_gpu_memory);
 }
 
@@ -31,14 +32,14 @@ void cuda_unchecked_match_value_64(
   host_unchecked_match_value<uint64_t>(
       CudaStreams(streams), lwe_array_out_result, lwe_array_out_boolean,
       lwe_array_in_ct, h_match_inputs, h_match_outputs,
-      (int_unchecked_match_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_match_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_match_value_64(CudaStreamsFFI streams,
                                            int8_t **mem_ptr_void) {
-  int_unchecked_match_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_match_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_match_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_match_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -64,9 +65,9 @@ uint64_t scratch_cuda_unchecked_match_value_or_64(
 
   return scratch_cuda_unchecked_match_value_or<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_match_value_or_buffer<uint64_t> **)mem_ptr, params,
-      num_matches, num_input_blocks, num_match_packed_blocks, num_final_blocks,
-      max_output_is_zero, allocate_gpu_memory);
+      (int_unchecked_match_value_or_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_matches, num_input_blocks, num_match_packed_blocks,
+      num_final_blocks, max_output_is_zero, allocate_gpu_memory);
 }
 
 void cuda_unchecked_match_value_or_64(
@@ -79,14 +80,15 @@ void cuda_unchecked_match_value_or_64(
   host_unchecked_match_value_or<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in_ct, h_match_inputs,
       h_match_outputs, h_or_value,
-      (int_unchecked_match_value_or_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_match_value_or_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_match_value_or_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void) {
-  int_unchecked_match_value_or_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_match_value_or_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_match_value_or_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_match_value_or_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -109,8 +111,9 @@ uint64_t scratch_cuda_unchecked_contains_64(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_contains<uint64_t>(
-      CudaStreams(streams), (int_unchecked_contains_buffer<uint64_t> **)mem_ptr,
-      params, num_inputs, num_blocks, allocate_gpu_memory);
+      CudaStreams(streams),
+      (int_unchecked_contains_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      num_inputs, num_blocks, allocate_gpu_memory);
 }
 
 void cuda_unchecked_contains_64(CudaStreamsFFI streams,
@@ -123,14 +126,14 @@ void cuda_unchecked_contains_64(CudaStreamsFFI streams,
 
   host_unchecked_contains<uint64_t>(
       CudaStreams(streams), output, inputs, value, num_inputs, num_blocks,
-      (int_unchecked_contains_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_contains_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_contains_64(CudaStreamsFFI streams,
                                         int8_t **mem_ptr_void) {
-  int_unchecked_contains_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_contains_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_contains_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_contains_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -154,8 +157,8 @@ uint64_t scratch_cuda_unchecked_contains_clear_64(
 
   return scratch_cuda_unchecked_contains_clear<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_contains_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, allocate_gpu_memory);
+      (int_unchecked_contains_clear_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_inputs, num_blocks, allocate_gpu_memory);
 }
 
 void cuda_unchecked_contains_clear_64(CudaStreamsFFI streams,
@@ -168,14 +171,15 @@ void cuda_unchecked_contains_clear_64(CudaStreamsFFI streams,
 
   host_unchecked_contains_clear<uint64_t>(
       CudaStreams(streams), output, inputs, h_clear_val, num_inputs, num_blocks,
-      (int_unchecked_contains_clear_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_contains_clear_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_contains_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void) {
-  int_unchecked_contains_clear_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_contains_clear_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_contains_clear_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_contains_clear_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -199,7 +203,7 @@ uint64_t scratch_cuda_unchecked_is_in_clears_64(
 
   return scratch_cuda_unchecked_is_in_clears<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_is_in_clears_buffer<uint64_t> **)mem_ptr, params,
+      (int_unchecked_is_in_clears_buffer<uint64_t, uint64_t> **)mem_ptr, params,
       num_clears, num_blocks, allocate_gpu_memory);
 }
 
@@ -213,14 +217,14 @@ void cuda_unchecked_is_in_clears_64(CudaStreamsFFI streams,
 
   host_unchecked_is_in_clears<uint64_t>(
       CudaStreams(streams), output, input, h_cleartexts, num_clears, num_blocks,
-      (int_unchecked_is_in_clears_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_is_in_clears_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_is_in_clears_64(CudaStreamsFFI streams,
                                             int8_t **mem_ptr_void) {
-  int_unchecked_is_in_clears_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_is_in_clears_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_is_in_clears_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_is_in_clears_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -244,8 +248,8 @@ uint64_t scratch_cuda_unchecked_index_in_clears_64(
 
   return scratch_cuda_unchecked_index_in_clears<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_index_in_clears_buffer<uint64_t> **)mem_ptr, params,
-      num_clears, num_blocks, num_blocks_index, allocate_gpu_memory);
+      (int_unchecked_index_in_clears_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_clears, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_in_clears_64(CudaStreamsFFI streams,
@@ -260,14 +264,15 @@ void cuda_unchecked_index_in_clears_64(CudaStreamsFFI streams,
   host_unchecked_index_in_clears<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, input, h_cleartexts, num_clears,
       num_blocks, num_blocks_index,
-      (int_unchecked_index_in_clears_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_index_in_clears_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_index_in_clears_64(CudaStreamsFFI streams,
                                                int8_t **mem_ptr_void) {
-  int_unchecked_index_in_clears_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_index_in_clears_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_index_in_clears_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_index_in_clears_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -291,8 +296,9 @@ uint64_t scratch_cuda_unchecked_first_index_in_clears_64(
 
   return scratch_cuda_unchecked_first_index_in_clears<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_first_index_in_clears_buffer<uint64_t> **)mem_ptr, params,
-      num_unique, num_blocks, num_blocks_index, allocate_gpu_memory);
+      (int_unchecked_first_index_in_clears_buffer<uint64_t, uint64_t> **)
+          mem_ptr,
+      params, num_unique, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_in_clears_64(
@@ -305,14 +311,15 @@ void cuda_unchecked_first_index_in_clears_64(
   host_unchecked_first_index_in_clears<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, input, h_unique_values,
       h_unique_indices, num_unique, num_blocks, num_blocks_index,
-      (int_unchecked_first_index_in_clears_buffer<uint64_t> *)mem, bsks,
-      (uint64_t *const *)ksks);
+      (int_unchecked_first_index_in_clears_buffer<uint64_t, uint64_t> *)mem,
+      bsks, (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_first_index_in_clears_64(CudaStreamsFFI streams,
                                                      int8_t **mem_ptr_void) {
-  int_unchecked_first_index_in_clears_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_first_index_in_clears_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_first_index_in_clears_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_first_index_in_clears_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -336,8 +343,8 @@ uint64_t scratch_cuda_unchecked_first_index_of_clear_64(
 
   return scratch_cuda_unchecked_first_index_of_clear<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_first_index_of_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      (int_unchecked_first_index_of_clear_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_of_clear_64(
@@ -350,14 +357,15 @@ void cuda_unchecked_first_index_of_clear_64(
   host_unchecked_first_index_of_clear<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, h_clear_val, num_inputs,
       num_blocks, num_blocks_index,
-      (int_unchecked_first_index_of_clear_buffer<uint64_t> *)mem, bsks,
-      (uint64_t *const *)ksks);
+      (int_unchecked_first_index_of_clear_buffer<uint64_t, uint64_t> *)mem,
+      bsks, (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_first_index_of_clear_64(CudaStreamsFFI streams,
                                                     int8_t **mem_ptr_void) {
-  int_unchecked_first_index_of_clear_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_first_index_of_clear_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_first_index_of_clear_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_first_index_of_clear_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -381,8 +389,8 @@ uint64_t scratch_cuda_unchecked_first_index_of_64(
 
   return scratch_cuda_unchecked_first_index_of<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_first_index_of_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      (int_unchecked_first_index_of_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_of_64(CudaStreamsFFI streams,
@@ -397,14 +405,15 @@ void cuda_unchecked_first_index_of_64(CudaStreamsFFI streams,
   host_unchecked_first_index_of<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, value, num_inputs,
       num_blocks, num_blocks_index,
-      (int_unchecked_first_index_of_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_first_index_of_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_first_index_of_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void) {
-  int_unchecked_first_index_of_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_first_index_of_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_first_index_of_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_first_index_of_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -427,8 +436,9 @@ uint64_t scratch_cuda_unchecked_index_of_64(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_index_of<uint64_t>(
-      CudaStreams(streams), (int_unchecked_index_of_buffer<uint64_t> **)mem_ptr,
-      params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      CudaStreams(streams),
+      (int_unchecked_index_of_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_of_64(CudaStreamsFFI streams,
@@ -443,14 +453,14 @@ void cuda_unchecked_index_of_64(CudaStreamsFFI streams,
   host_unchecked_index_of<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, value, num_inputs,
       num_blocks, num_blocks_index,
-      (int_unchecked_index_of_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_index_of_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_index_of_64(CudaStreamsFFI streams,
                                         int8_t **mem_ptr_void) {
-  int_unchecked_index_of_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_index_of_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_index_of_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_index_of_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -474,8 +484,8 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64(
 
   return scratch_cuda_unchecked_index_of_clear<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_index_of_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      (int_unchecked_index_of_clear_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_of_clear_64(
@@ -490,14 +500,15 @@ void cuda_unchecked_index_of_clear_64(
       CudaStreams(streams), index_ct, match_ct, inputs,
       (const uint64_t *)d_scalar_blocks, is_scalar_obviously_bigger, num_inputs,
       num_blocks, num_scalar_blocks, num_blocks_index,
-      (int_unchecked_index_of_clear_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_index_of_clear_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_index_of_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void) {
-  int_unchecked_index_of_clear_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_index_of_clear_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_index_of_clear_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_index_of_clear_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 

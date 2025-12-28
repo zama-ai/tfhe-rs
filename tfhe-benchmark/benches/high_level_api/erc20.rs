@@ -884,6 +884,9 @@ fn main() {
         ParamType::Classical => {
             benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()
         },
+        ParamType::ClassicalKs32 => {
+            benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64.into()
+        },
         _ => {
             benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()
         }

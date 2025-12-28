@@ -267,26 +267,27 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
-    CudaStreams streams, int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_sum_ciphertexts_vec_memory<Torus, KSTorus> **mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     bool reduce_degrees_for_single_carry_propagation, int_radix_params params,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
+  *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus, KSTorus>(
       streams, params, num_blocks_in_radix, max_num_radix_in_vec,
       reduce_degrees_for_single_carry_propagation, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_partial_sum_ciphertexts_vec(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
-    int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    CudaRadixCiphertextFFI *terms, void *const *bsks, KSTorus *const *ksks,
+    int_sum_ciphertexts_vec_memory<Torus, KSTorus> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
   auto big_lwe_size = big_lwe_dimension + 1;
@@ -394,17 +395,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                "SUM CT");
 
     if (active_streams.count() == 1) {
-      execute_keyswitch_async<Torus>(
-          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
-          (Torus *)current_blocks->ptr, d_pbs_indexes_in, ksks,
-          big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
-          mem_ptr->params.ks_level, total_messages, false,
-          mem_ptr->luts_message_carry->ks_tmp_buf_vec);
+      execute_keyswitch_async<Torus, KSTorus>(
+          streams.get_ith(0), (KSTorus *)small_lwe_vector->ptr,
+          d_pbs_indexes_in, (Torus *)current_blocks->ptr, d_pbs_indexes_in,
+          ksks, big_lwe_dimension, small_lwe_dimension,
+          mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, total_messages,
+          false, mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
-      execute_pbs_async<Torus, Torus>(
+      execute_pbs_async<KSTorus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
-          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          (KSTorus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
@@ -416,7 +417,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
       luts_message_carry->broadcast_lut(active_streams, false);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
-      integer_radix_apply_univariate_lookup_table<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus, KSTorus>(
           streams, current_blocks, current_blocks, bsks, ksks,
           luts_message_carry, total_ciphertexts);
     }
@@ -447,17 +448,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                                                     mem_ptr->params.pbs_type);
 
     if (active_streams.count() == 1) {
-      execute_keyswitch_async<Torus>(
-          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
-          (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
+      execute_keyswitch_async<Torus, KSTorus>(
+          streams.get_ith(0), (KSTorus *)small_lwe_vector->ptr,
+          d_pbs_indexes_in, (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
           mem_ptr->params.ks_level, num_radix_blocks, false,
           mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
-      execute_pbs_async<Torus, Torus>(
+      execute_pbs_async<KSTorus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
-          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          (KSTorus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
@@ -488,13 +489,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   }
 }
 
-template <typename Torus, class params>
+template <typename Torus, typename KSTorus, class params>
 __host__ void host_integer_mult_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,
-    uint32_t num_blocks) {
+    void *const *bsks, KSTorus *const *ksks,
+    int_mul_memory<Torus, KSTorus> *mem_ptr, uint32_t num_blocks) {
 
   if (radix_lwe_out->lwe_dimension != radix_lwe_left->lwe_dimension ||
       radix_lwe_right->lwe_dimension != radix_lwe_left->lwe_dimension)
@@ -626,17 +627,17 @@ __host__ void host_integer_mult_radix(
                                      uses_carry);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_integer_mult_radix_ciphertext(
-    CudaStreams streams, int_mul_memory<Torus> **mem_ptr,
+    CudaStreams streams, int_mul_memory<Torus, KSTorus> **mem_ptr,
     bool const is_boolean_left, bool const is_boolean_right,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
   PUSH_RANGE("scratch mul")
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_mul_memory<Torus>(streams, params, is_boolean_left,
-                                       is_boolean_right, num_radix_blocks,
-                                       allocate_gpu_memory, size_tracker);
+  *mem_ptr = new int_mul_memory<Torus, KSTorus>(
+      streams, params, is_boolean_left, is_boolean_right, num_radix_blocks,
+      allocate_gpu_memory, size_tracker);
   POP_RANGE()
   return size_tracker;
 }

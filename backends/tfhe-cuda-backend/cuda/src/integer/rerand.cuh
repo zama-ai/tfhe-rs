@@ -56,7 +56,7 @@ void host_rerand_inplace(
                                  zero_lwes, d_expand_jobs, num_lwes);
 
   // Keyswitch
-  execute_keyswitch_async<Torus>(
+  execute_keyswitch_async<Torus, Torus>(
       streams.get_ith(0), ksed_zero_lwes, lwe_trivial_indexes, zero_lwes,
       lwe_trivial_indexes, ksk, input_dimension, output_dimension, ks_base_log,
       ks_level, num_lwes, true, mem_ptr->ks_tmp_buf_vec);

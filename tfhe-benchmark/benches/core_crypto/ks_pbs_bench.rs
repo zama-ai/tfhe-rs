@@ -1197,19 +1197,14 @@ mod cuda {
         }
     }
 
-    pub fn cuda_ks_pbs_group() {
+    pub fn cuda_ks_pbs_group<T: UnsignedTorus + CastInto<usize> + CastFrom<u64>>() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_ks_pbs::<u64, u32>(&mut criterion, &benchmark_parameters());
-        cuda_ks_pbs::<u64, u64>(&mut criterion, &benchmark_parameters());
+        cuda_ks_pbs::<u64, T>(&mut criterion, &benchmark_parameters());
     }
 
-    pub fn cuda_multi_bit_ks_pbs_group() {
+    pub fn cuda_multi_bit_ks_pbs_group<T: UnsignedTorus + CastInto<usize> + CastFrom<u64>>() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_multi_bit_ks_pbs::<u64, u32>(
-            &mut criterion,
-            &multi_bit_benchmark_parameters_with_grouping(),
-        );
-        cuda_multi_bit_ks_pbs::<u64, u64>(
+        cuda_multi_bit_ks_pbs::<u64, T>(
             &mut criterion,
             &multi_bit_benchmark_parameters_with_grouping(),
         );
@@ -1236,8 +1231,12 @@ pub fn multi_bit_ks_pbs_group() {
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical | ParamType::ClassicalDocumentation => cuda_ks_pbs_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => cuda_multi_bit_ks_pbs_group(),
+        ParamType::Classical | ParamType::ClassicalDocumentation => cuda_ks_pbs_group::<u64>(),
+        ParamType::MultiBit | ParamType::MultiBitDocumentation => {
+            cuda_multi_bit_ks_pbs_group::<u64>()
+        }
+        ParamType::ClassicalKs32 => cuda_ks_pbs_group::<u32>(),
+        ParamType::MultiBitKs32 => cuda_ks_pbs_group::<u32>(),
     };
 }
 
@@ -1246,6 +1245,9 @@ fn go_through_cpu_bench_groups() {
     match get_param_type() {
         ParamType::Classical | ParamType::ClassicalDocumentation => ks_pbs_group(),
         ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_pbs_group(),
+        ParamType::MultiBitKs32 | ParamType::ClassicalKs32 => {
+            panic!("KS32 core crypto benches not implemented on CPU")
+        }
     }
 }
 

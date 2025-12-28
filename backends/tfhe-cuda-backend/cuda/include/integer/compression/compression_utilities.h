@@ -51,7 +51,7 @@ template <typename Torus> struct int_compression {
   }
 };
 
-template <typename Torus> struct int_decompression {
+template <typename Torus, typename KSTorus> struct int_decompression {
   int_radix_params encryption_params;
   int_radix_params compression_params;
   uint32_t num_blocks_to_decompress;
@@ -60,7 +60,7 @@ template <typename Torus> struct int_decompression {
   Torus *tmp_extracted_lwe;
   uint32_t *tmp_indexes_array;
 
-  int_radix_lut<Torus> *decompression_rescale_lut;
+  int_radix_lut<Torus, KSTorus> *decompression_rescale_lut;
   bool gpu_memory_allocated;
 
   int_decompression(CudaStreams streams, int_radix_params encryption_params,
@@ -97,7 +97,7 @@ template <typename Torus> struct int_decompression {
       // Example: in the 2_2 case we are mapping a 2-bit message onto a 4-bit
       // space, we want to keep the original 2-bit value in the 4-bit space,
       // so we apply the identity and the encoding will rescale it for us.
-      decompression_rescale_lut = new int_radix_lut<Torus>(
+      decompression_rescale_lut = new int_radix_lut<Torus, KSTorus>(
           streams, encryption_params, 1, num_blocks_to_decompress,
           allocate_gpu_memory, size_tracker);
       auto decompression_rescale_f = [](Torus x) -> Torus { return x; };

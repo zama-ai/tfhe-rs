@@ -8,8 +8,9 @@ __host__ void
 host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
                   CudaRadixCiphertextFFI const *input,
                   Torus const *clear_blocks, Torus const *h_clear_blocks,
-                  uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr,
-                  void *const *bsks, KSTorus *const *ksks) {
+                  uint32_t num_clear_blocks,
+                  int_bitop_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
+                  KSTorus *const *ksks) {
 
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")

@@ -1,13 +1,13 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_overflowing_sub_memory {
+template <typename Torus, typename KSTorus> struct int_overflowing_sub_memory {
   Torus *generates_or_propagates;
   Torus *step_output;
 
-  int_radix_lut<Torus> *luts_array;
-  int_radix_lut<Torus> *luts_borrow_propagation_sum;
-  int_radix_lut<Torus> *message_acc;
+  int_radix_lut<Torus, KSTorus> *luts_array;
+  int_radix_lut<Torus, KSTorus> *luts_borrow_propagation_sum;
+  int_radix_lut<Torus, KSTorus> *message_acc;
 
   int_radix_params params;
   bool gpu_memory_allocated;
@@ -65,14 +65,15 @@ template <typename Torus> struct int_overflowing_sub_memory {
     };
 
     // create lut objects
-    luts_array = new int_radix_lut<Torus>(streams, params, 2, num_radix_blocks,
+    luts_array =
+        new int_radix_lut<Torus, KSTorus>(streams, params, 2, num_radix_blocks,
                                           allocate_gpu_memory, size_tracker);
-    luts_borrow_propagation_sum = new int_radix_lut<Torus>(
+    luts_borrow_propagation_sum = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_radix_blocks, luts_array, size_tracker,
         allocate_gpu_memory, size_tracker);
-    message_acc = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                           luts_array, size_tracker,
-                                           allocate_gpu_memory, size_tracker);
+    message_acc = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 1, num_radix_blocks, luts_array, size_tracker,
+        allocate_gpu_memory, size_tracker);
 
     auto lut_does_block_generate_carry = luts_array->get_lut(0, 0);
     auto lut_does_block_generate_or_propagate = luts_array->get_lut(0, 1);
@@ -133,13 +134,13 @@ template <typename Torus> struct int_overflowing_sub_memory {
   }
 };
 
-template <typename Torus> struct int_sub_and_propagate {
+template <typename Torus, typename KSTorus> struct int_sub_and_propagate {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   CudaRadixCiphertextFFI *neg_rhs_array;
 
-  int_sc_prop_memory<Torus> *sc_prop_mem;
+  int_sc_prop_memory<Torus, KSTorus> *sc_prop_mem;
 
   int_sub_and_propagate(CudaStreams streams, const int_radix_params params,
                         uint32_t num_radix_blocks, uint32_t requested_flag_in,
@@ -148,7 +149,7 @@ template <typename Torus> struct int_sub_and_propagate {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->sc_prop_mem = new int_sc_prop_memory<Torus>(
+    this->sc_prop_mem = new int_sc_prop_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, requested_flag_in,
         allocate_gpu_memory, size_tracker);
 

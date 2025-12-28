@@ -3,12 +3,13 @@
 #include "integer_utilities.h"
 #include "scalar_shifts.h"
 
-template <typename Torus> struct int_abs_buffer {
+template <typename Torus, typename KSTorus> struct int_abs_buffer {
   int_radix_params params;
 
-  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem;
-  int_sc_prop_memory<Torus> *scp_mem;
-  int_bitop_buffer<Torus> *bitxor_mem;
+  int_arithmetic_scalar_shift_buffer<Torus, KSTorus>
+      *arithmetic_scalar_shift_mem;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem;
+  int_bitop_buffer<Torus, KSTorus> *bitxor_mem;
 
   CudaRadixCiphertextFFI *mask;
   bool allocate_gpu_memory;
@@ -18,16 +19,17 @@ template <typename Torus> struct int_abs_buffer {
                  uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-    arithmetic_scalar_shift_mem = new int_arithmetic_scalar_shift_buffer<Torus>(
-        streams, SHIFT_OR_ROTATE_TYPE::RIGHT_SHIFT, params, num_radix_blocks,
-        allocate_gpu_memory, size_tracker);
+    arithmetic_scalar_shift_mem =
+        new int_arithmetic_scalar_shift_buffer<Torus, KSTorus>(
+            streams, SHIFT_OR_ROTATE_TYPE::RIGHT_SHIFT, params,
+            num_radix_blocks, allocate_gpu_memory, size_tracker);
     uint32_t requested_flag = outputFlag::FLAG_NONE;
-    scp_mem = new int_sc_prop_memory<Torus>(streams, params, num_radix_blocks,
-                                            requested_flag, allocate_gpu_memory,
-                                            size_tracker);
-    bitxor_mem = new int_bitop_buffer<Torus>(streams, BITOP_TYPE::BITXOR,
-                                             params, num_radix_blocks,
-                                             allocate_gpu_memory, size_tracker);
+    scp_mem = new int_sc_prop_memory<Torus, KSTorus>(
+        streams, params, num_radix_blocks, requested_flag, allocate_gpu_memory,
+        size_tracker);
+    bitxor_mem = new int_bitop_buffer<Torus, KSTorus>(
+        streams, BITOP_TYPE::BITXOR, params, num_radix_blocks,
+        allocate_gpu_memory, size_tracker);
 
     mask = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

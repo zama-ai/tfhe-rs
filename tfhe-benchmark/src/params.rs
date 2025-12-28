@@ -609,10 +609,14 @@ mod integer_params {
                 #[cfg(not(feature = "hpu"))]
                 {
                     #[cfg(feature = "gpu")]
-                    let params = vec![
-                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                            .into(),
-                    ];
+                    let params = if env_config.is_ks32 {
+                        panic!("KS32 not supported for MB benchmark integer ops");
+                    } else {
+                        vec![
+                            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                                .into(),
+                        ]
+                    };
                     #[cfg(not(feature = "gpu"))]
                     let params = vec![
                         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
@@ -630,7 +634,11 @@ mod integer_params {
                 #[cfg(feature = "hpu")]
                 let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
                 #[cfg(feature = "gpu")]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
+                let params = if env_config.is_ks32 {
+                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64.into()]
+                } else {
+                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()]
+                };
                 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                 let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS.into()];
 

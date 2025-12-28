@@ -11,10 +11,10 @@
  * - FLUSH: to clear carry bits and isolate the message bit (x -> x & 1).
  * - CARRY: to extract the carry bit for additions (x -> (x >> 1) & 1).
  */
-template <typename Torus> struct int_aes_lut_buffers {
-  int_radix_lut<Torus> *and_lut;
-  int_radix_lut<Torus> *flush_lut;
-  int_radix_lut<Torus> *carry_lut;
+template <typename Torus, typename KSTorus> struct int_aes_lut_buffers {
+  int_radix_lut<Torus, KSTorus> *and_lut;
+  int_radix_lut<Torus, KSTorus> *flush_lut;
+  int_radix_lut<Torus, KSTorus> *carry_lut;
 
   int_aes_lut_buffers(CudaStreams streams, const int_radix_params &params,
                       bool allocate_gpu_memory, uint32_t num_aes_inputs,
@@ -23,7 +23,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     constexpr uint32_t AES_STATE_BITS = 128;
     constexpr uint32_t SBOX_MAX_AND_GATES = 18;
 
-    this->and_lut = new int_radix_lut<Torus>(
+    this->and_lut = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1,
         SBOX_MAX_AND_GATES * num_aes_inputs * sbox_parallelism,
         allocate_gpu_memory, size_tracker);
@@ -40,7 +40,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     this->and_lut->broadcast_lut(active_streams_and_lut);
     this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
-    this->flush_lut = new int_radix_lut<Torus>(
+    this->flush_lut = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, AES_STATE_BITS * num_aes_inputs,
         allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
@@ -56,7 +56,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     this->flush_lut->broadcast_lut(active_streams_flush_lut);
     this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
-    this->carry_lut = new int_radix_lut<Torus>(
+    this->carry_lut = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_aes_inputs, allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> carry_lambda = [](Torus x) -> Torus {
       return (x >> 1) & 1;
@@ -94,7 +94,7 @@ template <typename Torus> struct int_aes_lut_buffers {
  * temporary values like copies of columns or the results of multiplications,
  * avoiding overwriting data that is still needed in the same round.
  */
-template <typename Torus> struct int_aes_round_workspaces {
+template <typename Torus, typename KSTorus> struct int_aes_round_workspaces {
   CudaRadixCiphertextFFI *mix_columns_col_copy_buffer;
   CudaRadixCiphertextFFI *mix_columns_mul_workspace_buffer;
   CudaRadixCiphertextFFI *vec_tmp_bit_buffer;
@@ -156,7 +156,7 @@ template <typename Torus> struct int_aes_round_workspaces {
  * addition, such as the buffer for the propagating carry bit
  * (`vec_tmp_carry_buffer`) across the addition chain.
  */
-template <typename Torus> struct int_aes_counter_workspaces {
+template <typename Torus, typename KSTorus> struct int_aes_counter_workspaces {
   CudaRadixCiphertextFFI *vec_tmp_carry_buffer;
   CudaRadixCiphertextFFI *vec_tmp_sum_buffer;
   CudaRadixCiphertextFFI *vec_trivial_b_bits_buffer;
@@ -232,7 +232,7 @@ template <typename Torus> struct int_aes_counter_workspaces {
  * - Other buffers are used for data layout transformations (transposition) and
  * for batching small operations into larger, more efficient launches.
  */
-template <typename Torus> struct int_aes_main_workspaces {
+template <typename Torus, typename KSTorus> struct int_aes_main_workspaces {
   CudaRadixCiphertextFFI *sbox_internal_workspace;
   CudaRadixCiphertextFFI *initial_states_and_jit_key_workspace;
   CudaRadixCiphertextFFI *main_bitsliced_states_buffer;
@@ -320,16 +320,16 @@ template <typename Torus> struct int_aes_main_workspaces {
  * single object to manage the entire lifecycle of memory needed for a complete
  * AES-CTR encryption operation.
  */
-template <typename Torus> struct int_aes_encrypt_buffer {
+template <typename Torus, typename KSTorus> struct int_aes_encrypt_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   uint32_t num_aes_inputs;
   uint32_t sbox_parallel_instances;
 
-  int_aes_lut_buffers<Torus> *luts;
-  int_aes_round_workspaces<Torus> *round_workspaces;
-  int_aes_counter_workspaces<Torus> *counter_workspaces;
-  int_aes_main_workspaces<Torus> *main_workspaces;
+  int_aes_lut_buffers<Torus, KSTorus> *luts;
+  int_aes_round_workspaces<Torus, KSTorus> *round_workspaces;
+  int_aes_counter_workspaces<Torus, KSTorus> *counter_workspaces;
+  int_aes_main_workspaces<Torus, KSTorus> *main_workspaces;
 
   int_aes_encrypt_buffer(CudaStreams streams, const int_radix_params &params,
                          bool allocate_gpu_memory, uint32_t num_aes_inputs,
@@ -343,17 +343,17 @@ template <typename Torus> struct int_aes_encrypt_buffer {
     this->num_aes_inputs = num_aes_inputs;
     this->sbox_parallel_instances = sbox_parallelism;
 
-    this->luts = new int_aes_lut_buffers<Torus>(
+    this->luts = new int_aes_lut_buffers<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, num_aes_inputs, sbox_parallelism,
         size_tracker);
 
-    this->round_workspaces = new int_aes_round_workspaces<Torus>(
+    this->round_workspaces = new int_aes_round_workspaces<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, num_aes_inputs, size_tracker);
 
-    this->counter_workspaces = new int_aes_counter_workspaces<Torus>(
+    this->counter_workspaces = new int_aes_counter_workspaces<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, num_aes_inputs, size_tracker);
 
-    this->main_workspaces = new int_aes_main_workspaces<Torus>(
+    this->main_workspaces = new int_aes_main_workspaces<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, num_aes_inputs, sbox_parallelism,
         size_tracker);
   }
@@ -386,7 +386,7 @@ template <typename Torus> struct int_aes_encrypt_buffer {
  * This separation ensures that memory for key expansion can be allocated and
  * freed independently of the main encryption process.
  */
-template <typename Torus> struct int_key_expansion_buffer {
+template <typename Torus, typename KSTorus> struct int_key_expansion_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
@@ -395,7 +395,7 @@ template <typename Torus> struct int_key_expansion_buffer {
   CudaRadixCiphertextFFI *tmp_word_buffer;
   CudaRadixCiphertextFFI *tmp_rotated_word_buffer;
 
-  int_aes_encrypt_buffer<Torus> *aes_encrypt_buffer;
+  int_aes_encrypt_buffer<Torus, KSTorus> *aes_encrypt_buffer;
 
   int_key_expansion_buffer(CudaStreams streams, const int_radix_params &params,
                            bool allocate_gpu_memory, uint64_t &size_tracker) {
@@ -423,7 +423,7 @@ template <typename Torus> struct int_key_expansion_buffer {
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->aes_encrypt_buffer = new int_aes_encrypt_buffer<Torus>(
+    this->aes_encrypt_buffer = new int_aes_encrypt_buffer<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, 1, 4, size_tracker);
   }
 
@@ -447,7 +447,8 @@ template <typename Torus> struct int_key_expansion_buffer {
   }
 };
 
-template <typename Torus> struct int_key_expansion_256_buffer {
+template <typename Torus, typename KSTorus>
+struct int_key_expansion_256_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
@@ -456,7 +457,7 @@ template <typename Torus> struct int_key_expansion_256_buffer {
   CudaRadixCiphertextFFI *tmp_word_buffer;
   CudaRadixCiphertextFFI *tmp_rotated_word_buffer;
 
-  int_aes_encrypt_buffer<Torus> *aes_encrypt_buffer;
+  int_aes_encrypt_buffer<Torus, KSTorus> *aes_encrypt_buffer;
 
   int_key_expansion_256_buffer(CudaStreams streams,
                                const int_radix_params &params,
@@ -486,7 +487,7 @@ template <typename Torus> struct int_key_expansion_256_buffer {
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->aes_encrypt_buffer = new int_aes_encrypt_buffer<Torus>(
+    this->aes_encrypt_buffer = new int_aes_encrypt_buffer<Torus, KSTorus>(
         streams, params, allocate_gpu_memory, 1, 4, size_tracker);
   }
 

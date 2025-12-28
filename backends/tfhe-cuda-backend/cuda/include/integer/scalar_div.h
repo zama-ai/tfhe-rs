@@ -4,16 +4,17 @@
 #include "integer_utilities.h"
 #include "scalar_mul.h"
 
-template <typename Torus> struct int_unsigned_scalar_div_mem {
+template <typename Torus, typename KSTorus> struct int_unsigned_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   CudaRadixCiphertextFFI *tmp_ffi = nullptr;
 
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
-  int_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem = nullptr;
-  int_sc_prop_memory<Torus> *scp_mem = nullptr;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *logical_scalar_shift_mem =
+      nullptr;
+  int_scalar_mul_high_buffer<Torus, KSTorus> *scalar_mul_high_mem = nullptr;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem = nullptr;
+  int_sub_and_propagate<Torus, KSTorus> *sub_and_propagate_mem = nullptr;
 
   int_unsigned_scalar_div_mem(CudaStreams streams,
                               const int_radix_params params,
@@ -28,9 +29,10 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
     if (!scalar_divisor_ffi->is_abs_divisor_one) {
       if (scalar_divisor_ffi->is_divisor_pow2) {
 
-        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-            streams, RIGHT_SHIFT, params, num_radix_blocks, allocate_gpu_memory,
-            size_tracker);
+        logical_scalar_shift_mem =
+            new int_logical_scalar_shift_buffer<Torus, KSTorus>(
+                streams, RIGHT_SHIFT, params, num_radix_blocks,
+                allocate_gpu_memory, size_tracker);
 
       } else if (scalar_divisor_ffi->divisor_has_more_bits_than_numerator) {
 
@@ -42,16 +44,17 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
       } else if (scalar_divisor_ffi
                      ->is_chosen_multiplier_geq_two_pow_numerator) {
 
-        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-            streams, RIGHT_SHIFT, params, num_radix_blocks, allocate_gpu_memory,
-            size_tracker);
-        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
+        logical_scalar_shift_mem =
+            new int_logical_scalar_shift_buffer<Torus, KSTorus>(
+                streams, RIGHT_SHIFT, params, num_radix_blocks,
+                allocate_gpu_memory, size_tracker);
+        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus, KSTorus>(
             streams, params, num_radix_blocks, scalar_divisor_ffi->active_bits,
             allocate_gpu_memory, size_tracker);
-        scp_mem = new int_sc_prop_memory<Torus>(
+        scp_mem = new int_sc_prop_memory<Torus, KSTorus>(
             streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
             size_tracker);
-        sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+        sub_and_propagate_mem = new int_sub_and_propagate<Torus, KSTorus>(
             streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
             size_tracker);
         tmp_ffi = new CudaRadixCiphertextFFI;
@@ -61,10 +64,11 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
 
       } else {
 
-        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-            streams, RIGHT_SHIFT, params, num_radix_blocks, allocate_gpu_memory,
-            size_tracker);
-        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
+        logical_scalar_shift_mem =
+            new int_logical_scalar_shift_buffer<Torus, KSTorus>(
+                streams, RIGHT_SHIFT, params, num_radix_blocks,
+                allocate_gpu_memory, size_tracker);
+        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus, KSTorus>(
             streams, params, num_radix_blocks, scalar_divisor_ffi->active_bits,
             allocate_gpu_memory, size_tracker);
       }
@@ -98,19 +102,21 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
   }
 };
 
-template <typename Torus> struct int_signed_scalar_div_mem {
+template <typename Torus, typename KSTorus> struct int_signed_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   CudaRadixCiphertextFFI *tmp_ffi = nullptr;
   CudaRadixCiphertextFFI *xsign_ffi = nullptr;
 
-  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem =
+  int_arithmetic_scalar_shift_buffer<Torus, KSTorus>
+      *arithmetic_scalar_shift_mem = nullptr;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *logical_scalar_shift_mem =
       nullptr;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
-  int_signed_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem = nullptr;
-  int_sc_prop_memory<Torus> *scp_mem = nullptr;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
+  int_signed_scalar_mul_high_buffer<Torus, KSTorus> *scalar_mul_high_mem =
+      nullptr;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem = nullptr;
+  int_sub_and_propagate<Torus, KSTorus> *sub_and_propagate_mem = nullptr;
 
   int_signed_scalar_div_mem(CudaStreams streams, const int_radix_params params,
                             uint32_t num_radix_blocks,
@@ -139,16 +145,17 @@ template <typename Torus> struct int_signed_scalar_div_mem {
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
         arithmetic_scalar_shift_mem =
-            new int_arithmetic_scalar_shift_buffer<Torus>(
+            new int_arithmetic_scalar_shift_buffer<Torus, KSTorus>(
                 streams, RIGHT_SHIFT, params, num_radix_blocks,
                 allocate_gpu_memory, size_tracker);
 
         if (scalar_divisor_ffi->is_divisor_pow2) {
 
-          logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-              streams, RIGHT_SHIFT, params, num_radix_blocks,
-              allocate_gpu_memory, size_tracker);
-          scp_mem = new int_sc_prop_memory<Torus>(
+          logical_scalar_shift_mem =
+              new int_logical_scalar_shift_buffer<Torus, KSTorus>(
+                  streams, RIGHT_SHIFT, params, num_radix_blocks,
+                  allocate_gpu_memory, size_tracker);
+          scp_mem = new int_sc_prop_memory<Torus, KSTorus>(
               streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
               size_tracker);
 
@@ -160,17 +167,18 @@ template <typename Torus> struct int_signed_scalar_div_mem {
               num_radix_blocks, params.big_lwe_dimension, size_tracker,
               allocate_gpu_memory);
 
-          scalar_mul_high_mem = new int_signed_scalar_mul_high_buffer<Torus>(
-              streams, params, num_radix_blocks,
-              scalar_divisor_ffi->active_bits, allocate_gpu_memory,
-              size_tracker);
+          scalar_mul_high_mem =
+              new int_signed_scalar_mul_high_buffer<Torus, KSTorus>(
+                  streams, params, num_radix_blocks,
+                  scalar_divisor_ffi->active_bits, allocate_gpu_memory,
+                  size_tracker);
 
-          sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+          sub_and_propagate_mem = new int_sub_and_propagate<Torus, KSTorus>(
               streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
               size_tracker);
 
           if (scalar_divisor_ffi->is_chosen_multiplier_geq_two_pow_numerator) {
-            scp_mem = new int_sc_prop_memory<Torus>(
+            scp_mem = new int_sc_prop_memory<Torus, KSTorus>(
                 streams, params, num_radix_blocks, FLAG_NONE,
                 allocate_gpu_memory, size_tracker);
           }
@@ -215,16 +223,17 @@ template <typename Torus> struct int_signed_scalar_div_mem {
   }
 };
 
-template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
+template <typename Torus, typename KSTorus>
+struct int_unsigned_scalar_div_rem_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   CudaRadixCiphertextFFI *numerator_ct;
 
-  int_unsigned_scalar_div_mem<Torus> *unsigned_div_mem;
-  int_bitop_buffer<Torus> *bitop_mem = nullptr;
-  int_scalar_mul_buffer<Torus> *scalar_mul_mem = nullptr;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
+  int_unsigned_scalar_div_mem<Torus, KSTorus> *unsigned_div_mem;
+  int_bitop_buffer<Torus, KSTorus> *bitop_mem = nullptr;
+  int_scalar_mul_buffer<Torus, KSTorus> *scalar_mul_mem = nullptr;
+  int_sub_and_propagate<Torus, KSTorus> *sub_and_propagate_mem = nullptr;
 
   int_unsigned_scalar_div_rem_buffer(
       CudaStreams streams, const int_radix_params params,
@@ -240,22 +249,22 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
         streams.stream(0), streams.gpu_index(0), numerator_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->unsigned_div_mem = new int_unsigned_scalar_div_mem<Torus>(
+    this->unsigned_div_mem = new int_unsigned_scalar_div_mem<Torus, KSTorus>(
         streams, params, num_radix_blocks, scalar_divisor_ffi,
         allocate_gpu_memory, size_tracker);
 
     if (scalar_divisor_ffi->is_divisor_pow2) {
-      this->bitop_mem = new int_bitop_buffer<Torus>(
+      this->bitop_mem = new int_bitop_buffer<Torus, KSTorus>(
           streams, SCALAR_BITAND, params, num_radix_blocks, allocate_gpu_memory,
           size_tracker);
     } else {
       if (!scalar_divisor_ffi->is_divisor_zero &&
           !scalar_divisor_ffi->is_abs_divisor_one && num_radix_blocks != 0) {
-        this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
+        this->scalar_mul_mem = new int_scalar_mul_buffer<Torus, KSTorus>(
             streams, params, num_radix_blocks, active_bits_divisor,
             allocate_gpu_memory, true, size_tracker);
       }
-      this->sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+      this->sub_and_propagate_mem = new int_sub_and_propagate<Torus, KSTorus>(
           streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
           size_tracker);
     }
@@ -286,17 +295,19 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
   }
 };
 
-template <typename Torus> struct int_signed_scalar_div_rem_buffer {
+template <typename Torus, typename KSTorus>
+struct int_signed_scalar_div_rem_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   CudaRadixCiphertextFFI *numerator_ct;
 
-  int_signed_scalar_div_mem<Torus> *signed_div_mem;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
-  int_scalar_mul_buffer<Torus> *scalar_mul_mem = nullptr;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
-  int_sc_prop_memory<Torus> *scp_mem;
+  int_signed_scalar_div_mem<Torus, KSTorus> *signed_div_mem;
+  int_logical_scalar_shift_buffer<Torus, KSTorus> *logical_scalar_shift_mem =
+      nullptr;
+  int_scalar_mul_buffer<Torus, KSTorus> *scalar_mul_mem = nullptr;
+  int_sub_and_propagate<Torus, KSTorus> *sub_and_propagate_mem;
+  int_sc_prop_memory<Torus, KSTorus> *scp_mem;
 
   int_signed_scalar_div_rem_buffer(
       CudaStreams streams, const int_radix_params params,
@@ -312,11 +323,11 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
         streams.stream(0), streams.gpu_index(0), numerator_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->signed_div_mem = new int_signed_scalar_div_mem<Torus>(
+    this->signed_div_mem = new int_signed_scalar_div_mem<Torus, KSTorus>(
         streams, params, num_radix_blocks, scalar_divisor_ffi,
         allocate_gpu_memory, size_tracker);
 
-    this->scp_mem = new int_sc_prop_memory<Torus>(
+    this->scp_mem = new int_sc_prop_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
         size_tracker);
 
@@ -326,18 +337,18 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
     if (!scalar_divisor_ffi->is_divisor_negative &&
         scalar_divisor_ffi->is_divisor_pow2) {
       this->logical_scalar_shift_mem =
-          new int_logical_scalar_shift_buffer<Torus>(
+          new int_logical_scalar_shift_buffer<Torus, KSTorus>(
               streams, LEFT_SHIFT, params, num_radix_blocks,
               allocate_gpu_memory, size_tracker);
 
     } else if (!scalar_divisor_ffi->is_divisor_zero && !is_divisor_one &&
                num_radix_blocks != 0) {
-      this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
+      this->scalar_mul_mem = new int_scalar_mul_buffer<Torus, KSTorus>(
           streams, params, num_radix_blocks, active_bits_divisor,
           allocate_gpu_memory, true, size_tracker);
     }
 
-    this->sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+    this->sub_and_propagate_mem = new int_sub_and_propagate<Torus, KSTorus>(
         streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
         size_tracker);
   }

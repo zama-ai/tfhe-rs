@@ -377,6 +377,7 @@ impl BitSizesSet {
 #[derive(Default)]
 pub struct EnvConfig {
     pub is_multi_bit: bool,
+    pub is_ks32: bool,
     pub bit_sizes_set: BitSizesSet,
 }
 
@@ -387,8 +388,14 @@ impl EnvConfig {
             ParamType::MultiBit | ParamType::MultiBitDocumentation
         );
 
+        let is_ks32 = matches!(
+            get_param_type(),
+            ParamType::ClassicalKs32 | ParamType::MultiBitKs32
+        );
+
         EnvConfig {
             is_multi_bit,
+            is_ks32,
             bit_sizes_set: BitSizesSet::from_env().unwrap(),
         }
     }
@@ -441,7 +448,9 @@ pub static PARAM_TYPE: OnceLock<ParamType> = OnceLock::new();
 
 pub enum ParamType {
     Classical,
+    ClassicalKs32,
     MultiBit,
+    MultiBitKs32,
     // Variants dedicated to documentation illustration.
     ClassicalDocumentation,
     MultiBitDocumentation,
@@ -452,7 +461,9 @@ impl ParamType {
         let raw_value = env::var("__TFHE_RS_PARAM_TYPE").unwrap_or("classical".to_string());
         match raw_value.to_lowercase().as_str() {
             "classical" => Ok(ParamType::Classical),
+            "classical_ks32" => Ok(ParamType::ClassicalKs32),
             "multi_bit" => Ok(ParamType::MultiBit),
+            "multi_bit_ks32" => Ok(ParamType::MultiBitKs32),
             "classical_documentation" => Ok(ParamType::ClassicalDocumentation),
             "multi_bit_documentation" => Ok(ParamType::MultiBitDocumentation),
             _ => Err(format!("parameters type '{raw_value}' is not supported")),

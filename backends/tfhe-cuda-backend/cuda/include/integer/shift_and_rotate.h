@@ -1,7 +1,7 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_shift_and_rotate_buffer {
+template <typename Torus, typename KSTorus> struct int_shift_and_rotate_buffer {
   int_radix_params params;
   SHIFT_OR_ROTATE_TYPE shift_type;
   bool is_signed;
@@ -13,10 +13,10 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   CudaRadixCiphertextFFI *tmp_input_bits_b;
   CudaRadixCiphertextFFI *tmp_mux_inputs;
 
-  int_bit_extract_luts_buffer<Torus> *bit_extract_luts;
-  int_bit_extract_luts_buffer<Torus> *bit_extract_luts_with_offset_2;
-  int_radix_lut<Torus> *mux_lut;
-  int_radix_lut<Torus> *cleaning_lut;
+  int_bit_extract_luts_buffer<Torus, KSTorus> *bit_extract_luts;
+  int_bit_extract_luts_buffer<Torus, KSTorus> *bit_extract_luts_with_offset_2;
+  int_radix_lut<Torus, KSTorus> *mux_lut;
+  int_radix_lut<Torus, KSTorus> *cleaning_lut;
 
   Torus offset;
   bool gpu_memory_allocated;
@@ -46,19 +46,20 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
 
     offset = (shift_type == LEFT_SHIFT ? 0 : total_nb_bits);
 
-    bit_extract_luts = new int_bit_extract_luts_buffer<Torus>(
+    bit_extract_luts = new int_bit_extract_luts_buffer<Torus, KSTorus>(
         streams, params, bits_per_block, num_radix_blocks, allocate_gpu_memory,
         size_tracker);
-    bit_extract_luts_with_offset_2 = new int_bit_extract_luts_buffer<Torus>(
-        streams, params, bits_per_block, 2, num_radix_blocks,
-        allocate_gpu_memory, size_tracker);
+    bit_extract_luts_with_offset_2 =
+        new int_bit_extract_luts_buffer<Torus, KSTorus>(
+            streams, params, bits_per_block, 2, num_radix_blocks,
+            allocate_gpu_memory, size_tracker);
 
-    mux_lut = new int_radix_lut<Torus>(streams, params, 1,
-                                       bits_per_block * num_radix_blocks,
-                                       allocate_gpu_memory, size_tracker);
+    mux_lut = new int_radix_lut<Torus, KSTorus>(
+        streams, params, 1, bits_per_block * num_radix_blocks,
+        allocate_gpu_memory, size_tracker);
     cleaning_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
 
     tmp_bits = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

@@ -16,8 +16,8 @@ uint64_t scratch_cuda_scalar_rotate_64(
 
   return scratch_cuda_scalar_rotate<uint64_t>(
       CudaStreams(streams),
-      (int_logical_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks, params,
-      shift_type, allocate_gpu_memory);
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> **)mem_ptr,
+      num_blocks, params, shift_type, allocate_gpu_memory);
 }
 
 void cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
@@ -27,14 +27,14 @@ void cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
 
   host_scalar_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, n,
-      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_scalar_rotate(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
 
-  int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
-      (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
+  int_logical_scalar_shift_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_logical_scalar_shift_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;

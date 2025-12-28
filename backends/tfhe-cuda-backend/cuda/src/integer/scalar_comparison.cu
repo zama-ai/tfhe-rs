@@ -41,8 +41,8 @@ void cuda_scalar_comparison_ciphertext_64(
   // depending on the case (eq/gt vs max/min) so the amount of blocks to
   // consider for calculation is the one of the input
   auto num_radix_blocks = lwe_array_in->num_radix_blocks;
-  int_comparison_buffer<uint64_t> *buffer =
-      (int_comparison_buffer<uint64_t> *)mem_ptr;
+  int_comparison_buffer<uint64_t, uint64_t> *buffer =
+      (int_comparison_buffer<uint64_t, uint64_t> *)mem_ptr;
   switch (buffer->op) {
   case EQ:
   case NE:

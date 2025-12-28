@@ -8,16 +8,16 @@
 #include "integer/scalar_shifts.cuh"
 #include "integer/subtraction.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_integer_unsigned_scalar_div_radix(
     CudaStreams streams, const int_radix_params params,
-    int_unsigned_scalar_div_mem<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_unsigned_scalar_div_mem<Torus, KSTorus> **mem_ptr,
+    uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     const bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_unsigned_scalar_div_mem<Torus>(
+  *mem_ptr = new int_unsigned_scalar_div_mem<Torus, KSTorus>(
       streams, params, num_radix_blocks, scalar_divisor_ffi,
       allocate_gpu_memory, size_tracker);
 
@@ -27,7 +27,7 @@ __host__ uint64_t scratch_integer_unsigned_scalar_div_radix(
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
-    int_unsigned_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
+    int_unsigned_scalar_div_mem<Torus, KSTorus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   if (scalar_divisor_ffi->is_abs_divisor_one) {
@@ -75,7 +75,7 @@ __host__ void host_integer_unsigned_scalar_div_radix(
         streams, numerator_ct, (uint32_t)1, mem_ptr->logical_scalar_shift_mem,
         bsks, ksks, numerator_ct->num_radix_blocks);
 
-    host_add_and_propagate_single_carry<Torus>(
+    host_add_and_propagate_single_carry<Torus, KSTorus>(
         streams, numerator_ct, numerator_cpy, nullptr, nullptr,
         mem_ptr->scp_mem, bsks, ksks, FLAG_NONE, (uint32_t)0);
 
@@ -102,16 +102,16 @@ __host__ void host_integer_unsigned_scalar_div_radix(
       numerator_ct->num_radix_blocks);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_integer_signed_scalar_div_radix(
     CudaStreams streams, int_radix_params params,
-    int_signed_scalar_div_mem<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_signed_scalar_div_mem<Torus, KSTorus> **mem_ptr,
+    uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     const bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_signed_scalar_div_mem<Torus>(
+  *mem_ptr = new int_signed_scalar_div_mem<Torus, KSTorus>(
       streams, params, num_radix_blocks, scalar_divisor_ffi,
       allocate_gpu_memory, size_tracker);
 
@@ -121,7 +121,7 @@ __host__ uint64_t scratch_integer_signed_scalar_div_radix(
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
-    int_signed_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
+    int_signed_scalar_div_mem<Torus, KSTorus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t numerator_bits) {
 
@@ -161,7 +161,7 @@ __host__ void host_integer_signed_scalar_div_radix(
         numerator_bits - scalar_divisor_ffi->chosen_multiplier_num_bits,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks, tmp->num_radix_blocks);
 
-    host_add_and_propagate_single_carry<Torus>(
+    host_add_and_propagate_single_carry<Torus, KSTorus>(
         streams, tmp, numerator_ct, nullptr, nullptr, mem_ptr->scp_mem, bsks,
         ksks, FLAG_NONE, (uint32_t)0);
 
@@ -202,7 +202,7 @@ __host__ void host_integer_signed_scalar_div_radix(
                                        mem_ptr->scalar_mul_high_mem, ksks,
                                        scalar_divisor_ffi, bsks);
 
-    host_add_and_propagate_single_carry<Torus>(
+    host_add_and_propagate_single_carry<Torus, KSTorus>(
         streams, tmp, numerator_ct, nullptr, nullptr, mem_ptr->scp_mem, bsks,
         ksks, FLAG_NONE, (uint32_t)0);
 
@@ -233,15 +233,15 @@ __host__ void host_integer_signed_scalar_div_radix(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_integer_unsigned_scalar_div_rem_radix(
     CudaStreams streams, const int_radix_params params,
-    int_unsigned_scalar_div_rem_buffer<Torus> **mem_ptr,
+    int_unsigned_scalar_div_rem_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, const bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unsigned_scalar_div_rem_buffer<Torus>(
+  *mem_ptr = new int_unsigned_scalar_div_rem_buffer<Torus, KSTorus>(
       streams, params, num_radix_blocks, scalar_divisor_ffi,
       active_bits_divisor, allocate_gpu_memory, size_tracker);
   return size_tracker;
@@ -251,8 +251,9 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_rem_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct,
-    int_unsigned_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
-    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_unsigned_scalar_div_rem_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     Torus const *clear_blocks, Torus const *h_clear_blocks,
@@ -298,16 +299,16 @@ __host__ void host_integer_unsigned_scalar_div_rem_radix(
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_integer_signed_scalar_div_rem_radix(
     CudaStreams streams, const int_radix_params params,
-    int_signed_scalar_div_rem_buffer<Torus> **mem_ptr,
+    int_signed_scalar_div_rem_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, const bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_signed_scalar_div_rem_buffer<Torus>(
+  *mem_ptr = new int_signed_scalar_div_rem_buffer<Torus, KSTorus>(
       streams, params, num_radix_blocks, scalar_divisor_ffi,
       active_bits_divisor, allocate_gpu_memory, size_tracker);
 
@@ -318,8 +319,9 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_rem_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct,
-    int_signed_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
-    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_signed_scalar_div_rem_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {

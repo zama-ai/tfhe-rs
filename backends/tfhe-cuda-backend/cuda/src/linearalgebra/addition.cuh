@@ -126,9 +126,9 @@ host_addition(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  addition<T><<<grid, thds, 0, stream>>>(
-      static_cast<T *>(output->ptr), static_cast<const T *>(input_1->ptr),
-      static_cast<const T *>(input_2->ptr), num_entries);
+  static_assert(sizeof(T) == sizeof(uint64_t));
+  addition<uint64_t><<<grid, thds, 0, stream>>>(output->ptr, input_1->ptr,
+                                                input_2->ptr, num_entries);
   check_cuda_error(cudaGetLastError());
   for (uint i = 0; i < num_radix_blocks; i++) {
     output->degrees[i] = input_1->degrees[i] + input_2->degrees[i];

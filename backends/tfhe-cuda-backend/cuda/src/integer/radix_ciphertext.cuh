@@ -15,19 +15,17 @@ to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
 }
 
 template <typename Torus>
-void create_zero_radix_ciphertext_async(cudaStream_t const stream,
-                                        uint32_t const gpu_index,
-                                        CudaRadixCiphertextFFI *radix,
-                                        const uint32_t num_radix_blocks,
-                                        const uint32_t lwe_dimension,
-                                        uint64_t &size_tracker,
-                                        bool allocate_gpu_memory) {
+void create_zero_radix_ciphertext_async(
+    cudaStream_t const stream, uint32_t const gpu_index,
+    GenericCudaRadixCiphertextFFI<Torus> *radix,
+    const uint32_t num_radix_blocks, const uint32_t lwe_dimension,
+    uint64_t &size_tracker, bool allocate_gpu_memory) {
   PUSH_RANGE("create zero radix ct");
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
   uint64_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-  radix->ptr = (void *)cuda_malloc_with_size_tracking_async(
+  radix->ptr = (Torus *)cuda_malloc_with_size_tracking_async(
       size, stream, gpu_index, size_tracker, allocate_gpu_memory);
   cuda_memset_with_size_tracking_async(radix->ptr, 0, size, stream, gpu_index,
                                        allocate_gpu_memory);
@@ -73,7 +71,7 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
   output_radix->max_num_radix_blocks = input_radix->max_num_radix_blocks;
   output_radix->lwe_dimension = input_radix->lwe_dimension;
   Torus *in_ptr = (Torus *)input_radix->ptr;
-  output_radix->ptr = (void *)(in_ptr + start_input_lwe_index * lwe_size);
+  output_radix->ptr = (Torus *)(in_ptr + start_input_lwe_index * lwe_size);
   output_radix->degrees = input_radix->degrees + start_input_lwe_index;
   output_radix->noise_levels =
       input_radix->noise_levels + start_input_lwe_index;
@@ -83,9 +81,9 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
 template <typename Torus>
 void copy_radix_ciphertext_slice_async(
     cudaStream_t const stream, uint32_t const gpu_index,
-    CudaRadixCiphertextFFI *output_radix, const uint32_t output_start_lwe_index,
-    const uint32_t output_end_lwe_index,
-    const CudaRadixCiphertextFFI *input_radix,
+    GenericCudaRadixCiphertextFFI<Torus> *output_radix,
+    const uint32_t output_start_lwe_index, const uint32_t output_end_lwe_index,
+    const GenericCudaRadixCiphertextFFI<Torus> *input_radix,
     const uint32_t input_start_lwe_index, const uint32_t input_end_lwe_index) {
   PUSH_RANGE("copy radix slice");
   if (output_radix->lwe_dimension != input_radix->lwe_dimension)
@@ -275,4 +273,33 @@ void push_block_to_radix_ciphertext_async(cudaStream_t stream,
       stream, gpu_index, radix_out, radix_out->num_radix_blocks - 1,
       radix_out->num_radix_blocks, block, 0, 1);
 }
+
+template <typename Torus>
+void into_radix_ciphertext(CudaRadixCiphertextFFI *radix, Torus *lwe_array,
+                           const uint32_t num_radix_blocks,
+                           const uint32_t lwe_dimension) {
+  radix->lwe_dimension = lwe_dimension;
+  radix->num_radix_blocks = num_radix_blocks;
+  radix->max_num_radix_blocks = num_radix_blocks;
+  radix->ptr = lwe_array;
+
+  radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  radix->noise_levels =
+      (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  if (radix->degrees == NULL || radix->noise_levels == NULL) {
+    PANIC("Cuda error: degrees / noise levels not allocated correctly")
+  }
+}
+
+template <typename Torus>
+void release_radix_ciphertext_async(cudaStream_t const stream,
+                                    uint32_t const gpu_index,
+                                    GenericCudaRadixCiphertextFFI<Torus> *data,
+                                    const bool gpu_memory_allocated) {
+  cuda_drop_with_size_tracking_async(data->ptr, stream, gpu_index,
+                                     gpu_memory_allocated);
+  free(data->degrees);
+  free(data->noise_levels);
+}
+
 #endif

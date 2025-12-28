@@ -35,7 +35,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
 
   return scratch_cuda_expand_without_verification<uint64_t>(
       CudaStreams(streams),
-      reinterpret_cast<zk_expand_mem<uint64_t> **>(mem_ptr),
+      reinterpret_cast<zk_expand_mem<uint64_t, uint64_t> **>(mem_ptr),
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
       computing_params, casting_params, casting_key_type, allocate_gpu_memory);
 }
@@ -45,53 +45,55 @@ void cuda_expand_without_verification_64(
     const void *lwe_flattened_compact_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *computing_ksks, void *const *casting_keys) {
 
-  auto expand_buffer = reinterpret_cast<zk_expand_mem<uint64_t> *>(mem_ptr);
+  auto expand_buffer =
+      reinterpret_cast<zk_expand_mem<uint64_t, uint64_t> *>(mem_ptr);
 
   switch (expand_buffer->casting_params.big_lwe_dimension) {
   case 256:
-    host_expand_without_verification<uint64_t, AmortizedDegree<256>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<256>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 512:
-    host_expand_without_verification<uint64_t, AmortizedDegree<512>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<512>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 1024:
-    host_expand_without_verification<uint64_t, AmortizedDegree<1024>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<1024>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 2048:
-    host_expand_without_verification<uint64_t, AmortizedDegree<2048>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<2048>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 4096:
-    host_expand_without_verification<uint64_t, AmortizedDegree<4096>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<4096>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 8192:
-    host_expand_without_verification<uint64_t, AmortizedDegree<8192>>(
+    host_expand_without_verification<uint64_t, uint64_t, AmortizedDegree<8192>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
         (uint64_t **)(computing_ksks));
     break;
   case 16384:
-    host_expand_without_verification<uint64_t, AmortizedDegree<16384>>(
+    host_expand_without_verification<uint64_t, uint64_t,
+                                     AmortizedDegree<16384>>(
         streams, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
         expand_buffer, (uint64_t **)casting_keys, bsks,
@@ -108,8 +110,8 @@ void cuda_expand_without_verification_64(
 void cleanup_expand_without_verification_64(CudaStreamsFFI streams,
                                             int8_t **mem_ptr_void) {
 
-  zk_expand_mem<uint64_t> *mem_ptr =
-      reinterpret_cast<zk_expand_mem<uint64_t> *>(*mem_ptr_void);
+  zk_expand_mem<uint64_t, uint64_t> *mem_ptr =
+      reinterpret_cast<zk_expand_mem<uint64_t, uint64_t> *>(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;

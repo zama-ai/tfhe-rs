@@ -12,8 +12,16 @@ use crate::shortint::parameters::*;
 create_gpu_parameterized_test!(integer_unchecked_sub);
 create_gpu_parameterized_test!(integer_sub);
 
-create_gpu_parameterized_test!(integer_unchecked_signed_overflowing_sub);
-create_gpu_parameterized_test!(integer_signed_overflowing_sub);
+create_gpu_parameterized_test!(integer_unchecked_signed_overflowing_sub {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_overflowing_sub {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 
 fn integer_unchecked_sub<P>(param: P)
 where

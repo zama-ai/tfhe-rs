@@ -97,14 +97,14 @@ template <typename Torus> struct expand_job {
 
 ////////////////////////////////////
 
-template <typename Torus> struct zk_expand_mem {
+template <typename Torus, typename KSTorus> struct zk_expand_mem {
   int_radix_params computing_params;
   int_radix_params casting_params;
   bool casting_key_type;
   uint32_t num_lwes;
   uint32_t num_compact_lists;
 
-  int_radix_lut<Torus> *message_and_carry_extract_luts;
+  int_radix_lut<Torus, KSTorus> *message_and_carry_extract_luts;
 
   Torus *tmp_expanded_lwes;
   Torus *tmp_ksed_small_to_big_expanded_lwes;
@@ -171,7 +171,7 @@ template <typename Torus> struct zk_expand_mem {
     if (casting_key_type == SMALL_TO_BIG) {
       params = computing_params;
     }
-    message_and_carry_extract_luts = new int_radix_lut<Torus>(
+    message_and_carry_extract_luts = new int_radix_lut<Torus, KSTorus>(
         streams, params, 4, 2 * num_lwes, allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator<Torus>(

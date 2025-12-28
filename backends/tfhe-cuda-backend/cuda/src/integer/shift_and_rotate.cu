@@ -15,8 +15,9 @@ uint64_t scratch_cuda_shift_and_rotate_64(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_shift_and_rotate<uint64_t>(
-      CudaStreams(streams), (int_shift_and_rotate_buffer<uint64_t> **)mem_ptr,
-      num_blocks, params, shift_type, is_signed, allocate_gpu_memory);
+      CudaStreams(streams),
+      (int_shift_and_rotate_buffer<uint64_t, uint64_t> **)mem_ptr, num_blocks,
+      params, shift_type, is_signed, allocate_gpu_memory);
 }
 
 void cuda_shift_and_rotate_64_inplace(CudaStreamsFFI streams,
@@ -27,14 +28,14 @@ void cuda_shift_and_rotate_64_inplace(CudaStreamsFFI streams,
 
   host_shift_and_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, lwe_shift,
-      (int_shift_and_rotate_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_shift_and_rotate_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_shift_and_rotate(CudaStreamsFFI streams,
                                    int8_t **mem_ptr_void) {
-  int_shift_and_rotate_buffer<uint64_t> *mem_ptr =
-      (int_shift_and_rotate_buffer<uint64_t> *)(*mem_ptr_void);
+  int_shift_and_rotate_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_shift_and_rotate_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;

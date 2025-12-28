@@ -16,8 +16,8 @@ uint64_t scratch_cuda_unchecked_all_eq_slices_64(
 
   return scratch_cuda_unchecked_all_eq_slices<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_all_eq_slices_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, allocate_gpu_memory);
+      (int_unchecked_all_eq_slices_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_inputs, num_blocks, allocate_gpu_memory);
 }
 
 void cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
@@ -28,16 +28,16 @@ void cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
                                      int8_t *mem, void *const *bsks,
                                      void *const *ksks) {
 
-  host_unchecked_all_eq_slices<uint64_t>(
+  host_unchecked_all_eq_slices<uint64_t, uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_inputs, num_blocks,
-      (int_unchecked_all_eq_slices_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_all_eq_slices_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
                                              int8_t **mem_ptr_void) {
-  int_unchecked_all_eq_slices_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_all_eq_slices_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_all_eq_slices_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_all_eq_slices_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -61,8 +61,8 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice_64(
 
   return scratch_cuda_unchecked_contains_sub_slice<uint64_t>(
       CudaStreams(streams),
-      (int_unchecked_contains_sub_slice_buffer<uint64_t> **)mem_ptr, params,
-      num_lhs, num_rhs, num_blocks, allocate_gpu_memory);
+      (int_unchecked_contains_sub_slice_buffer<uint64_t, uint64_t> **)mem_ptr,
+      params, num_lhs, num_rhs, num_blocks, allocate_gpu_memory);
 }
 
 void cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
@@ -75,14 +75,15 @@ void cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
 
   host_unchecked_contains_sub_slice<uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_rhs, num_blocks,
-      (int_unchecked_contains_sub_slice_buffer<uint64_t> *)mem, bsks,
+      (int_unchecked_contains_sub_slice_buffer<uint64_t, uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
 
 void cleanup_cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void) {
-  int_unchecked_contains_sub_slice_buffer<uint64_t> *mem_ptr =
-      (int_unchecked_contains_sub_slice_buffer<uint64_t> *)(*mem_ptr_void);
+  int_unchecked_contains_sub_slice_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_unchecked_contains_sub_slice_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 

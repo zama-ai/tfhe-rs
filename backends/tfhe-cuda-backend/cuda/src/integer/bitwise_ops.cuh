@@ -9,16 +9,16 @@
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_boolean_bitop(
-    CudaStreams streams, boolean_bitop_buffer<Torus> **mem_ptr,
+    CudaStreams streams, boolean_bitop_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
     bool is_unchecked, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new boolean_bitop_buffer<Torus>(streams, op, is_unchecked, params,
-                                             num_radix_blocks,
-                                             allocate_gpu_memory, size_tracker);
+  *mem_ptr = new boolean_bitop_buffer<Torus, KSTorus>(
+      streams, op, is_unchecked, params, num_radix_blocks, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
@@ -27,7 +27,7 @@ __host__ void host_boolean_bitop(CudaStreams streams,
                                  CudaRadixCiphertextFFI *lwe_array_out,
                                  CudaRadixCiphertextFFI const *lwe_array_1,
                                  CudaRadixCiphertextFFI const *lwe_array_2,
-                                 boolean_bitop_buffer<Torus> *mem_ptr,
+                                 boolean_bitop_buffer<Torus, KSTorus> *mem_ptr,
                                  void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
@@ -190,24 +190,24 @@ host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_boolean_bitnot(
-    CudaStreams streams, boolean_bitnot_buffer<Torus> **mem_ptr,
+    CudaStreams streams, boolean_bitnot_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t lwe_ciphertext_count, bool is_unchecked,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new boolean_bitnot_buffer<Torus>(
+  *mem_ptr = new boolean_bitnot_buffer<Torus, KSTorus>(
       streams, params, lwe_ciphertext_count, is_unchecked, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_boolean_bitnot(CudaStreams streams,
-                                  CudaRadixCiphertextFFI *lwe_array,
-                                  boolean_bitnot_buffer<Torus> *mem_ptr,
-                                  void *const *bsks, KSTorus *const *ksks) {
+__host__ void
+host_boolean_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
+                    boolean_bitnot_buffer<Torus, KSTorus> *mem_ptr,
+                    void *const *bsks, KSTorus *const *ksks) {
   bool carries_empty = true;
   for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
     if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
@@ -233,8 +233,8 @@ __host__ void host_bitop(CudaStreams streams,
                          CudaRadixCiphertextFFI *lwe_array_out,
                          CudaRadixCiphertextFFI const *lwe_array_1,
                          CudaRadixCiphertextFFI const *lwe_array_2,
-                         int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,
-                         KSTorus *const *ksks) {
+                         int_bitop_buffer<Torus, KSTorus> *mem_ptr,
+                         void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -269,16 +269,16 @@ __host__ void host_bitop(CudaStreams streams,
          lwe_array_out->num_radix_blocks * sizeof(uint64_t));
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_bitop(CudaStreams streams,
-                                     int_bitop_buffer<Torus> **mem_ptr,
+                                     int_bitop_buffer<Torus, KSTorus> **mem_ptr,
                                      uint32_t num_radix_blocks,
                                      int_radix_params params, BITOP_TYPE op,
                                      bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_bitop_buffer<Torus>(streams, op, params, num_radix_blocks,
-                                         allocate_gpu_memory, size_tracker);
+  *mem_ptr = new int_bitop_buffer<Torus, KSTorus>(
+      streams, op, params, num_radix_blocks, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

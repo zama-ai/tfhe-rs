@@ -1,19 +1,6 @@
 #include "integer/integer.h"
 #include "linearalgebra/addition.cuh"
 
-void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
-                                       CudaRadixCiphertextFFI *output,
-                                       CudaRadixCiphertextFFI const *input_1,
-                                       CudaRadixCiphertextFFI const *input_2) {
-
-  if (output->num_radix_blocks != input_1->num_radix_blocks ||
-      output->num_radix_blocks != input_2->num_radix_blocks)
-    PANIC("Cuda error: input and output num radix blocks must be the same")
-  host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
-                          input_1, input_2, output->num_radix_blocks, 0, 0);
-  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
-}
-
 /*
  * Perform the addition of two u64 input LWE ciphertext vectors.
  * - `v_stream` is a void pointer to the Cuda stream to be used in the kernel

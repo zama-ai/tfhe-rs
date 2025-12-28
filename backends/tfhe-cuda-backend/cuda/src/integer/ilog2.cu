@@ -15,10 +15,11 @@ uint64_t scratch_integer_count_of_consecutive_bits_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_integer_count_of_consecutive_bits<uint64_t>(
+  return scratch_integer_count_of_consecutive_bits<uint64_t, uint64_t>(
       CudaStreams(streams), params,
-      (int_count_of_consecutive_bits_buffer<uint64_t> **)mem_ptr, num_blocks,
-      counter_num_blocks, direction, bit_value, allocate_gpu_memory);
+      (int_count_of_consecutive_bits_buffer<uint64_t, uint64_t> **)mem_ptr,
+      num_blocks, counter_num_blocks, direction, bit_value,
+      allocate_gpu_memory);
 }
 
 // Computes the number of consecutive bits in an encrypted integer.
@@ -33,15 +34,16 @@ void cuda_integer_count_of_consecutive_bits_64(
 
   host_integer_count_of_consecutive_bits<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct,
-      (int_count_of_consecutive_bits_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_count_of_consecutive_bits_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks);
 }
 
 void cleanup_cuda_integer_count_of_consecutive_bits_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void) {
 
-  int_count_of_consecutive_bits_buffer<uint64_t> *mem_ptr =
-      (int_count_of_consecutive_bits_buffer<uint64_t> *)(*mem_ptr_void);
+  int_count_of_consecutive_bits_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_count_of_consecutive_bits_buffer<uint64_t, uint64_t>
+           *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
@@ -64,10 +66,10 @@ uint64_t scratch_integer_ilog2_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_integer_ilog2<uint64_t>(
-      CudaStreams(streams), params, (int_ilog2_buffer<uint64_t> **)mem_ptr,
-      input_num_blocks, counter_num_blocks, num_bits_in_ciphertext,
-      allocate_gpu_memory);
+  return scratch_integer_ilog2<uint64_t, uint64_t>(
+      CudaStreams(streams), params,
+      (int_ilog2_buffer<uint64_t, uint64_t> **)mem_ptr, input_num_blocks,
+      counter_num_blocks, num_bits_in_ciphertext, allocate_gpu_memory);
 }
 
 // Computes the integer logarithm base 2 of an encrypted integer.
@@ -84,15 +86,15 @@ void cuda_integer_ilog2_64(
 
   host_integer_ilog2<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct, trivial_ct_neg_n, trivial_ct_2,
-      trivial_ct_m_minus_1_block, (int_ilog2_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks);
+      trivial_ct_m_minus_1_block,
+      (int_ilog2_buffer<uint64_t, uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
 }
 
 void cleanup_cuda_integer_ilog2_64(CudaStreamsFFI streams,
                                    int8_t **mem_ptr_void) {
 
-  int_ilog2_buffer<uint64_t> *mem_ptr =
-      (int_ilog2_buffer<uint64_t> *)(*mem_ptr_void);
+  int_ilog2_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_ilog2_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 

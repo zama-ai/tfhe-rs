@@ -4,27 +4,28 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/vector_comparison.h"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_all_eq_slices(
-    CudaStreams streams, int_unchecked_all_eq_slices_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_unchecked_all_eq_slices_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_all_eq_slices_buffer<Torus>(
+  *mem_ptr = new int_unchecked_all_eq_slices_buffer<Torus, KSTorus>(
       streams, params, num_inputs, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_all_eq_slices(
     CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_inputs, uint32_t num_blocks,
-    int_unchecked_all_eq_slices_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_all_eq_slices_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   // sync_from(streams)
   //
@@ -82,28 +83,28 @@ __host__ void host_unchecked_all_eq_slices(
       bsks, ksks, num_inputs);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_unchecked_contains_sub_slice(
     CudaStreams streams,
-    int_unchecked_contains_sub_slice_buffer<Torus> **mem_ptr,
+    int_unchecked_contains_sub_slice_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_lhs, uint32_t num_rhs,
     uint32_t num_blocks, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_unchecked_contains_sub_slice_buffer<Torus>(
+  *mem_ptr = new int_unchecked_contains_sub_slice_buffer<Torus, KSTorus>(
       streams, params, num_lhs, num_rhs, num_blocks, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_unchecked_contains_sub_slice(
     CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_rhs, uint32_t num_blocks,
-    int_unchecked_contains_sub_slice_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    int_unchecked_contains_sub_slice_buffer<Torus, KSTorus> *mem_ptr,
+    void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t num_windows = mem_ptr->num_windows;
 
@@ -114,12 +115,12 @@ __host__ void host_unchecked_contains_sub_slice(
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, w, w + 1);
 
-    host_unchecked_all_eq_slices<Torus>(streams, &current_result_dest,
-                                        lhs_window, rhs, num_rhs, num_blocks,
-                                        mem_ptr->all_eq_buffer, bsks, ksks);
+    host_unchecked_all_eq_slices<Torus, KSTorus>(
+        streams, &current_result_dest, lhs_window, rhs, num_rhs, num_blocks,
+        mem_ptr->all_eq_buffer, bsks, ksks);
   }
 
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true<Torus, KSTorus>(
       streams, match_ct, mem_ptr->packed_results,
       mem_ptr->final_reduction_buffer, bsks, ksks, num_windows);
 }

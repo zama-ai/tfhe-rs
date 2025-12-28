@@ -6,13 +6,13 @@
 #include "radix_ciphertext.cuh"
 
 template <typename Torus, typename KSTorus>
-__host__ void zero_out_if(CudaStreams streams,
-                          CudaRadixCiphertextFFI *lwe_array_out,
-                          CudaRadixCiphertextFFI const *lwe_array_input,
-                          CudaRadixCiphertextFFI const *lwe_condition,
-                          int_zero_out_if_buffer<Torus> *mem_ptr,
-                          int_radix_lut<Torus> *predicate, void *const *bsks,
-                          KSTorus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void
+zero_out_if(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+            CudaRadixCiphertextFFI const *lwe_array_input,
+            CudaRadixCiphertextFFI const *lwe_condition,
+            int_zero_out_if_buffer<Torus, KSTorus> *mem_ptr,
+            int_radix_lut<Torus, KSTorus> *predicate, void *const *bsks,
+            KSTorus *const *ksks, uint32_t num_radix_blocks) {
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks >= num_radix_blocks &&
           lwe_array_input->num_radix_blocks >= num_radix_blocks,
@@ -47,8 +47,8 @@ __host__ void host_cmux(CudaStreams streams,
                         CudaRadixCiphertextFFI const *lwe_condition,
                         CudaRadixCiphertextFFI const *lwe_array_true,
                         CudaRadixCiphertextFFI const *lwe_array_false,
-                        int_cmux_buffer<Torus> *mem_ptr, void *const *bsks,
-                        KSTorus *const *ksks) {
+                        int_cmux_buffer<Torus, KSTorus> *mem_ptr,
+                        void *const *bsks, KSTorus *const *ksks) {
 
   if (lwe_array_out->num_radix_blocks != lwe_array_true->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
@@ -94,17 +94,17 @@ __host__ void host_cmux(CudaStreams streams,
       mem_ptr->message_extract_lut, num_radix_blocks);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_cmux(CudaStreams streams,
-                                    int_cmux_buffer<Torus> **mem_ptr,
+                                    int_cmux_buffer<Torus, KSTorus> **mem_ptr,
                                     std::function<Torus(Torus)> predicate_lut_f,
                                     uint32_t num_radix_blocks,
                                     int_radix_params params,
                                     bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_cmux_buffer<Torus>(streams, predicate_lut_f, params,
-                                        num_radix_blocks, allocate_gpu_memory,
-                                        size_tracker);
+  *mem_ptr = new int_cmux_buffer<Torus, KSTorus>(
+      streams, predicate_lut_f, params, num_radix_blocks, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 #endif

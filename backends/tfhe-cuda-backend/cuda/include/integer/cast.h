@@ -1,12 +1,13 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
+template <typename Torus, typename KSTorus>
+struct int_extend_radix_with_sign_msb_buffer {
 
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_radix_lut<Torus> *lut = nullptr;
+  int_radix_lut<Torus, KSTorus> *lut = nullptr;
 
   CudaRadixCiphertextFFI *last_block = nullptr;
   CudaRadixCiphertextFFI *padding_block = nullptr;
@@ -22,8 +23,9 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     if (num_additional_blocks != 0) {
-      this->lut = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                           allocate_gpu_memory, size_tracker);
+      this->lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
 
       uint32_t bits_per_block = std::log2(params.message_modulus);
       uint32_t msg_modulus = params.message_modulus;
@@ -77,15 +79,15 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
   }
 };
 
-template <typename Torus> struct int_cast_to_unsigned_buffer {
+template <typename Torus, typename KSTorus> struct int_cast_to_unsigned_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
   bool requires_full_propagate;
   bool requires_sign_extension;
 
-  int_fullprop_buffer<Torus> *prop_buffer;
-  int_extend_radix_with_sign_msb_buffer<Torus> *extend_buffer;
+  int_fullprop_buffer<Torus, KSTorus> *prop_buffer;
+  int_extend_radix_with_sign_msb_buffer<Torus, KSTorus> *extend_buffer;
 
   int_cast_to_unsigned_buffer(CudaStreams streams, int_radix_params params,
                               uint32_t num_input_blocks,
@@ -101,7 +103,7 @@ template <typename Torus> struct int_cast_to_unsigned_buffer {
     this->extend_buffer = nullptr;
 
     if (requires_full_propagate) {
-      this->prop_buffer = new int_fullprop_buffer<Torus>(
+      this->prop_buffer = new int_fullprop_buffer<Torus, KSTorus>(
           streams, params, allocate_gpu_memory, size_tracker);
     }
 
@@ -110,9 +112,10 @@ template <typename Torus> struct int_cast_to_unsigned_buffer {
 
     if (this->requires_sign_extension) {
       uint32_t num_blocks_to_add = target_num_blocks - num_input_blocks;
-      this->extend_buffer = new int_extend_radix_with_sign_msb_buffer<Torus>(
-          streams, params, num_input_blocks, num_blocks_to_add,
-          allocate_gpu_memory, size_tracker);
+      this->extend_buffer =
+          new int_extend_radix_with_sign_msb_buffer<Torus, KSTorus>(
+              streams, params, num_input_blocks, num_blocks_to_add,
+              allocate_gpu_memory, size_tracker);
     }
   }
 
@@ -129,13 +132,13 @@ template <typename Torus> struct int_cast_to_unsigned_buffer {
   }
 };
 
-template <typename Torus> struct int_cast_to_signed_buffer {
+template <typename Torus, typename KSTorus> struct int_cast_to_signed_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   uint32_t num_input_blocks;
   uint32_t target_num_blocks;
 
-  int_extend_radix_with_sign_msb_buffer<Torus> *extend_buffer;
+  int_extend_radix_with_sign_msb_buffer<Torus, KSTorus> *extend_buffer;
 
   int_cast_to_signed_buffer(CudaStreams streams, int_radix_params params,
                             uint32_t num_input_blocks,
@@ -149,9 +152,10 @@ template <typename Torus> struct int_cast_to_signed_buffer {
 
     if (input_is_signed && target_num_blocks > num_input_blocks) {
       uint32_t num_additional_blocks = target_num_blocks - num_input_blocks;
-      this->extend_buffer = new int_extend_radix_with_sign_msb_buffer<Torus>(
-          streams, params, num_input_blocks, num_additional_blocks,
-          allocate_gpu_memory, size_tracker);
+      this->extend_buffer =
+          new int_extend_radix_with_sign_msb_buffer<Torus, KSTorus>(
+              streams, params, num_input_blocks, num_additional_blocks,
+              allocate_gpu_memory, size_tracker);
     }
   }
 
