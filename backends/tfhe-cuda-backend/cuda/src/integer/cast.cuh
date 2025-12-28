@@ -53,15 +53,16 @@ host_trim_radix_blocks_msb(CudaRadixCiphertextFFI *output_radix,
       output_radix->num_radix_blocks);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_extend_radix_with_sign_msb(
-    CudaStreams streams, int_extend_radix_with_sign_msb_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_extend_radix_with_sign_msb_buffer<Torus, KSTorus> **mem_ptr,
     const int_radix_params params, uint32_t num_radix_blocks,
     uint32_t num_additional_blocks, const bool allocate_gpu_memory) {
   PUSH_RANGE("scratch cast/extend")
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_extend_radix_with_sign_msb_buffer<Torus>(
+  *mem_ptr = new int_extend_radix_with_sign_msb_buffer<Torus, KSTorus>(
       streams, params, num_radix_blocks, num_additional_blocks,
       allocate_gpu_memory, size_tracker);
   POP_RANGE()
@@ -72,7 +73,7 @@ template <typename Torus, typename KSTorus>
 __host__ void host_extend_radix_with_sign_msb(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input,
-    int_extend_radix_with_sign_msb_buffer<Torus> *mem_ptr,
+    int_extend_radix_with_sign_msb_buffer<Torus, KSTorus> *mem_ptr,
     uint32_t num_additional_blocks, void *const *bsks, KSTorus *const *ksks) {
 
   if (num_additional_blocks == 0) {
@@ -108,26 +109,26 @@ __host__ void host_extend_radix_with_sign_msb(
   POP_RANGE()
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_cast_to_unsigned(
-    CudaStreams streams, int_cast_to_unsigned_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_cast_to_unsigned_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, uint32_t num_input_blocks,
     uint32_t target_num_blocks, bool input_is_signed,
     bool requires_full_propagate, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_cast_to_unsigned_buffer<Torus>(
+  *mem_ptr = new int_cast_to_unsigned_buffer<Torus, KSTorus>(
       streams, params, num_input_blocks, target_num_blocks, input_is_signed,
       requires_full_propagate, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void
 host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
                       CudaRadixCiphertextFFI *input,
-                      int_cast_to_unsigned_buffer<Torus> *mem_ptr,
+                      int_cast_to_unsigned_buffer<Torus, KSTorus> *mem_ptr,
                       uint32_t target_num_blocks, bool input_is_signed,
                       void *const *bsks, Torus *const *ksks) {
 
@@ -160,27 +161,27 @@ host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
   }
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t
 scratch_cuda_cast_to_signed(CudaStreams streams,
-                            int_cast_to_signed_buffer<Torus> **mem_ptr,
+                            int_cast_to_signed_buffer<Torus, KSTorus> **mem_ptr,
                             int_radix_params params, uint32_t num_input_blocks,
                             uint32_t target_num_blocks, bool input_is_signed,
                             bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_cast_to_signed_buffer<Torus>(
+  *mem_ptr = new int_cast_to_signed_buffer<Torus, KSTorus>(
       streams, params, num_input_blocks, target_num_blocks, input_is_signed,
       allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void
 host_cast_to_signed(CudaStreams streams, CudaRadixCiphertextFFI *output,
                     CudaRadixCiphertextFFI const *input,
-                    int_cast_to_signed_buffer<Torus> *mem_ptr,
+                    int_cast_to_signed_buffer<Torus, KSTorus> *mem_ptr,
                     bool input_is_signed, void *const *bsks, Torus **ksks) {
 
   uint32_t current_num_blocks = input->num_radix_blocks;

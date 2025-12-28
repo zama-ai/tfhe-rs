@@ -2,17 +2,17 @@
 #include "cmux.h"
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_mul_memory {
+template <typename Torus, typename KSTorus> struct int_mul_memory {
   CudaRadixCiphertextFFI *vector_result_sb;
   CudaRadixCiphertextFFI *block_mul_res;
   CudaRadixCiphertextFFI *small_lwe_vector;
 
-  int_radix_lut<Torus> *luts_array; // lsb msb
-  int_radix_lut<Torus> *zero_out_predicate_lut;
+  int_radix_lut<Torus, KSTorus> *luts_array; // lsb msb
+  int_radix_lut<Torus, KSTorus> *zero_out_predicate_lut;
 
-  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
-  int_sc_prop_memory<Torus> *sc_prop_mem;
-  int_zero_out_if_buffer<Torus> *zero_out_mem;
+  int_sum_ciphertexts_vec_memory<Torus, KSTorus> *sum_ciphertexts_mem;
+  int_sc_prop_memory<Torus, KSTorus> *sc_prop_mem;
+  int_zero_out_if_buffer<Torus, KSTorus> *zero_out_mem;
 
   int_radix_params params;
   bool boolean_mul = false;
@@ -34,9 +34,9 @@ template <typename Torus> struct int_mul_memory {
         else
           return block;
       };
-      zero_out_predicate_lut =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      zero_out_predicate_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
       generate_device_accumulator_bivariate<Torus>(
           streams.stream(0), streams.gpu_index(0),
           zero_out_predicate_lut->get_lut(0, 0),
@@ -48,7 +48,7 @@ template <typename Torus> struct int_mul_memory {
       auto active_streams = streams.active_gpu_subset(num_radix_blocks);
       zero_out_predicate_lut->broadcast_lut(active_streams);
 
-      zero_out_mem = new int_zero_out_if_buffer<Torus>(
+      zero_out_mem = new int_zero_out_if_buffer<Torus, KSTorus>(
           streams, params, num_radix_blocks, allocate_gpu_memory, size_tracker);
 
       return;
@@ -88,7 +88,8 @@ template <typename Torus> struct int_mul_memory {
 
     // create int_radix_lut objects for lsb, msb, message, carry
     // luts_array -> lut = {lsb_acc, msb_acc}
-    luts_array = new int_radix_lut<Torus>(streams, params, 2, total_block_count,
+    luts_array =
+        new int_radix_lut<Torus, KSTorus>(streams, params, 2, total_block_count,
                                           allocate_gpu_memory, size_tracker);
     auto lsb_acc = luts_array->get_lut(0, 0);
     auto msb_acc = luts_array->get_lut(0, 1);
@@ -125,12 +126,12 @@ template <typename Torus> struct int_mul_memory {
     auto active_streams = streams.active_gpu_subset(total_block_count);
     luts_array->broadcast_lut(active_streams);
     // create memory object for sum ciphertexts
-    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, 2 * num_radix_blocks,
         vector_result_sb, small_lwe_vector, luts_array, true,
         allocate_gpu_memory, size_tracker);
     uint32_t requested_flag = outputFlag::FLAG_NONE;
-    sc_prop_mem = new int_sc_prop_memory<Torus>(
+    sc_prop_mem = new int_sc_prop_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, requested_flag, allocate_gpu_memory,
         size_tracker);
   }

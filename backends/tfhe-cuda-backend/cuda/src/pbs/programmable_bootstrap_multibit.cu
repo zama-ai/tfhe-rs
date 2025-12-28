@@ -692,6 +692,13 @@ scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t, uint64_t>(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
+template uint64_t
+scratch_cuda_cg_multi_bit_programmable_bootstrap<uint32_t, uint64_t>(
+    void *stream, uint32_t gpu_index,
+    pbs_buffer<uint64_t, MULTI_BIT> **pbs_buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+
 template void
 cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t,
                                                                uint64_t>(

@@ -8,14 +8,15 @@
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_scalar_rotate(
-    CudaStreams streams, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
+    CudaStreams streams,
+    int_logical_scalar_shift_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
+  *mem_ptr = new int_logical_scalar_shift_buffer<Torus, KSTorus>(
       streams, shift_type, params, num_radix_blocks, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
@@ -25,7 +26,7 @@ template <typename Torus, typename KSTorus>
 __host__ void
 host_scalar_rotate_inplace(CudaStreams streams,
                            CudaRadixCiphertextFFI *lwe_array, uint32_t n,
-                           int_logical_scalar_shift_buffer<Torus> *mem,
+                           int_logical_scalar_shift_buffer<Torus, KSTorus> *mem,
                            void *const *bsks, KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;

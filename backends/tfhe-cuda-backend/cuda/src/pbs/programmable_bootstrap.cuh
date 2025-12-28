@@ -289,13 +289,23 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-            current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
-            current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_many_lut, lut_stride);
+        if constexpr (std::is_same_v<InputTorus, uint32_t>) {
+          cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_32_64(
+              streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+              current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+              current_lwe_array_in, current_lwe_input_indexes,
+              bootstrapping_keys[i], pbs_buffer[i], lwe_dimension,
+              glwe_dimension, polynomial_size, grouping_factor, base_log,
+              level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
+        } else {
+          cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+              streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+              current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+              current_lwe_array_in, current_lwe_input_indexes,
+              bootstrapping_keys[i], pbs_buffer[i], lwe_dimension,
+              glwe_dimension, polynomial_size, grouping_factor, base_log,
+              level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
+        }
       }
       break;
     case CLASSICAL:
@@ -318,13 +328,23 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
-            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-            current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
-            current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            num_many_lut, lut_stride);
+        if constexpr (std::is_same_v<InputTorus, uint32_t>) {
+          cuda_programmable_bootstrap_lwe_ciphertext_vector_32_64(
+              streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+              current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+              current_lwe_array_in, current_lwe_input_indexes,
+              bootstrapping_keys[i], pbs_buffer[i], lwe_dimension,
+              glwe_dimension, polynomial_size, base_log, level_count,
+              num_inputs_on_gpu, num_many_lut, lut_stride);
+        } else {
+          cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
+              streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+              current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+              current_lwe_array_in, current_lwe_input_indexes,
+              bootstrapping_keys[i], pbs_buffer[i], lwe_dimension,
+              glwe_dimension, polynomial_size, base_log, level_count,
+              num_inputs_on_gpu, num_many_lut, lut_stride);
+        }
       }
       break;
     default:

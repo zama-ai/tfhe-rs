@@ -206,7 +206,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
     return;
   }
 
-  scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
+  scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t, uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
