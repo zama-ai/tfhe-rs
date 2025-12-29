@@ -1,5 +1,5 @@
-import { threads } from "wasm-feature-detect";
 import * as Comlink from "comlink";
+import { threads } from "wasm-feature-detect";
 
 function setButtonsDisabledState(buttonIds, state) {
   for (let id of buttonIds) {
@@ -11,15 +11,22 @@ function setButtonsDisabledState(buttonIds, state) {
 }
 
 async function setup() {
-  let supportsThreads = await threads();
-  if (!supportsThreads) {
-    console.error("This browser does not support threads");
-    return;
-  }
-
   const worker = new Worker(new URL("worker.js", import.meta.url), {
     type: "module",
   });
+  let supportsThreads = await threads();
+  // This variable is set to true if we are using the `serve.multithreaded.json` config
+  if (crossOriginIsolated) {
+    if (supportsThreads) {
+      console.info("Running in multithreaded mode");
+    } else {
+      console.error("This browser does not support threads");
+      return;
+    }
+  } else {
+    console.warn("Running in unsafe coop mode");
+  }
+
   const demos = await Comlink.wrap(worker).demos;
 
   const demoNames = [
