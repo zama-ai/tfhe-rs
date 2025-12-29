@@ -15,8 +15,9 @@ uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_64(
                           message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_div_rem<uint64_t>(
-      CudaStreams(streams), is_signed, (int_div_rem_memory<uint64_t> **)mem_ptr,
-      num_blocks, params, allocate_gpu_memory);
+      CudaStreams(streams), is_signed,
+      (int_div_rem_memory<uint64_t, uint64_t> **)mem_ptr, num_blocks, params,
+      allocate_gpu_memory);
   POP_RANGE()
 }
 
@@ -26,19 +27,19 @@ void cuda_integer_div_rem_radix_ciphertext_64(
     CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
   PUSH_RANGE("div")
-  auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
+  auto mem = (int_div_rem_memory<uint64_t, uint64_t> *)mem_ptr;
 
-  host_integer_div_rem<uint64_t>(CudaStreams(streams), quotient, remainder,
-                                 numerator, divisor, is_signed, bsks,
-                                 (uint64_t **)(ksks), mem);
+  host_integer_div_rem<uint64_t, uint64_t>(
+      CudaStreams(streams), quotient, remainder, numerator, divisor, is_signed,
+      bsks, (uint64_t **)(ksks), mem);
   POP_RANGE()
 }
 
 void cleanup_cuda_integer_div_rem(CudaStreamsFFI streams,
                                   int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup div")
-  int_div_rem_memory<uint64_t> *mem_ptr =
-      (int_div_rem_memory<uint64_t> *)(*mem_ptr_void);
+  int_div_rem_memory<uint64_t, uint64_t> *mem_ptr =
+      (int_div_rem_memory<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;

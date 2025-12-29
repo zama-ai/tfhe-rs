@@ -15,8 +15,9 @@ uint64_t scratch_cuda_boolean_bitop_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_boolean_bitop<uint64_t>(
-      CudaStreams(streams), (boolean_bitop_buffer<uint64_t> **)mem_ptr,
+  return scratch_cuda_boolean_bitop<uint64_t, uint64_t>(
+      CudaStreams(streams),
+      (boolean_bitop_buffer<uint64_t, uint64_t> **)mem_ptr,
       lwe_ciphertext_count, params, op_type, is_unchecked, allocate_gpu_memory);
 }
 
@@ -29,13 +30,14 @@ void cuda_boolean_bitop_ciphertext_64(CudaStreamsFFI streams,
 
   host_boolean_bitop<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2,
-      (boolean_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
+      (boolean_bitop_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_boolean_bitop(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
 
-  boolean_bitop_buffer<uint64_t> *mem_ptr =
-      (boolean_bitop_buffer<uint64_t> *)(*mem_ptr_void);
+  boolean_bitop_buffer<uint64_t, uint64_t> *mem_ptr =
+      (boolean_bitop_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;
@@ -55,8 +57,9 @@ uint64_t scratch_cuda_boolean_bitnot_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_boolean_bitnot<uint64_t>(
-      CudaStreams(streams), (boolean_bitnot_buffer<uint64_t> **)mem_ptr, params,
+  return scratch_cuda_boolean_bitnot<uint64_t, uint64_t>(
+      CudaStreams(streams),
+      (boolean_bitnot_buffer<uint64_t, uint64_t> **)mem_ptr, params,
       lwe_ciphertext_count, is_unchecked, allocate_gpu_memory);
 }
 
@@ -64,16 +67,17 @@ void cuda_boolean_bitnot_ciphertext_64(CudaStreamsFFI streams,
                                        CudaRadixCiphertextFFI *lwe_array,
                                        int8_t *mem_ptr, void *const *bsks,
                                        void *const *ksks) {
-  host_boolean_bitnot<uint64_t>(CudaStreams(streams), lwe_array,
-                                (boolean_bitnot_buffer<uint64_t> *)mem_ptr,
-                                bsks, (uint64_t **)(ksks));
+  host_boolean_bitnot<uint64_t>(
+      CudaStreams(streams), lwe_array,
+      (boolean_bitnot_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_boolean_bitnot(CudaStreamsFFI streams,
                                  int8_t **mem_ptr_void) {
 
-  boolean_bitnot_buffer<uint64_t> *mem_ptr =
-      (boolean_bitnot_buffer<uint64_t> *)(*mem_ptr_void);
+  boolean_bitnot_buffer<uint64_t, uint64_t> *mem_ptr =
+      (boolean_bitnot_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;
@@ -93,8 +97,8 @@ uint64_t scratch_cuda_bitop_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_bitop<uint64_t>(
-      CudaStreams(streams), (int_bitop_buffer<uint64_t> **)mem_ptr,
+  return scratch_cuda_bitop<uint64_t, uint64_t>(
+      CudaStreams(streams), (int_bitop_buffer<uint64_t, uint64_t> **)mem_ptr,
       lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
 }
 
@@ -117,14 +121,15 @@ void cuda_bitop_ciphertext_64(CudaStreamsFFI streams,
                               void *const *ksks) {
 
   host_bitop<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
-                       lwe_array_2, (int_bitop_buffer<uint64_t> *)mem_ptr, bsks,
+                       lwe_array_2,
+                       (int_bitop_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
                        (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_integer_bitop(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
 
-  int_bitop_buffer<uint64_t> *mem_ptr =
-      (int_bitop_buffer<uint64_t> *)(*mem_ptr_void);
+  int_bitop_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_bitop_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;

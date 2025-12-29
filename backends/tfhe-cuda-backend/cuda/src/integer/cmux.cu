@@ -19,8 +19,8 @@ uint64_t scratch_cuda_cmux_64(CudaStreamsFFI streams, int8_t **mem_ptr,
   std::function<uint64_t(uint64_t)> predicate_lut_f =
       [](uint64_t x) -> uint64_t { return x == 1; };
 
-  uint64_t ret = scratch_cuda_cmux<uint64_t>(
-      CudaStreams(streams), (int_cmux_buffer<uint64_t> **)mem_ptr,
+  uint64_t ret = scratch_cuda_cmux<uint64_t, uint64_t>(
+      CudaStreams(streams), (int_cmux_buffer<uint64_t, uint64_t> **)mem_ptr,
       predicate_lut_f, lwe_ciphertext_count, params, allocate_gpu_memory);
   POP_RANGE()
   return ret;
@@ -36,15 +36,15 @@ void cuda_cmux_ciphertext_64(CudaStreamsFFI streams,
   PUSH_RANGE("cmux")
   host_cmux<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_condition,
                       lwe_array_true, lwe_array_false,
-                      (int_cmux_buffer<uint64_t> *)mem_ptr, bsks,
+                      (int_cmux_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
                       (uint64_t **)(ksks));
   POP_RANGE()
 }
 
 void cleanup_cuda_cmux(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup cmux")
-  int_cmux_buffer<uint64_t> *mem_ptr =
-      (int_cmux_buffer<uint64_t> *)(*mem_ptr_void);
+  int_cmux_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_cmux_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
   *mem_ptr_void = nullptr;

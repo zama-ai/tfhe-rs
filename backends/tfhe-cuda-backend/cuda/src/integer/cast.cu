@@ -42,9 +42,10 @@ uint64_t scratch_cuda_cast_to_unsigned_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_cast_to_unsigned<uint64_t>(
-      CudaStreams(streams), (int_cast_to_unsigned_buffer<uint64_t> **)mem_ptr,
-      params, num_input_blocks, target_num_blocks, input_is_signed,
+  return scratch_cuda_cast_to_unsigned<uint64_t, uint64_t>(
+      CudaStreams(streams),
+      (int_cast_to_unsigned_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      num_input_blocks, target_num_blocks, input_is_signed,
       requires_full_propagate, allocate_gpu_memory);
 }
 
@@ -54,16 +55,16 @@ void cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
                               uint32_t target_num_blocks, bool input_is_signed,
                               void *const *bsks, void *const *ksks) {
 
-  host_cast_to_unsigned<uint64_t>(
+  host_cast_to_unsigned<uint64_t, uint64_t>(
       CudaStreams(streams), output, input,
-      (int_cast_to_unsigned_buffer<uint64_t> *)mem_ptr, target_num_blocks,
-      input_is_signed, bsks, (uint64_t **)ksks);
+      (int_cast_to_unsigned_buffer<uint64_t, uint64_t> *)mem_ptr,
+      target_num_blocks, input_is_signed, bsks, (uint64_t **)ksks);
 }
 
 void cleanup_cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
                                       int8_t **mem_ptr_void) {
-  int_cast_to_unsigned_buffer<uint64_t> *mem_ptr =
-      (int_cast_to_unsigned_buffer<uint64_t> *)(*mem_ptr_void);
+  int_cast_to_unsigned_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_cast_to_unsigned_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;
@@ -85,9 +86,10 @@ uint64_t scratch_cuda_cast_to_signed_64(
                           grouping_factor, message_modulus, carry_modulus,
                           noise_reduction_type);
 
-  return scratch_cuda_cast_to_signed<uint64_t>(
-      CudaStreams(streams), (int_cast_to_signed_buffer<uint64_t> **)mem_ptr,
-      params, num_input_blocks, target_num_blocks, input_is_signed,
+  return scratch_cuda_cast_to_signed<uint64_t, uint64_t>(
+      CudaStreams(streams),
+      (int_cast_to_signed_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      num_input_blocks, target_num_blocks, input_is_signed,
       allocate_gpu_memory);
 }
 
@@ -97,15 +99,16 @@ void cuda_cast_to_signed_64(CudaStreamsFFI streams,
                             bool input_is_signed, void *const *bsks,
                             void *const *ksks) {
 
-  host_cast_to_signed<uint64_t>(CudaStreams(streams), output, input,
-                                (int_cast_to_signed_buffer<uint64_t> *)mem,
-                                input_is_signed, bsks, (uint64_t **)ksks);
+  host_cast_to_signed<uint64_t>(
+      CudaStreams(streams), output, input,
+      (int_cast_to_signed_buffer<uint64_t, uint64_t> *)mem, input_is_signed,
+      bsks, (uint64_t **)ksks);
 }
 
 void cleanup_cuda_cast_to_signed_64(CudaStreamsFFI streams,
                                     int8_t **mem_ptr_void) {
-  int_cast_to_signed_buffer<uint64_t> *mem_ptr =
-      (int_cast_to_signed_buffer<uint64_t> *)(*mem_ptr_void);
+  int_cast_to_signed_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_cast_to_signed_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
 
