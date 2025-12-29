@@ -1,4 +1,5 @@
 import * as Comlink from "comlink";
+import { threads } from "wasm-feature-detect";
 import init, {
   initThreadPool,
   init_panic_hook,
@@ -753,7 +754,19 @@ async function compactPublicKeyZeroKnowledgeBench() {
 
 async function main() {
   await init();
-  await initThreadPool(navigator.hardwareConcurrency);
+  let supportsThreads = await threads();
+  // This variable is set to true if we are using the `serve.multithreaded.json` config
+  if (crossOriginIsolated) {
+    if (supportsThreads) {
+      console.info("Running in multithreaded mode");
+      await initThreadPool(navigator.hardwareConcurrency);
+    } else {
+      console.error("This browser does not support threads");
+      return;
+    }
+  } else {
+    console.warn("Running in unsafe coop mode");
+  }
   await init_panic_hook();
 
   return Comlink.proxy({

@@ -1300,13 +1300,14 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	--browser-path $(browser_path) \
 	--driver-path $(driver_path) \
 	--browser-kind  $(browser_kind) \
-	--server-cmd "npm run server" \
+	--server-cmd $(server_cmd) \
 	--server-workdir "$(WEB_SERVER_DIR)" \
 	--id-pattern $(filter)
 
 test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
 test_web_js_api_parallel_chrome: browser_kind = chrome
+test_web_js_api_parallel_chrome: server_cmd = "npm run server:multithreaded"
 test_web_js_api_parallel_chrome: filter = Test
 
 .PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api on Chrome
@@ -1322,6 +1323,7 @@ test_web_js_api_parallel_chrome_ci: setup_venv
 test_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
 test_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
 test_web_js_api_parallel_firefox: browser_kind = firefox
+test_web_js_api_parallel_firefox: server_cmd = "npm run server:multithreaded"
 test_web_js_api_parallel_firefox: filter = Test
 
 .PHONY: test_web_js_api_parallel_firefox # Run tests for the web wasm api on Firefox
@@ -1571,6 +1573,7 @@ bench_pbs128_gpu: install_rs_check_toolchain
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
 bench_web_js_api_parallel_chrome: browser_kind = chrome
+bench_web_js_api_parallel_chrome: server_cmd = "npm run server:multithreaded"
 bench_web_js_api_parallel_chrome: filter = Bench
 
 .PHONY: bench_web_js_api_parallel_chrome # Run benchmarks for the web wasm api
@@ -1586,6 +1589,7 @@ bench_web_js_api_parallel_chrome_ci: setup_venv
 bench_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
 bench_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
 bench_web_js_api_parallel_firefox: browser_kind = firefox
+bench_web_js_api_parallel_firefox: server_cmd = "npm run server:multithreaded"
 bench_web_js_api_parallel_firefox: filter = Bench
 
 .PHONY: bench_web_js_api_parallel_firefox # Run benchmarks for the web wasm api
@@ -1597,6 +1601,38 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
+
+bench_web_js_api_unsafe_coop_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+bench_web_js_api_unsafe_coop_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+bench_web_js_api_unsafe_coop_chrome: browser_kind = chrome
+bench_web_js_api_unsafe_coop_chrome: server_cmd = "npm run server:unsafe-coop"
+bench_web_js_api_unsafe_coop_chrome: filter = ZeroKnowledgeBench # Only bench zk with unsafe coop
+
+.PHONY: bench_web_js_api_unsafe_coop_chrome # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_chrome: run_web_js_api_parallel
+
+.PHONY: bench_web_js_api_unsafe_coop_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_chrome_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) bench_web_js_api_unsafe_coop_chrome
+
+bench_web_js_api_unsafe_coop_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+bench_web_js_api_unsafe_coop_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+bench_web_js_api_unsafe_coop_firefox: browser_kind = firefox
+bench_web_js_api_unsafe_coop_firefox: server_cmd = "npm run server:unsafe-coop"
+bench_web_js_api_unsafe_coop_firefox: filter = ZeroKnowledgeBench # Only bench zk with unsafe coop
+
+.PHONY: bench_web_js_api_unsafe_coop_firefox # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_firefox: run_web_js_api_parallel
+
+.PHONY: bench_web_js_api_unsafe_coop_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) bench_web_js_api_unsafe_coop_firefox
 
 .PHONY: bench_hlapi # Run benchmarks for integer operations
 bench_hlapi: install_rs_check_toolchain
