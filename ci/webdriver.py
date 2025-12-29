@@ -367,6 +367,8 @@ def dump_benchmark_results(results, browser_kind):
     """
     Dump as JSON benchmark results into a file.
     If `results` is an empty dict then this function is a no-op.
+    If the file already exists, new results are merged with existing ones,
+    overwriting keys that already exist.
 
     :param results: benchmark results as :class:`dict`
     :param browser_kind: browser as :class:`BrowserKind`
@@ -376,7 +378,15 @@ def dump_benchmark_results(results, browser_kind):
             key.replace("mean", "_".join((browser_kind.name, "mean"))): val
             for key, val in results.items()
         }
-        pathlib.Path("tfhe-benchmark/wasm_benchmark_results.json").write_text(json.dumps(results))
+        results_path = pathlib.Path("tfhe-benchmark/wasm_benchmark_results.json")
+        existing_results = {}
+        if results_path.exists():
+            try:
+                existing_results = json.loads(results_path.read_text())
+            except json.JSONDecodeError:
+                pass
+        existing_results.update(results)
+        results_path.write_text(json.dumps(existing_results))
 
 
 def start_web_server(

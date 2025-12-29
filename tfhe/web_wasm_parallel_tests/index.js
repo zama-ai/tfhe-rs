@@ -1,4 +1,3 @@
-import { threads } from "wasm-feature-detect";
 import * as Comlink from "comlink";
 
 function setButtonsDisabledState(buttonIds, state) {
@@ -11,12 +10,6 @@ function setButtonsDisabledState(buttonIds, state) {
 }
 
 async function setup() {
-  let supportsThreads = await threads();
-  if (!supportsThreads) {
-    console.error("This browser does not support threads");
-    return;
-  }
-
   const worker = new Worker(new URL("worker.js", import.meta.url), {
     type: "module",
   });
