@@ -29,6 +29,7 @@ WASM_PACK_VERSION="0.13.1"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
+WEB_SERVER_DIR_UNSAFE_COOP=tfhe/web_wasm_unsafe_coop_tests
 TYPOS_VERSION=1.39.0
 ZIZMOR_VERSION=1.16.2
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -1597,6 +1598,49 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
+
+# This is an internal target, not meant to be called on its own.
+run_web_js_api_unsafe_coop: build_web_js_api setup_venv
+	cd $(WEB_SERVER_DIR_UNSAFE_COOP) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind  $(browser_kind) \
+	--server-cmd "npm run server" \
+	--server-workdir "$(WEB_SERVER_DIR_UNSAFE_COOP)" \
+	--index-path "$(WEB_SERVER_DIR_UNSAFE_COOP)/index.html" \
+	--id-pattern $(filter)
+
+bench_web_js_api_unsafe_coop_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+bench_web_js_api_unsafe_coop_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+bench_web_js_api_unsafe_coop_chrome: browser_kind = chrome
+bench_web_js_api_unsafe_coop_chrome: filter = Bench
+
+.PHONY: bench_web_js_api_unsafe_coop_chrome # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_chrome: run_web_js_api_unsafe_coop
+
+.PHONY: bench_web_js_api_unsafe_coop_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_chrome_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) bench_web_js_api_unsafe_coop_chrome
+
+bench_web_js_api_unsafe_coop_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+bench_web_js_api_unsafe_coop_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+bench_web_js_api_unsafe_coop_firefox: browser_kind = firefox
+bench_web_js_api_unsafe_coop_firefox: filter = Bench
+
+.PHONY: bench_web_js_api_unsafe_coop_firefox # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_firefox: run_web_js_api_unsafe_coop
+
+.PHONY: bench_web_js_api_unsafe_coop_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
+bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) bench_web_js_api_unsafe_coop_firefox
 
 .PHONY: bench_hlapi # Run benchmarks for integer operations
 bench_hlapi: install_rs_check_toolchain

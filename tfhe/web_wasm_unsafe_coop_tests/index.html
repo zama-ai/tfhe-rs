@@ -1,0 +1,47 @@
+<!doctype html>
+<title>TFHE-RS Web Wasm Demo</title>
+<body>
+  <style>
+    .loader {
+      border: 16px solid #f3f3f3; /* Light grey */
+      border-top: 16px solid #3498db; /* Blue */
+      border-radius: 50%;
+      width: 120px;
+      height: 120px;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+  <div>
+    <!-- Use input `max` attribute to specify a custom timeout in seconds for a test/bench
+         Default timeout is available in ci/webdriver.py under variable name `case_timeout_seconds`
+    -->
+
+    <input
+      type="button"
+      id="compactPublicKeyZeroKnowledgeBench"
+      value="Compact ZK Bench"
+      max="3600"
+      disabled
+    />
+
+    <input type="checkbox" id="testSuccess" disabled />
+    <label for="testSuccess"> TestSuccess </label><br />
+
+    <input type="text" id="benchmarkResults" disabled />
+    <label for="benchmarkResults"> BenchmarkResults </label><br />
+
+    <div id="loader" class="loader" hidden></div>
+  </div>
+
+  <script type="module" src="index.js"></script>
+</body>

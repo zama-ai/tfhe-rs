@@ -1,0 +1,25 @@
+{
+  "name": "tfhe-wasm-unsafe-coop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/",
+    "server": "serve --config ../serve.json dist/",
+    "format": "prettier . --write",
+    "check-format": "prettier . --check"
+  },
+  "author": "",
+  "license": "BSD-3-Clause-Clear",
+  "devDependencies": {
+    "@babel/preset-env": "^7.25.4",
+    "prettier": "^3.3.3",
+    "serve": "^14.2.5",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "comlink": "^4.4.1",
+    "wasm-feature-detect": "^1.6.2"
+  }
+}
