@@ -544,7 +544,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
   auto active_streams = streams.active_gpu_subset(num_radix_blocks);
   if (active_streams.count() == 1) {
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
@@ -552,7 +552,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         streams.get_ith(0), (Torus *)lwe_array_out->ptr, lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
@@ -573,7 +573,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
         small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
@@ -581,7 +581,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
         lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
@@ -641,13 +641,13 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
   std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
-  std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<KSTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_streams = streams.active_gpu_subset(num_radix_blocks);
   if (active_streams.count() == 1) {
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
@@ -655,7 +655,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         streams.get_ith(0), (Torus *)lwe_array_out->ptr, lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
@@ -676,7 +676,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
         small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
@@ -684,7 +684,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
         lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
@@ -760,13 +760,13 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
   std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
-  std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<KSTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_streams = streams.active_gpu_subset(num_radix_blocks);
   if (active_streams.count() == 1) {
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
@@ -774,7 +774,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         streams.get_ith(0), (Torus *)(lwe_array_out->ptr), lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
@@ -792,7 +792,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
         big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, KSTorus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
         small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
@@ -800,7 +800,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
         lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
@@ -1524,22 +1524,22 @@ void host_full_propagate_inplace(CudaStreams streams,
     as_radix_ciphertext_slice<Torus>(&cur_input_block, input_blocks, i, i + 1);
 
     /// Since the keyswitch is done on one input only, use only 1 GPU
-    execute_keyswitch_async<Torus>(
-        streams.get_ith(0), (Torus *)(mem_ptr->tmp_small_lwe_vector->ptr),
+    execute_keyswitch_async<Torus, KSTorus>(
+        streams.get_ith(0), (KSTorus *)(mem_ptr->tmp_small_lwe_vector->ptr),
         mem_ptr->lut->lwe_trivial_indexes, (Torus *)cur_input_block.ptr,
         mem_ptr->lut->lwe_trivial_indexes, ksks, params.big_lwe_dimension,
         params.small_lwe_dimension, params.ks_base_log, params.ks_level, 1,
         mem_ptr->lut->using_trivial_lwe_indexes, mem_ptr->lut->ks_tmp_buf_vec);
 
-    copy_radix_ciphertext_slice_async<Torus>(
+    copy_radix_ciphertext_slice_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_small_lwe_vector,
         1, 2, mem_ptr->tmp_small_lwe_vector, 0, 1);
 
-    execute_pbs_async<Torus, Torus>(
+    execute_pbs_async<KSTorus, Torus>(
         streams.get_ith(0), (Torus *)mem_ptr->tmp_big_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, mem_ptr->lut->lut_vec,
         mem_ptr->lut->lut_indexes_vec,
-        (Torus *)mem_ptr->tmp_small_lwe_vector->ptr,
+        (KSTorus *)mem_ptr->tmp_small_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, bsks, mem_ptr->lut->buffer,
         params.glwe_dimension, params.small_lwe_dimension,
         params.polynomial_size, params.pbs_base_log, params.pbs_level,
@@ -2325,9 +2325,9 @@ __host__ void integer_radix_apply_noise_squashing(
   /// outputs
   auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
   std::vector<InputTorus *> lwe_array_in_vec = lut->lwe_array_in_vec;
-  std::vector<InputTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<KSTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<__uint128_t *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
-  std::vector<InputTorus *> lwe_trivial_indexes_vec =
+  std::vector<uint64_t *> lwe_trivial_indexes_vec =
       lut->lwe_trivial_indexes_vec;
 
   // We know carry is empty so we can pack two blocks in one
@@ -2340,7 +2340,7 @@ __host__ void integer_radix_apply_noise_squashing(
   auto active_streams =
       streams.active_gpu_subset(lwe_array_out->num_radix_blocks);
   if (active_streams.count() == 1) {
-    execute_keyswitch_async<InputTorus>(
+    execute_keyswitch_async<InputTorus, KSTorus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
         lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
@@ -2352,7 +2352,7 @@ __host__ void integer_radix_apply_noise_squashing(
     ///
     /// int_noise_squashing_lut doesn't support a different output or lut
     /// indexing than the trivial
-    execute_pbs_async<uint64_t, __uint128_t>(
+    execute_pbs_async<KSTorus, __uint128_t>(
         streams.get_ith(0), (__uint128_t *)lwe_array_out->ptr,
         lwe_trivial_indexes_vec[0], lut->lut_vec, lwe_trivial_indexes_vec,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks, lut->buffer,
@@ -2371,7 +2371,7 @@ __host__ void integer_radix_apply_noise_squashing(
         lut->lwe_aligned_scatter_vec, lut->active_streams.count(),
         lwe_array_out->num_radix_blocks, lut->input_big_lwe_dimension + 1);
 
-    execute_keyswitch_async<InputTorus>(
+    execute_keyswitch_async<InputTorus, uint64_t>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks,
         lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,

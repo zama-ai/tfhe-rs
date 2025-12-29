@@ -77,7 +77,7 @@ host_expand_without_verification(CudaStreams streams, Torus *lwe_array_out,
     auto casting_ks_base_log = casting_params.ks_base_log;
 
     // apply keyswitch to BIG
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, Torus>(
         streams.get_ith(0), ksed_small_to_big_expanded_lwes,
         lwe_trivial_indexes_vec[0], expanded_lwes, lwe_trivial_indexes_vec[0],
         casting_keys, casting_input_dimension, casting_output_dimension,

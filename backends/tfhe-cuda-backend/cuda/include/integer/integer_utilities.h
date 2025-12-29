@@ -1109,7 +1109,7 @@ template <typename Torus, typename KSTorus> struct int_fullprop_buffer {
     //
 
     tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), tmp_small_lwe_vector, 2,
         params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
     tmp_big_lwe_vector = new CudaRadixCiphertextFFI;
@@ -1309,7 +1309,7 @@ struct int_sum_ciphertexts_vec_memory {
         max_total_blocks_in_vec, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
     small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         max_total_blocks_in_vec, params.small_lwe_dimension, size_tracker,
         allocate_gpu_memory);

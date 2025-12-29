@@ -81,7 +81,7 @@ template <typename Torus, typename KSTorus> struct int_mul_memory {
         2 * total_block_count, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
     small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         2 * total_block_count, params.small_lwe_dimension, size_tracker,
         allocate_gpu_memory);
