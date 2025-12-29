@@ -239,7 +239,12 @@ pub fn iop_erc_20(prog: &mut Program) {
 pub fn iop_erc_20_simd(prog: &mut Program) {
     // Add Comment header
     prog.push_comment("ERC_20_SIMD (new_from, new_to) <- (from, to, amount)".to_string());
-    simd(prog, crate::asm::iop::SIMD_N, fw_impl::llt::iop_erc_20_rtl, None);
+    simd(
+        prog,
+        crate::asm::iop::SIMD_N,
+        fw_impl::llt::iop_erc_20_rtl,
+        None,
+    );
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -430,7 +435,8 @@ pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8, kogge_blk_w: Option<u
         if let Some(blk_w) = kogge_blk_w {
             kogge::add(prog, dst_to, src_to, src_amount.clone(), None, blk_w)
                 + kogge::sub(prog, dst_from, src_from, src_amount, blk_w)
-        } else { // Default to ripple carry
+        } else {
+            // Default to ripple carry
             kogge::ripple_add(dst_to, src_to, src_amount.clone(), None)
                 + kogge::ripple_sub(prog, dst_from, src_from, src_amount)
         }
