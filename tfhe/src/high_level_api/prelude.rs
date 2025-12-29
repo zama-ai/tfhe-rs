@@ -9,9 +9,9 @@
 pub use crate::high_level_api::traits::{
     BitSlice, CiphertextList, DivRem, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
     FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, Flip, IfThenElse,
-    OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub, ReRandomize, RotateLeft,
-    RotateLeftAssign, RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
-    IfThenZero,
+    IfThenZero, OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub, ReRandomize,
+    RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise,
+    Tagged,
 };
 #[cfg(feature = "hpu")]
 pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
