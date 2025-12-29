@@ -58,7 +58,7 @@ tfhe-csprng = { version = "0.8.0", path = "../tfhe-csprng", features = [
 ] }
 serde = { workspace = true, features = ["default", "derive"] }
 rayon = { workspace = true }
-bincode = "1.3.3"
+bincode = { workspace = true }
 tfhe-fft = { version = "0.10.0", path = "../tfhe-fft", features = [
     "serde",
     "fft128",

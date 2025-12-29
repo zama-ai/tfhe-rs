@@ -36,6 +36,7 @@ rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.101"
 getrandom = "0.2.8"
+bincode = "=1.3.3"
 
 [profile.bench]
 lto = "fat"
