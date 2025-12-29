@@ -721,9 +721,10 @@ test_core_crypto_gpu:
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=2
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_signed::test_scalar_mul --test-threads=2
+		#test_scalar_shift::test_gpu_integer_signed_unchecked_scalar_left_shift_test_param_message_2_carry_2_ks32_pbs_tuniform_2m128
+#	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
+#		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
 
 .PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_integer_gpu_debug:

@@ -473,7 +473,39 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_logical_scalar_shift_64_ks32(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        shift_type: SHIFT_OR_ROTATE_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn cuda_logical_scalar_shift_64_inplace(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        shift: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_logical_scalar_shift_64_ks32_inplace(
         streams: CudaStreamsFFI,
         lwe_array: *mut CudaRadixCiphertextFFI,
         shift: u32,
@@ -991,7 +1023,42 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_scalar_mul_64_ks32(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        num_scalar_bits: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn cuda_scalar_multiplication_ciphertext_64_inplace(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        decomposed_scalar: *const u64,
+        has_at_least_one_set: *const u64,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        polynomial_size: u32,
+        message_modulus: u32,
+        num_scalars: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_scalar_multiplication_ciphertext_64_ks32_inplace(
         streams: CudaStreamsFFI,
         lwe_array: *mut CudaRadixCiphertextFFI,
         decomposed_scalar: *const u64,

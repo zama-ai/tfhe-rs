@@ -111,16 +111,16 @@ __host__ void host_integer_scalar_mul_radix(
                                              streams.gpu_index(0), lwe_array, 0,
                                              num_radix_blocks);
   } else {
-    host_integer_partial_sum_ciphertexts_vec<T>(
+    host_integer_partial_sum_ciphertexts_vec<T, KSTorus>(
         streams, lwe_array, all_shifted_buffer, bsks, ksks,
         mem->sum_ciphertexts_vec_mem, num_radix_blocks, j);
 
     auto scp_mem_ptr = mem->sc_prop_mem;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     uint32_t uses_carry = 0;
-    host_propagate_single_carry<T>(streams, lwe_array, nullptr, nullptr,
-                                   scp_mem_ptr, bsks, ksks, requested_flag,
-                                   uses_carry);
+    host_propagate_single_carry<T, KSTorus>(streams, lwe_array, nullptr,
+                                            nullptr, scp_mem_ptr, bsks, ksks,
+                                            requested_flag, uses_carry);
   }
 }
 

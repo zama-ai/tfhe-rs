@@ -286,7 +286,7 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_partial_sum_ciphertexts_vec(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
+    CudaRadixCiphertextFFI *terms, void *const *bsks, KSTorus *const *ksks,
     int_sum_ciphertexts_vec_memory<Torus, KSTorus> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
@@ -395,17 +395,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                "SUM CT");
 
     if (active_streams.count() == 1) {
-      execute_keyswitch_async<Torus>(
-          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
-          (Torus *)current_blocks->ptr, d_pbs_indexes_in, ksks,
-          big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
-          mem_ptr->params.ks_level, total_messages, false,
-          mem_ptr->luts_message_carry->ks_tmp_buf_vec);
+      execute_keyswitch_async<Torus, KSTorus>(
+          streams.get_ith(0), (KSTorus *)small_lwe_vector->ptr,
+          d_pbs_indexes_in, (Torus *)current_blocks->ptr, d_pbs_indexes_in,
+          ksks, big_lwe_dimension, small_lwe_dimension,
+          mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, total_messages,
+          false, mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
-      execute_pbs_async<Torus, Torus>(
+      execute_pbs_async<KSTorus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
-          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          (KSTorus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
@@ -417,7 +417,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
       luts_message_carry->broadcast_lut(active_streams, false);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
-      integer_radix_apply_univariate_lookup_table<Torus>(
+      integer_radix_apply_univariate_lookup_table<Torus, KSTorus>(
           streams, current_blocks, current_blocks, bsks, ksks,
           luts_message_carry, total_ciphertexts);
     }
@@ -448,17 +448,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                                                     mem_ptr->params.pbs_type);
 
     if (active_streams.count() == 1) {
-      execute_keyswitch_async<Torus>(
-          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
-          (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
+      execute_keyswitch_async<Torus, KSTorus>(
+          streams.get_ith(0), (KSTorus *)small_lwe_vector->ptr,
+          d_pbs_indexes_in, (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
           big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
           mem_ptr->params.ks_level, num_radix_blocks, false,
           mem_ptr->luts_message_carry->ks_tmp_buf_vec);
 
-      execute_pbs_async<Torus, Torus>(
+      execute_pbs_async<KSTorus, Torus>(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
-          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          (KSTorus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
