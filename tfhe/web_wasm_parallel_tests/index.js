@@ -12,14 +12,22 @@ function setButtonsDisabledState(buttonIds, state) {
 
 async function setup() {
   let supportsThreads = await threads();
-  if (!supportsThreads) {
-    console.error("This browser does not support threads");
-    return;
+  // This variable is set to true if we are using the `serve.multithreaded.json` config
+  if (crossOriginIsolated) {
+    if (supportsThreads) {
+      console.info("Running in multithreaded mode");
+    } else {
+      console.error("This browser does not support threads");
+      return;
+    }
+  } else {
+    console.warn("Running in unsafe coop mode");
   }
 
   const worker = new Worker(new URL("worker.js", import.meta.url), {
     type: "module",
   });
+
   const demos = await Comlink.wrap(worker).demos;
 
   const demoNames = [
