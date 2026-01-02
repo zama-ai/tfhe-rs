@@ -265,6 +265,7 @@ fn generate_test_vectors<P: AsRef<Path>>(
 
     let mut id_lut = encoding.encode_lut(glwe_dimension, polynomial_size, ID_LUT);
     assert_data_not_zero(&id_lut);
+    let mut id_lut_karatsuba = id_lut.clone();
 
     blind_rotate_assign(&modswitched, &mut id_lut, &fourier_bsk);
     assert_data_not_zero(&id_lut);
@@ -287,8 +288,32 @@ fn generate_test_vectors<P: AsRef<Path>>(
     assert_data_not_zero(&lwe_pbs_id);
     store_data(path, &lwe_pbs_id, "lwe_after_id_pbs");
 
+    blind_rotate_karatsuba_assign(&modswitched, &mut id_lut_karatsuba, &bsk);
+    store_data(path, &id_lut_karatsuba, "glwe_after_id_br_karatsuba");
+
+    let mut lwe_pbs_karatsuba_id = LweCiphertext::new(
+        0u64,
+        glwe_dimension
+            .to_equivalent_lwe_dimension(polynomial_size)
+            .to_lwe_size(),
+        encoding.ciphertext_modulus,
+    );
+
+    extract_lwe_sample_from_glwe_ciphertext(
+        &id_lut_karatsuba,
+        &mut lwe_pbs_karatsuba_id,
+        MonomialDegree(0),
+    );
+
+    let decrypted_pbs_id = decrypt_lwe_ciphertext(&large_lwe_secret_key, &lwe_pbs_karatsuba_id);
+    let res = encoding.decode(decrypted_pbs_id);
+
+    assert_eq!(res, MSG_A);
+    store_data(path, &lwe_pbs_karatsuba_id, "lwe_after_id_pbs_karatsuba");
+
     let mut spec_lut = encoding.encode_lut(glwe_dimension, polynomial_size, SPEC_LUT);
     assert_data_not_zero(&spec_lut);
+    let mut spec_lut_karatsuba = spec_lut.clone();
 
     blind_rotate_assign(&modswitched, &mut spec_lut, &fourier_bsk);
     assert_data_not_zero(&spec_lut);
@@ -310,6 +335,33 @@ fn generate_test_vectors<P: AsRef<Path>>(
     assert_eq!(res, SPEC_LUT(MSG_A));
     assert_data_not_zero(&lwe_pbs_spec);
     store_data(path, &lwe_pbs_spec, "lwe_after_spec_pbs");
+
+    blind_rotate_karatsuba_assign(&modswitched, &mut spec_lut_karatsuba, &bsk);
+    store_data(path, &spec_lut_karatsuba, "glwe_after_spec_br_karatsuba");
+
+    let mut lwe_pbs_karatsuba_spec = LweCiphertext::new(
+        0u64,
+        glwe_dimension
+            .to_equivalent_lwe_dimension(polynomial_size)
+            .to_lwe_size(),
+        encoding.ciphertext_modulus,
+    );
+
+    extract_lwe_sample_from_glwe_ciphertext(
+        &spec_lut_karatsuba,
+        &mut lwe_pbs_karatsuba_spec,
+        MonomialDegree(0),
+    );
+
+    let decrypted_pbs_spec = decrypt_lwe_ciphertext(&large_lwe_secret_key, &lwe_pbs_karatsuba_spec);
+    let res = encoding.decode(decrypted_pbs_spec);
+
+    assert_eq!(res, SPEC_LUT(MSG_A));
+    store_data(
+        path,
+        &lwe_pbs_karatsuba_spec,
+        "lwe_after_spec_pbs_karatsuba",
+    );
 }
 
 fn rm_dir_except_readme<P: AsRef<Path>>(dir: P) {

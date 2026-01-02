@@ -1161,3 +1161,91 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
 create_parameterized_test!(lwe_encrypt_pbs_ntt64_bnf_decrypt {
     TEST_PARAMS_3_BITS_SOLINAS_U64
 });
+
+fn lwe_encrypt_pbs_karatsuba_decrypt_custom_mod(params: ClassicTestParams<u64>) {
+    let lwe_noise_distribution = params.lwe_noise_distribution;
+    let ciphertext_modulus = params.ciphertext_modulus;
+    let message_modulus_log = params.message_modulus_log;
+    let msg_modulus = 1 << (message_modulus_log.0);
+    let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+
+    let mut rsc = TestResources::new();
+
+    let f = |x: u64| x;
+
+    let delta: u64 = encoding_with_padding / msg_modulus;
+    let mut msg = msg_modulus;
+
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
+        polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        msg_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
+
+    while msg != 0 {
+        msg = msg.wrapping_sub(1);
+
+        let mut keys_gen = |params| generate_keys(params, &mut rsc);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
+            (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
+
+        for _ in 0..NB_TESTS {
+            let plaintext = Plaintext(msg * delta);
+
+            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                plaintext,
+                lwe_noise_distribution,
+                ciphertext_modulus,
+                &mut rsc.encryption_random_generator,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in,
+                ciphertext_modulus
+            ));
+
+            let mut out_pbs_ct = LweCiphertext::new(
+                0,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                ciphertext_modulus,
+            );
+
+            programmable_bootstrap_karatsuba_lwe_ciphertext(
+                &lwe_ciphertext_in,
+                &mut out_pbs_ct,
+                &accumulator,
+                &bsk,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
+
+            let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
+
+            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+
+            assert_eq!(decoded, f(msg));
+        }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(tarpaulin)]
+        break;
+    }
+}
+
+create_parameterized_test!(lwe_encrypt_pbs_karatsuba_decrypt_custom_mod);
