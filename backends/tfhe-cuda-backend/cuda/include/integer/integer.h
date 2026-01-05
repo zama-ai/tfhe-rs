@@ -162,10 +162,26 @@ uint64_t scratch_cuda_integer_mult_radix_ciphertext_64(
     uint32_t num_blocks, PBS_TYPE pbs_type, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
+uint64_t scratch_cuda_integer_mult_radix_ciphertext_64_ks32(
+    CudaStreamsFFI streams, int8_t **mem_ptr, bool is_boolean_left,
+    bool const is_boolean_right, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t glwe_dimension, uint32_t lwe_dimension,
+    uint32_t polynomial_size, uint32_t pbs_base_log, uint32_t pbs_level,
+    uint32_t ks_base_log, uint32_t ks_level, uint32_t grouping_factor,
+    uint32_t num_blocks, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
 void cuda_integer_mult_radix_ciphertext_64(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
+    void *const *bsks, void *const *ksks, int8_t *mem_ptr,
+    uint32_t polynomial_size, uint32_t num_blocks);
+
+void cuda_integer_mult_radix_ciphertext_64_ks32(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaRadixCiphertextFFI const *radix_lwe_left, bool is_bool_left,
+    CudaRadixCiphertextFFI const *radix_lwe_right, bool is_bool_right,
     void *const *bsks, void *const *ksks, int8_t *mem_ptr,
     uint32_t polynomial_size, uint32_t num_blocks);
 

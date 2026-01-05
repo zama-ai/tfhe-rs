@@ -15,7 +15,7 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 BIT_SIZES_SET?=ALL
 NIGHTLY_TESTS?=FALSE
-BENCH_OP_FLAVOR?=DEFAULT
+BENCH_OP_FLAVOR?=support_ks32
 BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
@@ -721,7 +721,7 @@ test_core_crypto_gpu:
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_signed::test_scalar_mul --test-threads=2
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_signed::test_mul --test-threads=2
 		#test_scalar_shift::test_gpu_integer_signed_unchecked_scalar_left_shift_test_param_message_2_carry_2_ks32_pbs_tuniform_2m128
 #	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
 #		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
@@ -1390,7 +1390,7 @@ bench_signed_integer: install_rs_check_toolchain
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --

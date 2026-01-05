@@ -339,7 +339,7 @@ pub mod shortint_params {
     pub use shortint_params_keycache::*;
     use tfhe::shortint::parameters::current_params::meta::cpu::*;
     use tfhe::shortint::parameters::current_params::meta::gpu::*;
-    use tfhe::shortint::parameters::MetaParameters;
+    use tfhe::shortint::parameters::{KeySwitch32PBSParameters, MetaParameters};
 
     pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
@@ -609,10 +609,14 @@ mod integer_params {
                 #[cfg(not(feature = "hpu"))]
                 {
                     #[cfg(feature = "gpu")]
-                    let params = vec![
-                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                            .into(),
-                    ];
+                    let params = if env_config.is_ks32 {
+                        panic!("KS32 not supported for MB benchmark integer ops");
+                    } else {
+                        vec![
+                            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                                .into(),
+                        ]
+                    };
                     #[cfg(not(feature = "gpu"))]
                     let params = vec![
                         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
@@ -630,7 +634,11 @@ mod integer_params {
                 #[cfg(feature = "hpu")]
                 let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
                 #[cfg(not(feature = "hpu"))]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
+                let params = if env_config.is_ks32 {
+                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64.into()]
+                } else {
+                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()]
+                };
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {

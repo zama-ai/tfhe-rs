@@ -412,7 +412,44 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_mult_radix_ciphertext_64_ks32(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        is_boolean_left: bool,
+        is_boolean_right: bool,
+        message_modulus: u32,
+        carry_modulus: u32,
+        glwe_dimension: u32,
+        lwe_dimension: u32,
+        polynomial_size: u32,
+        pbs_base_log: u32,
+        pbs_level: u32,
+        ks_base_log: u32,
+        ks_level: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn cuda_integer_mult_radix_ciphertext_64(
+        streams: CudaStreamsFFI,
+        radix_lwe_out: *mut CudaRadixCiphertextFFI,
+        radix_lwe_left: *const CudaRadixCiphertextFFI,
+        is_bool_left: bool,
+        radix_lwe_right: *const CudaRadixCiphertextFFI,
+        is_bool_right: bool,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        mem_ptr: *mut i8,
+        polynomial_size: u32,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_mult_radix_ciphertext_64_ks32(
         streams: CudaStreamsFFI,
         radix_lwe_out: *mut CudaRadixCiphertextFFI,
         radix_lwe_left: *const CudaRadixCiphertextFFI,

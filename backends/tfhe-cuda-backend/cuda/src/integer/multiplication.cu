@@ -87,8 +87,40 @@ uint64_t scratch_cuda_integer_mult_radix_ciphertext_64(
   case 4096:
   case 8192:
   case 16384:
-    return scratch_cuda_integer_mult_radix_ciphertext<uint64_t>(
+    return scratch_cuda_integer_mult_radix_ciphertext<uint64_t, uint64_t>(
         CudaStreams(streams), (int_mul_memory<uint64_t, uint64_t> **)mem_ptr,
+        is_boolean_left, is_boolean_right, num_radix_blocks, params,
+        allocate_gpu_memory);
+  default:
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
+  }
+}
+
+uint64_t scratch_cuda_integer_mult_radix_ciphertext_64_ks32(
+    CudaStreamsFFI streams, int8_t **mem_ptr, bool const is_boolean_left,
+    bool const is_boolean_right, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t glwe_dimension, uint32_t lwe_dimension,
+    uint32_t polynomial_size, uint32_t pbs_base_log, uint32_t pbs_level,
+    uint32_t ks_base_log, uint32_t ks_level, uint32_t grouping_factor,
+    uint32_t num_radix_blocks, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          polynomial_size * glwe_dimension, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus,
+                          noise_reduction_type);
+
+  switch (polynomial_size) {
+  case 256:
+  case 512:
+  case 1024:
+  case 2048:
+  case 4096:
+  case 8192:
+  case 16384:
+    return scratch_cuda_integer_mult_radix_ciphertext<uint64_t, uint32_t>(
+        CudaStreams(streams), (int_mul_memory<uint64_t, uint32_t> **)mem_ptr,
         is_boolean_left, is_boolean_right, num_radix_blocks, params,
         allocate_gpu_memory);
   default:
@@ -173,6 +205,63 @@ void cuda_integer_mult_radix_ciphertext_64(
         CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
         radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
         (int_mul_memory<uint64_t, uint64_t> *)mem_ptr, num_blocks);
+    break;
+  default:
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
+  }
+  POP_RANGE()
+}
+
+void cuda_integer_mult_radix_ciphertext_64_ks32(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
+    CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
+    void *const *bsks, void *const *ksks, int8_t *mem_ptr,
+    uint32_t polynomial_size, uint32_t num_blocks) {
+  PUSH_RANGE("mul")
+  switch (polynomial_size) {
+  case 256:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<256>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 512:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<512>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 1024:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<1024>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 2048:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<2048>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 4096:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<4096>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 8192:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<8192>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
+    break;
+  case 16384:
+    host_integer_mult_radix<uint64_t, uint32_t, AmortizedDegree<16384>>(
+        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint32_t **)(ksks),
+        (int_mul_memory<uint64_t, uint32_t> *)mem_ptr, num_blocks);
     break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "

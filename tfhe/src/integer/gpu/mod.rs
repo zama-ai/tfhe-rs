@@ -1266,39 +1266,79 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_mult_radix_ciphertext_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        is_boolean_left,
-        is_boolean_right,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        glwe_dimension.0 as u32,
-        lwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        pbs_base_log.0 as u32,
-        pbs_level.0 as u32,
-        ks_base_log.0 as u32,
-        ks_level.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_integer_mult_radix_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
-        is_boolean_left,
-        &raw const cuda_ffi_radix_lwe_right,
-        is_boolean_right,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        mem_ptr,
-        polynomial_size.0 as u32,
-        num_blocks,
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_integer_mult_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            is_boolean_left,
+            is_boolean_right,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            glwe_dimension.0 as u32,
+            lwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_level.0 as u32,
+            ks_base_log.0 as u32,
+            ks_level.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_mult_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            is_boolean_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            is_boolean_right,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+            polynomial_size.0 as u32,
+            num_blocks,
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_integer_mult_radix_ciphertext_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            is_boolean_left,
+            is_boolean_right,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            glwe_dimension.0 as u32,
+            lwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_level.0 as u32,
+            ks_base_log.0 as u32,
+            ks_level.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_mult_radix_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            is_boolean_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            is_boolean_right,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+            polynomial_size.0 as u32,
+            num_blocks,
+        );
+    } else {
+        panic!("Unsupported PBS input bitwidth {}", T::BITS);
+    }
+
     cleanup_cuda_integer_mult(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }

@@ -2719,6 +2719,8 @@ mod cuda {
         rng_func: default_scalar
     );
 
+    criterion_group!(cuda_ops_support_ks32, cuda_mul,);
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_neg,
@@ -2951,8 +2953,8 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::{
-    cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
-    unchecked_cuda_ops, unchecked_scalar_cuda_ops,
+    cuda_cast_ops, cuda_ops_support_ks32, default_cuda_dedup_ops, default_cuda_ops,
+    default_scalar_cuda_ops, unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
 
 #[cfg(feature = "hpu")]
@@ -3761,6 +3763,9 @@ fn go_through_gpu_bench_groups(val: &str) {
         "unchecked" => {
             unchecked_cuda_ops();
             unchecked_scalar_cuda_ops()
+        }
+        "support_ks32" => {
+            cuda_ops_support_ks32();
         }
         _ => panic!("unknown benchmark operations flavor"),
     };

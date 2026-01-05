@@ -494,7 +494,7 @@ __host__ void host_integer_mult_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, uint64_t *const *ksks,
+    void *const *bsks, KSTorus *const *ksks,
     int_mul_memory<Torus, KSTorus> *mem_ptr, uint32_t num_blocks) {
 
   if (radix_lwe_out->lwe_dimension != radix_lwe_left->lwe_dimension ||
