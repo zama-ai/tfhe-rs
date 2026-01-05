@@ -75,6 +75,15 @@ jobs:
           DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
           DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
+      - name: Upload tables
+        if: inputs.backend_comparison == false
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
+          # This will upload all the file generated
+          path: ${{ inputs.output_filename }}*.svg
+          retention-days: 60
+
       - name: Produce backends comparison table from database
         if: inputs.backend_comparison == true
         run: |
@@ -90,10 +99,11 @@ jobs:
           DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
           DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
-      - name: Upload tables
+      - name: Upload comparison tables
+        if: inputs.backend_comparison == true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
+          name: ${{ github.sha }}_backends_comparison_tables
           # This will upload all the file generated
           path: ${{ inputs.output_filename }}*.svg
           retention-days: 60
