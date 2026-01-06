@@ -34,6 +34,9 @@ else()
   set(CUDA_SUCCESS "FALSE")
 endif()
 
+message(${ARCH})
+set(ARCH "90")
+
 if(${MULTI_ARCH})
   message(STATUS "Multi-architecture GPU build enabled, 75, 80, 86, 89")
   message(STATUS "CUDA Version: ${CUDA_VERSION_STRING}")
