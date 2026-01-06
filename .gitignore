@@ -10,6 +10,7 @@ target/
 **/*.rmeta
 **/Cargo.lock
 **/*.bin
+**/.DS_Store
 
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
