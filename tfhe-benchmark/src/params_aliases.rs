@@ -5,8 +5,8 @@ pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::KeySwitch32PBSParameters;
     use tfhe::shortint::parameters::{
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-        MultiBitPBSParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-        ShortintKeySwitchingParameters,
+        KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingCompressionParameters,
+        NoiseSquashingParameters, ShortintKeySwitchingParameters,
     };
 
     // KS PBS Gaussian
@@ -42,6 +42,8 @@ pub mod shortint_params_aliases {
         V1_5_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128;
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
         V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS: KeySwitch32PBSParameters =
+        V1_5_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
     pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 141] =
         VEC_ALL_CLASSIC_PBS_PARAMETERS;
