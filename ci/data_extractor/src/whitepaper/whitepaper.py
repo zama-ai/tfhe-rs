@@ -193,12 +193,11 @@ INTEGER_PARAM_CASES = [
     # ),
     # # --- Table 13 ---
     ParametersFilterCase(  # TODO Table 13
-        # "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
-        # pfails=[
-        #     ErrorFailureProbability.TWO_MINUS_64,
-        #     ErrorFailureProbability.TWO_MINUS_128,
-        # ],
-        "%COMP_PARAM_CUSTOM_BR_LEVEL_1_NOISE_DISTRIB_Gaussian%",  # DEBUG
+        "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
         associated_tables=[TABLE_COMPRESSION_BENCHMARKS],
     ),
 ]

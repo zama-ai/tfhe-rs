@@ -1,6 +1,7 @@
 """
 All tables are named after their label in the whitepaper.
 """
+
 from PIL.IptcImagePlugin import COMPRESSION
 from benchmark_specs import (
     AtomicPattern,
@@ -231,12 +232,8 @@ SUM_CIPHERTEXTS_20_CTXTS_OP_ELEM = _get_operation_elem(
     "unsigned_sum_ciphertexts_parallelized_20_ctxts",
     r"\texttt{unsigned\_sum\_ciphertexts\_parallelized\_20\_ctxts\_non\_parallelized}",
 )
-COMPRESSION_OP_ELEM = _get_operation_elem(
-    "", "Compress"
-)
-DECOMPRESSION_OP_ELEM = _get_operation_elem(
-    "", "Decompress"
-)
+COMPRESSION_OP_ELEM = _get_operation_elem("", "Compress")
+DECOMPRESSION_OP_ELEM = _get_operation_elem("", "Decompress")
 
 OVERFLOWING_SCALAR_ADD_OP_ELEM = _get_operation_elem(
     "unsigned_unsigned_overflowing_scalar_add_parallelized",
@@ -302,10 +299,9 @@ BITWISE_CREF_ELEM = _get_cref_elem("alg:bitwise-ops")
 EQ_CREF_ELEM = _get_cref_elem("alg:eq")
 DIV_REM_CREF_ELEM = _get_cref_elem("alg:unsig-div-rem")
 IF_THEN_ELSE_CREF_ELEM = _get_cref_elem("alg:select")
-SHIFT_CREF_ELEM = _get_cref_elem("alg:shift-rot-encr")
+ROTATE_SHIFT_CREF_ELEM = _get_cref_elem("alg:shift-rot-encr")
 MUL_CREF_ELEM = _get_cref_elem("alg:multiplication")
 NEGATION_CREF_ELEM = _get_cref_elem("alg:negation")
-ROTATE_CREF_ELEM = _get_cref_elem("ssec:shift")
 SUB_CREF_ELEM = _get_cref_elem("alg:sub")
 SUM_CIPHERTEXTS_CREF_ELEM = _get_cref_elem("alg:sum")
 OVERFLOWING_CREF_ELEM = _get_cref_elem("ssec:overflow")
@@ -1099,7 +1095,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
                 ],
                 [
                     SHIFT_OP_ELEM,
-                    SHIFT_CREF_ELEM,
+                    ROTATE_SHIFT_CREF_ELEM,
                     PFAIL_2M64_HIDDEN_ELEM,
                     KS32PBS_HIDDEN_ELEM,
                     M2C2_HIDDEN_ELEM,
@@ -1147,7 +1143,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
                 ],
                 [
                     ROTATE_OP_ELEM,
-                    ROTATE_CREF_ELEM,
+                    ROTATE_SHIFT_CREF_ELEM,
                     PFAIL_2M64_HIDDEN_ELEM,
                     KS32PBS_HIDDEN_ELEM,
                     M2C2_HIDDEN_ELEM,
@@ -1253,7 +1249,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
                 ],
                 [
                     SHIFT_OP_ELEM,
-                    SHIFT_CREF_ELEM,
+                    ROTATE_SHIFT_CREF_ELEM,
                     PFAIL_2M128_HIDDEN_ELEM,
                     KS32PBS_HIDDEN_ELEM,
                     M2C2_HIDDEN_ELEM,
@@ -1301,7 +1297,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
                 ],
                 [
                     ROTATE_OP_ELEM,
-                    ROTATE_CREF_ELEM,
+                    ROTATE_SHIFT_CREF_ELEM,
                     PFAIL_2M128_HIDDEN_ELEM,
                     KS32PBS_HIDDEN_ELEM,
                     M2C2_HIDDEN_ELEM,
@@ -1347,26 +1343,45 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
 #
 TABLE_COMPRESSION_BENCHMARKS = LatexTable(
     [
-    LatexArraySection(
-        [
+        LatexArraySection(
             [
-                COMPRESSION_OP_ELEM,
-                COMPRESSION_REF_ELEM,
-                PFAIL_2M64_ELEM,
-                M2C2_HIDDEN_ELEM,
-                *ALL_OPERAND_SIZES_ELEM,
-                _get_operand_size_column_element(512)
-            ],
+                [
+                    COMPRESSION_OP_ELEM,
+                    COMPRESSION_REF_ELEM,
+                    PFAIL_2M64_ELEM,
+                    M2C2_HIDDEN_ELEM,
+                    *ALL_OPERAND_SIZES_ELEM,
+                    _get_operand_size_column_element(512),
+                ],
+                [
+                    DECOMPRESSION_OP_ELEM,
+                    DECOMPRESSION_REF_ELEM,
+                    PFAIL_2M64_ELEM,
+                    M2C2_HIDDEN_ELEM,
+                    *ALL_OPERAND_SIZES_ELEM,
+                    _get_operand_size_column_element(512),
+                ],
+            ]
+        ),
+        LatexArraySection(
             [
-                DECOMPRESSION_OP_ELEM,
-                DECOMPRESSION_REF_ELEM,
-                PFAIL_2M64_ELEM,
-                M2C2_HIDDEN_ELEM,
-                *ALL_OPERAND_SIZES_ELEM,
-                _get_operand_size_column_element(512)
-            ],
-        ]
-    ),
-
-        ]
+                [
+                    COMPRESSION_OP_ELEM,
+                    COMPRESSION_REF_ELEM,
+                    PFAIL_2M128_ELEM,
+                    M2C2_HIDDEN_ELEM,
+                    *ALL_OPERAND_SIZES_ELEM,
+                    _get_operand_size_column_element(512),
+                ],
+                [
+                    DECOMPRESSION_OP_ELEM,
+                    DECOMPRESSION_REF_ELEM,
+                    PFAIL_2M128_ELEM,
+                    M2C2_HIDDEN_ELEM,
+                    *ALL_OPERAND_SIZES_ELEM,
+                    _get_operand_size_column_element(512),
+                ],
+            ]
+        ),
+    ]
 )
