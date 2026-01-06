@@ -568,6 +568,28 @@ fn test_case_if_then_else(client_key: &ClientKey) {
     );
 }
 
+fn test_case_if_then_zero(client_key: &ClientKey) {
+    let clear_a = 42u8;
+    let clear_b = 128u8;
+
+    let a = FheUint8::encrypt(clear_a, client_key);
+    let b = FheUint8::encrypt(clear_b, client_key);
+
+    let result = a.le(&b).if_then_zero(&a);
+    let decrypted_result: u8 = result.decrypt(client_key);
+    assert_eq!(
+        decrypted_result,
+        if clear_a <= clear_b { clear_a } else { 0 }
+    );
+
+    let result = a.ge(&b).if_then_zero(&a);
+    let decrypted_result: u8 = result.decrypt(client_key);
+    assert_eq!(
+        decrypted_result,
+        if clear_a >= clear_b { clear_a } else { 0 }
+    );
+}
+
 fn test_case_flip(client_key: &ClientKey) {
     let clear_a = rand::random::<u32>();
     let clear_b = rand::random::<u32>();

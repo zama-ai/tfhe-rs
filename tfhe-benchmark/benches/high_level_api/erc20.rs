@@ -34,12 +34,12 @@ where
 {
     let has_enough_funds = (from_amount).ge(amount);
     let amount_to_transfer = {
-        #[cfg(feature = "gpu")]
+        #[cfg(not(feature = "hpu"))]
         {
             let zero_amount = FheType::encrypt_trivial(0u64);
             has_enough_funds.select(amount, &zero_amount)
         }
-        #[cfg(not(feature = "gpu"))]
+        #[cfg(feature = "hpu")]
         {
             has_enough_funds.if_then_zero(amount)
         }

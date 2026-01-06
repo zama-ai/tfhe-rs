@@ -90,6 +90,12 @@ fn test_case_if_then_else_hpu() {
 }
 
 #[test]
+fn test_case_if_then_zero_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_if_then_zero(&client_key);
+}
+
+#[test]
 fn test_case_flip_hpu() {
     let client_key = setup_default_hpu();
     super::test_case_flip(&client_key);
