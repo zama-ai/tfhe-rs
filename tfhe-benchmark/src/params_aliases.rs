@@ -1,8 +1,6 @@
 #[cfg(any(feature = "shortint", feature = "integer"))]
 pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::current_params::*;
-    #[cfg(feature = "hpu")]
-    use tfhe::shortint::parameters::KeySwitch32PBSParameters;
     use tfhe::shortint::parameters::{
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
         KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingCompressionParameters,
