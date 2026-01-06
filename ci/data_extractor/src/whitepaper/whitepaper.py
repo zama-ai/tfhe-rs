@@ -19,10 +19,16 @@ from formatters.core import CoreFormatter
 from formatters.integer import IntegerFormatter
 from .tables import (
     TABLE_BENCH_MULTIBIT_BY_PRECISION,
+    TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING,
     TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32,
     TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL64,
     TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128,
     TABLE_PBS_BENCH,
+    TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+    TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+    TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+    TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+    TABLE_COMPRESSION_BENCHMARKS,
 )
 
 
@@ -39,6 +45,7 @@ class ParametersFilterCase:
         grouping_factors: list[GroupingFactor] = None,
         precisions: list[Precision] = None,
         atomic_patterns: list[AtomicPattern] = None,
+        additional_parameters: list[str] = None,
         associated_tables: list[LatexTable] = None,
     ):
         self.param_name_pattern = param_name_pattern
@@ -46,6 +53,8 @@ class ParametersFilterCase:
         self.grouping_factors = grouping_factors or []
         self.precisions = precisions or []
         self.atomic_patterns = atomic_patterns or []
+
+        self.additional_parameters = additional_parameters or []
 
         self.associated_tables = associated_tables or []
 
@@ -97,7 +106,12 @@ class ParametersFilterCase:
                     self.param_name_pattern.format_map(Default(atomic_pattern=a))
                 )
 
-        return last_populated or after_atomic_patterns or [self.param_name_pattern]
+        interpolated_params = (
+            last_populated or after_atomic_patterns or [self.param_name_pattern]
+        )
+        interpolated_params.extend(self.additional_parameters)
+
+        return interpolated_params
 
 
 CORE_CRYPTO_PARAM_CASES = [
@@ -127,7 +141,8 @@ CORE_CRYPTO_PARAM_CASES = [
 ]
 
 INTEGER_PARAM_CASES = [
-    # ParametersFilterCase(  # TODO Table 5, 6
+    # # --- Tables 5, 6 ---
+    # ParametersFilterCase(
     #     "%PARAM_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 4_4 (pfail: 2m64, 2m128)
     #     pfails=[
     #         ErrorFailureProbability.TWO_MINUS_64,
@@ -139,26 +154,33 @@ INTEGER_PARAM_CASES = [
     #         TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128,
     #     ],
     # ),
-    ParametersFilterCase(  # TODO 8
-        "%PARAM_MESSAGE_2_CARRY_2_{atomic_pattern}_GAUSSIAN_2M128",
-        atomic_patterns=[
-            AtomicPattern.KSPBS,
-            AtomicPattern.KS32PBS,
-        ],
-        associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32],
-    ),
-    ParametersFilterCase(  # TODO Table 9, 10, 11, 12, NEED TO DEAL WITH OPERANDS (ct and plaintext)
-        "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",
-        pfails=[
-            ErrorFailureProbability.TWO_MINUS_64,
-            ErrorFailureProbability.TWO_MINUS_128,
-        ],
-        associated_tables=BLAH,
-    ),
-    # ParametersFilterCase(  # TODO Table 7
-    #     "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+    # # --- Table 8 ---
+    # ParametersFilterCase(
+    #     "%PARAM_MESSAGE_2_CARRY_2_{atomic_pattern}_GAUSSIAN_2M128",
+    #     atomic_patterns=[
+    #         AtomicPattern.KSPBS,
+    #         AtomicPattern.KS32PBS,
+    #     ],
+    #     associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32],
+    # ),
+    # # --- Tables 9, 10, 11, 12 ---
+    # ParametersFilterCase(
+    #     "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",
     #     pfails=[
     #         ErrorFailureProbability.TWO_MINUS_64,
+    #         ErrorFailureProbability.TWO_MINUS_128,
+    #     ],
+    #     associated_tables=[
+    #         TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+    #         TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+    #         TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+    #         TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+    #     ],
+    # ),
+    # # --- Table 7 ---
+    # ParametersFilterCase(
+    #     "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+    #     pfails=[
     #         ErrorFailureProbability.TWO_MINUS_128,
     #     ],
     #     grouping_factors=[
@@ -166,14 +188,19 @@ INTEGER_PARAM_CASES = [
     #         GroupingFactor.Three,
     #         GroupingFactor.Four,
     #     ],
+    #     additional_parameters=["%PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128", ],
+    #     associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING, ],
     # ),
-    # ParametersFilterCase(  # TODO Table 13
-    #     "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
-    #     pfails=[
-    #         ErrorFailureProbability.TWO_MINUS_64,
-    #         ErrorFailureProbability.TWO_MINUS_128,
-    #     ],
-    # ),
+    # # --- Table 13 ---
+    ParametersFilterCase(  # TODO Table 13
+        # "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+        # pfails=[
+        #     ErrorFailureProbability.TWO_MINUS_64,
+        #     ErrorFailureProbability.TWO_MINUS_128,
+        # ],
+        "%COMP_PARAM_CUSTOM_BR_LEVEL_1_NOISE_DISTRIB_Gaussian%",  # DEBUG
+        associated_tables=[TABLE_COMPRESSION_BENCHMARKS],
+    ),
 ]
 
 

@@ -679,6 +679,7 @@ class ElementType(enum.Enum):
     Operation = 0
     ParamComponent = 1
     SizeComponent = 2
+    Reference = 3
 
 
 class LatexSeparator(enum.StrEnum):
@@ -810,7 +811,7 @@ class LatexArraySection:
                             if param_def.components_match(*row_filters, elem.elem):
                                 row_values.append(value)
 
-        print("Row values:", row_values)
+        # print("Row values:", row_values)  # DEBUG
         return " & ".join(row_values) + r" \\"
 
 

@@ -453,13 +453,13 @@ class ParamsDefinition:
             f"ParamsDefinition("
             f"message_size={self.precision.message()}, "
             f"carry_size={self.precision.carry()}, "
-            # f"pbs_kind={self.pbs_kind}, "
+            f"pbs_kind={self.pbs_kind}, "
             f"grouping_factor={self.grouping_factor}, "
-            # f"noise_distribution={self.noise_distribution}, "
+            f"noise_distribution={self.noise_distribution}, "
             f"atomic_pattern={self.atomic_pattern}, "
             f"p_fail={self.p_fail}, "
-            # f"version={self.version}, "
-            # f"details={self.details})"
+            f"version={self.version}, "
+            f"details={self.details})"
         )
 
     def components_match(self, *components):
