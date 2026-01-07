@@ -818,8 +818,10 @@ class LatexArraySection:
 class LatexTable:
     def __init__(
         self,
+            table_label: str,
         array_section: list[LatexArraySection],
     ):
+        self.table_label = table_label
         self.array_sections = array_section
 
     @staticmethod

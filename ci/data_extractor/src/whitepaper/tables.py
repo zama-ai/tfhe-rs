@@ -232,8 +232,8 @@ SUM_CIPHERTEXTS_20_CTXTS_OP_ELEM = _get_operation_elem(
     "unsigned_sum_ciphertexts_parallelized_20_ctxts",
     r"\texttt{unsigned\_sum\_ciphertexts\_parallelized\_20\_ctxts\_non\_parallelized}",
 )
-COMPRESSION_OP_ELEM = _get_operation_elem("", "Compress")
-DECOMPRESSION_OP_ELEM = _get_operation_elem("", "Decompress")
+COMPRESSION_OP_ELEM = _get_operation_elem("unsigned_packing_compression_pack", "Compress")
+DECOMPRESSION_OP_ELEM = _get_operation_elem("unsigned_packing_compression_unpack", "Decompress")
 
 OVERFLOWING_SCALAR_ADD_OP_ELEM = _get_operation_elem(
     "unsigned_unsigned_overflowing_scalar_add_parallelized",
@@ -423,6 +423,7 @@ MUL_OP_AS_COL_ELEM = _get_operation_elem(
 # -----------------------
 
 TABLE_PBS_BENCH = LatexTable(
+    "pbs_bench",
     [
         LatexArraySection(
             [
@@ -486,6 +487,7 @@ TABLE_PBS_BENCH = LatexTable(
 )
 
 TABLE_BENCH_MULTIBIT_BY_PRECISION = LatexTable(
+    "bench_multibit_by_precision",
     [
         LatexArraySection(
             [
@@ -547,6 +549,7 @@ TABLE_BENCH_MULTIBIT_BY_PRECISION = LatexTable(
 )
 
 TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL64 = LatexTable(
+    "comparison_operations_precision_pfail64",
     [
         LatexArraySection(
             [
@@ -613,6 +616,7 @@ TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL64 = LatexTable(
 )
 
 TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128 = LatexTable(
+    "comparison_operations_precision_pfail128",
     [
         LatexArraySection(
             [
@@ -679,6 +683,7 @@ TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128 = LatexTable(
 )
 
 TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING = LatexTable(
+    "comparison_operations_bootstrapping",
     [
         LatexArraySection(
             [
@@ -767,6 +772,7 @@ TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING = LatexTable(
 
 
 TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32 = LatexTable(
+    "comparison_operations_bootstrapping128ks32",
     [
         LatexArraySection(
             [
@@ -822,6 +828,7 @@ TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32 = LatexTable(
 
 # No LaTex label set for this table.
 TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
+    "plaintext_ciphertext_ops_pfail64_ks32",
     [
         LatexArraySection(
             [
@@ -928,6 +935,7 @@ TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
 
 # No LaTex label set for this table.
 TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
+    "plaintext_ciphertext_ops_pfail128_ks32",
     [
         LatexArraySection(
             [
@@ -1034,6 +1042,7 @@ TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
 
 # No LaTex label set for this table.
 TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
+    "ciphertext_ciphertext_ops_pfail64_ks32",
     [
         LatexArraySection(
             [
@@ -1188,6 +1197,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32 = LatexTable(
 
 # No LaTex label set for this table.
 TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
+    "ciphertext_ciphertext_ops_pfail128_ks32",
     [
         LatexArraySection(
             [
@@ -1342,6 +1352,7 @@ TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32 = LatexTable(
 
 #
 TABLE_COMPRESSION_BENCHMARKS = LatexTable(
+    "compression_benchmarks",
     [
         LatexArraySection(
             [

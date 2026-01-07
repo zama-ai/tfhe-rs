@@ -141,57 +141,57 @@ CORE_CRYPTO_PARAM_CASES = [
 ]
 
 INTEGER_PARAM_CASES = [
-    # # --- Tables 5, 6 ---
-    # ParametersFilterCase(
-    #     "%PARAM_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 4_4 (pfail: 2m64, 2m128)
-    #     pfails=[
-    #         ErrorFailureProbability.TWO_MINUS_64,
-    #         ErrorFailureProbability.TWO_MINUS_128,
-    #     ],
-    #     precisions=[Precision.M1C1, Precision.M2C2, Precision.M4C4],
-    #     associated_tables=[
-    #         TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL64,
-    #         TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128,
-    #     ],
-    # ),
-    # # --- Table 8 ---
-    # ParametersFilterCase(
-    #     "%PARAM_MESSAGE_2_CARRY_2_{atomic_pattern}_GAUSSIAN_2M128",
-    #     atomic_patterns=[
-    #         AtomicPattern.KSPBS,
-    #         AtomicPattern.KS32PBS,
-    #     ],
-    #     associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32],
-    # ),
-    # # --- Tables 9, 10, 11, 12 ---
-    # ParametersFilterCase(
-    #     "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",
-    #     pfails=[
-    #         ErrorFailureProbability.TWO_MINUS_64,
-    #         ErrorFailureProbability.TWO_MINUS_128,
-    #     ],
-    #     associated_tables=[
-    #         TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
-    #         TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
-    #         TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
-    #         TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
-    #     ],
-    # ),
-    # # --- Table 7 ---
-    # ParametersFilterCase(
-    #     "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
-    #     pfails=[
-    #         ErrorFailureProbability.TWO_MINUS_128,
-    #     ],
-    #     grouping_factors=[
-    #         GroupingFactor.Two,
-    #         GroupingFactor.Three,
-    #         GroupingFactor.Four,
-    #     ],
-    #     additional_parameters=["%PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128", ],
-    #     associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING, ],
-    # ),
-    # # --- Table 13 ---
+    # --- Tables 5, 6 ---
+    ParametersFilterCase(
+        "%PARAM_MESSAGE_{msg}_CARRY_{carry}_KS_PBS_GAUSSIAN_{pfail}",  # 1_1, 2_2, 4_4 (pfail: 2m64, 2m128)
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+        precisions=[Precision.M1C1, Precision.M2C2, Precision.M4C4],
+        associated_tables=[
+            TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL64,
+            TABLE_COMPARISON_OPERATIONS_PRECISION_PFAIL128,
+        ],
+    ),
+    # --- Table 8 ---
+    ParametersFilterCase(
+        "%PARAM_MESSAGE_2_CARRY_2_{atomic_pattern}_GAUSSIAN_2M128",
+        atomic_patterns=[
+            AtomicPattern.KSPBS,
+            AtomicPattern.KS32PBS,
+        ],
+        associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING128KS32],
+    ),
+    # --- Tables 9, 10, 11, 12 ---
+    ParametersFilterCase(
+        "%PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_64,
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+        associated_tables=[
+            TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+            TABLE_PLAINTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+            TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL64_KS32,
+            TABLE_CIPHERTEXT_CIPHERTEXT_OPS_PFAIL128_KS32,
+        ],
+    ),
+    # --- Table 7 ---
+    ParametersFilterCase(
+        "%PARAM_MULTI_BIT_GROUP_{gf}_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
+        pfails=[
+            ErrorFailureProbability.TWO_MINUS_128,
+        ],
+        grouping_factors=[
+            GroupingFactor.Two,
+            GroupingFactor.Three,
+            GroupingFactor.Four,
+        ],
+        additional_parameters=["%PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128", ],
+        associated_tables=[TABLE_COMPARISON_OPERATIONS_BOOTSTRAPPING, ],
+    ),
+    # --- Table 13 ---
     ParametersFilterCase(  # TODO Table 13
         "%COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_{pfail}",
         pfails=[
@@ -244,6 +244,10 @@ def _generate_latex_tables(
     #         formatted_table = table.format_table(
     #             formatted_results
     #         )
+    #         filename = result_dir.joinpath(table.table_label + ".tex")
+    #         filename.write_text(
+    #             formatted_table, encoding="utf-8"
+    #         )
     #         print(formatted_table)  # DEBUG
 
     for case in INTEGER_PARAM_CASES:
@@ -276,7 +280,10 @@ def _generate_latex_tables(
 
         for table in case.associated_tables:
             formatted_table = table.format_table(formatted_results)
-            # TODO écrire chaque table dans un fichier en récupérant le __name__ de la table, le lower() et strip() le préfixe "table_"
+            filename = result_dir.joinpath(table.table_label + ".tex")
+            filename.write_text(
+                formatted_table, encoding="utf-8"
+            )
             print(formatted_table)  # DEBUG
 
     # TODO prendre la valeur minimum dans un groupe d'opération (ex: min/max, gt/ge/lt/le, ...)
@@ -285,7 +292,7 @@ def _generate_latex_tables(
 def perform_latex_generation(
     conn: connector.PostgreConnector, user_config: config.UserConfig
 ):
-    dir_path = user_config.output_file
+    dir_path = pathlib.Path(user_config.output_file)
     try:
         dir_path.mkdir(parents=True, exist_ok=True)
     except Exception as e:  ## TODO find the exact exception that can be raised here

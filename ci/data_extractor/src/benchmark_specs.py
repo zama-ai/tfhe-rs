@@ -656,6 +656,7 @@ class BenchDetails:
                     self.operation_name = parts[op_name_index]
                     self.params = parts[op_name_index + 1]
                     if "compression" in parts[op_name_index]:
+                        self.operation_name = "_".join([self.operation_name, parts[op_name_index + 2].split("_")[0]])
                         self.rust_type = "_".join(
                             (parts[op_name_index], parts[-1].split("_")[0])
                         )
