@@ -2,6 +2,7 @@ use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use std::num::NonZeroU64;
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
 
@@ -163,6 +164,7 @@ impl ServerKey {
     /// as `num_input_random_bits`
     ///
     /// ```rust
+    /// use std::num::NonZeroU64;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     /// use tfhe::Seed;
@@ -173,7 +175,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
     ///
     /// let num_input_random_bits = 5;
-    /// let excluded_upper_bound = 3;
+    /// let excluded_upper_bound = NonZeroU64::new(3).unwrap();
     /// let num_blocks_output = 8;
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_custom_range(
@@ -186,15 +188,17 @@ impl ServerKey {
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     ///
-    /// assert!(dec_result < excluded_upper_bound);
+    /// assert!(dec_result < excluded_upper_bound.get());
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
         seed: Seed,
         num_input_random_bits: u64,
-        excluded_upper_bound: u64,
+        excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
     ) -> RadixCiphertext {
+        let excluded_upper_bound = excluded_upper_bound.get();
+
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
