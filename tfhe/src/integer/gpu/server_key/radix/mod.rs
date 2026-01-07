@@ -182,13 +182,20 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
+        let (input_lwe_size, output_lwe_size) = match &self.key_switching_key {
+            CudaDynamicKeyswitchingKey::Standard(computing_ks_key) => (
+                computing_ks_key.input_key_lwe_size(),
+                computing_ks_key.output_key_lwe_size(),
+            ),
+            CudaDynamicKeyswitchingKey::KeySwitch32(computing_ks_key) => (
+                computing_ks_key.input_key_lwe_size(),
+                computing_ks_key.output_key_lwe_size(),
+            ),
         };
 
         let lwe_size = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => computing_ks_key.input_key_lwe_size(),
-            PBSOrder::BootstrapKeyswitch => computing_ks_key.output_key_lwe_size(),
+            PBSOrder::KeyswitchBootstrap => input_lwe_size,
+            PBSOrder::BootstrapKeyswitch => output_lwe_size,
         };
 
         let decomposer =

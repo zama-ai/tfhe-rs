@@ -410,6 +410,15 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_64_inplace(
     PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
+uint64_t scratch_cuda_add_and_propagate_single_carry_64_ks32_inplace(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
 void cuda_propagate_single_carry_64_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
@@ -417,6 +426,12 @@ void cuda_propagate_single_carry_64_inplace(
     uint32_t requested_flag, uint32_t uses_carry);
 
 void cuda_add_and_propagate_single_carry_64_inplace(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
+    const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry);
+
+void cuda_add_and_propagate_single_carry_64_ks32_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
@@ -506,7 +521,22 @@ uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_64(
     uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
+uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_64_ks32(
+    CudaStreamsFFI streams, bool is_signed, int8_t **mem_ptr,
+    uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
 void cuda_integer_div_rem_radix_ciphertext_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
+    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
+
+void cuda_integer_div_rem_radix_ciphertext_64_ks32(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
@@ -608,7 +638,22 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace(
     PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
+uint64_t scratch_cuda_sub_and_propagate_single_carry_64_ks32_inplace(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, uint32_t requested_flag, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
 void cuda_sub_and_propagate_single_carry_64_inplace(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
+    const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry);
+
+void cuda_sub_and_propagate_single_carry_64_ks32_inplace(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,

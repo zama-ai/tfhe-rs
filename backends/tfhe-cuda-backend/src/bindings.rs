@@ -923,6 +923,28 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_add_and_propagate_single_carry_64_ks32_inplace(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn cuda_propagate_single_carry_64_inplace(
         streams: CudaStreamsFFI,
         lwe_array: *mut CudaRadixCiphertextFFI,
@@ -937,6 +959,20 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_add_and_propagate_single_carry_64_inplace(
+        streams: CudaStreamsFFI,
+        lhs_array: *mut CudaRadixCiphertextFFI,
+        rhs_array: *const CudaRadixCiphertextFFI,
+        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_in: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        requested_flag: u32,
+        uses_carry: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_add_and_propagate_single_carry_64_ks32_inplace(
         streams: CudaStreamsFFI,
         lhs_array: *mut CudaRadixCiphertextFFI,
         rhs_array: *const CudaRadixCiphertextFFI,
@@ -1346,7 +1382,43 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_sub_and_propagate_single_carry_64_ks32_inplace(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn cuda_sub_and_propagate_single_carry_64_inplace(
+        streams: CudaStreamsFFI,
+        lhs_array: *mut CudaRadixCiphertextFFI,
+        rhs_array: *const CudaRadixCiphertextFFI,
+        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_in: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        requested_flag: u32,
+        uses_carry: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_sub_and_propagate_single_carry_64_ks32_inplace(
         streams: CudaStreamsFFI,
         lhs_array: *mut CudaRadixCiphertextFFI,
         rhs_array: *const CudaRadixCiphertextFFI,
