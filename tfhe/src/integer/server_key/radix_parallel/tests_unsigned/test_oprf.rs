@@ -9,6 +9,7 @@ use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey}
 use crate::shortint::parameters::*;
 use statrs::distribution::ContinuousCDF;
 use std::collections::HashMap;
+use std::num::NonZeroU64;
 use std::sync::Arc;
 use tfhe_csprng::seeders::Seed;
 
@@ -36,9 +37,19 @@ fn oprf_any_range_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
-    );
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &ServerKey,
+                                   seed: Seed,
+                                   num_input_random_bits: u64,
+                                   excluded_upper_bound: u64,
+                                   num_blocks_output: u64| {
+            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                seed,
+                num_input_random_bits,
+                NonZeroU64::new(excluded_upper_bound).unwrap(),
+                num_blocks_output,
+            )
+        });
     oprf_any_range_test(param, executor);
 }
 
@@ -46,9 +57,19 @@ fn oprf_almost_uniformity_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
-    );
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &ServerKey,
+                                   seed: Seed,
+                                   num_input_random_bits: u64,
+                                   excluded_upper_bound: u64,
+                                   num_blocks_output: u64| {
+            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                seed,
+                num_input_random_bits,
+                NonZeroU64::new(excluded_upper_bound).unwrap(),
+                num_blocks_output,
+            )
+        });
     oprf_almost_uniformity_test(param, executor);
 }
 

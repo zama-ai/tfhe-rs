@@ -10,6 +10,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientK
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, MatchValues, Seed, Tag};
 use std::cmp::{max, min};
+use std::num::NonZeroU64;
 use std::sync::Arc;
 
 create_parameterized_test!(random_op_sequence {
@@ -498,7 +499,18 @@ where
         &ServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
     );
     let oprf_custom_range_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
+        &|sk: &ServerKey,
+          seed: Seed,
+          num_input_random_bits: u64,
+          excluded_upper_bound: u64,
+          num_blocks_output: u64| {
+            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                seed,
+                num_input_random_bits,
+                NonZeroU64::new(excluded_upper_bound).unwrap_or(NonZeroU64::new(1).unwrap()),
+                num_blocks_output,
+            )
+        },
     );
 
     let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![(
