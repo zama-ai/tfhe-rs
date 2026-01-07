@@ -34,7 +34,7 @@ pub struct HpuHw {
 }
 
 impl HpuHw {
-    /// Check current Hw state and lazyly relaod it if required
+    /// Check current Hw state and lazyly reload it if required
     /// NB: If ami driver doesn't respond, the board state couldn't be red, thus all board are
     /// reload Otherwise, only reload board with invalid UUID.
     /// NB'': Check on Qdma queue state are done at the end

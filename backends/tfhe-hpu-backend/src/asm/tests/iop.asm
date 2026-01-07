@@ -38,7 +38,7 @@ IOP[0x60] <dyn I8 I8> <0> <I8@0x10{Hpu0} I8@0x14{Hpu0}> <I8@0x0{Hpu0} I8@0x4{Hpu
 ; Previous operation could be defined with vector format.
 IOP[0x40] <dyn I8 I8> <0> <I8[2]@0x10{Hpu0}> <I8[2]@0x0{Hpu0}>
 
-; With multiple immediat
+; With multiple immediate
 ; All operand belong to Hpu0
 ; Only Hpu0 involved
 ; Example this operation could compute D <- A*4 + B*8  

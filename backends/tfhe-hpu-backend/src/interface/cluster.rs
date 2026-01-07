@@ -48,13 +48,13 @@ impl HpuCluster {
             .fpga
             .node_id
             .par_iter()
-            .map(|id| (*id, HpuNodeWrapped::new_wrapped(*id, &config)))
+            .map(|id| (*id, HpuNodeWrapped::new_wrapped(*id, config)))
             .collect::<HashMap<_, _>>();
 
         // Enforce that all node within the cluster used same HpuParameters
         let params = nodes
-            .iter()
-            .map(|(_id, n)| &n.params)
+            .values()
+            .map(|n| &n.params)
             .all_equal_value()
             .map_err(|err| match err {
                 Some((pa, pb)) => HpuInstError::InvalidParams(pa.clone(), pb.clone()),
@@ -206,7 +206,7 @@ impl HpuCluster {
     //     assert_eq!(
     //         1,
     //         hpu_ord.len(),
-    //         "Current MultiHpu implemenation required Src/Dst on same Node"
+    //         "Current MultiHpu implementation required Src/Dst on same Node"
     //     );
     //     IOpMapping::from((hpu_ord, &proto.used_nodes))
     // }
@@ -263,14 +263,14 @@ impl HpuClusterWrapped {
         mode: crate::asm::iop::VarMode,
         pos: Option<crate::asm::NodeId>,
     ) -> HpuVarWrapped {
-        // Compute worload and allocate on the less loaded node
+        // Compute workload and allocate on the less loaded node
         let trgt_id = if let Some(hid) = pos {
             hid
         } else {
             let hid = self
                 .nodes
-                .iter()
-                .map(|(id, _node)| {
+                .keys()
+                .map(|id| {
                     (
                         *id,
                         self.workload[*id as usize].load(atomic::Ordering::SeqCst),
@@ -280,7 +280,7 @@ impl HpuClusterWrapped {
                 .map(|x| x.0)
                 .next()
                 .expect("HpuCluster must contains at least one HpuNode");
-            NodeId(hid as u8)
+            NodeId(hid)
         };
 
         tracing::debug!("HpuVariable will be created on Hpu {trgt_id}");

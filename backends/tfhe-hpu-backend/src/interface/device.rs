@@ -66,7 +66,7 @@ impl HpuDevice {
 /// Retrieved device parameters & configuration
 impl HpuDevice {
     pub fn params(&self) -> &HpuParameters {
-        &self.cluster.params()
+        self.cluster.params()
     }
     pub fn config(&self) -> &HpuConfig {
         &self.config

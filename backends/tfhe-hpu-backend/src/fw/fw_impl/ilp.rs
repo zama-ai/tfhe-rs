@@ -1054,7 +1054,7 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
 
 /// Generic shift function over scalar
 // TODO: This function couldn't be properly/efficiently implemented on HW without custom support in
-// ucore Currently it's only garbadge Dop to fullfill Hpu requirements
+// ucore Currently it's only garbadge Dop to fulfill Hpu requirements
 #[instrument(level = "trace", skip(prog))]
 fn iop_scalar_shiftrotx(
     prog: &mut Program,

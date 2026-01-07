@@ -42,8 +42,8 @@ pub enum HpuError {
 pub enum HpuInstError {
     // Invalid parameters, since all Hpu in a HpuDevice work together, they must have same
     // parameters set
-    #[error("Instanciated HpuNode have at least two distinct parameters [A: {0:?}, B: {1:?}]")]
+    #[error("Instantiated HpuNode have at least two distinct parameters [A: {0:?}, B: {1:?}]")]
     InvalidParams(Arc<HpuParameters>, Arc<HpuParameters>),
-    #[error("Instanciate an Empty HpuDevice. Device must contains at least one node")]
+    #[error("Instantiate an Empty HpuDevice. Device must contains at least one node")]
     EmptyDevice,
 }

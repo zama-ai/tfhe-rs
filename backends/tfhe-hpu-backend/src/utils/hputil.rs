@@ -79,7 +79,7 @@ enum RegisterAction {
     Read {
         /// Register name to read-from
         name: String,
-        /// Number of contiguous regiter to read
+        /// Number of contiguous register to read
         #[arg(short, long, default_value_t = 1)]
         range: usize,
     },
@@ -96,7 +96,7 @@ enum RegisterAction {
     },
 
     /// Dump given register section
-    /// Emtpy vector => dump_all
+    /// Empty vector => dump_all
     #[command(about = "Dump given register sections")]
     Dump {
         /// Section name
@@ -104,7 +104,7 @@ enum RegisterAction {
     },
 
     /// Dump given register section
-    /// Emtpy vector => reset_all
+    /// Empty vector => reset_all
     #[command(about = "Reset given register sections")]
     Reset {
         /// Section name

@@ -3178,9 +3178,7 @@ mod hpu {
                                     )
                                 })
                                 .collect::<Vec<_>>();
-                            let last_res = tmp
-                                .last()
-                                .unwrap();
+                            let last_res = tmp.last().unwrap();
                             last_res.into_iter().for_each(|ct| {
                                 ct.wait();
                                 black_box(ct);

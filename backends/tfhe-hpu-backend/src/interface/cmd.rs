@@ -8,7 +8,7 @@ use variable::HpuVarWrapped;
 
 use std::sync::atomic;
 
-/// Underlying type used for Immediat value;
+/// Underlying type used for Immediate value;
 pub type HpuImm = u128;
 
 /// Structure that hold an IOp with there associated operands
@@ -20,7 +20,7 @@ pub struct HpuCmd {
     pub(crate) pdg_sync: atomic::AtomicUsize,
     pub(crate) dst: Vec<HpuVarWrapped>,
     pub(crate) _src: Vec<HpuVarWrapped>,
-    // NB: No need to track Immediat lifetime. It's simply constant completely held by the IOp
+    // NB: No need to track Immediate lifetime. It's simply constant completely held by the IOp
     // definition
 }
 
@@ -145,7 +145,7 @@ impl HpuCmd {
         let cluster = &first_dst.parent;
 
         // Compute mapping based on workload and operand position
-        let hpu_id = cluster.iter().map(|(id, _n)| *id).collect::<Vec<_>>();
+        let hpu_id = cluster.keys().copied().collect::<Vec<_>>();
         let mut var_pos = [0; MAX_HPU_IN_CLUSTER];
         for hid in dst.iter().chain(rhs_ct.iter()).map(|v| v.hpu_id.0) {
             var_pos[hid as usize] += 1;

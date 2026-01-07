@@ -94,11 +94,10 @@ pub struct QueueConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct BoardConfig {
     /// Depict the list of memories connected to ct master_axi
-    /// NB: Ciphertext memory is split in three ranges:
-    ///  * user: Area used for user communication (i.e. Src/Dst operands)
-    ///  * b2b: Area used for board2board communication
-    ///  * heap: Area used for temporary variables
-    /// Each of them is depict respectively with user_size, b2b_size, heap_size
+    /// Ciphertext memory is split in three ranges:
+    ///  * user: Area used for user communication (i.e. Src/Dst operands) -> use user_size entry
+    ///  * b2b: Area used for board2board communication -> use b2b_size entry
+    ///  * heap: Area used for temporary variables -> use heap_size entry
     pub ct_pc: Vec<ffi::MemKind>,
 
     /// Ciphertext memory size

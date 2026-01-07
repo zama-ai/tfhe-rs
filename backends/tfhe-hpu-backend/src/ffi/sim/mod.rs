@@ -65,13 +65,13 @@ impl HpuHw {
         let mut ipc = self.ipc.lock().unwrap();
         let rd_ack = ipc
             .b_req_ack(IpcReq::Read {
-                addr: addr,
+                addr,
                 size_b: bytes.len(),
             })
             .expect("Error with IpcMaster Read request");
 
         if let IpcAck::Read { data } = rd_ack {
-            bytes.copy_from_slice(&*data);
+            bytes.copy_from_slice(&data);
         } else {
             panic!("Received unmatch IpcAck, expect IpcAck::Read, get {rd_ack:?}.");
         }
@@ -81,7 +81,7 @@ impl HpuHw {
         let mut ipc = self.ipc.lock().unwrap();
         let wr_ack = ipc
             .b_req_ack(IpcReq::Write {
-                addr: addr,
+                addr,
                 data: ipc_channel::ipc::IpcSharedMemory::from_bytes(bytes),
             })
             .expect("Error with IpcMaster Read request");
@@ -178,8 +178,7 @@ impl HpuHw {
             tail_var
         };
         let word_free = *size_w as u32 - ((iop_head - iop_tail) % *size_w as u32);
-        let chunk_start =
-            data_ofst + ((iop_head as usize % size_w) * std::mem::size_of::<u32>() as usize);
+        let chunk_start = data_ofst + ((iop_head as usize % size_w) * std::mem::size_of::<u32>());
         if word_free != 0 {
             // write body
             let stream_u8 = bytemuck::cast_slice::<u32, u8>(stream);
@@ -222,8 +221,7 @@ impl HpuHw {
         };
 
         let word_avail = (ack_head - ack_tail) % size as u32;
-        let _chunk_start =
-            data + ((ack_tail as usize % size) * std::mem::size_of::<u32>() as usize);
+        let _chunk_start = data + ((ack_tail as usize % size) * std::mem::size_of::<u32>());
         if word_avail != 0 {
             // TODO read body
             // Currently ack content is dropped only the number of received ack is used
@@ -271,7 +269,7 @@ impl MemZone {
             .expect("Error with IpcMaster Read request");
 
         if let IpcAck::Read { data } = rd_ack {
-            bytes.copy_from_slice(&*data);
+            bytes.copy_from_slice(&data);
         } else {
             panic!("Received unmatch IpcAck, expect IpcAck::Read, get {rd_ack:?}.");
         }

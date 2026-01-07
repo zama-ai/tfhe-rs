@@ -113,7 +113,7 @@ impl Operand {
     }
 }
 
-/// Create a dedicated type for a collection of Immediat
+/// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OperandBundle(Vec<Operand>);
@@ -442,11 +442,10 @@ impl IOpMapping {
     }
 
     pub fn virt_id(&self, phys_id: PhysId) -> Option<VirtId> {
-        if let Some(vid) = self.0.iter().position(|&x| x == phys_id) {
-            Some(VirtId(vid as u8))
-        } else {
-            None
-        }
+        self.0
+            .iter()
+            .position(|&x| x == phys_id)
+            .map(|vid| VirtId(vid as u8))
     }
 }
 
@@ -458,10 +457,10 @@ impl std::ops::Deref for IOpMapping {
     }
 }
 
-/// Contruct IOpMapping from a vector of hpu_id
+/// Construct IOpMapping from a vector of hpu_id
 impl From<Vec<u8>> for IOpMapping {
     fn from(value: Vec<u8>) -> Self {
-        let pid = value.into_iter().map(|x| PhysId(x)).collect::<Vec<_>>();
+        let pid = value.into_iter().map(PhysId).collect::<Vec<_>>();
         if pid.len() > MAX_HPU_IN_CLUSTER {
             Self::new(&pid[0..MAX_HPU_IN_CLUSTER])
         } else {
@@ -470,7 +469,7 @@ impl From<Vec<u8>> for IOpMapping {
     }
 }
 
-/// Contruct IOpMapping from a vector of hpu_id and IOp NodesMap definition
+/// Construct IOpMapping from a vector of hpu_id and IOp NodesMap definition
 impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
     fn from(value: (Vec<u8>, &NodesMap)) -> Self {
         let (val, nodes_map) = value;
@@ -537,11 +536,11 @@ impl IOp {
         self.map.phys_id(VirtId(tid.0))
     }
 
-    /// IOp doesn't store IOpId explicity
+    /// IOp doesn't store IOpId explicitly
     /// This information is contained in the destination operands.
     pub fn get_iid(&self) -> IOpId {
         self.dst()
-            .get(0)
+            .first()
             .expect("IOp must contains at least 1 destination operands")
             .props
             .iid

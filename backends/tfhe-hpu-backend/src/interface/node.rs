@@ -44,7 +44,7 @@ impl UcoreConfig {
         Self {
             node_id,
             _padding: [0; 3],
-            _reserved_word: [u32::max_value(); 63],
+            _reserved_word: [u32::MAX; 63],
         }
     }
 }
@@ -568,7 +568,7 @@ impl HpuNode {
             // Write it in on-board memory
             // Lut are encoded as trivial ciphertext.
             // Thus to prevent useless memory xfer, only the Body polynomial is uploaded on Hw
-            let hpu_lut = gen_lut(&params, &lut_impl);
+            let hpu_lut = gen_lut(params, &lut_impl);
 
             // NB: lut_mem are always on 1cut
             let ofst = lut_gid * params.pbs_params.polynomial_size;

@@ -147,7 +147,7 @@ impl IscTraceStream {
                     }
                     TraceParsingError::IncorrectValue(msg) => {
                         println!("Early Abort: Trace parsing encountered following error: {msg}");
-                        println!("This event could occured when the trace end is reached");
+                        println!("This event could occurred when the trace end is reached");
                         break;
                     }
                 },

@@ -14,7 +14,8 @@ pub enum HpuModulusSwitchType {
     CenteredMeanNoiseReduction,
 }
 
-/// Structure to manually serialize/deserialize HpuNoiseDistrutionInput in register (i.e. u32 words)
+/// Structure to manually serialize/deserialize HpuNoiseDistributionInput in register (i.e. u32
+/// words)
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HpuNoiseDistributionInputRaw {
     pub mode: u32,

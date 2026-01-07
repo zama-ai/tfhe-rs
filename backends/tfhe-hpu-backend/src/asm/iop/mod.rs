@@ -111,7 +111,7 @@ impl std::str::FromStr for IOpProto {
                     .as_str()
                     .trim()
                     .split(',')
-                    .map(|nodes| u8::from_str_radix(nodes.trim(), 10))
+                    .map(|nodes| nodes.trim().parse::<u8>())
                     .collect::<Result<Vec<_>, std::num::ParseIntError>>()
                     .map_err(|err| ParsingError::InvalidArg(err.to_string()))
             } else {

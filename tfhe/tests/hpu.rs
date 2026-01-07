@@ -8,8 +8,8 @@
 //     * HPU_SELECTED_NODE<u8>: Instead of using full cluster as target, use only the specified node
 //     * HPU_FORCE_RELOAD: Force pdi reload even if the uuid match targeted one
 //     * HPU_IO_DUMP<String>: Enable input/output dumping in given path
-//     * HPU_KEY_SEED<u128>: Force key seed value for reproductible results
-//     * HPU_TEST_SEED<u128>: Force test seed value for reproductible results
+//     * HPU_KEY_SEED<u128>: Force key seed value for reproducible results
+//     * HPU_TEST_SEED<u128>: Force test seed value for reproducible results
 //     * HPU_TEST_ITER<usize>: Specify number of iteration for each test (default: 32)
 //     * HPU_TEST_TRIVIAL: Use trivial ciphertext instead of real one
 
@@ -58,7 +58,7 @@ mod hpu_test {
         }
     }
 
-    /// Simple function to retrieved targetd node from environnement
+    /// Simple function to retrieved targeted node from environment
     /// Also extract force_reload request and return it as bool
     fn update_config_node(config: &mut HpuConfig) -> bool {
         match std::env::var("HPU_SELECTED_NODE") {

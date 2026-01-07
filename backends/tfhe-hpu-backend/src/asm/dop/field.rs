@@ -182,7 +182,7 @@ impl std::str::FromStr for MemId {
     }
 }
 
-/// Immediat arguments
+/// Immediate arguments
 /// Have multiple mode for proper support of template addressing
 /// Template enable runtime replacement of MemId with associated Top-level arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -275,7 +275,7 @@ impl std::fmt::Display for PbsGid {
 // Ucore specificity is that Ucore instruction is enhanced at execution with runtime information
 // By this way only a subset of info is embedded in the code and all things related to
 // execution context is carried over at runtime.
-// This is usefull this Ucore instruction is used to shared information between Hpu Nodes
+// This is useful this Ucore instruction is used to shared information between Hpu Nodes
 
 /// UserFlag
 /// Describe user event flag. It's like a hash/UUID for matching Ucore instruction together
