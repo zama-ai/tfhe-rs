@@ -103,7 +103,7 @@ jobs:
     if: inputs.run-cpu-benchmarks
     with:
       command: pbs, ks_pbs
-      bench_type: latency
+      bench_type:  both
       params_type: classical_documentation + multi_bit_documentation
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -123,7 +123,7 @@ jobs:
       profile: multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
       command: pbs, ks_pbs
-      bench_type: latency
+      bench_type: both
       params_type: classical_documentation + multi_bit_documentation
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
