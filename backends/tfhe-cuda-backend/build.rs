@@ -86,6 +86,7 @@ fn main() {
             "cuda/include/integer/integer.h",
             "cuda/include/integer/rerand.h",
             "cuda/include/aes/aes.h",
+            "cuda/include/trivium/trivium.h",
             "cuda/include/zk/zk.h",
             "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
