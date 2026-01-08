@@ -35,24 +35,24 @@ permissions: {}
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
 jobs:
-  run-benchmarks-cpu-integer:
-    name: benchmark_documentation/run-benchmarks-cpu-integer
-    uses: ./.github/workflows/benchmark_cpu_common.yml
-    if: inputs.run-cpu-benchmarks
-    with:
-      command: integer
-      op_flavor: fast_default
-      bench_type: both
-      precisions_set: documentation
-    secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+  #run-benchmarks-cpu-integer:
+  #  name: benchmark_documentation/run-benchmarks-cpu-integer
+  #  uses: ./.github/workflows/benchmark_cpu_common.yml
+  #  if: inputs.run-cpu-benchmarks
+  #  with:
+  #    command: integer
+  #    op_flavor: fast_default
+  #    bench_type: both
+  #    precisions_set: documentation
+  #  secrets:
+  #    BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+  #    SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  #    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  #    REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+  #    JOB_SECRET: ${{ secrets.JOB_SECRET }}
+  #    SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+  #    SLAB_URL: ${{ secrets.SLAB_URL }}
+  #    SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
@@ -141,7 +141,7 @@ jobs:
       (inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks ||inputs.run-hpu-benchmarks) &&
       inputs.generate-svgs }}
     needs: [
-      run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
+      run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
       run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto
     ]
     uses: ./.github/workflows/generate_svgs.yml
