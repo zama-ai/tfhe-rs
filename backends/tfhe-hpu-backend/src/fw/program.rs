@@ -160,9 +160,9 @@ impl ProgramInner {
             .filter(|(_, var)| var.is_none())
             .map(|(rid, _)| *rid)
             .collect::<Vec<_>>();
-        demote_order
-            .into_iter()
-            .for_each(|rid| self.regs.demote(&rid));
+        demote_order.into_iter().for_each(|rid| {
+            self.regs.demote(&rid);
+        });
     }
 
     /// Release register entry
@@ -179,7 +179,7 @@ impl ProgramInner {
 
     /// Notify register access to update LRU state
     pub(crate) fn reg_access(&mut self, rid: asm::RegId) {
-        self.regs.promote(&rid)
+        self.regs.promote(&rid);
     }
 
     /// Retrieved least-recent-used heap entry
@@ -220,9 +220,9 @@ impl ProgramInner {
                     .filter(|(_mid, var)| var.is_none())
                     .map(|(mid, _)| *mid)
                     .collect::<Vec<_>>();
-                demote_order
-                    .into_iter()
-                    .for_each(|mid| self.heap.demote(&mid));
+                demote_order.into_iter().for_each(|mid| {
+                    self.heap.demote(&mid);
+                });
             }
             _ => { /*Only release Heap slot*/ }
         }
@@ -231,7 +231,9 @@ impl ProgramInner {
     /// Notify heap access to update LRU state
     pub(crate) fn heap_access(&mut self, mid: asm::MemId) {
         match mid {
-            asm::MemId::Heap { .. } => self.heap.promote(&mid),
+            asm::MemId::Heap { .. } => {
+                self.heap.promote(&mid);
+            }
             _ => { /* Do Nothing slot do not below to heap*/ }
         }
     }
