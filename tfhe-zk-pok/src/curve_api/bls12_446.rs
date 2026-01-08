@@ -33,12 +33,23 @@ fn bigint_to_le_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
     buf
 }
 
+/// Extract normal-form limbs from an Fq2 element (for CUDA backend).
+/// Uses into_bigint() to convert from Montgomery to normal form.
+#[cfg(feature = "gpu-experimental")]
+#[inline]
+fn fq2_to_normal_limbs(fq2: &crate::curve_446::Fq2) -> ([u64; 7], [u64; 7]) {
+    use ark_ff::PrimeField;
+    let c0_bigint = fq2.c0.into_bigint();
+    let c1_bigint = fq2.c1.into_bigint();
+    (c0_bigint.0, c1_bigint.0)
+}
+
 mod g1 {
-    use tfhe_versionable::Versionize;
-
-    use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
-
     use super::*;
+    use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
+    #[cfg(feature = "gpu-experimental")]
+    use ark_ff::PrimeField;
+    use tfhe_versionable::Versionize;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
@@ -78,19 +89,127 @@ mod g1 {
         }
     }
 
+    #[cfg(feature = "gpu-experimental")]
+    impl From<&G1Affine> for zk_cuda_backend::G1Affine {
+        fn from(value: &G1Affine) -> Self {
+            use ark_ec::AffineRepr;
+            use ark_ff::Zero;
+            if value.inner.is_zero() {
+                return zk_cuda_backend::G1Affine::infinity();
+            }
+            // Use xy() to get normalized coordinates (not Montgomery form)
+            // zk-cuda-backend expects normal form and will convert to Montgomery itself
+            let zero = <crate::curve_446::Fq as Zero>::zero();
+            let xy = value.inner.xy().unwrap_or((zero, zero));
+            let x_limbs = xy.0.into_bigint().0;
+            let y_limbs = xy.1.into_bigint().0;
+            zk_cuda_backend::G1Affine::new(x_limbs, y_limbs, value.inner.infinity)
+        }
+    }
+
+    #[cfg(feature = "gpu-experimental")]
+    impl From<&Zp> for zk_cuda_backend::Fp {
+        fn from(value: &Zp) -> Self {
+            let x = value.inner.into_bigint();
+            let mut limbs = [0u64; 7];
+            limbs[..5].copy_from_slice(&x.0);
+
+            zk_cuda_backend::Fp::new(limbs)
+        }
+    }
+
     impl G1Affine {
         #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G1 {
             // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
-            G1 {
-                inner: crate::curve_446::g1::G1Projective::msm(
-                    unsafe {
-                        &*(bases as *const [G1Affine] as *const [crate::curve_446::g1::G1Affine])
-                    },
-                    unsafe { &*(scalars as *const [Zp] as *const [crate::curve_446::Fr]) },
-                )
-                .unwrap(),
+            #[cfg(not(feature = "gpu-experimental"))]
+            {
+                G1 {
+                    inner: crate::curve_446::g1::G1Projective::msm(
+                        unsafe {
+                            &*(bases as *const [G1Affine]
+                                as *const [crate::curve_446::g1::G1Affine])
+                        },
+                        unsafe { &*(scalars as *const [Zp] as *const [crate::curve_446::Fr]) },
+                    )
+                    .unwrap(),
+                }
             }
+            #[cfg(feature = "gpu-experimental")]
+            {
+                Self::multi_mul_scalar_with_gpu(bases, scalars, None)
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection.
+        /// If `gpu_index` is `None`, defaults to GPU 0.
+        #[track_caller]
+        #[cfg(feature = "gpu-experimental")]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            gpu_index: Option<u32>,
+        ) -> G1 {
+            use crate::curve_446::g1::G1Projective;
+            use crate::curve_446::Fq;
+            use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+
+            // Use the generic conversion function which extracts normalized coordinates
+            let gpu_bases: Vec<_> = bases
+                .iter()
+                .map(|b| zk_cuda_backend::g1_affine_from_arkworks(&b.inner))
+                .collect();
+
+            let gpu_scalars: Vec<_> = scalars
+                .iter()
+                .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
+                .collect();
+
+            // Create CUDA stream with specified or default GPU index
+            let gpu_index = gpu_index.unwrap_or(0);
+            let stream = unsafe { cuda_create_stream(gpu_index) };
+
+            // Points are in normal form - CUDA will convert to Montgomery
+            let (gpu_result, _size_tracker) = zk_cuda_backend::G1Projective::msm(
+                &gpu_bases,
+                &gpu_scalars,
+                stream,
+                gpu_index,
+                false,
+            )
+            .expect("G1 MSM failed");
+
+            // Destroy stream
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+            // Convert result from Montgomery and normalize in one step
+            let normalized = gpu_result.from_montgomery_normalized();
+
+            // Check if result is infinity (Z = 0)
+            let z_limbs = normalized.Z();
+            let is_infinity = z_limbs.iter().all(|&limb| limb == 0);
+            if is_infinity {
+                return G1::ZERO;
+            }
+
+            let x = Fq::from_sign_and_limbs(true, &normalized.X());
+            let y = Fq::from_sign_and_limbs(true, &normalized.Y());
+            let z = Fq::from_sign_and_limbs(true, &z_limbs);
+            G1 {
+                inner: G1Projective::new_unchecked(x, y, z),
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection (CPU fallback).
+        /// When GPU feature is disabled, this just calls the regular multi_mul_scalar.
+        #[track_caller]
+        #[cfg(not(feature = "gpu-experimental"))]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            _gpu_index: Option<u32>,
+        ) -> G1 {
+            Self::multi_mul_scalar(bases, scalars)
         }
 
         pub fn validate(&self) -> bool {
@@ -182,18 +301,103 @@ mod g1 {
 
         #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> Self {
-            use rayon::prelude::*;
-            let bases = bases
-                .par_iter()
-                .map(|&x| x.inner.into_affine())
-                .collect::<Vec<_>>();
-            // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
-            Self {
-                inner: crate::curve_446::g1::G1Projective::msm(&bases, unsafe {
-                    &*(scalars as *const [Zp] as *const [crate::curve_446::Fr])
+            let result = {
+                #[cfg(not(feature = "gpu-experimental"))]
+                {
+                    use rayon::prelude::*;
+                    let bases = bases
+                        .par_iter()
+                        .map(|&x| x.inner.into_affine())
+                        .collect::<Vec<_>>();
+                    // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
+                    Self {
+                        inner: crate::curve_446::g1::G1Projective::msm(&bases, unsafe {
+                            &*(scalars as *const [Zp] as *const [crate::curve_446::Fr])
+                        })
+                        .unwrap(),
+                    }
+                }
+                #[cfg(feature = "gpu-experimental")]
+                {
+                    Self::multi_mul_scalar_with_gpu(bases, scalars, None)
+                }
+            };
+
+            result
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection.
+        /// If `gpu_index` is `None`, defaults to GPU 0.
+        #[track_caller]
+        #[cfg(feature = "gpu-experimental")]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            gpu_index: Option<u32>,
+        ) -> Self {
+            use crate::curve_446::g1::G1Projective;
+            use crate::curve_446::Fq;
+            use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+
+            // Convert projective to affine, then use generic conversion
+            let gpu_bases: Vec<_> = bases
+                .iter()
+                .map(|b| {
+                    let affine = b.inner.into_affine();
+                    zk_cuda_backend::g1_affine_from_arkworks(&affine)
                 })
-                .unwrap(),
+                .collect();
+
+            let gpu_scalars: Vec<_> = scalars
+                .iter()
+                .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
+                .collect();
+
+            // Create CUDA stream with specified or default GPU index
+            let gpu_index = gpu_index.unwrap_or(0);
+            let stream = unsafe { cuda_create_stream(gpu_index) };
+
+            // Points are in normal form - CUDA will convert to Montgomery
+            let (gpu_result, _size_tracker) = zk_cuda_backend::G1Projective::msm(
+                &gpu_bases,
+                &gpu_scalars,
+                stream,
+                gpu_index,
+                false,
+            )
+            .expect("G1 MSM failed");
+
+            // Destroy stream
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+            // Convert result from Montgomery and normalize in one step
+            let normalized = gpu_result.from_montgomery_normalized();
+
+            // Check if result is infinity (Z = 0)
+            let z_limbs = normalized.Z();
+            let is_infinity = z_limbs.iter().all(|&limb| limb == 0);
+            if is_infinity {
+                return Self::ZERO;
             }
+
+            let x = Fq::from_sign_and_limbs(true, &normalized.X());
+            let y = Fq::from_sign_and_limbs(true, &normalized.Y());
+            let z = Fq::from_sign_and_limbs(true, &z_limbs);
+            Self {
+                inner: G1Projective::new_unchecked(x, y, z),
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection (CPU fallback).
+        /// When GPU feature is disabled, this just calls the regular multi_mul_scalar.
+        #[track_caller]
+        #[cfg(not(feature = "gpu-experimental"))]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            _gpu_index: Option<u32>,
+        ) -> Self {
+            Self::multi_mul_scalar(bases, scalars)
         }
 
         pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
@@ -266,9 +470,10 @@ mod g1 {
 }
 
 mod g2 {
-    use tfhe_versionable::Versionize;
-
     use crate::serialization::SerializableG2Affine;
+    #[cfg(feature = "gpu-experimental")]
+    use ark_ff::PrimeField;
+    use tfhe_versionable::Versionize;
 
     use super::*;
     use crate::serialization::InvalidSerializedAffineError;
@@ -311,19 +516,130 @@ mod g2 {
         }
     }
 
+    #[cfg(feature = "gpu-experimental")]
+    impl From<&G2Affine> for zk_cuda_backend::G2Affine {
+        fn from(value: &G2Affine) -> Self {
+            use ark_ec::AffineRepr;
+            use ark_ff::Zero;
+            if value.inner.is_zero() {
+                return zk_cuda_backend::G2Affine::infinity();
+            }
+            // Use xy() to get normalized coordinates (not Montgomery form)
+            // zk-cuda-backend expects normal form and will convert to Montgomery itself
+            let zero = <crate::curve_446::Fq2 as Zero>::zero();
+            let xy = value.inner.xy().unwrap_or((zero, zero));
+            let (x_c0_limbs, x_c1_limbs) = fq2_to_normal_limbs(&xy.0);
+            let (y_c0_limbs, y_c1_limbs) = fq2_to_normal_limbs(&xy.1);
+            zk_cuda_backend::G2Affine::new(
+                (x_c0_limbs, x_c1_limbs),
+                (y_c0_limbs, y_c1_limbs),
+                value.inner.infinity,
+            )
+        }
+    }
+
     impl G2Affine {
         #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G2 {
             // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
-            G2 {
-                inner: crate::curve_446::g2::G2Projective::msm(
-                    unsafe {
-                        &*(bases as *const [G2Affine] as *const [crate::curve_446::g2::G2Affine])
-                    },
-                    unsafe { &*(scalars as *const [Zp] as *const [crate::curve_446::Fr]) },
-                )
-                .unwrap(),
+            #[cfg(not(feature = "gpu-experimental"))]
+            {
+                G2 {
+                    inner: crate::curve_446::g2::G2Projective::msm(
+                        unsafe {
+                            &*(bases as *const [G2Affine]
+                                as *const [crate::curve_446::g2::G2Affine])
+                        },
+                        unsafe { &*(scalars as *const [Zp] as *const [crate::curve_446::Fr]) },
+                    )
+                    .unwrap(),
+                }
             }
+            #[cfg(feature = "gpu-experimental")]
+            {
+                Self::multi_mul_scalar_with_gpu(bases, scalars, None)
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection.
+        /// If `gpu_index` is `None`, defaults to GPU 0.
+        #[track_caller]
+        #[cfg(feature = "gpu-experimental")]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            gpu_index: Option<u32>,
+        ) -> G2 {
+            use crate::curve_446::g2::G2Projective;
+            use ark_ec::AffineRepr;
+            use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+
+            // Extract normal-form limbs using helper function
+            let gpu_bases: Vec<_> = bases
+                .iter()
+                .map(|b| {
+                    if b.inner.is_zero() {
+                        return zk_cuda_backend::G2Affine::infinity();
+                    }
+                    let x_limbs = fq2_to_normal_limbs(&b.inner.x);
+                    let y_limbs = fq2_to_normal_limbs(&b.inner.y);
+                    zk_cuda_backend::G2Affine::new(x_limbs, y_limbs, false)
+                })
+                .collect();
+
+            let gpu_scalars: Vec<_> = scalars
+                .iter()
+                .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
+                .collect();
+
+            // Create CUDA stream with specified or default GPU index
+            let gpu_index = gpu_index.unwrap_or(0);
+            let stream = unsafe { cuda_create_stream(gpu_index) };
+
+            // Points are in normal form - CUDA will convert to Montgomery
+            let (gpu_result, _size_tracker) = zk_cuda_backend::G2Projective::msm(
+                &gpu_bases,
+                &gpu_scalars,
+                stream,
+                gpu_index,
+                false,
+            )
+            .expect("G2 MSM failed");
+
+            // Destroy stream
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+            // Convert result from Montgomery and normalize in one step
+            let normalized = gpu_result.from_montgomery_normalized();
+            let (x_c0, x_c1) = normalized.X();
+            let (y_c0, y_c1) = normalized.Y();
+            let (z_c0, z_c1) = normalized.Z();
+
+            // Check if result is infinity (Z = 0 in Fq2, meaning both c0 and c1 are zero)
+            let z_is_zero =
+                z_c0.iter().all(|&limb| limb == 0) && z_c1.iter().all(|&limb| limb == 0);
+            if z_is_zero {
+                return G2::ZERO;
+            }
+
+            let x = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &x_c0, &x_c1);
+            let y = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &y_c0, &y_c1);
+            let z = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &z_c0, &z_c1);
+            G2 {
+                inner: G2Projective::new_unchecked(x, y, z),
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection (CPU fallback).
+        /// When GPU feature is disabled, this just calls the regular multi_mul_scalar.
+        #[track_caller]
+        #[cfg(not(feature = "gpu-experimental"))]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            _gpu_index: Option<u32>,
+        ) -> G2 {
+            Self::multi_mul_scalar(bases, scalars)
         }
 
         pub fn validate(&self) -> bool {
@@ -547,18 +863,113 @@ mod g2 {
         }
 
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> Self {
-            use rayon::prelude::*;
-            let n_threads = rayon::current_num_threads();
-            let chunk_size = bases.len().div_ceil(n_threads);
-            bases
-                .par_iter()
-                .map(|&x| x.inner.into_affine())
-                .chunks(chunk_size)
-                .zip(scalars.par_iter().map(|&x| x.inner).chunks(chunk_size))
-                .map(|(bases, scalars)| Self {
-                    inner: crate::curve_446::g2::G2Projective::msm(&bases, &scalars).unwrap(),
+            let result = {
+                #[cfg(not(feature = "gpu-experimental"))]
+                {
+                    use rayon::prelude::*;
+                    let n_threads = rayon::current_num_threads();
+                    let chunk_size = bases.len().div_ceil(n_threads);
+                    bases
+                        .par_iter()
+                        .map(|&x| x.inner.into_affine())
+                        .chunks(chunk_size)
+                        .zip(scalars.par_iter().map(|&x| x.inner).chunks(chunk_size))
+                        .map(|(bases, scalars)| Self {
+                            inner: crate::curve_446::g2::G2Projective::msm(&bases, &scalars)
+                                .unwrap(),
+                        })
+                        .sum::<Self>()
+                }
+                #[cfg(feature = "gpu-experimental")]
+                {
+                    Self::multi_mul_scalar_with_gpu(bases, scalars, None)
+                }
+            };
+
+            result
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection.
+        /// If `gpu_index` is `None`, defaults to GPU 0.
+        #[track_caller]
+        #[cfg(feature = "gpu-experimental")]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            gpu_index: Option<u32>,
+        ) -> Self {
+            use crate::curve_446::g2::G2Projective;
+            use ark_ec::AffineRepr;
+            use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+
+            // Convert projective to affine, then extract normal-form limbs
+            let gpu_bases: Vec<_> = bases
+                .iter()
+                .map(|b| {
+                    let affine = b.inner.into_affine();
+                    if affine.is_zero() {
+                        return zk_cuda_backend::G2Affine::infinity();
+                    }
+                    // Extract normal-form limbs using helper
+                    let x_limbs = fq2_to_normal_limbs(&affine.x);
+                    let y_limbs = fq2_to_normal_limbs(&affine.y);
+                    zk_cuda_backend::G2Affine::new(x_limbs, y_limbs, false)
                 })
-                .sum::<Self>()
+                .collect();
+
+            let gpu_scalars: Vec<_> = scalars
+                .iter()
+                .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
+                .collect();
+
+            // Create CUDA stream with specified or default GPU index
+            let gpu_index = gpu_index.unwrap_or(0);
+            let stream = unsafe { cuda_create_stream(gpu_index) };
+
+            // Points are in normal form - CUDA will convert to Montgomery
+            let (gpu_result, _size_tracker) = zk_cuda_backend::G2Projective::msm(
+                &gpu_bases,
+                &gpu_scalars,
+                stream,
+                gpu_index,
+                false,
+            )
+            .expect("G2 MSM failed");
+
+            // Destroy stream
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+            // Convert result from Montgomery and normalize in one step
+            let normalized = gpu_result.from_montgomery_normalized();
+            let (x_c0, x_c1) = normalized.X();
+            let (y_c0, y_c1) = normalized.Y();
+            let (z_c0, z_c1) = normalized.Z();
+
+            // Check if result is infinity (Z = 0 in Fq2, meaning both c0 and c1 are zero)
+            let z_is_zero =
+                z_c0.iter().all(|&limb| limb == 0) && z_c1.iter().all(|&limb| limb == 0);
+            if z_is_zero {
+                return Self::ZERO;
+            }
+
+            let x = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &x_c0, &x_c1);
+            let y = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &y_c0, &y_c1);
+            let z = crate::curve_446::fq2_from_fq_sign_and_limbs(true, &z_c0, &z_c1);
+            Self {
+                inner: G2Projective::new_unchecked(x, y, z),
+            }
+        }
+
+        /// Multi-scalar multiplication with optional GPU device selection (CPU fallback).
+        /// When GPU feature is disabled, this just calls the regular multi_mul_scalar.
+        #[track_caller]
+        #[cfg(not(feature = "gpu-experimental"))]
+        pub fn multi_mul_scalar_with_gpu(
+            bases: &[Self],
+            scalars: &[Zp],
+            _gpu_index: Option<u32>,
+        ) -> Self {
+            Self::multi_mul_scalar(bases, scalars)
         }
 
         pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
@@ -1487,6 +1898,222 @@ mod tests {
     }
 
     /// Test that ZeroizeZp is equivalent to Zp
+    #[test]
+    #[cfg(feature = "gpu-experimental")]
+    fn test_scalar_conversion_64bit_vs_320bit() {
+        use ark_ff::PrimeField;
+
+        // Test with small 64-bit scalars
+        for scalar_val in [1u64, 2, 10, 100, 1000, u64::MAX] {
+            let zp_scalar = Zp::from_u64(scalar_val);
+            let bigint = zp_scalar.inner.into_bigint();
+            let cuda_scalar = zk_cuda_backend::Scalar::from(bigint.0);
+
+            // Verify conversion
+            assert_eq!(
+                bigint.0,
+                cuda_scalar.limbs(),
+                "Scalar conversion mismatch for value {}",
+                scalar_val
+            );
+        }
+
+        // Test with full 320-bit scalars
+        let rng = &mut rand::rngs::StdRng::seed_from_u64(42);
+        for _ in 0..10 {
+            let zp_scalar = Zp::rand(rng);
+            let bigint = zp_scalar.inner.into_bigint();
+            let cuda_scalar = zk_cuda_backend::Scalar::from(bigint.0);
+
+            // Verify conversion
+            assert_eq!(
+                bigint.0,
+                cuda_scalar.limbs(),
+                "Scalar conversion mismatch for random scalar"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-experimental")]
+    fn test_cpu_vs_gpu_msm_g1_simple_scalars() {
+        use crate::curve_api::CurveGroupOps;
+        use rand::rngs::StdRng;
+        use rand::SeedableRng;
+
+        // Test with simple 64-bit scalars first
+        for scalar_val in [1u64, 2, 5, 10] {
+            let base = G1::GENERATOR.normalize();
+            let scalar = Zp::from_u64(scalar_val);
+
+            // CPU computation
+            let cpu_result = G1::projective(base).mul_scalar(scalar);
+
+            // GPU computation
+            let bases = vec![base];
+            let scalars = vec![scalar];
+            let gpu_result = G1Affine::multi_mul_scalar(&bases, &scalars);
+
+            assert_eq!(
+                cpu_result, gpu_result,
+                "CPU and GPU MSM results differ for scalar={}",
+                scalar_val
+            );
+        }
+
+        // Test with random 320-bit scalars
+        let rng = &mut StdRng::seed_from_u64(42);
+        for i in 0..5 {
+            let scalar = Zp::rand(rng);
+
+            let base = G1::GENERATOR.normalize();
+            let bases = vec![base];
+            let scalars = vec![scalar];
+
+            // CPU
+            let cpu_result = G1::projective(base).mul_scalar(scalar);
+
+            // GPU
+            let gpu_result = G1Affine::multi_mul_scalar(&bases, &scalars);
+
+            assert_eq!(
+                cpu_result, gpu_result,
+                "CPU and GPU MSM results differ for random scalar {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-experimental")]
+    fn test_cpu_vs_gpu_msm_g1() {
+        use rand::rngs::StdRng;
+        use rand::SeedableRng;
+
+        // Test with various sizes
+        for n in [1, 10, 100, 1000] {
+            let rng = &mut StdRng::seed_from_u64(42);
+
+            // Generate random points and scalars
+            let bases: Vec<G1Affine> = (0..n)
+                .map(|_| G1::GENERATOR.mul_scalar(Zp::rand(rng)).normalize())
+                .collect();
+            let scalars: Vec<Zp> = (0..n).map(|_| Zp::rand(rng)).collect();
+
+            // Compute CPU MSM (by temporarily disabling tfa feature logic)
+            // We'll manually call the CPU implementation
+            let cpu_result = {
+                use crate::curve_446::g1::G1Projective;
+                let bases_inner: Vec<_> = bases.iter().map(|b| b.inner).collect();
+                let scalars_inner: Vec<_> = scalars.iter().map(|s| s.inner).collect();
+                G1 {
+                    inner: G1Projective::msm(&bases_inner, &scalars_inner).unwrap(),
+                }
+            };
+
+            // Compute GPU MSM (using tfa feature)
+            let gpu_result = G1Affine::multi_mul_scalar(&bases, &scalars);
+
+            // They should be equal as projective points
+            assert_eq!(
+                cpu_result, gpu_result,
+                "CPU and GPU MSM results differ for n={}",
+                n
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-experimental")]
+    fn test_cpu_vs_gpu_msm_g2() {
+        use rand::rngs::StdRng;
+        use rand::SeedableRng;
+
+        // Test with various sizes
+        for n in [1, 10, 100, 1000] {
+            let rng = &mut StdRng::seed_from_u64(42);
+
+            // Generate random points and scalars
+            let bases: Vec<G2Affine> = (0..n)
+                .map(|_| G2::GENERATOR.mul_scalar(Zp::rand(rng)).normalize())
+                .collect();
+            let scalars: Vec<Zp> = (0..n).map(|_| Zp::rand(rng)).collect();
+
+            // Compute CPU MSM
+            let cpu_result = {
+                use crate::curve_446::g2::G2Projective;
+                let bases_inner: Vec<_> = bases.iter().map(|b| b.inner).collect();
+                let scalars_inner: Vec<_> = scalars.iter().map(|s| s.inner).collect();
+                G2 {
+                    inner: G2Projective::msm(&bases_inner, &scalars_inner).unwrap(),
+                }
+            };
+
+            // Compute GPU MSM
+            let gpu_result = G2Affine::multi_mul_scalar(&bases, &scalars);
+
+            // They should be equal as projective points
+            assert_eq!(
+                cpu_result, gpu_result,
+                "CPU and GPU MSM results differ for n={}",
+                n
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu-experimental")]
+    fn test_cpu_vs_gpu_msm_with_actual_proof_data() {
+        use rand::rngs::StdRng;
+        use rand::SeedableRng;
+
+        // Use sizes similar to what we see in the failing test
+        for n in [2560, 2564] {
+            let rng = &mut StdRng::seed_from_u64(12345);
+
+            // Generate points similar to CRS generators
+            let bases: Vec<G1Affine> = (0..n)
+                .map(|i| {
+                    // Use deterministic but varied points
+                    let scalar = Zp::from_u64(i as u64) + Zp::rand(rng);
+                    G1::GENERATOR.mul_scalar(scalar).normalize()
+                })
+                .collect();
+
+            // Generate scalars similar to proof scalars (small values)
+            let scalars: Vec<Zp> = (0..n)
+                .map(|i| {
+                    // Mix of small and random values
+                    if i % 10 == 0 {
+                        Zp::rand(rng)
+                    } else {
+                        Zp::from_u64((i % 100) as u64)
+                    }
+                })
+                .collect();
+
+            // Compute CPU MSM
+            let cpu_result = {
+                use crate::curve_446::g1::G1Projective;
+                let bases_inner: Vec<_> = bases.iter().map(|b| b.inner).collect();
+                let scalars_inner: Vec<_> = scalars.iter().map(|s| s.inner).collect();
+                G1 {
+                    inner: G1Projective::msm(&bases_inner, &scalars_inner).unwrap(),
+                }
+            };
+
+            // Compute GPU MSM
+            let gpu_result = G1Affine::multi_mul_scalar(&bases, &scalars);
+
+            // They should be equal as projective points
+            assert_eq!(
+                cpu_result, gpu_result,
+                "CPU and GPU MSM results differ for n={}",
+                n
+            );
+        }
+    }
+
     #[test]
     fn test_zeroize_equivalency() {
         let seed = thread_rng().gen();

@@ -25,6 +25,7 @@ dieharder_run.log
 
 # Cuda local build
 backends/tfhe-cuda-backend/cuda/cmake-build-debug/
+backends/tfhe-cuda-backend/cuda/build/
 
 # WASM tests
 tfhe/web_wasm_parallel_tests/server.PID

@@ -102,6 +102,7 @@ integer = ["shortint", "dep:strum"]
 strings = ["integer"]
 internal-keycache = ["dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend", "shortint"]
+gpu-experimental-zk = ["gpu", "zk-pok", "tfhe-zk-pok/gpu-experimental"]
 gpu-experimental-multi-arch = [
     "gpu",
     "tfhe-cuda-backend/experimental-multi-arch",
