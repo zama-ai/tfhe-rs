@@ -1,11 +1,11 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct boolean_bitop_buffer {
+template <typename Torus, typename KSTorus> struct boolean_bitop_buffer {
 
   int_radix_params params;
-  int_radix_lut<Torus> *lut;
-  int_radix_lut<Torus> *message_extract_lut;
+  int_radix_lut<Torus, KSTorus> *lut;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut;
 
   CudaRadixCiphertextFFI *tmp_lwe_left;
   CudaRadixCiphertextFFI *tmp_lwe_right;
@@ -27,8 +27,9 @@ template <typename Torus> struct boolean_bitop_buffer {
     case BITAND:
     case BITOR:
     case BITXOR:
-      lut = new int_radix_lut<Torus>(streams, params, 1, lwe_ciphertext_count,
-                                     allocate_gpu_memory, size_tracker);
+      lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, lwe_ciphertext_count, allocate_gpu_memory,
+          size_tracker);
       {
         auto lut_bivariate_f = [op](Torus lhs, Torus rhs) -> Torus {
           if (op == BITOP_TYPE::BITAND) {
@@ -58,9 +59,9 @@ template <typename Torus> struct boolean_bitop_buffer {
     }
 
     if (!unchecked) {
-      message_extract_lut =
-          new int_radix_lut<Torus>(streams, params, 1, lwe_ciphertext_count,
-                                   gpu_memory_allocated, size_tracker);
+      message_extract_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, lwe_ciphertext_count, gpu_memory_allocated,
+          size_tracker);
       auto lut_f_message_extract = [params](Torus x) -> Torus {
         return x % params.message_modulus;
       };
@@ -107,10 +108,10 @@ template <typename Torus> struct boolean_bitop_buffer {
   }
 };
 
-template <typename Torus> struct int_bitop_buffer {
+template <typename Torus, typename KSTorus> struct int_bitop_buffer {
 
   int_radix_params params;
-  int_radix_lut<Torus> *lut;
+  int_radix_lut<Torus, KSTorus> *lut;
   BITOP_TYPE op;
   bool gpu_memory_allocated;
 
@@ -126,8 +127,9 @@ template <typename Torus> struct int_bitop_buffer {
     case BITAND:
     case BITOR:
     case BITXOR:
-      lut = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                     allocate_gpu_memory, size_tracker);
+      lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
       {
         auto lut_bivariate_f = [op](Torus lhs, Torus rhs) -> Torus {
           if (op == BITOP_TYPE::BITAND) {
@@ -152,9 +154,9 @@ template <typename Torus> struct int_bitop_buffer {
       break;
     default:
       // Scalar OP
-      lut = new int_radix_lut<Torus>(streams, params, params.message_modulus,
-                                     num_radix_blocks, allocate_gpu_memory,
-                                     size_tracker);
+      lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, params.message_modulus, num_radix_blocks,
+          allocate_gpu_memory, size_tracker);
 
       for (int i = 0; i < params.message_modulus; i++) {
         auto rhs = i;
@@ -189,9 +191,9 @@ template <typename Torus> struct int_bitop_buffer {
   }
 };
 
-template <typename Torus> struct boolean_bitnot_buffer {
+template <typename Torus, typename KSTorus> struct boolean_bitnot_buffer {
   int_radix_params params;
-  int_radix_lut<Torus> *message_extract_lut;
+  int_radix_lut<Torus, KSTorus> *message_extract_lut;
   bool gpu_memory_allocated;
   bool unchecked;
   boolean_bitnot_buffer(CudaStreams streams, int_radix_params params,
@@ -204,9 +206,9 @@ template <typename Torus> struct boolean_bitnot_buffer {
     auto message_modulus = params.message_modulus;
 
     if (!unchecked) {
-      message_extract_lut =
-          new int_radix_lut<Torus>(streams, params, 1, lwe_ciphertext_count,
-                                   gpu_memory_allocated, size_tracker);
+      message_extract_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, lwe_ciphertext_count, gpu_memory_allocated,
+          size_tracker);
       auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
         return x % message_modulus;
       };

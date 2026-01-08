@@ -31,7 +31,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t num_many_lut, uint32_t lut_stride);
 #endif
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,

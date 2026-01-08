@@ -45,6 +45,7 @@ on:
           - default
           - fast_default
           - unchecked
+          - support_ks32
       precisions_set:
         description: "Bit precisions set"
         type: choice
@@ -68,6 +69,7 @@ on:
         options:
           - classical
           - multi_bit
+          - classical_ks32
           - classical + multi_bit
           - classical_documentation
           - multi_bit_documentation

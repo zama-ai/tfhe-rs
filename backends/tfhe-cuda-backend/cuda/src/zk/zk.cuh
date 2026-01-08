@@ -15,11 +15,13 @@
 #include "zk/zk_utilities.h"
 #include <functional>
 
-template <typename Torus, class params>
-__host__ void host_expand_without_verification(
-    CudaStreams streams, Torus *lwe_array_out,
-    const Torus *lwe_flattened_compact_array_in, zk_expand_mem<Torus> *mem_ptr,
-    Torus *const *casting_keys, void *const *bsks, Torus *const *compute_ksks) {
+template <typename Torus, typename KSTorus, class params>
+__host__ void
+host_expand_without_verification(CudaStreams streams, Torus *lwe_array_out,
+                                 const Torus *lwe_flattened_compact_array_in,
+                                 zk_expand_mem<Torus, KSTorus> *mem_ptr,
+                                 Torus *const *casting_keys, void *const *bsks,
+                                 Torus *const *compute_ksks) {
   // Expand
   auto casting_key_type = mem_ptr->casting_key_type;
   auto expanded_lwes = mem_ptr->tmp_expanded_lwes;
@@ -75,7 +77,7 @@ __host__ void host_expand_without_verification(
     auto casting_ks_base_log = casting_params.ks_base_log;
 
     // apply keyswitch to BIG
-    execute_keyswitch_async<Torus>(
+    execute_keyswitch_async<Torus, Torus>(
         streams.get_ith(0), ksed_small_to_big_expanded_lwes,
         lwe_trivial_indexes_vec[0], expanded_lwes, lwe_trivial_indexes_vec[0],
         casting_keys, casting_input_dimension, casting_output_dimension,
@@ -103,16 +105,16 @@ __host__ void host_expand_without_verification(
   compact_lwe_lists.release();
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_expand_without_verification(
-    CudaStreams streams, zk_expand_mem<Torus> **mem_ptr,
+    CudaStreams streams, zk_expand_mem<Torus, KSTorus> **mem_ptr,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     uint32_t num_compact_lists, int_radix_params computing_params,
     int_radix_params casting_params, KS_TYPE casting_key_type,
     bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new zk_expand_mem<Torus>(
+  *mem_ptr = new zk_expand_mem<Torus, KSTorus>(
       streams, computing_params, casting_params, casting_key_type,
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
       allocate_gpu_memory, size_tracker);

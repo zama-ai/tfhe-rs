@@ -845,12 +845,6 @@ cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t, uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
-template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint32_t, uint32_t>(
-    void *stream, uint32_t gpu_index,
-    pbs_buffer<uint32_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
 template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint64_t, uint64_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,

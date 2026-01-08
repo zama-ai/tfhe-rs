@@ -16,7 +16,7 @@ use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKe
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::parameters::{CiphertextModulus32, ModulusSwitchType};
 use crate::shortint::server_key::CompressedModulusSwitchConfiguration;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 
@@ -101,27 +101,113 @@ impl CudaServerKey {
     ) -> Self {
         let mut engine = ShortintEngine::new();
 
-        // Generate a regular keyset and convert to the GPU
-        let AtomicPatternClientKey::Standard(std_cks) = &cks.key.atomic_pattern else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
+        match &cks.key.atomic_pattern {
+            AtomicPatternClientKey::Standard(std_cks) => {
+                let pbs_params_base = std_cks.parameters;
 
-        let pbs_params_base = std_cks.parameters;
+                let d_bootstrapping_key = match pbs_params_base {
+                    crate::shortint::PBSParameters::PBS(pbs_params) => {
+                        let h_bootstrap_key: LweBootstrapKeyOwned<u64> =
+                            par_allocate_and_generate_new_lwe_bootstrap_key(
+                                &std_cks.lwe_secret_key,
+                                &std_cks.glwe_secret_key,
+                                pbs_params.pbs_base_log,
+                                pbs_params.pbs_level,
+                                pbs_params.glwe_noise_distribution,
+                                pbs_params.ciphertext_modulus,
+                                &mut engine.encryption_generator,
+                            );
+                        let modulus_switch_noise_reduction_configuration =
+                            match pbs_params.modulus_switch_noise_reduction_params {
+                                ModulusSwitchType::Standard => None,
+                                ModulusSwitchType::DriftTechniqueNoiseReduction(
+                                    _modulus_switch_noise_reduction_params,
+                                ) => {
+                                    panic!("Drift noise reduction is not supported on GPU")
+                                }
+                                ModulusSwitchType::CenteredMeanNoiseReduction => {
+                                    Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+                                }
+                            };
 
-        let d_bootstrapping_key = match pbs_params_base {
-            crate::shortint::PBSParameters::PBS(pbs_params) => {
+                        let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+                            &h_bootstrap_key,
+                            modulus_switch_noise_reduction_configuration,
+                            streams,
+                        );
+
+                        CudaBootstrappingKey::Classic(d_bootstrap_key)
+                    }
+                    crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
+                        let h_bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
+                            par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
+                                &std_cks.lwe_secret_key,
+                                &std_cks.glwe_secret_key,
+                                pbs_params.pbs_base_log,
+                                pbs_params.pbs_level,
+                                pbs_params.grouping_factor,
+                                pbs_params.glwe_noise_distribution,
+                                pbs_params.ciphertext_modulus,
+                                &mut engine.encryption_generator,
+                            );
+
+                        let d_bootstrap_key =
+                            CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
+                                &h_bootstrap_key,
+                                streams,
+                            );
+
+                        CudaBootstrappingKey::MultiBit(d_bootstrap_key)
+                    }
+                };
+
+                // Creation of the key switching key
+                let h_key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
+                    &std_cks.large_lwe_secret_key(),
+                    &std_cks.small_lwe_secret_key(),
+                    std_cks.parameters.ks_base_log(),
+                    std_cks.parameters.ks_level(),
+                    std_cks.parameters.lwe_noise_distribution(),
+                    std_cks.parameters.ciphertext_modulus(),
+                    &mut engine.encryption_generator,
+                );
+
+                let d_key_switching_key =
+                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
+
+                assert!(matches!(
+                    std_cks.parameters.encryption_key_choice().into(),
+                    PBSOrder::KeyswitchBootstrap
+                ));
+
+                // Pack the keys in the server key set:
+                Self {
+                    key_switching_key: CudaDynamicKeyswitchingKey::Standard(d_key_switching_key),
+                    bootstrapping_key: d_bootstrapping_key,
+                    message_modulus: std_cks.parameters.message_modulus(),
+                    carry_modulus: std_cks.parameters.carry_modulus(),
+                    max_degree,
+                    max_noise_level: std_cks.parameters.max_noise_level(),
+                    ciphertext_modulus: std_cks.parameters.ciphertext_modulus(),
+                    pbs_order: std_cks.parameters.encryption_key_choice().into(),
+                }
+            }
+            AtomicPatternClientKey::KeySwitch32(ks32_cks) => {
+                let pbs_params_base = ks32_cks.parameters;
+
+                //                let d_bootstrapping_key
                 let h_bootstrap_key: LweBootstrapKeyOwned<u64> =
                     par_allocate_and_generate_new_lwe_bootstrap_key(
-                        &std_cks.lwe_secret_key,
-                        &std_cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.ciphertext_modulus,
+                        &ks32_cks.lwe_secret_key,
+                        &ks32_cks.glwe_secret_key,
+                        pbs_params_base.pbs_base_log,
+                        pbs_params_base.pbs_level,
+                        pbs_params_base.glwe_noise_distribution,
+                        pbs_params_base.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
                 let modulus_switch_noise_reduction_configuration =
-                    match pbs_params.modulus_switch_noise_reduction_params {
+                    match pbs_params_base.modulus_switch_noise_reduction_params {
                         ModulusSwitchType::Standard => None,
                         ModulusSwitchType::DriftTechniqueNoiseReduction(
                             _modulus_switch_noise_reduction_params,
@@ -139,59 +225,39 @@ impl CudaServerKey {
                     streams,
                 );
 
-                CudaBootstrappingKey::Classic(d_bootstrap_key)
-            }
-            crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
-                let h_bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
-                    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
-                        &std_cks.lwe_secret_key,
-                        &std_cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.grouping_factor,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.ciphertext_modulus,
-                        &mut engine.encryption_generator,
-                    );
+                let d_bootstrapping_key = CudaBootstrappingKey::Classic(d_bootstrap_key);
 
-                let d_bootstrap_key = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                    &h_bootstrap_key,
-                    streams,
+                // Creation of the key switching key
+                let h_key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
+                    &ks32_cks.large_lwe_secret_key(),
+                    &ks32_cks.small_lwe_secret_key(),
+                    ks32_cks.parameters.ks_base_log(),
+                    ks32_cks.parameters.ks_level(),
+                    ks32_cks.parameters.lwe_noise_distribution(),
+                    CiphertextModulus32::new_native(),
+                    &mut engine.encryption_generator,
                 );
 
-                CudaBootstrappingKey::MultiBit(d_bootstrap_key)
+                let d_key_switching_key =
+                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
+
+                assert!(matches!(
+                    ks32_cks.parameters.encryption_key_choice().into(),
+                    PBSOrder::KeyswitchBootstrap
+                ));
+
+                // Pack the keys in the server key set:
+                Self {
+                    key_switching_key: CudaDynamicKeyswitchingKey::KeySwitch32(d_key_switching_key),
+                    bootstrapping_key: d_bootstrapping_key,
+                    message_modulus: ks32_cks.parameters.message_modulus(),
+                    carry_modulus: ks32_cks.parameters.carry_modulus(),
+                    max_degree,
+                    max_noise_level: ks32_cks.parameters.max_noise_level(),
+                    ciphertext_modulus: ks32_cks.parameters.ciphertext_modulus(),
+                    pbs_order: ks32_cks.parameters.encryption_key_choice().into(),
+                }
             }
-        };
-
-        // Creation of the key switching key
-        let h_key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
-            &std_cks.large_lwe_secret_key(),
-            &std_cks.small_lwe_secret_key(),
-            std_cks.parameters.ks_base_log(),
-            std_cks.parameters.ks_level(),
-            std_cks.parameters.lwe_noise_distribution(),
-            std_cks.parameters.ciphertext_modulus(),
-            &mut engine.encryption_generator,
-        );
-
-        let d_key_switching_key =
-            CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
-
-        assert!(matches!(
-            std_cks.parameters.encryption_key_choice().into(),
-            PBSOrder::KeyswitchBootstrap
-        ));
-
-        // Pack the keys in the server key set:
-        Self {
-            key_switching_key: CudaDynamicKeyswitchingKey::Standard(d_key_switching_key),
-            bootstrapping_key: d_bootstrapping_key,
-            message_modulus: std_cks.parameters.message_modulus(),
-            carry_modulus: std_cks.parameters.carry_modulus(),
-            max_degree,
-            max_noise_level: std_cks.parameters.max_noise_level(),
-            ciphertext_modulus: std_cks.parameters.ciphertext_modulus(),
-            pbs_order: std_cks.parameters.encryption_key_choice().into(),
         }
     }
 

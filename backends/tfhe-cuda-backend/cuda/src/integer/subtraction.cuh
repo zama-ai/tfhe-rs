@@ -13,15 +13,15 @@
 #include "negation.cuh"
 #include "pbs/pbs_enums.h"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_sub_and_propagate_single_carry(
-    CudaStreams streams, int_sub_and_propagate<Torus> **mem_ptr,
+    CudaStreams streams, int_sub_and_propagate<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
     bool allocate_gpu_memory) {
   PUSH_RANGE("scratch sub")
   uint64_t size_tracker = 0;
 
-  *mem_ptr = new int_sub_and_propagate<Torus>(
+  *mem_ptr = new int_sub_and_propagate<Torus, KSTorus>(
       streams, params, num_radix_blocks, requested_flag, allocate_gpu_memory,
       size_tracker);
   POP_RANGE()
@@ -33,14 +33,14 @@ void host_sub_and_propagate_single_carry(
     CudaStreams streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *input_carries,
-    int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
-    uint32_t requested_flag, uint32_t uses_carry) {
+    int_sub_and_propagate<Torus, KSTorus> *mem, void *const *bsks,
+    KSTorus *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
 
   host_negation<Torus>(streams, mem->neg_rhs_array, rhs_array,
                        mem->params.message_modulus, mem->params.carry_modulus,
                        mem->neg_rhs_array->num_radix_blocks);
 
-  host_add_and_propagate_single_carry<Torus>(
+  host_add_and_propagate_single_carry<Torus, KSTorus>(
       streams, lhs_array, mem->neg_rhs_array, carry_out, input_carries,
       mem->sc_prop_mem, bsks, ksks, requested_flag, uses_carry);
 }
@@ -72,30 +72,31 @@ __host__ void host_subtraction(CudaStreams streams,
                        message_modulus, carry_modulus);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_integer_overflowing_sub(
-    CudaStreams streams, int_overflowing_sub_memory<Torus> **mem_ptr,
+    CudaStreams streams, int_overflowing_sub_memory<Torus, KSTorus> **mem_ptr,
     uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch overflowing sub")
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_overflowing_sub_memory<Torus>(
+  *mem_ptr = new int_overflowing_sub_memory<Torus, KSTorus>(
       streams, params, num_blocks, allocate_gpu_memory, noise_reduction_type,
       size_tracker);
   POP_RANGE()
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_overflowing_sub(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input_left,
     const CudaRadixCiphertextFFI *input_right,
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow,
-    int_borrow_prop_memory<uint64_t> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
+    int_borrow_prop_memory<Torus, KSTorus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, uint32_t compute_overflow,
+    uint32_t uses_input_borrow) {
   PUSH_RANGE("overflowing sub")
   if (output->num_radix_blocks != input_left->num_radix_blocks ||
       output->num_radix_blocks != input_right->num_radix_blocks)
@@ -124,8 +125,8 @@ __host__ void host_integer_overflowing_sub(
 
   host_single_borrow_propagate<Torus>(
       streams, output, overflow_block, input_borrow,
-      (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
-      num_groups, compute_overflow, uses_input_borrow);
+      (int_borrow_prop_memory<Torus, KSTorus> *)mem_ptr, bsks,
+      (KSTorus **)(ksks), num_groups, compute_overflow, uses_input_borrow);
   POP_RANGE()
 }
 

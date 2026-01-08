@@ -1,9 +1,10 @@
 #pragma once
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_logical_scalar_shift_buffer {
+template <typename Torus, typename KSTorus>
+struct int_logical_scalar_shift_buffer {
   int_radix_params params;
-  std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
+  std::vector<int_radix_lut<Torus, KSTorus> *> lut_buffers_bivariate;
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
@@ -46,9 +47,9 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     // so that in case an application calls scratches only once for a whole
     // circuit it can reuse memory for different shift values
     for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
-      auto cur_lut_bivariate =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      auto cur_lut_bivariate = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
 
       uint32_t shift_within_block = s_w_b;
 
@@ -133,9 +134,9 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     // so that in case an application calls scratches only once for a whole
     // circuit it can reuse memory for different shift values
     for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
-      auto cur_lut_bivariate =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      auto cur_lut_bivariate = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
 
       uint32_t shift_within_block = s_w_b;
 
@@ -201,10 +202,11 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
   }
 };
 
-template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
+template <typename Torus, typename KSTorus>
+struct int_arithmetic_scalar_shift_buffer {
   int_radix_params params;
-  std::vector<int_radix_lut<Torus> *> lut_buffers_univariate;
-  std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
+  std::vector<int_radix_lut<Torus, KSTorus> *> lut_buffers_univariate;
+  std::vector<int_radix_lut<Torus, KSTorus> *> lut_buffers_bivariate;
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
@@ -248,7 +250,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     // circuit it can reuse memory for different shift values
     // With two bits of message this is actually only one LUT.
     for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
-      auto shift_last_block_lut_univariate = new int_radix_lut<Torus>(
+      auto shift_last_block_lut_univariate = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       uint32_t shift_within_block = s_w_b;
@@ -285,7 +287,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
     }
 
-    auto padding_block_lut_univariate = new int_radix_lut<Torus>(
+    auto padding_block_lut_univariate = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
     // lut to compute the padding block
@@ -316,9 +318,9 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     // circuit it can reuse memory for different shift values
     // NB: with two bits of message, this is actually only one LUT.
     for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
-      auto shift_blocks_lut_bivariate =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      auto shift_blocks_lut_bivariate = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
 
       uint32_t shift_within_block = s_w_b;
 

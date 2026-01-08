@@ -9,8 +9,8 @@ void cuda_integer_aes_ctr_256_encrypt_64(
 
   host_integer_aes_ctr_256_encrypt<uint64_t>(
       CudaStreams(streams), output, iv, round_keys, counter_bits_le_all_blocks,
-      num_aes_inputs, (int_aes_encrypt_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)ksks);
+      num_aes_inputs, (int_aes_encrypt_buffer<uint64_t, uint64_t> *)mem_ptr,
+      bsks, (uint64_t **)ksks);
 }
 
 uint64_t scratch_cuda_integer_key_expansion_256_64(
@@ -28,8 +28,9 @@ uint64_t scratch_cuda_integer_key_expansion_256_64(
                           noise_reduction_type);
 
   return scratch_cuda_integer_key_expansion_256<uint64_t>(
-      CudaStreams(streams), (int_key_expansion_256_buffer<uint64_t> **)mem_ptr,
-      params, allocate_gpu_memory);
+      CudaStreams(streams),
+      (int_key_expansion_256_buffer<uint64_t, uint64_t> **)mem_ptr, params,
+      allocate_gpu_memory);
 }
 
 void cuda_integer_key_expansion_256_64(CudaStreamsFFI streams,
@@ -38,16 +39,16 @@ void cuda_integer_key_expansion_256_64(CudaStreamsFFI streams,
                                        int8_t *mem_ptr, void *const *bsks,
                                        void *const *ksks) {
 
-  host_integer_key_expansion_256<uint64_t>(
+  host_integer_key_expansion_256<uint64_t, uint64_t>(
       CudaStreams(streams), expanded_keys, key,
-      (int_key_expansion_256_buffer<uint64_t> *)mem_ptr, bsks,
+      (int_key_expansion_256_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks);
 }
 
 void cleanup_cuda_integer_key_expansion_256_64(CudaStreamsFFI streams,
                                                int8_t **mem_ptr_void) {
-  int_key_expansion_256_buffer<uint64_t> *mem_ptr =
-      (int_key_expansion_256_buffer<uint64_t> *)(*mem_ptr_void);
+  int_key_expansion_256_buffer<uint64_t, uint64_t> *mem_ptr =
+      (int_key_expansion_256_buffer<uint64_t, uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(CudaStreams(streams));
   delete mem_ptr;

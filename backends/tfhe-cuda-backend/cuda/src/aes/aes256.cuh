@@ -29,11 +29,12 @@
  * - AddRoundKey
  *
  */
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void vectorized_aes_256_encrypt_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *all_states_bitsliced,
     CudaRadixCiphertextFFI const *round_keys, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
+    int_aes_encrypt_buffer<Torus, KSTorus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t BITS_PER_BYTE = 8;
   constexpr uint32_t STATE_BYTES = 16;
@@ -179,12 +180,13 @@ __host__ void vectorized_aes_256_encrypt_inplace(
  * +---------------------------------+
  *
  */
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_aes_ctr_256_encrypt(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
+    int_aes_encrypt_buffer<Torus, KSTorus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t NUM_BITS = 128;
 
@@ -217,13 +219,13 @@ __host__ void host_integer_aes_ctr_256_encrypt(
                                        num_aes_inputs, NUM_BITS);
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 uint64_t scratch_cuda_integer_key_expansion_256(
-    CudaStreams streams, int_key_expansion_256_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_key_expansion_256_buffer<Torus, KSTorus> **mem_ptr,
     int_radix_params params, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_key_expansion_256_buffer<Torus>(
+  *mem_ptr = new int_key_expansion_256_buffer<Torus, KSTorus>(
       streams, params, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
@@ -238,11 +240,12 @@ uint64_t scratch_cuda_integer_key_expansion_256(
  * - If (i % 8 == 4): w_i = w_{i-8} + SubWord(w_{i-1})
  * - Otherwise:       w_i = w_{i-8} + w_{i-1}
  */
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void host_integer_key_expansion_256(
     CudaStreams streams, CudaRadixCiphertextFFI *expanded_keys,
-    CudaRadixCiphertextFFI const *key, int_key_expansion_256_buffer<Torus> *mem,
-    void *const *bsks, Torus *const *ksks) {
+    CudaRadixCiphertextFFI const *key,
+    int_key_expansion_256_buffer<Torus, KSTorus> *mem, void *const *bsks,
+    KSTorus *const *ksks) {
 
   constexpr uint32_t BITS_PER_WORD = 32;
   constexpr uint32_t BITS_PER_BYTE = 8;

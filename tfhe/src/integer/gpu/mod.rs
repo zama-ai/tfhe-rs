@@ -435,38 +435,75 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         .filter(|&&rhs_bit| rhs_bit == T::ONE)
         .count() as u32;
 
-    scratch_cuda_integer_scalar_mul_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        lwe_array.d_blocks.0.lwe_ciphertext_count.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        num_scalar_bits,
-        true,
-        noise_reduction_type as u32,
-    );
+    if TypeId::of::<KST>() == TypeId::of::<u32>() {
+        scratch_cuda_integer_scalar_mul_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            lwe_array.d_blocks.0.lwe_ciphertext_count.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            num_scalar_bits,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_scalar_multiplication_ciphertext_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_lwe_array,
-        decomposed_scalar.as_ptr().cast::<u64>(),
-        has_at_least_one_set.as_ptr().cast::<u64>(),
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        polynomial_size.0 as u32,
-        message_modulus.0 as u32,
-        num_scalars,
-    );
+        cuda_scalar_multiplication_ciphertext_64_ks32_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lwe_array,
+            decomposed_scalar.as_ptr().cast::<u64>(),
+            has_at_least_one_set.as_ptr().cast::<u64>(),
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            polynomial_size.0 as u32,
+            message_modulus.0 as u32,
+            num_scalars,
+        );
+    } else if TypeId::of::<KST>() == TypeId::of::<u64>() {
+        scratch_cuda_integer_scalar_mul_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            lwe_array.d_blocks.0.lwe_ciphertext_count.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            num_scalar_bits,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_scalar_multiplication_ciphertext_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lwe_array,
+            decomposed_scalar.as_ptr().cast::<u64>(),
+            has_at_least_one_set.as_ptr().cast::<u64>(),
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            polynomial_size.0 as u32,
+            message_modulus.0 as u32,
+            num_scalars,
+        );
+    } else {
+        panic!("Unknown KS dtype");
+    }
 
     cleanup_cuda_scalar_mul(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(lwe_array, &cuda_ffi_lwe_array);
@@ -1229,39 +1266,79 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_mult_radix_ciphertext_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        is_boolean_left,
-        is_boolean_right,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        glwe_dimension.0 as u32,
-        lwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        pbs_base_log.0 as u32,
-        pbs_level.0 as u32,
-        ks_base_log.0 as u32,
-        ks_level.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_integer_mult_radix_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
-        is_boolean_left,
-        &raw const cuda_ffi_radix_lwe_right,
-        is_boolean_right,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        mem_ptr,
-        polynomial_size.0 as u32,
-        num_blocks,
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_integer_mult_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            is_boolean_left,
+            is_boolean_right,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            glwe_dimension.0 as u32,
+            lwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_level.0 as u32,
+            ks_base_log.0 as u32,
+            ks_level.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_mult_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            is_boolean_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            is_boolean_right,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+            polynomial_size.0 as u32,
+            num_blocks,
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_integer_mult_radix_ciphertext_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            is_boolean_left,
+            is_boolean_right,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            glwe_dimension.0 as u32,
+            lwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_level.0 as u32,
+            ks_base_log.0 as u32,
+            ks_level.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_mult_radix_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            is_boolean_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            is_boolean_right,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            mem_ptr,
+            polynomial_size.0 as u32,
+            num_blocks,
+        );
+    } else {
+        panic!("Unsupported PBS input bitwidth {}", T::BITS);
+    }
+
     cleanup_cuda_integer_mult(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
@@ -1415,35 +1492,70 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_bitop_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        op as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_bitop_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_right,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_bitop_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            op as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_bitop_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_bitop_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            op as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_bitop_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unsupported KS dtype");
+    }
     cleanup_cuda_integer_bitop(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
@@ -2016,37 +2128,73 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
         &mut radix_lwe_right_noise_levels,
     );
 
-    scratch_cuda_comparison_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        op as u32,
-        is_signed,
-        true,
-        noise_reduction_type as u32,
-    );
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_comparison_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            op as u32,
+            is_signed,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_comparison_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_out,
-        &raw const cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_right,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+        cuda_comparison_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_out,
+            &raw const cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_comparison_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            op as u32,
+            is_signed,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_comparison_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_out,
+            &raw const cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unsupported KS datatype");
+    }
 
     cleanup_cuda_integer_comparison(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
@@ -2748,39 +2896,77 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
 
-    scratch_cuda_sub_and_propagate_single_carry_64_inplace(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        requested_flag as u32,
-        true,
-        noise_reduction_type as u32,
-    );
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_sub_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            requested_flag as u32,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_sub_and_propagate_single_carry_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_lhs_input,
-        &raw const cuda_ffi_rhs_input,
-        &raw mut cuda_ffi_carry_out,
-        &raw const cuda_ffi_carry_in,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        requested_flag as u32,
-        uses_carry,
-    );
+        cuda_sub_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lhs_input,
+            &raw const cuda_ffi_rhs_input,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            requested_flag as u32,
+            uses_carry,
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_sub_and_propagate_single_carry_64_ks32_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            requested_flag as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_sub_and_propagate_single_carry_64_ks32_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lhs_input,
+            &raw const cuda_ffi_rhs_input,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            requested_flag as u32,
+            uses_carry,
+        );
+    } else {
+        panic!("Unknown KS dtype");
+    }
 
     cleanup_cuda_sub_and_propagate_single_carry(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
@@ -2913,38 +3099,76 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_add_and_propagate_single_carry_64_inplace(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        requested_flag as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_add_and_propagate_single_carry_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_lhs_input,
-        &raw const cuda_ffi_rhs_input,
-        &raw mut cuda_ffi_carry_out,
-        &raw const cuda_ffi_carry_in,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        requested_flag as u32,
-        uses_carry,
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_add_and_propagate_single_carry_64_ks32_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            requested_flag as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_add_and_propagate_single_carry_64_ks32_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lhs_input,
+            &raw const cuda_ffi_rhs_input,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            requested_flag as u32,
+            uses_carry,
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_add_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            requested_flag as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_add_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lhs_input,
+            &raw const cuda_ffi_rhs_input,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            requested_flag as u32,
+            uses_carry,
+        );
+    } else {
+        panic!("Unsupported KS dtype");
+    }
     cleanup_cuda_add_and_propagate_single_carry(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(lhs_input, &cuda_ffi_lhs_input);
     update_noise_degree(carry_out, &cuda_ffi_carry_out);
@@ -4163,34 +4387,68 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
         &mut radix_lwe_left_noise_levels,
     );
 
-    scratch_cuda_logical_scalar_shift_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        ShiftRotateType::LeftShift as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_logical_scalar_shift_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_left,
-        shift,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+    if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_logical_scalar_shift_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            ShiftRotateType::LeftShift as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_logical_scalar_shift_64_ks32_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            shift,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_logical_scalar_shift_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            ShiftRotateType::LeftShift as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_logical_scalar_shift_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            shift,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unknown KS dtype");
+    }
+
     cleanup_cuda_logical_scalar_shift(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
@@ -5378,35 +5636,71 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
         &mut condition_noise_levels,
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_cmux_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_cmux_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_out,
-        &raw const cuda_ffi_condition,
-        &raw const cuda_ffi_radix_lwe_true,
-        &raw const cuda_ffi_radix_lwe_false,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_cmux_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_cmux_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_out,
+            &raw const cuda_ffi_condition,
+            &raw const cuda_ffi_radix_lwe_true,
+            &raw const cuda_ffi_radix_lwe_false,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_cmux_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_cmux_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_out,
+            &raw const cuda_ffi_condition,
+            &raw const cuda_ffi_radix_lwe_true,
+            &raw const cuda_ffi_radix_lwe_false,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unsupported KS dtype");
+    }
+
     cleanup_cuda_cmux(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
@@ -6269,37 +6563,74 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         &mut remainder_degrees,
         &mut remainder_noise_levels,
     );
-    scratch_cuda_integer_div_rem_radix_ciphertext_64(
-        streams.ffi(),
-        is_signed,
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_integer_div_rem_radix_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_quotient,
-        &raw mut cuda_ffi_remainder,
-        &raw const cuda_ffi_numerator,
-        &raw const cuda_ffi_divisor,
-        is_signed,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_integer_div_rem_radix_ciphertext_64(
+            streams.ffi(),
+            is_signed,
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_div_rem_radix_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_quotient,
+            &raw mut cuda_ffi_remainder,
+            &raw const cuda_ffi_numerator,
+            &raw const cuda_ffi_divisor,
+            is_signed,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_integer_div_rem_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            is_signed,
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_div_rem_radix_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_quotient,
+            &raw mut cuda_ffi_remainder,
+            &raw const cuda_ffi_numerator,
+            &raw const cuda_ffi_divisor,
+            is_signed,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unsupported KS data type");
+    }
+
     cleanup_cuda_integer_div_rem(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(quotient, &cuda_ffi_quotient);
     update_noise_degree(remainder, &cuda_ffi_remainder);
@@ -6739,38 +7070,76 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_integer_overflowing_sub_64_inplace(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        compute_overflow as u32,
-        true,
-        noise_reduction_type as u32,
-    );
-    cuda_integer_overflowing_sub_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_right,
-        &raw mut cuda_ffi_carry_out,
-        &raw const cuda_ffi_carry_in,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        compute_overflow as u32,
-        uses_input_borrow,
-    );
+
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_integer_overflowing_sub_64_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            compute_overflow as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_overflowing_sub_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            compute_overflow as u32,
+            uses_input_borrow,
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_integer_overflowing_sub_64_ks32_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            compute_overflow as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+        cuda_integer_overflowing_sub_64_ks32_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_radix_lwe_left,
+            &raw const cuda_ffi_radix_lwe_right,
+            &raw mut cuda_ffi_carry_out,
+            &raw const cuda_ffi_carry_in,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+            compute_overflow as u32,
+            uses_input_borrow,
+        );
+    } else {
+        panic!("Unsupported KS dtype");
+    }
     cleanup_cuda_integer_overflowing_sub(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
     update_noise_degree(carry_out, &cuda_ffi_carry_out);
@@ -8067,34 +8436,68 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
         &mut ciphertext_noise_levels,
     );
 
-    scratch_cuda_boolean_bitnot_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        1u32,
-        is_unchecked,
-        true,
-        noise_reduction_type as u32,
-    );
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_boolean_bitnot_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            1u32,
+            is_unchecked,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_boolean_bitnot_ciphertext_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_ciphertext,
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+        cuda_boolean_bitnot_ciphertext_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_ciphertext,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_boolean_bitnot_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            1u32,
+            is_unchecked,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_boolean_bitnot_ciphertext_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_ciphertext,
+            mem_ptr,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else {
+        panic!("Unsupported KS dype");
+    }
+
     cleanup_cuda_boolean_bitnot(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(ciphertext, &cuda_ffi_ciphertext);
 }
@@ -8568,39 +8971,75 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
-    scratch_cuda_cast_to_unsigned_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_input_blocks,
-        target_num_blocks,
-        input_is_signed,
-        requires_full_propagate,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-        noise_reduction_type as u32,
-    );
+    if TypeId::of::<T>() == TypeId::of::<u32>() {
+        scratch_cuda_cast_to_unsigned_64_ks32(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_input_blocks,
+            target_num_blocks,
+            input_is_signed,
+            requires_full_propagate,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
 
-    cuda_cast_to_unsigned_64(
-        streams.ffi(),
-        &raw mut cuda_ffi_output,
-        &raw mut cuda_ffi_input,
-        mem_ptr,
-        target_num_blocks,
-        input_is_signed,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-    );
+        cuda_cast_to_unsigned_64_ks32(
+            streams.ffi(),
+            &raw mut cuda_ffi_output,
+            &raw mut cuda_ffi_input,
+            mem_ptr,
+            target_num_blocks,
+            input_is_signed,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+        scratch_cuda_cast_to_unsigned_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_input_blocks,
+            target_num_blocks,
+            input_is_signed,
+            requires_full_propagate,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            true,
+            noise_reduction_type as u32,
+        );
+
+        cuda_cast_to_unsigned_64(
+            streams.ffi(),
+            &raw mut cuda_ffi_output,
+            &raw mut cuda_ffi_input,
+            mem_ptr,
+            target_num_blocks,
+            input_is_signed,
+            bootstrapping_key.ptr.as_ptr(),
+            keyswitch_key.ptr.as_ptr(),
+        );
+    }
 
     cleanup_cuda_cast_to_unsigned_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
