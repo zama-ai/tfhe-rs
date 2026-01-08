@@ -23,6 +23,8 @@ runs:
         echo "${CMAKE_SCRIPT_SHA} cmake-${CMAKE_VERSION}-linux-x86_64.sh" > checksum
         sha256sum -c checksum
         sudo bash cmake-"${CMAKE_VERSION}"-linux-x86_64.sh --skip-license --prefix=/usr/ --exclude-subdir
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
         sudo apt update
         sudo apt remove -y unattended-upgrades
         sudo apt install -y cmake-format libclang-dev
