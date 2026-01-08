@@ -727,8 +727,15 @@ async function compactPublicKeyZeroKnowledgeBench() {
             serialized_size = list.safe_serialize(BigInt(10000000)).length;
           }
           const mean = timing / bench_loops;
+
+          let base_bench_str = "compact_fhe_uint_proven_encryption_";
+          let supportsThreads = await threads();
+          if (!supportsThreads) {
+            base_bench_str += "unsafe_coop_";
+          }
+
           const common_bench_str =
-            "compact_fhe_uint_proven_encryption_" +
+            base_bench_str +
             params.zk_scheme +
             "_" +
             bits_to_encrypt +
