@@ -36,6 +36,7 @@ rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.101"
 getrandom = "0.2.8"
+# The project maintainers consider that this is the last version of the 1.3 branch, any newer version should not be trusted
 bincode = "=1.3.3"
 
 [profile.bench]
