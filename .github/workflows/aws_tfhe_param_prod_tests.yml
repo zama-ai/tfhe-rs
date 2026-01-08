@@ -23,6 +23,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [ labeled ]
 
 permissions:
   contents: read
@@ -32,6 +33,7 @@ permissions:
 jobs:
   should-run:
     name: aws_tfhe_param_prod_tests/should-run
+    if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read # Needed to check for file change
@@ -39,26 +41,14 @@ jobs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}
       versionable_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.versionable_any_changed }}
-      core_crypto_test: ${{ env.IS_PULL_REQUEST == 'false' ||
-        steps.changed-files.outputs.core_crypto_any_changed ||
-        steps.changed-files.outputs.dependencies_any_changed }}
-      boolean_test: ${{ env.IS_PULL_REQUEST == 'false' ||
-        steps.changed-files.outputs.boolean_any_changed ||
-        steps.changed-files.outputs.dependencies_any_changed }}
       shortint_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.shortint_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
       integer_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.integer_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
-      wasm_test: ${{ env.IS_PULL_REQUEST == 'false' ||
-        steps.changed-files.outputs.wasm_any_changed ||
-        steps.changed-files.outputs.dependencies_any_changed }}
       high_level_api_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.high_level_api_any_changed ||
-        steps.changed-files.outputs.dependencies_any_changed }}
-      user_docs_test: ${{ env.IS_PULL_REQUEST == 'false' ||
-        steps.changed-files.outputs.user_docs_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
       any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
     steps:
@@ -81,18 +71,9 @@ jobs:
               - tfhe-zk-pok/**
               - utils/tfhe-versionable/**
               - utils/tfhe-versionable-derive/**
-            csprng:
-              - tfhe-csprng/**
-            zk_pok:
-              - tfhe-zk-pok/**
             versionable:
               - utils/tfhe-versionable/**
               - utils/tfhe-versionable-derive/**
-            core_crypto:
-              - tfhe/src/core_crypto/**
-            boolean:
-              - tfhe/src/core_crypto/**
-              - tfhe/src/boolean/**
             shortint:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
@@ -100,23 +81,12 @@ jobs:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
               - tfhe/src/integer/**
-            wasm:
-              - tfhe/src/**
-              - tfhe/js_on_wasm_tests/**
-              - tfhe/web_wasm_parallel_tests/**
-              - '!tfhe/src/c_api/**'
-              - '!tfhe/src/boolean/**'
             high_level_api:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
               - '!tfhe/src/boolean/**'
               - '!tfhe/src/c_api/**'
               - '!tfhe/src/js_on_wasm_api/**'
-            user_docs:
-              - tfhe/src/**
-              - '!tfhe/src/c_api/**'
-              - 'tfhe/docs/**/**.md'
-              - README.md
 
       - name: Aggregate file changes
         id: aggregated-changes
@@ -163,7 +133,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   param-prod-tests:
-    name: Fast CPU tests
+    name: aws_tfhe_param_prod_tests/param-prod-tests
     needs: [ should-run, setup-instance ]
     concurrency:
       group: ${{ github.workflow_ref }}
@@ -181,43 +151,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run user docs tests
-        if: needs.should-run.outputs.user_docs_test == 'true'
-        run: |
-          make test_user_doc
-
-      - name: Get Node version
-        run: |
-          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
-
-      - name: Node cache restoration
-        id: node-cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 #v4.3.0
-        with:
-          path: |
-            ~/.nvm
-            ~/.npm
-          key: node-${{ env.NODE_VERSION }}
-
-      - name: Install Node
-        if: steps.node-cache.outputs.cache-hit != 'true'
-        run: |
-          make install_node
-
-      - name: Node cache save
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 #v4.3.0
-        if: steps.node-cache.outputs.cache-hit != 'true'
-        with:
-          path: |
-            ~/.nvm
-            ~/.npm
-          key: node-${{ env.NODE_VERSION }}
-
-      - name: Run js on wasm API tests
-        if: needs.should-run.outputs.wasm_test == 'true'
-        run: |
-          make test_nodejs_wasm_api_ci
-
       - name: Gen Keys if required
         if: needs.should-run.outputs.shortint_test == 'true' ||
           needs.should-run.outputs.integer_test == 'true'
@@ -227,7 +160,7 @@ jobs:
       - name: Run shortint tests
         if: needs.should-run.outputs.shortint_test == 'true'
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=FALSE make test_shortint_ci
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=FALSE make test_param_prod_shortint_ci
 
       - name: Run integer tests
         if: needs.should-run.outputs.integer_test == 'true'

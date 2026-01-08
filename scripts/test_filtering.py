@@ -129,9 +129,12 @@ def filter_integer_tests(input_args):
                 multi_bit_filter = "_gpu_multi_bit"
 
         if input_args.run_prod_only:
-            filter_expression = [f"test(/^integer::{backend_filter}.*_param_prod/)"]
+            filter_expression = [f"test(/^integer::{backend_filter}.*_param_prod.*/)"]
         else:
-            filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
+            filter_expression = [
+                f"test(/^integer::{backend_filter}.*/)",
+                "not test(/.*_param_prod.*/)",
+            ]
 
         if input_args.multi_bit:
             filter_expression.append("test(~_multi_bit)")
@@ -173,9 +176,6 @@ def filter_integer_tests(input_args):
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
-
-        if not input_args.run_prod_only:
-            filter_expression.append("not test(/.*_param_prod_.*/)")
 
     else:
         if input_args.backend == "gpu":
@@ -225,6 +225,11 @@ def shortint_normal_filter(input_args):
 
     filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2_ks32_pbs/)")
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
+
+    if input_args.run_prod_only:
+        filter_expression.append("test(/^shortint::.*_param_prod.*")
+    else:
+        filter_expression.append("not test(shortint::.*_param_prod.*/)")
 
     return filter_expression
 
