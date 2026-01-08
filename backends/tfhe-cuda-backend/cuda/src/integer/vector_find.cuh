@@ -14,7 +14,7 @@ __host__ void host_compute_equality_selectors(
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_equality_selectors_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
 
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
@@ -91,7 +91,7 @@ __host__ void host_create_possible_results(
     CudaRadixCiphertextFFI const *lwe_array_in_list,
     uint32_t num_possible_values, const uint64_t *h_decomposed_cleartexts,
     uint32_t num_blocks, int_possible_results_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t max_packed_value = mem_ptr->max_packed_value;
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
@@ -174,7 +174,7 @@ __host__ void host_aggregate_one_hot_vector(
     CudaRadixCiphertextFFI const *lwe_array_in_list,
     uint32_t num_input_ciphertexts, uint32_t num_blocks,
     int_aggregate_one_hot_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
 
   int_radix_params params = mem_ptr->params;
   uint32_t chunk_size = mem_ptr->chunk_size;
@@ -345,7 +345,7 @@ __host__ void host_unchecked_match_value(
     CudaRadixCiphertextFFI const *lwe_array_in_ct,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     int_unchecked_match_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->selectors_list, lwe_array_in_ct,
       mem_ptr->num_input_blocks, h_match_inputs, mem_ptr->eq_selectors_buffer,
@@ -422,7 +422,7 @@ __host__ void host_unchecked_match_value_or(
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     const uint64_t *h_or_value,
     int_unchecked_match_value_or_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_unchecked_match_value<Torus>(streams, mem_ptr->tmp_match_result,
                                     mem_ptr->tmp_match_bool, lwe_array_in_ct,
@@ -465,7 +465,7 @@ host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
                         CudaRadixCiphertextFFI const *value,
                         uint32_t num_inputs, uint32_t num_blocks,
                         int_unchecked_contains_buffer<Torus, KSTorus> *mem_ptr,
-                        void *const *bsks, Torus *const *ksks) {
+                        void *const *bsks, KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -516,7 +516,7 @@ __host__ void host_unchecked_contains_clear(
     CudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
     uint32_t num_inputs, uint32_t num_blocks,
     int_unchecked_contains_clear_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
                            num_blocks * sizeof(Torus), streams.stream(0),
@@ -577,7 +577,7 @@ __host__ void host_unchecked_is_in_clears(
     CudaRadixCiphertextFFI const *input, const uint64_t *h_cleartexts,
     uint32_t num_clears, uint32_t num_blocks,
     int_unchecked_is_in_clears_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
                                          input, num_blocks, h_cleartexts,
@@ -594,7 +594,7 @@ __host__ void host_compute_final_index_from_selectors(
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *selectors,
     uint32_t num_inputs, uint32_t num_blocks_index,
     int_final_index_from_selectors_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   for (uint32_t i = 0; i < num_inputs; i++) {
     CudaRadixCiphertextFFI const *src_selector = &selectors[i];
@@ -657,7 +657,7 @@ __host__ void host_unchecked_index_in_clears(
     const uint64_t *h_cleartexts, uint32_t num_clears, uint32_t num_blocks,
     uint32_t num_blocks_index,
     int_unchecked_index_in_clears_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->final_index_buf->unpacked_selectors, input, num_blocks,
@@ -704,7 +704,7 @@ __host__ void host_unchecked_first_index_in_clears(
     const uint64_t *h_unique_values, const uint64_t *h_unique_indices,
     uint32_t num_unique, uint32_t num_blocks, uint32_t num_blocks_index,
     int_unchecked_first_index_in_clears_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   host_compute_equality_selectors<Torus>(streams, mem_ptr->unpacked_selectors,
                                          input, num_blocks, h_unique_values,
@@ -748,7 +748,7 @@ __host__ void host_unchecked_first_index_of_clear(
     const uint64_t *h_clear_val, uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index,
     int_unchecked_first_index_of_clear_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
                            num_blocks * sizeof(Torus), streams.stream(0),
@@ -841,7 +841,7 @@ __host__ void host_unchecked_first_index_of(
     CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
     uint32_t num_blocks, uint32_t num_blocks_index,
     int_unchecked_first_index_of_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -924,7 +924,7 @@ __host__ void host_unchecked_index_of(
     CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
     uint32_t num_blocks, uint32_t num_blocks_index,
     int_unchecked_index_of_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    KSTorus *const *ksks) {
 
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
@@ -992,7 +992,7 @@ __host__ void host_unchecked_index_of_clear(
     uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
     uint32_t num_blocks_index,
     int_unchecked_index_of_clear_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   CudaRadixCiphertextFFI *packed_selectors =
       mem_ptr->final_index_buf->packed_selectors;

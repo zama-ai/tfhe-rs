@@ -1044,7 +1044,7 @@ template <typename Torus, typename KSTorus> struct unsigned_int_div_rem_memory {
     };
 
     int_radix_lut<Torus, KSTorus> *luts[2] = {message_extract_lut_1,
-                                     message_extract_lut_2};
+                                              message_extract_lut_2};
     auto active_streams =
         streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
@@ -1134,7 +1134,8 @@ template <typename Torus, typename KSTorus> struct unsigned_int_div_rem_memory {
     zero_out_if_overflow_happened[1]->broadcast_lut(active_streams);
 
     // merge_overflow_flags_luts
-    merge_overflow_flags_luts = new int_radix_lut<Torus, KSTorus> *[num_bits_in_message];
+    merge_overflow_flags_luts =
+        new int_radix_lut<Torus, KSTorus> *[num_bits_in_message];
     auto active_gpu_count_for_bits =
         streams.active_gpu_subset(1, params.pbs_type);
     for (int i = 0; i < num_bits_in_message; i++) {

@@ -25,7 +25,7 @@ __host__ void host_unchecked_all_eq_slices(
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_inputs, uint32_t num_blocks,
     int_unchecked_all_eq_slices_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   // sync_from(streams)
   //
@@ -104,7 +104,7 @@ __host__ void host_unchecked_contains_sub_slice(
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_rhs, uint32_t num_blocks,
     int_unchecked_contains_sub_slice_buffer<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t num_windows = mem_ptr->num_windows;
 

@@ -63,6 +63,26 @@ uint64_t scratch_cuda_boolean_bitnot_64(
       lwe_ciphertext_count, is_unchecked, allocate_gpu_memory);
 }
 
+uint64_t scratch_cuda_boolean_bitnot_64_ks32(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    uint32_t lwe_ciphertext_count, bool is_unchecked, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          big_lwe_dimension, small_lwe_dimension, ks_level,
+                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
+                          message_modulus, carry_modulus, noise_reduction_type);
+
+  return scratch_cuda_boolean_bitnot<uint64_t, uint32_t>(
+      CudaStreams(streams),
+      (boolean_bitnot_buffer<uint64_t, uint32_t> **)mem_ptr, params,
+      lwe_ciphertext_count, is_unchecked, allocate_gpu_memory);
+}
+
 void cuda_boolean_bitnot_ciphertext_64(CudaStreamsFFI streams,
                                        CudaRadixCiphertextFFI *lwe_array,
                                        int8_t *mem_ptr, void *const *bsks,
@@ -71,6 +91,16 @@ void cuda_boolean_bitnot_ciphertext_64(CudaStreamsFFI streams,
       CudaStreams(streams), lwe_array,
       (boolean_bitnot_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));
+}
+
+void cuda_boolean_bitnot_ciphertext_64_ks32(CudaStreamsFFI streams,
+                                            CudaRadixCiphertextFFI *lwe_array,
+                                            int8_t *mem_ptr, void *const *bsks,
+                                            void *const *ksks) {
+  host_boolean_bitnot<uint64_t, uint32_t>(
+      CudaStreams(streams), lwe_array,
+      (boolean_bitnot_buffer<uint64_t, uint32_t> *)mem_ptr, bsks,
+      (uint32_t **)(ksks));
 }
 
 void cleanup_cuda_boolean_bitnot(CudaStreamsFFI streams,
@@ -102,6 +132,25 @@ uint64_t scratch_cuda_bitop_64(
       lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
 }
 
+uint64_t scratch_cuda_bitop_64_ks32(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, BITOP_TYPE op_type,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          big_lwe_dimension, small_lwe_dimension, ks_level,
+                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
+                          message_modulus, carry_modulus, noise_reduction_type);
+
+  return scratch_cuda_bitop<uint64_t, uint32_t>(
+      CudaStreams(streams), (int_bitop_buffer<uint64_t, uint32_t> **)mem_ptr,
+      lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
+}
+
 void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
                                CudaRadixCiphertextFFI *radix_ciphertext,
                                uint32_t ct_message_modulus,
@@ -124,6 +173,19 @@ void cuda_bitop_ciphertext_64(CudaStreamsFFI streams,
                        lwe_array_2,
                        (int_bitop_buffer<uint64_t, uint64_t> *)mem_ptr, bsks,
                        (uint64_t **)(ksks));
+}
+
+void cuda_bitop_ciphertext_64_ks32(CudaStreamsFFI streams,
+                                   CudaRadixCiphertextFFI *lwe_array_out,
+                                   CudaRadixCiphertextFFI const *lwe_array_1,
+                                   CudaRadixCiphertextFFI const *lwe_array_2,
+                                   int8_t *mem_ptr, void *const *bsks,
+                                   void *const *ksks) {
+
+  host_bitop<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
+                       lwe_array_2,
+                       (int_bitop_buffer<uint64_t, uint32_t> *)mem_ptr, bsks,
+                       (uint32_t **)(ksks));
 }
 
 void cleanup_cuda_integer_bitop(CudaStreamsFFI streams, int8_t **mem_ptr_void) {

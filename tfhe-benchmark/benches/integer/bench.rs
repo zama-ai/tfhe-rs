@@ -2719,7 +2719,13 @@ mod cuda {
         rng_func: default_scalar
     );
 
-    criterion_group!(cuda_ops_support_ks32, cuda_mul, cuda_add, cuda_sub,);
+    criterion_group!(
+        cuda_ops_support_ks32,
+        cuda_mul,
+        cuda_add,
+        cuda_sub,
+        cuda_div_rem,
+    );
 
     criterion_group!(
         unchecked_cuda_ops,

@@ -31,8 +31,8 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
-    uint64_t *const *ksks,
-    unsigned_int_div_rem_2_2_memory<uint64_t, uint64_t> *mem_ptr) {
+    KSTorus *const *ksks,
+    unsigned_int_div_rem_2_2_memory<Torus, KSTorus> *mem_ptr) {
 
   if (streams.count() < 4) {
     PANIC("GPU count should be greater than 4 when using div_rem_2_2");
@@ -476,8 +476,8 @@ __host__ void host_unsigned_integer_div_rem(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *divisor, void *const *bsks,
-    uint64_t *const *ksks,
-    unsigned_int_div_rem_memory<uint64_t, uint64_t> *mem_ptr) {
+    KSTorus *const *ksks,
+    unsigned_int_div_rem_memory<Torus, KSTorus> *mem_ptr) {
 
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
@@ -740,7 +740,7 @@ __host__ void host_unsigned_integer_div_rem(
       mem_ptr->overflow_sub_mem->update_lut_indexes(
           streams, first_indexes, second_indexes, scalar_indexes,
           merged_interesting_remainder->num_radix_blocks);
-      host_integer_overflowing_sub<uint64_t>(
+      host_integer_overflowing_sub<Torus, KSTorus>(
           streams, new_remainder, merged_interesting_remainder,
           interesting_divisor, subtraction_overflowed,
           (const CudaRadixCiphertextFFI *)nullptr, mem_ptr->overflow_sub_mem,
@@ -903,13 +903,11 @@ __host__ void host_unsigned_integer_div_rem(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void
-host_integer_div_rem(CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-                     CudaRadixCiphertextFFI *remainder,
-                     CudaRadixCiphertextFFI const *numerator,
-                     CudaRadixCiphertextFFI const *divisor, bool is_signed,
-                     void *const *bsks, uint64_t *const *ksks,
-                     int_div_rem_memory<uint64_t, uint64_t> *int_mem_ptr) {
+__host__ void host_integer_div_rem(
+    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
+    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *divisor, bool is_signed, void *const *bsks,
+    KSTorus *const *ksks, int_div_rem_memory<Torus, KSTorus> *int_mem_ptr) {
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
       remainder->num_radix_blocks != quotient->num_radix_blocks)

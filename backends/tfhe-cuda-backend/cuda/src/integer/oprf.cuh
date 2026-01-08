@@ -115,7 +115,7 @@ void host_integer_grouped_oprf_custom_range(
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     int_grouped_oprf_custom_range_memory<Torus, KSTorus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    void *const *bsks, KSTorus *const *ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(

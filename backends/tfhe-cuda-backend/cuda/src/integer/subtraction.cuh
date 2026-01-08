@@ -95,7 +95,8 @@ __host__ void host_integer_overflowing_sub(
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow,
     int_borrow_prop_memory<Torus, KSTorus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
+    KSTorus *const *ksks, uint32_t compute_overflow,
+    uint32_t uses_input_borrow) {
   PUSH_RANGE("overflowing sub")
   if (output->num_radix_blocks != input_left->num_radix_blocks ||
       output->num_radix_blocks != input_right->num_radix_blocks)
@@ -124,8 +125,8 @@ __host__ void host_integer_overflowing_sub(
 
   host_single_borrow_propagate<Torus>(
       streams, output, overflow_block, input_borrow,
-      (int_borrow_prop_memory<Torus, KSTorus> *)mem_ptr, bsks, (Torus **)(ksks),
-      num_groups, compute_overflow, uses_input_borrow);
+      (int_borrow_prop_memory<Torus, KSTorus> *)mem_ptr, bsks,
+      (KSTorus **)(ksks), num_groups, compute_overflow, uses_input_borrow);
   POP_RANGE()
 }
 

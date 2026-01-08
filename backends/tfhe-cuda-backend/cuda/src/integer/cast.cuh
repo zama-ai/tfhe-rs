@@ -130,7 +130,7 @@ host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
                       CudaRadixCiphertextFFI *input,
                       int_cast_to_unsigned_buffer<Torus, KSTorus> *mem_ptr,
                       uint32_t target_num_blocks, bool input_is_signed,
-                      void *const *bsks, Torus *const *ksks) {
+                      void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t current_num_blocks = input->num_radix_blocks;
 
@@ -143,9 +143,9 @@ host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
     uint32_t num_blocks_to_add = target_num_blocks - current_num_blocks;
 
     if (input_is_signed) {
-      host_extend_radix_with_sign_msb<Torus>(
+      host_extend_radix_with_sign_msb<Torus, KSTorus>(
           streams, output, input, mem_ptr->extend_buffer, num_blocks_to_add,
-          bsks, (Torus **)ksks);
+          bsks, ksks);
     } else {
       host_extend_radix_with_trivial_zero_blocks_msb<Torus>(output, input,
                                                             streams);
