@@ -114,6 +114,16 @@ pub trait CurveGroupOps<Zp>:
 
     fn mul_scalar(self, scalar: Zp) -> Self;
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[Zp]) -> Self;
+    /// Multi-scalar multiplication with optional GPU device selection.
+    /// If `gpu_index` is `None`, defaults to GPU 0 (or CPU if GPU is not available).
+    fn multi_mul_scalar_with_gpu(
+        bases: &[Self::Affine],
+        scalars: &[Zp],
+        _gpu_index: Option<u32>,
+    ) -> Self {
+        // Default implementation ignores gpu_index and calls the regular method
+        Self::multi_mul_scalar(bases, scalars)
+    }
     fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
     fn normalize(self) -> Self::Affine;
@@ -368,6 +378,15 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
         }
     }
 
+    #[track_caller]
+    fn multi_mul_scalar_with_gpu(
+        bases: &[Self::Affine],
+        scalars: &[bls12_446::Zp],
+        gpu_index: Option<u32>,
+    ) -> Self {
+        Self::Affine::multi_mul_scalar_with_gpu(bases, scalars, gpu_index)
+    }
+
     fn to_le_bytes(self) -> impl AsRef<[u8]> {
         self.to_le_bytes()
     }
@@ -410,6 +429,15 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
     #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
         Self::Affine::multi_mul_scalar(bases, scalars)
+    }
+
+    #[track_caller]
+    fn multi_mul_scalar_with_gpu(
+        bases: &[Self::Affine],
+        scalars: &[bls12_446::Zp],
+        gpu_index: Option<u32>,
+    ) -> Self {
+        Self::Affine::multi_mul_scalar_with_gpu(bases, scalars, gpu_index)
     }
 
     fn to_le_bytes(self) -> impl AsRef<[u8]> {

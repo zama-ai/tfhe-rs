@@ -26,6 +26,37 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
+/// Returns the number of available GPUs.
+/// When GPU feature is disabled, returns 1 (CPU fallback).
+#[cfg(feature = "experimental-gpu")]
+fn get_num_gpus() -> u32 {
+    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+    let num_gpus = unsafe { cuda_get_number_of_gpus() };
+    assert!(num_gpus > 0, "No GPU available");
+    num_gpus as u32
+}
+
+/// GPU selection for MSM operations.
+/// Returns `Some(gpu_index)` to run on a specific GPU, or `None` for default (GPU 0).
+/// Uses rayon thread index to distribute MSM operations across available GPUs.
+#[inline]
+fn select_gpu_for_msm() -> Option<u32> {
+    #[cfg(feature = "experimental-gpu")]
+    {
+        let num_gpus = get_num_gpus();
+        if num_gpus <= 1 {
+            return None; // Use default GPU 0
+        }
+        // Use rayon thread index to distribute across GPUs
+        let thread_idx = rayon::current_thread_index().unwrap_or(0);
+        Some((thread_idx % num_gpus as usize) as u32)
+    }
+    #[cfg(not(feature = "experimental-gpu"))]
+    {
+        None
+    }
+}
+
 /// The CRS of the zk scheme
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[serde(
@@ -973,20 +1004,21 @@ fn prove_impl<G: Curve>(
         s.spawn(|_| {
             C_hat_e = Some(
                 g_hat.mul_scalar(gamma_hat_e)
-                    + G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &scalars_e),
+                    + G::G2::multi_mul_scalar_with_gpu(&g_hat_list[..d + k + 4], &scalars_e,
+            select_gpu_for_msm()),
             );
         });
 
         s.spawn(|_| {
             C_e = Some(
                 g.mul_scalar(gamma_e)
-                    + G::G1::multi_mul_scalar(&g_list[n - (d + k + 4)..n], &scalars_e_rev),
+                    + G::G1::multi_mul_scalar_with_gpu(&g_list[n - (d + k + 4)..n], &scalars_e_rev, select_gpu_for_msm()),
             );
         });
 
         s.spawn(|_| {
             C_r_tilde =
-                Some(g.mul_scalar(gamma_r) + G::G1::multi_mul_scalar(&g_list[..d + k], &scalars_r));
+                Some(g.mul_scalar(gamma_r) + G::G1::multi_mul_scalar_with_gpu(&g_list[..d + k], &scalars_r, select_gpu_for_msm()));
         });
     });
 
@@ -1038,12 +1070,13 @@ fn prove_impl<G: Curve>(
         .collect::<Box<[_]>>();
 
     let C_R = g.mul_scalar(gamma_R)
-        + G::G1::multi_mul_scalar(
+        + G::G1::multi_mul_scalar_with_gpu(
             &g_list[..128],
             &w_R.iter()
                 .copied()
                 .map(G::Zp::from_i64)
                 .collect::<Box<[_]>>(),
+            select_gpu_for_msm(),
         );
 
     let C_R_bytes = C_R.to_le_bytes();
@@ -1084,8 +1117,12 @@ fn prove_impl<G: Curve>(
         .rev()
         .map(|(&y, &w)| if w { y } else { G::Zp::ZERO })
         .collect::<Box<[_]>>();
-    let C_y =
-        g.mul_scalar(gamma_y) + G::G1::multi_mul_scalar(&g_list[n - (D + 128 * m)..n], &scalars);
+    let C_y = g.mul_scalar(gamma_y)
+        + G::G1::multi_mul_scalar_with_gpu(
+            &g_list[n - (D + 128 * m)..n],
+            &scalars,
+            select_gpu_for_msm(),
+        );
 
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
@@ -1434,7 +1471,8 @@ fn prove_impl<G: Curve>(
                 G::G1::ZERO
             } else {
                 g.mul_scalar(P_pi[0])
-                    + G::G1::multi_mul_scalar(&g_list[..P_pi.len() - 1], &P_pi[1..])
+                    + G::G1::multi_mul_scalar_with_gpu(&g_list[..P_pi.len() - 1], &P_pi[1..],
+                select_gpu_for_msm())
             });
         });
 
@@ -1463,9 +1501,9 @@ fn prove_impl<G: Curve>(
                     acc
                 })
                 .collect();
-            C_h1 = Some(G::G1::multi_mul_scalar(
+            C_h1 = Some(G::G1::multi_mul_scalar_with_gpu(
                 &g_list[n - (D + 128 * m)..n],
-                &scalars_h1,
+                &scalars_h1,select_gpu_for_msm()
             ));
         });
 
@@ -1495,7 +1533,7 @@ fn prove_impl<G: Curve>(
                     acc
                 })
                 .collect();
-            C_h2 = Some(G::G1::multi_mul_scalar(&g_list[..n], &scalars_h2));
+            C_h2 = Some(G::G1::multi_mul_scalar_with_gpu(&g_list[..n], &scalars_h2, select_gpu_for_msm()));
         });
 
         s.spawn(|_| {
@@ -1506,7 +1544,7 @@ fn prove_impl<G: Curve>(
 
                     rayon::scope(|s_inner| {
                         s_inner.spawn(|_| {
-                            C_hat_h3 = Some(G::G2::multi_mul_scalar(
+                            C_hat_h3 = Some(G::G2::multi_mul_scalar_with_gpu(
                                 &g_hat_list[n - (d + k)..n],
                                 &(0..d + k)
                                     .rev()
@@ -1522,7 +1560,7 @@ fn prove_impl<G: Curve>(
                                         }
                                         delta_r * acc - delta_theta_q * theta[j]
                                     })
-                                    .collect::<Box<[_]>>(),
+                                    .collect::<Box<[_]>>(), select_gpu_for_msm()
                             ));
                         });
 
@@ -1544,7 +1582,7 @@ fn prove_impl<G: Curve>(
         });
 
         s.spawn(|_| {
-            C_hat_t = Some(G::G2::multi_mul_scalar(g_hat_list, &t));
+            C_hat_t = Some(G::G2::multi_mul_scalar_with_gpu(g_hat_list, &t, select_gpu_for_msm()));
         });
     });
 
@@ -1784,7 +1822,8 @@ fn prove_impl<G: Curve>(
         Q_kzg[j + 1] = G::Zp::ZERO;
     }
 
-    let pi_kzg = g.mul_scalar(q[0]) + G::G1::multi_mul_scalar(&g_list[..n - 1], &q[1..n]);
+    let pi_kzg = g.mul_scalar(q[0])
+        + G::G1::multi_mul_scalar_with_gpu(&g_list[..n - 1], &q[1..n], select_gpu_for_msm());
 
     Proof {
         C_hat_e,
@@ -2372,7 +2411,7 @@ fn pairing_check_two_steps<G: Curve>(
                         C_hat_h3,
                         C_hat_w: _,
                     }) => C_hat_h3,
-                    None => G::G2::multi_mul_scalar(
+                    None => G::G2::multi_mul_scalar_with_gpu(
                         &g_hat_list[n - (d + k)..n],
                         &(0..d + k)
                             .rev()
@@ -2389,6 +2428,7 @@ fn pairing_check_two_steps<G: Curve>(
                                 delta_r * acc - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
+                        select_gpu_for_msm(),
                     ),
                 },
             ))
@@ -2396,12 +2436,13 @@ fn pairing_check_two_steps<G: Curve>(
         s.spawn(|_| {
             lhs3 = Some(pairing(
                 C_R,
-                G::G2::multi_mul_scalar(
+                G::G2::multi_mul_scalar_with_gpu(
                     &g_hat_list[n - 128..n],
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
                         .collect::<Box<[_]>>(),
+                    select_gpu_for_msm(),
                 ),
             ))
         });
@@ -2413,7 +2454,11 @@ fn pairing_check_two_steps<G: Curve>(
                         C_hat_h3: _,
                         C_hat_w,
                     }) => C_hat_w,
-                    None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
+                    None => G::G2::multi_mul_scalar_with_gpu(
+                        &g_hat_list[..d + k + 4],
+                        &omega[..d + k + 4],
+                        select_gpu_for_msm(),
+                    ),
                 },
             ))
         });
@@ -2579,7 +2624,7 @@ fn pairing_check_batched<G: Curve>(
             None => {
                 lhs2 = Some(pairing(
                     C_r_tilde,
-                    G::G2::multi_mul_scalar(
+                    G::G2::multi_mul_scalar_with_gpu(
                         &g_hat_list[n - (d + k)..n],
                         &(0..d + k)
                             .rev()
@@ -2596,6 +2641,7 @@ fn pairing_check_batched<G: Curve>(
                                 delta_r * acc - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
+                        select_gpu_for_msm(),
                     ),
                 ))
             }
@@ -2603,12 +2649,13 @@ fn pairing_check_batched<G: Curve>(
         s.spawn(|_| {
             lhs3 = Some(pairing(
                 C_R,
-                G::G2::multi_mul_scalar(
+                G::G2::multi_mul_scalar_with_gpu(
                     &g_hat_list[n - 128..n],
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
                         .collect::<Box<[_]>>(),
+                    select_gpu_for_msm(),
                 ),
             ))
         });
@@ -2625,7 +2672,11 @@ fn pairing_check_batched<G: Curve>(
             None => {
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e),
-                    G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
+                    G::G2::multi_mul_scalar_with_gpu(
+                        &g_hat_list[..d + k + 4],
+                        &omega[..d + k + 4],
+                        select_gpu_for_msm(),
+                    ),
                 ))
             }
         });

@@ -60,6 +60,14 @@ impl Fp2Config for Fq2Config {
     }
 }
 
+/// Create an Fq2 from sign and limb arrays for both components
+pub fn fq2_from_fq_sign_and_limbs(sign: bool, c0_limbs: &[u64; 7], c1_limbs: &[u64; 7]) -> Fq2 {
+    Fq2::new(
+        Fq::from_sign_and_limbs(sign, c0_limbs),
+        Fq::from_sign_and_limbs(sign, c1_limbs),
+    )
+}
+
 pub type Fq6 = Fp6<Fq6Config>;
 
 #[derive(Clone, Copy)]
