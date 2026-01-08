@@ -454,14 +454,31 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 #[cfg(all(feature = "gpu", feature = "zk-pok"))]
 mod cuda {
     use super::*;
-    use benchmark::utilities::cuda_local_streams;
     use criterion::BatchSize;
     use itertools::Itertools;
-    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+    use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::key_switching_key::{CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial};
     use tfhe::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::CompressedServerKey;
+    use tfhe::GpuIndex;
+
+    /// Compute the number of elements for GPU ZK throughput benchmarks.
+    /// Values are tuned to avoid OOM on H100 GPUs while still saturating the GPU.
+    /// Memory usage scales with both CRS size and bits being proven.
+    fn gpu_zk_throughput_elements(crs_size: usize, bits: usize) -> u64 {
+        match (crs_size, bits) {
+            // 64-bit CRS: smaller proofs, can handle more elements
+            (64, _) => 30,
+            // 2048-bit CRS: moderate memory usage
+            (2048, b) if b <= 256 => 15,
+            (2048, _) => 10,
+            // 4096-bit CRS: largest proofs, most memory intensive
+            (4096, _) => 6,
+            // Default fallback for unknown configurations
+            _ => 10,
+        }
+    }
 
     fn gpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let bench_name = "zk::cuda::pke_zk_verify";
@@ -476,20 +493,33 @@ mod cuda {
             .open(results_file)
             .expect("cannot open results file");
 
-        for (param_pke, param_ksk, param_fhe) in [(
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )] {
+        let params: [(
+            CompactPublicKeyEncryptionParameters,
+            ShortintKeySwitchingParameters,
+            PBSParameters,
+        ); 2] = [
+            (
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            (
+                BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+        ];
+
+        for (param_pke, param_ksk, param_fhe) in params.iter() {
             let param_name = param_fhe.name();
             let param_name = param_name.as_str();
-            let cks = ClientKey::new(param_fhe);
+            let cks = ClientKey::new(*param_fhe);
             let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
             let sk = compressed_server_key.decompress();
 
-            let compact_private_key = CompactPrivateKey::new(param_pke);
+            let compact_private_key = CompactPrivateKey::new(*param_pke);
             let pk = CompactPublicKey::new(&compact_private_key);
-            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), param_ksk);
+            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), *param_ksk);
 
             // We have a use case with 320 bits of metadata
             let mut metadata = [0u8; (320 / u8::BITS) as usize];
@@ -504,7 +534,7 @@ mod cuda {
                 println!("Generating CRS... ");
                 let crs_size = proof_config.crs_size;
                 let crs = CompactPkeCrs::from_shortint_params(
-                    param_pke,
+                    *param_pke,
                     LweCiphertextCount(crs_size / msg_bits),
                 )
                 .unwrap();
@@ -519,7 +549,7 @@ mod cuda {
 
                     let fhe_uint_count = bits / 64;
 
-                    let shortint_params: PBSParameters = param_fhe.into();
+                    let shortint_params: PBSParameters = *param_fhe;
 
                     let crs_data = bincode::serialize(&crs).unwrap();
 
@@ -531,7 +561,7 @@ mod cuda {
                     write_result(&mut file, &test_name, crs_data.len());
                     write_to_json::<u64, _>(
                         &test_name,
-                        shortint_params,
+                        *param_fhe,
                         param_name,
                         "pke_zk_crs",
                         &OperatorType::Atomic,
@@ -658,12 +688,17 @@ mod cuda {
                                 });
                             }
                             BenchmarkType::Throughput => {
-                                let mut elements_per_gpu = 100;
-                                if *bits == 4096 {
-                                    elements_per_gpu /= 5;
-                                }
-                                // This value, found empirically, ensure saturation of 8XH100 SXM5
-                                let elements = elements_per_gpu * get_number_of_gpus() as u64;
+                                // Element count tuned to avoid OOM on H100 while saturating GPU.
+                                // Memory scales with CRS size and bits, so we adjust accordingly.
+                                let elements_per_gpu = gpu_zk_throughput_elements(crs_size, *bits);
+
+                                // Multi-gpu is not currently supported, so we disable it here (for
+                                // now)
+
+                                // let gpu_count = get_number_of_gpus() as usize;
+                                let gpu_count = 1;
+
+                                let elements = elements_per_gpu * gpu_count as u64;
                                 bench_group.throughput(Throughput::Elements(elements));
 
                                 bench_id_verify = format!(
@@ -677,8 +712,9 @@ mod cuda {
                                 );
                                 println!("Generating proven ciphertexts list ({zk_load})... ");
                                 let cts = (0..elements)
+                                    .into_par_iter()
                                     .map(|_| {
-                                        let input_msg = rng.gen::<u64>();
+                                        let input_msg = rand::thread_rng().gen::<u64>();
                                         let messages = vec![input_msg; fhe_uint_count];
                                         tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                             .extend(messages.iter().copied())
@@ -687,17 +723,45 @@ mod cuda {
                                     })
                                     .collect::<Vec<_>>();
 
-                                let local_streams =
-                                    cuda_local_streams(num_block, elements as usize);
-                                let d_ksk_material_vec = local_streams
-                                    .par_iter()
-                                    .map(|local_stream| {
-                                        CudaKeySwitchingKeyMaterial::from_key_switching_key(
-                                            &ksk,
-                                            local_stream,
+                                // let local_streams =
+                                // cuda_local_streams(num_block, elements as usize);
+                                let local_streams = [CudaStreams::new_single_gpu(GpuIndex::new(0))];
+                                // Create GPU server keys ONCE per GPU (not per stream/element!)
+                                let gpu_server_keys: Vec<CudaServerKey> = (0..gpu_count)
+                                    .into_par_iter()
+                                    .map(|i| {
+                                        let stream =
+                                            CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                                        CudaServerKey::decompress_from_cpu(
+                                            &compressed_server_key,
+                                            &stream,
                                         )
                                     })
-                                    .collect::<Vec<_>>();
+                                    .collect();
+
+                                let d_ksk_material_vec: Vec<CudaKeySwitchingKeyMaterial> = (0
+                                    ..gpu_count)
+                                    .into_par_iter()
+                                    .map(|i| {
+                                        let stream =
+                                            CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                                        CudaKeySwitchingKeyMaterial::from_key_switching_key(
+                                            &ksk, &stream,
+                                        )
+                                    })
+                                    .collect();
+
+                                // Create CudaKeySwitchingKey ONCE per GPU
+                                let d_ksks: Vec<CudaKeySwitchingKey> = (0..gpu_count)
+                                    .into_par_iter()
+                                    .map(|i| {
+                                        let gpu_sk = &gpu_server_keys[i];
+                                        let material = &d_ksk_material_vec[i];
+                                        CudaKeySwitchingKey::from_cuda_key_switching_key_material(
+                                            material, gpu_sk,
+                                        )
+                                    })
+                                    .collect();
 
                                 bench_group.bench_function(&bench_id_verify, |b| {
                                     b.iter(|| {
@@ -723,17 +787,16 @@ mod cuda {
                                                    |gpu_cts| {
                                                        gpu_cts.par_iter().enumerate().for_each
                                                        (|(i, gpu_ct)| {
-                                                           let local_stream = &local_streams[i % local_streams.len()];
-
-                                                           let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, local_stream);
-                                                           let d_ksk =
-                                                               CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material_vec[i % local_streams.len()], &gpu_sk);
+                                                           let stream_idx = i % local_streams.len();
+                                                           let local_stream = &local_streams[stream_idx];
+                                                           let gpu_idx = i % gpu_count;
+                                                           let d_ksk = &d_ksks[gpu_idx];
 
                                                            gpu_ct
-                                                               .expand_without_verification(&d_ksk, local_stream)
+                                                               .expand_without_verification(d_ksk, local_stream)
                                                                .unwrap();
                                                        });
-                                                   }, BatchSize::SmallInput);
+                                                   }, BatchSize::PerIteration);
                                 });
 
                                 bench_group.bench_function(&bench_id_verify_and_expand, |b| {
@@ -751,18 +814,18 @@ mod cuda {
                                                    |gpu_cts| {
                                                        gpu_cts.par_iter().enumerate().for_each
                                                        (|(i, gpu_ct)| {
-                                                           let local_stream = &local_streams[i % local_streams.len()];
-                                                           let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, local_stream);
-                                                           let d_ksk =
-                                                               CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material_vec[i % local_streams.len()], &gpu_sk);
+                                                           let stream_idx = i % local_streams.len();
+                                                           let local_stream = &local_streams[stream_idx];
+                                                           let gpu_idx = i % gpu_count;
+                                                           let d_ksk = &d_ksks[gpu_idx];
 
                                                            gpu_ct
                                                                .verify_and_expand(
-                                                                   &crs, &pk, &metadata, &d_ksk, local_stream,
+                                                                   &crs, &pk, &metadata, d_ksk, local_stream,
                                                                )
                                                                .unwrap();
                                                        });
-                                                   }, BatchSize::SmallInput);
+                                                   }, BatchSize::PerIteration);
                                 });
                             }
                         }
@@ -789,10 +852,155 @@ mod cuda {
         bench_group.finish()
     }
 
+    fn gpu_pke_zk_proof(c: &mut Criterion) {
+        let bench_name = "zk::cuda::pke_zk_proof";
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+
+        let params: [(
+            CompactPublicKeyEncryptionParameters,
+            ShortintKeySwitchingParameters,
+            PBSParameters,
+        ); 2] = [
+            (
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            (
+                BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+        ];
+
+        for (param_pke, _param_ksk, param_fhe) in params.iter() {
+            let param_name = param_fhe.name();
+            let param_name = param_name.as_str();
+            let cks = ClientKey::new(*param_fhe);
+            let sks = ServerKey::new_radix_server_key(&cks);
+            let compact_private_key = CompactPrivateKey::new(*param_pke);
+            let pk = CompactPublicKey::new(&compact_private_key);
+            // Kept for consistency
+            let _casting_key =
+                KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), *_param_ksk);
+
+            // We have a use case with 320 bits of metadata
+            let mut metadata = [0u8; (320 / u8::BITS) as usize];
+            let mut rng = rand::thread_rng();
+            metadata.fill_with(|| rng.gen());
+
+            let zk_vers = param_pke.zk_scheme;
+
+            for proof_config in default_proof_config().iter() {
+                let msg_bits =
+                    (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
+                println!("Generating CRS... ");
+                let crs_size = proof_config.crs_size;
+                let crs = CompactPkeCrs::from_shortint_params(
+                    *param_pke,
+                    LweCiphertextCount(crs_size / msg_bits),
+                )
+                .unwrap();
+
+                for bits in proof_config.bits_to_prove.iter() {
+                    assert_eq!(bits % 64, 0);
+                    // Packing, so we take the message and carry modulus to compute our block count
+                    let num_block = 64usize.div_ceil(msg_bits);
+
+                    let fhe_uint_count = bits / 64;
+
+                    for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
+                        let zk_load = match compute_load {
+                            ZkComputeLoad::Proof => "compute_load_proof",
+                            ZkComputeLoad::Verify => "compute_load_verify",
+                        };
+
+                        let bench_id;
+
+                        match get_bench_type() {
+                            BenchmarkType::Latency => {
+                                bench_id = format!(
+                                    "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                );
+                                bench_group.bench_function(&bench_id, |b| {
+                                    let input_msg = rng.gen::<u64>();
+                                    let messages = vec![input_msg; fhe_uint_count];
+
+                                    b.iter(|| {
+                                        let _ct1 =
+                                            tfhe::integer::ProvenCompactCiphertextList::builder(
+                                                &pk,
+                                            )
+                                            .extend(messages.iter().copied())
+                                            .build_with_proof_packed(&crs, &metadata, compute_load)
+                                            .unwrap();
+                                    })
+                                });
+                            }
+                            BenchmarkType::Throughput => {
+                                // The zk proof is currently not pooled, so we simply use the number
+                                // of threads as heuristic for the
+                                // batch size
+                                let elements =
+                                    (rayon::current_num_threads() / num_block).max(1) + 1;
+                                bench_group.throughput(Throughput::Elements(elements as u64));
+
+                                bench_id = format!(
+                                    "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                );
+                                bench_group.bench_function(&bench_id, |b| {
+                                    let messages = (0..elements)
+                                        .map(|_| {
+                                            let input_msg = rng.gen::<u64>();
+                                            vec![input_msg; fhe_uint_count]
+                                        })
+                                        .collect::<Vec<_>>();
+
+                                    b.iter(|| {
+                                        messages.par_iter().for_each(|msg| {
+                                            tfhe::integer::ProvenCompactCiphertextList::builder(
+                                                &pk,
+                                            )
+                                            .extend(msg.iter().copied())
+                                            .build_with_proof_packed(&crs, &metadata, compute_load)
+                                            .unwrap();
+                                        })
+                                    })
+                                });
+                            }
+                        }
+
+                        let shortint_params: PBSParameters = *param_fhe;
+
+                        write_to_json::<u64, _>(
+                            &bench_id,
+                            shortint_params,
+                            param_name,
+                            "pke_zk_proof",
+                            &OperatorType::Atomic,
+                            shortint_params.message_modulus().0 as u32,
+                            vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                        );
+                    }
+                }
+            }
+        }
+
+        bench_group.finish()
+    }
+
     pub fn gpu_zk_verify() {
         let results_file = Path::new("gpu_pke_zk_crs_sizes.csv");
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
         gpu_pke_zk_verify(&mut criterion, results_file);
+    }
+
+    pub fn gpu_zk_proof() {
+        let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
+        gpu_pke_zk_proof(&mut criterion);
     }
 }
 
@@ -804,11 +1012,14 @@ pub fn zk_verify_and_proof() {
 }
 
 #[cfg(all(feature = "gpu", feature = "zk-pok"))]
-use crate::cuda::gpu_zk_verify;
+use crate::cuda::{gpu_zk_proof, gpu_zk_verify};
 
 fn main() {
     #[cfg(all(feature = "gpu", feature = "zk-pok"))]
-    gpu_zk_verify();
+    {
+        gpu_zk_proof();
+        gpu_zk_verify();
+    }
     #[cfg(not(feature = "gpu"))]
     zk_verify_and_proof();
 

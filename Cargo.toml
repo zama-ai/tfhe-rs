@@ -9,6 +9,7 @@ members = [
     "tasks",
     "tfhe-csprng",
     "backends/tfhe-cuda-backend",
+    "backends/zk-cuda-backend",
     "backends/tfhe-hpu-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
@@ -26,6 +27,8 @@ rust-version = "1.91.1"
 
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
 bytemuck = "1.24"
 dyn-stack = { version = "0.13", default-features = false }
 itertools = "0.14"

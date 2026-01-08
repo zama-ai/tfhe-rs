@@ -55,6 +55,9 @@ REGEX_PATTERN?=''
 # tfhe-cuda-backend
 TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
+ZKCUDA_SRC=backends/zk-cuda-backend/cuda
+ZKCUDA_BUILD=$(ZKCUDA_SRC)/build
+ZKCUDARS_SRC=backends/zk-cuda-backend/src
 
 # tfhe-hpu-backend
 HPU_CONFIG=v80
@@ -283,6 +286,7 @@ fmt_js: check_nvm_installed
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh
+	cd "$(ZKCUDA_SRC)" && ./format_zk_cuda_backend.sh
 
 .PHONY: fmt_c_tests # Format c tests
 fmt_c_tests:
@@ -307,6 +311,7 @@ check_fmt_c_tests:
 check_fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh -c
+	cd "$(ZKCUDA_SRC)" && ./format_zk_cuda_backend.sh -c
 
 .PHONY: check_fmt_js # Check javascript code format
 check_fmt_js: check_nvm_installed
@@ -328,14 +333,14 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats,extended-types,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
-		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats \
 		--all-targets \
 		-p tfhe
 
@@ -349,7 +354,7 @@ clippy_hpu: install_rs_check_toolchain
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,hpu,pbs-stats,extended-types,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
@@ -442,7 +447,7 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu \
+		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu,gpu-experimental-zk \
 		-p tfhe -- --nocapture
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
@@ -551,6 +556,8 @@ clippy_core clippy_tfhe_csprng
 clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p zk-cuda-backend -- --no-deps -D warnings
 
 .PHONY: clippy_hpu_backend # Run clippy lints on the tfhe-hpu-backend
 clippy_hpu_backend: install_rs_check_toolchain
@@ -644,7 +651,7 @@ build_c_api: install_rs_check_toolchain
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu \
+		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu,gpu-experimental-zk \
 		-p tfhe
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
@@ -722,8 +729,19 @@ test_cuda_backend:
 		"$(MAKE)" -j "$(CPU_COUNT)" && \
 		"$(MAKE)" test
 
+.PHONY: test_zk_cuda_backend # Run the internal tests of the CUDA ZK backend
+test_zk_cuda_backend:
+	mkdir -p "$(ZKCUDA_BUILD)" && \
+		cd "$(ZKCUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DZK_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" && \
+		"$(MAKE)" test
+	cd "$(ZKCUDARS_SRC)" && \
+		cargo test --release
+
+
 .PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
-test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
+test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend test_zk_cuda_backend
 
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu:
@@ -1152,11 +1170,24 @@ test_tfhe_csprng_big_endian: install_cargo_cross
 	RUSTFLAGS="" cross test --profile $(CARGO_PROFILE) \
 		-p tfhe-csprng --target=powerpc64-unknown-linux-gnu
 
-
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental
+
+.PHONY: test_zk_pok_gpu # Run tfhe-zk-pok GPU-accelerated tests
+test_zk_pok_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		-p tfhe-zk-pok --features experimental,gpu-experimental -- gpu
+
+.PHONY: test_integer_zk_gpu # Run tfhe-zk-pok tests
+test_integer_zk_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile release_lto_off \
+		--features=integer,zk-pok,gpu,gpu-experimental-zk -p tfhe -- \
+		integer::gpu::zk::
+
+.PHONY: test_zk_cuda # Run all GPU MSM integration tests (CPU vs GPU comparison + integration test)
+test_zk_cuda: install_rs_check_toolchain test_zk_cuda_backend test_zk_pok_gpu test_integer_zk_gpu
 
 .PHONY: test_zk_wasm_x86_compat_ci
 test_zk_wasm_x86_compat_ci: check_nvm_installed
@@ -1447,26 +1478,40 @@ bench_integer_compression_128b_gpu: install_rs_check_toolchain
 	--bench	glwe_packing_compression_128b-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_msm_zk
+bench_msm_zk: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-msm \
+	--features=zk-pok -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_msm_zk_gpu
+bench_msm_zk_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-msm \
+	--features=gpu,gpu-experimental-zk,zk-pok -p tfhe-benchmark --profile release_lto_off --
+
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
-	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_integer_aes_gpu # Run benchmarks for AES on GPU backend
 bench_integer_aes_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-aes \
-	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,internal-keycache,gpu -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_integer_aes256_gpu # Run benchmarks for AES256 on GPU backend
 bench_integer_aes256_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-aes256 \
-	--features=integer,internal-keycache,gpu, -p tfhe-benchmark --profile release_lto_off --
+	--features=integer,internal-keycache,gpu -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_integer_trivium_gpu # Run benchmarks for trivium on GPU backend
 bench_integer_trivium_gpu: install_rs_check_toolchain
@@ -1734,6 +1779,13 @@ bench_hlapi_erc20_hpu: install_rs_check_toolchain
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-zk-pok --
+
+.PHONY: bench_tfhe_zk_pok_gpu # Run benchmarks for the tfhe_zk_pok crate using GPU acceleration
+bench_tfhe_zk_pok_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--package tfhe-zk-pok \
+	--features=gpu-experimental --profile release_lto_off
 
 .PHONY: bench_hlapi_noise_squash # Run benchmarks for noise squash operation
 bench_hlapi_noise_squash: install_rs_check_toolchain
