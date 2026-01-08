@@ -187,7 +187,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+      cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
