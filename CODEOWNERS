@@ -11,7 +11,7 @@
 /tfhe/src/core_crypto/gpu               @agnesLeroy
 /tfhe/src/core_crypto/hpu               @zama-ai/hardware
 
-/tfhe/src/shortint/                     @mayeul-zama
+/tfhe/src/shortint/                     @mayeul-zama @nsarlin-zama
 
 /tfhe/src/integer/                      @tmontaigu
 /tfhe/src/integer/gpu                   @agnesLeroy
@@ -19,7 +19,11 @@
 
 /tfhe/src/high_level_api/               @tmontaigu
 
+/tfhe-zk-pok/                           @nsarlin-zama
+
 /tfhe-benchmark/                        @soonum
+
+/utils/                                 @nsarlin-zama
 
 /Makefile                               @IceTDrinker @soonum
 
