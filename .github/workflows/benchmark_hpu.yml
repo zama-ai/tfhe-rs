@@ -12,7 +12,8 @@ on:
         default: integer
         options:
           - integer
-          - hlapi
+          - hlapi_unsigned
+          - hlapi_signed
           - hlapi_erc20
       op_flavor:
         description: "Operations set to run"
