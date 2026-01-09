@@ -131,7 +131,7 @@ class CoreCryptoOperation(enum.StrEnum):
         match operation_name.lower():
             case "keyswitch":
                 return CoreCryptoOperation.KeySwitch
-            case "pbs_mem_optimized":
+            case "pbs_mem_optimized" | "pbs":
                 return CoreCryptoOperation.PBS
             case "multi_bit_pbs" | "multi_bit_deterministic_pbs":
                 return CoreCryptoOperation.MultiBitPBS
