@@ -10,7 +10,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntegerType, FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::high_level_api::traits::{ReRandomize, Tagged};
+use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
@@ -1158,6 +1158,15 @@ where
                 panic!("Hpu does not support this operation yet.")
             }
         })
+    }
+}
+
+impl<Id> FheWait for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    fn wait(&self) {
+        self.ciphertext.wait()
     }
 }
 
