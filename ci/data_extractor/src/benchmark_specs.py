@@ -131,7 +131,7 @@ class CoreCryptoOperation(enum.StrEnum):
         match operation_name.lower():
             case "keyswitch":
                 return CoreCryptoOperation.KeySwitch
-            case "pbs_mem_optimized":
+            case "pbs_mem_optimized" | "pbs":
                 return CoreCryptoOperation.PBS
             case "multi_bit_pbs" | "multi_bit_deterministic_pbs":
                 return CoreCryptoOperation.MultiBitPBS
@@ -520,7 +520,8 @@ class BenchDetails:
                 else:
                     self.sign_flavor = SignFlavor.Unsigned
                     self.operation_name = parts[op_name_index]
-                    self.params = parts[op_name_index + 1]
+                    if not self.params:
+                        self.params = parts[op_name_index + 1]
                     if "compression" in parts[op_name_index]:
                         self.rust_type = "_".join(
                             (parts[op_name_index], parts[-1].split("_")[0])
