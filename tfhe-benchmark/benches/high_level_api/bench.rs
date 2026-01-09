@@ -405,6 +405,7 @@ fn main() {
         }
     }
 
+    #[cfg(not(feature = "hpu"))]
     oprf_any_range2();
 
     c.final_summary();
