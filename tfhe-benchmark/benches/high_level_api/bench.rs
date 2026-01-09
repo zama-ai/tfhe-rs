@@ -3,6 +3,7 @@ use benchmark::utilities::{
 };
 use criterion::{black_box, Criterion, Throughput};
 use oprf::oprf_any_range2;
+use rand::distributions::Standard;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::marker::PhantomData;
@@ -13,12 +14,143 @@ use tfhe::keycache::NamedParam;
 use tfhe::named::Named;
 use tfhe::prelude::*;
 use tfhe::{
-    ClientKey, CompressedServerKey, FheIntegerType, FheUint, FheUint10, FheUint12, FheUint128,
-    FheUint14, FheUint16, FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8, FheUintId,
-    IntegerId, KVStore,
+    ClientKey, CompressedServerKey, FheBool, FheInt, FheInt10, FheInt12, FheInt128, FheInt14,
+    FheInt16, FheInt2, FheInt32, FheInt4, FheInt6, FheInt64, FheInt8, FheIntId, FheIntegerType,
+    FheUint, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16, FheUint2, FheUint32, FheUint4,
+    FheUint6, FheUint64, FheUint8, FheUintId, IntegerId, KVStore,
 };
 
+trait NumConsts {
+    fn zero() -> Self;
+    fn one() -> Self;
+}
+
+impl NumConsts for u8 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for u16 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for u32 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for u64 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for u128 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for i8 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for i16 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for i32 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for i64 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+impl NumConsts for i128 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
 mod oprf;
+
+fn random_non_zero<T>() -> T
+where
+    Standard: Distribution<T>,
+    T: Copy + PartialEq + NumConsts,
+{
+    let mut rng = rand::thread_rng();
+
+    loop {
+        let v: T = rng.gen();
+        if v != T::zero() {
+            return v;
+        }
+    }
+}
+
+fn random_not_power_of_two<T>() -> T
+where
+    Standard: Distribution<T>,
+    T: Copy + PartialEq + BitAnd<Output = T> + Sub<Output = T> + NumConsts,
+{
+    let mut rng = rand::thread_rng();
+
+    loop {
+        let v: T = rng.gen();
+        if !(v != T::zero() && (v & (v - T::one())) == T::zero()) {
+            return v;
+        }
+    }
+}
+
+fn get_one<T>() -> T
+where
+    T: From<u8>,
+{
+    T::from(1)
+}
+
+fn random<T>() -> T
+where
+    Standard: Distribution<T>,
+{
+    rand::thread_rng().gen()
+}
 
 trait BenchWait {
     fn wait_bench(&self);
@@ -30,24 +162,184 @@ impl<Id: FheUintId> BenchWait for FheUint<Id> {
     }
 }
 
+impl<Id: FheIntId> BenchWait for FheInt<Id> {
+    fn wait_bench(&self) {
+        self.wait()
+    }
+}
+
+impl BenchWait for FheBool {
+    fn wait_bench(&self) {
+        self.wait()
+    }
+}
+
 impl<T1: FheWait, T2> BenchWait for (T1, T2) {
     fn wait_bench(&self) {
         self.0.wait()
     }
 }
 
-fn bench_fhe_type_op<FheType, F, R>(
+trait BenchmarkOp<FheType> {
+    type Output: BenchWait;
+    type Inputs;
+
+    /// Setup the encrypted inputs for the operation
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs;
+
+    /// Execute the operation with the inputs
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output;
+}
+
+struct UnaryOp<F, EncryptType> {
+    func: F,
+    _encrypt: PhantomData<EncryptType>,
+}
+
+impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for UnaryOp<F, EncryptType>
+where
+    F: Fn(&FheType) -> R,
+    R: BenchWait,
+    FheType: FheEncrypt<EncryptType, ClientKey>,
+    Standard: Distribution<EncryptType>,
+{
+    type Output = R;
+    type Inputs = FheType;
+
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
+        FheType::encrypt(rng.gen(), client_key)
+    }
+
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
+        (self.func)(inputs)
+    }
+}
+
+struct ScalarBinaryOp<F, G, EncryptType> {
+    func: F,
+    rng_function: G,
+    _encrypt: PhantomData<EncryptType>,
+}
+
+impl<FheType, F, R, G, T, EncryptType> BenchmarkOp<FheType> for ScalarBinaryOp<F, G, EncryptType>
+where
+    F: Fn(&FheType, &T) -> R,
+    R: BenchWait,
+    G: Fn() -> T,
+    FheType: FheEncrypt<EncryptType, ClientKey>,
+    Standard: Distribution<EncryptType>,
+{
+    type Output = R;
+    type Inputs = (FheType, T);
+
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
+        (
+            FheType::encrypt(rng.gen(), client_key),
+            (self.rng_function)(),
+        )
+    }
+
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
+        (self.func)(&inputs.0, &inputs.1)
+    }
+}
+
+struct BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType> {
+    func: F,
+    _encrypt_lhs: PhantomData<EncryptLhsType>,
+    _encrypt_rhs: PhantomData<EncryptRhsType>,
+    _rhs_type: PhantomData<FheRhsType>,
+}
+
+impl<FheType, FheRhsType, F, R, EncryptLhsType, EncryptRhsType> BenchmarkOp<FheType>
+    for BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType>
+where
+    F: Fn(&FheType, &FheRhsType) -> R,
+    R: BenchWait,
+    FheType: FheEncrypt<EncryptLhsType, ClientKey>,
+    FheRhsType: FheEncrypt<EncryptRhsType, ClientKey>,
+    Standard: Distribution<EncryptLhsType>,
+    Standard: Distribution<EncryptRhsType>,
+{
+    type Output = R;
+    type Inputs = (FheType, FheRhsType);
+
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
+        (
+            FheType::encrypt(rng.gen(), client_key),
+            FheRhsType::encrypt(rng.gen(), client_key),
+        )
+    }
+
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
+        (self.func)(&inputs.0, &inputs.1)
+    }
+}
+
+struct TernaryOp<F, EncryptType> {
+    func: F,
+    _encrypt: PhantomData<EncryptType>,
+}
+
+impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for TernaryOp<F, EncryptType>
+where
+    F: Fn(&FheBool, &FheType, &FheType) -> R,
+    R: BenchWait,
+    FheType: FheEncrypt<EncryptType, ClientKey>,
+    Standard: Distribution<EncryptType>,
+{
+    type Output = R;
+    type Inputs = (FheBool, FheType, FheType);
+
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
+        (
+            FheBool::encrypt(rng.gen::<bool>(), client_key),
+            FheType::encrypt(rng.gen(), client_key),
+            FheType::encrypt(rng.gen(), client_key),
+        )
+    }
+
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
+        (self.func)(&inputs.0, &inputs.1, &inputs.2)
+    }
+}
+
+struct ArrayOp<F, EncryptType> {
+    func: F,
+    array_size: usize,
+    _encrypt: PhantomData<EncryptType>,
+}
+
+impl<FheType, F, EncryptType> BenchmarkOp<FheType> for ArrayOp<F, EncryptType>
+where
+    F: for<'a> Fn(std::iter::Cloned<std::slice::Iter<'a, FheType>>) -> FheType,
+    FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait,
+    Standard: Distribution<EncryptType>,
+{
+    type Output = FheType;
+    type Inputs = Vec<FheType>;
+
+    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
+        (0..self.array_size)
+            .map(|_| FheType::encrypt(rng.gen(), client_key))
+            .collect()
+    }
+
+    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
+        (self.func)(inputs.iter().cloned())
+    }
+}
+
+fn bench_fhe_type_op<FheType, Op>(
     c: &mut Criterion,
     client_key: &ClientKey,
     type_name: &str,
     bit_size: usize,
     display_name: &str,
     func_name: &str,
-    func: F,
+    op: Op,
 ) where
-    F: Fn(&FheType, &FheType) -> R,
-    R: BenchWait,
-    FheType: FheEncrypt<u128, ClientKey>,
+    Op: BenchmarkOp<FheType>,
     FheType: FheWait,
 {
     let mut bench_group = c.benchmark_group(type_name);
@@ -66,101 +358,335 @@ fn bench_fhe_type_op<FheType, F, R>(
     let param_name = param.name();
     let bit_size = bit_size as u32;
 
-    let write_record = |bench_id: String, display_name| {
-        write_to_json::<u64, _>(
-            &bench_id,
-            param,
-            &param_name,
-            display_name,
-            &OperatorType::Atomic,
-            bit_size,
-            vec![],
-        );
-    };
-
-    let lhs = FheType::encrypt(rng.gen(), client_key);
-    let rhs = FheType::encrypt(rng.gen(), client_key);
-
+    let inputs = op.setup_inputs(client_key, &mut rng);
     let bench_id = format!("{bench_prefix}::{func_name}::{param_name}::{type_name}");
 
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
-            let res = func(&lhs, &rhs);
+            let res = op.execute(&inputs);
             res.wait_bench();
             black_box(res)
         })
     });
-    write_record(bench_id, display_name);
+
+    write_to_json::<u64, _>(
+        &bench_id,
+        param,
+        &param_name,
+        display_name,
+        &OperatorType::Atomic,
+        bit_size,
+        vec![],
+    );
 }
 
-macro_rules! bench_type_op (
-    (type_name: $fhe_type:ident, display_name: $display_name:literal, operation: $op:ident) => {
+macro_rules! bench_type_binary_op {
+    (type_name: $fhe_type:ident, right_type_name: $fhe_right_type:ident,left_type: $left_type:ty, right_type: $right_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
         ::paste::paste! {
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
-                bench_fhe_type_op::<$fhe_type, _, _>(
+                bench_fhe_type_op(
                     c,
                     cks,
                     stringify!($fhe_type),
                     $fhe_type::num_bits(),
                     $display_name,
                     stringify!($op),
-                    |lhs, rhs| lhs.$op(rhs)
+                    BinaryOp {
+                        func: |lhs: &$fhe_type, rhs: &$fhe_right_type| lhs.$op(rhs),
+                        _encrypt_lhs: PhantomData::<$left_type>,
+                        _encrypt_rhs: PhantomData::<$right_type>,
+                        _rhs_type: PhantomData::<$fhe_right_type>,
+                    }
                 );
             }
         }
     };
-);
+}
+
+macro_rules! bench_type_binary_scalar_op {
+    (
+        type_name: $fhe_type:ident,
+        integer_type: $integer_type:ty,
+        scalar_type: $scalar_ty:ty,
+        display_name: $display_name:literal,
+        operation: $op:ident,
+        rng: $rng_fn:expr
+    ) => {
+        ::paste::paste! {
+            fn [<bench_ $fhe_type:snake _scalar_ $op>](c: &mut Criterion, cks: &ClientKey) {
+                bench_fhe_type_op(
+                    c,
+                    cks,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
+                    $display_name,
+                    stringify!($op),
+                    ScalarBinaryOp {
+                        func: |lhs: &$fhe_type, rhs: &$scalar_ty| lhs.$op(*rhs),
+                        rng_function: $rng_fn,
+                        _encrypt: PhantomData::<$integer_type>,
+                    }
+                );
+            }
+        }
+    };
+}
+
+macro_rules! bench_type_unary_op {
+    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+        ::paste::paste! {
+            fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
+                bench_fhe_type_op(
+                    c,
+                    cks,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
+                    $display_name,
+                    stringify!($op),
+                    UnaryOp {
+                        func: |lhs: &$fhe_type| lhs.$op(),
+                        _encrypt: PhantomData::<$integer_type>
+                    }
+                );
+            }
+        }
+    };
+}
+
+macro_rules! bench_type_ternary_op {
+    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+        ::paste::paste! {
+            fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
+                bench_fhe_type_op(
+                    c,
+                    cks,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
+                    $display_name,
+                    stringify!($op),
+                    TernaryOp {
+                        func: |cond: &FheBool, lhs: &$fhe_type, rhs: &$fhe_type| cond.$op(lhs, rhs),
+                        _encrypt: PhantomData::<$integer_type>
+                    }
+                );
+            }
+        }
+    };
+}
+
+macro_rules! bench_type_array_op {
+    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+        ::paste::paste! {
+            fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
+                bench_fhe_type_op(
+                    c,
+                    cks,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
+                    $display_name,
+                    stringify!($op),
+                    ArrayOp {
+                        func: |iter: std::iter::Cloned<std::slice::Iter<'_, $fhe_type>>| iter.$op(),
+                        array_size: 10,
+                        _encrypt: PhantomData::<$integer_type>,
+                    }
+                );
+            }
+        }
+    };
+}
 
 macro_rules! generate_typed_benches {
-    ($fhe_type:ident) => {
-        bench_type_op!(type_name: $fhe_type, display_name: "add", operation: add);
-        bench_type_op!(type_name: $fhe_type, display_name: "overflowing_add", operation: overflowing_add);
-        bench_type_op!(type_name: $fhe_type, display_name: "sub", operation: sub);
-        bench_type_op!(type_name: $fhe_type, display_name: "overflowing_sub", operation: overflowing_sub);
-        bench_type_op!(type_name: $fhe_type, display_name: "mul", operation: mul);
-        bench_type_op!(type_name: $fhe_type, display_name: "bitand", operation: bitand);
-        bench_type_op!(type_name: $fhe_type, display_name: "bitor", operation: bitor);
-        bench_type_op!(type_name: $fhe_type, display_name: "bitxor", operation: bitxor);
-        bench_type_op!(type_name: $fhe_type, display_name: "left_shift", operation: shl);
-        bench_type_op!(type_name: $fhe_type, display_name: "right_shift", operation: shr);
-        bench_type_op!(type_name: $fhe_type, display_name: "left_rotate", operation: rotate_left);
-        bench_type_op!(type_name: $fhe_type, display_name: "right_rotate", operation: rotate_right);
-        bench_type_op!(type_name: $fhe_type, display_name: "min", operation: min);
-        bench_type_op!(type_name: $fhe_type, display_name: "max", operation: max);
+    ($fhe_type:ident, $integer_type:ty) => {
+        // bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "bitnot", operation: bitnot);
+        bench_type_array_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "sum", operation: sum);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "add", operation: add);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "bitand", operation: bitand);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "bitor", operation: bitor);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "bitxor", operation: bitxor);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "div", operation: div);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "div_rem", operation: div_rem);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "eq", operation: eq);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "ge", operation: ge);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "gt", operation: gt);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "le", operation: le);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "left_rotate", operation: rotate_left);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "left_shift", operation: shl);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "lt", operation: lt);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "max", operation: max);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "min", operation: min);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "mul", operation: mul);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "ne", operation: ne);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "overflowing_add", operation: overflowing_add);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "overflowing_mul", operation: overflowing_mul);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "overflowing_sub", operation: overflowing_sub);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "rem", operation: rem);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "right_rotate", operation: rotate_right);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "right_shift", operation: shr);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "sub", operation: sub);
+        bench_type_ternary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "flip", operation: flip);
+        bench_type_ternary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "if_then_else", operation: if_then_else);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "checked_ilog2", operation: checked_ilog2);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "count_ones", operation: count_ones);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "count_zeros", operation: count_zeros);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "ilog2", operation: ilog2);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "is_even", operation: is_even);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "is_odd", operation: is_odd);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "leading_ones", operation: leading_ones);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "leading_zeros", operation: leading_zeros);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "neg", operation: neg);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "not", operation: not);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "overflowing_neg", operation: overflowing_neg);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "reverse_bits", operation: reverse_bits);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "trailing_ones", operation: trailing_ones);
+        bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "trailing_zeros", operation: trailing_zeros);
+    };
+}
+
+macro_rules! generate_typed_scalar_benches {
+    ($fhe_type:ident, $integer_type:ty, $scalar_ty:ty, $specific_ty:ty) => {
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "add_scalar", operation: add, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "bitand_scalar", operation: bitand, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "bitor_scalar", operation: bitor, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "bitxor_scalar", operation: bitxor, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "div_scalar", operation: div, rng: || random_non_zero::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "eq_scalar", operation: eq, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "ge_scalar", operation: ge, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "gt_scalar", operation: gt, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "le_scalar", operation: le, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "lt_scalar", operation: lt, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "max_scalar", operation: max, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "min_scalar", operation: min, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "mul_scalar", operation: mul, rng: || random_not_power_of_two::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "ne_scalar", operation: ne, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "overflowing_add_scalar", operation: overflowing_add, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "overflowing_sub_scalar", operation: overflowing_sub, rng: || random::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "rem_scalar", operation: rem, rng: || random_non_zero::<$scalar_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $specific_ty, display_name: "rotate_left_scalar", operation: rotate_left, rng: || random::<$specific_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $specific_ty, display_name: "rotate_right_scalar", operation: rotate_right, rng: || random::<$specific_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $specific_ty, display_name: "shift_left_scalar", operation: shl, rng: || get_one::<$specific_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $specific_ty, display_name: "shift_right_scalar", operation: shr, rng: || get_one::<$specific_ty>());
+        bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "sub_scalar", operation: sub, rng: || random::<$scalar_ty>());
     };
 }
 
 // Generate benches for all FheUint types
-generate_typed_benches!(FheUint2);
-generate_typed_benches!(FheUint4);
-generate_typed_benches!(FheUint6);
-generate_typed_benches!(FheUint8);
-generate_typed_benches!(FheUint10);
-generate_typed_benches!(FheUint12);
-generate_typed_benches!(FheUint14);
-generate_typed_benches!(FheUint16);
-generate_typed_benches!(FheUint32);
-generate_typed_benches!(FheUint64);
-generate_typed_benches!(FheUint128);
+generate_typed_benches!(FheUint2, u128);
+generate_typed_benches!(FheUint4, u128);
+generate_typed_benches!(FheUint6, u128);
+generate_typed_benches!(FheUint8, u128);
+generate_typed_benches!(FheUint10, u128);
+generate_typed_benches!(FheUint12, u128);
+generate_typed_benches!(FheUint14, u128);
+generate_typed_benches!(FheUint16, u128);
+generate_typed_benches!(FheUint32, u128);
+generate_typed_benches!(FheUint64, u128);
+generate_typed_benches!(FheUint128, u128);
+
+generate_typed_benches!(FheInt2, i128);
+generate_typed_benches!(FheInt4, i128);
+generate_typed_benches!(FheInt6, i128);
+generate_typed_benches!(FheInt8, i128);
+generate_typed_benches!(FheInt10, i128);
+generate_typed_benches!(FheInt12, i128);
+generate_typed_benches!(FheInt14, i128);
+generate_typed_benches!(FheInt16, i128);
+generate_typed_benches!(FheInt32, i128);
+generate_typed_benches!(FheInt64, i128);
+generate_typed_benches!(FheInt128, i128);
+
+generate_typed_scalar_benches!(FheUint2, u128, u8, u8);
+generate_typed_scalar_benches!(FheUint4, u128, u8, u8);
+generate_typed_scalar_benches!(FheUint6, u128, u8, u8);
+generate_typed_scalar_benches!(FheUint8, u128, u8, u8);
+generate_typed_scalar_benches!(FheUint10, u128, u16, u16);
+generate_typed_scalar_benches!(FheUint12, u128, u16, u16);
+generate_typed_scalar_benches!(FheUint14, u128, u16, u16);
+generate_typed_scalar_benches!(FheUint16, u128, u16, u16);
+generate_typed_scalar_benches!(FheUint32, u128, u32, u32);
+generate_typed_scalar_benches!(FheUint64, u128, u64, u64);
+generate_typed_scalar_benches!(FheUint128, u128, u128, u128);
+
+generate_typed_scalar_benches!(FheInt2, i128, i8, u8);
+generate_typed_scalar_benches!(FheInt4, i128, i8, u8);
+generate_typed_scalar_benches!(FheInt6, i128, i8, u8);
+generate_typed_scalar_benches!(FheInt8, i128, i8, u8);
+generate_typed_scalar_benches!(FheInt10, i128, i16, u16);
+generate_typed_scalar_benches!(FheInt12, i128, i16, u16);
+generate_typed_scalar_benches!(FheInt14, i128, i16, u16);
+generate_typed_scalar_benches!(FheInt16, i128, i16, u16);
+generate_typed_scalar_benches!(FheInt32, i128, i32, u32);
+generate_typed_scalar_benches!(FheInt64, i128, i64, u64);
+generate_typed_scalar_benches!(FheInt128, i128, i128, u128);
 
 macro_rules! run_benches {
     ($c:expr, $cks:expr, $($fhe_type:ident),+ $(,)?) => {
         $(
             ::paste::paste! {
                 [<bench_ $fhe_type:snake _add>]($c, $cks);
-                [<bench_ $fhe_type:snake _overflowing_add>]($c, $cks);
-                [<bench_ $fhe_type:snake _sub>]($c, $cks);
-                [<bench_ $fhe_type:snake _overflowing_sub>]($c, $cks);
-                [<bench_ $fhe_type:snake _mul>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitand>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitor>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitxor>]($c, $cks);
-                [<bench_ $fhe_type:snake _shl>]($c, $cks);
-                [<bench_ $fhe_type:snake _shr>]($c, $cks);
+                [<bench_ $fhe_type:snake _checked_ilog2>]($c, $cks);
+                [<bench_ $fhe_type:snake _count_ones>]($c, $cks);
+                [<bench_ $fhe_type:snake _count_zeros>]($c, $cks);
+                [<bench_ $fhe_type:snake _div>]($c, $cks);
+                [<bench_ $fhe_type:snake _div_rem>]($c, $cks);
+                [<bench_ $fhe_type:snake _eq>]($c, $cks);
+                [<bench_ $fhe_type:snake _flip>]($c, $cks);
+                [<bench_ $fhe_type:snake _ge>]($c, $cks);
+                [<bench_ $fhe_type:snake _gt>]($c, $cks);
+                [<bench_ $fhe_type:snake _if_then_else>]($c, $cks);
+                [<bench_ $fhe_type:snake _ilog2>]($c, $cks);
+                [<bench_ $fhe_type:snake _is_even>]($c, $cks);
+                [<bench_ $fhe_type:snake _is_odd>]($c, $cks);
+                [<bench_ $fhe_type:snake _le>]($c, $cks);
+                [<bench_ $fhe_type:snake _leading_ones>]($c, $cks);
+                [<bench_ $fhe_type:snake _leading_zeros>]($c, $cks);
+                [<bench_ $fhe_type:snake _lt>]($c, $cks);
+                [<bench_ $fhe_type:snake _max>]($c, $cks);
+                [<bench_ $fhe_type:snake _min>]($c, $cks);
+                [<bench_ $fhe_type:snake _mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _ne>]($c, $cks);
+                [<bench_ $fhe_type:snake _neg>]($c, $cks);
+                [<bench_ $fhe_type:snake _not>]($c, $cks);
+                [<bench_ $fhe_type:snake _not>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_neg>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_sub>]($c, $cks);
+                [<bench_ $fhe_type:snake _rem>]($c, $cks);
+                [<bench_ $fhe_type:snake _reverse_bits>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_left>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_right>]($c, $cks);
-                [<bench_ $fhe_type:snake _min>]($c, $cks);
-                [<bench_ $fhe_type:snake _max>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_bitand>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_bitor>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_bitxor>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_div>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_eq>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_ge>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_gt>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_le>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_lt>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_max>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_min>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_ne>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_overflowing_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_overflowing_sub>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_rem>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_rotate_left>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_rotate_right>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_shl>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_shr>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_sub>]($c, $cks);
+                [<bench_ $fhe_type:snake _shl>]($c, $cks);
+                [<bench_ $fhe_type:snake _shr>]($c, $cks);
+                [<bench_ $fhe_type:snake _sub>]($c, $cks);
+                [<bench_ $fhe_type:snake _sum>]($c, $cks);
+                [<bench_ $fhe_type:snake _trailing_ones>]($c, $cks);
+                [<bench_ $fhe_type:snake _trailing_zeros>]($c, $cks);
             }
         )+
     };
@@ -179,6 +705,12 @@ impl TypeDisplay for u16 {}
 impl TypeDisplay for u32 {}
 impl TypeDisplay for u64 {}
 impl TypeDisplay for u128 {}
+
+impl TypeDisplay for i8 {}
+impl TypeDisplay for i16 {}
+impl TypeDisplay for i32 {}
+impl TypeDisplay for i64 {}
+impl TypeDisplay for i128 {}
 
 impl<Id: FheUintId> TypeDisplay for tfhe::FheUint<Id> {
     fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -385,7 +917,8 @@ fn main() {
             // Call all benchmarks for all types
             run_benches!(
                 &mut c, &cks, FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12,
-                FheUint14, FheUint16, FheUint32, FheUint64, FheUint128
+                FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheInt2, FheInt4, FheInt6,
+                FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128
             );
 
             // KVStore Benches
