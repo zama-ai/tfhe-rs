@@ -46,7 +46,7 @@ where
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -54,7 +54,7 @@ where
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {
             let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
+                .map(|_| rng.random::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             let ctxts = clears
@@ -99,7 +99,7 @@ where
     for len in [3, 4, 64] {
         for _ in 0..nb_tests_smaller {
             let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
+                .map(|_| rng.random::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             let ctxts = clears
@@ -152,7 +152,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks
@@ -166,7 +166,7 @@ where
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {
             let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
+                .map(|_| rng.random::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             let ctxts = clears
@@ -196,7 +196,7 @@ where
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -204,7 +204,7 @@ where
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {
             let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
+                .map(|_| rng.random::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             // encryption of integers

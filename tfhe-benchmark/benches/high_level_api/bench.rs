@@ -60,7 +60,7 @@ fn bench_fhe_type_op<FheType, F, R>(
 
     bench_prefix = format!("{}::ops", bench_prefix);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let param = client_key.computation_parameters();
     let param_name = param.name();
@@ -78,8 +78,8 @@ fn bench_fhe_type_op<FheType, F, R>(
         );
     };
 
-    let lhs = FheType::encrypt(rng.gen(), client_key);
-    let rhs = FheType::encrypt(rng.gen(), client_key);
+    let lhs = FheType::encrypt(rng.random(), client_key);
+    let rhs = FheType::encrypt(rng.random(), client_key);
 
     let bench_id = format!("{bench_prefix}::{func_name}::{param_name}::{type_name}");
 
@@ -218,7 +218,7 @@ where
 
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
-    rand::distributions::Standard: rand::distributions::Distribution<Key>,
+    rand::distr::StandardUniform: rand::distr::Distribution<Key>,
     Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
     Value: FheEncrypt<u128, ClientKey> + FheIntegerType + Clone + Send + Sync + TypeDisplay,
     Value::Id: FheUintId,
@@ -229,7 +229,7 @@ where
     bench_group.sample_size(10);
 
     let mut kv_store = KVStore::new();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let format_id_bench = |op_name: &str| -> String {
         format!(
@@ -242,17 +242,17 @@ where
     match BenchmarkType::from_env().unwrap() {
         BenchmarkType::Latency => {
             while kv_store.len() != num_elements {
-                let key = rng.gen::<Key>();
-                let value = rng.gen::<u128>();
+                let key = rng.random::<Key>();
+                let value = rng.random::<u128>();
 
                 let encrypted_value = Value::encrypt(value, cks);
                 kv_store.insert_with_clear_key(key, encrypted_value);
             }
 
-            let key = rng.gen::<Key>();
+            let key = rng.random::<Key>();
             let encrypted_key = FheKey::encrypt(key, cks);
 
-            let value = rng.gen::<u128>();
+            let value = rng.random::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
             bench_group.bench_function(format_id_bench("get"), |b| {
@@ -275,17 +275,17 @@ where
         }
         BenchmarkType::Throughput => {
             while kv_store.len() != num_elements {
-                let key = rng.gen::<Key>();
-                let value = rng.gen::<u128>();
+                let key = rng.random::<Key>();
+                let value = rng.random::<u128>();
 
                 let encrypted_value = Value::encrypt(value, cks);
                 kv_store.insert_with_clear_key(key, encrypted_value);
             }
 
-            let key = rng.gen::<Key>();
+            let key = rng.random::<Key>();
             let encrypted_key = FheKey::encrypt(key, cks);
 
-            let value = rng.gen::<u128>();
+            let value = rng.random::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
             let factor = hlapi_throughput_num_ops(

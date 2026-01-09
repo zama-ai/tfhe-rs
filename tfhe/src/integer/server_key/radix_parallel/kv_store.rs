@@ -484,13 +484,13 @@ mod tests {
         let num_blocks = 32;
         let num_keys = 100;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();
         for _ in 0..num_keys {
-            let key = rng.gen::<u32>();
-            let value = rng.gen::<u64>();
+            let key = rng.random::<u32>();
+            let value = rng.random::<u64>();
 
             let ct = cks.encrypt_radix(value, num_blocks);
 
@@ -551,13 +551,13 @@ mod tests {
         let num_blocks = 32;
         let num_keys = 100;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();
         for _ in 0..num_keys {
-            let key = rng.gen::<u32>();
-            let value = rng.gen::<i64>();
+            let key = rng.random::<u32>();
+            let value = rng.random::<i64>();
 
             let ct = cks.encrypt_signed_radix(value, num_blocks);
 

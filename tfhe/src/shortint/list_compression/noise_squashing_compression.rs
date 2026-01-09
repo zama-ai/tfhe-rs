@@ -148,7 +148,7 @@ mod test {
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&compression_private_key);
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         let id_lut = sks.generate_lookup_table(|x| x);
         let max_ct_count =
@@ -159,8 +159,8 @@ mod test {
             let msgs: Vec<_> = (0..ct_count)
                 .map(|_| {
                     (
-                        rng.gen::<u64>() % cks.parameters().message_modulus().0,
-                        rng.gen::<u64>() % cks.parameters().message_modulus().0,
+                        rng.random::<u64>() % cks.parameters().message_modulus().0,
+                        rng.random::<u64>() % cks.parameters().message_modulus().0,
                     )
                 })
                 .collect();

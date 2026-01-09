@@ -14,12 +14,12 @@ fn test_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
-    let clear_a: u32 = rng.gen();
-    let clear_b: u32 = rng.gen();
+    let clear_a: u32 = rng.random();
+    let clear_b: u32 = rng.random();
 
     let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
     let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();
@@ -73,13 +73,13 @@ fn test_gpu_selection_2() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let first_gpu = GpuIndex::new(0);
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
-    let clear_a: u32 = rng.gen();
-    let clear_b: u32 = rng.gen();
+    let clear_a: u32 = rng.random();
+    let clear_b: u32 = rng.random();
 
     let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
     let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();
@@ -126,7 +126,7 @@ fn test_specific_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let total_gpus = get_number_of_gpus() as usize;
     // There are 2^total_gpus possible subsets, excluding the empty one
@@ -150,8 +150,8 @@ fn test_specific_gpu_selection() {
 
         let first_gpu = GpuIndex::new(selected_indices[0] as u32);
 
-        let clear_a: u32 = rng.gen();
-        let clear_b: u32 = rng.gen();
+        let clear_a: u32 = rng.random();
+        let clear_b: u32 = rng.random();
 
         let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
         let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();

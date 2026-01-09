@@ -2,7 +2,7 @@ use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
 use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues};
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use std::collections::HashMap;
 
 mod cpu;
@@ -28,9 +28,9 @@ fn test_case_uint8_quickstart(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_quickstart(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -48,9 +48,9 @@ fn test_case_uint32_quickstart(cks: &ClientKey) {
 
 // TODO make generic
 fn test_case_uint64_quickstart(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u64>();
-    let clear_b = rng.gen::<u64>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u64>();
+    let clear_b = rng.random::<u64>();
 
     let a = FheUint64::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint64::try_encrypt(clear_b, cks).unwrap();
@@ -62,9 +62,9 @@ fn test_case_uint64_quickstart(cks: &ClientKey) {
 }
 
 fn test_case_clone(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -106,9 +106,9 @@ fn test_case_uint8_trivial(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_arith(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -127,9 +127,9 @@ fn test_case_uint32_arith(cks: &ClientKey) {
 }
 
 fn test_case_uint32_arith_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let mut clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let mut clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -151,9 +151,9 @@ fn test_case_uint32_arith_assign(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_arith(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
@@ -171,9 +171,9 @@ fn test_case_uint32_scalar_arith(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_arith_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let mut clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let mut clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
@@ -202,9 +202,9 @@ fn test_case_uint256_trivial(client_key: &ClientKey) {
 
 #[allow(clippy::eq_op)]
 fn test_case_uint8_compare(client_key: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u8>();
-    let clear_b = rng.gen::<u8>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u8>();
+    let clear_b = rng.random::<u8>();
 
     let a = FheUint8::encrypt(clear_a, client_key);
     let b = FheUint8::encrypt(clear_b, client_key);
@@ -252,9 +252,9 @@ fn test_case_uint8_compare(client_key: &ClientKey) {
 
 #[allow(clippy::eq_op)]
 fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u8>();
-    let clear_b = rng.gen::<u8>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u8>();
+    let clear_b = rng.random::<u8>();
 
     let a = FheUint8::encrypt(clear_a, client_key);
 
@@ -300,9 +300,9 @@ fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_shift(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen_range(0u32..32u32);
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random_range(0u32..32u32);
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -354,9 +354,9 @@ fn test_case_uint32_shift(cks: &ClientKey) {
 }
 
 fn test_case_uint32_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -375,9 +375,9 @@ fn test_case_uint32_bitwise(cks: &ClientKey) {
 }
 
 fn test_case_uint32_bitwise_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let mut clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let mut clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -399,9 +399,9 @@ fn test_case_uint32_bitwise_assign(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen::<u32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
@@ -430,9 +430,9 @@ fn test_case_uint32_scalar_bitwise(cks: &ClientKey) {
 }
 
 fn test_case_uint32_rotate(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen_range(0u32..32u32);
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random_range(0u32..32u32);
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -484,9 +484,9 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
 }
 
 fn test_case_uint32_div_rem(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen_range(1u32..=u32::MAX);
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u32>();
+    let clear_b = rng.random_range(1u32..=u32::MAX);
 
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
@@ -632,9 +632,9 @@ fn test_case_scalar_flip(client_key: &ClientKey) {
 }
 
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
-        let clear_a = rng.gen::<u32>();
+        let clear_a = rng.random::<u32>();
         let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
         let leading_zeros: u32 = a.leading_zeros().decrypt(cks);
@@ -652,9 +652,9 @@ fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
 }
 
 fn test_case_ilog2(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
-        let clear_a = rng.gen_range(1..=u32::MAX);
+        let clear_a = rng.random_range(1..=u32::MAX);
         let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
         let ilog2: u32 = a.ilog2().decrypt(cks);
@@ -681,13 +681,13 @@ fn test_case_ilog2(cks: &ClientKey) {
 }
 
 fn test_case_bitslice(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
         // clear is a u64 so that `clear % (1 << 32)` does not overflow
-        let clear = rng.gen::<u32>() as u64;
+        let clear = rng.random::<u32>() as u64;
 
-        let range_a = rng.gen_range(0..33);
-        let range_b = rng.gen_range(0..33);
+        let range_a = rng.random_range(0..33);
+        let range_b = rng.random_range(0..33);
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -721,11 +721,11 @@ fn test_case_bitslice(cks: &ClientKey) {
 }
 
 fn test_case_sum(client_key: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..5 {
-        let num_ct = rng.gen_range(5..=10);
-        let clears = (0..num_ct).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+        let num_ct = rng.random_range(5..=10);
+        let clears = (0..num_ct).map(|_| rng.random::<u32>()).collect::<Vec<_>>();
 
         let expected_result = clears.iter().copied().sum::<u32>();
 
@@ -747,10 +747,10 @@ fn test_case_sum(client_key: &ClientKey) {
 }
 
 fn test_case_is_even_is_odd(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // This operation is cheap
     for _ in 0..50 {
-        let clear_a = rng.gen_range(1..=u32::MAX);
+        let clear_a = rng.random_range(1..=u32::MAX);
         let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
         assert_eq!(
@@ -764,7 +764,7 @@ fn test_case_is_even_is_odd(cks: &ClientKey) {
             "Invalid is_odd result for {clear_a}"
         );
 
-        let clear_a = rng.gen_range(i32::MIN..=i32::MAX);
+        let clear_a = rng.random_range(i32::MIN..=i32::MAX);
         let a = crate::FheInt32::try_encrypt(clear_a, cks).unwrap();
         assert_eq!(
             a.is_even().decrypt(cks),
@@ -781,9 +781,9 @@ fn test_case_is_even_is_odd(cks: &ClientKey) {
 }
 
 fn test_case_min_max(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let a_val: u8 = rng.gen();
-    let b_val: u8 = rng.gen();
+    let mut rng = rand::rng();
+    let a_val: u8 = rng.random();
+    let b_val: u8 = rng.random();
 
     let a = FheUint8::encrypt(a_val, cks);
     let b = FheUint8::encrypt(b_val, cks);
@@ -806,19 +806,19 @@ fn test_case_min_max(cks: &ClientKey) {
 }
 
 fn test_case_match_value(cks: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..5 {
-        let clear_in = rng.gen::<u8>();
+        let clear_in = rng.random::<u8>();
         let ct = FheUint8::encrypt(clear_in, cks);
 
-        let should_match = rng.gen_bool(0.5);
+        let should_match = rng.random_bool(0.5);
 
         let mut map: HashMap<u8, u8> = HashMap::new();
         let mut pairs = Vec::new();
 
         let expected_value = if should_match {
-            let val = rng.gen::<u8>();
+            let val = rng.random::<u8>();
             map.insert(clear_in, val);
             pairs.push((clear_in, val));
             val
@@ -826,14 +826,14 @@ fn test_case_match_value(cks: &ClientKey) {
             0u8
         };
 
-        let num_entries = rng.gen_range(1..10);
+        let num_entries = rng.random_range(1..10);
         for _ in 0..num_entries {
-            let mut k = rng.gen::<u8>();
+            let mut k = rng.random::<u8>();
             while !should_match && k == clear_in {
-                k = rng.gen::<u8>();
+                k = rng.random::<u8>();
             }
             if let std::collections::hash_map::Entry::Vacant(e) = map.entry(k) {
-                let v = rng.gen::<u8>();
+                let v = rng.random::<u8>();
                 e.insert(v);
                 pairs.push((k, v));
             }
@@ -863,20 +863,20 @@ fn test_case_match_value(cks: &ClientKey) {
 }
 
 fn test_case_match_value_or(cks: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..5 {
-        let clear_in = rng.gen::<u8>();
+        let clear_in = rng.random::<u8>();
         let ct = FheUint8::encrypt(clear_in, cks);
-        let clear_or_value = rng.gen::<u8>();
+        let clear_or_value = rng.random::<u8>();
 
-        let should_match = rng.gen_bool(0.5);
+        let should_match = rng.random_bool(0.5);
 
         let mut map: HashMap<u8, u8> = HashMap::new();
         let mut pairs = Vec::new();
 
         let expected_value = if should_match {
-            let val = rng.gen::<u8>();
+            let val = rng.random::<u8>();
             map.insert(clear_in, val);
             pairs.push((clear_in, val));
             val
@@ -884,15 +884,15 @@ fn test_case_match_value_or(cks: &ClientKey) {
             clear_or_value
         };
 
-        let num_entries = rng.gen_range(1..10);
+        let num_entries = rng.random_range(1..10);
         for _ in 0..num_entries {
-            let mut k = rng.gen::<u8>();
+            let mut k = rng.random::<u8>();
             while !should_match && k == clear_in {
-                k = rng.gen::<u8>();
+                k = rng.random::<u8>();
             }
 
             if let std::collections::hash_map::Entry::Vacant(e) = map.entry(k) {
-                let v = rng.gen::<u8>();
+                let v = rng.random::<u8>();
                 e.insert(v);
                 pairs.push((k, v));
             }

@@ -844,11 +844,11 @@ mod zk {
         use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
         use crate::shortint::parameters::*;
 
-        use rand::{thread_rng, Rng};
+        use rand::Rng;
 
         #[test]
         fn conformance_zk_compact_ciphertext_list() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
@@ -866,8 +866,8 @@ mod zk {
 
             let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
-            let clear_a = rng.gen::<u64>();
-            let clear_b = rng.gen::<bool>();
+            let clear_a = rng.random::<u64>();
+            let clear_b = rng.random::<bool>();
 
             let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
                 .push(clear_a)

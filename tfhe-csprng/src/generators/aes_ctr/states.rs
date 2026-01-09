@@ -102,25 +102,25 @@ mod test {
     use super::*;
     use crate::generators::aes_ctr::index::ByteIndex;
     use crate::generators::aes_ctr::BYTES_PER_AES_CALL;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     const REPEATS: usize = 1_000_000;
 
     fn any_table_index() -> impl Iterator<Item = TableIndex> {
         std::iter::repeat_with(|| {
             TableIndex::new(
-                AesIndex(thread_rng().gen()),
-                ByteIndex(thread_rng().gen::<usize>() % BYTES_PER_AES_CALL),
+                AesIndex(rand::rng().random()),
+                ByteIndex(rand::rng().random::<usize>() % BYTES_PER_AES_CALL),
             )
         })
     }
 
     fn any_usize() -> impl Iterator<Item = usize> {
-        std::iter::repeat_with(|| thread_rng().gen())
+        std::iter::repeat_with(|| rand::rng().random())
     }
 
     fn any_u128() -> impl Iterator<Item = u128> {
-        std::iter::repeat_with(|| thread_rng().gen())
+        std::iter::repeat_with(|| rand::rng().random())
     }
 
     #[test]

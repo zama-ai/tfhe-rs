@@ -3,7 +3,7 @@ mod signed;
 mod unsigned;
 
 use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheId};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::{Distribution, StandardUniform};
 use rand::random;
 use std::fmt::Debug;
 
@@ -15,7 +15,7 @@ use std::ops::{BitAnd, BitOr, BitXor};
 
 fn draw_random_values<T>(num_values: usize) -> Vec<T>
 where
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     (0..num_values).map(|_| random()).collect()
 }
@@ -32,7 +32,7 @@ fn bitand_test_case<Id, Backend, Clear>(ck: &ClientKey)
 where
     Id: FheId,
     Backend: crate::high_level_api::array::ArrayBackend,
-    Standard: Distribution<Clear>,
+    StandardUniform: Distribution<Clear>,
     Clear: BitAnd<Clear, Output = Clear> + Copy + Eq + Debug,
     FheBackendArray<Backend, Id>: Clone
         + for<'a> FheTryEncrypt<&'a [Clear], ClientKey>
@@ -101,7 +101,7 @@ where
 
 fn bitor_test_case<Array, Clear>(ck: &ClientKey)
 where
-    Standard: Distribution<Clear>,
+    StandardUniform: Distribution<Clear>,
     Clear: BitOr<Clear, Output = Clear> + Copy + Eq + Debug,
     Array: IOwnedArray
         + for<'a> FheTryEncrypt<&'a [Clear], ClientKey>
@@ -167,7 +167,7 @@ where
 
 fn bitxor_test_case<Array, Clear>(ck: &ClientKey)
 where
-    Standard: Distribution<Clear>,
+    StandardUniform: Distribution<Clear>,
     Clear: Copy + BitXor<Clear, Output = Clear> + Eq + Debug,
     Array: IOwnedArray
         + for<'a> FheTryEncrypt<&'a [Clear], ClientKey>
@@ -233,7 +233,7 @@ where
 
 fn bitand_scalar_slice_test_case<Array, Clear>(ck: &ClientKey)
 where
-    Standard: Distribution<Clear>,
+    StandardUniform: Distribution<Clear>,
     Clear: Copy + BitAnd<Clear, Output = Clear> + Eq + Debug,
     Array: IOwnedArray
         + for<'a> FheTryEncrypt<&'a [Clear], ClientKey>

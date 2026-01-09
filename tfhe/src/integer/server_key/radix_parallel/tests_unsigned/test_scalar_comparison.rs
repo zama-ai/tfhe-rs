@@ -10,7 +10,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I2
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::prelude::*;
 use std::ops::AddAssign;
 use std::sync::Arc;
@@ -29,9 +29,9 @@ pub(crate) fn test_unchecked_scalar_function<P, T, ClearF, Scalar>(
     Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64> + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -41,8 +41,8 @@ pub(crate) fn test_unchecked_scalar_function<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks);
 
     for _ in 0..num_test {
-        let clear_a = rng.gen::<Scalar>();
-        let clear_b = rng.gen::<Scalar>();
+        let clear_a = rng.random::<Scalar>();
+        let clear_b = rng.random::<Scalar>();
 
         let a = cks.encrypt(clear_a);
 
@@ -78,7 +78,7 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -88,7 +88,7 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -96,13 +96,13 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
@@ -145,7 +145,7 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -155,7 +155,7 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -163,14 +163,14 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let clear_1 = rng.random::<Scalar>();
 
         let mut ct_0 = cks.encrypt(clear_0);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
@@ -297,16 +297,16 @@ macro_rules! define_scalar_comparison_test_functions {
 /// work when the scalar type used is either bigger or smaller (in bit size)
 /// compared to the ciphertext
 fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..4 {
-        let clear_a = rng.gen_range((u128::from(u64::MAX) + 1)..=u128::MAX);
-        let smaller_clear = rng.gen::<u64>();
-        let bigger_clear = rng.gen::<U256>();
+        let clear_a = rng.random_range((u128::from(u64::MAX) + 1)..=u128::MAX);
+        let smaller_clear = rng.random::<u64>();
+        let bigger_clear = rng.random::<U256>();
 
         let a = cks.encrypt_radix(clear_a, num_block);
 
@@ -403,7 +403,7 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = 1;
 
@@ -411,8 +411,8 @@ fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParamete
     let message_modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..4 {
-        let clear_a = rng.gen_range(0..message_modulus);
-        let clear_b = rng.gen_range(0..message_modulus);
+        let clear_a = rng.random_range(0..message_modulus);
+        let clear_b = rng.random_range(0..message_modulus);
 
         let a = cks.encrypt_radix(clear_a, num_block);
 
@@ -487,10 +487,10 @@ fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParamete
 // Given a ciphertext that consists of empty blocks,
 // the function tests whether comparisons still hold.
 fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let scalar = rng.gen::<u64>();
+    let scalar = rng.random::<u64>();
     let ct: RadixCiphertext = sks.create_trivial_radix(scalar, 0);
 
     {
@@ -523,9 +523,9 @@ fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = 128usize.div_ceil(param.message_modulus.0.ilog2() as usize);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
-    let clear_unsigned = rng.gen::<u128>();
+    let clear_unsigned = rng.random::<u128>();
     let ct = cks.encrypt_radix(clear_unsigned, num_block);
 
     // Positive scalars
@@ -539,7 +539,7 @@ fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Greater);
 
-        let scalar = U256::from(u128::MAX) + U256::from(rng.gen_range(2u128..=u128::MAX));
+        let scalar = U256::from(u128::MAX) + U256::from(rng.random_range(2u128..=u128::MAX));
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Greater);
 
@@ -557,7 +557,7 @@ fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Less);
 
-        let scalar = I256::from(i128::MIN) + I256::from(rng.gen_range(i128::MIN..=-2));
+        let scalar = I256::from(i128::MIN) + I256::from(rng.random_range(i128::MIN..=-2));
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Less);
 
@@ -565,7 +565,7 @@ fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Less);
 
-        let scalar = I256::from(i128::MIN) - I256::from(rng.gen_range(2..=i128::MAX));
+        let scalar = I256::from(i128::MIN) - I256::from(rng.random_range(2..=i128::MAX));
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, std::cmp::Ordering::Less);
 
@@ -599,9 +599,9 @@ pub(crate) fn test_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -611,8 +611,8 @@ pub(crate) fn test_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks);
 
     for _ in 0..num_test {
-        let clear_a = rng.gen::<Scalar>();
-        let clear_b = rng.gen::<Scalar>();
+        let clear_a = rng.random::<Scalar>();
+        let clear_b = rng.random::<Scalar>();
 
         let a = cks.encrypt(clear_a);
 
@@ -644,7 +644,7 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
     Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -654,7 +654,7 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -662,13 +662,13 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
@@ -707,7 +707,7 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -717,7 +717,7 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -725,14 +725,14 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let clear_1 = rng.random::<Scalar>();
 
         let mut ct_0 = cks.encrypt(clear_0);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
@@ -989,7 +989,7 @@ pub(crate) fn extensive_trivial_default_scalar_comparisons_test<P, E1, E2, E3, E
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     lt_executor.setup(&cks, sks.clone());
     le_executor.setup(&cks, sks.clone());
@@ -1005,8 +1005,8 @@ pub(crate) fn extensive_trivial_default_scalar_comparisons_test<P, E1, E2, E3, E
             break;
         };
         for _ in 0..25 {
-            let clear_a = rng.gen_range(0..modulus);
-            let clear_b = rng.gen_range(0..modulus);
+            let clear_a = rng.random_range(0..modulus);
+            let clear_b = rng.random_range(0..modulus);
 
             let a: RadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks);
 

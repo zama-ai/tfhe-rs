@@ -447,14 +447,14 @@ mod test {
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const NUM_BLOCKS: usize = 16;
 
-        let clear_a = rng.gen_range(0..=i32::MAX);
-        let clear_b = rng.gen_range(i32::MIN..=-1);
-        let clear_c = rng.gen::<u32>();
-        let clear_d = rng.gen::<bool>();
+        let clear_a = rng.random_range(0..=i32::MAX);
+        let clear_b = rng.random_range(i32::MIN..=-1);
+        let clear_c = rng.random::<u32>();
+        let clear_d = rng.random::<bool>();
 
         let ct_a = cks.encrypt_signed_radix(clear_a, NUM_BLOCKS);
         let ct_b = cks.encrypt_signed_radix(clear_b, NUM_BLOCKS);

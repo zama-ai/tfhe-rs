@@ -232,7 +232,7 @@ pub fn main() {
                     let clear = *args
                         .src
                         .get(pos)
-                        .unwrap_or(&rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))));
+                        .unwrap_or(&rng.random_range(0..=u128::MAX >> (u128::BITS - (bw as u32))));
                     let fhe = if args.trivial {
                         sks.create_trivial_radix(clear, block)
                     } else {
@@ -248,7 +248,7 @@ pub fn main() {
                     *args
                         .imm
                         .get(pos)
-                        .unwrap_or(&rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))))
+                        .unwrap_or(&rng.random_range(0..u128::MAX >> (u128::BITS - (*width as u32))))
                 })
                 .collect::<Vec<_>>();
 

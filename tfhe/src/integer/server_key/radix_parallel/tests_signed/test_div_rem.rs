@@ -87,14 +87,14 @@ where
 
     executor.setup(&cks, sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
     // Test case of division by 0
     // This is mainly to show we know the behaviour of division by 0
     // using the current algorithm
-    for clear_0 in [0i64, rng.gen::<i64>() % modulus] {
+    for clear_0 in [0i64, rng.random::<i64>() % modulus] {
         let ctxt_0 = cks.encrypt_signed(clear_0);
         let ctxt_1 = cks.encrypt_signed(0);
 
@@ -108,9 +108,9 @@ where
 
     // Div is the slowest operation
     for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
         let clear_1 = loop {
-            let value = rng.gen::<i64>() % modulus;
+            let value = rng.random::<i64>() % modulus;
             if value != 0 {
                 break value;
             }
@@ -154,7 +154,7 @@ where
 
     executor.setup(&cks, sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -210,9 +210,9 @@ where
 
     // Div is the slowest operation
     for _ in 0..5 {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
         let clear_1 = loop {
-            let value = rng.gen::<i64>() % modulus;
+            let value = rng.random::<i64>() % modulus;
             if value != 0 {
                 break value;
             }

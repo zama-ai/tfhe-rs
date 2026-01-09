@@ -29,8 +29,8 @@ use tfhe::{get_pbs_count, reset_pbs_count};
 type ScalarType = U256;
 
 fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
-    let clearlow = rng.gen::<u128>();
-    let clearhigh = rng.gen::<u128>();
+    let clearlow = rng.random::<u128>();
+    let clearhigh = rng.random::<u128>();
 
     tfhe::integer::U256::from((clearlow, clearhigh))
 }
@@ -49,7 +49,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -119,7 +119,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -223,7 +223,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -290,7 +290,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -381,7 +381,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -402,8 +402,8 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
                 let mut carry_mod = param.carry_modulus().0;
                 while carry_mod > 0 {
                     // Raise the degree, so as to ensure worst case path in operations
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
+                    let clearlow = rng.random::<u128>();
+                    let clearhigh = rng.random::<u128>();
                     let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_2 = cks.encrypt_radix(clear_2, num_block);
                     sks.unchecked_add_assign(&mut ct_0, &ct_2);
@@ -453,7 +453,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         if bit_size > ScalarType::BITS as usize {
@@ -586,7 +586,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -600,7 +600,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let clear_1 = gen_random_u256(&mut rng);
-                    let clear_cond = rng.gen_bool(0.5);
+                    let clear_cond = rng.random_bool(0.5);
 
                     let true_ct = cks.encrypt_radix(clear_0, num_block);
                     let false_ct = cks.encrypt_radix(clear_1, num_block);
@@ -627,7 +627,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let false_ct = cks.encrypt_radix(clear_1, num_block);
 
-                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
+                let condition = cks.encrypt_bool(rng.random_bool(0.5));
 
                 reset_pbs_count();
                 sks.if_then_else_parallelized(&condition, &true_ct, &false_ct);
@@ -642,7 +642,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.random_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -694,7 +694,7 @@ fn flip_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -708,7 +708,7 @@ fn flip_parallelized(c: &mut Criterion) {
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let clear_1 = gen_random_u256(&mut rng);
-                    let clear_cond = rng.gen_bool(0.5);
+                    let clear_cond = rng.random_bool(0.5);
 
                     let true_ct = cks.encrypt_radix(clear_0, num_block);
                     let false_ct = cks.encrypt_radix(clear_1, num_block);
@@ -735,7 +735,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let false_ct = cks.encrypt_radix(clear_1, num_block);
 
-                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
+                let condition = cks.encrypt_bool(rng.random_bool(0.5));
 
                 reset_pbs_count();
                 sks.flip_parallelized(&condition, &true_ct, &false_ct);
@@ -750,7 +750,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
+                            .map(|_| cks.encrypt_bool(rng.random_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -802,7 +802,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -1525,7 +1525,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1643,7 +1643,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1779,7 +1779,7 @@ mod cuda {
         H: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1911,7 +1911,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1934,7 +1934,7 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_tree_values = || {
-                            let clear_cond = rng.gen::<bool>();
+                            let clear_cond = rng.random::<bool>();
                             let ct_then = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                             let ct_else = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                             let ct_cond = cks.encrypt_bool(clear_cond);
@@ -1969,7 +1969,7 @@ mod cuda {
                     let ct_then = cks.encrypt_radix(clear_0, num_block);
                     let clear_1 = gen_random_u256(&mut rng);
                     let ct_else = cks.encrypt_radix(clear_1, num_block);
-                    let ct_cond = cks.encrypt_bool(rng.gen_bool(0.5));
+                    let ct_cond = cks.encrypt_bool(rng.random_bool(0.5));
 
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
@@ -1987,7 +1987,7 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_cond = (0..elements)
                                 .map(|i| {
-                                    let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
+                                    let ct_cond = cks.encrypt_bool(rng.random::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
                                         &local_streams[i as usize],
@@ -2875,7 +2875,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let env_config = EnvConfig::new();
         let stream = CudaStreams::new_multi_gpu();
@@ -2977,7 +2977,7 @@ mod hpu {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(60));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -3017,7 +3017,7 @@ mod hpu {
                                     };
 
                                     let clear = rng
-                                        .gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                        .random_range(0..u128::cast_from(max_value_for_bit_size))
                                         & if bw < u128::BITS as usize {
                                             (1_u128 << bw) - 1
                                         } else {
@@ -3029,7 +3029,7 @@ mod hpu {
                                 .collect::<Vec<_>>();
 
                             let imms = (0..proto.imm)
-                                .map(|_| rng.gen_range(0..u128::cast_from(max_value_for_bit_size)))
+                                .map(|_| rng.random_range(0..u128::cast_from(max_value_for_bit_size)))
                                 .collect::<Vec<_>>();
                             (srcs, imms)
                         };
@@ -3081,7 +3081,7 @@ mod hpu {
                                         };
 
                                         let clear = rng
-                                            .gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                            .random_range(0..u128::cast_from(max_value_for_bit_size))
                                             & if bw < u128::BITS as usize {
                                                 (1_u128 << bw) - 1
                                             } else {
@@ -3094,7 +3094,7 @@ mod hpu {
 
                                 let imms = (0..proto.imm)
                                     .map(|_| {
-                                        rng.gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                        rng.random_range(0..u128::cast_from(max_value_for_bit_size))
                                     })
                                     .collect::<Vec<_>>();
                                 (srcs, imms)
@@ -3673,7 +3673,7 @@ fn bench_server_key_cast_function<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let env_config = EnvConfig::new();
 

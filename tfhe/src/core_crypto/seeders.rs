@@ -15,15 +15,13 @@ pub use tfhe_csprng::seeders::UnixSeeder;
 #[cfg(feature = "__wasm_api")]
 mod wasm_seeder {
     use crate::core_crypto::commons::math::random::{Seed, Seeder};
-    // This is used for web interfaces
-    use getrandom::getrandom;
 
     pub(super) struct WasmSeeder {}
 
     impl Seeder for WasmSeeder {
         fn seed(&mut self) -> Seed {
             let mut buffer = [0u8; 16];
-            getrandom(&mut buffer).unwrap();
+            getrandom::fill(&mut buffer).unwrap();
 
             Seed(u128::from_le_bytes(buffer))
         }

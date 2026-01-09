@@ -4,7 +4,7 @@ use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, Operato
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
-use rand::thread_rng;
+use rand::rng;
 #[cfg(not(feature = "hpu"))]
 use rayon::prelude::*;
 #[cfg(not(feature = "hpu"))]
@@ -305,11 +305,11 @@ mod pbs_stats {
         FheType: FheEncrypt<u64, ClientKey>,
         F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -372,11 +372,11 @@ fn bench_transfer_latency<FheType, F>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount = FheType::encrypt(rng.random::<u64>(), client_key);
 
         b.iter(|| {
             let (new_from, new_to) = transfer_func(&from_amount, &to_amount, &amount);
@@ -425,15 +425,15 @@ fn bench_transfer_latency_simd<FheType, F>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         let mut from_amounts: Vec<FheType> = vec![];
         let mut to_amounts: Vec<FheType> = vec![];
         let mut amounts: Vec<FheType> = vec![];
         for _i in 0..hpu_simd_n {
-            let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-            let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-            let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+            let from_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+            let to_amount = FheType::encrypt(rng.random::<u64>(), client_key);
+            let amount = FheType::encrypt(rng.random::<u64>(), client_key);
             from_amounts.push(from_amount);
             to_amounts.push(to_amount);
             amounts.push(amount);
@@ -471,7 +471,7 @@ fn bench_transfer_throughput<FheType, F>(
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -483,13 +483,13 @@ fn bench_transfer_throughput<FheType, F>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             b.iter(|| {
@@ -526,7 +526,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let num_gpus = get_number_of_gpus() as u64;
     let compressed_server_key = CompressedServerKey::new(client_key);
 
@@ -547,13 +547,13 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     );
     group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)
-            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
             .collect::<Vec<_>>();
         let to_amounts = (0..num_elems)
-            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
             .collect::<Vec<_>>();
         let amounts = (0..num_elems)
-            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
             .collect::<Vec<_>>();
 
         let num_streams_per_gpu = 6; // Hard coded stream value for FheUint64
@@ -616,7 +616,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     FheType: FheWait,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -628,13 +628,13 @@ fn hpu_bench_transfer_throughput<FheType, F>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             b.iter(|| {
@@ -689,7 +689,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
         .src
         .len()
         / 3;
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -703,21 +703,21 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             let from_amounts = (0..num_elems)
                 .map(|_| {
                     (0..hpu_simd_n)
-                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
             let to_amounts = (0..num_elems)
                 .map(|_| {
                     (0..hpu_simd_n)
-                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
             let amounts = (0..num_elems)
                 .map(|_| {
                     (0..hpu_simd_n)
-                        .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                        .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();

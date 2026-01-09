@@ -528,18 +528,17 @@ mod test {
     where
         K: Numeric + CastInto<usize> + Ord,
         V: Numeric,
-        rand::distributions::Standard:
-            rand::distributions::Distribution<K> + rand::distributions::Distribution<V>,
+        rand::distr::StandardUniform: rand::distr::Distribution<K> + rand::distr::Distribution<V>,
         FheType: FheIntegerType + FheEncrypt<V, ClientKey>,
     {
         assert!((K::MAX).cast_into() >= num_keys);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut kv_store = KVStore::new();
         let mut clear_store = BTreeMap::new();
         while kv_store.len() != num_keys {
-            let k = rng.gen::<K>();
-            let v = rng.gen::<V>();
+            let k = rng.random::<K>();
+            let v = rng.random::<V>();
 
             let e_v = FheType::encrypt(v, ck);
 
@@ -557,10 +556,10 @@ mod test {
         let num_tests = 10;
 
         let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
-            let k = rng.gen::<u8>();
+            let k = rng.random::<u8>();
             let e_k = FheUint8::encrypt(k, ck);
 
             let (e_v, e_is_some) = kv_store.get(&e_k);
@@ -582,13 +581,13 @@ mod test {
         let num_tests = 10;
 
         let (mut kv_store, mut clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
-            let k = rng.gen::<u8>();
+            let k = rng.random::<u8>();
             let e_k = FheUint8::encrypt(k, ck);
 
-            let new_value = rng.gen::<u32>();
+            let new_value = rng.random::<u32>();
             let e_new_value = FheUint32::encrypt(new_value, ck);
 
             let e_was_updated = kv_store.update(&e_k, &e_new_value);
@@ -617,13 +616,13 @@ mod test {
         let num_tests = 10;
 
         let (mut kv_store, mut clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
-            let k = rng.gen::<u8>();
+            let k = rng.random::<u8>();
             let e_k = FheUint8::encrypt(k, ck);
 
-            let expected_new_value = rng.gen::<u32>();
+            let expected_new_value = rng.random::<u32>();
 
             let (e_old_value, e_new_value, e_was_updated) =
                 kv_store.map(&e_k, |_old| FheUint32::encrypt(expected_new_value, ck));

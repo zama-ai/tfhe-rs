@@ -668,8 +668,8 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
         // Sample a random subset of 1-N gpus, where N is the number of available GPUs
         // A GPU index should not appear twice in the subset
         let num_gpus = get_number_of_gpus();
-        let mut rng = rand::thread_rng();
-        let num_gpus_to_use = rng.gen_range(1..=num_gpus as usize);
+        let mut rng = rand::rng();
+        let num_gpus_to_use = rng.random_range(1..=num_gpus as usize);
         let mut all_gpu_indexes: Vec<u32> = (0..num_gpus).collect();
         all_gpu_indexes.shuffle(&mut rng);
         let gpu_indexes_to_use = &all_gpu_indexes[..num_gpus_to_use];

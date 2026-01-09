@@ -23,7 +23,7 @@ use benchmark::utilities::{
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
-use rand::thread_rng;
+use rand::rng;
 use rayon::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
@@ -85,7 +85,7 @@ fn bench_sns_only_fhe_type<FheType>(
     let noise_param_name = noise_param.name();
     let bench_id_suffix = format!("noise_squash::{noise_param_name}::{type_name}");
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let bench_id;
 
@@ -96,7 +96,7 @@ fn bench_sns_only_fhe_type<FheType>(
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
 
-            let input = FheType::encrypt(rng.gen(), &client_key);
+            let input = FheType::encrypt(rng.random(), &client_key);
 
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
@@ -126,7 +126,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.bench_function(&bench_id, |b| {
                     let encrypt_values = || {
                         (0..elements)
-                            .map(|_| FheType::encrypt(rng.gen(), &client_key))
+                            .map(|_| FheType::encrypt(rng.random(), &client_key))
                             .collect::<Vec<_>>()
                     };
 
@@ -152,7 +152,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.bench_function(&bench_id, |b| {
                     let encrypt_values = || {
                         (0..elements)
-                            .map(|_| FheType::encrypt(rng.gen(), &client_key))
+                            .map(|_| FheType::encrypt(rng.random(), &client_key))
                             .collect::<Vec<_>>()
                     };
 
@@ -227,7 +227,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     let noise_param_name = noise_param.name();
     let bench_id_suffix = format!("decomp_noise_squash_comp::{noise_param_name}::{type_name}");
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let bench_id;
 
@@ -238,7 +238,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
 
-            let input = FheType::encrypt(rng.gen(), &client_key);
+            let input = FheType::encrypt(rng.random(), &client_key);
 
             let mut builder = CompressedCiphertextListBuilder::new();
             builder.push(input);
@@ -277,7 +277,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
-                                let input = FheType::encrypt(rng.gen(), &client_key);
+                                let input = FheType::encrypt(rng.random(), &client_key);
                                 let mut builder = CompressedCiphertextListBuilder::new();
                                 builder.push(input);
                                 builder.build().unwrap()
@@ -315,7 +315,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
-                                let input = FheType::encrypt(rng.gen(), &client_key);
+                                let input = FheType::encrypt(rng.random(), &client_key);
                                 let mut builder = CompressedCiphertextListBuilder::new();
                                 builder.push(input);
                                 builder.build().unwrap()

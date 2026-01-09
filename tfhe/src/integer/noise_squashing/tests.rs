@@ -19,12 +19,12 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
     let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     // Positive signed value
-    let value = rng.gen_range(0..=i32::MAX);
+    let value = rng.random_range(0..=i32::MAX);
     let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
     let ct = sks.bitand_parallelized(&ct, &ct);
     let ct = noise_squashing_key
@@ -53,7 +53,7 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
 
     // Negative signed value
     for block_count in [odd_block_count, num_blocks * 2, num_blocks.div_ceil(2)] {
-        let value = rng.gen_range(i8::MIN..0);
+        let value = rng.random_range(i8::MIN..0);
         let ct = cks.encrypt_signed_radix(value, block_count);
         let ct = sks.bitand_parallelized(&ct, &ct);
         let ct = noise_squashing_key
@@ -76,7 +76,7 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     }
 
     // Unsigned value
-    let value = rng.gen::<u32>();
+    let value = rng.random::<u32>();
     let ct = cks.encrypt_radix(value, num_blocks * 2);
     let ct = sks.bitand_parallelized(&ct, &ct);
     let ct = noise_squashing_key

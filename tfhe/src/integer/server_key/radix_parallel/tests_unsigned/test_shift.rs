@@ -60,7 +60,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -70,8 +70,8 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -119,7 +119,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -129,8 +129,8 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -177,7 +177,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -189,8 +189,8 @@ where
         assert!(modulus.is_power_of_two());
         let nb_bits = modulus.ilog2();
         for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
-            let clear_shift = rng.gen::<u32>();
+            let clear = rng.random::<u64>() % modulus;
+            let clear_shift = rng.random::<u32>();
 
             let ct = cks.encrypt_radix(clear, num_blocks);
 
@@ -218,7 +218,7 @@ where
 
             // case when shift >= nb_bits
             {
-                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let clear_shift = rng.random_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
 
                 let encrypted_result = executor.execute((&ct, &shift));
@@ -258,7 +258,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -270,8 +270,8 @@ where
         assert!(modulus.is_power_of_two());
         let nb_bits = modulus.ilog2();
         for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
-            let clear_shift = rng.gen::<u32>();
+            let clear = rng.random::<u64>() % modulus;
+            let clear_shift = rng.random::<u32>();
 
             let ct = cks.encrypt_radix(clear, num_blocks);
 
@@ -293,7 +293,7 @@ where
 
             // case when shift >= nb_bits
             {
-                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let clear_shift = rng.random_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert!(

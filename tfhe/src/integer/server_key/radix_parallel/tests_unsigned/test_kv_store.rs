@@ -127,7 +127,7 @@ fn default_kv_store_get_update_test<P, T1, T2>(
 
     // Test modifying a key that exists
     for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
+        let key_index = rand::random_range(0..num_keys);
         let key_target = *clear_store.iter().nth(key_index).unwrap().0;
         let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 
@@ -198,7 +198,7 @@ where
 
     // Test modifying a key that exists
     for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
+        let key_index = rand::random_range(0..num_keys);
         let key_target = *clear_store.iter().nth(key_index).unwrap().0;
         let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 

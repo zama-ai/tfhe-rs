@@ -1466,10 +1466,10 @@ mod tests {
     fn test_arihtmetic_shr_split_u128() {
         use rand::prelude::*;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..1000 {
-            let positive = rng.gen_range(0i128..=i128::MAX);
-            let negative = rng.gen_range(i128::MIN..0);
+            let positive = rng.random_range(0i128..=i128::MAX);
+            let negative = rng.random_range(i128::MIN..0);
 
             for shift in 0..127 {
                 for case in [positive, negative] {
@@ -1506,12 +1506,12 @@ mod tests {
             return;
         };
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..1000 {
             for shift in 0..63 {
                 let shift = [shift as u64; 4];
                 for range in [0i64..=i64::MAX, i64::MIN..=-1] {
-                    let input: [i64; 4] = core::array::from_fn(|_| rng.gen_range(range.clone()));
+                    let input: [i64; 4] = core::array::from_fn(|_| rng.random_range(range.clone()));
 
                     let res_i64 = mm256_sra_epi64_avx2(simd, pulp::cast(input), pulp::cast(shift));
                     let res_as_array: [i64; 4] = pulp::cast(res_i64);
@@ -1525,7 +1525,7 @@ mod tests {
             // Shift hardcoded as 64
             for range in [0i64..=i64::MAX, i64::MIN..=-1] {
                 let shift = [64u64; 4];
-                let input: [i64; 4] = core::array::from_fn(|_| rng.gen_range(range.clone()));
+                let input: [i64; 4] = core::array::from_fn(|_| rng.random_range(range.clone()));
 
                 let res_i64 = mm256_sra_epi64_avx2(simd, pulp::cast(input), pulp::cast(shift));
                 let res_as_array: [i64; 4] = pulp::cast(res_i64);

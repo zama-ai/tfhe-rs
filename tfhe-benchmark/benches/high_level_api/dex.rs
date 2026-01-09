@@ -11,7 +11,7 @@ use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, Operato
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
-use rand::thread_rng;
+use rand::rng;
 use rayon::prelude::*;
 use std::ops::{Add, Div, Mul, Sub};
 #[cfg(feature = "gpu")]
@@ -239,11 +239,11 @@ mod pbs_stats {
         FheType: FheEncrypt<u64, ClientKey>,
         F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType,
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_balance = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -294,11 +294,11 @@ mod pbs_stats {
         FheType: FheEncrypt<u64, ClientKey>,
         F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let to_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let sent_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let to_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_0_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let sent_0 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -349,14 +349,14 @@ mod pbs_stats {
         FheType: FheEncrypt<u64, ClientKey>,
         F: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType),
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let pending_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let pending_1_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_0_in = rng.gen::<u64>();
-        let total_dex_token_1_in = rng.gen::<u64>();
-        let total_dex_token_0_out = rng.gen::<u64>();
-        let total_dex_token_1_out = rng.gen::<u64>();
+        let pending_0_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let pending_1_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_0_in = rng.random::<u64>();
+        let total_dex_token_1_in = rng.random::<u64>();
+        let total_dex_token_0_out = rng.random::<u64>();
+        let total_dex_token_1_out = rng.random::<u64>();
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -413,12 +413,12 @@ mod pbs_stats {
         FheType: FheEncrypt<u64, ClientKey>,
         F: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType,
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let amount_out = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_in = rng.gen::<u64>();
-        let old_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let amount_out = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_in = rng.random::<u64>();
+        let old_balance = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -487,18 +487,18 @@ fn bench_swap_request_latency<FheType, F1, F2>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let from_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let from_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         b.iter(|| {
             let (sent0, sent1) = rayon::join(
@@ -549,7 +549,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
     F1: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType + Sync,
     F2: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -561,34 +561,34 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let from_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amount_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amount_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             b.iter(|| {
@@ -665,7 +665,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
     F1: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType + Sync,
     F2: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let num_gpus = get_number_of_gpus() as u64;
     let compressed_server_key = CompressedServerKey::new(client_key);
 
@@ -684,34 +684,34 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let from_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let to_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let total_tokens_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amount_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amount_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             let num_streams_per_gpu = 4;
@@ -885,18 +885,18 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let pending_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let pending_1_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_0_in = rng.gen::<u64>();
-        let total_token_1_in = rng.gen::<u64>();
-        let total_token_0_out = rng.gen::<u64>();
-        let total_token_1_out = rng.gen::<u64>();
-        let old_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let old_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let pending_0_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let pending_1_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_0_in = rng.random::<u64>();
+        let total_token_1_in = rng.random::<u64>();
+        let total_token_0_out = rng.random::<u64>();
+        let total_token_1_out = rng.random::<u64>();
+        let old_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let old_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         b.iter(|| {
             let (amount_0_out, amount_1_out) = swap_claim_prepare_func(
@@ -953,7 +953,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
     F1: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType) + Sync,
     F2: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -965,26 +965,26 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let pending_1_in = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_1_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_0_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_1_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_in = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_in = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_out = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_out = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
             let old_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let old_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             b.iter(|| {
@@ -1087,7 +1087,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
     F1: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType) + Sync,
     F2: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType + Sync,
 {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let num_gpus = get_number_of_gpus() as u64;
     let compressed_server_key = CompressedServerKey::new(client_key);
 
@@ -1106,32 +1106,32 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
         );
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let pending_1_in = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_1_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_0_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
-            let total_tokens_1_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_in = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_in = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_out = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_out = (0..num_elems).map(|_| rng.random::<u64>()).collect::<Vec<_>>();
             let old_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let old_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_0 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let current_balances_1 = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amounts_0_out = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
             let amounts_1_out = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .map(|_| FheType::encrypt(rng.random::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             let num_streams_per_gpu = 2.min(num_elems / num_gpus);

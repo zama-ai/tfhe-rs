@@ -42,14 +42,14 @@ fn test_ciphertext_re_randomization_after_compression() {
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
     let metadata = b"lol".as_slice();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
 
     // Unsigned
     let modulus = message_modulus.pow(NUM_BLOCKS as u32);
     for _ in 0..NB_TESTS {
-        let message = rng.gen::<u128>() % modulus;
+        let message = rng.random::<u128>() % modulus;
 
         let ct = cks.encrypt_radix(message, NUM_BLOCKS);
 
@@ -85,7 +85,7 @@ fn test_ciphertext_re_randomization_after_compression() {
     // Signed
     let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
     for _ in 0..NB_TESTS {
-        let message = rng.gen::<i128>() % modulus;
+        let message = rng.random::<i128>() % modulus;
 
         let ct = cks.encrypt_signed_radix(message, NUM_BLOCKS);
 

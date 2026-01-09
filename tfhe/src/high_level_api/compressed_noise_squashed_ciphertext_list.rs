@@ -647,11 +647,11 @@ mod tests {
 
         let (cks, sks) = generate_keys(config);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let clear_a = rng.gen::<i32>();
-        let clear_b = rng.gen::<u32>();
-        let clear_c = rng.gen_bool(0.5);
+        let clear_a = rng.random::<i32>();
+        let clear_b = rng.random::<u32>();
+        let clear_c = rng.random_bool(0.5);
 
         let a = FheInt32::encrypt(clear_a, &cks);
         let b = FheUint32::encrypt(clear_b, &cks);
@@ -708,11 +708,11 @@ mod tests {
 
         set_server_key(sks.decompress_to_gpu());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let clear_a = rng.gen::<i32>();
-        let clear_b = rng.gen::<u32>();
-        let clear_c = rng.gen_bool(0.5);
+        let clear_a = rng.random::<i32>();
+        let clear_b = rng.random::<u32>();
+        let clear_c = rng.random_bool(0.5);
 
         let mut a = FheInt32::encrypt(clear_a, &cks);
         let mut b = FheUint32::encrypt(clear_b, &cks);
@@ -770,11 +770,11 @@ mod tests {
 
         set_server_key(sks.decompress_to_gpu());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let clear_a = rng.gen::<i32>();
-        let clear_b = rng.gen::<u32>();
-        let clear_c = rng.gen_bool(0.5);
+        let clear_a = rng.random::<i32>();
+        let clear_b = rng.random::<u32>();
+        let clear_c = rng.random_bool(0.5);
 
         let mut a = FheInt32::encrypt(clear_a, &cks);
         let mut b = FheUint32::encrypt(clear_b, &cks);

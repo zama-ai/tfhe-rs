@@ -70,7 +70,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -85,7 +85,7 @@ where
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
 
@@ -130,7 +130,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -143,7 +143,7 @@ where
     let expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
 
     for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let mut ctxt = cks.encrypt(clear);
 
@@ -187,7 +187,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     neg.setup(&cks, sks.clone());
 
@@ -197,7 +197,7 @@ where
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
-            let mut clear = rng.gen_range(0..modulus);
+            let mut clear = rng.random_range(0..modulus);
             let mut ctxt = cks.encrypt_radix(clear, num_blocks);
 
             let ct_res = neg.execute(&ctxt);
@@ -250,7 +250,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_neg.setup(&cks, sks);
 
@@ -260,7 +260,7 @@ where
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
-            let clear = rng.gen_range(1..modulus);
+            let clear = rng.random_range(1..modulus);
             let ctxt = cks.encrypt_radix(clear, num_blocks);
 
             let (ct_res, flag) = overflowing_neg.execute(&ctxt);

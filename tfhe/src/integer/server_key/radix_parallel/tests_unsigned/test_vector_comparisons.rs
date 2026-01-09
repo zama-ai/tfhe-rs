@@ -9,7 +9,7 @@ use crate::integer::{
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use rand::distributions::uniform::{SampleRange, SampleUniform};
+use rand::distr::uniform::{SampleRange, SampleUniform};
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -64,7 +64,7 @@ pub(crate) fn unchecked_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
     Range<Clear>: SampleRange<Clear> + Clone,
 {
     let nb_tests = nb_tests_for_params(cks.parameters());
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // empty slice test
     {
@@ -77,18 +77,18 @@ pub(crate) fn unchecked_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
     // Test where inputs are not equal
     for _ in 0..halved_nb_tests {
-        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let num_values = rng.random_range(1..MAX_VEC_LEN);
         let values = (0..num_values)
-            .map(|_| encryption_fn(cks, rng.gen_range(range.clone())))
+            .map(|_| encryption_fn(cks, rng.random_range(range.clone())))
             .collect::<Vec<_>>();
         let mut values2 = values.clone();
 
         // Modify such that one block is different
-        let value_index = rng.gen_range(0..num_values);
-        let block_index = rng.gen_range(0..NB_CTXT);
+        let value_index = rng.random_range(0..num_values);
+        let block_index = rng.random_range(0..NB_CTXT);
         let value_to_avoid = cks.decrypt_one_block(&values[value_index].blocks()[block_index]);
         loop {
-            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0);
+            let new_value = rng.random_range(0..cks.parameters().message_modulus().0);
             if new_value != value_to_avoid {
                 let new_block = cks.encrypt_one_block(new_value);
                 values2[value_index].blocks_mut()[block_index] = new_block;
@@ -103,9 +103,9 @@ pub(crate) fn unchecked_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
     // Test where inputs are equal
     for _ in halved_nb_tests..nb_tests {
-        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let num_values = rng.random_range(1..MAX_VEC_LEN);
         let values = (0..num_values)
-            .map(|_| encryption_fn(cks, rng.gen_range(range.clone())))
+            .map(|_| encryption_fn(cks, rng.random_range(range.clone())))
             .collect::<Vec<_>>();
 
         let result = executor.execute((&values, &values));
@@ -149,7 +149,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
     Range<Clear>: SampleRange<Clear> + Clone,
 {
     let nb_tests = nb_tests_for_params(cks.parameters());
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // empty slice test
     {
@@ -162,18 +162,18 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
     // Test where inputs are not equal
     for _ in 0..halved_nb_tests {
-        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let num_values = rng.random_range(1..MAX_VEC_LEN);
         let mut values = (0..num_values)
-            .map(|_| encryption_fn(cks, rng.gen_range(range.clone())))
+            .map(|_| encryption_fn(cks, rng.random_range(range.clone())))
             .collect::<Vec<_>>();
         let mut values2 = values.clone();
 
         // Modify such that one block is different
-        let value_index = rng.gen_range(0..num_values);
-        let block_index = rng.gen_range(0..NB_CTXT);
+        let value_index = rng.random_range(0..num_values);
+        let block_index = rng.random_range(0..NB_CTXT);
         let value_to_avoid = cks.decrypt_one_block(&values[value_index].blocks()[block_index]);
         loop {
-            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0);
+            let new_value = rng.random_range(0..cks.parameters().message_modulus().0);
             if new_value != value_to_avoid {
                 let new_block = cks.encrypt_one_block(new_value);
                 values2[value_index].blocks_mut()[block_index] = new_block;
@@ -183,7 +183,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
         // Add carry to trigger propagation
         let non_zero_clear = loop {
-            let r = rng.gen_range(range.clone());
+            let r = rng.random_range(range.clone());
             if r != Clear::ZERO {
                 break r;
             }
@@ -210,9 +210,9 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
     // Test where inputs are equal
     for _ in halved_nb_tests..nb_tests {
-        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let num_values = rng.random_range(1..MAX_VEC_LEN);
         let values = (0..num_values)
-            .map(|_| encryption_fn(cks, rng.gen_range(range.clone())))
+            .map(|_| encryption_fn(cks, rng.random_range(range.clone())))
             .collect::<Vec<_>>();
 
         let result = executor.execute((&values, &values));
@@ -262,7 +262,7 @@ where
     ];
 
     let nb_tests = nb_tests_for_params(cks.parameters());
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let halved_tests = (nb_tests / 2).max(1);
 
@@ -271,15 +271,15 @@ where
 
     // First half of test: tests when the sub slice is actually contained
     for _ in 0..halved_tests {
-        let str_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let str_size = rng.random_range(MIN_STR_LEN..MAX_STR_LEN);
         let mut str = String::with_capacity(str_size);
         for _ in 0..str_size {
-            let i = rng.gen_range(0..ALPHABET.len());
+            let i = rng.random_range(0..ALPHABET.len());
             str.push(ALPHABET[i]);
         }
 
-        let slice_start = rng.gen_range(0..str_size - 1);
-        let slice_end = rng.gen_range(slice_start + 1..str_size);
+        let slice_start = rng.random_range(0..str_size - 1);
+        let slice_end = rng.random_range(slice_start + 1..str_size);
         let slice = str
             .chars()
             .skip(slice_start)
@@ -306,18 +306,18 @@ where
 
     // Second half of test: tests when the sub slice is NOT actually contained
     for _ in 0..halved_tests {
-        let str_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let str_size = rng.random_range(MIN_STR_LEN..MAX_STR_LEN);
         let mut str = String::with_capacity(str_size);
         for _ in 0..str_size {
-            let i = rng.gen_range(0..ALPHABET.len());
+            let i = rng.random_range(0..ALPHABET.len());
             str.push(ALPHABET[i]);
         }
 
-        let slice_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let slice_size = rng.random_range(MIN_STR_LEN..MAX_STR_LEN);
         let mut slice = String::with_capacity(str_size);
         loop {
             for _ in 0..slice_size {
-                let i = rng.gen_range(0..ALPHABET.len());
+                let i = rng.random_range(0..ALPHABET.len());
                 slice.push(ALPHABET[i]);
             }
 

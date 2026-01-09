@@ -483,12 +483,12 @@ mod test {
                 &streams,
             );
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let clear_a = rng.gen_range(0..=i32::MAX);
-        let clear_b = rng.gen_range(i32::MIN..=-1);
-        let clear_c = rng.gen::<u32>();
-        let clear_d = rng.gen::<bool>();
+        let clear_a = rng.random_range(0..=i32::MAX);
+        let clear_b = rng.random_range(i32::MIN..=-1);
+        let clear_c = rng.random::<u32>();
+        let clear_d = rng.random::<bool>();
 
         let ct_a = cks.encrypt_signed_radix(clear_a, NUM_BLOCKS);
         let ct_b = cks.encrypt_signed_radix(clear_b, NUM_BLOCKS);
@@ -585,7 +585,7 @@ mod test {
 
             let decryption_key = noise_squashing_compression_private_key.private_key_view();
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             // How many uints of NUM_BLOCKS we have to push in the list to ensure it
             // internally has more than one packed GLWE
@@ -598,9 +598,9 @@ mod test {
                 // Unsigned
                 let modulus = message_modulus.pow(NUM_BLOCKS as u32);
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
+                    let nb_messages = rng.random_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
-                        .map(|_| rng.gen::<u128>() % modulus)
+                        .map(|_| rng.random::<u128>() % modulus)
                         .collect::<Vec<_>>();
 
                     let d_cts = messages
@@ -638,9 +638,9 @@ mod test {
                 // Signed
                 let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
+                    let nb_messages = rng.random_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
-                        .map(|_| rng.gen::<i128>() % modulus)
+                        .map(|_| rng.random::<i128>() % modulus)
                         .collect::<Vec<_>>();
 
                     let d_cts = messages
@@ -678,9 +678,9 @@ mod test {
 
                 // Boolean
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
+                    let nb_messages = rng.random_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
-                        .map(|_| rng.gen::<i64>() % 2 != 0)
+                        .map(|_| rng.random::<i64>() % 2 != 0)
                         .collect::<Vec<_>>();
 
                     let d_cts = messages
@@ -726,15 +726,15 @@ mod test {
                 for _ in 0..NB_OPERATOR_TESTS {
                     let mut builder = CudaCompressedSquashedNoiseCiphertextList::builder();
 
-                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
+                    let nb_messages = rng.random_range(1..=max_nb_messages as u64);
                     let mut messages = vec![];
                     for _ in 0..nb_messages {
-                        let case_selector = rng.gen_range(0..3);
+                        let case_selector = rng.random_range(0..3);
                         match case_selector {
                             0 => {
                                 // Unsigned
                                 let modulus = message_modulus.pow(NUM_BLOCKS as u32);
-                                let message = rng.gen::<u128>() % modulus;
+                                let message = rng.random::<u128>() % modulus;
                                 let ct = radix_cks.encrypt(message);
                                 let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                     &ct, &streams,
@@ -753,7 +753,7 @@ mod test {
                             1 => {
                                 // Signed
                                 let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
-                                let message = rng.gen::<i128>() % modulus;
+                                let message = rng.random::<i128>() % modulus;
                                 let ct = radix_cks.encrypt_signed(message);
                                 let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                     &ct, &streams,
@@ -767,7 +767,7 @@ mod test {
                             }
                             _ => {
                                 // Boolean
-                                let message = rng.gen::<i64>() % 2 != 0;
+                                let message = rng.random::<i64>() % 2 != 0;
                                 let ct = radix_cks.encrypt_bool(message);
                                 let d_boolean_ct =
                                     CudaBooleanBlock::from_boolean_block(&ct, &streams);

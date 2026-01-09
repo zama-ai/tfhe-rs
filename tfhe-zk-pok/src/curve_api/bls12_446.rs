@@ -1092,13 +1092,13 @@ mod zp {
             use rand::Rng;
 
             Self::from_raw_u64x7([
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
             ])
         }
 
@@ -1333,7 +1333,7 @@ pub use zp::{ZeroizeZp, Zp};
 mod tests {
     use super::*;
     use rand::rngs::StdRng;
-    use rand::{thread_rng, Rng, SeedableRng};
+    use rand::{rng, Rng, SeedableRng};
     use std::collections::HashMap;
 
     #[test]
@@ -1489,7 +1489,7 @@ mod tests {
     /// Test that ZeroizeZp is equivalent to Zp
     #[test]
     fn test_zeroize_equivalency() {
-        let seed = thread_rng().gen();
+        let seed = rand::rng().random();
         println!("zeroize_equivalency seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 

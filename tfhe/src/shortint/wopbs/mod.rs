@@ -495,9 +495,9 @@ mod experimental {
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key(std_cks, std_sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let mut rng = rand::thread_rng();
+        /// let mut rng = rand::rng();
         /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
-        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
+        /// let ct = cks.encrypt(rng.random::<u64>() % message_modulus);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &ct, &lut);
         /// let res = cks.decrypt_message_and_carry(&ct_res);
@@ -533,9 +533,9 @@ mod experimental {
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
-        /// let mut rng = rand::thread_rng();
+        /// let mut rng = rand::rng();
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
-        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
+        /// let ct = cks.encrypt(rng.random::<u64>() % message_modulus);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.wopbs(&ct, &lut);
         /// let res = cks.decrypt_message_and_carry(&ct_res);
@@ -577,8 +577,8 @@ mod experimental {
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
-        /// let mut rng = rand::thread_rng();
-        /// let ct = cks.encrypt_without_padding(rng.gen::<u64>() % 2);
+        /// let mut rng = rand::rng();
+        /// let ct = cks.encrypt_without_padding(rng.random::<u64>() % 2);
         /// let lut = vec![1_u64 << 63; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.programmable_bootstrapping_without_padding(&ct, &lut);
         /// let res = cks.decrypt_message_and_carry_without_padding(&ct_res);

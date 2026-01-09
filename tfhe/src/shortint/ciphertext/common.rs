@@ -252,22 +252,22 @@ mod tests {
 
     #[test]
     fn test_noise_level_ci_run_filter() {
-        use rand::{thread_rng, Rng};
+        use rand::Rng;
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         assert_eq!(NoiseLevel::UNKNOWN.0, u64::MAX);
 
         let max_noise_level = NoiseLevel::UNKNOWN;
-        let random_addend = rng.gen::<u64>();
+        let random_addend = rng.random::<u64>();
         let add = max_noise_level + NoiseLevel(random_addend);
         assert_eq!(add, NoiseLevel::UNKNOWN);
 
-        let random_positive_multiplier = rng.gen_range(1u64..=u64::MAX);
+        let random_positive_multiplier = rng.random_range(1u64..=u64::MAX);
         let mul = max_noise_level * random_positive_multiplier;
         assert_eq!(mul, NoiseLevel::UNKNOWN);
 
-        let random_noise = NoiseLevel(rng.gen_range(2..=u64::MAX));
+        let random_noise = NoiseLevel(rng.random_range(2..=u64::MAX));
 
         assert!(NoiseLevel::NOMINAL >= NoiseLevel::ZERO);
         assert!(random_noise > NoiseLevel::NOMINAL);

@@ -42,8 +42,8 @@ mod hpu_test {
             .unwrap_or_else(|_| panic!("{name} env variable {var} couldn't be casted in u128")),
             _ => {
                 // Use tread_rng to generate the seed
-                let lsb = rand::thread_rng().next_u64() as u128;
-                let msb = rand::thread_rng().next_u64() as u128;
+                let lsb = rand::rng().next_u64() as u128;
+                let msb = rand::rng().next_u64() as u128;
                 (msb << u64::BITS) | lsb
             }
         }
@@ -199,7 +199,7 @@ mod hpu_test {
                                 hpu_asm::iop::VarMode::Bool => (1, 1),
                             };
 
-                            let clear = rng.gen_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
+                            let clear = rng.random_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
                             let fhe = if test_trivial {
                                 sks.as_ref().unwrap().create_trivial_radix(clear, block)
                             } else {
@@ -211,7 +211,7 @@ mod hpu_test {
                         .unzip();
 
                     let imms = (0..proto.imm)
-                        .map(|pos| rng.gen_range(0..$user_type::MAX) as u128)
+                        .map(|pos| rng.random_range(0..$user_type::MAX) as u128)
                         .collect::<Vec<_>>();
 
                     // execute on Hpu

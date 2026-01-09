@@ -244,7 +244,7 @@ mod test {
         let mut lwe = LweCiphertext::new(Scalar::ZERO, LweSize(len), ciphertext_modulus);
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(lwe.as_mut());
+        rand::rng().fill(lwe.as_mut());
 
         let lwe_msed_before_packing = lwe_ciphertext_modulus_switch::<_, SwitchedScalar, _>(
             lwe.as_view(),
@@ -278,7 +278,7 @@ mod test {
         let mut lwe = LweCiphertext::new(Scalar::ZERO, LweSize(len), ciphertext_modulus);
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(lwe.as_mut());
+        rand::rng().fill(lwe.as_mut());
 
         let msed = lwe_ciphertext_modulus_switch::<_, Scalar, _>(
             lwe.as_view(),

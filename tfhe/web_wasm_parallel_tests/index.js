@@ -65,17 +65,17 @@ async function setup() {
         setButtonsDisabledState(demoNames, true);
 
         console.log(`Running: ${id}`);
-        try {
+        // try {
           let results = await fn();
           document.getElementById("testSuccess").checked = true;
           if (results !== undefined) {
             document.getElementById("benchmarkResults").value =
               JSON.stringify(results);
           }
-        } catch (error) {
-          console.error(`Test Failed: ${error}`);
-          document.getElementById("testSuccess").checked = false;
-        }
+        // } catch (error) {
+        //   console.error(`Test Failed: ${error}`);
+        //   document.getElementById("testSuccess").checked = false;
+        // }
         document.getElementById("loader").hidden = true;
         setButtonsDisabledState(demoNames, false);
       },

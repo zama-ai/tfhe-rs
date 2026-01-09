@@ -26,7 +26,7 @@ BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
 TEST_VECTORS_DIR=apps/test-vectors
 CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 WASM_PACK_VERSION="0.13.1"
-WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
+WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2 | cut -d ' ' -f1)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TYPOS_VERSION=1.42.0

@@ -57,7 +57,7 @@ fn get_system_entropy() -> u128 {
     //
     // This syscall will use the urandom entropy source but block at startup until it is correctly
     // seeded. See <https://www.2uo.de/myths-about-urandom/> for a rational around random/urandom.
-    getrandom::getrandom(&mut buf).expect("Failed to read entropy from system");
+    getrandom::fill(&mut buf).expect("Failed to read entropy from system");
     // For consistency between big and small endian, Seed exposing accidentally the endianness via
     // the pub u128 field
     u128::from_le_bytes(buf)

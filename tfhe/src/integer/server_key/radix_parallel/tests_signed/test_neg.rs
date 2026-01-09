@@ -66,7 +66,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -118,14 +118,14 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<i64>() % modulus;
+        let clear = rng.random::<i64>() % modulus;
 
         let mut ctxt = cks.encrypt_signed(clear);
 
@@ -157,7 +157,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -182,7 +182,7 @@ where
     }
 
     for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<i64>() % modulus;
+        let clear = rng.random::<i64>() % modulus;
 
         let ctxt = cks.encrypt_signed(clear);
 
@@ -214,7 +214,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_neg.setup(&cks, sks);
 
@@ -228,7 +228,7 @@ where
         }
 
         for _ in 0..nb_tests_smaller {
-            let clear = rng.gen_range(-modulus + 1..modulus);
+            let clear = rng.random_range(-modulus + 1..modulus);
             let ctxt = cks.encrypt_signed_radix(clear, num_blocks);
 
             let (ct_res, flag) = overflowing_neg.execute(&ctxt);

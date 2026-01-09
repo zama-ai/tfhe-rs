@@ -9,7 +9,7 @@ use crate::core_crypto::gpu::{
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::rng;
 
 fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
@@ -181,8 +181,8 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
             let mut lwe_indexes_out = lwe_indexes.clone();
 
             if !use_trivial_indexes {
-                lwe_indexes.shuffle(&mut thread_rng());
-                lwe_indexes_out.shuffle(&mut thread_rng());
+                lwe_indexes.shuffle(&mut rand::rng());
+                lwe_indexes_out.shuffle(&mut rand::rng());
             }
 
             let h_lwe_indexes: Vec<Scalar> = lwe_indexes

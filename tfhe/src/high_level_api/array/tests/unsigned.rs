@@ -4,7 +4,6 @@ use crate::array::ClearArray;
 use crate::prelude::*;
 use crate::{generate_keys, set_server_key, ConfigBuilder, CpuFheUint32Array, FheUint32Array};
 use rand::prelude::*;
-use rand::thread_rng;
 
 #[test]
 fn test_cpu_only_bitand() {
@@ -108,12 +107,16 @@ fn test_single_dimension() {
 
     set_server_key(sks);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let num_elems = 5;
 
-    let clear_xs = (0..num_elems).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
-    let clear_ys = (0..num_elems).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+    let clear_xs = (0..num_elems)
+        .map(|_| rng.random::<u32>())
+        .collect::<Vec<_>>();
+    let clear_ys = (0..num_elems)
+        .map(|_| rng.random::<u32>())
+        .collect::<Vec<_>>();
 
     let xs = FheUint32Array::try_encrypt(clear_xs.as_slice(), &cks).unwrap();
     let ys = FheUint32Array::try_encrypt(clear_ys.as_slice(), &cks).unwrap();

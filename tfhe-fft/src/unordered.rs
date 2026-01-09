@@ -1175,8 +1175,8 @@ mod tests {
         let mut z = vec![c64::default(); n];
 
         for z in &mut z {
-            z.re = rng.gen_range(0.0..1.0);
-            z.im = rng.gen_range(0.0..1.0);
+            z.re = rng.random_range(0.0..1.0);
+            z.im = rng.random_range(0.0..1.0);
         }
 
         let plan = Plan::new(

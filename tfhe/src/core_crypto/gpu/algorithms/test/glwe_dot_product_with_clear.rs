@@ -8,7 +8,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_mul;
 use crate::core_crypto::prelude::ContiguousEntityContainerMut;
 
-use rand::distributions::Uniform;
+use rand::distr::StandardUniform;
 use rand::Rng;
 
 pub fn encryption_delta<Scalar: UnsignedInteger>(
@@ -130,13 +130,13 @@ where
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let poly_size = 2 << rng.gen_range(8usize..12);
-    let n_polys_rhs = if rng.gen_range(0..2) == 0 {
+    let poly_size = 2 << rng.random_range(8usize..12);
+    let n_polys_rhs = if rng.random_range(0..2) == 0 {
         poly_size
     } else {
-        rng.gen_range(0..poly_size * 2)
+        rng.random_range(0..poly_size * 2)
     };
 
     let encryption_glwe_dimension = GlweDimension(1);
@@ -277,12 +277,12 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
-    let poly_size = 2 << rng.gen_range(8usize..12);
-    let n_polys_rhs = if rng.gen_range(0..2) == 0 {
+    let mut rng = rand::rng();
+    let poly_size = 2 << rng.random_range(8usize..12);
+    let n_polys_rhs = if rng.random_range(0..2) == 0 {
         poly_size
     } else {
-        rng.gen_range(0..poly_size * 2)
+        rng.random_range(0..poly_size * 2)
     };
     let polynomial_size = PolynomialSize(poly_size as usize);
 

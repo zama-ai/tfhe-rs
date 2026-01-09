@@ -57,10 +57,10 @@ pub fn crs_gen<G: Curve>(max_nbits: usize, rng: &mut dyn RngCore) -> PublicParam
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(max_nbits, alpha),
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_s: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_s: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
     }
 }
 
@@ -394,7 +394,7 @@ mod tests {
 
         let max_nbits = 10;
         let l = 6;
-        let x = rng.gen::<u64>() % (1 << l);
+        let x = rng.random::<u64>() % (1 << l);
         let public_params = crs_gen::<crate::curve_api::Bls12_446>(max_nbits, rng);
         let (public_commit, private_commit) = commit(x, l, &public_params, rng);
         let proof = prove((&public_params, &public_commit), &private_commit, rng);

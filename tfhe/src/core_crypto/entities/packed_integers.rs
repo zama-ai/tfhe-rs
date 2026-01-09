@@ -274,7 +274,7 @@ mod test {
     {
         let mut cont = vec![Scalar::ZERO; len];
 
-        rand::thread_rng().fill(cont.as_mut_slice());
+        rand::rng().fill(cont.as_mut_slice());
 
         for val in cont.iter_mut() {
             *val %= log_modulus.cast_into();

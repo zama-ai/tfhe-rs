@@ -95,7 +95,7 @@ pub(crate) fn default_count_consecutive_bits_test<P, T>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -132,7 +132,7 @@ pub(crate) fn default_count_consecutive_bits_test<P, T>(
 
     let input_values = [0u64, modulus - 1]
         .into_iter()
-        .chain((0..nb_tests_smaller).map(|_| rng.gen::<u64>() % modulus))
+        .chain((0..nb_tests_smaller).map(|_| rng.random::<u64>() % modulus))
         .collect::<Vec<_>>();
 
     for clear in input_values {
@@ -181,7 +181,7 @@ pub(crate) fn default_count_consecutive_bits_test<P, T>(
 
     let input_values = [0u64, modulus - 1]
         .into_iter()
-        .chain((0..nb_tests_smaller).map(|_| rng.gen::<u64>() % modulus));
+        .chain((0..nb_tests_smaller).map(|_| rng.random::<u64>() % modulus));
 
     for clear in input_values {
         let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
@@ -249,7 +249,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -283,7 +283,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -341,7 +341,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -380,7 +380,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -417,7 +417,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -481,7 +481,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
