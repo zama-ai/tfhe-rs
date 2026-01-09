@@ -2809,6 +2809,7 @@ mod cuda {
     criterion_group!(
         default_cuda_dedup_ops,
         cuda_add,
+        cuda_neg,
         cuda_mul,
         cuda_div_rem,
         cuda_bitand,
