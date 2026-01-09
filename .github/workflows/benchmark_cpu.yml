@@ -16,7 +16,8 @@ on:
           - integer_zk
           - shortint
           - shortint_oprf
-          - hlapi
+          - hlapi_unsigned
+          - hlapi_signed
           - hlapi_erc20
           - hlapi_dex
           - hlapi_noise_squash

@@ -259,7 +259,7 @@ enum KeySetType {
 }
 
 #[derive(Serialize)]
-enum OperandType {
+pub enum OperandType {
     CipherText,
     PlainText,
 }
