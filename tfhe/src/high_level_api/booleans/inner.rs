@@ -139,6 +139,16 @@ impl InnerBoolean {
         }
     }
 
+    pub(crate) fn wait(&self) {
+        match self {
+            Self::Cpu(_) => {}
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => {}
+            #[cfg(feature = "hpu")]
+            Self::Hpu(ct) => ct.wait(),
+        }
+    }
+
     /// Returns the inner cpu ciphertext if self is on the CPU, otherwise, returns a copy
     /// that is on the CPU
     pub(crate) fn on_cpu(&self) -> MaybeCloned<'_, BooleanBlock> {
