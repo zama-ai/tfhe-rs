@@ -4,8 +4,8 @@ use crate::shortint::backward_compatibility::parameters::compact_public_key_only
 };
 use crate::shortint::parameters::{
     AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
-    LweDimension, MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters,
-    ShortintParameterSet, SupportedCompactPkeZkScheme,
+    LweDimension, MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
 use crate::Error;
@@ -16,7 +16,7 @@ use tfhe_versionable::Versionize;
 #[versionize(CompactCiphertextListExpansionKindVersions)]
 pub enum CompactCiphertextListExpansionKind {
     RequiresCasting,
-    NoCasting(PBSOrder),
+    NoCasting(AtomicPatternKind),
 }
 
 pub type CastingFunctionsOwned<'functions> =
@@ -35,10 +35,7 @@ pub enum ShortintCompactCiphertextListCastingMode<'a> {
 
 impl From<AtomicPatternKind> for CompactCiphertextListExpansionKind {
     fn from(value: AtomicPatternKind) -> Self {
-        match value {
-            AtomicPatternKind::Standard(pbsorder) => Self::NoCasting(pbsorder),
-            AtomicPatternKind::KeySwitch32 => Self::NoCasting(PBSOrder::KeyswitchBootstrap),
-        }
+        Self::NoCasting(value)
     }
 }
 
@@ -129,9 +126,7 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
         let message_modulus = parameters.message_modulus();
         let carry_modulus = parameters.carry_modulus();
         let ciphertext_modulus = parameters.ciphertext_modulus();
-        let output_ciphertext_kind = CompactCiphertextListExpansionKind::NoCasting(
-            parameters.encryption_key_choice().into(),
-        );
+        let output_ciphertext_kind = parameters.atomic_pattern().into();
 
         Self::try_new(
             encryption_lwe_dimension,

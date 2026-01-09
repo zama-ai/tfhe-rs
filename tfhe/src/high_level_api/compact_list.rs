@@ -850,7 +850,7 @@ mod zk {
         fn conformance_zk_compact_ciphertext_list() {
             let mut rng = thread_rng();
 
-            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let params = PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
             let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 

@@ -67,8 +67,8 @@ impl PublicKey {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
 
-    pub fn parameters(&self) -> crate::shortint::PBSParameters {
-        self.key.parameters.pbs_parameters().unwrap()
+    pub fn parameters(&self) -> crate::shortint::ShortintParameterSet {
+        self.key.parameters
     }
 
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
@@ -118,14 +118,16 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::tests::create_parameterized_test;
     use crate::integer::IntegerKeyKind;
-    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
-    use crate::shortint::parameters::ClassicPBSParameters;
+    use crate::shortint::parameters::test_params::{
+        TestParameters, TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+    };
 
     create_parameterized_test!(integer_public_key_decompression_small {
         TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
     });
 
-    fn integer_public_key_decompression_small(param: ClassicPBSParameters) {
+    fn integer_public_key_decompression_small<P: Into<TestParameters>>(param: P) {
+        let param: TestParameters = param.into();
         let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
         let compressed_pk = crate::integer::CompressedPublicKey::new(&cks);

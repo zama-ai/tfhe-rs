@@ -15,6 +15,7 @@ use crate::shortint::parameters::{
     AtomicPatternParameters, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
     ShortintKeySwitchingParameters,
 };
+use crate::shortint::AtomicPatternKind;
 use crate::{ClientKey, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint2};
 
 use rayon::prelude::*;
@@ -120,8 +121,9 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
     block_params: ClassicPBSParameters,
 ) {
     // Hack to avoid server key needs and get the ciphertext directly
-    cpke_params.expansion_kind =
-        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+    cpke_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
+        AtomicPatternKind::Standard(block_params.encryption_key_choice.into_pbs_order()),
+    );
 
     let modulus_as_f64 = cpke_params.ciphertext_modulus.raw_modulus_float();
 

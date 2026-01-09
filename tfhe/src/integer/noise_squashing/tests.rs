@@ -1,16 +1,14 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
 use crate::integer::IntegerKeyKind;
-use crate::shortint::parameters::{
-    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
+use crate::shortint::parameters::test_params::TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use rand::prelude::*;
 
 #[test]
 fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let noise_squashing_parameters = NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let meta_param = TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+    let param = meta_param.compute_parameters;
+    let noise_squashing_parameters = meta_param.noise_squashing_parameters.unwrap().parameters;
 
     // The goal is to test that encrypting a value stored in a type
     // for which the bit count does not match the target block count of the encrypted
@@ -21,7 +19,7 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
 
     let mut rng = rand::thread_rng();
 
-    let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+    let num_blocks = 32u32.div_ceil(param.message_modulus().0.ilog2()) as usize;
 
     // Positive signed value
     let value = rng.gen_range(0..=i32::MAX);

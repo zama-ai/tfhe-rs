@@ -1,0 +1,213 @@
+# Run a small subset of tests to ensure quick feedback.
+name: aws_tfhe_param_prod_tests
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  PULL_REQUEST_MD_LINK: ""
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets will be available only to zama-ai organization members
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_64-22.04"
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+  pull_request:
+    types: [ labeled ]
+
+permissions:
+  contents: read
+
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
+jobs:
+  should-run:
+    name: aws_tfhe_param_prod_tests/should-run
+    if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read # Needed to check for file change
+    outputs:
+      csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
+      zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}
+      versionable_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.versionable_any_changed }}
+      shortint_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.shortint_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
+      integer_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.integer_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
+      high_level_api_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.high_level_api_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
+      any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
+        with:
+          files_yaml: |
+            dependencies:
+              - tfhe/Cargo.toml
+              - tfhe-csprng/**
+              - tfhe-fft/**
+              - tfhe-zk-pok/**
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
+            versionable:
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
+            shortint:
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+            integer:
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+            high_level_api:
+              - tfhe/src/**
+              - '!tfhe/src/c_api/**'
+              - '!tfhe/src/boolean/**'
+              - '!tfhe/src/c_api/**'
+              - '!tfhe/src/js_on_wasm_api/**'
+
+      - name: Aggregate file changes
+        id: aggregated-changes
+        if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
+          steps.changed-files.outputs.csprng_any_changed == 'true' ||
+          steps.changed-files.outputs.zk_pok_any_changed == 'true' ||
+          steps.changed-files.outputs.versionable_any_changed == 'true' ||
+          steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
+          steps.changed-files.outputs.boolean_any_changed == 'true' ||
+          steps.changed-files.outputs.shortint_any_changed == 'true' ||
+          steps.changed-files.outputs.integer_any_changed == 'true' ||
+          steps.changed-files.outputs.wasm_any_changed == 'true' ||
+          steps.changed-files.outputs.high_level_api_any_changed == 'true' ||
+          steps.changed-files.outputs.user_docs_any_changed == 'true')
+        run: |
+          echo "any_changed=true" >> "$GITHUB_OUTPUT"
+
+  setup-instance:
+    name: aws_tfhe_param_prod_tests/setup-instance
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name != 'workflow_dispatch' && needs.should-run.outputs.any_file_changed == 'true')
+    needs: should-run
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+    steps:
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@973c1d22702de8d0acd2b34e83404c96ed92c264 # v1.4.2
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-big
+
+      # This instance will be spawned especially for pull-request from forked repository
+      - name: Start GitHub instance
+        id: start-github-instance
+        if: env.SECRETS_AVAILABLE == 'false'
+        run: |
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+
+  param-prod-tests:
+    name: aws_tfhe_param_prod_tests/param-prod-tests
+    needs: [ should-run, setup-instance ]
+    concurrency:
+      group: ${{ github.workflow_ref }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Gen Keys if required
+        if: needs.should-run.outputs.shortint_test == 'true' ||
+          needs.should-run.outputs.integer_test == 'true'
+        run: |
+          make gen_key_cache
+
+      - name: Run shortint tests
+        if: needs.should-run.outputs.shortint_test == 'true'
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=FALSE make test_param_prod_shortint_ci
+
+      - name: Run integer tests
+        if: needs.should-run.outputs.integer_test == 'true'
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=FALSE make test_param_prod_integer_ci 
+
+      - name: Run high-level API tests
+        if: needs.should-run.outputs.high_level_api_test == 'true'
+        run: |
+          make test_high_level_api
+
+      - name: Set pull-request URL
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
+      - name: Slack Notification
+        if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+
+  teardown-instance:
+    name: aws_tfhe_param_prod_tests/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [ setup-instance, param-prod-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop remote instance
+        id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@973c1d22702de8d0acd2b34e83404c96ed92c264 # v1.4.2
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (param-prod-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
