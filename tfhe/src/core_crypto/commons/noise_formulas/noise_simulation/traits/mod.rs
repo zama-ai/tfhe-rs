@@ -9,7 +9,9 @@ pub mod scalar_mul;
 pub use add_sub::{LweUncorrelatedAdd, LweUncorrelatedSub};
 pub use lwe_keyswitch::{AllocateLweKeyswitchResult, LweKeyswitch};
 pub use lwe_multi_bit_programmable_bootstrap::{
-    AllocateLweMultiBitBlindRotateResult, LweMultiBitFft128BlindRotate, LweMultiBitFftBlindRotate,
+    AllocateLweMultiBitBlindRotateResult, AllocateLweMultiBitBootstrapResult,
+    LweMultiBitFft128BlindRotate, LweMultiBitFft128Bootstrap, LweMultiBitFftBlindRotate,
+    LweMultiBitFftBootstrap,
 };
 pub use lwe_packing_keyswitch::{AllocateLwePackingKeyswitchResult, LwePackingKeyswitch};
 pub use lwe_programmable_bootstrap::{

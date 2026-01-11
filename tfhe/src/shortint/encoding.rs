@@ -36,6 +36,7 @@ pub(crate) fn compute_delta<Scalar: UnsignedInteger + CastFrom<u64>>(
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ShortintEncoding<Scalar: UnsignedInteger> {
     pub(crate) ciphertext_modulus: CoreCiphertextModulus<Scalar>,
     pub(crate) message_modulus: MessageModulus,

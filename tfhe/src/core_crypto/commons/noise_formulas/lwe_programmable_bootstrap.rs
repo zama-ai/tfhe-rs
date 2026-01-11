@@ -16,6 +16,7 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_gaussian_fft_mul_impl(
@@ -24,6 +25,7 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -38,15 +40,16 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00705
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
@@ -83,6 +86,7 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_tuniform_fft_mul_impl(
@@ -91,6 +95,7 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -105,15 +110,16 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00705
             * (2.0
-                * if (core::f64::consts::LOG2_E * modulus.ln() - 53.0 <= 0.0) {
+                * if (1.0 * mantissa_size - core::f64::consts::LOG2_E * modulus.ln() >= 0.0) {
                     0.0
                 } else {
-                    core::f64::consts::LOG2_E * modulus.ln() - 53.0
+                    -1.0 * mantissa_size + core::f64::consts::LOG2_E * modulus.ln()
                 }
                 + 2.88539008177793 * decomposition_base.ln()
                 - 2.88539008177793 * modulus.ln())
