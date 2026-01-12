@@ -10,7 +10,10 @@ use crate::high_level_api::{
     generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey, ServerKey,
 };
 use crate::integer::U256;
-use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+use crate::shortint::parameters::test_params::{
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use crate::shortint::parameters::TestParameters;
 use crate::shortint::ClassicPBSParameters;
 use crate::{
@@ -37,6 +40,48 @@ pub(crate) fn setup_cpu(params: Option<impl Into<TestParameters>>) -> ClientKey 
 pub(crate) fn setup_default_cpu() -> ClientKey {
     setup_cpu(Option::<ClassicPBSParameters>::None)
 }
+
+pub(crate) fn setup_param_prod_cpu() -> ClientKey {
+    setup_cpu(Some(
+        TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ))
+}
+
+macro_rules! create_parameterized_test {
+    (
+        $test_case_func:ident
+    ) => {
+        create_parameterized_test!(
+            $test_case_func,
+            {
+                {default, $crate::high_level_api::tests::setup_default_cpu},
+                {param_prod, $crate::high_level_api::tests::setup_param_prod_cpu},
+            }
+        );
+    };
+
+    (
+        $test_case_func:ident,
+        {
+            $({
+                $suffix:ident,
+                $setup_func:path
+            }),*
+            $(,)?
+        }
+    ) => {
+        ::paste::paste! {
+            $(
+                #[test]
+                fn [<$test_case_func _ $suffix>]() {
+                    let client_key = $setup_func();
+                    $test_case_func(&client_key);
+                }
+            )*
+        }
+    };
+}
+pub(in crate::high_level_api) use create_parameterized_test;
 
 fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearType>(
     clear: ClearType,

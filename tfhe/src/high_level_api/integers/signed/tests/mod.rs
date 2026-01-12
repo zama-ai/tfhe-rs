@@ -443,11 +443,14 @@ fn test_case_abs(cks: &ClientKey) {
 }
 
 fn test_case_integer_compress_decompress(cks: &ClientKey) {
-    let a = FheInt8::try_encrypt(-83i8, cks).unwrap();
+    let mut rng = rand::thread_rng();
+
+    let clear_a: i8 = rng.gen();
+    let a = FheInt8::try_encrypt(clear_a, cks).unwrap();
 
     let clear: i8 = a.compress().decompress().decrypt(cks);
 
-    assert_eq!(clear, -83i8);
+    assert_eq!(clear, clear_a);
 }
 
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
