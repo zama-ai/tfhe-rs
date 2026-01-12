@@ -133,7 +133,7 @@ def filter_integer_tests(input_args):
         else:
             filter_expression = [
                 f"test(/^integer::{backend_filter}.*/)",
-                "not test(/.*_param_prod.*/)",
+                "not test(~_param_prod)",
             ]
 
         if input_args.multi_bit:
@@ -226,11 +226,6 @@ def shortint_normal_filter(input_args):
     filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2_ks32_pbs/)")
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
 
-    if input_args.run_prod_only:
-        filter_expression.append("test(/^shortint::.*_param_prod.*")
-    else:
-        filter_expression.append("not test(shortint::.*_param_prod.*/)")
-
     return filter_expression
 
 
@@ -242,6 +237,11 @@ def filter_shortint_tests(input_args):
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
     filter = f"({opt_in_tests}) and not test(/^shortint::.*test_noise_check/)"
+
+    if input_args.run_prod_only:
+        filter = f"({filter}) and test(/^shortint::.*_param_prod.*/)"
+    else:
+        filter = f"({filter}) and not test(/^shortint::.*_param_prod.*/)"
 
     return filter
 
