@@ -19,11 +19,13 @@ The overall process to write an homomorphic program is the same for all types. T
 
 This library has different modules, with different levels of abstraction.
 
-There is the **core\_crypto** module, which is the lowest level API with the primitive functions and types of the TFHE scheme.
+There is the [core\_crypto](../core-crypto-api/presentation.md) module, which is the lowest level API with the primitive functions and types of the TFHE scheme.
 
-Above the core\_crypto module, there are the **Boolean**, **shortint**, and **integer** modules, which contain easy to use APIs enabling evaluation of Boolean, short integer, and integer circuits.
+Above the core\_crypto module, there are the [Boolean](boolean/README.md), [shortint](shortint/README.md), and [integer](integer/README.md) modules, which contain easy to use APIs enabling evaluation of Boolean, short integer, and integer circuits.
 
-Finally, there is the high-level module built on top of the Boolean, shortint, integer modules. This module is meant to abstract cryptographic complexities: no cryptographical knowledge is required to start developing an FHE application. Another benefit of the high-level module is the drastically simplified development process compared to lower level modules.
+Finally, there is the high-level module built on top of the shortint and integer modules. This module is meant to abstract cryptographic complexities: no cryptographical knowledge is required to start developing an FHE application. Another benefit of the high-level module is the drastically simplified development process compared to lower level modules.
+
+![API levels diagram](../../.gitbook/assets/api-levels.svg)
 
 #### high-level API
 
