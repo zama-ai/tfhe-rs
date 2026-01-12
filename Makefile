@@ -1048,9 +1048,16 @@ test_integer_cov: install_tarpaulin
 
 .PHONY: test_high_level_api # Run all the tests for high_level_api
 test_high_level_api:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--profile=ci \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
-		-- high_level_api::
+		-E "test(/high_level_api::.*/) and not test(/.*param_prod.*/)"
+
+test_param_prod_high_level_api:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--profile=ci \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
+		-E "test(/high_level_api::.*/) and test(/.*param_prod.*/)"
 
 test_high_level_api_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
