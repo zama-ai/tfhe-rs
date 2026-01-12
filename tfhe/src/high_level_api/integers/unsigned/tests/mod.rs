@@ -1,8 +1,15 @@
+use crate::conformance::ListSizeConstraint;
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues};
-use rand::{thread_rng, Rng};
+use crate::{
+    ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
+    CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint32,
+    CompressedFheUint32ConformanceParams, DeserializationConfig, FheBool, FheInt16, FheInt32,
+    FheInt8, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams, FheUint64, FheUint8,
+    MatchValues, SerializationConfig, ServerKey,
+};
+use rand::{random, thread_rng, Rng};
 use std::collections::HashMap;
 
 mod cpu;
@@ -299,6 +306,193 @@ fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
     assert_eq!(decrypted_result, clear_result);
 }
 
+fn test_safe_deserialize_conformant_fhe_uint32(client_key: &ClientKey, server_key: &ServerKey) {
+    let clear_a = random::<u32>();
+    let a = FheUint32::encrypt(clear_a, client_key);
+    let mut serialized = vec![];
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
+
+    let params = FheUint32ConformanceParams::from(server_key);
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<FheUint32>(serialized.as_slice(), &params)
+        .unwrap();
+    let decrypted: u32 = deserialized_a.decrypt(client_key);
+    assert_eq!(decrypted, clear_a);
+
+    assert!(deserialized_a.is_conformant(&params));
+}
+
+fn test_safe_deserialize_conformant_compressed_fhe_uint32(
+    client_key: &ClientKey,
+    server_key: &ServerKey,
+) {
+    let clear_a = random::<u32>();
+    let a = CompressedFheUint32::encrypt(clear_a, client_key);
+    let mut serialized = vec![];
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
+
+    let params = CompressedFheUint32ConformanceParams::from(server_key);
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<CompressedFheUint32>(serialized.as_slice(), &params)
+        .unwrap();
+
+    let decrypted: u32 = deserialized_a.decompress().decrypt(client_key);
+    assert_eq!(decrypted, clear_a);
+}
+
+fn test_safe_deserialize_conformant_compact_fhe_uint32(client_key: &ClientKey) {
+    let pk = CompactPublicKey::new(client_key);
+
+    let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
+    let a = CompactCiphertextList::builder(&pk)
+        .extend(clears.iter().copied())
+        .build();
+    let mut serialized = vec![];
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
+
+    let params = CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+        pk.parameters(),
+        ListSizeConstraint::exact_size(clears.len()),
+    )
+    .allow_unpacked();
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<CompactCiphertextList>(serialized.as_slice(), &params)
+        .unwrap();
+
+    let expander = deserialized_a.expand().unwrap();
+    for (i, clear) in clears.into_iter().enumerate() {
+        let encrypted: FheUint32 = expander.get(i).unwrap().unwrap();
+        let decrypted: u32 = encrypted.decrypt(client_key);
+        assert_eq!(decrypted, clear);
+    }
+
+    assert!(deserialized_a.is_conformant(&params));
+}
+
+fn test_case_integer_casting(client_key: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear = rng.gen::<u16>();
+
+    // Downcasting then Upcasting
+    {
+        let a = FheUint16::encrypt(clear, client_key);
+
+        // Downcasting
+        let a: FheUint8 = a.cast_into();
+        let da: u8 = a.decrypt(client_key);
+        assert_eq!(da, clear as u8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(client_key);
+        assert_eq!(da, (clear as u8) as u32);
+    }
+
+    // Upcasting then Downcasting
+    {
+        let a = FheUint16::encrypt(clear, client_key);
+
+        // Upcasting
+        let a = FheUint32::cast_from(a);
+        let da: u32 = a.decrypt(client_key);
+        assert_eq!(da, clear as u32);
+
+        // Downcasting
+        let a = FheUint8::cast_from(a);
+        let da: u8 = a.decrypt(client_key);
+        assert_eq!(da, (clear as u32) as u8);
+    }
+
+    // Casting to self, it not useful but is supported
+    {
+        let a = FheUint16::encrypt(clear, client_key);
+        let a = FheUint16::cast_from(a);
+        let da: u16 = a.decrypt(client_key);
+        assert_eq!(da, clear);
+    }
+
+    // Downcasting to smaller signed integer then Upcasting back to unsigned
+    {
+        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let a = FheUint16::encrypt(clear, client_key);
+
+        // Downcasting
+        let a: FheInt8 = a.cast_into();
+        let da: i8 = a.decrypt(client_key);
+        assert_eq!(da, clear as i8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(client_key);
+        assert_eq!(da, (clear as i8) as u32);
+    }
+
+    {
+        let clear = rng.gen_range(i16::MIN..0);
+        let a = FheInt16::encrypt(clear, client_key);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(client_key);
+        assert_eq!(da, clear as u32);
+    }
+
+    // Upcasting to bigger signed integer then downcasting back to unsigned
+    {
+        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let a = FheUint16::encrypt(clear, client_key);
+
+        // Upcasting
+        let a: FheInt32 = a.cast_into();
+        let da: i32 = a.decrypt(client_key);
+        assert_eq!(da, clear as i32);
+
+        // Downcasting
+        let a: FheUint16 = a.cast_into();
+        let da: u16 = a.decrypt(client_key);
+        assert_eq!(da, (clear as i32) as u16);
+    }
+}
+
+fn test_scalar_shift_when_clear_type_is_small(client_key: &ClientKey) {
+    // This is a regression tests
+    // The goal is to make sure that doing a scalar shift / rotate
+    // with a clear type that does not have enough bits to represent
+    // the number of bits of the fhe type correctly works.
+
+    let mut a = FheUint256::encrypt(U256::ONE, client_key);
+    // The fhe type has 256 bits, the clear type is u8,
+    // a u8 cannot represent the value '256'.
+    // This used to result in the shift/rotate panicking
+    let clear = 1u8;
+
+    let _ = &a << clear;
+    let _ = &a >> clear;
+    let _ = (&a).rotate_left(clear);
+    let _ = (&a).rotate_right(clear);
+
+    a <<= clear;
+    a >>= clear;
+    a.rotate_left_assign(clear);
+    a.rotate_right_assign(clear);
+}
+
+fn test_integer_compressed(client_key: &ClientKey) {
+    let mut rng = rand::thread_rng();
+
+    let clear: u16 = rng.gen();
+    let compressed = CompressedFheUint16::try_encrypt(clear, client_key).unwrap();
+    let decompressed = FheUint16::from(compressed.decompress());
+    let clear_decompressed: u16 = decompressed.decrypt(client_key);
+    assert_eq!(clear_decompressed, clear);
+}
+
 fn test_case_uint32_shift(cks: &ClientKey) {
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
@@ -351,6 +545,16 @@ fn test_case_uint32_shift(cks: &ClientKey) {
     } else {
         println!("WARN: HPU currently not support Shift by a scalar");
     }
+}
+
+fn test_integer_compress_decompress(client_key: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a: u8 = rng.gen();
+    let a = FheUint8::try_encrypt(clear_a, client_key).unwrap();
+
+    let clear: u8 = a.compress().decompress().decrypt(client_key);
+
+    assert_eq!(clear, clear_a);
 }
 
 fn test_case_uint32_bitwise(cks: &ClientKey) {
@@ -909,4 +1113,67 @@ fn test_case_match_value_or(cks: &ClientKey) {
             "Mismatch on result value for input {clear_in}. Should match: {should_match}"
         );
     }
+}
+
+fn test_dedicated_compact_public_key(client_key: &ClientKey) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u8 = rng.gen();
+
+    let pk = CompactPublicKey::new(client_key);
+
+    // Encrypt a value and cast
+    let mut builder = CompactCiphertextList::builder(&pk);
+    let list = builder
+        .push_with_num_bits(input_msg, 8)
+        .unwrap()
+        .build_packed();
+
+    let expander = list.expand().unwrap();
+    let ct1_extracted_and_cast = expander.get::<FheUint8>(0).unwrap().unwrap();
+
+    let sanity_cast: u8 = ct1_extracted_and_cast.decrypt(client_key);
+    assert_eq!(sanity_cast, input_msg);
+
+    let multiplier: u8 = rng.gen();
+
+    // Classical AP: DP, KS, PBS
+    let mul = &ct1_extracted_and_cast * multiplier as u8;
+
+    // High level decryption and test
+    let clear: u8 = mul.decrypt(client_key);
+    assert_eq!(clear, input_msg * multiplier);
+}
+
+fn test_dedicated_compressed_compact_public_key(client_key: &ClientKey) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u8 = rng.gen();
+
+    let compressed_pk = CompressedCompactPublicKey::new(client_key);
+    let pk = compressed_pk.decompress();
+
+    // Encrypt a value and cast
+    let mut builder = CompactCiphertextList::builder(&pk);
+    let list = builder
+        .push_with_num_bits(input_msg, 8)
+        .unwrap()
+        .build_packed();
+
+    let expander = list.expand().unwrap();
+    let ct1_extracted_and_cast = expander.get::<FheUint8>(0).unwrap().unwrap();
+
+    let sanity_cast: u8 = ct1_extracted_and_cast.decrypt(client_key);
+    assert_eq!(sanity_cast, input_msg);
+
+    let multiplier: u8 = rng.gen();
+
+    // Classical AP: DP, KS, PBS
+    let mul = &ct1_extracted_and_cast * multiplier as u8;
+
+    // High level decryption and test
+    let clear: u8 = mul.decrypt(client_key);
+    assert_eq!(clear, (input_msg * multiplier));
 }

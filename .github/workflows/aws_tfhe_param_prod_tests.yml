@@ -170,7 +170,7 @@ jobs:
       - name: Run high-level API tests
         if: needs.should-run.outputs.high_level_api_test == 'true'
         run: |
-          make test_high_level_api
+          make test_param_prod_high_level_api
 
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
