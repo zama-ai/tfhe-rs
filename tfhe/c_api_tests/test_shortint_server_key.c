@@ -541,7 +541,7 @@ void test_server_key(void) {
 
   ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
   // We don't have TUniform small params, use gaussian instead
-  ShortintPBSParameters params_small = SHORTINT_V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+  ShortintPBSParameters params_small = SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
 
   assert(params.message_modulus == 1 << message_bits);
   assert(params.carry_modulus == 1 << carry_bits);
