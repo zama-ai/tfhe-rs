@@ -41,7 +41,7 @@ void test_shortint_pbs_2_bits_message(void) {
   ShortintPBSLookupTable *lookup_table = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintPBSParameters params = SHORTINT_V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+  ShortintPBSParameters params = SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -115,7 +115,7 @@ void test_shortint_bivariate_pbs_2_bits_message(void) {
   ShortintBivariatePBSLookupTable *lookup_table = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintPBSParameters params = SHORTINT_V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+  ShortintPBSParameters params = SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);

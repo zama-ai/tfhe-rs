@@ -139,7 +139,7 @@ test("shortint_encrypt_decrypt", (t) => {
 
   // Encryption using small keys
   let params_name_small =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 
@@ -175,7 +175,7 @@ test("shortint_compressed_encrypt_decrypt", (t) => {
   // Encryption using small keys
   // We don't have TUniform small params so use previous gaussian ones.
   let params_name_small =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 
@@ -195,7 +195,7 @@ test("shortint_compressed_encrypt_decrypt", (t) => {
 
 test("shortint_public_encrypt_decrypt", (t) => {
   let params_name_2_0 =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M128;
   let params_2_0 = new ShortintParameters(params_name_2_0);
   let cks = Shortint.new_client_key(params_2_0);
   let pk = Shortint.new_public_key(cks);
@@ -210,7 +210,7 @@ test("shortint_public_encrypt_decrypt", (t) => {
 
   // Small
   let params_name_2_2_small =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_2_2_small = new ShortintParameters(params_name_2_2_small);
   let cks_small = Shortint.new_client_key(params_2_2_small);
 
@@ -228,7 +228,7 @@ test("shortint_public_encrypt_decrypt", (t) => {
 
 test("shortint_compressed_public_encrypt_decrypt", (t) => {
   let params_name =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
   let params = new ShortintParameters(params_name);
   let cks = Shortint.new_client_key(params);
   let pk = Shortint.new_compressed_public_key(cks);
@@ -250,7 +250,7 @@ test("shortint_compressed_public_encrypt_decrypt", (t) => {
 
   // Small
   let params_name_small =
-    ShortintParametersName.V1_5_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 

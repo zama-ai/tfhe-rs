@@ -129,7 +129,7 @@ Other sizes than 64 bit are expected to be available in the future.
 
 # FHE shortint Trivium implementation
 
-The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128`).
+The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128`).
 It uses a lower level API of tfhe-rs, so the syntax is a little bit different. It also implements the `TransCiphering` trait. For optimization purposes, it does not internally run
 on the same cryptographic parameters as the high level API of tfhe-rs. As such, it requires the usage of a casting key, to switch from one parameter space to another, which makes
 its setup a little more intricate.
@@ -138,9 +138,9 @@ Example code:
 ```rust
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::parameters::current_params::{
-    V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_6_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
 };
 use tfhe::{ConfigBuilder, generate_keys, FheUint64};
 use tfhe::prelude::*;
@@ -148,17 +148,17 @@ use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(V1_5_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V1_5_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128_2M128,
+        V1_6_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128_2M128,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
