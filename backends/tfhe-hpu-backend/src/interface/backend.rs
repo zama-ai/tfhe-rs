@@ -16,6 +16,7 @@ use strum::VariantNames;
 use tracing::{debug, info, trace};
 
 use rayon::prelude::*;
+use std::time::Instant;
 
 pub struct HpuBackend {
     // Low-level hardware handling
@@ -791,6 +792,7 @@ impl HpuBackend {
             ..
         } = self;
 
+        let start = Instant::now();
         // Check if issued command
         // NB: fw_blk_width is 0 encoded => 0 ~ 1 block ciphertext
         assert!(
@@ -829,6 +831,8 @@ impl HpuBackend {
 
         // Keep track of op in cmd_q for lifetime tracking
         cmd_q.push_back(cmd);
+        let duration = start.elapsed();
+        println!("Time in iop_push: {} us", duration.as_micros());
 
         Ok(())
     }
@@ -845,6 +849,7 @@ impl HpuBackend {
             regmap,
             ..
         } = self;
+        let start = Instant::now();
 
         trace!(
             "Isc registers {:?}",
@@ -880,6 +885,8 @@ impl HpuBackend {
                         .iter()
                         .for_each(|dst| dst.inner.lock().unwrap().operation_done());
                 }
+                let duration = start.elapsed();
+                println!("Time in poll_ack_q: {} us", duration.as_micros());
                 Ok(true)
             }
         }

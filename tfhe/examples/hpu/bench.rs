@@ -268,6 +268,7 @@ pub fn main() {
                     }
                 })
                 .collect::<Vec<_>>();
+            let roi_duration_inter = roi_start.elapsed();
 
             let res_fhe = res_hpu
                 .last()
@@ -276,6 +277,8 @@ pub fn main() {
                 .map(|x| x.to_radix_ciphertext())
                 .collect::<Vec<_>>();
             let roi_duration = roi_start.elapsed();
+            println!("Time in HpuRadixCiphertext::exec: {:?} us", roi_duration_inter.as_micros());
+            println!("Time in to_radix_ciphertext: {:?} us", (roi_duration - roi_duration_inter).as_micros());
             let op_duration = roi_duration / (args.iter as u32);
             let res = res_fhe
                 .iter()

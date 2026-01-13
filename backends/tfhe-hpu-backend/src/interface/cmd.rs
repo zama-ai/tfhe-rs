@@ -5,6 +5,7 @@ use super::*;
 use crate::asm::iop::{Immediate, Operand, OperandKind};
 use crate::asm::{IOp, IOpcode};
 use variable::HpuVarWrapped;
+use std::time::Instant;
 
 /// Underlying type used for Immediate value;
 pub type HpuImm = u128;
@@ -123,12 +124,15 @@ impl HpuCmd {
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
     ) -> Vec<HpuVarWrapped> {
+        let start = Instant::now();
         let dst = proto
             .dst
             .iter()
             .map(|m| rhs_ct[0].fork(*m))
             .collect::<Vec<_>>();
         Self::exec_raw(opcode, &dst, rhs_ct, rhs_imm);
+        let duration = start.elapsed();
+        println!("Time in exec: {} µs", duration.as_micros());
         dst
     }
 

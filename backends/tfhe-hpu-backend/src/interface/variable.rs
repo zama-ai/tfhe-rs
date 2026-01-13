@@ -1,6 +1,7 @@
 //!
 //! Abstraction over Hpu ciphertext data
 //! Handle lifetime management, deallocation and state inside HpuDevice.
+use std::time::Instant;
 use super::*;
 use crate::asm::iop::VarMode;
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
@@ -34,11 +35,18 @@ impl std::fmt::Debug for HpuVar {
 /// Handle sync between Hpu and Cpu
 impl HpuVar {
     pub fn try_cpu_sync(&mut self) -> Result<(), HpuInternalError> {
+        let start = Instant::now();
         if self.pending > 0 {
+            let duration = start.elapsed();
+            println!("Time in try_cpu_sync pending {:?}: {:?} us", self.pending, duration.as_micros());
             Err(HpuInternalError::OperationPending)
         } else {
             match self.state {
-                SyncState::CpuSync | SyncState::BothSync => Ok(()),
+                SyncState::CpuSync | SyncState::BothSync => {
+                    let duration = start.elapsed();
+                    println!("Time in try_cpu_sync CpuBothSync: {:?} us", duration.as_micros());
+                    Ok(())
+                },
                 SyncState::HpuSync => {
                     for slot in self.bundle.iter_mut() {
                         slot.mz
@@ -46,6 +54,8 @@ impl HpuVar {
                             .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
                     }
                     self.state = SyncState::BothSync;
+                    let duration = start.elapsed();
+                    println!("Time in try_cpu_sync HpuSync: {:?} us", duration.as_micros());
                     Ok(())
                 }
                 SyncState::None => Err(HpuInternalError::UninitData),
@@ -200,6 +210,7 @@ impl HpuVarWrapped {
 
     pub fn try_into(self) -> Result<Vec<HpuLweCiphertextOwned<u64>>, HpuError> {
         // Check if value is available
+        let start = Instant::now();
         let mut inner = self.inner.lock().unwrap();
         match inner.try_cpu_sync() {
             Ok(_) => {}
@@ -221,6 +232,8 @@ impl HpuVarWrapped {
             // and view inner buffer as cut
             let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, (*self.params).clone());
             let mut hw_slice = hpu_lwe.as_mut_view().into_container();
+            let duration_before_copy = start.elapsed();
+            println!("Time in try_into before_copy: {:?} us", duration_before_copy.as_micros());
 
             // Copy from Xrt memory
             #[allow(unused_variables)]
@@ -237,7 +250,11 @@ impl HpuVarWrapped {
                     );
                 });
             ct.push(hpu_lwe);
+            let duration_after_copy = start.elapsed();
+            println!("Time in try_into copy: {:?} us", duration_after_copy.as_micros());
         }
+        let duration = start.elapsed();
+        println!("Time in try_into: {:?} us", duration.as_micros());
 
         Ok(ct)
     }
@@ -246,12 +263,21 @@ impl HpuVarWrapped {
     /// Blocking call that pool the Hpu Backend until variable is ready
     pub fn into_ct(self) -> Vec<HpuLweCiphertextOwned<u64>> {
         // TODO Replace pooling with IRQ when supported by the backend
+        let start = Instant::now();
         let mut var = self;
         loop {
             var = match var.try_into() {
-                Ok(ct) => break ct,
+                Ok(ct) => {
+                    let duration = start.elapsed();
+                    println!("Time in into_ct OK: {:?} us", duration.as_micros());
+                    break ct
+                },
                 Err(err) => match err {
-                    HpuError::SyncPending(v) => v,
+                    HpuError::SyncPending(v) => {
+                        let duration = start.elapsed();
+                        println!("Time in into_ct Err: {:?} us", duration.as_micros());
+                        v
+                    },
                 },
             }
         }

@@ -1,5 +1,6 @@
 use hpu_asm::iop::*;
 use tfhe_hpu_backend::prelude::*;
+use std::time::Instant;
 
 use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned};
 use crate::integer::{BooleanBlock, RadixCiphertext};
@@ -36,7 +37,9 @@ impl HpuRadixCiphertext {
     pub fn to_radix_ciphertext(&self) -> RadixCiphertext {
         // NB: We clone the inner part of HpuRadixCiphertext but it is not costly since
         // it's wrapped inside an Arc
+        let start = Instant::now();
         let hpu_ct = self.0.clone().into_ct();
+        let duration_into_ct = start.elapsed();
         let cpu_ct = hpu_ct
             .into_iter()
             .map(|ct| {
@@ -53,6 +56,8 @@ impl HpuRadixCiphertext {
                 )
             })
             .collect::<Vec<_>>();
+        let duration = start.elapsed();
+        println!("Time inside to_radix_ciphertext: {:?} us / into_ct {:?} us", duration.as_micros(), duration_into_ct.as_micros());
         RadixCiphertext { blocks: cpu_ct }
     }
 
