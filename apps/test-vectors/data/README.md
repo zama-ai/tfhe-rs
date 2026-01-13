@@ -1,43 +1,43 @@
 # Test vectors for TFHE
 These test vectors are generated using [TFHE-rs](https://github.com/zama-ai/tfhe-rs), with the git tag `tfhe-test-vectors-0.2.0`.
 
-They are TFHE-rs objects serialized in the [cbor format](https://cbor.io/). You can deserialize them using any cbor library for the language of your choice. For example, using the [cbor2](https://pypi.org/project/cbor2/) program, run: `cbor2 --pretty toy_params/lwe_a.cbor`.
+They are TFHE-rs objects serialized in the [cbor format](https://cbor.io/). These can be deserialized using any cbor library for any programming languages. For example, using the [cbor2](https://pypi.org/project/cbor2/) program, the command to run is: `cbor2 --pretty toy_params/lwe_a.cbor`.
 
-You will find 2 folders with test vectors for different parameter sets:
-- `valid_params_128`: valid classical PBS parameters using a gaussian noise distribution, providing 128bits of security in the IND-CPA model and a bootstrapping probability of failure of 2^{-64}.
-- `toy_params`: insecure parameters that yield smaller values
+There are 2 folders with test vectors for different parameter sets:
+- `valid_params_128`: valid classical PBS parameters using a Gaussian noise distribution, providing 128-bits of security in the IND-CPA model (i.e., the probability of failure is smaller than 2^{-64}).
+- `toy_params`: insecure parameters that yield smaller values to simplify the bit comparison of the results.
 
-The values are generated for the keyswitch -> bootstrap (KS-PBS) atomic pattern. The cleartext inputs are 2 values, A and B defined below.
+The values are generated to compute a keyswitch (KS) followed by a bootstrap (PBS). The cleartext inputs are 2 values, A and B defined below.
 
 All the random values are generated from a fixed seed, that can be found in the `RAND_SEED` constant below. The PRNG used is the one based on the AES block cipher in counter mode, from tfhe `tfhe-csprng` crate.
 
-The programmable bootstrap is applied twice, with 2 different lut, the identity lut and a specific one (currently a x2 operation)
+The bootstrap is applied twice, with 2 different lut, the identity lut and a specific one computing the double of the input value (i.e., f(x) = 2*x).
 
 ## Vectors
 The following values are generated:
 
 ### Keys
-| name                   | description                                                                           | TFHE-rs type                |
-|------------------------|---------------------------------------------------------------------------------------|-----------------------------|
-| `large_lwe_secret_key` | Encryption secret key, before the KS and after the PBS                                | `LweSecretKey<Vec<u64>>`    |
-| `small_lwe_secret_key` | Secret key encrypting ciphertexts between the KS and the PBS                          | `LweSecretKey<Vec<u64>>`    |
-| `ksk`                  | The keyswitching key to convert a ct from the large key to the small one              | `LweKeyswitchKey<Vec<u64>>` |
+| name                   | description                                                                             | TFHE-rs type                |
+|------------------------|-----------------------------------------------------------------------------------------|-----------------------------|
+| `large_lwe_secret_key` | Encryption secret key, before the KS and after the PBS                                  | `LweSecretKey<Vec<u64>>`    |
+| `small_lwe_secret_key` | Secret key encrypting ciphertexts between the KS and the PBS                            | `LweSecretKey<Vec<u64>>`    |
+| `ksk`                  | The keyswitching key to convert a ct from the large key to the small one                | `LweKeyswitchKey<Vec<u64>>` |
 | `bsk`                  | the bootstrapping key to perform a programmable bootstrap on the keyswitched ciphertext | `LweBootstrapKey<Vec<u64>>` |
 
 
 ### Ciphertexts
-| name                 | description                                                                                                  | TFHE-rs type               | Cleartext    |
-|----------------------|--------------------------------------------------------------------------------------------------------------|----------------------------|--------------|
-| `lwe_a`              | Lwe encryption of A                                                                                          | `LweCiphertext<Vec<u64>>`  | `A`          |
-| `lwe_b`              | Lwe encryption of B                                                                                          | `LweCiphertext<Vec<u64>>`  | `B`          |
-| `lwe_sum`            | Lwe encryption of A plus lwe encryption of B                                                                 | `LweCiphertext<Vec<u64>>`  | `A+B`        |
-| `lwe_prod`           | Lwe encryption of A times cleartext B                                                                        | `LweCiphertext<Vec<u64>>`  | `A*B`        |
-| `lwe_ms`             | The lwe ciphertext after the modswitch part of the PBS ([note](#non-native-encoding))                        | `LweCiphertext<Vec<u64>>`  | `A`          |
-| `lwe_ks`             | The lwe ciphertext after the keyswitch                                                                       | `LweCiphertext<Vec<u64>>`  | `A`          |
-| `glwe_after_id_br`   | The glwe returned by the application of the identity blind rotation on the mod switched ciphertexts.         | `GlweCiphertext<Vec<u64>>` | rot id LUT   |
-| `lwe_after_id_pbs`   | The lwe returned by the application of the sample extract operation on the output of the id blind rotation   | `LweCiphertext<Vec<u64>>`  | `A`          |
-| `glwe_after_spec_br` | The glwe returned by the application of the spec blind rotation on the mod switched ciphertexts.             | `GlweCiphertext<Vec<u64>>` | rot spec LUT |
-| `lwe_after_spec_pbs` | The lwe returned by the application of the sample extract operation on the output of the spec blind rotation | `LweCiphertext<Vec<u64>>`  | `spec(A)`    |
+| name                 | description                                                                                         | TFHE-rs type               | Cleartext            |
+|----------------------|-----------------------------------------------------------------------------------------------------|----------------------------|----------------------|
+| `lwe_a`              | LWE Ciphertext encrypting A                                                                         | `LweCiphertext<Vec<u64>>`  | `A`                  |
+| `lwe_b`              | LWE Ciphertext encrypting B                                                                         | `LweCiphertext<Vec<u64>>`  | `B`                  |
+| `lwe_sum`            | LWE Ciphertext encrypting A plus lwe encryption of B                                                | `LweCiphertext<Vec<u64>>`  | `A+B`                |
+| `lwe_prod`           | LWE Ciphertext encrypting A times cleartext B                                                       | `LweCiphertext<Vec<u64>>`  | `A*B`                |
+| `lwe_ms`             | LWE Ciphertext encrypting A after a Modulus Switch from q to 2*N ([note](#non-native-encoding))     | `LweCiphertext<Vec<u64>>`  | `A`                  |
+| `lwe_ks`             | LWE Ciphertext encrypting A after a keyswitch from `large_lwe_secret_key` to `small_lwe_secret_key` | `LweCiphertext<Vec<u64>>`  | `A`                  |
+| `glwe_after_id_br`   | GLWE Ciphertext encrypting A after the application of the identity blind rotation on `lwe_ms`       | `GlweCiphertext<Vec<u64>>` | rotation of id LUT   |
+| `lwe_after_id_pbs`   | LWE Ciphertext encrypting A after the sample extract operation on `glwe_after_id_br`                | `LweCiphertext<Vec<u64>>`  | `A`                  |
+| `glwe_after_spec_br` | GLWE Ciphertext encrypting spec(A) after the application of the spec blind rotation on `lwe_ms`     | `GlweCiphertext<Vec<u64>>` | rotation of spec LUT |
+| `lwe_after_spec_pbs` | LWE Ciphertext encrypting spec(A) after the sample extract operation on `glwe_after_spec_br`        | `LweCiphertext<Vec<u64>>`  | `spec(A)`            |
 
 Ciphertexts with the `_karatsuba` suffix are generated using the Karatsuba polynomial multiplication algorithm in the blind rotation, while default ciphertexts are generated using an FFT multiplication.
 This makes it easier to reproduce bit exact results.
