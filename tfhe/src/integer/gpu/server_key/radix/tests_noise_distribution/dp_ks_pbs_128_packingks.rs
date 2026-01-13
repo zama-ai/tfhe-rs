@@ -1,7 +1,5 @@
 use super::utils::noise_simulation::{CudaDynLwe, CudaSideResources};
-use crate::core_crypto::commons::noise_formulas::noise_simulation::{
-    NoiseSimulationLweFourier128Bsk, NoiseSimulationLwePackingKeyswitchKey,
-};
+use crate::core_crypto::commons::noise_formulas::noise_simulation::NoiseSimulationLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{GlweCiphertext, LweCiphertextCount};
@@ -28,8 +26,9 @@ use crate::shortint::server_key::tests::noise_distribution::dp_ks_pbs128_packing
 };
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
-    NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
+    NoiseSimulationGenericBootstrapKey128, NoiseSimulationGlwe, NoiseSimulationLwe,
+    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
+    NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, DecryptionAndNoiseResult, NoiseSample,
@@ -718,8 +717,10 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(meta_params: M
         NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(atomic_params);
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(atomic_params);
-    let noise_simulation_bsk128 =
-        NoiseSimulationLweFourier128Bsk::new_from_parameters(atomic_params, noise_squashing_params);
+    let noise_simulation_bsk128 = NoiseSimulationGenericBootstrapKey128::new_from_parameters(
+        atomic_params,
+        noise_squashing_params,
+    );
     let noise_simulation_packing_key =
         NoiseSimulationLwePackingKeyswitchKey::new_from_noise_squashing_parameters(
             noise_squashing_params,
