@@ -26,7 +26,7 @@ use crate::shortint::parameters::{AtomicPatternParameters, MetaParameters, Varia
 use crate::shortint::server_key::tests::noise_distribution::br_dp_ks_ms::br_dp_ks_any_ms;
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
@@ -360,7 +360,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(params: MetaParameters) {
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+        NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
