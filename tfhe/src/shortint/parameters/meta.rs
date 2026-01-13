@@ -467,9 +467,10 @@ impl NoiseSquashingChoice {
     }
 }
 
-const KNOWN_PARAMETERS: [(Version, &[(&MetaParameters, &str)]); 2] = [
+const KNOWN_PARAMETERS: [(Version, &[(&MetaParameters, &str)]); 3] = [
     (Version(1, 4), &super::v1_4::VEC_ALL_META_PARAMETERS),
     (Version(1, 5), &super::v1_5::VEC_ALL_META_PARAMETERS),
+    (Version(1, 6), &super::v1_6::VEC_ALL_META_PARAMETERS),
 ];
 
 /// Struct that allows to search for known parameters of TFHE-RS given some

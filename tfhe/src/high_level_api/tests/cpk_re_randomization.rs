@@ -3,9 +3,9 @@ use crate::high_level_api::{
     CompactPublicKey, CompressedCiphertextListBuilder, ConfigBuilder, FheBool, FheInt8, FheUint64,
     ReRandomizationContext,
 };
-use crate::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
-use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::{MetaParameters, ShortintKeySwitchingParameters};
 use crate::{set_server_key, ClientKey, CompressedServerKey};
 
@@ -211,7 +211,7 @@ fn setup_re_rand_test(
 
 #[test]
 fn test_re_rand() {
-    let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    let params = V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
     let (cks, sks, cpk) = setup_re_rand_test(params);
 
     set_server_key(sks.decompress());
@@ -222,7 +222,7 @@ fn test_re_rand() {
 #[cfg(feature = "gpu")]
 #[test]
 fn test_gpu_re_rand() {
-    let params = V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    let params = V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
     let (cks, sks, cpk) = setup_re_rand_test(params);
 
     set_server_key(sks.decompress_to_gpu());
