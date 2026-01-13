@@ -17,7 +17,7 @@ use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE
 use crate::shortint::parameters::{CompressionParameters, MetaParameters, Variance};
 use crate::shortint::server_key::tests::noise_distribution::br_dp_packingks_ms::br_dp_packing_ks_ms;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationGlwe, NoiseSimulationLwe, NoiseSimulationLweFourierBsk,
+    NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLwePackingKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
@@ -412,7 +412,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(meta_params: MetaParameters
     let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
 
     let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+        NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_packing_key =
         NoiseSimulationLwePackingKeyswitchKey::new_from_comp_parameters(params, comp_params);
 
@@ -591,7 +591,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(meta_params: MetaParameters
         assert_eq!(original_carry_modulus.0, 4);
 
         let noise_simulation_bsk =
-            NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(params);
+            NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(params);
         let noise_simulation_packing_key =
             NoiseSimulationLwePackingKeyswitchKey::new_from_comp_parameters(params, comp_params);
 

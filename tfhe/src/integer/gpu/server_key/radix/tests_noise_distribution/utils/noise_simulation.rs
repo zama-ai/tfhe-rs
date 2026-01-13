@@ -1,9 +1,10 @@
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
-    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateStandardModSwitchResult,
-    CenteredBinaryShiftedStandardModSwitch, DriftTechniqueStandardModSwitch,
-    LweClassicFftBootstrap, LweKeyswitch, ScalarMul, StandardModSwitch,
+    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateMultiBitModSwitchResult,
+    AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
+    DriftTechniqueStandardModSwitch, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
+    LweKeyswitch, MultiBitModSwitch, ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
@@ -25,8 +26,12 @@ use crate::integer::gpu::server_key::{
 use crate::integer::gpu::{
     cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async, CudaStreams,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulusSwitchConfig;
-use crate::shortint::server_key::tests::noise_distribution::utils::traits::LwePackingKeyswitch;
+use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
+    NoiseSimulationGenericBootstrapKey, NoiseSimulationModulusSwitchConfig,
+};
+use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
+    LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
+};
 /// Side resources for CUDA operations in noise simulation
 #[derive(Clone)]
 pub struct CudaSideResources {
@@ -228,19 +233,22 @@ impl NoiseSimulationLweFourierBsk {
                     && decomp_base_log == bsk_decomp_base_log
                     && decomp_level_count == bsk_decomp_level_count
             }
-            CudaBootstrappingKey::MultiBit(cuda_mb_bsk) => {
-                let bsk_input_lwe_dimension = cuda_mb_bsk.input_lwe_dimension();
-                let bsk_glwe_size = cuda_mb_bsk.glwe_dimension().to_glwe_size();
-                let bsk_polynomial_size = cuda_mb_bsk.polynomial_size();
-                let bsk_decomp_base_log = cuda_mb_bsk.decomp_base_log();
-                let bsk_decomp_level_count = cuda_mb_bsk.decomp_level_count();
+            // MultiBit key cannot match classic key
+            CudaBootstrappingKey::MultiBit(_) => false,
+        }
+    }
+}
 
-                input_lwe_dimension == bsk_input_lwe_dimension
-                    && glwe_size == bsk_glwe_size
-                    && polynomial_size == bsk_polynomial_size
-                    && decomp_base_log == bsk_decomp_base_log
-                    && decomp_level_count == bsk_decomp_level_count
+// Extensions for NoiseSimulationGenericBootstrapKey to support GPU operations
+impl NoiseSimulationGenericBootstrapKey {
+    pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaBootstrappingKey<u64>) -> bool {
+        match self {
+            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
+                noise_simulation_lwe_fourier_bsk.matches_actual_bsk_gpu(lwe_bsk)
             }
+            Self::MultiBit(_) => todo!(
+                "Implement the matching for NoiseSimulationLweMultiBitFourierBsk and forward here"
+            ),
         }
     }
 }
@@ -743,12 +751,8 @@ impl AllocateLweBootstrapResult for CudaGlweCiphertextList<u128> {
 }
 
 // Implement LweClassicFft128Bootstrap for CudaNoiseSquashingKey using 128-bit PBS CUDA function
-impl
-    crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweClassicFft128Bootstrap<
-        CudaDynLwe,
-        CudaDynLwe,
-        CudaGlweCiphertextList<u128>,
-    > for crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey
+impl LweClassicFft128Bootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u128>>
+    for CudaNoiseSquashingKey
 {
     type SideResources = CudaSideResources;
 
@@ -929,5 +933,85 @@ impl LwePackingKeyswitch<[&CudaDynLwe], CudaGlweCiphertextList<u128>>
             output,
             &side_resources.streams,
         );
+    }
+}
+
+// Multi bit and generic extensions
+impl LweGenericBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>> for CudaServerKey {
+    type SideResources = CudaSideResources;
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u64>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_) => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources);
+            }
+            CudaBootstrappingKey::MultiBit(_) => {
+                todo!("TODO: this currently only manages classic PBS")
+            }
+        }
+    }
+}
+
+impl AllocateMultiBitModSwitchResult for CudaDynLwe {
+    type Output = Self;
+    type SideResources = CudaSideResources;
+
+    fn allocate_multi_bit_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        todo!(
+            "TODO: the output type likely needs to be a specialized enum CudaDynModSwitchedLwe\n\
+            See shortint CPU impls, the standard mod switch results likely \
+            need an update for the output type"
+        )
+    }
+}
+
+impl MultiBitModSwitch<Self> for CudaDynLwe {
+    type SideResources = CudaSideResources;
+
+    fn multi_bit_mod_switch(
+        &self,
+        _grouping_factor: LweBskGroupingFactor,
+        _output_modulus_log: CiphertextModulusLog,
+        _output: &mut Self,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        todo!(
+            "TODO: the output type likely needs to be a specialized enum CudaDynModSwitchedLwe\n\
+            See shortint CPU impls, the standard mod switch results likely \
+            need an update for the output type"
+        )
+    }
+}
+
+impl LweGenericBlindRotate128<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u128>>
+    for CudaNoiseSquashingKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_generic_blind_rotate_128(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u128>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_) => {
+                self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+            }
+            CudaBootstrappingKey::MultiBit(_) => todo!(
+                "CPU manages this by taking a modswitched type to be able to apply \
+                the blind rotate correctly without redoing the modswitch, to adapt for the GPU case"
+            ),
+        }
     }
 }
