@@ -112,11 +112,11 @@ You can override the default parameters with the `with_custom_parameters(block_p
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys};
-use tfhe::shortint::parameters::current_params::V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+use tfhe::shortint::parameters::current_params::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
 fn main() {
     let config =
-        ConfigBuilder::with_custom_parameters(V1_5_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
             .build();
 
     // Client-side
