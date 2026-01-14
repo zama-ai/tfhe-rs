@@ -1,0 +1,67 @@
+name: pr_milestone_check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, milestoned, demilestoned]
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+# external contributors workflows are manually approved
+
+jobs:
+  check-empty-milestone:
+    name: pr_milestone_check/check-empty-milestone
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.milestone == null
+    permissions:
+      pull-requests: write # Need write access on pull requests to post comment
+
+    steps:
+      - name: Post Reminder Comment
+        uses: octokit/request-action@dad4362715b7fb2ddedf9772c8670824af564f0d
+        with:
+          route: POST /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
+          body: |
+            '### ❌ Milestone Missing
+
+            Please assign a milestone to this pull request. If your PR targets the next version of
+            TFHE-rs please use the current quarter milestone, e.g. "Q1 26".
+
+            If your PR targets a patch version for previous releases: consider creating a dedicated
+            milestone e.g. v1.5.1 if it does not exist yet.'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Final Status
+        run: |
+          echo "::error::Milestone is missing. This check is failing."
+          exit 1
+
+  check-milestone-open:
+    name: pr_milestone_check/check-milestone-open
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.milestone != null && github.event.pull_request.milestone.state != 'open'
+    permissions:
+      pull-requests: write # Need write access on pull requests to post comment
+
+    steps:
+      - name: Post Reminder Comment
+        uses: octokit/request-action@dad4362715b7fb2ddedf9772c8670824af564f0d
+        with:
+          route: POST /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
+          body: |
+            '### ❌ Milestone is closed
+
+            Please assign an open milestone to this pull request. If your PR targets the next version of
+            TFHE-rs please use the current quarter milestone, e.g. "Q1 26".
+
+            If your PR targets a patch version for previous releases: consider creating a dedicated
+            milestone e.g. v1.5.1 if it does not exist yet.'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Final Status
+        run: |
+          echo "::error::Milestone is closed. This check is failing."
+          exit 1
