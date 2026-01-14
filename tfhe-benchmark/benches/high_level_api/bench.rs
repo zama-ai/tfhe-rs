@@ -353,7 +353,25 @@ fn main() {
         set_server_key((hpu_device, compressed_sks));
         (cks, tfhe::Device::Hpu)
     };
-    #[cfg(not(feature = "hpu"))]
+
+    #[cfg(feature = "gpu")]
+    let (cks, benched_device) = {
+        use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        use tfhe::{set_server_key, ConfigBuilder};
+        let config = ConfigBuilder::with_custom_parameters(
+            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        let sks = compressed_sks.decompress();
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+        (cks, tfhe::Device::CudaGpu)
+    };
+
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
     let (cks, benched_device) = {
         use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use tfhe::{set_server_key, ConfigBuilder};

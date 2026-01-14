@@ -1,0 +1,80 @@
+# Run all benchmarks displayed in the public documentation.
+name: benchmark_documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-cpu-benchmarks:
+        description: "Run CPU benchmarks"
+        type: boolean
+        default: true
+      run-gpu-benchmarks:
+        description: "Run GPU benchmarks"
+        type: boolean
+        default: true
+      run-hpu-benchmarks:
+        description: "Run HPU benchmarks"
+        type: boolean
+        default: true
+
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
+jobs:
+  run-benchmarks-cpu:
+    name: benchmark_documentation/run-benchmarks-cpu-integer
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
+    with:
+      command: summary
+      bench_type: both
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-gpu:
+    name: benchmark_documentation/run-benchmarks-gpu
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-benchmarks
+    with:
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100-SXM5x8
+      command: summary
+      bench_type: both
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-hpu:
+    name: benchmark_documentation/run-benchmarks-hpu
+    uses: ./.github/workflows/benchmark_hpu_common.yml
+    if: inputs.run-hpu-benchmarks
+    with:
+      command: summary
+      bench_type: both
+      v80_pcie_dev: 24
+      v80_serial_number: XFL12NWY3ZKG
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}

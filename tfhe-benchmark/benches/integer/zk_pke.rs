@@ -1,6 +1,7 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
+    OperatorType,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
@@ -32,11 +33,20 @@ impl ProofConfig {
 }
 
 fn default_proof_config() -> Vec<ProofConfig> {
-    vec![
-        ProofConfig::new(64, &[64]),
-        ProofConfig::new(2048, &[64, 4 * 64, 2048]),
-        ProofConfig::new(4096, &[4096]),
-    ]
+    let env_config = EnvConfig::new();
+
+    match env_config.bit_sizes_set {
+        BitSizesSet::Fast => {
+            vec![ProofConfig::new(2048, &[4 * 64])]
+        }
+        _ => {
+            vec![
+                ProofConfig::new(64, &[64]),
+                ProofConfig::new(2048, &[64, 4 * 64, 2048]),
+                ProofConfig::new(4096, &[4096]),
+            ]
+        }
+    }
 }
 
 fn write_result(file: &mut File, name: &str, value: usize) {
