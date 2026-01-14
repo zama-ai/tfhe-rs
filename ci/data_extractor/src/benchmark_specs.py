@@ -279,9 +279,10 @@ class ErrorFailureProbability(enum.IntEnum):
         return self.to_str()
 
 
-class BenchType(enum.Enum):
-    Latency = 0
-    Throughput = 1
+class BenchType(enum.StrEnum):
+    Latency = "Latency"
+    Throughput = "Throughput"
+    Both = "Both"
 
     @staticmethod
     def from_str(bench_type):
@@ -290,8 +291,22 @@ class BenchType(enum.Enum):
                 return BenchType.Latency
             case "throughput":
                 return BenchType.Throughput
+            case "both":
+                return BenchType.Both
             case _:
                 raise ValueError(f"BenchType '{bench_type}' not supported")
+
+
+class BenchSubset(enum.StrEnum):
+    Erc20 = "erc20"
+
+    @staticmethod
+    def from_str(bench_subset):
+        match bench_subset.lower():
+            case "erc20":
+                return BenchSubset.Erc20
+            case _:
+                raise ValueError(f"BenchSubset '{bench_subset}' not supported")
 
 
 class ParamsDefinition:
