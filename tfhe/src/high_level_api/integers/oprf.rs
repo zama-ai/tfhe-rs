@@ -238,8 +238,28 @@ impl<Id: FheUintId> FheUint<Id> {
                     Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("Gpu does not support this operation yet.")
+                InternalServerKey::Cuda(cuda_key) => {
+                    let message_modulus = cuda_key.message_modulus();
+
+                    let num_input_random_bits = num_input_random_bits_for_max_distance(
+                        excluded_upper_bound,
+                        max_distance,
+                        message_modulus,
+                    );
+
+                    let num_blocks_output = Id::num_blocks(cuda_key.message_modulus()) as u64;
+
+                    let ct = cuda_key
+                        .pbs_key()
+                        .par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                            seed,
+                            num_input_random_bits,
+                            excluded_upper_bound.get(),
+                            num_blocks_output,
+                            &cuda_key.streams,
+                        );
+
+                    Self::new(ct, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -551,11 +571,15 @@ mod test {
     };
     use crate::prelude::FheDecrypt;
     use crate::shortint::oprf::test::test_uniformity;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheUint8, Seed};
     use num_bigint::BigUint;
     use rand::{thread_rng, Rng};
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
+    #[cfg(feature = "gpu")]
+    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    #[cfg(not(feature = "gpu"))]
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
     // Helper: The "Oracle" implementation using BigInt
     // This is slow but mathematically guaranteed to be correct.
@@ -684,7 +708,11 @@ mod test {
 
         let p_value_limit: f64 = 0.001;
 
+        #[cfg(not(feature = "gpu"))]
         let params = PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+        #[cfg(feature = "gpu")]
+        let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
         let config = ConfigBuilder::with_custom_parameters(params).build();
 
         let (cks, sks) = generate_keys(config);
