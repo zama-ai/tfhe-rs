@@ -57,7 +57,7 @@ impl HpuRadixCiphertext {
             })
             .collect::<Vec<_>>();
         let duration = start.elapsed();
-        println!("Time inside to_radix_ciphertext: {:?} us / into_ct {:?} us", duration.as_micros(), duration_into_ct.as_micros());
+        println!("Time inside to_radix_ciphertext: {:?} us / into_ct {:?} us / shuffle {:?} us", duration.as_micros(), duration_into_ct.as_micros(), (duration-duration_into_ct).as_micros());
         RadixCiphertext { blocks: cpu_ct }
     }
 
