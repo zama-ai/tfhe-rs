@@ -1438,14 +1438,14 @@ bench_integer_hpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -1459,6 +1459,7 @@ bench_integer_compression_128b_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
@@ -1526,7 +1527,7 @@ bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
 	--features=integer,internal-keycache,zk-pok,pbs-stats \
@@ -1780,6 +1781,83 @@ bench_hlapi_kvstore: install_rs_check_toolchain
 	--bench hlapi-kvstore \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_summary # Run summary benchmarks
+bench_summary: install_rs_check_toolchain
+	# Arithmetic operations: addition, multiplication, comparison
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::add|::mul|::gt|::div_rem'
+
+	# Noise squash
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-noise-squash \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::noise_squash::'
+
+	# ERC20
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+
+	# ZK
+	# Proof is done on CPU node of the instance
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-zk-pke \
+	--features=integer,internal-keycache,zk-pok,pbs-stats \
+	-p tfhe-benchmark -- '::pke_zk_proof'
+	# Verify is done on GPUs
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-zk-pke \
+	--features=integer,internal-keycache,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
+
+	# Compression
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-glwe_packing_compression \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_summary_gpu # Run summary benchmarks on GPU
+bench_summary_gpu: install_rs_check_toolchain
+	# Arithmetic operations: addition, multiplication, comparison
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::add|::mul|::gt|::div_rem'
+
+	# Noise squash
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-noise-squash \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::noise_squash::'
+
+	# ERC20
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+
+	# ZK
+	# Proof is done on CPU node of the instance
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-zk-pke \
+	--features=integer,internal-keycache,zk-pok,pbs-stats \
+	-p tfhe-benchmark -- '::pke_zk_proof'
+	# Verify is done on GPUs
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-zk-pke \
+	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
+
+	# Compression
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-glwe_packing_compression \
+	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_custom # Run benchmarks with a user-defined command
 bench_custom: install_rs_check_toolchain
