@@ -805,6 +805,9 @@ where
     let oprf_bounded_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
         &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
     );
+    let oprf_custom_range_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
+    );
 
     let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![(
         Box::new(oprf_executor),
@@ -816,8 +819,10 @@ where
         "par_generate_oblivious_pseudo_random_unsigned_integer_bounded".to_string(),
     )];
 
-    // The custom_range variant is not yet implemented on GPU
-    let mut oprf_custom_range_ops: Vec<(OprfCustomRangeExecutor, String)> = vec![];
+    let mut oprf_custom_range_ops: Vec<(OprfCustomRangeExecutor, String)> = vec![(
+        Box::new(oprf_custom_range_executor),
+        "par_generate_oblivious_pseudo_random_unsigned_custom_range".to_string(),
+    )];
 
     let (cks, sks, mut datagen) = random_op_sequence_test_init_gpu(
         param,
