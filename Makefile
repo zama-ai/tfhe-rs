@@ -30,7 +30,7 @@ WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all 
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TYPOS_VERSION=1.39.0
-ZIZMOR_VERSION=1.16.2
+ZIZMOR_VERSION=1.20.0
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
