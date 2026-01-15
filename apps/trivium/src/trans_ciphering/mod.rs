@@ -7,7 +7,7 @@ use tfhe::prelude::*;
 use tfhe::shortint::Ciphertext;
 use tfhe::{set_server_key, unset_server_key, FheUint64, FheUint8, ServerKey};
 
-/// Triat specifying the interface for trans ciphering a FheUint64 object. Since it is meant
+/// Trait specifying the interface for trans ciphering a FheUint64 object. Since it is meant
 /// to be used with stream ciphers, encryption and decryption are by default the same.
 pub trait TransCiphering {
     fn trans_encrypt_64(&mut self, cipher: FheUint64) -> FheUint64;
