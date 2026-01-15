@@ -3,6 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use statrs::distribution::ContinuousCDF;
 use std::collections::HashMap;
@@ -10,11 +11,13 @@ use std::sync::Arc;
 use tfhe_csprng::seeders::Seed;
 
 create_parameterized_test!(oprf_signed_uniformity_bounded {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 create_parameterized_test!(oprf_signed_uniformity_unbounded {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 fn oprf_signed_uniformity_bounded<P>(param: P)

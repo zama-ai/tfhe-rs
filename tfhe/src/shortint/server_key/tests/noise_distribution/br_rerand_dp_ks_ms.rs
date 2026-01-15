@@ -31,6 +31,7 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
@@ -489,9 +490,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind = compute_params.atomic_pattern().into();
             cpk_params
         };
 
@@ -683,9 +682,9 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
 }
 
 create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_noise {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
@@ -698,9 +697,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 
@@ -793,9 +791,9 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
 }
 
 create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pfail {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
@@ -808,9 +806,8 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 
@@ -957,7 +954,8 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
 }
 
 create_parameterized_test!(sanity_check_encrypt_br_rerand_dp_ks_ms_pbs {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
