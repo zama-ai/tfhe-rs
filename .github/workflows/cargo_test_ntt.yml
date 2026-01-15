@@ -93,7 +93,7 @@ jobs:
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install Rust
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
           override: true
