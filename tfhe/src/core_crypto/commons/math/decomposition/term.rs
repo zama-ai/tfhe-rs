@@ -129,7 +129,7 @@ where
         }
     }
 
-    /// Turn this term into a summand.
+    /// Turn this term into a summand. The returned value is under the provided modulus.
     ///
     /// If our member represents one $\tilde{\theta}\_i$ of the decomposition, this method returns
     /// $\tilde{\theta}\_i\frac{v}{B^i}$ where $\lambda = \lceil{\log_2{q}}\rceil$ and
@@ -148,9 +148,9 @@ where
     ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
     /// let output = decomposer.decompose(2u64.pow(52)).next().unwrap();
-    /// assert_eq!(output.to_approximate_recomposition_summand(), 2u64.pow(52));
+    /// assert_eq!(output.to_recomposition_summand(), 2u64.pow(52));
     /// ```
-    pub fn to_approximate_recomposition_summand(&self) -> T {
+    pub fn to_recomposition_summand(&self) -> T {
         let modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
         let ciphertext_modulus_bit_count: usize = modulus_as_t.ceil_ilog2().try_into().unwrap();
         let shift: usize = ciphertext_modulus_bit_count - self.base_log * self.level;
@@ -359,7 +359,8 @@ where
         }
     }
 
-    /// Fills the output tensor with the terms turned to summands.
+    /// Fills the output tensor with the terms turned to summands. The values are under the provided
+    /// modulus.
     ///
     /// If our term tensor represents a set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ of the
     /// decomposition, this method fills the output tensor with a set of
@@ -381,10 +382,10 @@ where
     /// let mut decomp = decomposer.decompose_slice(&input);
     /// let term = decomp.next_term().unwrap();
     /// let mut output = vec![0; 2];
-    /// term.to_approximate_recomposition_summand(&mut output);
+    /// term.to_recomposition_summand(&mut output);
     /// assert!(output.iter().all(|&x| x == 1048576));
     /// ```
-    pub fn to_approximate_recomposition_summand(&self, output: &mut [T]) {
+    pub fn to_recomposition_summand(&self, output: &mut [T]) {
         assert_eq!(self.slice.len(), output.len());
         let modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
         let ciphertext_modulus_bit_count: usize = modulus_as_t.ceil_ilog2().try_into().unwrap();
