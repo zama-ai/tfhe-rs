@@ -78,7 +78,14 @@ pub fn bench_fhe_type_op<FheType, Op>(
 }
 
 macro_rules! bench_type_binary_op {
-    (type_name: $fhe_type:ident, right_type_name: $fhe_right_type:ident,left_type: $left_type:ty, right_type: $right_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+    (
+        type_name: $fhe_type:ident,
+        right_type_name: $fhe_right_type:ident,
+        left_type: $left_type:ty,
+        right_type: $right_type:ty,
+        display_name: $display_name:literal,
+        operation: $op:ident
+    ) => {
         ::paste::paste! {
             #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
@@ -138,7 +145,12 @@ macro_rules! bench_type_binary_scalar_op {
 }
 
 macro_rules! bench_type_unary_op {
-    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+    (
+        type_name: $fhe_type:ident,
+        integer_type: $integer_type:ty,
+        display_name: $display_name:literal,
+        operation: $op:ident
+    ) => {
         ::paste::paste! {
             #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
@@ -163,7 +175,12 @@ macro_rules! bench_type_unary_op {
 }
 
 macro_rules! bench_type_ternary_op {
-    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+    (
+        type_name: $fhe_type:ident,
+        integer_type: $integer_type:ty,
+        display_name: $display_name:literal,
+        operation: $op:ident
+    ) => {
         ::paste::paste! {
             #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
@@ -188,7 +205,12 @@ macro_rules! bench_type_ternary_op {
 }
 
 macro_rules! bench_type_array_op {
-    (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
+    (
+        type_name: $fhe_type:ident,
+        integer_type: $integer_type:ty,
+        display_name: $display_name:literal,
+        operation: $op:ident
+    ) => {
         ::paste::paste! {
             #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
@@ -203,7 +225,7 @@ macro_rules! bench_type_array_op {
                         func_name: stringify!($op),
                     },
                     ArrayOp {
-                        func: |iter: std::iter::Cloned<std::slice::Iter<'_, $fhe_type>>| iter.$op(),
+                        func: |iter: std::slice::Iter<'_, $fhe_type>| iter.$op(),
                         array_size: 10,
                         _encrypt: PhantomData::<$integer_type>,
                     }
@@ -214,7 +236,10 @@ macro_rules! bench_type_array_op {
 }
 
 macro_rules! generate_typed_benches {
-    ($fhe_type:ident, $integer_type:ty) => {
+    (
+        $fhe_type:ident,
+        $integer_type:ty
+    ) => {
         // bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "bitnot", operation: bitnot);
         bench_type_array_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "sum", operation: sum);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "add", operation: add);
@@ -261,7 +286,12 @@ macro_rules! generate_typed_benches {
 }
 
 macro_rules! generate_typed_scalar_benches {
-    ($fhe_type:ident, $integer_type:ty, $scalar_ty:ty, $specific_ty:ty) => {
+    (
+        $fhe_type:ident,
+        $integer_type:ty,
+        $scalar_ty:ty,
+        $specific_ty:ty
+    ) => {
         bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "add", operation: add, rng: || random::<$scalar_ty>());
         bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "bitand", operation: bitand, rng: || random::<$scalar_ty>());
         bench_type_binary_scalar_op!(type_name: $fhe_type, integer_type: $integer_type, scalar_type: $scalar_ty, display_name: "bitor", operation: bitor, rng: || random::<$scalar_ty>());
@@ -288,7 +318,12 @@ macro_rules! generate_typed_scalar_benches {
 }
 
 macro_rules! run_benches {
-    ($c:expr, $cks:expr, $($fhe_type:ident),+ $(,)?) => {
+    (
+        $c:expr,
+        $cks:expr,
+        $($fhe_type:ident),
+        + $(,)?
+    ) => {
         $(
             ::paste::paste! {
                 [<bench_ $fhe_type:snake _add>]($c, $cks);
@@ -339,7 +374,12 @@ macro_rules! run_benches {
 }
 
 macro_rules! run_scalar_benches {
-    ($c:expr, $cks:expr, $($fhe_type:ident),+ $(,)?) => {
+    (
+        $c:expr,
+        $cks:expr,
+        $($fhe_type:ident),
+        + $(,)?
+    ) => {
         $(
             ::paste::paste! {
                 [<bench_ $fhe_type:snake _scalar_add>]($c, $cks);

@@ -3,83 +3,13 @@ pub trait NumConsts {
     fn one() -> Self;
 }
 
-impl NumConsts for u8 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
+macro_rules! impl_numconsts_for_ints {
+    ($($t:ty),* $(,)?) => {
+        $(impl NumConsts for $t {
+            fn zero() -> Self { 0 }
+            fn one() -> Self { 1 }
+        })*
+    };
 }
-impl NumConsts for u16 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u32 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u64 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u128 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i8 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i16 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i32 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i64 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i128 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
+
+impl_numconsts_for_ints!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);

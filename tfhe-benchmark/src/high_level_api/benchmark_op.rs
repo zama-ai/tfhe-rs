@@ -137,7 +137,7 @@ pub struct ArrayOp<F, EncryptType> {
 
 impl<FheType, F, EncryptType> BenchmarkOp<FheType> for ArrayOp<F, EncryptType>
 where
-    F: for<'a> Fn(std::iter::Cloned<std::slice::Iter<'a, FheType>>) -> FheType,
+    F: for<'a> Fn(std::slice::Iter<'a, FheType>) -> FheType,
     FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait,
     Standard: Distribution<EncryptType>,
 {
@@ -151,6 +151,6 @@ where
     }
 
     fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(inputs.iter().cloned())
+        (self.func)(inputs.iter())
     }
 }

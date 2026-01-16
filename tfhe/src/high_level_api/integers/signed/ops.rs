@@ -49,8 +49,8 @@ where
     ///     .map(|x| FheInt16::encrypt(x, &client_key))
     ///     .collect::<Vec<_>>();
     ///
-    /// // Iter and sum on references
-    /// let result = encrypted.iter().sum::<FheInt16>();
+    /// // Iter and sum consuming (moving out) from the original Vec
+    /// let result = encrypted.into_iter().sum::<FheInt16>();
     ///
     /// let decrypted: i16 = result.decrypt(&client_key);
     /// assert_eq!(decrypted, clears.into_iter().sum::<i16>());
@@ -59,7 +59,7 @@ where
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
                 let ciphertexts = iter
-                    .map(|elem| elem.ciphertext.on_cpu().to_owned())
+                    .map(|elem| elem.ciphertext.into_cpu())
                     .collect::<Vec<_>>();
                 cpu_key
                     .pbs_key()
@@ -83,10 +83,7 @@ where
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let cts = iter
-                    .map(|fhe_uint| match fhe_uint.ciphertext.on_gpu(streams) {
-                        MaybeCloned::Borrowed(gpu_ct) => gpu_ct.duplicate(streams),
-                        MaybeCloned::Cloned(gpu_ct) => gpu_ct,
-                    })
+                    .map(|fhe_uint| fhe_uint.ciphertext.into_gpu(streams))
                     .collect::<Vec<_>>();
 
                 let inner = cuda_key
