@@ -872,35 +872,35 @@ impl HpuSim {
 
 impl HpuSim {
     fn dump_op_reg(&self, op: &hpu_asm::DOp) {
-        if self.options.dump_out.is_some() && self.options.dump_reg {
-            let dump_out = self.options.dump_out.as_ref().unwrap();
+        if self.options.dump_reg {
+            if let Some(dump_out) = &self.options.dump_out {
+                // Dump register value
+                let regid = match op {
+                    hpu_asm::DOp::LD(op_impl) => op_impl.0.rid.0 as usize,
+                    hpu_asm::DOp::ST(op_impl) => op_impl.0.rid.0 as usize,
+                    hpu_asm::DOp::ADDS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::SUBS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::SSUB(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::MULS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::ADD(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::SUB(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::MAC(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML2(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML4(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML8(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML2_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML4_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    hpu_asm::DOp::PBS_ML8_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                    _ => return,
+                };
+                let regf = self.regfile[regid].as_view();
 
-            // Dump register value
-            let regid = match op {
-                hpu_asm::DOp::LD(op_impl) => op_impl.0.rid.0 as usize,
-                hpu_asm::DOp::ST(op_impl) => op_impl.0.rid.0 as usize,
-                hpu_asm::DOp::ADDS(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::SUBS(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::SSUB(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::MULS(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::ADD(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::SUB(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::MAC(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML2(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML4(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML8(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_F(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML2_F(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML4_F(op_impl) => op_impl.0.dst_rid.0 as usize,
-                hpu_asm::DOp::PBS_ML8_F(op_impl) => op_impl.0.dst_rid.0 as usize,
-                _ => return,
-            };
-            let regf = self.regfile[regid].as_view();
-
-            // Create base-path
-            let base_path = format!("{}/blwe/run/blwe_isc{}_reg", dump_out, self.pc,);
-            self.dump_regf(regf, &base_path);
+                // Create base-path
+                let base_path = format!("{}/blwe/run/blwe_isc{}_reg", dump_out, self.pc,);
+                self.dump_regf(regf, &base_path);
+            }
         }
     }
 

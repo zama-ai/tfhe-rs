@@ -137,24 +137,22 @@ pub fn ct_sizes(results_file: &Path) {
             println!("\t* SNS CT: {sns_ct_size} bytes");
             write_and_record_result(sns_ct_size, &test_name, "sns-ct-size");
 
-            if meta_param
-                .noise_squashing_parameters
-                .unwrap()
-                .compression_parameters
-                .is_some()
-            {
-                let test_name = format!("hlapi_compressed_sns_ct_size::{}", param_fhe.name());
-                let compressed_sns_ct = CompressedSquashedNoiseCiphertextList::builder()
-                    .push(sns_ct)
-                    .build()
-                    .unwrap();
-                let compressed_sns_ct_size = bincode::serialize(&compressed_sns_ct).unwrap().len();
-                println!("\t* Compressed SNS CT: {compressed_sns_ct_size} bytes");
-                write_and_record_result(
-                    compressed_sns_ct_size,
-                    &test_name,
-                    "compressed-sns-ct-size",
-                );
+            if let Some(ns_params) = meta_param.noise_squashing_parameters {
+                if ns_params.compression_parameters.is_some() {
+                    let test_name = format!("hlapi_compressed_sns_ct_size::{}", param_fhe.name());
+                    let compressed_sns_ct = CompressedSquashedNoiseCiphertextList::builder()
+                        .push(sns_ct)
+                        .build()
+                        .unwrap();
+                    let compressed_sns_ct_size =
+                        bincode::serialize(&compressed_sns_ct).unwrap().len();
+                    println!("\t* Compressed SNS CT: {compressed_sns_ct_size} bytes");
+                    write_and_record_result(
+                        compressed_sns_ct_size,
+                        &test_name,
+                        "compressed-sns-ct-size",
+                    );
+                }
             }
         }
 
