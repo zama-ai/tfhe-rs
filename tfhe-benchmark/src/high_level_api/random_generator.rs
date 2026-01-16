@@ -21,13 +21,13 @@ where
 pub fn random_not_power_of_two<T>() -> T
 where
     Standard: Distribution<T>,
-    T: Copy + PartialEq + BitAnd<Output = T> + Sub<Output = T> + NumConsts,
+    T: Copy + PartialEq + PartialOrd + BitAnd<Output = T> + Sub<Output = T> + NumConsts,
 {
     let mut rng = rand::thread_rng();
 
     loop {
         let v: T = rng.gen();
-        if !(v != T::zero() && (v & (v - T::one())) == T::zero()) {
+        if !(v > T::zero() && (v & (v - T::one())) == T::zero()) {
             return v;
         }
     }
