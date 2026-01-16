@@ -274,7 +274,7 @@ pub fn generate_lwe_keyswitch_key_other_mod<
                 CastInto::<OutputScalar>::cast_into(*input_key_element),
                 ciphertext_modulus,
             )
-            .to_approximate_recomposition_summand();
+            .to_recomposition_summand();
         }
 
         encrypt_lwe_ciphertext_list(
@@ -1026,7 +1026,7 @@ pub fn generate_chunked_lwe_keyswitch_key_other_mod<
                 CastInto::<OutputScalar>::cast_into(*input_key_element),
                 ciphertext_modulus,
             )
-            .to_approximate_recomposition_summand();
+            .to_recomposition_summand();
         }
 
         encrypt_lwe_ciphertext_list(

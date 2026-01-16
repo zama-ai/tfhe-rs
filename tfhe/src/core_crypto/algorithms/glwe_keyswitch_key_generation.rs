@@ -290,7 +290,7 @@ pub fn generate_glwe_keyswitch_key_other_mod<
                 input_key_polynomial.as_ref(),
                 ciphertext_modulus,
             );
-            term.to_approximate_recomposition_summand(message_polynomial.as_mut());
+            term.to_recomposition_summand(message_polynomial.as_mut());
         }
 
         let decomposition_plaintexts_buffer =

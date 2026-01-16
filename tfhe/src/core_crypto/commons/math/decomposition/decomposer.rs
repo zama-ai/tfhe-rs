@@ -637,7 +637,7 @@ where
         if decomp.is_fresh() {
             Some(decomp.fold(Scalar::ZERO, |acc, term| {
                 acc.wrapping_add_custom_mod(
-                    term.to_approximate_recomposition_summand(),
+                    term.to_recomposition_summand(),
                     ciphertext_modulus_as_scalar,
                 )
             }))

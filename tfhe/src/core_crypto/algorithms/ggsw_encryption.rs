@@ -30,7 +30,7 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
             cleartext.0.wrapping_neg(),
             ciphertext_modulus,
         )
-        .to_approximate_recomposition_summand(),
+        .to_recomposition_summand(),
         CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
             let native_decomp_term =
                 DecompositionTerm::new(decomp_level, decomp_base_log, cleartext.0.wrapping_neg())
@@ -906,7 +906,7 @@ where
                 Scalar::ONE,
                 ciphertext_modulus,
             )
-            .to_approximate_recomposition_summand();
+            .to_recomposition_summand();
 
             let decoded = divide_round(*cleartext_ref.0, delta)
                 .wrapping_rem(Scalar::ONE << (decomp_level.0 * decomp_base_log.0));
