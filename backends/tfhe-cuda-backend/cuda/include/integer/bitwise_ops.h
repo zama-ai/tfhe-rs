@@ -45,12 +45,9 @@ template <typename Torus> struct boolean_bitop_buffer {
 
         // BooleanBlock can have degree 0 or 1. when ct is 0 path is hardcoded,
         // only lut for degree = 1 is generated
-        generate_device_accumulator_bivariate_with_factor<Torus>(
-            streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-            lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_bivariate_f, 2, gpu_memory_allocated);
-        lut->broadcast_lut(active_streams);
+        lut->generate_and_broadcast_bivariate_lut(active_streams, {0},
+                                                  {lut_bivariate_f},
+                                                  gpu_memory_allocated, {}, 2);
       }
       break;
     default:
@@ -65,14 +62,8 @@ template <typename Torus> struct boolean_bitop_buffer {
         return x % params.message_modulus;
       };
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          message_extract_lut->get_lut(0, 0),
-          message_extract_lut->get_degree(0),
-          message_extract_lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_message_extract, gpu_memory_allocated);
-      message_extract_lut->broadcast_lut(active_streams);
+      message_extract_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
     }
     tmp_lwe_left = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -142,12 +133,8 @@ template <typename Torus> struct int_bitop_buffer {
           }
         };
 
-        generate_device_accumulator_bivariate<Torus>(
-            streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-            lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_bivariate_f, gpu_memory_allocated);
-        lut->broadcast_lut(active_streams);
+        lut->generate_and_broadcast_bivariate_lut(
+            active_streams, {0}, {lut_bivariate_f}, gpu_memory_allocated);
       }
       break;
     default:
@@ -156,6 +143,8 @@ template <typename Torus> struct int_bitop_buffer {
                                      num_radix_blocks, allocate_gpu_memory,
                                      size_tracker);
 
+      std::vector<std::function<Torus(Torus)>> lut_funcs;
+      std::vector<uint32_t> lut_indices;
       for (int i = 0; i < params.message_modulus; i++) {
         auto rhs = i;
 
@@ -171,14 +160,13 @@ template <typename Torus> struct int_bitop_buffer {
             return x ^ rhs;
           }
         };
-        generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0), lut->get_lut(0, i),
-            lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_univariate_scalar_f,
-            gpu_memory_allocated);
-        lut->broadcast_lut(active_streams);
+
+        lut_funcs.push_back(lut_univariate_scalar_f);
+        lut_indices.push_back(i);
       }
+
+      lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
+                                      gpu_memory_allocated);
     }
   }
 
@@ -211,16 +199,11 @@ template <typename Torus> struct boolean_bitnot_buffer {
         return x % message_modulus;
       };
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          message_extract_lut->get_lut(0, 0),
-          message_extract_lut->get_degree(0),
-          message_extract_lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_message_extract, gpu_memory_allocated);
       auto active_streams =
           streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
-      message_extract_lut->broadcast_lut(active_streams);
+
+      message_extract_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
     }
   }
 

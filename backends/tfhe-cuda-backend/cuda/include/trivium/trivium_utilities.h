@@ -30,15 +30,10 @@ template <typename Torus> struct int_trivium_lut_buffers {
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus a, Torus b) -> Torus { return (a & 1) & (b & 1); };
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->and_lut->get_lut(0, 0),
-        this->and_lut->get_degree(0), this->and_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, and_lambda, allocate_gpu_memory);
-
     auto active_streams_and =
         streams.active_gpu_subset(total_lut_ops, params.pbs_type);
-    this->and_lut->broadcast_lut(active_streams_and);
+    this->and_lut->generate_and_broadcast_bivariate_lut(
+        active_streams_and, {0}, {and_lambda}, allocate_gpu_memory);
     this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     uint32_t total_flush_ops = num_trivium_inputs * BATCH_SIZE * 4;
@@ -50,15 +45,10 @@ template <typename Torus> struct int_trivium_lut_buffers {
       return x & 1;
     };
 
-    generate_device_accumulator(
-        streams.stream(0), streams.gpu_index(0), this->flush_lut->get_lut(0, 0),
-        this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, flush_lambda, allocate_gpu_memory);
-
     auto active_streams_flush =
         streams.active_gpu_subset(total_flush_ops, params.pbs_type);
-    this->flush_lut->broadcast_lut(active_streams_flush);
+    this->flush_lut->generate_and_broadcast_lut(
+        active_streams_flush, {0}, {flush_lambda}, allocate_gpu_memory);
     this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }
 

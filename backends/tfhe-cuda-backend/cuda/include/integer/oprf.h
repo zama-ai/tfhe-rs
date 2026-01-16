@@ -53,6 +53,10 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
     // Pre-generate all possible LUTs.
     //
+    std::vector<std::function<Torus(Torus)>> lut_funcs;
+    std::vector<uint32_t> lut_indices;
+    std::vector<uint64_t> lut_degrees;
+
     for (uint32_t random_bit = 1; random_bit <= message_bits_per_block;
          ++random_bit) {
       uint64_t p = 1ULL << random_bit;
@@ -70,14 +74,13 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
       uint64_t degree = 0;
       uint32_t lut_index = random_bit - 1;
-      generate_device_accumulator_no_encoding<Torus>(
-          streams.stream(0), streams.gpu_index(0), luts->get_lut(0, lut_index),
-          degree, params.message_modulus, params.carry_modulus,
-          params.glwe_dimension, params.polynomial_size, lut_f,
-          allocate_gpu_memory);
+
+      lut_funcs.push_back(lut_f);
+      lut_indices.push_back(lut_index);
+
       // In  OPRF the degree is hard set to p - 1 instead of the LUT degree
       degree = p - 1;
-      *luts->get_degree(lut_index) = degree;
+      lut_degrees.push_back(degree);
     }
 
     // For each block, this loop determines the exact number of bits to generate
@@ -128,7 +131,16 @@ template <typename Torus> struct int_grouped_oprf_memory {
         streams.gpu_index(0), allocate_gpu_memory);
     auto active_streams =
         streams.active_gpu_subset(num_blocks_to_process, params.pbs_type);
-    luts->broadcast_lut(active_streams);
+
+    // No encoding for these LUTS. Generate LUT also sets LUT degrees to default
+    // values
+    luts->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
+                                     allocate_gpu_memory, false);
+
+    // OPRF requires custom LUT degrees
+    for (uint32_t i = 0; i < lut_degrees.size(); ++i) {
+      *luts->get_degree(i) = lut_degrees[i];
+    }
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_corrections);
