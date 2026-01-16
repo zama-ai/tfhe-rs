@@ -271,16 +271,20 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         return shifted | padding;
       };
 
-      generate_device_accumulator<Torus>(
+      auto active_streams_shift_last =
+          streams.active_gpu_subset(1, params.pbs_type);
+      shift_last_block_lut_univariate->generate_and_broadcast_lut(
+          active_streams_shift_last, {0}, {last_block_lut_f},
+          gpu_memory_allocated);
+      /*generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0),
           shift_last_block_lut_univariate->get_lut(0, 0),
           shift_last_block_lut_univariate->get_degree(0),
           shift_last_block_lut_univariate->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, last_block_lut_f, gpu_memory_allocated);
-      auto active_streams_shift_last =
-          streams.active_gpu_subset(1, params.pbs_type);
       shift_last_block_lut_univariate->broadcast_lut(active_streams_shift_last);
+*/
 
       lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
     }
@@ -298,15 +302,16 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       return (params.message_modulus - 1) * x_sign_bit;
     };
 
-    generate_device_accumulator<Torus>(
+    padding_block_lut_univariate->generate_and_broadcast_lut(
+        active_streams, {0}, {padding_block_lut_f}, gpu_memory_allocated);
+    /*generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0),
         padding_block_lut_univariate->get_lut(0, 0),
         padding_block_lut_univariate->get_degree(0),
         padding_block_lut_univariate->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         padding_block_lut_f, gpu_memory_allocated);
-    // auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-    padding_block_lut_univariate->broadcast_lut(active_streams);
+    padding_block_lut_univariate->broadcast_lut(active_streams);*/
 
     lut_buffers_univariate.push_back(padding_block_lut_univariate);
 

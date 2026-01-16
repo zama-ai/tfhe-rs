@@ -65,14 +65,16 @@ template <typename Torus> struct boolean_bitop_buffer {
         return x % params.message_modulus;
       };
 
-      generate_device_accumulator<Torus>(
+      message_extract_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+      /*generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0),
           message_extract_lut->get_lut(0, 0),
           message_extract_lut->get_degree(0),
           message_extract_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           lut_f_message_extract, gpu_memory_allocated);
-      message_extract_lut->broadcast_lut(active_streams);
+      message_extract_lut->broadcast_lut(active_streams);*/
     }
     tmp_lwe_left = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

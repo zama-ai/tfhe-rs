@@ -74,21 +74,6 @@ template <typename Torus> struct int_overflowing_sub_memory {
                                            luts_array, size_tracker,
                                            allocate_gpu_memory, size_tracker);
 
-    auto lut_does_block_generate_carry = luts_array->get_lut(0, 0);
-    auto lut_does_block_generate_or_propagate = luts_array->get_lut(0, 1);
-
-    // generate luts (aka accumulators)
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut_does_block_generate_carry,
-        luts_array->get_degree(0), luts_array->get_max_degree(0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-        f_lut_does_block_generate_carry, gpu_memory_allocated);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        lut_does_block_generate_or_propagate, luts_array->get_degree(1),
-        luts_array->get_max_degree(1), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_lut_does_block_generate_or_propagate,
-        gpu_memory_allocated);
     if (allocate_gpu_memory)
       cuda_set_value_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                   luts_array->get_lut_indexes(0, 1), 1,
@@ -110,7 +95,33 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    luts_array->broadcast_lut(active_streams);
+
+    luts_array->generate_and_broadcast_lut(
+        active_streams, {0, 1},
+        {f_lut_does_block_generate_carry,
+         f_lut_does_block_generate_or_propagate},
+        gpu_memory_allocated);
+    // generate luts (aka accumulators)
+
+    /*
+    auto lut_does_block_generate_carry = luts_array->get_lut(0, 0);
+    auto lut_does_block_generate_or_propagate = luts_array->get_lut(0, 1);
+
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0), lut_does_block_generate_carry,
+        luts_array->get_degree(0), luts_array->get_max_degree(0),
+        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        f_lut_does_block_generate_carry, gpu_memory_allocated);
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        lut_does_block_generate_or_propagate, luts_array->get_degree(1),
+        luts_array->get_max_degree(1), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_lut_does_block_generate_or_propagate,
+        gpu_memory_allocated);
+
+  luts_array->broadcast_lut(active_streams);
+  */
+
     luts_borrow_propagation_sum->broadcast_lut(active_streams);
     message_acc->broadcast_lut(active_streams);
   }

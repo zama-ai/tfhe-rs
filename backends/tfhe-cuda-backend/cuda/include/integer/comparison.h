@@ -39,22 +39,28 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         max_chunks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
+    preallocated_h_lut = (Torus *)malloc(
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+
     is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
                                             allocate_gpu_memory, size_tracker);
+
+    auto active_streams =
+        streams.active_gpu_subset(max_chunks, params.pbs_type);
+
     auto is_max_value_f = [max_value](Torus x) -> Torus {
       return x == max_value;
     };
-    preallocated_h_lut = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
-    generate_device_accumulator<Torus>(
+
+    is_max_value->generate_and_broadcast_lut(
+        active_streams, {0}, {is_max_value_f}, gpu_memory_allocated);
+    /*generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), is_max_value->get_lut(0, 0),
         is_max_value->get_degree(0), is_max_value->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_max_value_f, gpu_memory_allocated);
 
-    auto active_streams =
-        streams.active_gpu_subset(max_chunks, params.pbs_type);
-    is_max_value->broadcast_lut(active_streams);
+    is_max_value->broadcast_lut(active_streams);*/
   }
 
   void release(CudaStreams streams) {

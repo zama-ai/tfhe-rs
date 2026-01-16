@@ -835,6 +835,22 @@ struct int_radix_lut_custom_input_output {
     }
   }
 
+  void generate_and_broadcast_lut(
+      const CudaStreams &streams, std::vector<uint32_t> lut_indexes,
+      std::vector<std::function<InputTorus(InputTorus)>> f,
+      bool gpu_memory_allocated) {
+    // streams should be a subset of active_streams
+
+    for (uint32_t i = 0; i < lut_indexes.size(); ++i) {
+      generate_device_accumulator<InputTorus>(
+          streams.stream(0), streams.gpu_index(0), get_lut(0, i), get_degree(i),
+          get_max_degree(i), params.glwe_dimension, params.polynomial_size,
+          params.message_modulus, params.carry_modulus, f[i],
+          gpu_memory_allocated);
+    }
+    broadcast_lut(streams);
+  }
+
   void release(CudaStreams streams) {
     PANIC_IF_FALSE(lut_indexes_vec.size() == lut_vec.size(),
                    "Lut vec and Lut vec indexes must have the same size");
@@ -1240,7 +1256,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         uint64_t size_tracker = 0;
         luts_message_carry = new int_radix_lut<Torus>(
             streams, params, 2, pbs_count, true, size_tracker);
-        allocated_luts_message_carry = true;
+
         uint64_t message_modulus_bits =
             (uint64_t)std::log2(params.message_modulus);
         uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
@@ -1255,8 +1271,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
             streams, upper_bound_num_blocks, size_tracker, true);
       }
-    }
-    if (allocated_luts_message_carry) {
+
       auto message_acc = luts_message_carry->get_lut(0, 0);
       auto carry_acc = luts_message_carry->get_lut(0, 1);
 
