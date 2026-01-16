@@ -7,23 +7,23 @@ template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t max_shared_memory);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t max_shared_memory);
 
 #if CUDA_ARCH >= 900
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lut_vector_indexes, InputTorus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
@@ -48,7 +48,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride);
 
-template <typename Torus>
+template <typename InputTorus, typename Torus>
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
@@ -96,7 +96,7 @@ template <typename Torus>
 uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 
-template <typename Torus, class params>
+template <typename InputTorus, typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
                             uint32_t level_count, uint64_t full_sm_keybundle);

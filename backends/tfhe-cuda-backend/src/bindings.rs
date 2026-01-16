@@ -3073,6 +3073,20 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_programmable_bootstrap_32_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn scratch_cuda_programmable_bootstrap_128(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -3087,7 +3101,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
+    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,
@@ -3109,7 +3123,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_32_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,
@@ -3162,6 +3176,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[link_name = "\u{1}_Z55has_support_to_cuda_programmable_bootstrap_cg_multi_bitjjjjj"]
     pub fn has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -3197,6 +3212,18 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_multi_bit_programmable_bootstrap_32_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
     pub fn scratch_cuda_multi_bit_programmable_bootstrap_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -3210,6 +3237,29 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lut_vector_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        grouping_factor: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        num_many_lut: u32,
+        lut_stride: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_32_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,

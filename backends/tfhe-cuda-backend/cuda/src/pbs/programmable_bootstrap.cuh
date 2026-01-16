@@ -263,42 +263,7 @@ void execute_pbs_async(CudaStreams streams,
                        uint32_t num_many_lut, uint32_t lut_stride) {
 
   if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
-    // 32 bits
-    switch (pbs_type) {
-    case MULTI_BIT:
-      PANIC("Error: 32-bit multibit PBS is not supported.\n")
-    case CLASSICAL:
-      for (uint i = 0; i < streams.count(); i++) {
-        int num_inputs_on_gpu = get_num_inputs_on_gpu(
-            input_lwe_ciphertext_count, i, streams.count());
-
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, streams.count());
-        auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
-
-        // Use the macro to get the correct elements for the current iteration
-        // Handles the case when the input/output are scattered through
-        // different gpus and when it is not
-        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
-        auto current_lwe_output_indexes =
-            get_variant_element(lwe_output_indexes, i);
-        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
-        auto current_lwe_input_indexes =
-            get_variant_element(lwe_input_indexes, i);
-
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
-            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-            current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
-            current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            num_many_lut, lut_stride);
-      }
-      break;
-    default:
-      PANIC("Error: unsupported cuda PBS type.")
-    }
+    PANIC("Error: unsupported 32b CUDA PBS type.")
   } else if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
     // 64 bits
     switch (pbs_type) {
@@ -353,7 +318,7 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_64_64(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,

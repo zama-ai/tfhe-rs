@@ -249,7 +249,7 @@ mod cuda {
                 }
             };
 
-        let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
+        let cpu_keys: CpuKeys<_, u64> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
         let message_modulus: u64 = 1 << 4;
         let input_message: u64 = 3;
@@ -492,7 +492,7 @@ mod cuda {
             squash_params.ciphertext_modulus,
         );
 
-        let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new()
+        let cpu_keys: CpuKeys<_, u64> = CpuKeysBuilder::new()
             .multi_bit_bootstrap_key(multi_bit_bsk)
             .build();
 
