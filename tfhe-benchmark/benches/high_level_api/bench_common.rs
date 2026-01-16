@@ -1,336 +1,19 @@
-use benchmark::utilities::{
-    hlapi_throughput_num_ops, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
-};
+use benchmark::high_level_api::bench_wait::*;
+use benchmark::high_level_api::benchmark_op::*;
+
+use benchmark::utilities::{hlapi_throughput_num_ops, write_to_json, BenchmarkType, OperatorType};
 use criterion::{black_box, Criterion, Throughput};
-use oprf::oprf_any_range2;
-use rand::distributions::Standard;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::marker::PhantomData;
-use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
 use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::keycache::NamedParam;
 use tfhe::named::Named;
 use tfhe::prelude::*;
-use tfhe::{
-    ClientKey, CompressedServerKey, FheBool, FheInt, FheInt10, FheInt12, FheInt128, FheInt14,
-    FheInt16, FheInt2, FheInt32, FheInt4, FheInt6, FheInt64, FheInt8, FheIntId, FheIntegerType,
-    FheUint, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16, FheUint2, FheUint32, FheUint4,
-    FheUint6, FheUint64, FheUint8, FheUintId, IntegerId, KVStore,
-};
+use tfhe::{ClientKey, FheIntegerType, FheUintId, IntegerId, KVStore};
 
-trait NumConsts {
-    fn zero() -> Self;
-    fn one() -> Self;
-}
-
-impl NumConsts for u8 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u16 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u32 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u64 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for u128 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i8 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i16 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i32 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i64 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-impl NumConsts for i128 {
-    fn zero() -> Self {
-        0
-    }
-    fn one() -> Self {
-        1
-    }
-}
-
-mod oprf;
-
-fn random_non_zero<T>() -> T
-where
-    Standard: Distribution<T>,
-    T: Copy + PartialEq + NumConsts,
-{
-    let mut rng = rand::thread_rng();
-
-    loop {
-        let v: T = rng.gen();
-        if v != T::zero() {
-            return v;
-        }
-    }
-}
-
-fn random_not_power_of_two<T>() -> T
-where
-    Standard: Distribution<T>,
-    T: Copy + PartialEq + BitAnd<Output = T> + Sub<Output = T> + NumConsts,
-{
-    let mut rng = rand::thread_rng();
-
-    loop {
-        let v: T = rng.gen();
-        if !(v != T::zero() && (v & (v - T::one())) == T::zero()) {
-            return v;
-        }
-    }
-}
-
-fn get_one<T>() -> T
-where
-    T: From<u8>,
-{
-    T::from(1)
-}
-
-fn random<T>() -> T
-where
-    Standard: Distribution<T>,
-{
-    rand::thread_rng().gen()
-}
-
-trait BenchWait {
-    fn wait_bench(&self);
-}
-
-impl<Id: FheUintId> BenchWait for FheUint<Id> {
-    fn wait_bench(&self) {
-        self.wait()
-    }
-}
-
-impl<Id: FheIntId> BenchWait for FheInt<Id> {
-    fn wait_bench(&self) {
-        self.wait()
-    }
-}
-
-impl BenchWait for FheBool {
-    fn wait_bench(&self) {
-        self.wait()
-    }
-}
-
-impl<T1: FheWait, T2> BenchWait for (T1, T2) {
-    fn wait_bench(&self) {
-        self.0.wait()
-    }
-}
-
-trait BenchmarkOp<FheType> {
-    type Output: BenchWait;
-    type Inputs;
-
-    /// Setup the encrypted inputs for the operation
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs;
-
-    /// Execute the operation with the inputs
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output;
-}
-
-struct UnaryOp<F, EncryptType> {
-    func: F,
-    _encrypt: PhantomData<EncryptType>,
-}
-
-impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for UnaryOp<F, EncryptType>
-where
-    F: Fn(&FheType) -> R,
-    R: BenchWait,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
-    Standard: Distribution<EncryptType>,
-{
-    type Output = R;
-    type Inputs = FheType;
-
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
-        FheType::encrypt(rng.gen(), client_key)
-    }
-
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(inputs)
-    }
-}
-
-struct ScalarBinaryOp<F, G, EncryptType> {
-    func: F,
-    rng_function: G,
-    _encrypt: PhantomData<EncryptType>,
-}
-
-impl<FheType, F, R, G, T, EncryptType> BenchmarkOp<FheType> for ScalarBinaryOp<F, G, EncryptType>
-where
-    F: Fn(&FheType, &T) -> R,
-    R: BenchWait,
-    G: Fn() -> T,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
-    Standard: Distribution<EncryptType>,
-{
-    type Output = R;
-    type Inputs = (FheType, T);
-
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
-        (
-            FheType::encrypt(rng.gen(), client_key),
-            (self.rng_function)(),
-        )
-    }
-
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(&inputs.0, &inputs.1)
-    }
-}
-
-struct BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType> {
-    func: F,
-    _encrypt_lhs: PhantomData<EncryptLhsType>,
-    _encrypt_rhs: PhantomData<EncryptRhsType>,
-    _rhs_type: PhantomData<FheRhsType>,
-}
-
-impl<FheType, FheRhsType, F, R, EncryptLhsType, EncryptRhsType> BenchmarkOp<FheType>
-    for BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType>
-where
-    F: Fn(&FheType, &FheRhsType) -> R,
-    R: BenchWait,
-    FheType: FheEncrypt<EncryptLhsType, ClientKey>,
-    FheRhsType: FheEncrypt<EncryptRhsType, ClientKey>,
-    Standard: Distribution<EncryptLhsType>,
-    Standard: Distribution<EncryptRhsType>,
-{
-    type Output = R;
-    type Inputs = (FheType, FheRhsType);
-
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
-        (
-            FheType::encrypt(rng.gen(), client_key),
-            FheRhsType::encrypt(rng.gen(), client_key),
-        )
-    }
-
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(&inputs.0, &inputs.1)
-    }
-}
-
-struct TernaryOp<F, EncryptType> {
-    func: F,
-    _encrypt: PhantomData<EncryptType>,
-}
-
-impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for TernaryOp<F, EncryptType>
-where
-    F: Fn(&FheBool, &FheType, &FheType) -> R,
-    R: BenchWait,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
-    Standard: Distribution<EncryptType>,
-{
-    type Output = R;
-    type Inputs = (FheBool, FheType, FheType);
-
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
-        (
-            FheBool::encrypt(rng.gen::<bool>(), client_key),
-            FheType::encrypt(rng.gen(), client_key),
-            FheType::encrypt(rng.gen(), client_key),
-        )
-    }
-
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(&inputs.0, &inputs.1, &inputs.2)
-    }
-}
-
-struct ArrayOp<F, EncryptType> {
-    func: F,
-    array_size: usize,
-    _encrypt: PhantomData<EncryptType>,
-}
-
-impl<FheType, F, EncryptType> BenchmarkOp<FheType> for ArrayOp<F, EncryptType>
-where
-    F: for<'a> Fn(std::iter::Cloned<std::slice::Iter<'a, FheType>>) -> FheType,
-    FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait,
-    Standard: Distribution<EncryptType>,
-{
-    type Output = FheType;
-    type Inputs = Vec<FheType>;
-
-    fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs {
-        (0..self.array_size)
-            .map(|_| FheType::encrypt(rng.gen(), client_key))
-            .collect()
-    }
-
-    fn execute(&self, inputs: &Self::Inputs) -> Self::Output {
-        (self.func)(inputs.iter().cloned())
-    }
-}
-
-fn bench_fhe_type_op<FheType, Op>(
+pub fn bench_fhe_type_op<FheType, Op>(
     c: &mut Criterion,
     client_key: &ClientKey,
     type_name: &str,
@@ -510,8 +193,8 @@ macro_rules! generate_typed_benches {
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "ge", operation: ge);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "gt", operation: gt);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "le", operation: le);
-        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "left_rotate", operation: rotate_left);
-        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "left_shift", operation: shl);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint8, left_type: $integer_type, right_type: u8, display_name: "left_rotate", operation: rotate_left);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint8, left_type: $integer_type, right_type: u8, display_name: "left_shift", operation: shl);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "lt", operation: lt);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "max", operation: max);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "min", operation: min);
@@ -521,8 +204,8 @@ macro_rules! generate_typed_benches {
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "overflowing_mul", operation: overflowing_mul);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "overflowing_sub", operation: overflowing_sub);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "rem", operation: rem);
-        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "right_rotate", operation: rotate_right);
-        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint128, left_type: $integer_type, right_type: u128, display_name: "right_shift", operation: shr);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint8, left_type: $integer_type, right_type: u8, display_name: "right_rotate", operation: rotate_right);
+        bench_type_binary_op!(type_name: $fhe_type, right_type_name: FheUint8, left_type: $integer_type, right_type: u8, display_name: "right_shift", operation: shr);
         bench_type_binary_op!(type_name: $fhe_type, right_type_name: $fhe_type, left_type: $integer_type, right_type: $integer_type, display_name: "sub", operation: sub);
         bench_type_ternary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "flip", operation: flip);
         bench_type_ternary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "if_then_else", operation: if_then_else);
@@ -571,53 +254,37 @@ macro_rules! generate_typed_scalar_benches {
 }
 
 // Generate benches for all FheUint types
-generate_typed_benches!(FheUint2, u128);
-generate_typed_benches!(FheUint4, u128);
-generate_typed_benches!(FheUint6, u128);
-generate_typed_benches!(FheUint8, u128);
-generate_typed_benches!(FheUint10, u128);
-generate_typed_benches!(FheUint12, u128);
-generate_typed_benches!(FheUint14, u128);
-generate_typed_benches!(FheUint16, u128);
-generate_typed_benches!(FheUint32, u128);
-generate_typed_benches!(FheUint64, u128);
-generate_typed_benches!(FheUint128, u128);
+// generate_typed_benches!(FheUint2, u128);
+// generate_typed_benches!(FheUint4, u128);
+// generate_typed_benches!(FheUint8, u128);
+// generate_typed_benches!(FheUint16, u128);
+// generate_typed_benches!(FheUint32, u128);
+// generate_typed_benches!(FheUint64, u128);
+// generate_typed_benches!(FheUint128, u128);
 
-generate_typed_benches!(FheInt2, i128);
-generate_typed_benches!(FheInt4, i128);
-generate_typed_benches!(FheInt6, i128);
-generate_typed_benches!(FheInt8, i128);
-generate_typed_benches!(FheInt10, i128);
-generate_typed_benches!(FheInt12, i128);
-generate_typed_benches!(FheInt14, i128);
-generate_typed_benches!(FheInt16, i128);
-generate_typed_benches!(FheInt32, i128);
-generate_typed_benches!(FheInt64, i128);
-generate_typed_benches!(FheInt128, i128);
+// generate_typed_benches!(FheInt2, i128);
+// generate_typed_benches!(FheInt4, i128);
+// generate_typed_benches!(FheInt8, i128);
+// generate_typed_benches!(FheInt16, i128);
+// generate_typed_benches!(FheInt32, i128);
+// generate_typed_benches!(FheInt64, i128);
+// generate_typed_benches!(FheInt128, i128);
 
-generate_typed_scalar_benches!(FheUint2, u128, u8, u8);
-generate_typed_scalar_benches!(FheUint4, u128, u8, u8);
-generate_typed_scalar_benches!(FheUint6, u128, u8, u8);
-generate_typed_scalar_benches!(FheUint8, u128, u8, u8);
-generate_typed_scalar_benches!(FheUint10, u128, u16, u16);
-generate_typed_scalar_benches!(FheUint12, u128, u16, u16);
-generate_typed_scalar_benches!(FheUint14, u128, u16, u16);
-generate_typed_scalar_benches!(FheUint16, u128, u16, u16);
-generate_typed_scalar_benches!(FheUint32, u128, u32, u32);
-generate_typed_scalar_benches!(FheUint64, u128, u64, u64);
-generate_typed_scalar_benches!(FheUint128, u128, u128, u128);
+// generate_typed_scalar_benches!(FheUint2, u128, u8, u8);
+// generate_typed_scalar_benches!(FheUint4, u128, u8, u8);
+// generate_typed_scalar_benches!(FheUint8, u128, u8, u8);
+// generate_typed_scalar_benches!(FheUint16, u128, u16, u16);
+// generate_typed_scalar_benches!(FheUint32, u128, u32, u32);
+// generate_typed_scalar_benches!(FheUint64, u128, u64, u64);
+// generate_typed_scalar_benches!(FheUint128, u128, u128, u128);
 
-generate_typed_scalar_benches!(FheInt2, i128, i8, u8);
-generate_typed_scalar_benches!(FheInt4, i128, i8, u8);
-generate_typed_scalar_benches!(FheInt6, i128, i8, u8);
-generate_typed_scalar_benches!(FheInt8, i128, i8, u8);
-generate_typed_scalar_benches!(FheInt10, i128, i16, u16);
-generate_typed_scalar_benches!(FheInt12, i128, i16, u16);
-generate_typed_scalar_benches!(FheInt14, i128, i16, u16);
-generate_typed_scalar_benches!(FheInt16, i128, i16, u16);
-generate_typed_scalar_benches!(FheInt32, i128, i32, u32);
-generate_typed_scalar_benches!(FheInt64, i128, i64, u64);
-generate_typed_scalar_benches!(FheInt128, i128, i128, u128);
+// generate_typed_scalar_benches!(FheInt2, i128, i8, u8);
+// generate_typed_scalar_benches!(FheInt4, i128, i8, u8);
+// generate_typed_scalar_benches!(FheInt8, i128, i8, u8);
+// generate_typed_scalar_benches!(FheInt16, i128, i16, u16);
+// generate_typed_scalar_benches!(FheInt32, i128, i32, u32);
+// generate_typed_scalar_benches!(FheInt64, i128, i64, u64);
+// generate_typed_scalar_benches!(FheInt128, i128, i128, u128);
 
 macro_rules! run_benches {
     ($c:expr, $cks:expr, $($fhe_type:ident),+ $(,)?) => {
@@ -659,6 +326,21 @@ macro_rules! run_benches {
                 [<bench_ $fhe_type:snake _reverse_bits>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_left>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_right>]($c, $cks);
+                [<bench_ $fhe_type:snake _shl>]($c, $cks);
+                [<bench_ $fhe_type:snake _shr>]($c, $cks);
+                [<bench_ $fhe_type:snake _sub>]($c, $cks);
+                [<bench_ $fhe_type:snake _sum>]($c, $cks);
+                [<bench_ $fhe_type:snake _trailing_ones>]($c, $cks);
+                [<bench_ $fhe_type:snake _trailing_zeros>]($c, $cks);
+            }
+        )+
+    };
+}
+
+macro_rules! run_scalar_benches {
+    ($c:expr, $cks:expr, $($fhe_type:ident),+ $(,)?) => {
+        $(
+            ::paste::paste! {
                 [<bench_ $fhe_type:snake _scalar_add>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_bitand>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_bitor>]($c, $cks);
@@ -681,18 +363,12 @@ macro_rules! run_benches {
                 [<bench_ $fhe_type:snake _scalar_shl>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_shr>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_sub>]($c, $cks);
-                [<bench_ $fhe_type:snake _shl>]($c, $cks);
-                [<bench_ $fhe_type:snake _shr>]($c, $cks);
-                [<bench_ $fhe_type:snake _sub>]($c, $cks);
-                [<bench_ $fhe_type:snake _sum>]($c, $cks);
-                [<bench_ $fhe_type:snake _trailing_ones>]($c, $cks);
-                [<bench_ $fhe_type:snake _trailing_zeros>]($c, $cks);
             }
         )+
     };
 }
 
-trait TypeDisplay {
+pub(crate) trait TypeDisplay {
     fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = std::any::type_name::<Self>();
         let pos = name.rfind(":").map_or(0, |p| p + 1);
@@ -748,7 +424,7 @@ where
     write!(f, "{}{}", &full_name[i..], FheType::Id::num_bits())
 }
 
-fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
+pub fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
     rand::distributions::Standard: rand::distributions::Distribution<Key>,
     Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
@@ -861,85 +537,4 @@ where
         }
     }
     bench_group.finish();
-}
-
-fn main() {
-    let env_config = EnvConfig::new();
-
-    #[cfg(feature = "hpu")]
-    let (cks, benched_device) = {
-        // Hpu is enabled, start benchmark on Hpu hw accelerator
-        use tfhe::tfhe_hpu_backend::prelude::*;
-        use tfhe::{set_server_key, Config};
-
-        // Use environment variable to construct path to configuration file
-        let config_path = ShellString::new(
-            "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
-        );
-        let hpu_device = HpuDevice::from_config(&config_path.expand());
-
-        let config = Config::from_hpu_device(&hpu_device);
-        let cks = ClientKey::generate(config);
-        let compressed_sks = CompressedServerKey::new(&cks);
-
-        set_server_key((hpu_device, compressed_sks));
-        (cks, tfhe::Device::Hpu)
-    };
-    #[cfg(not(feature = "hpu"))]
-    let (cks, benched_device) = {
-        use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        use tfhe::{set_server_key, ConfigBuilder};
-        let config = ConfigBuilder::with_custom_parameters(
-            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .build();
-        let cks = ClientKey::generate(config);
-        let compressed_sks = CompressedServerKey::new(&cks);
-
-        let sks = compressed_sks.decompress();
-        rayon::broadcast(|_| set_server_key(sks.clone()));
-        set_server_key(sks);
-        (cks, tfhe::Device::Cpu)
-    };
-
-    let mut c = Criterion::default().configure_from_args();
-
-    match env_config.bit_sizes_set {
-        BitSizesSet::Fast => {
-            run_benches!(&mut c, &cks, FheUint64);
-
-            // KVStore Benches
-            if benched_device == tfhe::Device::Cpu {
-                bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << 10);
-            }
-        }
-        _ => {
-            // Call all benchmarks for all types
-            run_benches!(
-                &mut c, &cks, FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12,
-                FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheInt2, FheInt4, FheInt6,
-                FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128
-            );
-
-            // KVStore Benches
-            if benched_device == tfhe::Device::Cpu {
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-                }
-
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
-                }
-
-                for pow in 1..=10 {
-                    bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
-                }
-            }
-        }
-    }
-
-    #[cfg(not(feature = "hpu"))]
-    oprf_any_range2();
-
-    c.final_summary();
 }

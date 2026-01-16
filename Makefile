@@ -1634,11 +1634,11 @@ bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_unsafe_coop_firefox
 
-.PHONY: bench_hlapi # Run benchmarks for integer operations
-bench_hlapi: install_rs_check_toolchain
+.PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
+bench_hlapi_unsigned: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi \
+	--bench hlapi_unsigned \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
