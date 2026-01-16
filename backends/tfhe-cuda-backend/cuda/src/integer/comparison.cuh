@@ -134,13 +134,6 @@ __host__ void are_all_comparisons_block_true(
         auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
           return x == chunk_length;
         };
-        generate_device_accumulator_with_cpu_prealloc<Torus>(
-            streams.stream(0), streams.gpu_index(0),
-            is_max_value_lut->get_lut(0, 1), is_max_value_lut->get_degree(1),
-            is_max_value_lut->get_max_degree(1), glwe_dimension,
-            polynomial_size, message_modulus, carry_modulus,
-            is_equal_to_num_blocks_lut_f, true,
-            are_all_block_true_buffer->preallocated_h_lut);
 
         Torus *h_lut_indexes = is_max_value_lut->h_lut_indexes;
         for (int index = 0; index < num_chunks; index++) {
@@ -155,7 +148,10 @@ __host__ void are_all_comparisons_block_true(
                                  streams.stream(0), streams.gpu_index(0));
         auto active_streams =
             streams.active_gpu_subset(num_chunks, params.pbs_type);
-        is_max_value_lut->broadcast_lut(active_streams);
+
+        is_max_value_lut->generate_and_broadcast_lut(
+            active_streams, {1}, {is_equal_to_num_blocks_lut_f}, true, true,
+            {are_all_block_true_buffer->preallocated_h_lut});
       }
       lut = is_max_value_lut;
     }
@@ -483,14 +479,10 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     y = x;
     f = sign_handler_f;
   }
-  generate_device_accumulator_with_cpu_prealloc<Torus>(
-      streams.stream(0), streams.gpu_index(0), last_lut->get_lut(0, 0),
-      last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
-      polynomial_size, message_modulus, carry_modulus, f, true,
-      tree_buffer->preallocated_h_lut);
 
   auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-  last_lut->broadcast_lut(active_streams);
+  last_lut->generate_and_broadcast_lut(active_streams, {0}, {f}, true, true,
+                                       {tree_buffer->preallocated_h_lut});
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table<Torus>(streams, lwe_array_out, y,
