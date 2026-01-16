@@ -97,12 +97,6 @@ template <typename Torus> struct int_cmux_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, lut_f, gpu_memory_allocated);
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_extract_lut->get_lut(0, 0), message_extract_lut->get_degree(0),
-        message_extract_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        message_extract_lut_f, gpu_memory_allocated);
     Torus *h_lut_indexes = predicate_lut->h_lut_indexes;
     for (int index = 0; index < 2 * num_radix_blocks; index++) {
       if (index < num_radix_blocks) {
@@ -118,9 +112,21 @@ template <typename Torus> struct int_cmux_buffer {
     auto active_streams_pred =
         streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
     predicate_lut->broadcast_lut(active_streams_pred);
+
     auto active_streams_msg =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    message_extract_lut->broadcast_lut(active_streams_msg);
+
+    message_extract_lut->generate_and_broadcast_lut(
+        active_streams_msg, {0}, {message_extract_lut_f}, gpu_memory_allocated);
+    /*generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        message_extract_lut->get_lut(0, 0), message_extract_lut->get_degree(0),
+        message_extract_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        message_extract_lut_f, gpu_memory_allocated);
+
+
+  message_extract_lut->broadcast_lut(active_streams_msg);*/
   }
 
   void release(CudaStreams streams) {
