@@ -296,64 +296,118 @@ impl CudaServerKey {
         let aux_block: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
         let in_carry_dvec =
             INPUT_BORROW.map_or_else(|| aux_block.as_ref(), |block| block.as_ref().as_ref());
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
 
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_unsigned_overflowing_sub_assign(
-                        stream,
-                        ciphertext,
-                        rhs.as_ref(),
-                        overflow_block.as_mut(),
-                        in_carry_dvec,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk.input_lwe_dimension(),
-                        d_bsk.glwe_dimension(),
-                        d_bsk.polynomial_size(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count(),
-                        d_bsk.decomp_base_log(),
-                        ciphertext.info.blocks.first().unwrap().message_modulus,
-                        ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        compute_overflow,
-                        uses_input_borrow,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
+        match &self.key_switching_key {
+            CudaDynamicKeyswitchingKey::Standard(computing_ks_key) => unsafe {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_unchecked_unsigned_overflowing_sub_assign(
+                            stream,
+                            ciphertext,
+                            rhs.as_ref(),
+                            overflow_block.as_mut(),
+                            in_carry_dvec,
+                            &d_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_bsk.input_lwe_dimension(),
+                            d_bsk.glwe_dimension(),
+                            d_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count(),
+                            d_bsk.decomp_base_log(),
+                            ciphertext.info.blocks.first().unwrap().message_modulus,
+                            ciphertext.info.blocks.first().unwrap().carry_modulus,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            compute_overflow,
+                            uses_input_borrow,
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_unchecked_unsigned_overflowing_sub_assign(
+                            stream,
+                            ciphertext,
+                            rhs.as_ref(),
+                            overflow_block.as_mut(),
+                            in_carry_dvec,
+                            &d_multibit_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_multibit_bsk.input_lwe_dimension(),
+                            d_multibit_bsk.glwe_dimension(),
+                            d_multibit_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count(),
+                            d_multibit_bsk.decomp_base_log(),
+                            ciphertext.info.blocks.first().unwrap().message_modulus,
+                            ciphertext.info.blocks.first().unwrap().carry_modulus,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            compute_overflow,
+                            uses_input_borrow,
+                            None,
+                        );
+                    }
                 }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_unsigned_overflowing_sub_assign(
-                        stream,
-                        ciphertext,
-                        rhs.as_ref(),
-                        overflow_block.as_mut(),
-                        in_carry_dvec,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk.input_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension(),
-                        d_multibit_bsk.polynomial_size(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count(),
-                        d_multibit_bsk.decomp_base_log(),
-                        ciphertext.info.blocks.first().unwrap().message_modulus,
-                        ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        compute_overflow,
-                        uses_input_borrow,
-                        None,
-                    );
+            },
+            CudaDynamicKeyswitchingKey::KeySwitch32(computing_ks_key) => unsafe {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_unchecked_unsigned_overflowing_sub_assign(
+                            stream,
+                            ciphertext,
+                            rhs.as_ref(),
+                            overflow_block.as_mut(),
+                            in_carry_dvec,
+                            &d_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_bsk.input_lwe_dimension(),
+                            d_bsk.glwe_dimension(),
+                            d_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count(),
+                            d_bsk.decomp_base_log(),
+                            ciphertext.info.blocks.first().unwrap().message_modulus,
+                            ciphertext.info.blocks.first().unwrap().carry_modulus,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            compute_overflow,
+                            uses_input_borrow,
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_unchecked_unsigned_overflowing_sub_assign(
+                            stream,
+                            ciphertext,
+                            rhs.as_ref(),
+                            overflow_block.as_mut(),
+                            in_carry_dvec,
+                            &d_multibit_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_multibit_bsk.input_lwe_dimension(),
+                            d_multibit_bsk.glwe_dimension(),
+                            d_multibit_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count(),
+                            d_multibit_bsk.decomp_base_log(),
+                            ciphertext.info.blocks.first().unwrap().message_modulus,
+                            ciphertext.info.blocks.first().unwrap().carry_modulus,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            compute_overflow,
+                            uses_input_borrow,
+                            None,
+                        );
+                    }
                 }
-            }
+            },
         }
+
         let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(overflow_block.ciphertext);
 
         (ct_res, ct_overflowed)
@@ -377,65 +431,119 @@ impl CudaServerKey {
         let aux_block: T = self.create_trivial_zero_radix(1, streams);
         let in_carry: &CudaRadixCiphertext =
             input_carry.map_or_else(|| aux_block.as_ref(), |block| block.0.as_ref());
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_sub_and_propagate_single_carry_assign(
-                        streams,
-                        lhs.as_mut(),
-                        rhs.as_ref(),
-                        carry_out.as_mut(),
-                        in_carry,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk.input_lwe_dimension(),
-                        d_bsk.glwe_dimension(),
-                        d_bsk.polynomial_size(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count(),
-                        d_bsk.decomp_base_log(),
-                        num_blocks,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        requested_flag,
-                        uses_carry,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
+        match &self.key_switching_key {
+            CudaDynamicKeyswitchingKey::Standard(computing_ks_key) => unsafe {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_sub_and_propagate_single_carry_assign(
+                            streams,
+                            lhs.as_mut(),
+                            rhs.as_ref(),
+                            carry_out.as_mut(),
+                            in_carry,
+                            &d_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_bsk.input_lwe_dimension(),
+                            d_bsk.glwe_dimension(),
+                            d_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count(),
+                            d_bsk.decomp_base_log(),
+                            num_blocks,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            requested_flag,
+                            uses_carry,
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_sub_and_propagate_single_carry_assign(
+                            streams,
+                            lhs.as_mut(),
+                            rhs.as_ref(),
+                            carry_out.as_mut(),
+                            in_carry,
+                            &d_multibit_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_multibit_bsk.input_lwe_dimension(),
+                            d_multibit_bsk.glwe_dimension(),
+                            d_multibit_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count(),
+                            d_multibit_bsk.decomp_base_log(),
+                            num_blocks,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            requested_flag,
+                            uses_carry,
+                            None,
+                        );
+                    }
                 }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_sub_and_propagate_single_carry_assign(
-                        streams,
-                        lhs.as_mut(),
-                        rhs.as_ref(),
-                        carry_out.as_mut(),
-                        in_carry,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk.input_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension(),
-                        d_multibit_bsk.polynomial_size(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count(),
-                        d_multibit_bsk.decomp_base_log(),
-                        num_blocks,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        requested_flag,
-                        uses_carry,
-                        None,
-                    );
+            },
+            CudaDynamicKeyswitchingKey::KeySwitch32(computing_ks_key) => unsafe {
+                match &self.bootstrapping_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => {
+                        cuda_backend_sub_and_propagate_single_carry_assign(
+                            streams,
+                            lhs.as_mut(),
+                            rhs.as_ref(),
+                            carry_out.as_mut(),
+                            in_carry,
+                            &d_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_bsk.input_lwe_dimension(),
+                            d_bsk.glwe_dimension(),
+                            d_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_bsk.decomp_level_count(),
+                            d_bsk.decomp_base_log(),
+                            num_blocks,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            PBSType::Classical,
+                            LweBskGroupingFactor(0),
+                            requested_flag,
+                            uses_carry,
+                            d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        );
+                    }
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                        cuda_backend_sub_and_propagate_single_carry_assign(
+                            streams,
+                            lhs.as_mut(),
+                            rhs.as_ref(),
+                            carry_out.as_mut(),
+                            in_carry,
+                            &d_multibit_bsk.d_vec,
+                            &computing_ks_key.d_vec,
+                            d_multibit_bsk.input_lwe_dimension(),
+                            d_multibit_bsk.glwe_dimension(),
+                            d_multibit_bsk.polynomial_size(),
+                            computing_ks_key.decomposition_level_count(),
+                            computing_ks_key.decomposition_base_log(),
+                            d_multibit_bsk.decomp_level_count(),
+                            d_multibit_bsk.decomp_base_log(),
+                            num_blocks,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            PBSType::MultiBit,
+                            d_multibit_bsk.grouping_factor,
+                            requested_flag,
+                            uses_carry,
+                            None,
+                        );
+                    }
                 }
-            }
+            },
         }
         carry_out
     }

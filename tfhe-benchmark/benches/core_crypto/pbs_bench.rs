@@ -1498,6 +1498,9 @@ fn go_through_cpu_bench_groups() {
         ParamType::ClassicalDocumentation => pbs_group_documentation(),
         ParamType::MultiBit => multi_bit_pbs_group(),
         ParamType::MultiBitDocumentation => multi_bit_pbs_group_documentation(),
+        ParamType::ClassicalKs32 | ParamType::MultiBitKs32 => {
+            panic!("KS32 core crypto benches not implemented on CPU")
+        }
     }
 }
 

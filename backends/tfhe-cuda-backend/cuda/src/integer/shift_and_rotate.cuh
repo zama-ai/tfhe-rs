@@ -10,13 +10,13 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "scalar_mul.cuh"
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_shift_and_rotate(
-    CudaStreams streams, int_shift_and_rotate_buffer<Torus> **mem_ptr,
+    CudaStreams streams, int_shift_and_rotate_buffer<Torus, KSTorus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
+  *mem_ptr = new int_shift_and_rotate_buffer<Torus, KSTorus>(
       streams, shift_type, is_signed, params, num_radix_blocks,
       allocate_gpu_memory, size_tracker);
   return size_tracker;
@@ -27,7 +27,7 @@ __host__ void
 host_shift_and_rotate_inplace(CudaStreams streams,
                               CudaRadixCiphertextFFI *lwe_array,
                               CudaRadixCiphertextFFI const *lwe_shift,
-                              int_shift_and_rotate_buffer<Torus> *mem,
+                              int_shift_and_rotate_buffer<Torus, KSTorus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
 

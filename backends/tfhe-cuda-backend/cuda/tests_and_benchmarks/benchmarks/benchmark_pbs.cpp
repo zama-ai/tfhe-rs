@@ -199,19 +199,20 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit_64(
+  if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
           glwe_dimension, polynomial_size, pbs_level,
           input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
     st.SkipWithError("Configuration not supported for fast operation");
     return;
   }
 
-  scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
+  scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t, uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
+
   for (auto _ : st) {
     // Execute PBS
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(

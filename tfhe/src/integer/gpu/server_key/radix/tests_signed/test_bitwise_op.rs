@@ -10,9 +10,21 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-create_gpu_parameterized_test!(integer_signed_unchecked_bitand);
-create_gpu_parameterized_test!(integer_signed_unchecked_bitor);
-create_gpu_parameterized_test!(integer_signed_unchecked_bitxor);
+create_gpu_parameterized_test!(integer_signed_unchecked_bitand {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_unchecked_bitor {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_unchecked_bitxor {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 create_gpu_parameterized_test!(integer_signed_default_bitnot);
 create_gpu_parameterized_test!(integer_signed_default_bitand);
 create_gpu_parameterized_test!(integer_signed_default_bitor);

@@ -280,7 +280,7 @@ struct int_radix_params {
 };
 
 // Store things needed to apply LUTs
-template <typename InputTorus, typename OutputTorus>
+template <typename InputTorus, typename KSTorus, typename OutputTorus>
 struct int_radix_lut_custom_input_output {
   int_radix_params params;
   // The number of blocks to be processed by the LUT. Can be
@@ -337,7 +337,7 @@ struct int_radix_lut_custom_input_output {
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
   std::vector<InputTorus *> lwe_array_in_vec;
-  std::vector<InputTorus *> lwe_after_ks_vec;
+  std::vector<KSTorus *> lwe_after_ks_vec;
   std::vector<OutputTorus *> lwe_after_pbs_vec;
   std::vector<InputTorus *> lwe_trivial_indexes_vec;
   std::vector<ks_mem<InputTorus> *>
@@ -468,6 +468,16 @@ struct int_radix_lut_custom_input_output {
         (int)num_input_blocks,
         std::max(threshold, get_num_inputs_on_gpu(num_input_blocks, 0,
                                                   active_streams.count())));
+
+    if (!ks_tmp_buf_vec.empty()) {
+      GPU_ASSERT(mem_reuse, "Duplicate creation of GEMM KS temp buffers when "
+                            "not using mem reuse");
+      GPU_ASSERT(ks_tmp_buf_vec[0]->num_lwes >= num_blocks,
+                 "Mem reuse GEMM KS temp buffers not big enough (prev %ld "
+                 "blocks, new %d blocks)",
+                 ks_tmp_buf_vec[0]->num_lwes, num_blocks);
+      return;
+    }
 
     if (inputs_on_gpu >= get_threshold_ks_gemm()) {
       for (auto i = 0; i < active_streams.count(); ++i) {
@@ -927,12 +937,12 @@ struct int_radix_lut_custom_input_output {
   }
 };
 
-template <typename Torus, typename OutputTorus = Torus>
-using int_radix_lut = int_radix_lut_custom_input_output<Torus, Torus>;
+template <typename Torus, typename KSTorus, typename OutputTorus = Torus>
+using int_radix_lut = int_radix_lut_custom_input_output<Torus, KSTorus, Torus>;
 
-template <typename InputTorus>
+template <typename InputTorus, typename KSTorus>
 struct int_noise_squashing_lut
-    : int_radix_lut_custom_input_output<InputTorus, __uint128_t> {
+    : int_radix_lut_custom_input_output<InputTorus, KSTorus, __uint128_t> {
 
   std::vector<InputTorus *> lwe_aligned_scatter_vec;
   std::vector<__uint128_t *> lwe_aligned_gather_vec;
@@ -944,7 +954,7 @@ struct int_noise_squashing_lut
                           uint32_t original_num_blocks,
                           bool allocate_gpu_memory, uint64_t &size_tracker)
 
-      : int_radix_lut_custom_input_output<InputTorus, __uint128_t>(
+      : int_radix_lut_custom_input_output<InputTorus, KSTorus, __uint128_t>(
             streams, input_glwe_dimension * input_polynomial_size, params, 1,
             num_radix_blocks, original_num_blocks, allocate_gpu_memory,
             size_tracker) {
@@ -961,15 +971,16 @@ struct int_noise_squashing_lut
     this->broadcast_lut(this->active_streams);
   }
 
-  using int_radix_lut_custom_input_output<InputTorus, __uint128_t>::release;
+  using int_radix_lut_custom_input_output<InputTorus, KSTorus,
+                                          __uint128_t>::release;
 };
 
 // Forward declarations for operation buffers
-template <typename Torus> struct int_sub_and_propagate;
+template <typename Torus, typename KSTorus> struct int_sub_and_propagate;
 
-template <typename Torus> struct int_bit_extract_luts_buffer {
+template <typename Torus, typename KSTorus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
-  int_radix_lut<Torus> *lut;
+  int_radix_lut<Torus, KSTorus> *lut;
   bool gpu_memory_allocated;
 
   // With offset
@@ -981,9 +992,9 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
 
-    lut = new int_radix_lut<Torus>(streams, params, bits_per_block,
-                                   bits_per_block * num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+    lut = new int_radix_lut<Torus, KSTorus>(streams, params, bits_per_block,
+                                            bits_per_block * num_radix_blocks,
+                                            allocate_gpu_memory, size_tracker);
 
     for (int i = 0; i < bits_per_block; i++) {
 
@@ -1066,12 +1077,12 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   }
 };
 
-template <typename Torus> struct int_fullprop_buffer {
+template <typename Torus, typename KSTorus> struct int_fullprop_buffer {
   int_radix_params params;
 
-  int_radix_lut<Torus> *lut;
+  int_radix_lut<Torus, KSTorus> *lut;
 
-  CudaRadixCiphertextFFI *tmp_small_lwe_vector;
+  GenericCudaRadixCiphertextFFI<KSTorus> *tmp_small_lwe_vector;
   CudaRadixCiphertextFFI *tmp_big_lwe_vector;
   bool gpu_memory_allocated;
 
@@ -1079,8 +1090,8 @@ template <typename Torus> struct int_fullprop_buffer {
                       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
-    lut = new int_radix_lut<Torus>(streams.get_ith(0), params, 2, 2,
-                                   allocate_gpu_memory, size_tracker);
+    lut = new int_radix_lut<Torus, KSTorus>(streams.get_ith(0), params, 2, 2,
+                                            allocate_gpu_memory, size_tracker);
 
     // LUTs
     auto lut_f_message = [params](Torus x) -> Torus {
@@ -1122,8 +1133,8 @@ template <typename Torus> struct int_fullprop_buffer {
     // No broadcast is needed because full prop is done on 1 single GPU.
     //
 
-    tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    tmp_small_lwe_vector = new GenericCudaRadixCiphertextFFI<KSTorus>;
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), tmp_small_lwe_vector, 2,
         params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
     tmp_big_lwe_vector = new CudaRadixCiphertextFFI;
@@ -1148,7 +1159,8 @@ template <typename Torus> struct int_fullprop_buffer {
   }
 };
 
-template <typename Torus> struct int_sum_ciphertexts_vec_memory {
+template <typename Torus, typename KSTorus>
+struct int_sum_ciphertexts_vec_memory {
 
   int_radix_params params;
   uint32_t max_total_blocks_in_vec;
@@ -1160,7 +1172,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   // temporary buffers
   CudaRadixCiphertextFFI *current_blocks;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+  GenericCudaRadixCiphertextFFI<KSTorus> *small_lwe_vector;
 
   uint32_t *d_columns_data;
   uint32_t *d_columns_counter;
@@ -1173,7 +1185,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   uint64_t *d_degrees;
 
   // lookup table for extracting message and carry
-  int_radix_lut<Torus> *luts_message_carry;
+  int_radix_lut<Torus, KSTorus> *luts_message_carry;
 
   bool mem_reuse = false;
   bool allocated_luts_message_carry;
@@ -1238,7 +1250,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
-        luts_message_carry = new int_radix_lut<Torus>(
+        luts_message_carry = new int_radix_lut<Torus, KSTorus>(
             streams, params, 2, pbs_count, true, size_tracker);
         allocated_luts_message_carry = true;
         uint64_t message_modulus_bits =
@@ -1309,9 +1321,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t max_pbs_count = std::max(
         2 * (max_total_blocks_in_vec / chunk_size), 2 * num_blocks_in_radix);
     if (max_pbs_count > 0) {
-      int_radix_lut<Torus> *luts_message_carry_dry_run =
-          new int_radix_lut<Torus>(streams, params, 2, max_pbs_count, false,
-                                   size_tracker);
+      int_radix_lut<Torus, KSTorus> *luts_message_carry_dry_run =
+          new int_radix_lut<Torus, KSTorus>(streams, params, 2, max_pbs_count,
+                                            false, size_tracker);
       luts_message_carry_dry_run->release(streams);
       delete luts_message_carry_dry_run;
     }
@@ -1322,8 +1334,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         streams.stream(0), streams.gpu_index(0), current_blocks,
         max_total_blocks_in_vec, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    small_lwe_vector = new GenericCudaRadixCiphertextFFI<KSTorus>;
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         max_total_blocks_in_vec, params.small_lwe_dimension, size_tracker,
         allocate_gpu_memory);
@@ -1333,8 +1345,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       CudaStreams streams, int_radix_params params,
       uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
       CudaRadixCiphertextFFI *current_blocks,
-      CudaRadixCiphertextFFI *small_lwe_vector,
-      int_radix_lut<Torus> *reused_lut,
+      GenericCudaRadixCiphertextFFI<KSTorus> *small_lwe_vector,
+      int_radix_lut<Torus, KSTorus> *reused_lut,
       bool reduce_degrees_for_single_carry_propagation,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->mem_reuse = true;
@@ -1407,10 +1419,10 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 };
 
 // For sequential algorithm in group propagation
-template <typename Torus> struct int_seq_group_prop_memory {
+template <typename Torus, typename KSTorus> struct int_seq_group_prop_memory {
 
   CudaRadixCiphertextFFI *group_resolved_carries;
-  int_radix_lut<Torus> *lut_sequential_algorithm;
+  int_radix_lut<Torus, KSTorus> *lut_sequential_algorithm;
   uint32_t grouping_size;
   bool gpu_memory_allocated;
 
@@ -1432,9 +1444,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
 
     int num_seq_luts = grouping_size - 1;
     Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
-    lut_sequential_algorithm =
-        new int_radix_lut<Torus>(streams, params, num_seq_luts, num_seq_luts,
-                                 allocate_gpu_memory, size_tracker);
+    lut_sequential_algorithm = new int_radix_lut<Torus, KSTorus>(
+        streams, params, num_seq_luts, num_seq_luts, allocate_gpu_memory,
+        size_tracker);
     for (int index = 0; index < num_seq_luts; index++) {
       auto f_lut_sequential = [index](Torus propa_cum_sum_block) {
         return (propa_cum_sum_block >> (index + 1)) & 1;
@@ -1469,9 +1481,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
 };
 
 // For hillis steele algorithm in group propagation
-template <typename Torus> struct int_hs_group_prop_memory {
+template <typename Torus, typename KSTorus> struct int_hs_group_prop_memory {
 
-  int_radix_lut<Torus> *lut_hillis_steele;
+  int_radix_lut<Torus, KSTorus> *lut_hillis_steele;
   bool gpu_memory_allocated;
 
   int_hs_group_prop_memory(CudaStreams streams, int_radix_params params,
@@ -1498,7 +1510,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
       }
     };
 
-    lut_hillis_steele = new int_radix_lut<Torus>(
+    lut_hillis_steele = new int_radix_lut<Torus, KSTorus>(
         streams, params, 1, num_groups, allocate_gpu_memory, size_tracker);
 
     generate_device_accumulator_bivariate<Torus>(
@@ -1520,12 +1532,13 @@ template <typename Torus> struct int_hs_group_prop_memory {
 };
 
 // compute_shifted_blocks_and_block_states
-template <typename Torus> struct int_shifted_blocks_and_states_memory {
+template <typename Torus, typename KSTorus>
+struct int_shifted_blocks_and_states_memory {
   CudaRadixCiphertextFFI *shifted_blocks_and_states;
   CudaRadixCiphertextFFI *shifted_blocks;
   CudaRadixCiphertextFFI *block_states;
 
-  int_radix_lut<Torus> *luts_array_first_step;
+  int_radix_lut<Torus, KSTorus> *luts_array_first_step;
   bool gpu_memory_allocated;
 
   int_shifted_blocks_and_states_memory(
@@ -1556,7 +1569,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
     uint32_t num_luts_first_step = 2 * grouping_size + 1;
 
-    luts_array_first_step = new int_radix_lut<Torus>(
+    luts_array_first_step = new int_radix_lut<Torus, KSTorus>(
         streams, params, num_luts_first_step, num_radix_blocks, num_many_lut,
         allocate_gpu_memory, size_tracker);
 
@@ -1709,7 +1722,8 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 };
 
 // compute_propagation simulator and group carries
-template <typename Torus> struct int_prop_simu_group_carries_memory {
+template <typename Torus, typename KSTorus>
+struct int_prop_simu_group_carries_memory {
   CudaRadixCiphertextFFI *propagation_cum_sums;
   CudaRadixCiphertextFFI *simulators;
   CudaRadixCiphertextFFI *prepared_blocks;
@@ -1719,10 +1733,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   Torus *scalar_array_cum_sum;
   Torus *h_scalar_array_cum_sum;
 
-  int_radix_lut<Torus> *luts_array_second_step;
+  int_radix_lut<Torus, KSTorus> *luts_array_second_step;
 
-  int_seq_group_prop_memory<Torus> *seq_group_prop_mem;
-  int_hs_group_prop_memory<Torus> *hs_group_prop_mem;
+  int_seq_group_prop_memory<Torus, KSTorus> *seq_group_prop_mem;
+  int_hs_group_prop_memory<Torus, KSTorus> *hs_group_prop_mem;
 
   uint32_t group_size;
   bool use_sequential_algorithm_to_resolve_group_carries;
@@ -1801,7 +1815,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     }
 
     uint32_t num_luts_second_step = 2 * grouping_size + num_extra_luts;
-    luts_array_second_step = new int_radix_lut<Torus>(
+    luts_array_second_step = new int_radix_lut<Torus, KSTorus>(
         streams, params, num_luts_second_step, num_radix_blocks,
         allocate_gpu_memory, size_tracker);
 
@@ -1957,12 +1971,12 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
 
-      seq_group_prop_mem = new int_seq_group_prop_memory<Torus>(
+      seq_group_prop_mem = new int_seq_group_prop_memory<Torus, KSTorus>(
           streams, params, grouping_size, big_lwe_size_bytes,
           allocate_gpu_memory, size_tracker);
 
     } else {
-      hs_group_prop_mem = new int_hs_group_prop_memory<Torus>(
+      hs_group_prop_mem = new int_hs_group_prop_memory<Torus, KSTorus>(
           streams, params, num_groups, big_lwe_size_bytes, allocate_gpu_memory,
           size_tracker);
     }
@@ -2022,7 +2036,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   };
 };
 
-template <typename Torus> struct int_sc_prop_memory {
+template <typename Torus, typename KSTorus> struct int_sc_prop_memory {
   uint32_t num_many_lut;
   uint32_t lut_stride;
 
@@ -2030,12 +2044,14 @@ template <typename Torus> struct int_sc_prop_memory {
   CudaRadixCiphertextFFI *output_flag;
   CudaRadixCiphertextFFI *last_lhs;
   CudaRadixCiphertextFFI *last_rhs;
-  int_radix_lut<Torus> *lut_message_extract;
+  int_radix_lut<Torus, KSTorus> *lut_message_extract;
 
-  int_radix_lut<Torus> *lut_overflow_flag_prep;
+  int_radix_lut<Torus, KSTorus> *lut_overflow_flag_prep;
 
-  int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
-  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
+  int_shifted_blocks_and_states_memory<Torus, KSTorus>
+      *shifted_blocks_state_mem;
+  int_prop_simu_group_carries_memory<Torus, KSTorus>
+      *prop_simu_group_carries_mem;
 
   int_radix_params params;
   uint32_t requested_flag;
@@ -2061,18 +2077,20 @@ template <typename Torus> struct int_sc_prop_memory {
     uint32_t box_size = polynomial_size / block_modulus;
     lut_stride = (block_modulus / num_many_lut) * box_size;
 
-    shifted_blocks_state_mem = new int_shifted_blocks_and_states_memory<Torus>(
-        streams, params, num_radix_blocks, num_many_lut, grouping_size,
-        allocate_gpu_memory, size_tracker);
+    shifted_blocks_state_mem =
+        new int_shifted_blocks_and_states_memory<Torus, KSTorus>(
+            streams, params, num_radix_blocks, num_many_lut, grouping_size,
+            allocate_gpu_memory, size_tracker);
 
-    prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
-        streams, params, num_radix_blocks, grouping_size, num_groups,
-        allocate_gpu_memory, size_tracker);
+    prop_simu_group_carries_mem =
+        new int_prop_simu_group_carries_memory<Torus, KSTorus>(
+            streams, params, num_radix_blocks, grouping_size, num_groups,
+            allocate_gpu_memory, size_tracker);
 
     //  Step 3 elements
     int num_luts_message_extract =
         requested_flag == outputFlag::FLAG_NONE ? 1 : 2;
-    lut_message_extract = new int_radix_lut<Torus>(
+    lut_message_extract = new int_radix_lut<Torus, KSTorus>(
         streams, params, num_luts_message_extract, num_radix_blocks + 1,
         allocate_gpu_memory, size_tracker);
     // lut for the first block in the first grouping
@@ -2107,7 +2125,7 @@ template <typename Torus> struct int_sc_prop_memory {
 
       // For step 1 overflow should be enable only if flag overflow
       uint32_t num_bits_in_message = std::log2(message_modulus);
-      lut_overflow_flag_prep = new int_radix_lut<Torus>(
+      lut_overflow_flag_prep = new int_radix_lut<Torus, KSTorus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       auto f_overflow_fp = [num_bits_in_message](Torus lhs,
@@ -2248,12 +2266,13 @@ template <typename Torus> struct int_sc_prop_memory {
   };
 };
 
-template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
+template <typename Torus, typename KSTorus>
+struct int_shifted_blocks_and_borrow_states_memory {
   CudaRadixCiphertextFFI *shifted_blocks_and_borrow_states;
   CudaRadixCiphertextFFI *shifted_blocks;
   CudaRadixCiphertextFFI *borrow_states;
 
-  int_radix_lut<Torus> *luts_array_first_step;
+  int_radix_lut<Torus, KSTorus> *luts_array_first_step;
   bool gpu_memory_allocated;
 
   int_shifted_blocks_and_borrow_states_memory(
@@ -2285,7 +2304,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
 
     uint32_t num_luts_first_step = 2 * grouping_size + 1;
 
-    luts_array_first_step = new int_radix_lut<Torus>(
+    luts_array_first_step = new int_radix_lut<Torus, KSTorus>(
         streams, params, num_luts_first_step, num_radix_blocks, num_many_lut,
         allocate_gpu_memory, size_tracker);
 
@@ -2451,7 +2470,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
   };
 };
 
-template <typename Torus> struct int_borrow_prop_memory {
+template <typename Torus, typename KSTorus> struct int_borrow_prop_memory {
   uint32_t num_many_lut;
   uint32_t lut_stride;
 
@@ -2459,12 +2478,13 @@ template <typename Torus> struct int_borrow_prop_memory {
   uint32_t num_groups;
   CudaRadixCiphertextFFI *overflow_block;
 
-  int_radix_lut<Torus> *lut_message_extract;
-  int_radix_lut<Torus> *lut_borrow_flag;
+  int_radix_lut<Torus, KSTorus> *lut_message_extract;
+  int_radix_lut<Torus, KSTorus> *lut_borrow_flag;
 
-  int_shifted_blocks_and_borrow_states_memory<Torus>
+  int_shifted_blocks_and_borrow_states_memory<Torus, KSTorus>
       *shifted_blocks_borrow_state_mem;
-  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
+  int_prop_simu_group_carries_memory<Torus, KSTorus>
+      *prop_simu_group_carries_mem;
 
   int_radix_params params;
 
@@ -2496,13 +2516,14 @@ template <typename Torus> struct int_borrow_prop_memory {
     lut_stride = (block_modulus / num_many_lut) * box_size;
 
     shifted_blocks_borrow_state_mem =
-        new int_shifted_blocks_and_borrow_states_memory<Torus>(
+        new int_shifted_blocks_and_borrow_states_memory<Torus, KSTorus>(
             streams, params, num_radix_blocks, num_many_lut, grouping_size,
             allocate_gpu_memory, size_tracker);
 
-    prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
-        streams, params, num_radix_blocks, grouping_size, num_groups,
-        allocate_gpu_memory, size_tracker);
+    prop_simu_group_carries_mem =
+        new int_prop_simu_group_carries_memory<Torus, KSTorus>(
+            streams, params, num_radix_blocks, grouping_size, num_groups,
+            allocate_gpu_memory, size_tracker);
 
     overflow_block = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -2510,8 +2531,8 @@ template <typename Torus> struct int_borrow_prop_memory {
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     lut_message_extract =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+        new int_radix_lut<Torus, KSTorus>(streams, params, 1, num_radix_blocks,
+                                          allocate_gpu_memory, size_tracker);
     // lut for the first block in the first grouping
     auto f_message_extract = [message_modulus](Torus block) -> Torus {
       return (block >> 1) % message_modulus;
@@ -2529,9 +2550,9 @@ template <typename Torus> struct int_borrow_prop_memory {
     lut_message_extract->broadcast_lut(active_streams);
 
     if (compute_overflow) {
-      lut_borrow_flag =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      lut_borrow_flag = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
       // lut for the first block in the first grouping
       auto f_borrow_flag = [](Torus block) -> Torus {
         return ((block >> 2) & 1);

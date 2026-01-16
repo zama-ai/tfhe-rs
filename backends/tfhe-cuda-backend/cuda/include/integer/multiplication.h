@@ -2,17 +2,17 @@
 #include "cmux.h"
 #include "integer_utilities.h"
 
-template <typename Torus> struct int_mul_memory {
+template <typename Torus, typename KSTorus> struct int_mul_memory {
   CudaRadixCiphertextFFI *vector_result_sb;
   CudaRadixCiphertextFFI *block_mul_res;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+  GenericCudaRadixCiphertextFFI<KSTorus> *small_lwe_vector;
 
-  int_radix_lut<Torus> *luts_array; // lsb msb
-  int_radix_lut<Torus> *zero_out_predicate_lut;
+  int_radix_lut<Torus, KSTorus> *luts_array; // lsb msb
+  int_radix_lut<Torus, KSTorus> *zero_out_predicate_lut;
 
-  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
-  int_sc_prop_memory<Torus> *sc_prop_mem;
-  int_zero_out_if_buffer<Torus> *zero_out_mem;
+  int_sum_ciphertexts_vec_memory<Torus, KSTorus> *sum_ciphertexts_mem;
+  int_sc_prop_memory<Torus, KSTorus> *sc_prop_mem;
+  int_zero_out_if_buffer<Torus, KSTorus> *zero_out_mem;
 
   int_radix_params params;
   bool boolean_mul = false;
@@ -34,9 +34,9 @@ template <typename Torus> struct int_mul_memory {
         else
           return block;
       };
-      zero_out_predicate_lut =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+      zero_out_predicate_lut = new int_radix_lut<Torus, KSTorus>(
+          streams, params, 1, num_radix_blocks, allocate_gpu_memory,
+          size_tracker);
       generate_device_accumulator_bivariate<Torus>(
           streams.stream(0), streams.gpu_index(0),
           zero_out_predicate_lut->get_lut(0, 0),
@@ -49,7 +49,7 @@ template <typename Torus> struct int_mul_memory {
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       zero_out_predicate_lut->broadcast_lut(active_streams);
 
-      zero_out_mem = new int_zero_out_if_buffer<Torus>(
+      zero_out_mem = new int_zero_out_if_buffer<Torus, KSTorus>(
           streams, params, num_radix_blocks, allocate_gpu_memory, size_tracker);
 
       return;
@@ -81,16 +81,18 @@ template <typename Torus> struct int_mul_memory {
         streams.stream(0), streams.gpu_index(0), block_mul_res,
         2 * total_block_count, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    small_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
+    small_lwe_vector = new GenericCudaRadixCiphertextFFI<KSTorus>;
+    create_zero_radix_ciphertext_async<KSTorus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         2 * total_block_count, params.small_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
     // create int_radix_lut objects for lsb, msb, message, carry
     // luts_array -> lut = {lsb_acc, msb_acc}
-    luts_array = new int_radix_lut<Torus>(streams, params, 2, total_block_count,
+    luts_array =
+        new int_radix_lut<Torus, KSTorus>(streams, params, 2, total_block_count,
                                           allocate_gpu_memory, size_tracker);
+    luts_array->setup_gemm_batch_ks_temp_buffers(size_tracker);
     auto lsb_acc = luts_array->get_lut(0, 0);
     auto msb_acc = luts_array->get_lut(0, 1);
 
@@ -127,13 +129,16 @@ template <typename Torus> struct int_mul_memory {
         streams.active_gpu_subset(total_block_count, params.pbs_type);
     luts_array->broadcast_lut(active_streams);
     // create memory object for sum ciphertexts
-    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, 2 * num_radix_blocks,
         vector_result_sb, small_lwe_vector, luts_array, true,
         allocate_gpu_memory, size_tracker);
+
     uint32_t requested_flag = outputFlag::FLAG_NONE;
-    sc_prop_mem = new int_sc_prop_memory<Torus>(
+    sc_prop_mem = new int_sc_prop_memory<Torus, KSTorus>(
         streams, params, num_radix_blocks, requested_flag, allocate_gpu_memory,
+        size_tracker);
+    sc_prop_mem->lut_message_extract->setup_gemm_batch_ks_temp_buffers(
         size_tracker);
   }
 

@@ -244,13 +244,13 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ void
 host_integer_decompress(CudaStreams streams,
                         CudaLweCiphertextListFFI *d_lwe_array_out,
                         CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
                         uint32_t const *h_indexes_array, void *const *d_bsks,
-                        int_decompression<Torus> *h_mem_ptr) {
+                        int_decompression<Torus, KSTorus> *h_mem_ptr) {
 
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
@@ -415,14 +415,14 @@ __host__ uint64_t scratch_cuda_compress_ciphertext(
   return size_tracker;
 }
 
-template <typename Torus>
+template <typename Torus, typename KSTorus>
 __host__ uint64_t scratch_cuda_integer_decompress_radix_ciphertext(
-    CudaStreams streams, int_decompression<Torus> **mem_ptr,
+    CudaStreams streams, int_decompression<Torus, KSTorus> **mem_ptr,
     uint32_t num_blocks_to_decompress, int_radix_params encryption_params,
     int_radix_params compression_params, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_decompression<Torus>(
+  *mem_ptr = new int_decompression<Torus, KSTorus>(
       streams, encryption_params, compression_params, num_blocks_to_decompress,
       allocate_gpu_memory, size_tracker);
   return size_tracker;

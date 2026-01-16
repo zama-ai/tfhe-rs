@@ -28,7 +28,7 @@ template <typename Torus, typename KSTorus>
 __host__ void scalar_compare_radix_blocks(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    int_comparison_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
   if (num_radix_blocks == 0)
@@ -86,7 +86,8 @@ template <typename Torus, typename KSTorus>
 __host__ void integer_radix_unsigned_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks,
+    int_comparison_buffer<Torus, KSTorus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {
@@ -265,8 +266,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
         return (Torus)(invert_flags.second ^ overflowed);
       };
       uint64_t size = 0;
-      int_radix_lut<Torus> *one_block_lut =
-          new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
+      int_radix_lut<Torus, KSTorus> *one_block_lut =
+          new int_radix_lut<Torus, KSTorus>(streams, params, 1, 1, true, size);
 
       generate_device_accumulator_with_cpu_prealloc<Torus>(
           streams.stream(0), streams.gpu_index(0), one_block_lut->get_lut(0, 0),
@@ -325,7 +326,8 @@ template <typename Torus, typename KSTorus>
 __host__ void integer_radix_signed_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks,
+    int_comparison_buffer<Torus, KSTorus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {
@@ -558,8 +560,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
                                                           message_modulus);
       };
       uint64_t size = 0;
-      int_radix_lut<Torus> *one_block_lut =
-          new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
+      int_radix_lut<Torus, KSTorus> *one_block_lut =
+          new int_radix_lut<Torus, KSTorus>(streams, params, 1, 1, true, size);
 
       generate_device_accumulator_with_cpu_prealloc<Torus>(
           streams.stream(0), streams.gpu_index(0), one_block_lut->get_lut(0, 0),
@@ -644,7 +646,8 @@ template <typename Torus, typename KSTorus>
 __host__ void host_scalar_difference_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks,
+    int_comparison_buffer<Torus, KSTorus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {
@@ -674,9 +677,9 @@ __host__ void
 host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                    CudaRadixCiphertextFFI const *lwe_array_in,
                    Torus const *scalar_blocks, Torus const *h_scalar_blocks,
-                   int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-                   KSTorus *const *ksks, uint32_t num_radix_blocks,
-                   uint32_t num_scalar_blocks) {
+                   int_comparison_buffer<Torus, KSTorus> *mem_ptr,
+                   void *const *bsks, KSTorus *const *ksks,
+                   uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -717,7 +720,7 @@ template <typename Torus, typename KSTorus>
 __host__ void host_scalar_equality_check(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    int_comparison_buffer<Torus, KSTorus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {
 
@@ -797,7 +800,7 @@ __host__ void host_scalar_equality_check(
   //////////////
   // msb_in
   if (num_msb_radix_blocks > 0) {
-    int_radix_lut<Torus> *msb_lut;
+    int_radix_lut<Torus, KSTorus> *msb_lut;
     switch (mem_ptr->op) {
     case COMPARISON_TYPE::EQ:
       msb_lut = mem_ptr->is_zero_lut;
