@@ -10,6 +10,8 @@ pub(crate) mod test_comparison;
 mod test_count_zeros_ones;
 pub(crate) mod test_div_mod;
 pub(crate) mod test_ilog2;
+#[cfg(feature = "gpu")]
+pub(crate) mod test_kreyvium;
 pub(crate) mod test_kv_store;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
