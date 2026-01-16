@@ -7,14 +7,14 @@ template <typename Torus> struct int_trivium_lut_buffers {
   // Bivariate AND Gate LUT:
   // AND operation: f(a, b) = (a & 1) & (b & 1).
   // This is a Bivariate PBS used for the non-linear parts of Trivium.
-  int_radix_lut<Torus> *and_lut;
+  int_radix_lut<Torus, Torus> *and_lut;
 
   // Univariate Identity LUT:
   // MESSAGE EXTRACTION operation: f(x) = x & 1.
   // This is a Univariate PBS used to "flush" the state: it resets the noise
   // after additions and ensures the message stays within the binary message
   // space.
-  int_radix_lut<Torus> *flush_lut;
+  int_radix_lut<Torus, Torus> *flush_lut;
 
   int_trivium_lut_buffers(CudaStreams streams, const int_radix_params &params,
                           bool allocate_gpu_memory, uint32_t num_trivium_inputs,
@@ -24,8 +24,8 @@ template <typename Torus> struct int_trivium_lut_buffers {
     constexpr uint32_t MAX_AND_PER_STEP = 3;
     uint32_t total_lut_ops = num_trivium_inputs * BATCH_SIZE * MAX_AND_PER_STEP;
 
-    this->and_lut = new int_radix_lut<Torus>(streams, params, 1, total_lut_ops,
-                                             allocate_gpu_memory, size_tracker);
+    this->and_lut = new int_radix_lut<Torus, Torus>(
+        streams, params, 1, total_lut_ops, allocate_gpu_memory, size_tracker);
 
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus a, Torus b) -> Torus { return (a & 1) & (b & 1); };
@@ -43,7 +43,7 @@ template <typename Torus> struct int_trivium_lut_buffers {
 
     uint32_t total_flush_ops = num_trivium_inputs * BATCH_SIZE * 4;
 
-    this->flush_lut = new int_radix_lut<Torus>(
+    this->flush_lut = new int_radix_lut<Torus, Torus>(
         streams, params, 1, total_flush_ops, allocate_gpu_memory, size_tracker);
 
     std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
