@@ -113,27 +113,21 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       else
         return current_bit;
     };
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), mux_lut->get_lut(0, 0),
-        mux_lut->get_degree(0), mux_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, mux_lut_f, gpu_memory_allocated);
+    ;
     auto active_gpu_count_mux = streams.active_gpu_subset(
         bits_per_block * num_radix_blocks, params.pbs_type);
-    mux_lut->broadcast_lut(active_gpu_count_mux);
+
+    mux_lut->generate_and_broadcast_lut(active_gpu_count_mux, {0}, {mux_lut_f},
+                                        gpu_memory_allocated);
 
     auto cleaning_lut_f = [params](Torus x) -> Torus {
       return x % params.message_modulus;
     };
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), cleaning_lut->get_lut(0, 0),
-        cleaning_lut->get_degree(0), cleaning_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, cleaning_lut_f, gpu_memory_allocated);
+
     auto active_gpu_count_cleaning =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    cleaning_lut->broadcast_lut(active_gpu_count_cleaning);
+    cleaning_lut->generate_and_broadcast_lut(
+        active_gpu_count_cleaning, {0}, {cleaning_lut_f}, gpu_memory_allocated);
   }
 
   void release(CudaStreams streams) {

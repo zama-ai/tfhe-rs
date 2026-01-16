@@ -29,15 +29,13 @@ template <typename Torus> struct int_aes_lut_buffers {
         allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus a, Torus b) -> Torus { return a & b; };
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->and_lut->get_lut(0, 0),
-        this->and_lut->get_degree(0), this->and_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, and_lambda, allocate_gpu_memory);
+
     auto active_streams_and_lut = streams.active_gpu_subset(
         SBOX_MAX_AND_GATES * num_aes_inputs * sbox_parallelism,
         params.pbs_type);
-    this->and_lut->broadcast_lut(active_streams_and_lut);
+    this->and_lut->generate_and_broadcast_bivariate_lut(
+        active_streams_and_lut, {0}, {and_lambda}, allocate_gpu_memory);
+
     this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     this->flush_lut = new int_radix_lut<Torus>(
@@ -46,14 +44,11 @@ template <typename Torus> struct int_aes_lut_buffers {
     std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
       return x & 1;
     };
-    generate_device_accumulator(
-        streams.stream(0), streams.gpu_index(0), this->flush_lut->get_lut(0, 0),
-        this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, flush_lambda, allocate_gpu_memory);
+
     auto active_streams_flush_lut = streams.active_gpu_subset(
         AES_STATE_BITS * num_aes_inputs, params.pbs_type);
-    this->flush_lut->broadcast_lut(active_streams_flush_lut);
+    this->flush_lut->generate_and_broadcast_lut(
+        active_streams_flush_lut, {0}, {flush_lambda}, allocate_gpu_memory);
     this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     this->carry_lut = new int_radix_lut<Torus>(
@@ -61,14 +56,11 @@ template <typename Torus> struct int_aes_lut_buffers {
     std::function<Torus(Torus)> carry_lambda = [](Torus x) -> Torus {
       return (x >> 1) & 1;
     };
-    generate_device_accumulator(
-        streams.stream(0), streams.gpu_index(0), this->carry_lut->get_lut(0, 0),
-        this->carry_lut->get_degree(0), this->carry_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, carry_lambda, allocate_gpu_memory);
+
     auto active_streams_carry_lut =
         streams.active_gpu_subset(num_aes_inputs, params.pbs_type);
-    this->carry_lut->broadcast_lut(active_streams_carry_lut);
+    this->carry_lut->generate_and_broadcast_lut(
+        active_streams_carry_lut, {0}, {carry_lambda}, allocate_gpu_memory);
     this->carry_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }
 

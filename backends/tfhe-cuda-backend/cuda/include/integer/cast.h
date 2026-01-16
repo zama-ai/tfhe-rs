@@ -28,20 +28,16 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
       uint32_t bits_per_block = std::log2(params.message_modulus);
       uint32_t msg_modulus = params.message_modulus;
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-          lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          [msg_modulus, bits_per_block](Torus x) {
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+
+      lut->generate_and_broadcast_lut(
+          active_streams, {0}, {[msg_modulus, bits_per_block](Torus x) {
             const auto xm = x % msg_modulus;
             const auto sign_bit = (xm >> (bits_per_block - 1)) & 1;
             return (Torus)((msg_modulus - 1) * sign_bit);
-          },
+          }},
           allocate_gpu_memory);
-
-      auto active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      lut->broadcast_lut(active_streams);
 
       this->last_block = new CudaRadixCiphertextFFI;
 
