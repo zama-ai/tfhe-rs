@@ -330,6 +330,7 @@ where
     }
 }
 
+#[inline(never)]
 fn bench_fhe_type_op<FheType, Op>(
     c: &mut Criterion,
     client_key: &ClientKey,
@@ -383,6 +384,7 @@ fn bench_fhe_type_op<FheType, Op>(
 macro_rules! bench_type_binary_op {
     (type_name: $fhe_type:ident, right_type_name: $fhe_right_type:ident,left_type: $left_type:ty, right_type: $right_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
         ::paste::paste! {
+            #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
                 bench_fhe_type_op(
                     c,
@@ -413,6 +415,7 @@ macro_rules! bench_type_binary_scalar_op {
         rng: $rng_fn:expr
     ) => {
         ::paste::paste! {
+            #[inline(never)]
             fn [<bench_ $fhe_type:snake _scalar_ $op>](c: &mut Criterion, cks: &ClientKey) {
                 bench_fhe_type_op(
                     c,
@@ -435,6 +438,7 @@ macro_rules! bench_type_binary_scalar_op {
 macro_rules! bench_type_unary_op {
     (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
         ::paste::paste! {
+            #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
                 bench_fhe_type_op(
                     c,
@@ -456,6 +460,7 @@ macro_rules! bench_type_unary_op {
 macro_rules! bench_type_ternary_op {
     (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
         ::paste::paste! {
+            #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
                 bench_fhe_type_op(
                     c,
@@ -477,6 +482,7 @@ macro_rules! bench_type_ternary_op {
 macro_rules! bench_type_array_op {
     (type_name: $fhe_type:ident, integer_type: $integer_type:ty, display_name: $display_name:literal, operation: $op:ident) => {
         ::paste::paste! {
+            #[inline(never)]
             fn [<bench_ $fhe_type:snake _ $op>](c: &mut Criterion, cks: &ClientKey) {
                 bench_fhe_type_op(
                     c,

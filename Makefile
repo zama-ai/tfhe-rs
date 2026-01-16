@@ -1639,7 +1639,7 @@ bench_hlapi: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark -- '::add|::mul|::bitand'
 
 .PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
 bench_hlapi_gpu: install_rs_check_toolchain
