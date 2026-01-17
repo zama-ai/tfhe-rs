@@ -120,6 +120,14 @@ impl SignedRadixCiphertext {
         }
     }
 
+    pub(crate) fn wait(&self) {
+        match self {
+            Self::Cpu(_) => {}
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => {}
+        }
+    }
+
     /// Returns the a ref to the inner cpu ciphertext if self is on the CPU, otherwise, returns a
     /// copy that is on the CPU
     pub(crate) fn on_cpu(&self) -> MaybeCloned<'_, crate::integer::SignedRadixCiphertext> {

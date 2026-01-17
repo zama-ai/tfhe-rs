@@ -19,6 +19,7 @@ use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
+use crate::prelude::FheWait;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::AtomicPatternParameters;
@@ -71,6 +72,12 @@ pub struct FheBool {
 
 impl Named for FheBool {
     const NAME: &'static str = "high_level_api::FheBool";
+}
+
+impl FheWait for FheBool {
+    fn wait(&self) {
+        self.ciphertext.wait()
+    }
 }
 
 #[derive(Copy, Clone)]

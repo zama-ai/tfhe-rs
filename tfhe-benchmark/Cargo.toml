@@ -68,8 +68,14 @@ harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
-name = "hlapi"
-path = "benches/high_level_api/bench.rs"
+name = "hlapi_unsigned"
+path = "benches/high_level_api/bench_unsigned.rs"
+harness = false
+required-features = ["integer", "internal-keycache", "pbs-stats"]
+
+[[bench]]
+name = "hlapi_signed"
+path = "benches/high_level_api/bench_signed.rs"
 harness = false
 required-features = ["integer", "internal-keycache", "pbs-stats"]
 

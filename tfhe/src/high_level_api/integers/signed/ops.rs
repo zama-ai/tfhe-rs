@@ -24,6 +24,93 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+impl<Id> std::iter::Sum<Self> for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    /// Sums multiple ciphertexts together.
+    ///
+    /// This is much more efficient than manually calling the `+` operator, thus
+    /// using sum should always be preferred.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let clears = [-1i16, 2, 3, 4, -5];
+    /// let encrypted = clears
+    ///     .iter()
+    ///     .copied()
+    ///     .map(|x| FheInt16::encrypt(x, &client_key))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// // Iter and sum consuming (moving out) from the original Vec
+    /// let result = encrypted.into_iter().sum::<FheInt16>();
+    ///
+    /// let decrypted: i16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, clears.into_iter().sum::<i16>());
+    /// ```
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let ciphertexts = iter
+                    .map(|elem| elem.ciphertext.into_cpu())
+                    .collect::<Vec<_>>();
+                cpu_key
+                    .pbs_key()
+                    .sum_ciphertexts_parallelized(ciphertexts.iter())
+                    .map_or_else(
+                        || {
+                            let radix: crate::integer::SignedRadixCiphertext =
+                                cpu_key.pbs_key().create_trivial_zero_radix(Id::num_blocks(
+                                    cpu_key.message_modulus(),
+                                ));
+                            Self::new(
+                                radix,
+                                cpu_key.tag.clone(),
+                                ReRandomizationMetadata::default(),
+                            )
+                        },
+                        |ct| Self::new(ct, cpu_key.tag.clone(), ReRandomizationMetadata::default()),
+                    )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let cts = iter
+                    .map(|fhe_uint| fhe_uint.ciphertext.into_gpu(streams))
+                    .collect::<Vec<_>>();
+
+                let inner = cuda_key
+                    .key
+                    .key
+                    .sum_ciphertexts(cts, streams)
+                    .unwrap_or_else(|| {
+                        cuda_key.key.key.create_trivial_radix(
+                            0,
+                            Id::num_blocks(cuda_key.message_modulus()),
+                            streams,
+                        )
+                    });
+                Self::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+}
+
 impl<'a, Id> std::iter::Sum<&'a Self> for FheInt<Id>
 where
     Id: FheIntId,
