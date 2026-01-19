@@ -1,18 +1,126 @@
 # Placeholder workflow file allowing running it without having to merge to main first
 name: placeholder_workflow
 
+run-name: Summary benchs tests
+
 on:
   workflow_dispatch:
+    inputs:
+      run-cpu-benchmarks:
+        description: "Run CPU benchmarks"
+        type: boolean
+        default: true
+      run-gpu-benchmarks:
+        description: "Run GPU benchmarks"
+        type: boolean
+        default: true
+      gpu-profile:
+        description: "GPU Instance type"
+        required: true
+        default: "multi-h100-sxm5 (n3-H100-SXM5x8)"
+        type: choice
+        options:
+          - "l40 (n3-L40x1)"
+          - "4-l40 (n3-L40x4)"
+          - "multi-a100-nvlink (n3-A100x8-NVLink)"
+          - "single-h100 (n3-H100x1)"
+          - "2-h100 (n3-H100x2)"
+          - "4-h100 (n3-H100x4)"
+          - "multi-h100 (n3-H100x8)"
+          - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100-SXM5x8)"
+      run-hpu-benchmarks:
+        description: "Run HPU benchmarks"
+        type: boolean
+        default: true
+
 
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
 jobs:
-  placeholder:
-    name: placeholder_workflow/placeholder
+  parse-gpu-inputs:
+    name: benchmark_summary/parse-gpu-inputs
+    if: inputs.run-gpu-benchmarks
     runs-on: ubuntu-latest
-
+    outputs:
+      profile: ${{ steps.parse_profile.outputs.profile }}
+      hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+    env:
+      INPUTS_PROFILE: ${{ inputs.gpu-profile }}
     steps:
-      - run: |
-          echo "Hello this is a Placeholder Workflow"
+      - name: Parse profile
+        id: parse_profile
+        run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
+          PROFILE=$(echo "${INPUTS_PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
+          echo "profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Parse hardware name
+        id: parse_hardware_name
+        run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
+          NAME=$(echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
+          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
+
+  run-benchmarks-cpu:
+    name: benchmark_documentation/run-benchmarks-cpu-integer
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
+    with:
+      command: summary
+      bench_type: both
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-gpu:
+    name: benchmark_documentation/run-benchmarks-gpu
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-benchmarks
+    needs: parse-gpu-inputs
+    with:
+      profile: ${{ needs.parse-gpu-inputs.outputs.profile }}
+      hardware_name: ${{ needs.parse-gpu-inputs.outputs.hardware_name }}
+      command: summary
+      bench_type: both
+      params_type: classical + multi_bit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+# TODO add make recipe for HPU benchmarks
+#  run-benchmarks-hpu:
+#    name: benchmark_documentation/run-benchmarks-hpu
+#    uses: ./.github/workflows/benchmark_hpu_common.yml
+#    if: inputs.run-hpu-benchmarks
+#    with:
+#      command: summary
+#      bench_type: both
+#      v80_pcie_dev: 24
+#      v80_serial_number: XFL12NWY3ZKG
+#    secrets:
+#      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+#      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+#      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+#      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+#      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+#      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+#      SLAB_URL: ${{ secrets.SLAB_URL }}
+#      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+#      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
