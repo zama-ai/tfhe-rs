@@ -158,6 +158,8 @@ template <typename Torus> struct int_bitop_buffer {
                                      num_radix_blocks, allocate_gpu_memory,
                                      size_tracker);
 
+      std::vector<std::function<Torus(Torus)>> lut_funcs;
+      std::vector<uint32_t> lut_indices;
       for (int i = 0; i < params.message_modulus; i++) {
         auto rhs = i;
 
@@ -173,14 +175,20 @@ template <typename Torus> struct int_bitop_buffer {
             return x ^ rhs;
           }
         };
-        generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0), lut->get_lut(0, i),
-            lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_univariate_scalar_f,
-            gpu_memory_allocated);
-        lut->broadcast_lut(active_streams);
+
+        lut_funcs.push_back(lut_univariate_scalar_f);
+        lut_indices.push_back(i);
       }
+
+      lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
+                                      gpu_memory_allocated);
+      /*generate_device_accumulator<Torus>(
+          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, i),
+          lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus,
+          params.carry_modulus, lut_univariate_scalar_f,
+          gpu_memory_allocated);
+      lut->broadcast_lut(active_streams);*/
     }
   }
 
@@ -213,6 +221,12 @@ template <typename Torus> struct boolean_bitnot_buffer {
         return x % message_modulus;
       };
 
+      auto active_streams =
+          streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
+
+      message_extract_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+      /*
       generate_device_accumulator<Torus>(
           streams.stream(0), streams.gpu_index(0),
           message_extract_lut->get_lut(0, 0),
@@ -220,9 +234,8 @@ template <typename Torus> struct boolean_bitnot_buffer {
           message_extract_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           lut_f_message_extract, gpu_memory_allocated);
-      auto active_streams =
-          streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
       message_extract_lut->broadcast_lut(active_streams);
+      */
     }
   }
 

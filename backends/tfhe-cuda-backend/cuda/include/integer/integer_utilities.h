@@ -1001,7 +1001,18 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                                    bits_per_block * num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
 
+    std::vector<std::function<Torus(Torus)>> lut_funs;
+    std::vector<uint32_t> lut_indices;
     for (int i = 0; i < bits_per_block; i++) {
+      auto operator_f = [i, final_offset](Torus x) -> Torus {
+        Torus y = (x >> i) & 1;
+        return y << final_offset;
+      };
+      lut_funs.push_back(operator_f);
+      lut_indices.push_back(i);
+    }
+
+    /*for (int i = 0; i < bits_per_block; i++) {
 
       auto operator_f = [i, final_offset](Torus x) -> Torus {
         Torus y = (x >> i) & 1;
@@ -1013,7 +1024,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
           lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           operator_f, gpu_memory_allocated);
-    }
+    }*/
 
     /**
      * we have bits_per_blocks LUTs that should be used for all bits in all
@@ -1031,7 +1042,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
 
     auto active_streams = streams.active_gpu_subset(
         bits_per_block * num_radix_blocks, params.pbs_type);
-    lut->broadcast_lut(active_streams);
+
+    lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funs,
+                                    gpu_memory_allocated);
+    // lut->broadcast_lut(active_streams);
 
     /**
      * the input indexes should take the first bits_per_block PBS to target
@@ -1254,6 +1268,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
+        allocated_luts_message_carry = true;
         luts_message_carry = new int_radix_lut<Torus>(
             streams, params, 2, pbs_count, true, size_tracker);
 
@@ -1271,6 +1286,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
             streams, upper_bound_num_blocks, size_tracker, true);
       }
+    }
+
+    if (allocated_luts_message_carry) {
 
       auto message_acc = luts_message_carry->get_lut(0, 0);
       auto carry_acc = luts_message_carry->get_lut(0, 1);

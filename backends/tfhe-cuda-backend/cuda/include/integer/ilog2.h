@@ -53,13 +53,16 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
       return count;
     };
 
-    generate_device_accumulator<Torus>(
+    univ_lut_mem->generate_and_broadcast_lut(
+        active_streams, {0}, {generate_uni_lut_lambda}, allocate_gpu_memory);
+
+    /*generate_device_accumulator<Torus>(
         streams.stream(0), streams.gpu_index(0), univ_lut_mem->get_lut(0, 0),
         univ_lut_mem->get_degree(0), univ_lut_mem->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, generate_uni_lut_lambda, allocate_gpu_memory);
 
-    univ_lut_mem->broadcast_lut(active_streams);
+    univ_lut_mem->broadcast_lut(active_streams);*/
 
     auto generate_bi_lut_lambda =
         [num_bits](Torus block_num_bit_count,
