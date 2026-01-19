@@ -10,12 +10,14 @@ use super::algorithms::{modswitch, order};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use std::time::Instant;
 
 impl<Scalar: UnsignedInteger> CreateFrom<LweCiphertextView<'_, Scalar>>
     for HpuLweCiphertextOwned<Scalar>
 {
     type Metadata = HpuParameters;
     fn create_from(cpu_lwe: LweCiphertextView<'_, Scalar>, meta: Self::Metadata) -> Self {
+        let start = Instant::now();
         let mut hpu_lwe = Self::new(Scalar::ZERO, meta.clone());
         let ntt_p = &meta.ntt_params;
         let pbs_p = &meta.pbs_params;
@@ -36,10 +38,13 @@ impl<Scalar: UnsignedInteger> CreateFrom<LweCiphertextView<'_, Scalar>>
                     let dst_idx = pid * poly_size + idx;
                     let src_poly_idx = rb_conv.idx_rev(idx);
                     hpu_lwe[dst_idx] = modswitch::msb2lsb(&meta, poly[src_poly_idx]);
+                    //hpu_lwe[idx] = modswitch::msb2lsb(&meta, poly[idx]);
                 }
             });
         // Add body
         hpu_lwe[lwe_len - 1] = modswitch::msb2lsb(&meta, *cpu_lwe.get_body().data);
+        let duration = start.elapsed();
+        println!("Time in cpu -> hpu ct: {} us", duration.as_micros());
 
         hpu_lwe
     }
@@ -50,6 +55,7 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
     for LweCiphertextOwned<Scalar>
 {
     fn from(hpu_lwe: HpuLweCiphertextView<'_, Scalar>) -> Self {
+        let start = Instant::now();
         // NB: HPU only handle Big Lwe over it's boundaries
         let ntt_p = &hpu_lwe.params().ntt_params;
         let pbs_p = &hpu_lwe.params().pbs_params;
@@ -76,11 +82,15 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
                     let src_poly_idx = rb_conv.idx_rev(idx);
                     let src_idx = pid * poly_size + src_poly_idx;
                     *coeff = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[src_idx]);
+                    //*coeff = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[idx]);
                 }
+                poly.copy_from_slice(hpu_lwe[(pid * poly_size)..((pid+1) * poly_size)])
             });
         // Add body
         *cpu_lwe.get_mut_body().data = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[lwe_len - 1]);
 
+        let duration = start.elapsed();
+        println!("Time in hpu -> cpu ct: {} us", duration.as_micros());
         cpu_lwe
     }
 }

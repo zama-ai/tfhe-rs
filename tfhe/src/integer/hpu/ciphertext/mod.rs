@@ -2,7 +2,7 @@ use hpu_asm::iop::*;
 use tfhe_hpu_backend::prelude::*;
 use std::time::Instant;
 
-use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned};
+use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned, LweSize};
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::KeySwitch32PBSParameters;
@@ -45,6 +45,7 @@ impl HpuRadixCiphertext {
             .map(|ct| {
                 let pbs_p = KeySwitch32PBSParameters::from(ct.params());
                 let cpu_ct = LweCiphertextOwned::from(ct.as_view());
+                //let cpu_ct = LweCiphertextOwned::new(0, pbs_p.lwe_dimension, pbs_p.ciphertext_modulus);
                 // Hpu output clean ciphertext without carry
                 Ciphertext::new(
                     cpu_ct,
