@@ -283,12 +283,16 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                                      zero_out_if_not_1_lut_2};
     size_t lut_gpu_indexes[2] = {0, 3};
     for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
+      luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
+                                          {0}, {zero_out_if_not_1_lut_f},
+                                          gpu_memory_allocated);
+      /*generate_device_accumulator<Torus>(
           streams.stream(lut_gpu_indexes[j]),
           streams.gpu_index(lut_gpu_indexes[j]), luts[j]->get_lut(0, 0),
           luts[j]->get_degree(0), luts[j]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_1_lut_f, gpu_memory_allocated);
+          params.carry_modulus, zero_out_if_not_1_lut_f,
+         gpu_memory_allocated);*/
     }
 
     luts[0] = zero_out_if_not_2_lut_1;
@@ -296,12 +300,17 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     lut_gpu_indexes[0] = 1;
     lut_gpu_indexes[1] = 2;
     for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
+      luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
+                                          {0}, {zero_out_if_not_2_lut_f},
+                                          gpu_memory_allocated);
+
+      /*generate_device_accumulator<Torus>(
           streams.stream(lut_gpu_indexes[j]),
           streams.gpu_index(lut_gpu_indexes[j]), luts[j]->get_lut(0, 0),
           luts[j]->get_degree(0), luts[j]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_2_lut_f, gpu_memory_allocated);
+          params.carry_modulus, zero_out_if_not_2_lut_f,
+         gpu_memory_allocated);*/
     }
 
     quotient_lut_1 =
@@ -321,22 +330,29 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     };
     auto quotient_lut_3_f = [](Torus cond) -> Torus { return cond * 3; };
 
-    generate_device_accumulator<Torus>(
-        streams.stream(2), streams.gpu_index(2), quotient_lut_1->get_lut(0, 0),
-        quotient_lut_1->get_degree(0), quotient_lut_1->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_1_f, gpu_memory_allocated);
-    generate_device_accumulator<Torus>(
-        streams.stream(1), streams.gpu_index(1), quotient_lut_2->get_lut(0, 0),
-        quotient_lut_2->get_degree(0), quotient_lut_2->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_2_f, gpu_memory_allocated);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), quotient_lut_3->get_lut(0, 0),
-        quotient_lut_3->get_degree(0), quotient_lut_3->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, quotient_lut_3_f, gpu_memory_allocated);
-
+    quotient_lut_1->generate_and_broadcast_lut(
+        streams.get_ith(2), {0}, {quotient_lut_1_f}, gpu_memory_allocated);
+    quotient_lut_2->generate_and_broadcast_lut(
+        streams.get_ith(1), {0}, {quotient_lut_2_f}, gpu_memory_allocated);
+    quotient_lut_3->generate_and_broadcast_lut(
+        streams.get_ith(0), {0}, {quotient_lut_3_f}, gpu_memory_allocated);
+    /*
+  generate_device_accumulator<Torus>(
+      streams.stream(2), streams.gpu_index(2), quotient_lut_1->get_lut(0, 0),
+      quotient_lut_1->get_degree(0), quotient_lut_1->get_max_degree(0),
+      params.glwe_dimension, params.polynomial_size, params.message_modulus,
+      params.carry_modulus, quotient_lut_1_f, gpu_memory_allocated);
+  generate_device_accumulator<Torus>(
+      streams.stream(1), streams.gpu_index(1), quotient_lut_2->get_lut(0, 0),
+      quotient_lut_2->get_degree(0), quotient_lut_2->get_max_degree(0),
+      params.glwe_dimension, params.polynomial_size, params.message_modulus,
+      params.carry_modulus, quotient_lut_2_f, gpu_memory_allocated);
+  generate_device_accumulator<Torus>(
+      streams.stream(0), streams.gpu_index(0), quotient_lut_3->get_lut(0, 0),
+      quotient_lut_3->get_degree(0), quotient_lut_3->get_max_degree(0),
+      params.glwe_dimension, params.polynomial_size, params.message_modulus,
+      params.carry_modulus, quotient_lut_3_f, gpu_memory_allocated);
+*/
     message_extract_lut_1 = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
     message_extract_lut_2 = new int_radix_lut<Torus>(
@@ -350,15 +366,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     luts[0] = message_extract_lut_1;
     luts[1] = message_extract_lut_2;
 
-    for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
       auto active_streams =
-          streams.active_gpu_subset(num_blocks, params.pbs_type);
-      luts[j]->broadcast_lut(active_streams);
+    streams.active_gpu_subset(num_blocks, params.pbs_type);
+
+    for (int j = 0; j < 2; j++) {
+        luts[j]->generate_and_broadcast_lut(active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
     }
   }
 
@@ -1042,15 +1054,19 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     int_radix_lut<Torus> *luts[2] = {message_extract_lut_1,
                                      message_extract_lut_2};
+
     auto active_streams =
         streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
-      luts[j]->broadcast_lut(active_streams);
+      luts[j]->generate_and_broadcast_lut(
+          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+      /*
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0), luts[j]->get_lut(0, 0),
+        luts[j]->get_degree(0), luts[j]->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
+    luts[j]->broadcast_lut(active_streams);*/
     }
 
     // Give name to closures to improve readability
