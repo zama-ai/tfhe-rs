@@ -49,6 +49,21 @@ impl DecompressionKey {
     pub fn output_lwe_dimension(&self) -> LweDimension {
         self.bsk.output_lwe_dimension()
     }
+
+    pub fn from_raw_parts(
+        bsk: ShortintBootstrappingKey<u64>,
+        lwe_per_glwe: LweCiphertextCount,
+    ) -> Self {
+        assert!(lwe_per_glwe.0 <= bsk.polynomial_size().0);
+
+        Self { bsk, lwe_per_glwe }
+    }
+
+    pub fn into_raw_parts(self) -> (ShortintBootstrappingKey<u64>, LweCiphertextCount) {
+        let Self { bsk, lwe_per_glwe } = self;
+
+        (bsk, lwe_per_glwe)
+    }
 }
 
 impl ClientKey {
