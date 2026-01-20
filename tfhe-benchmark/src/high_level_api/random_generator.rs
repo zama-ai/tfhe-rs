@@ -1,18 +1,18 @@
-use super::num_consts::NumConsts;
 use rand::distributions::Standard;
 use rand::prelude::*;
 use std::ops::{BitAnd, Sub};
+use tfhe::core_crypto::prelude::Numeric;
 
 pub fn random_non_zero<T>() -> T
 where
     Standard: Distribution<T>,
-    T: Copy + PartialEq + NumConsts,
+    T: Numeric,
 {
     let mut rng = rand::thread_rng();
 
     loop {
         let v: T = rng.gen();
-        if v != T::zero() {
+        if v != T::ZERO {
             return v;
         }
     }
@@ -21,13 +21,13 @@ where
 pub fn random_not_power_of_two<T>() -> T
 where
     Standard: Distribution<T>,
-    T: Copy + PartialEq + PartialOrd + BitAnd<Output = T> + Sub<Output = T> + NumConsts,
+    T: Numeric + Sub<Output = T> + BitAnd<Output = T>,
 {
     let mut rng = rand::thread_rng();
 
     loop {
         let v: T = rng.gen();
-        if !(v > T::zero() && (v & (v - T::one())) == T::zero()) {
+        if !(v > T::ZERO && (v & (v - T::ONE)) == T::ZERO) {
             return v;
         }
     }
