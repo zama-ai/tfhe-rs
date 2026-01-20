@@ -67,6 +67,21 @@ impl CompressedDecompressionKey {
             lwe_per_glwe: self.lwe_per_glwe,
         }
     }
+
+    pub fn from_raw_parts(
+        bsk: ShortintCompressedBootstrappingKey<u64>,
+        lwe_per_glwe: LweCiphertextCount,
+    ) -> Self {
+        assert!(lwe_per_glwe.0 <= bsk.polynomial_size().0);
+
+        Self { bsk, lwe_per_glwe }
+    }
+
+    pub fn into_raw_parts(self) -> (ShortintCompressedBootstrappingKey<u64>, LweCiphertextCount) {
+        let Self { bsk, lwe_per_glwe } = self;
+
+        (bsk, lwe_per_glwe)
+    }
 }
 
 impl ClientKey {
