@@ -41,3 +41,7 @@ harness = false
 [[bench]]
 name = "pke_v2"
 harness = false
+
+[[example]]
+name = "example"
+path = "example.rs"
