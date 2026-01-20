@@ -242,6 +242,12 @@ path = "examples/hpu/bench.rs"
 required-features = ["hpu"]
 # End of Hpu related section
 
+[[example]]
+name = "bench_pbs"
+path = "examples/bench_pbs.rs"
+required-features = ["shortint"]
+
+
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
 
