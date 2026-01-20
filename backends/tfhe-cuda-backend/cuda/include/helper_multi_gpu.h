@@ -70,7 +70,7 @@ public:
   // Construct an empty set. Invalid use of an empty set should raise an error
   // right away through asserts or because of a nullptr dereference
   CudaStreams()
-      : _streams(nullptr), _gpu_indexes(nullptr), _gpu_count((uint32_t)-1),
+      : _streams(nullptr), _gpu_indexes(nullptr), _gpu_count(0),
         _owns_streams(false) {}
 
   // Returns a subset of this set as an active subset. An active subset is one
@@ -114,11 +114,13 @@ public:
   // streams on the same GPU
   void create_on_same_gpus(const CudaStreams &other) {
     PANIC_IF_FALSE(_streams == nullptr,
-                   "Assign clone to non-empty cudastreams");
+                   "Cuda error: Assign clone to non-empty CudaStreams");
+    PANIC_IF_FALSE(_gpu_count <= 8,
+                   "Cuda error: GPU count should be in the interval [0, 8]");
 
     cudaStream_t *new_streams = new cudaStream_t[other._gpu_count];
 
-    uint32_t *gpu_indexes_clone = new uint32_t[_gpu_count];
+    uint32_t *gpu_indexes_clone = new uint32_t[other._gpu_count];
     for (uint32_t i = 0; i < other._gpu_count; ++i) {
       new_streams[i] = cuda_create_stream(other._gpu_indexes[i]);
       gpu_indexes_clone[i] = other._gpu_indexes[i];
@@ -170,6 +172,7 @@ public:
       _streams = nullptr;
       delete[] _gpu_indexes;
       _gpu_indexes = nullptr;
+      _gpu_count = 0;
     }
   }
 
