@@ -1121,6 +1121,17 @@ template <typename Torus> struct int_fullprop_buffer {
     };
 
     //
+
+    uint64_t lwe_indexes_size = 2 * sizeof(Torus);
+    Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
+    for (int i = 0; i < 2; i++)
+      h_lwe_indexes[i] = i;
+    Torus *lwe_indexes = lut->get_lut_indexes(0, 0);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
+
+    /*
     Torus *lut_buffer_message = lut->get_lut(0, 0);
     uint64_t *message_degree = lut->get_degree(0);
     uint64_t *message_max_degree = lut->get_max_degree(0);
@@ -1139,18 +1150,16 @@ template <typename Torus> struct int_fullprop_buffer {
         carry_max_degree, params.glwe_dimension, params.polynomial_size,
         params.message_modulus, params.carry_modulus, lut_f_carry,
         gpu_memory_allocated);
+    */
 
-    uint64_t lwe_indexes_size = 2 * sizeof(Torus);
-    Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
-    for (int i = 0; i < 2; i++)
-      h_lwe_indexes[i] = i;
-    Torus *lwe_indexes = lut->get_lut_indexes(0, 0);
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams.stream(0),
-        streams.gpu_index(0), allocate_gpu_memory);
     //
     // No broadcast is needed because full prop is done on 1 single GPU.
+    // By passing a single-GPU CudaStreams with streams.get_ith(0) the LUT is
+    // not broadcast.
     //
+    lut->generate_and_broadcast_lut(streams.get_ith(0), {0, 1},
+                                    {lut_f_message, lut_f_carry},
+                                    gpu_memory_allocated);
 
     tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -1301,22 +1310,28 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         return x / message_modulus;
       };
 
-      // generate accumulators
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), message_acc,
-          luts_message_carry->get_degree(0),
-          luts_message_carry->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, message_modulus, params.carry_modulus,
-          lut_f_message, gpu_memory_allocated);
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), carry_acc,
-          luts_message_carry->get_degree(1),
-          luts_message_carry->get_max_degree(1), params.glwe_dimension,
-          params.polynomial_size, message_modulus, params.carry_modulus,
-          lut_f_carry, gpu_memory_allocated);
+      /*
+    // generate accumulators
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0), message_acc,
+        luts_message_carry->get_degree(0),
+        luts_message_carry->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        lut_f_message, gpu_memory_allocated);
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0), carry_acc,
+        luts_message_carry->get_degree(1),
+        luts_message_carry->get_max_degree(1), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        lut_f_carry, gpu_memory_allocated);
+
+      luts_message_carry->broadcast_lut(active_gpu_count_mc);*/
+
       auto active_gpu_count_mc =
           streams.active_gpu_subset(pbs_count, params.pbs_type);
-      luts_message_carry->broadcast_lut(active_gpu_count_mc);
+      luts_message_carry->generate_and_broadcast_lut(
+          active_gpu_count_mc, {0, 1}, {lut_f_message, lut_f_carry},
+          gpu_memory_allocated);
     }
   }
   int_sum_ciphertexts_vec_memory(
@@ -1464,22 +1479,20 @@ template <typename Torus> struct int_seq_group_prop_memory {
         allocate_gpu_memory);
 
     int num_seq_luts = grouping_size - 1;
-    Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
     lut_sequential_algorithm =
         new int_radix_lut<Torus>(streams, params, num_seq_luts, num_seq_luts,
                                  allocate_gpu_memory, size_tracker);
+    std::vector<std::function<Torus(Torus)>> lut_funcs;
+    std::vector<uint32_t> lut_indices;
+    Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
+
     for (int index = 0; index < num_seq_luts; index++) {
       auto f_lut_sequential = [index](Torus propa_cum_sum_block) {
         return (propa_cum_sum_block >> (index + 1)) & 1;
       };
-      auto seq_lut = lut_sequential_algorithm->get_lut(0, index);
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), seq_lut,
-          lut_sequential_algorithm->get_degree(index),
-          lut_sequential_algorithm->get_max_degree(index), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_lut_sequential,
-          gpu_memory_allocated);
+      lut_funcs.push_back(f_lut_sequential);
       h_seq_lut_indexes[index] = index;
+      lut_indices.push_back(index);
     }
     Torus *seq_lut_indexes = lut_sequential_algorithm->get_lut_indexes(0, 0);
     cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -1487,9 +1500,12 @@ template <typename Torus> struct int_seq_group_prop_memory {
         streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     auto active_streams =
         streams.active_gpu_subset(num_seq_luts, params.pbs_type);
-    lut_sequential_algorithm->broadcast_lut(active_streams);
+    lut_sequential_algorithm->generate_and_broadcast_lut(
+        active_streams, lut_indices, lut_funcs, gpu_memory_allocated);
+    // lut_sequential_algorithm->broadcast_lut(active_streams);
     free(h_seq_lut_indexes);
-  };
+  }
+
   void release(CudaStreams streams) {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    group_resolved_carries,
@@ -1833,112 +1849,6 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       num_extra_luts = 1;
     }
 
-    uint32_t num_luts_second_step = 2 * grouping_size + num_extra_luts;
-    luts_array_second_step = new int_radix_lut<Torus>(
-        streams, params, num_luts_second_step, num_radix_blocks,
-        allocate_gpu_memory, size_tracker);
-
-    // luts for first group inner propagation
-    for (int lut_id = 0; lut_id < grouping_size - 1; lut_id++) {
-      auto f_first_grouping_inner_propagation =
-          [lut_id](Torus propa_cum_sum_block) -> Torus {
-        uint64_t carry = (propa_cum_sum_block >> lut_id) & 1;
-
-        if (carry != 0) {
-          return 2ull; // Generates Carry
-        } else {
-          return 0ull; // Does not generate carry
-        }
-      };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          luts_array_second_step->get_lut(0, lut_id),
-          luts_array_second_step->get_degree(lut_id),
-          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus,
-          f_first_grouping_inner_propagation, gpu_memory_allocated);
-    }
-
-    auto f_first_grouping_outer_propagation =
-        [num_bits_in_block](Torus block) -> Torus {
-      return (block >> (num_bits_in_block - 1)) & 1;
-    };
-
-    int lut_id = grouping_size - 1;
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        luts_array_second_step->get_lut(0, lut_id),
-        luts_array_second_step->get_degree(lut_id),
-        luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus,
-        f_first_grouping_outer_propagation, gpu_memory_allocated);
-
-    // for other groupings inner propagation
-    for (int index = 0; index < grouping_size; index++) {
-      uint32_t lut_id = index + grouping_size;
-
-      auto f_other_groupings_inner_propagation =
-          [index](Torus propa_cum_sum_block) -> Torus {
-        uint64_t mask = (2 << index) - 1;
-        if (propa_cum_sum_block >= (2 << index)) {
-          return 2ull; // Generates
-        } else if ((propa_cum_sum_block & mask) == mask) {
-          return 1ull; // Propagate
-        } else {
-          return 0ull; // Nothing
-        }
-      };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          luts_array_second_step->get_lut(0, lut_id),
-          luts_array_second_step->get_degree(lut_id),
-          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus,
-          f_other_groupings_inner_propagation, gpu_memory_allocated);
-    }
-
-    if (use_sequential_algorithm_to_resolve_group_carries) {
-      for (int index = 0; index < grouping_size - 1; index++) {
-        uint32_t lut_id = index + 2 * grouping_size;
-
-        auto f_group_propagation = [index, block_modulus,
-                                    num_bits_in_block](Torus block) -> Torus {
-          if (block == (block_modulus - 1)) {
-            return 0ull;
-          } else {
-            return ((UINT64_MAX << index) % (1ull << (num_bits_in_block + 1)));
-          }
-        };
-
-        generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0),
-            luts_array_second_step->get_lut(0, lut_id),
-            luts_array_second_step->get_degree(lut_id),
-            luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
-            polynomial_size, message_modulus, carry_modulus,
-            f_group_propagation, gpu_memory_allocated);
-      }
-    } else {
-      uint32_t lut_id = 2 * grouping_size;
-      auto f_group_propagation = [block_modulus](Torus block) {
-        if (block == (block_modulus - 1)) {
-          return 2ull;
-        } else {
-          return UINT64_MAX % (block_modulus * 2ull);
-        }
-      };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          luts_array_second_step->get_lut(0, lut_id),
-          luts_array_second_step->get_degree(lut_id),
-          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_group_propagation,
-          gpu_memory_allocated);
-    }
-
     Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
 
     for (int index = 0; index < num_radix_blocks; index++) {
@@ -1974,6 +1884,11 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       }
     }
 
+    uint32_t num_luts_second_step = 2 * grouping_size + num_extra_luts;
+    luts_array_second_step = new int_radix_lut<Torus>(
+        streams, params, num_luts_second_step, num_radix_blocks,
+        allocate_gpu_memory, size_tracker);
+
     // copy the indexes to the gpu
     Torus *second_lut_indexes = luts_array_second_step->get_lut_indexes(0, 0);
     cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -1984,9 +1899,92 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         scalar_array_cum_sum, h_scalar_array_cum_sum,
         num_radix_blocks * sizeof(Torus), streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
+
+    std::vector<std::function<Torus(Torus)>> lut_funcs;
+    std::vector<uint32_t> lut_ids;
+
+    // luts for first group inner propagation
+    for (int lut_id = 0; lut_id < grouping_size - 1; lut_id++) {
+      auto f_first_grouping_inner_propagation =
+          [lut_id](Torus propa_cum_sum_block) -> Torus {
+        uint64_t carry = (propa_cum_sum_block >> lut_id) & 1;
+
+        if (carry != 0) {
+          return 2ull; // Generates Carry
+        } else {
+          return 0ull; // Does not generate carry
+        }
+      };
+      lut_funcs.push_back(f_first_grouping_inner_propagation);
+      lut_ids.push_back(lut_id);
+    }
+
+    auto f_first_grouping_outer_propagation =
+        [num_bits_in_block](Torus block) -> Torus {
+      return (block >> (num_bits_in_block - 1)) & 1;
+    };
+
+    int lut_id = grouping_size - 1;
+
+    lut_funcs.push_back(f_first_grouping_outer_propagation);
+    lut_ids.push_back(lut_id);
+
+    // for other groupings inner propagation
+    for (int index = 0; index < grouping_size; index++) {
+      uint32_t lut_id = index + grouping_size;
+
+      auto f_other_groupings_inner_propagation =
+          [index](Torus propa_cum_sum_block) -> Torus {
+        uint64_t mask = (2 << index) - 1;
+        if (propa_cum_sum_block >= (2 << index)) {
+          return 2ull; // Generates
+        } else if ((propa_cum_sum_block & mask) == mask) {
+          return 1ull; // Propagate
+        } else {
+          return 0ull; // Nothing
+        }
+      };
+
+      lut_funcs.push_back(f_other_groupings_inner_propagation);
+      lut_ids.push_back(lut_id);
+    }
+
+    if (use_sequential_algorithm_to_resolve_group_carries) {
+      for (int index = 0; index < grouping_size - 1; index++) {
+        uint32_t lut_id = index + 2 * grouping_size;
+
+        auto f_group_propagation = [index, block_modulus,
+                                    num_bits_in_block](Torus block) -> Torus {
+          if (block == (block_modulus - 1)) {
+            return 0ull;
+          } else {
+            return ((UINT64_MAX << index) % (1ull << (num_bits_in_block + 1)));
+          }
+        };
+
+        lut_funcs.push_back(f_group_propagation);
+        lut_ids.push_back(lut_id);
+      }
+    } else {
+      uint32_t lut_id = 2 * grouping_size;
+      auto f_group_propagation = [block_modulus](Torus block) {
+        if (block == (block_modulus - 1)) {
+          return 2ull;
+        } else {
+          return UINT64_MAX % (block_modulus * 2ull);
+        }
+      };
+
+      lut_funcs.push_back(f_group_propagation);
+      lut_ids.push_back(lut_id);
+    }
+
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    luts_array_second_step->broadcast_lut(active_streams);
+    luts_array_second_step->generate_and_broadcast_lut(
+        active_streams, lut_ids, lut_funcs, gpu_memory_allocated);
+
+    // luts_array_second_step->broadcast_lut(active_streams);
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
 
