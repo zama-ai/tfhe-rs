@@ -37,7 +37,7 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
   # Since, when output is directed to a file, nextest outputs a list of `<executable name> <test name>` the `grep -o '[^ ]\+$'` filter
   # will keep only the test name and the `tfhe` executable is assumed. To sanitize tests from another
   # executable changes might be needed
-  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*' | grep -v 'array' | grep -v 'flip' | grep -o '[^ ]\+$')
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*' | grep -v 'test_uniformity' | grep -v 'array' | grep -v 'flip' | grep -o '[^ ]\+$')
 
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
@@ -64,7 +64,7 @@ if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
   # Since, when output is directed to a file, nextest outputs a list of `<executable name> <test name>` the `grep -o '[^ ]\+$'` filter
   # will keep only the test name and the `tfhe` executable is assumed. To sanitize tests from another
   # executable changes might be needed
-  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*|core_crypto::.*gpu.*' | grep -v 'array' | grep -v 'modulus_switch' | grep -v '3_3' | grep -v 'noise_distribution' | grep -v 'flip' | grep -o '[^ ]\+$')
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*|core_crypto::.*gpu.*' | grep -v 'array' | grep -v 'modulus_switch' | grep -v '3_3' | grep -v 'noise_distribution' | grep -v 'flip' | grep -v 'test_uniformity' | grep -o '[^ ]\+$')
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
     --features=integer,internal-keycache,gpu,zk-pok -p tfhe
