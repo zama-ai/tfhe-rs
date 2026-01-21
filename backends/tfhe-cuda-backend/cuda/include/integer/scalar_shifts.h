@@ -170,7 +170,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       // right shift
       auto active_streams =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      cur_lut_bivariate->generate_and_broadcast_lut(
+      cur_lut_bivariate->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {shift_lut_f}, gpu_memory_allocated);
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
     }

@@ -1516,7 +1516,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
 
     auto active_streams =
         streams.active_gpu_subset(num_groups, params.pbs_type);
-    lut_hillis_steele->generate_and_broadcast_lut(
+    lut_hillis_steele->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {f_lut_hillis_steele}, gpu_memory_allocated);
   }
   void release(CudaStreams streams) {
