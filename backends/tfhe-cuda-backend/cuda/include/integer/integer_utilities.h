@@ -843,10 +843,10 @@ struct int_radix_lut_custom_input_output {
 
     for (uint32_t i = 0; i < lut_indexes.size(); ++i) {
       generate_device_accumulator<InputTorus>(
-          streams.stream(0), streams.gpu_index(0), get_lut(0, i), get_degree(i),
-          get_max_degree(i), params.glwe_dimension, params.polynomial_size,
-          params.message_modulus, params.carry_modulus, f[i],
-          gpu_memory_allocated);
+          streams.stream(0), streams.gpu_index(0), get_lut(0, lut_indexes[i]),
+          get_degree(lut_indexes[i]), get_max_degree(lut_indexes[i]),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, f[i], gpu_memory_allocated);
     }
     broadcast_lut(streams);
   }
@@ -2072,6 +2072,23 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t requested_flag;
   bool gpu_memory_allocated;
 
+  void setup_message_extract_indices_for_carry_async(CudaStreams streams,
+                                                     uint32_t num_radix_blocks,
+                                                     bool allocate_gpu_memory) {
+    Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
+    for (int index = 0; index < num_radix_blocks + 1; index++) {
+      if (index < num_radix_blocks) {
+        h_lut_indexes[index] = 0;
+      } else {
+        h_lut_indexes[index] = 1;
+      }
+    }
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
+        (num_radix_blocks + 1) * sizeof(Torus), streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
+  }
+
   int_sc_prop_memory(CudaStreams streams, int_radix_params params,
                      uint32_t num_radix_blocks, uint32_t requested_flag_in,
                      bool allocate_gpu_memory, uint64_t &size_tracker) {
@@ -2110,13 +2127,14 @@ template <typename Torus> struct int_sc_prop_memory {
     auto f_message_extract = [message_modulus](Torus block) -> Torus {
       return (block >> 1) % message_modulus;
     };
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        lut_message_extract->get_lut(0, 0), lut_message_extract->get_degree(0),
-        lut_message_extract->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_message_extract,
-        gpu_memory_allocated);
+    /*
+        generate_device_accumulator<Torus>(
+            streams.stream(0), streams.gpu_index(0),
+            lut_message_extract->get_lut(0, 0),
+       lut_message_extract->get_degree(0),
+            lut_message_extract->get_max_degree(0), glwe_dimension,
+       polynomial_size, message_modulus, carry_modulus, f_message_extract,
+            gpu_memory_allocated); */
 
     // This store a single block that with be used to store the overflow or
     // carry results
@@ -2180,10 +2198,14 @@ template <typename Torus> struct int_sc_prop_memory {
       lut_overflow_flag_prep->broadcast_lut(active_streams);
     }
 
+    auto active_streams =
+        streams.active_gpu_subset(num_radix_blocks + 1, params.pbs_type);
+
     // For the final cleanup in case of overflow or carry (it seems that I can)
     // It seems that this lut could be apply together with the other one but for
     // now we won't do it
-    if (requested_flag == outputFlag::FLAG_OVERFLOW) { // Overflow case
+    switch (requested_flag) {
+    case outputFlag::FLAG_OVERFLOW: { // Overflow case
       auto f_overflow_last = [num_radix_blocks,
                               requested_flag_in](Torus block) -> Torus {
         uint32_t position = (num_radix_blocks == 1 &&
@@ -2195,62 +2217,52 @@ template <typename Torus> struct int_sc_prop_memory {
         Torus does_overflow_if_carry_is_0 = (block >> 2) & 1;
         if (input_carry == outputFlag::FLAG_OVERFLOW) {
           return does_overflow_if_carry_is_1;
-        } else {
-          return does_overflow_if_carry_is_0;
         }
+        return does_overflow_if_carry_is_0;
       };
+      setup_message_extract_indices_for_carry_async(streams, num_radix_blocks,
+                                                    allocate_gpu_memory);
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          lut_message_extract->get_lut(0, 1),
-          lut_message_extract->get_degree(1),
-          lut_message_extract->get_max_degree(1), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_overflow_last,
+      /*
+    generate_device_accumulator<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        lut_message_extract->get_lut(0, 1),
+        lut_message_extract->get_degree(1),
+        lut_message_extract->get_max_degree(1), glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_overflow_last,
+        gpu_memory_allocated);
+*/
+      lut_message_extract->generate_and_broadcast_lut(
+          streams.get_ith(0), {0, 1}, {f_message_extract, f_overflow_last},
           gpu_memory_allocated);
-
-      Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
-      for (int index = 0; index < num_radix_blocks + 1; index++) {
-        if (index < num_radix_blocks) {
-          h_lut_indexes[index] = 0;
-        } else {
-          h_lut_indexes[index] = 1;
-        }
-      }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
-          (num_radix_blocks + 1) * sizeof(Torus), streams.stream(0),
-          streams.gpu_index(0), allocate_gpu_memory);
     }
-    if (requested_flag == outputFlag::FLAG_CARRY) { // Carry case
+    case outputFlag::FLAG_CARRY: { // Carry case
+
+      setup_message_extract_indices_for_carry_async(streams, num_radix_blocks,
+                                                    allocate_gpu_memory);
 
       auto f_carry_last = [](Torus block) -> Torus {
         return ((block >> 2) & 1);
       };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          lut_message_extract->get_lut(0, 1),
-          lut_message_extract->get_degree(1),
-          lut_message_extract->get_max_degree(1), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_carry_last,
+      /*
+            generate_device_accumulator<Torus>(
+            streams.stream(0), streams.gpu_index(0),
+            lut_message_extract->get_lut(0, 1),
+            lut_message_extract->get_degree(1),
+            lut_message_extract->get_max_degree(1), glwe_dimension,
+            polynomial_size, message_modulus, carry_modulus, f_carry_last,
+            gpu_memory_allocated);
+      */
+      lut_message_extract->generate_and_broadcast_lut(
+          active_streams, {0, 1}, {f_message_extract, f_carry_last},
           gpu_memory_allocated);
-
-      Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
-      for (int index = 0; index < num_radix_blocks + 1; index++) {
-        if (index < num_radix_blocks) {
-          h_lut_indexes[index] = 0;
-        } else {
-          h_lut_indexes[index] = 1;
-        }
-      }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
-          (num_radix_blocks + 1) * sizeof(Torus), streams.stream(0),
-          streams.gpu_index(0), allocate_gpu_memory);
     }
-    auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks + 1, params.pbs_type);
-    lut_message_extract->broadcast_lut(active_streams);
+    default:
+      lut_message_extract->generate_and_broadcast_lut(
+          streams.get_ith(0), {0}, {f_message_extract}, gpu_memory_allocated);
+    }
+
+    // lut_message_extract->broadcast_lut(active_streams);
   };
 
   void release(CudaStreams streams) {
