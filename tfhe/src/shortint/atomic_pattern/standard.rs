@@ -328,6 +328,9 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
             compressed_ct.message_modulus,
             compressed_ct.carry_modulus,
             compressed_ct.atomic_pattern,
+            // 1 since the decompression BR is a PBS ?
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 }

@@ -63,6 +63,8 @@ impl CompressedCiphertext {
             *message_modulus,
             *carry_modulus,
             *atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 

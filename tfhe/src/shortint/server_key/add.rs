@@ -390,4 +390,8 @@ pub(crate) fn unchecked_add_assign(
         ct_left.noise_level() + ct_right.noise_level(),
         max_noise_level,
     );
+    #[cfg(feature = "pbs-stats")]
+    {
+        ct_left.set_pbs_depth(ct_left.pbs_depth().max(ct_right.pbs_depth()));
+    }
 }

@@ -847,6 +847,9 @@ mod experimental {
                     ct_in.message_modulus,
                     ct_in.carry_modulus,
                     ct_in.atomic_pattern,
+                    // 1 since a PBS is performed above?
+                    #[cfg(feature = "pbs-stats")]
+                    1,
                 ))
             })
             .unwrap()
@@ -881,6 +884,9 @@ mod experimental {
                 ct_clean.message_modulus,
                 ct_clean.carry_modulus,
                 ct_in.atomic_pattern,
+                // 1 because we apply a PBS above?
+                #[cfg(feature = "pbs-stats")]
+                1,
             )
         }
 
@@ -985,6 +991,9 @@ mod experimental {
                 sks.message_modulus,
                 sks.carry_modulus,
                 ct_in.atomic_pattern,
+                // This is wrong, but hard to tell what to put here for now
+                #[cfg(feature = "pbs-stats")]
+                0,
             )
         }
     }

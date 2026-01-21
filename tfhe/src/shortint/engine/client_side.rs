@@ -151,6 +151,8 @@ impl ShortintEngine {
             message_modulus,
             CarryModulus(carry_modulus),
             params_atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -189,6 +191,8 @@ impl ShortintEngine {
             message_modulus,
             carry_modulus,
             atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -264,6 +268,8 @@ impl ShortintEngine {
             client_key.parameters().message_modulus(),
             client_key.parameters().carry_modulus(),
             atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -295,6 +301,8 @@ impl ShortintEngine {
             client_key.parameters().message_modulus(),
             client_key.parameters().carry_modulus(),
             atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -361,6 +369,8 @@ impl ShortintEngine {
             message_modulus,
             carry_modulus,
             atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 

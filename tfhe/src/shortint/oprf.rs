@@ -319,6 +319,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             self.message_modulus,
             self.carry_modulus,
             self.atomic_pattern.kind(),
+            // 1 since the random is generated with a BR/PBS?
+            #[cfg(feature = "pbs-stats")]
+            1,
         )
     }
 }

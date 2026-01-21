@@ -943,6 +943,10 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         if ct.is_trivial() {
             self.trivial_pbs_assign(ct, acc);
+            #[cfg(feature = "pbs-stats")]
+            {
+                ct.increment_pbs_depth();
+            }
             return;
         }
 
@@ -950,6 +954,10 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
         ct.degree = acc.degree;
         ct.set_noise_level_to_nominal();
+        #[cfg(feature = "pbs-stats")]
+        {
+            ct.increment_pbs_depth();
+        }
     }
 
     /// Compute a keyswitch and programmable bootstrap applying several functions on an input
@@ -1249,6 +1257,10 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
         ct.degree = Degree::new(modular_value);
         ct.set_noise_level(NoiseLevel::ZERO, self.max_noise_level);
+        #[cfg(feature = "pbs-stats")]
+        {
+            ct.set_pbs_depth(0);
+        }
     }
 
     pub fn deterministic_execution(&self) -> bool {

@@ -26,6 +26,10 @@ pub struct Ciphertext {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub atomic_pattern: AtomicPatternKind,
+    // If you add more debug stuff, do it below this point, otherwise above
+    #[cfg(feature = "pbs-stats")]
+    #[serde(skip)]
+    pbs_depth: u64,
 }
 
 impl crate::named::Named for Ciphertext {
@@ -43,6 +47,8 @@ impl ParameterSetConformant for Ciphertext {
             message_modulus,
             carry_modulus,
             atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+                pbs_depth: _,
         } = self;
 
         ct.is_conformant(&param.ct_params)
@@ -68,6 +74,8 @@ impl Clone for Ciphertext {
             carry_modulus: src_carry_modulus,
             atomic_pattern: src_atomic_pattern,
             noise_level: src_noise_level,
+            #[cfg(feature = "pbs-stats")]
+                pbs_depth: src_pbs_depth,
         } = self;
 
         Self {
@@ -77,6 +85,8 @@ impl Clone for Ciphertext {
             carry_modulus: *src_carry_modulus,
             atomic_pattern: *src_atomic_pattern,
             noise_level: *src_noise_level,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: *src_pbs_depth,
         }
     }
 
@@ -88,6 +98,8 @@ impl Clone for Ciphertext {
             carry_modulus: dst_carry_modulus,
             atomic_pattern: dst_atomic_pattern,
             noise_level: dst_noise_level,
+            #[cfg(feature = "pbs-stats")]
+                pbs_depth: dst_pbs_depth,
         } = self;
 
         let Self {
@@ -97,6 +109,8 @@ impl Clone for Ciphertext {
             carry_modulus: src_carry_modulus,
             atomic_pattern: src_atomic_pattern,
             noise_level: src_noise_level,
+            #[cfg(feature = "pbs-stats")]
+                pbs_depth: src_pbs_depth,
         } = source;
 
         if dst_ct.ciphertext_modulus() != src_ct.ciphertext_modulus()
@@ -111,10 +125,15 @@ impl Clone for Ciphertext {
         *dst_carry_modulus = *src_carry_modulus;
         *dst_atomic_pattern = *src_atomic_pattern;
         *dst_noise_level = *src_noise_level;
+        #[cfg(feature = "pbs-stats")]
+        {
+            *dst_pbs_depth = *src_pbs_depth;
+        }
     }
 }
 
 impl Ciphertext {
+    #[cfg(not(feature = "pbs-stats"))]
     pub fn new(
         ct: LweCiphertextOwned<u64>,
         degree: Degree,
@@ -132,6 +151,43 @@ impl Ciphertext {
             atomic_pattern,
         }
     }
+
+    #[cfg(feature = "pbs-stats")]
+    pub fn new(
+        ct: LweCiphertextOwned<u64>,
+        degree: Degree,
+        noise_level: NoiseLevel,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        atomic_pattern: AtomicPatternKind,
+        pbs_depth: u64,
+    ) -> Self {
+        Self {
+            ct,
+            degree,
+            noise_level,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            pbs_depth,
+        }
+    }
+
+    #[cfg(feature = "pbs-stats")]
+    pub(crate) fn increment_pbs_depth(&mut self) {
+        self.pbs_depth += 1;
+    }
+
+    #[cfg(feature = "pbs-stats")]
+    pub(crate) fn pbs_depth(&self) -> u64 {
+        self.pbs_depth
+    }
+
+    #[cfg(feature = "pbs-stats")]
+    pub(crate) fn set_pbs_depth(&mut self, pbs_depth: u64) {
+        self.pbs_depth = pbs_depth;
+    }
+
     pub fn carry_is_empty(&self) -> bool {
         self.degree.get() < self.message_modulus.0
     }
@@ -306,6 +362,8 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
         message_modulus,
         carry_modulus,
         atomic_pattern,
+        #[cfg(feature = "pbs-stats")]
+        0,
     )
 }
 
@@ -336,6 +394,8 @@ mod tests {
             carry_modulus: CarryModulus(1),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 0,
         };
 
         let c2 = Ciphertext {
@@ -348,6 +408,8 @@ mod tests {
             carry_modulus: CarryModulus(2),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 2,
         };
 
         assert_ne!(c1, c2);
@@ -368,6 +430,8 @@ mod tests {
             carry_modulus: CarryModulus(1),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 0,
         };
 
         let c2 = Ciphertext {
@@ -380,6 +444,8 @@ mod tests {
             carry_modulus: CarryModulus(2),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 4,
         };
 
         assert_ne!(c1, c2);
@@ -400,6 +466,8 @@ mod tests {
             carry_modulus: CarryModulus(1),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 0,
         };
 
         let c2 = Ciphertext {
@@ -412,6 +480,8 @@ mod tests {
             carry_modulus: CarryModulus(2),
             atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
+            #[cfg(feature = "pbs-stats")]
+            pbs_depth: 19,
         };
 
         assert_ne!(c1, c2);

@@ -407,6 +407,10 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             self.max_noise_level,
         );
         ct_left.degree = Degree::new(ct_left.degree.get() + z);
+        #[cfg(feature = "pbs-stats")]
+        {
+            ct_left.set_pbs_depth(ct_left.pbs_depth().max(ct_right.pbs_depth()));
+        }
 
         z
     }

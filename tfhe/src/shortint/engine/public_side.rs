@@ -170,6 +170,8 @@ impl ShortintEngine {
             message_modulus,
             CarryModulus(carry_modulus),
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -238,6 +240,8 @@ impl ShortintEngine {
                     message_modulus,
                     CarryModulus(carry_modulus),
                     public_key.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 )
             })
             .collect()
@@ -297,6 +301,8 @@ impl ShortintEngine {
                     message_modulus,
                     carry_modulus,
                     public_key.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 )
             })
             .collect()
@@ -331,6 +337,8 @@ impl ShortintEngine {
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -387,6 +395,8 @@ impl ShortintEngine {
                     public_key.parameters.message_modulus(),
                     public_key.parameters.carry_modulus(),
                     public_key.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 )
             })
             .collect()
@@ -426,6 +436,8 @@ impl ShortintEngine {
             message_modulus,
             carry_modulus,
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -463,6 +475,8 @@ impl ShortintEngine {
             message_modulus,
             carry_modulus,
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -512,6 +526,8 @@ impl ShortintEngine {
                     message_modulus,
                     carry_modulus,
                     public_key.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 )
             })
             .collect()
@@ -549,6 +565,8 @@ impl ShortintEngine {
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 
@@ -584,6 +602,8 @@ impl ShortintEngine {
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.atomic_pattern,
+            #[cfg(feature = "pbs-stats")]
+            0,
         )
     }
 }

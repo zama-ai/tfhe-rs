@@ -53,6 +53,8 @@ impl Upgrade<Ciphertext> for CiphertextV0 {
             self.message_modulus,
             self.carry_modulus,
             AtomicPatternKind::Standard(self.pbs_order),
+            #[cfg(feature = "pbs-stats")]
+            0,
         ))
     }
 }

@@ -382,6 +382,8 @@ mod experimental {
                     block.message_modulus,
                     block.carry_modulus,
                     block.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -470,6 +472,8 @@ mod experimental {
                     block.message_modulus,
                     block.carry_modulus,
                     block.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -1178,6 +1182,8 @@ mod experimental {
                     block.message_modulus,
                     block.carry_modulus,
                     block.atomic_pattern,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 ));
             }
             T::from_blocks(ct_vec_out)

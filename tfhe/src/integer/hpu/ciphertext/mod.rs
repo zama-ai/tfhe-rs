@@ -50,6 +50,8 @@ impl HpuRadixCiphertext {
                     pbs_p.message_modulus,
                     pbs_p.carry_modulus,
                     AtomicPatternKind::KeySwitch32,
+                    #[cfg(feature = "pbs-stats")]
+                    0,
                 )
             })
             .collect::<Vec<_>>();

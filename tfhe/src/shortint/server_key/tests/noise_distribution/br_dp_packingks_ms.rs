@@ -141,6 +141,9 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters) {
                 sks.message_modulus,
                 sks.carry_modulus,
                 sks.atomic_pattern.kind(),
+                // Doesn't matter
+                #[cfg(feature = "pbs-stats")]
+                0,
             )
         })
         .collect();

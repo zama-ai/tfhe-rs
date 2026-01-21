@@ -249,6 +249,9 @@ impl DecompressionKey {
             meta.message_modulus,
             meta.carry_modulus,
             meta.atomic_pattern,
+            // 1 since we apply a PBS/BR to decompress?
+            #[cfg(feature = "pbs-stats")]
+            1,
         ))
     }
 }

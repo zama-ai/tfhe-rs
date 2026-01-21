@@ -136,6 +136,8 @@ impl CompactCiphertextList {
                             self.message_modulus,
                             self.carry_modulus,
                             atomic_pattern,
+                            #[cfg(feature = "pbs-stats")]
+                            0,
                         );
 
                         casting_key
@@ -161,6 +163,8 @@ impl CompactCiphertextList {
                             self.message_modulus,
                             self.carry_modulus,
                             atomic_pattern,
+                            #[cfg(feature = "pbs-stats")]
+                            0,
                         )
                     })
                     .collect::<Vec<_>>();
