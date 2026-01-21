@@ -2490,7 +2490,7 @@ template <typename Torus> struct int_borrow_prop_memory {
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
     lut_message_extract->generate_and_broadcast_lut(
-        active_streams, {0}, f_message_extract, gpu_memory_allocated);
+        active_streams, {0}, {f_message_extract}, gpu_memory_allocated);
 
     if (compute_overflow) {
       lut_borrow_flag =
@@ -2501,12 +2501,8 @@ template <typename Torus> struct int_borrow_prop_memory {
         return ((block >> 2) & 1);
       };
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          lut_borrow_flag->get_lut(0, 0), lut_borrow_flag->get_degree(0),
-          lut_borrow_flag->get_max_degree(0), glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_borrow_flag, gpu_memory_allocated);
-      lut_borrow_flag->broadcast_lut(active_streams);
+      lut_borrow_flag->generate_and_broadcast_lut(
+          active_streams, {0}, {f_borrow_flag}, gpu_memory_allocated);
     }
 
     active_streams =

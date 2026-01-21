@@ -99,13 +99,8 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
     luts_borrow_propagation_sum->broadcast_lut(active_streams);
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), message_acc->get_lut(0, 0),
-        message_acc->get_degree(0), message_acc->get_max_degree(0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-        f_message_acc, gpu_memory_allocated);
-
-    message_acc->broadcast_lut(active_streams);
+    message_acc->generate_and_broadcast_lut(
+        active_streams, {0}, {f_message_acc}, gpu_memory_allocated);
   }
 
   void release(CudaStreams streams) {

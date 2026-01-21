@@ -314,27 +314,17 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
 
     this->message_extract_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->message_extract_lut->get_lut(0, 0),
-        this->message_extract_lut->get_degree(0),
-        this->message_extract_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        msg_fn, allocate_gpu_memory);
-    this->message_extract_lut->broadcast_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type));
+
+    this->message_extract_lut->generate_and_broadcast_lut(
+        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {msg_fn},
+        allocate_gpu_memory);
 
     this->carry_extract_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->carry_extract_lut->get_lut(0, 0),
-        this->carry_extract_lut->get_degree(0),
-        this->carry_extract_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        carry_fn, allocate_gpu_memory);
-    this->carry_extract_lut->broadcast_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type));
+
+    this->carry_extract_lut->generate_and_broadcast_lut(
+        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {carry_fn},
+        allocate_gpu_memory);
 
     this->partial_aggregated_vectors =
         new CudaRadixCiphertextFFI *[num_streams];
@@ -1199,14 +1189,9 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
     };
     this->cleanup_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->cleanup_lut->get_lut(0, 0), this->cleanup_lut->get_degree(0),
-        this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        cleanup_fn, allocate_gpu_memory);
-    this->cleanup_lut->broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type));
+    this->cleanup_lut->generate_and_broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        {cleanup_fn}, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams) {
@@ -1390,14 +1375,9 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     };
     this->cleanup_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->cleanup_lut->get_lut(0, 0), this->cleanup_lut->get_degree(0),
-        this->cleanup_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        cleanup_fn, allocate_gpu_memory);
-    this->cleanup_lut->broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type));
+    this->cleanup_lut->generate_and_broadcast_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        {cleanup_fn}, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams) {
