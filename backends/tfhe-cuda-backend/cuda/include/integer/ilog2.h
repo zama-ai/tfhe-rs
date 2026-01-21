@@ -227,7 +227,7 @@ template <typename Torus> struct int_ilog2_buffer {
         this->sum_output_not_propagated, counter_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->lut_message_not =
+    lut_message_not =
         new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
                                  allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> lut_message_lambda =
@@ -235,16 +235,11 @@ template <typename Torus> struct int_ilog2_buffer {
       uint64_t message = x % this->params.message_modulus;
       return (~message) % this->params.message_modulus;
     };
-    generate_device_accumulator(streams.stream(0), streams.gpu_index(0),
-                                this->lut_message_not->get_lut(0, 0),
-                                this->lut_message_not->get_degree(0),
-                                this->lut_message_not->get_max_degree(0),
-                                params.glwe_dimension, params.polynomial_size,
-                                params.message_modulus, params.carry_modulus,
-                                lut_message_lambda, allocate_gpu_memory);
+
     auto active_streams =
         streams.active_gpu_subset(counter_num_blocks, params.pbs_type);
-    lut_message_not->broadcast_lut(active_streams);
+    lut_message_not->generate_and_broadcast_lut(
+        active_streams, {0}, {lut_message_lambda}, allocate_gpu_memory);
 
     this->lut_carry_not =
         new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
@@ -254,13 +249,8 @@ template <typename Torus> struct int_ilog2_buffer {
       uint64_t carry = x / this->params.message_modulus;
       return (~carry) % this->params.message_modulus;
     };
-    generate_device_accumulator(
-        streams.stream(0), streams.gpu_index(0),
-        this->lut_carry_not->get_lut(0, 0), this->lut_carry_not->get_degree(0),
-        this->lut_carry_not->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_carry_lambda, allocate_gpu_memory);
-    lut_carry_not->broadcast_lut(active_streams);
+    lut_carry_not->generate_and_broadcast_lut(
+        active_streams, {0}, {lut_carry_lambda}, allocate_gpu_memory);
 
     this->message_blocks_not = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

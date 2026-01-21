@@ -37,17 +37,20 @@ template <typename Torus> struct int_mul_memory {
       zero_out_predicate_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
-      generate_device_accumulator_bivariate<Torus>(
+      /*generate_device_accumulator_bivariate<Torus>(
           streams.stream(0), streams.gpu_index(0),
           zero_out_predicate_lut->get_lut(0, 0),
           zero_out_predicate_lut->get_degree(0),
           zero_out_predicate_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
-          zero_out_predicate_lut_f, gpu_memory_allocated);
+          zero_out_predicate_lut_f, gpu_memory_allocated);*/
 
       auto active_streams =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      zero_out_predicate_lut->broadcast_lut(active_streams);
+      zero_out_predicate_lut->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {zero_out_predicate_lut_f}, gpu_memory_allocated);
+
+      // zero_out_predicate_lut->broadcast_lut(active_streams);
 
       zero_out_mem = new int_zero_out_if_buffer<Torus>(
           streams, params, num_radix_blocks, allocate_gpu_memory, size_tracker);
@@ -102,18 +105,6 @@ template <typename Torus> struct int_mul_memory {
       return (x * y) / message_modulus;
     };
 
-    // generate accumulators
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), lsb_acc,
-        luts_array->get_degree(0), luts_array->get_max_degree(0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-        lut_f_lsb, gpu_memory_allocated);
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), msb_acc,
-        luts_array->get_degree(1), luts_array->get_max_degree(1),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-        lut_f_msb, gpu_memory_allocated);
-
     // lut_indexes_vec for luts_array should be reinitialized
     // first lsb_vector_block_count value should reference to lsb_acc
     // last msb_vector_block_count values should reference to msb_acc
@@ -123,9 +114,12 @@ template <typename Torus> struct int_mul_memory {
           streams.stream(0), streams.gpu_index(0),
           luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
           msb_vector_block_count);
+
     auto active_streams =
         streams.active_gpu_subset(total_block_count, params.pbs_type);
-    luts_array->broadcast_lut(active_streams);
+    luts_array->generate_and_broadcast_bivariate_lut(
+        active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, gpu_memory_allocated);
+
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         streams, params, num_radix_blocks, 2 * num_radix_blocks,

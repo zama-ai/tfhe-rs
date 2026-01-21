@@ -837,12 +837,28 @@ struct int_radix_lut_custom_input_output {
 
   void generate_and_broadcast_lut(
       const CudaStreams &streams, std::vector<uint32_t> lut_indexes,
-      std::vector<std::function<InputTorus(InputTorus)>> f,
+      std::vector<std::function<OutputTorus(OutputTorus)>> f,
       bool gpu_memory_allocated) {
     // streams should be a subset of active_streams
 
     for (uint32_t i = 0; i < lut_indexes.size(); ++i) {
-      generate_device_accumulator<InputTorus>(
+      generate_device_accumulator<OutputTorus>(
+          streams.stream(0), streams.gpu_index(0), get_lut(0, lut_indexes[i]),
+          get_degree(lut_indexes[i]), get_max_degree(lut_indexes[i]),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, f[i], gpu_memory_allocated);
+    }
+    broadcast_lut(streams);
+  }
+
+  void generate_and_broadcast_bivariate_lut(
+      const CudaStreams &streams, std::vector<uint32_t> lut_indexes,
+      std::vector<std::function<OutputTorus(OutputTorus, OutputTorus)>> f,
+      bool gpu_memory_allocated) {
+    // streams should be a subset of active_streams
+
+    for (uint32_t i = 0; i < lut_indexes.size(); ++i) {
+      generate_device_accumulator_bivariate<InputTorus>(
           streams.stream(0), streams.gpu_index(0), get_lut(0, lut_indexes[i]),
           get_degree(lut_indexes[i]), get_max_degree(lut_indexes[i]),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,

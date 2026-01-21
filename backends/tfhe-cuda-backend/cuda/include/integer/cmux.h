@@ -85,18 +85,6 @@ template <typename Torus> struct int_cmux_buffer {
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), predicate_lut->get_lut(0, 0),
-        predicate_lut->get_degree(0), predicate_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, inverted_lut_f, gpu_memory_allocated);
-
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), predicate_lut->get_lut(0, 1),
-        predicate_lut->get_degree(1), predicate_lut->get_max_degree(1),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, lut_f, gpu_memory_allocated);
-
     Torus *h_lut_indexes = predicate_lut->h_lut_indexes;
     for (int index = 0; index < 2 * num_radix_blocks; index++) {
       if (index < num_radix_blocks) {
@@ -109,9 +97,12 @@ template <typename Torus> struct int_cmux_buffer {
         predicate_lut->get_lut_indexes(0, 0), h_lut_indexes,
         2 * num_radix_blocks * sizeof(Torus), streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
+
     auto active_streams_pred =
         streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
-    predicate_lut->broadcast_lut(active_streams_pred);
+    predicate_lut->generate_and_broadcast_bivariate_lut(
+        active_streams_pred, {0, 1}, {inverted_lut_f, lut_f},
+        gpu_memory_allocated);
 
     auto active_streams_msg =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);

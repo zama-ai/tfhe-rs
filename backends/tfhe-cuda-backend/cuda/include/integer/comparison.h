@@ -141,14 +141,17 @@ template <typename Torus> struct int_comparison_eq_buffer {
       operator_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
+      /*
+            generate_device_accumulator_bivariate<Torus>(
+                streams.stream(0), streams.gpu_index(0),
+         operator_lut->get_lut(0, 0), operator_lut->get_degree(0),
+         operator_lut->get_max_degree(0), params.glwe_dimension,
+         params.polynomial_size, params.message_modulus, params.carry_modulus,
+         operator_f, gpu_memory_allocated);*/
 
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0), operator_lut->get_lut(0, 0),
-          operator_lut->get_degree(0), operator_lut->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, operator_f, gpu_memory_allocated);
-
-      operator_lut->broadcast_lut(active_streams);
+      operator_lut->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {operator_f}, gpu_memory_allocated);
+      // operator_lut->broadcast_lut(active_streams);
     } else {
       operator_lut = nullptr;
     }
