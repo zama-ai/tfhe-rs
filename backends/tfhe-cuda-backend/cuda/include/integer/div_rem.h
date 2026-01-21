@@ -286,13 +286,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_1_lut_f},
                                           gpu_memory_allocated);
-      /*generate_device_accumulator<Torus>(
-          streams.stream(lut_gpu_indexes[j]),
-          streams.gpu_index(lut_gpu_indexes[j]), luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_1_lut_f,
-         gpu_memory_allocated);*/
     }
 
     luts[0] = zero_out_if_not_2_lut_1;
@@ -303,14 +296,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_2_lut_f},
                                           gpu_memory_allocated);
-
-      /*generate_device_accumulator<Torus>(
-          streams.stream(lut_gpu_indexes[j]),
-          streams.gpu_index(lut_gpu_indexes[j]), luts[j]->get_lut(0, 0),
-          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_if_not_2_lut_f,
-         gpu_memory_allocated);*/
     }
 
     quotient_lut_1 =
@@ -336,23 +321,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         streams.get_ith(1), {0}, {quotient_lut_2_f}, gpu_memory_allocated);
     quotient_lut_3->generate_and_broadcast_lut(
         streams.get_ith(0), {0}, {quotient_lut_3_f}, gpu_memory_allocated);
-    /*
-  generate_device_accumulator<Torus>(
-      streams.stream(2), streams.gpu_index(2), quotient_lut_1->get_lut(0, 0),
-      quotient_lut_1->get_degree(0), quotient_lut_1->get_max_degree(0),
-      params.glwe_dimension, params.polynomial_size, params.message_modulus,
-      params.carry_modulus, quotient_lut_1_f, gpu_memory_allocated);
-  generate_device_accumulator<Torus>(
-      streams.stream(1), streams.gpu_index(1), quotient_lut_2->get_lut(0, 0),
-      quotient_lut_2->get_degree(0), quotient_lut_2->get_max_degree(0),
-      params.glwe_dimension, params.polynomial_size, params.message_modulus,
-      params.carry_modulus, quotient_lut_2_f, gpu_memory_allocated);
-  generate_device_accumulator<Torus>(
-      streams.stream(0), streams.gpu_index(0), quotient_lut_3->get_lut(0, 0),
-      quotient_lut_3->get_degree(0), quotient_lut_3->get_max_degree(0),
-      params.glwe_dimension, params.polynomial_size, params.message_modulus,
-      params.carry_modulus, quotient_lut_3_f, gpu_memory_allocated);
-*/
+
     message_extract_lut_1 = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
     message_extract_lut_2 = new int_radix_lut<Torus>(
@@ -1023,26 +992,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
       auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
       masking_luts_1[i]->generate_and_broadcast_lut(
           active_streams_1, {0}, {lut_f_masking}, gpu_memory_allocated);
-      /*generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          masking_luts_1[i]->get_lut(0, 0), masking_luts_1[i]->get_degree(0),
-          masking_luts_1[i]->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_masking, gpu_memory_allocated);
-      masking_luts_1[i]->broadcast_lut(active_streams_1);*/
 
       auto active_streams_2 =
           streams.active_gpu_subset(num_blocks, params.pbs_type);
       masking_luts_2[i]->generate_and_broadcast_lut(
           active_streams_2, {0}, {lut_f_masking}, gpu_memory_allocated);
-      /*
-      generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        masking_luts_2[i]->get_lut(0, 0), masking_luts_2[i]->get_degree(0),
-        masking_luts_2[i]->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_f_masking, gpu_memory_allocated);
-    masking_luts_2[i]->broadcast_lut(active_streams_2);*/
     }
 
     // create and generate message_extract_lut_1 and message_extract_lut_2
@@ -1066,13 +1020,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
-      /*
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), luts[j]->get_lut(0, 0),
-        luts[j]->get_degree(0), luts[j]->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
-    luts[j]->broadcast_lut(active_streams);*/
     }
 
     // Give name to closures to improve readability

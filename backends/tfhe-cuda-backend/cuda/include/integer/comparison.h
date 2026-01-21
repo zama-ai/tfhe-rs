@@ -54,13 +54,6 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
     is_max_value->generate_and_broadcast_lut(
         active_streams, {0}, {is_max_value_f}, gpu_memory_allocated);
-    /*generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), is_max_value->get_lut(0, 0),
-        is_max_value->get_degree(0), is_max_value->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_max_value_f, gpu_memory_allocated);
-
-    is_max_value->broadcast_lut(active_streams);*/
   }
 
   void release(CudaStreams streams) {
@@ -113,14 +106,6 @@ template <typename Torus> struct int_comparison_eq_buffer {
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     is_non_zero_lut->generate_and_broadcast_lut(
         active_streams, {0}, {is_non_zero_lut_f}, gpu_memory_allocated);
-    /*
-    generate_device_accumulator<Torus>(
-      streams.stream(0), streams.gpu_index(0), is_non_zero_lut->get_lut(0, 0),
-      is_non_zero_lut->get_degree(0), is_non_zero_lut->get_max_degree(0),
-      params.glwe_dimension, params.polynomial_size, params.message_modulus,
-      params.carry_modulus, is_non_zero_lut_f, gpu_memory_allocated);
-
-  is_non_zero_lut->broadcast_lut(active_streams);*/
 
     // Scalar may have up to num_radix_blocks blocks
     scalar_comparison_luts = new int_radix_lut<Torus>(
@@ -152,15 +137,6 @@ template <typename Torus> struct int_comparison_eq_buffer {
     scalar_comparison_luts->generate_and_broadcast_lut(
         active_streams, lut_indices, lut_funcs, gpu_memory_allocated);
 
-    /*generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        scalar_comparison_luts->get_lut(0, i),
-        scalar_comparison_luts->get_degree(i),
-        scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_f, gpu_memory_allocated);
-
-  scalar_comparison_luts->broadcast_lut(active_streams);*/
     if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
       operator_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
@@ -446,12 +422,6 @@ template <typename Torus> struct int_comparison_buffer {
 
     identity_lut->generate_and_broadcast_lut(
         active_streams, {0}, {identity_lut_f}, gpu_memory_allocated);
-    /*generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), identity_lut->get_lut(0, 0),
-        identity_lut->get_degree(0), identity_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, identity_lut_f, gpu_memory_allocated);
-    identity_lut->broadcast_lut(active_streams);*/
 
     uint32_t total_modulus = params.message_modulus * params.carry_modulus;
     auto is_zero_f = [total_modulus](Torus x) -> Torus {
@@ -463,14 +433,6 @@ template <typename Torus> struct int_comparison_buffer {
 
     is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
                                             gpu_memory_allocated);
-
-    /*generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), is_zero_lut->get_lut(0, 0),
-        is_zero_lut->get_degree(0), is_zero_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_zero_f, gpu_memory_allocated);
-
-    is_zero_lut->broadcast_lut(active_streams);*/
 
     switch (op) {
     case COMPARISON_TYPE::MAX:

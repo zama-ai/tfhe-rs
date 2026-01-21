@@ -266,43 +266,6 @@ template <typename Torus> struct zk_expand_mem {
          carry_extract_and_sanitize_bool_lut_f},
         gpu_memory_allocated);
 
-    /*
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_and_carry_extract_luts->get_lut(0, 0),
-        message_and_carry_extract_luts->get_degree(0),
-        message_and_carry_extract_luts->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, message_extract_lut_f, gpu_memory_allocated);
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_and_carry_extract_luts->get_lut(0, 1),
-        message_and_carry_extract_luts->get_degree(1),
-        message_and_carry_extract_luts->get_max_degree(1),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, carry_extract_lut_f, gpu_memory_allocated);
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_and_carry_extract_luts->get_lut(0, 2),
-        message_and_carry_extract_luts->get_degree(2),
-        message_and_carry_extract_luts->get_max_degree(2),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, message_extract_and_sanitize_bool_lut_f,
-        gpu_memory_allocated);
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_and_carry_extract_luts->get_lut(0, 3),
-        message_and_carry_extract_luts->get_degree(3),
-        message_and_carry_extract_luts->get_max_degree(3),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, carry_extract_and_sanitize_bool_lut_f,
-        gpu_memory_allocated);
-
-  message_and_carry_extract_luts->broadcast_lut(active_streams);*/
-
     message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(
         active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);
     // The expanded LWEs will always be on the casting key format

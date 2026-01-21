@@ -39,19 +39,6 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
           }},
           allocate_gpu_memory);
 
-      /*generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-          lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          [msg_modulus, bits_per_block](Torus x) {
-            const auto xm = x % msg_modulus;
-            const auto sign_bit = (xm >> (bits_per_block - 1)) & 1;
-            return (Torus)((msg_modulus - 1) * sign_bit);
-          },
-          allocate_gpu_memory);
-
-      lut->broadcast_lut(active_streams);*/
-
       this->last_block = new CudaRadixCiphertextFFI;
 
       create_zero_radix_ciphertext_async<Torus>(

@@ -1012,20 +1012,6 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
       lut_indices.push_back(i);
     }
 
-    /*for (int i = 0; i < bits_per_block; i++) {
-
-      auto operator_f = [i, final_offset](Torus x) -> Torus {
-        Torus y = (x >> i) & 1;
-        return y << final_offset;
-      };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, i),
-          lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          operator_f, gpu_memory_allocated);
-    }*/
-
     /**
      * we have bits_per_blocks LUTs that should be used for all bits in all
      * blocks
@@ -1130,27 +1116,6 @@ template <typename Torus> struct int_fullprop_buffer {
     cuda_memcpy_with_size_tracking_async_to_gpu(
         lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
-
-    /*
-    Torus *lut_buffer_message = lut->get_lut(0, 0);
-    uint64_t *message_degree = lut->get_degree(0);
-    uint64_t *message_max_degree = lut->get_max_degree(0);
-    Torus *lut_buffer_carry = lut->get_lut(0, 1);
-    uint64_t *carry_degree = lut->get_degree(1);
-    uint64_t *carry_max_degree = lut->get_max_degree(1);
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut_buffer_message,
-        message_degree, message_max_degree, params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_f_message, gpu_memory_allocated);
-
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut_buffer_carry, carry_degree,
-        carry_max_degree, params.glwe_dimension, params.polynomial_size,
-        params.message_modulus, params.carry_modulus, lut_f_carry,
-        gpu_memory_allocated);
-    */
 
     //
     // No broadcast is needed because full prop is done on 1 single GPU.
@@ -1309,23 +1274,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       auto lut_f_carry = [message_modulus](Torus x) -> Torus {
         return x / message_modulus;
       };
-
-      /*
-    // generate accumulators
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), message_acc,
-        luts_message_carry->get_degree(0),
-        luts_message_carry->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, message_modulus, params.carry_modulus,
-        lut_f_message, gpu_memory_allocated);
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), carry_acc,
-        luts_message_carry->get_degree(1),
-        luts_message_carry->get_max_degree(1), params.glwe_dimension,
-        params.polynomial_size, message_modulus, params.carry_modulus,
-        lut_f_carry, gpu_memory_allocated);
-
-      luts_message_carry->broadcast_lut(active_gpu_count_mc);*/
 
       auto active_gpu_count_mc =
           streams.active_gpu_subset(pbs_count, params.pbs_type);
@@ -2117,25 +2065,6 @@ template <typename Torus> struct int_sc_prop_memory {
         streams, params, num_radix_blocks, grouping_size, num_groups,
         allocate_gpu_memory, size_tracker);
 
-    //  Step 3 elements
-    int num_luts_message_extract =
-        requested_flag == outputFlag::FLAG_NONE ? 1 : 2;
-    lut_message_extract = new int_radix_lut<Torus>(
-        streams, params, num_luts_message_extract, num_radix_blocks + 1,
-        allocate_gpu_memory, size_tracker);
-    // lut for the first block in the first grouping
-    auto f_message_extract = [message_modulus](Torus block) -> Torus {
-      return (block >> 1) % message_modulus;
-    };
-    /*
-        generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0),
-            lut_message_extract->get_lut(0, 0),
-       lut_message_extract->get_degree(0),
-            lut_message_extract->get_max_degree(0), glwe_dimension,
-       polynomial_size, message_modulus, carry_modulus, f_message_extract,
-            gpu_memory_allocated); */
-
     // This store a single block that with be used to store the overflow or
     // carry results
     output_flag = new CudaRadixCiphertextFFI;
@@ -2198,6 +2127,17 @@ template <typename Torus> struct int_sc_prop_memory {
       lut_overflow_flag_prep->broadcast_lut(active_streams);
     }
 
+    //  Step 3 elements
+    int num_luts_message_extract =
+        requested_flag == outputFlag::FLAG_NONE ? 1 : 2;
+    lut_message_extract = new int_radix_lut<Torus>(
+        streams, params, num_luts_message_extract, num_radix_blocks + 1,
+        allocate_gpu_memory, size_tracker);
+    // lut for the first block in the first grouping
+    auto f_message_extract = [message_modulus](Torus block) -> Torus {
+      return (block >> 1) % message_modulus;
+    };
+
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks + 1, params.pbs_type);
 
@@ -2223,18 +2163,10 @@ template <typename Torus> struct int_sc_prop_memory {
       setup_message_extract_indices_for_carry_async(streams, num_radix_blocks,
                                                     allocate_gpu_memory);
 
-      /*
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        lut_message_extract->get_lut(0, 1),
-        lut_message_extract->get_degree(1),
-        lut_message_extract->get_max_degree(1), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_overflow_last,
-        gpu_memory_allocated);
-*/
       lut_message_extract->generate_and_broadcast_lut(
-          streams.get_ith(0), {0, 1}, {f_message_extract, f_overflow_last},
+          active_streams, {0, 1}, {f_message_extract, f_overflow_last},
           gpu_memory_allocated);
+      break;
     }
     case outputFlag::FLAG_CARRY: { // Carry case
 
@@ -2244,22 +2176,16 @@ template <typename Torus> struct int_sc_prop_memory {
       auto f_carry_last = [](Torus block) -> Torus {
         return ((block >> 2) & 1);
       };
-      /*
-            generate_device_accumulator<Torus>(
-            streams.stream(0), streams.gpu_index(0),
-            lut_message_extract->get_lut(0, 1),
-            lut_message_extract->get_degree(1),
-            lut_message_extract->get_max_degree(1), glwe_dimension,
-            polynomial_size, message_modulus, carry_modulus, f_carry_last,
-            gpu_memory_allocated);
-      */
+
       lut_message_extract->generate_and_broadcast_lut(
           active_streams, {0, 1}, {f_message_extract, f_carry_last},
           gpu_memory_allocated);
+      break;
     }
     default:
       lut_message_extract->generate_and_broadcast_lut(
-          streams.get_ith(0), {0}, {f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {f_message_extract}, gpu_memory_allocated);
+      break;
     }
 
     // lut_message_extract->broadcast_lut(active_streams);
@@ -2560,16 +2486,11 @@ template <typename Torus> struct int_borrow_prop_memory {
       return (block >> 1) % message_modulus;
     };
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        lut_message_extract->get_lut(0, 0), lut_message_extract->get_degree(0),
-        lut_message_extract->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_message_extract,
-        gpu_memory_allocated);
     active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
-    lut_message_extract->broadcast_lut(active_streams);
+    lut_message_extract->generate_and_broadcast_lut(
+        active_streams, {0}, f_message_extract, gpu_memory_allocated);
 
     if (compute_overflow) {
       lut_borrow_flag =

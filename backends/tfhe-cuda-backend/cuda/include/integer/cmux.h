@@ -118,15 +118,6 @@ template <typename Torus> struct int_cmux_buffer {
 
     message_extract_lut->generate_and_broadcast_lut(
         active_streams_msg, {0}, {message_extract_lut_f}, gpu_memory_allocated);
-    /*generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        message_extract_lut->get_lut(0, 0), message_extract_lut->get_degree(0),
-        message_extract_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        message_extract_lut_f, gpu_memory_allocated);
-
-
-  message_extract_lut->broadcast_lut(active_streams_msg);*/
   }
 
   void release(CudaStreams streams) {

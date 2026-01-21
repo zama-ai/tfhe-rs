@@ -67,14 +67,6 @@ template <typename Torus> struct boolean_bitop_buffer {
 
       message_extract_lut->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
-      /*generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          message_extract_lut->get_lut(0, 0),
-          message_extract_lut->get_degree(0),
-          message_extract_lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_message_extract, gpu_memory_allocated);
-      message_extract_lut->broadcast_lut(active_streams);*/
     }
     tmp_lwe_left = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -182,13 +174,6 @@ template <typename Torus> struct int_bitop_buffer {
 
       lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
                                       gpu_memory_allocated);
-      /*generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, i),
-          lut->get_degree(i), lut->get_max_degree(i), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus,
-          params.carry_modulus, lut_univariate_scalar_f,
-          gpu_memory_allocated);
-      lut->broadcast_lut(active_streams);*/
     }
   }
 
@@ -226,16 +211,6 @@ template <typename Torus> struct boolean_bitnot_buffer {
 
       message_extract_lut->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
-      /*
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          message_extract_lut->get_lut(0, 0),
-          message_extract_lut->get_degree(0),
-          message_extract_lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_message_extract, gpu_memory_allocated);
-      message_extract_lut->broadcast_lut(active_streams);
-      */
     }
   }
 

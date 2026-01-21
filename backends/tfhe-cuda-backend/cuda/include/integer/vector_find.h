@@ -298,14 +298,10 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
       int_radix_lut<Torus> *lut = new int_radix_lut<Torus>(
           streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-          lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          id_fn, allocate_gpu_memory);
+      lut->generate_and_broadcast_lut(
+          streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {id_fn},
+          allocate_gpu_memory);
 
-      lut->broadcast_lut(
-          streams.active_gpu_subset(num_blocks, params.pbs_type));
       this->stream_identity_luts[i] = lut;
     }
 
