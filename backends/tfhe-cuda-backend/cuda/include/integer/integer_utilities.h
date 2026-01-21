@@ -1514,16 +1514,11 @@ template <typename Torus> struct int_hs_group_prop_memory {
     lut_hillis_steele = new int_radix_lut<Torus>(
         streams, params, 1, num_groups, allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        lut_hillis_steele->get_lut(0, 0), lut_hillis_steele->get_degree(0),
-        lut_hillis_steele->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_lut_hillis_steele,
-        gpu_memory_allocated);
     auto active_streams =
         streams.active_gpu_subset(num_groups, params.pbs_type);
-    lut_hillis_steele->broadcast_lut(active_streams);
-  };
+    lut_hillis_steele->generate_and_broadcast_lut(
+        active_streams, {0}, {f_lut_hillis_steele}, gpu_memory_allocated);
+  }
   void release(CudaStreams streams) {
 
     lut_hillis_steele->release(streams);
@@ -2131,16 +2126,9 @@ template <typename Torus> struct int_sc_prop_memory {
         return output1 << 3 | output2 << 2;
       };
 
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          lut_overflow_flag_prep->get_lut(0, 0),
-          lut_overflow_flag_prep->get_degree(0),
-          lut_overflow_flag_prep->get_max_degree(0), glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_overflow_fp,
-          gpu_memory_allocated);
-
       auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-      lut_overflow_flag_prep->broadcast_lut(active_streams);
+      lut_overflow_flag_prep->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {f_overflow_fp}, gpu_memory_allocated);
     }
 
     //  Step 3 elements

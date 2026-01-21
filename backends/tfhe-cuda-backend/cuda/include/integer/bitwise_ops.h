@@ -136,12 +136,8 @@ template <typename Torus> struct int_bitop_buffer {
           }
         };
 
-        generate_device_accumulator_bivariate<Torus>(
-            streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-            lut->get_degree(0), lut->get_max_degree(0), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_bivariate_f, gpu_memory_allocated);
-        lut->broadcast_lut(active_streams);
+        lut->generate_and_broadcast_bivariate_lut(
+            active_streams, {0}, {lut_bivariate_f}, gpu_memory_allocated);
       }
       break;
     default:

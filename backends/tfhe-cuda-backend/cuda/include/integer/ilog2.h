@@ -65,13 +65,8 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
       return 0;
     };
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), biv_lut_mem->get_lut(0, 0),
-        biv_lut_mem->get_degree(0), biv_lut_mem->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, generate_bi_lut_lambda, allocate_gpu_memory);
-
-    biv_lut_mem->broadcast_lut(active_streams);
+    biv_lut_mem->generate_and_broadcast_bivariate_lut(
+        active_streams, {0}, {generate_bi_lut_lambda}, allocate_gpu_memory);
 
     this->tmp_ct = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

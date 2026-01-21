@@ -37,18 +37,12 @@ template <typename Torus> struct int_mul_memory {
       zero_out_predicate_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
-      /*generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          zero_out_predicate_lut->get_lut(0, 0),
-          zero_out_predicate_lut->get_degree(0),
-          zero_out_predicate_lut->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          zero_out_predicate_lut_f, gpu_memory_allocated);*/
 
       auto active_streams =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       zero_out_predicate_lut->generate_and_broadcast_bivariate_lut(
-          active_streams, {0}, {zero_out_predicate_lut_f}, gpu_memory_allocated);
+          active_streams, {0}, {zero_out_predicate_lut_f},
+          gpu_memory_allocated);
 
       // zero_out_predicate_lut->broadcast_lut(active_streams);
 

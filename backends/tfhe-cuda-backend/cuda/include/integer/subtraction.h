@@ -79,16 +79,11 @@ template <typename Torus> struct int_overflowing_sub_memory {
                                   luts_array->get_lut_indexes(0, 1), 1,
                                   num_radix_blocks - 1);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        luts_borrow_propagation_sum->get_lut(0, 0),
-        luts_borrow_propagation_sum->get_degree(0),
-        luts_borrow_propagation_sum->get_max_degree(0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus,
-        f_luts_borrow_propagation_sum, gpu_memory_allocated);
-
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+    luts_borrow_propagation_sum->generate_and_broadcast_bivariate_lut(
+        active_streams, {0}, {f_luts_borrow_propagation_sum},
+        gpu_memory_allocated);
 
     luts_array->generate_and_broadcast_lut(
         active_streams, {0, 1},
@@ -96,8 +91,6 @@ template <typename Torus> struct int_overflowing_sub_memory {
          f_lut_does_block_generate_or_propagate},
         gpu_memory_allocated);
     // generate luts (aka accumulators)
-
-    luts_borrow_propagation_sum->broadcast_lut(active_streams);
 
     message_acc->generate_and_broadcast_lut(
         active_streams, {0}, {f_message_acc}, gpu_memory_allocated);

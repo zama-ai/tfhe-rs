@@ -1171,15 +1171,9 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
     this->prefix_sum_lut = new int_radix_lut<Torus>(
         streams, params, 2, num_inputs, allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->prefix_sum_lut->get_lut(0, 0),
-        this->prefix_sum_lut->get_degree(0),
-        this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        prefix_sum_fn, allocate_gpu_memory);
-    this->prefix_sum_lut->broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type));
+    this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        {prefix_sum_fn}, allocate_gpu_memory);
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
       Torus val = x % params.message_modulus;
@@ -1357,15 +1351,9 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     this->prefix_sum_lut = new int_radix_lut<Torus>(
         streams, params, 2, num_inputs, allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->prefix_sum_lut->get_lut(0, 0),
-        this->prefix_sum_lut->get_degree(0),
-        this->prefix_sum_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        prefix_sum_fn, allocate_gpu_memory);
-    this->prefix_sum_lut->broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type));
+    this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
+        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        {prefix_sum_fn}, allocate_gpu_memory);
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
       Torus val = x % params.message_modulus;
