@@ -46,7 +46,7 @@ impl CudaCompactCiphertextListExpander {
     }
 
     pub fn len(&self) -> usize {
-        self.expanded_blocks.lwe_ciphertext_count().0
+        self.blocks_info.len()
     }
 
     pub fn is_empty(&self) -> bool {
