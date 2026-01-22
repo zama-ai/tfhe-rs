@@ -128,7 +128,7 @@ impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok")]
+#[cfg(all(feature = "zk-pok", feature = "gpu"))]
 #[cfg(test)]
 mod tests {
     // Test utils for tests here
@@ -492,5 +492,101 @@ mod tests {
                 assert!(decrypted < 2);
             }
         }
+    }
+
+    #[test]
+    fn test_expander_length_matches_data_items() {
+        // This test ensures len() returns the number of data items, not the total number of blocks.
+        use crate::high_level_api::prelude::*;
+        use crate::high_level_api::set_server_key;
+        use crate::zk::ZkComputeLoad;
+
+        let params = crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let cpk_params =
+            crate::shortint::parameters::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let casting_params =
+            crate::shortint::parameters::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+            .build();
+
+        let client_key = crate::ClientKey::generate(config);
+        let compressed_server_key = crate::CompressedServerKey::new(&client_key);
+        let gpu_server_key = compressed_server_key.decompress_to_gpu();
+
+        let crs = CompactPkeCrs::from_config(config, 64).unwrap();
+        let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+        let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+        // Create a proven compact list with 6 items (matching user's scenario)
+        let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+            .push(true)
+            .push(42u8)
+            .push(42u8)
+            .push(12345u16)
+            .push(67890u32)
+            .push(1234567890u64)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)
+            .unwrap();
+
+        // Set GPU server key
+        set_server_key(gpu_server_key);
+
+        // Verify and expand on GPU
+        let expander = proven_compact_list
+            .verify_and_expand(&crs, &public_key, &metadata)
+            .unwrap();
+
+        // The expander should have length 6 (number of data items), not 66 (total blocks)
+        assert_eq!(
+            expander.len(),
+            6,
+            "Expander length should be 6 (number of data items), not the total number of blocks"
+        );
+
+        // Verify we can get the kind for all 6 items
+        assert!(
+            expander.get_kind_of(0).is_some(),
+            "Should be able to get kind at index 0"
+        );
+        assert!(
+            expander.get_kind_of(1).is_some(),
+            "Should be able to get kind at index 1"
+        );
+        assert!(
+            expander.get_kind_of(2).is_some(),
+            "Should be able to get kind at index 2"
+        );
+        assert!(
+            expander.get_kind_of(3).is_some(),
+            "Should be able to get kind at index 3"
+        );
+        assert!(
+            expander.get_kind_of(4).is_some(),
+            "Should be able to get kind at index 4"
+        );
+        assert!(
+            expander.get_kind_of(5).is_some(),
+            "Should be able to get kind at index 5"
+        );
+
+        // Verify indices beyond the data item count return None
+        assert!(
+            expander.get_kind_of(6).is_none(),
+            "Index 6 should return None (beyond data item count)"
+        );
+        assert!(
+            expander.get_kind_of(65).is_none(),
+            "Index 65 should return None (beyond data item count)"
+        );
+
+        // Verify we can actually retrieve the values
+        let _bool_val: crate::FheBool = expander.get(0).unwrap().unwrap();
+        let _u8_val_1: crate::FheUint8 = expander.get(1).unwrap().unwrap();
+        let _u8_val_2: crate::FheUint8 = expander.get(2).unwrap().unwrap();
+        let _u16_val: crate::FheUint16 = expander.get(3).unwrap().unwrap();
+        let _u32_val: crate::FheUint32 = expander.get(4).unwrap().unwrap();
+        let _u64_val: crate::FheUint64 = expander.get(5).unwrap().unwrap();
     }
 }
