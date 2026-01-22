@@ -52,10 +52,7 @@ template <typename Torus> struct int_mul_memory {
       return;
     }
 
-    auto glwe_dimension = params.glwe_dimension;
-    auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
-    auto carry_modulus = params.carry_modulus;
 
     // 'vector_result_lsb' contains blocks from all possible shifts of
     // radix_lwe_left excluding zero ciphertext blocks

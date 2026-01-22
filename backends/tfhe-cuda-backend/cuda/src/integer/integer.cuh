@@ -1067,6 +1067,88 @@ void generate_device_accumulator_bivariate(
   POP_RANGE()
 }
 
+template <typename Torus> struct int_lut_cache {
+  int_lut_cache() {}
+
+  Torus *get_cached_lut(std::function<Torus(Torus)> &f, uint64_t *degree,
+                        uint64_t *max_degree, uint32_t glwe_dimension,
+                        uint32_t polynomial_size,
+                        uint32_t input_message_modulus,
+                        uint32_t input_carry_modulus,
+                        uint32_t output_message_modulus,
+                        uint32_t output_carry_modulus) {
+    __int128_t f_hash = 0;
+    uint32_t bits_per_lut_val = 5;
+    uint32_t input_modulus_sup = input_message_modulus * input_carry_modulus;
+    for (uint32_t i = 0; i < input_modulus_sup; ++i) {
+      Torus f_eval = f(i);
+      GPU_ASSERT(f_eval < (1 << bits_per_lut_val),
+                 "LUT value expected bitwidth overflow");
+      f_hash |= f_eval;
+      f_hash <<= bits_per_lut_val;
+    }
+    /*printf("%016llX%016llX\n",
+           (unsigned long long)((f_hash >> 64) & 0xFFFFFFFFFFFFFFFF),
+           (unsigned long long)(f_hash & 0xFFFFFFFFFFFFFFFF));*/
+
+    std::lock_guard cache_lock(_mutex);
+    if (_lut_cache.find(f_hash) != _lut_cache.end()) {
+      lut_ptr &ptr = _lut_cache[f_hash];
+      GPU_ASSERT(ptr.output_message_modulus == output_message_modulus,
+                 "Error modulus");
+      GPU_ASSERT(ptr.input_message_modulus == input_message_modulus,
+                 "Error modulus");
+      GPU_ASSERT(ptr.glwe_dimension == glwe_dimension, "Error modulus");
+      *max_degree = ptr.max_degree;
+      *degree = ptr.degree;
+      return ptr.ptr;
+    }
+
+    // host lut
+    Torus *h_lut =
+        (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+    *max_degree = input_message_modulus * input_carry_modulus - 1;
+    *degree = generate_lookup_table_with_encoding<Torus>(
+        h_lut, glwe_dimension, polynomial_size, input_message_modulus,
+        input_carry_modulus, output_message_modulus, output_carry_modulus, f);
+
+    lut_ptr new_ptr = {h_lut,
+                       glwe_dimension,
+                       input_message_modulus,
+                       input_carry_modulus,
+                       output_message_modulus,
+                       output_carry_modulus,
+                       *max_degree,
+                       *degree};
+    _lut_cache[f_hash] = new_ptr;
+    return h_lut;
+  }
+
+  ~int_lut_cache() {
+    std::lock_guard cache_lock(_mutex);
+    for (auto v : _lut_cache) {
+      free(v.second.ptr);
+    }
+    _lut_cache.clear();
+  }
+
+private:
+  struct lut_ptr {
+    Torus *ptr;
+    uint32_t glwe_dimension;
+    uint32_t input_message_modulus;
+    uint32_t input_carry_modulus;
+    uint32_t output_message_modulus;
+    uint32_t output_carry_modulus;
+    uint64_t max_degree;
+    uint64_t degree;
+  };
+  std::map<__int128_t, lut_ptr> _lut_cache;
+  std::mutex _mutex;
+};
+static int_lut_cache<uint64_t> g_LutCache64;
+
 /*
  *  generate bivariate accumulator with factor scaling for device pointer
  *    v_stream - cuda stream
@@ -1145,23 +1227,36 @@ void generate_device_accumulator_with_encoding(
     uint32_t output_message_modulus, uint32_t output_carry_modulus,
     std::function<Torus(Torus)> f, bool gpu_memory_allocated) {
 
+  static constexpr auto is_u64 = std::is_same_v<Torus, uint64_t>;
+  Torus *h_lut = nullptr;
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  if constexpr (is_u64) {
+    h_lut = g_LutCache64.get_cached_lut(
+        f, degree, max_degree, glwe_dimension, polynomial_size,
+        input_message_modulus, input_carry_modulus, output_message_modulus,
+        output_carry_modulus);
+  } else {
+    h_lut =
+        (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
-  *max_degree = input_message_modulus * input_carry_modulus - 1;
-  // fill accumulator
-  *degree = generate_lookup_table_with_encoding<Torus>(
-      h_lut, glwe_dimension, polynomial_size, input_message_modulus,
-      input_carry_modulus, output_message_modulus, output_carry_modulus, f);
+    *max_degree = input_message_modulus * input_carry_modulus - 1;
+    // fill accumulator
+    *degree = generate_lookup_table_with_encoding<Torus>(
+        h_lut, glwe_dimension, polynomial_size, input_message_modulus,
+        input_carry_modulus, output_message_modulus, output_carry_modulus, f);
+  }
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+
+  if (!std::is_same_v<Torus, uint64_t>) {
+    cuda_synchronize_stream(stream, gpu_index);
+    free(h_lut);
+  }
 }
+
 template <typename Torus>
 void generate_device_accumulator_with_encoding_with_cpu_prealloc(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
