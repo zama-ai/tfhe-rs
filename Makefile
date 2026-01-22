@@ -29,6 +29,7 @@ WASM_PACK_VERSION="0.13.1"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
+TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.42.0
 ZIZMOR_VERSION=1.20.0
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -171,6 +172,10 @@ install_cargo_dylint:
 install_cargo_audit:
 	cargo install --locked cargo-audit
 
+.PHONY: install_taplo # Check Cargo.toml format
+install_taplo:
+	@./scripts/install_taplo.sh --taplo-version $(TAPLO_VERSION)
+
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker:
 	@./scripts/install_typos.sh --typos-version $(TYPOS_VERSION)
@@ -283,6 +288,10 @@ fmt_gpu: install_rs_check_toolchain
 fmt_c_tests:
 	find tfhe/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
 
+.PHONY: fmt_toml # Format TOML files
+fmt_toml: install_taplo
+	taplo fmt
+
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
@@ -306,6 +315,11 @@ check_fmt_js: check_nvm_installed
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt && \
 	$(MAKE) -C tfhe/js_on_wasm_tests check_fmt
+
+.PHONY: check_fmt_toml # Check TOML files format
+check_fmt_toml: install_taplo
+	@RUST_LOG=warn taplo fmt --check || \
+	echo "TOML files format check failed. Please run 'make fmt_toml'"
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
@@ -1846,6 +1860,7 @@ pcc_batch_1:
 	$(call run_recipe_with_details,no_dbg_log)
 	$(call run_recipe_with_details,check_parameter_export_ok)
 	$(call run_recipe_with_details,check_fmt)
+	$(call run_recipe_with_details,check_fmt_toml)
 	$(call run_recipe_with_details,check_typos)
 	$(call run_recipe_with_details,lint_doc)
 	$(call run_recipe_with_details,check_md_docs_are_tested)
@@ -1921,6 +1936,7 @@ fpcc:
 	$(call run_recipe_with_details,no_dbg_log)
 	$(call run_recipe_with_details,check_parameter_export_ok)
 	$(call run_recipe_with_details,check_fmt)
+	$(call run_recipe_with_details,check_fmt_toml)
 	$(call run_recipe_with_details,check_typos)
 	$(call run_recipe_with_details,lint_doc)
 	$(call run_recipe_with_details,check_md_docs_are_tested)

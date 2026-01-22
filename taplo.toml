@@ -1,0 +1,13 @@
+# Configuration file for Taplo TOML file formatter.
+
+exclude = [
+    "backends/tfhe-hpu-backend/**/*.toml",
+    "mockups/tfhe-hpu-mockup/**/*.toml",
+    "utils/tfhe-backward-compat-data/crates/**/Cargo.toml",
+]
+include = [
+    "**/Cargo.toml"
+]
+
+[formatting]
+indent_string = "    "
