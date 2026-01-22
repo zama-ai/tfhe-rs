@@ -841,6 +841,18 @@ struct int_radix_lut_custom_input_output {
       bool gpu_memory_allocated) {
     // streams should be a subset of active_streams
 
+      __int128_t f_hash = 0;
+      uint32_t bits_per_lut_val = params.message_modulus + params.carry_modulus;
+      uint32_t input_modulus_sup = params.message_modulus * params.carry_modulus;
+      for (uint32_t i = 0; i < input_modulus_sup; ++i)
+      {
+          OutputTorus f_eval = f(i);
+          GPU_ASSERT(f_eval < (1 << bits_per_lut_val), "LUT value expected bitwidth overflow");
+            f_hash |= f_eval;
+          f_hash <<= bits_per_lut_val;
+      }
+      printf("%llX%llX\n", (unsigned long long)((f_hash >> 64) & 0xFFFFFFFFFFFFFFFF), (unsigned long long)(f_hash & 0xFFFFFFFFFFFFFFFF));
+
     for (uint32_t i = 0; i < lut_indexes.size(); ++i) {
       generate_device_accumulator<OutputTorus>(
           streams.stream(0), streams.gpu_index(0), get_lut(0, lut_indexes[i]),
@@ -1430,10 +1442,6 @@ template <typename Torus> struct int_seq_group_prop_memory {
                             uint32_t group_size, uint32_t big_lwe_size_bytes,
                             bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
-    auto glwe_dimension = params.glwe_dimension;
-    auto polynomial_size = params.polynomial_size;
-    auto message_modulus = params.message_modulus;
-    auto carry_modulus = params.carry_modulus;
 
     grouping_size = group_size;
     group_resolved_carries = new CudaRadixCiphertextFFI;
