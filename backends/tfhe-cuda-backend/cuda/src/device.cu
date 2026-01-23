@@ -30,8 +30,9 @@ bool mem_pools_enabled = false;
 // better results.
 void cuda_setup_mempool(uint32_t caller_gpu_index) {
   if (!mem_pools_enabled) {
-    pool_mutex.lock();
-    if (mem_pools_enabled)
+    std::lock_guard lock(pool_mutex);
+    if (mem_pools_enabled) // double-check - mem_pools_enabled might have been
+                           // changed in a different thread
       return; // If mem pools are already enabled, we don't need to do anything
 
     // We do it only once for all GPUs
@@ -78,7 +79,6 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
     }
     // We return to the original gpu_index
     cuda_set_device(caller_gpu_index);
-    pool_mutex.unlock();
   }
 }
 
