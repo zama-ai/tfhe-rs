@@ -349,9 +349,25 @@ impl FromAsm for field::PeSyncInsn {
             }
         };
 
+        let (is_inner_sync, flag) = if let Some(arg) = args.get(1) {
+            match arg {
+                Arg::UcoreFlag(flag) => (true, flag.clone()),
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::UcoreFlag".to_string(),
+                        args[1].clone(),
+                    ))
+                }
+            }
+        } else {
+            (false, Default::default())
+        };
+
         Ok(Self {
             opcode: Opcode::from(opcode),
             iid,
+            is_inner_sync,
+            flag,
         })
     }
 }

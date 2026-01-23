@@ -279,7 +279,9 @@ impl std::fmt::Display for PbsGid {
 
 /// UserFlag
 /// Describe user event flag. It's like a hash/UUID for matching Ucore instruction together
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash, Default,
+)]
 pub struct UserFlag(pub u8);
 
 impl std::fmt::Display for UserFlag {
@@ -374,6 +376,8 @@ pub struct PeMemInsn {
 /// PeSync instructions
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeSyncInsn {
+    pub flag: UserFlag,
+    pub is_inner_sync: bool,
     pub iid: IOpId,
     pub opcode: Opcode,
 }
