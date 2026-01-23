@@ -1077,7 +1077,7 @@ template <typename Torus> struct int_lut_cache {
                         uint32_t input_carry_modulus,
                         uint32_t output_message_modulus,
                         uint32_t output_carry_modulus) {
-    __int128_t f_hash = 0;
+    /*__int128_t f_hash = 0;
     uint32_t bits_per_lut_val = 5;
     uint32_t input_modulus_sup = input_message_modulus * input_carry_modulus;
     for (uint32_t i = 0; i < input_modulus_sup; ++i) {
@@ -1099,7 +1099,7 @@ template <typename Torus> struct int_lut_cache {
       *max_degree = ptr.max_degree;
       *degree = ptr.degree;
       return ptr.ptr;
-    }
+    }*/
 
     // host lut
     Torus *h_lut =
@@ -1110,15 +1110,15 @@ template <typename Torus> struct int_lut_cache {
         h_lut, glwe_dimension, polynomial_size, input_message_modulus,
         input_carry_modulus, output_message_modulus, output_carry_modulus, f);
 
-    lut_ptr new_ptr = {h_lut,
+    /*lut_ptr new_ptr = {h_lut,
                        glwe_dimension,
                        input_message_modulus,
                        input_carry_modulus,
                        output_message_modulus,
                        output_carry_modulus,
                        *max_degree,
-                       *degree};
-    _lut_cache[f_hash] = new_ptr;
+                       *degree};*/
+    //_lut_cache[f_hash] = new_ptr;
     return h_lut;
   }
 
