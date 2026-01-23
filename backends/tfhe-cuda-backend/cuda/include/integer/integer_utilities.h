@@ -849,7 +849,7 @@ struct int_radix_lut_custom_input_output {
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, f[i], gpu_memory_allocated);
     }
-    broadcast_lut(streams);
+   //broadcast_lut(streams);
   }
 
   void generate_and_broadcast_bivariate_lut(
@@ -883,7 +883,7 @@ struct int_radix_lut_custom_input_output {
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, f[i], gpu_memory_allocated);
     }
-    broadcast_lut(streams);
+    //broadcast_lut(streams);
   }
 
   void release(CudaStreams streams) {

@@ -1228,7 +1228,7 @@ void generate_device_accumulator_with_encoding(
   Torus *h_lut = nullptr;
   // host lut
   if constexpr (is_u64) {
-    h_lut = g_LutCache64.get_cached_lut(
+    h_lut = g_LutCache64.get_cached_univariate_lut(
         f, degree, max_degree, glwe_dimension, polynomial_size,
         input_message_modulus, input_carry_modulus, output_message_modulus,
         output_carry_modulus);
@@ -1242,12 +1242,12 @@ void generate_device_accumulator_with_encoding(
         h_lut, glwe_dimension, polynomial_size, input_message_modulus,
         input_carry_modulus, output_message_modulus, output_carry_modulus, f);
   }
-
+/*
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
-
+*/
   if (!std::is_same_v<Torus, uint64_t>) {
     cuda_synchronize_stream(stream, gpu_index);
     free(h_lut);
