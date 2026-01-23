@@ -3,14 +3,17 @@
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
 use lazy_static::lazy_static;
+use libc;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read};
 use std::os::fd::AsRawFd;
+use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
-const AMI_VERSION_PATTERN: &str = r"3\.1\.\d+-zama";
+const AMI_VERSION_PATTERN: &str = r"3\.2\.\d+-zama";
 
 const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
 const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)";
@@ -78,7 +81,7 @@ impl AmiInfo {
 
 pub struct AmiDriver {
     ami_dev: File,
-    ami_info: AmiInfo,
+    iop_ack_atomic_ptr: NonNull<AtomicU32>,
     retry_rate: Duration,
 }
 
@@ -99,11 +102,33 @@ impl AmiDriver {
             .create(false)
             .open(ami_path)?;
 
-        Ok(Self {
-            ami_dev,
-            ami_info,
-            retry_rate,
-        })
+        let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_info.devn);
+        let ami_proc = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(false)
+            .open(&ami_proc_path)
+            .unwrap();
+        unsafe {
+            let addr = libc::mmap(
+                std::ptr::null_mut(),
+                4096,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED,
+                ami_proc.as_raw_fd(),
+                0,
+            );
+
+            if addr == libc::MAP_FAILED {
+                return Err(format!("mmap on ami_iop_ack_{} failed", ami_info.devn).into());
+            }
+
+            Ok(Self {
+                ami_dev,
+                iop_ack_atomic_ptr: NonNull::new_unchecked(addr as *mut AtomicU32),
+                retry_rate,
+            })
+        }
     }
 
     /// Read currently loaded UUID in BAR
@@ -359,32 +384,9 @@ impl AmiDriver {
         }
     }
 
-    // TODO ugly quick patch
-    // Clean this when driver interface is specified
+    // read shared atomic counter of iop acknowledge
     pub fn iop_ackq_rd(&self) -> u32 {
-        let ami_devn = self.ami_info.devn;
-        let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_devn);
-        let mut iop_ack_f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(false)
-            .open(&ami_proc_path)
-            .unwrap();
-
-        // Read a line and extract a 32b integer
-        let mut ack_str = String::new();
-        iop_ack_f.read_to_string(&mut ack_str).unwrap();
-        if ack_str.is_empty() {
-            0
-        } else {
-            let ack_nb = ack_str
-                .as_str()
-                .lines()
-                .map(|line| line.trim_ascii().parse::<u32>().unwrap())
-                .sum();
-            tracing::trace!("Get value {ack_str} from {ami_proc_path} => {ack_nb}",);
-            ack_nb
-        }
+        unsafe { self.iop_ack_atomic_ptr.as_ref().swap(0, Ordering::SeqCst) }
     }
 }
 
