@@ -1070,7 +1070,7 @@ void generate_device_accumulator_bivariate(
 template <typename Torus> struct int_lut_cache {
   int_lut_cache() {}
 
-  Torus *get_cached_lut(std::function<Torus(Torus)> &f, uint64_t *degree,
+  Torus *get_cached_univariate_lut(std::function<Torus(Torus)> &f, uint64_t *degree,
                         uint64_t *max_degree, uint32_t glwe_dimension,
                         uint32_t polynomial_size,
                         uint32_t input_message_modulus,
@@ -1087,9 +1087,6 @@ template <typename Torus> struct int_lut_cache {
       f_hash |= f_eval;
       f_hash <<= bits_per_lut_val;
     }
-    /*printf("%016llX%016llX\n",
-           (unsigned long long)((f_hash >> 64) & 0xFFFFFFFFFFFFFFFF),
-           (unsigned long long)(f_hash & 0xFFFFFFFFFFFFFFFF));*/
 
     std::lock_guard cache_lock(_mutex);
     if (_lut_cache.find(f_hash) != _lut_cache.end()) {
@@ -1180,8 +1177,8 @@ void generate_device_accumulator_bivariate_with_factor(
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
       gpu_memory_allocated);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+//  cuda_synchronize_stream(stream, gpu_index);
+//  free(h_lut);
 }
 /*
  *  generate bivariate accumulator for device pointer
@@ -1359,8 +1356,8 @@ void generate_many_lut_device_accumulator(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
 
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  //cuda_synchronize_stream(stream, gpu_index);
+  //free(h_lut);
   POP_RANGE()
 }
 
