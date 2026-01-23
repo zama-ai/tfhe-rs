@@ -16,7 +16,7 @@ RUST_LOG="info"
 XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
 
 # V80 bitstream refresh require insmod of ami.ko module
-AMI_PATH=${AMI_PATH:-"/opt/v80/ami/5bf959e"}
+AMI_PATH=${AMI_PATH:-"/opt/v80/ami/bd569ee"}
 
 # Parse user CLI ##############################################################
 opt_short="hc:l:p:"

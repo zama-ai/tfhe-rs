@@ -3,10 +3,15 @@
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
 use lazy_static::lazy_static;
+use nix::sys::mman::{mmap, munmap, MapFlags, ProtFlags};
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read};
+use std::num::NonZero;
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::OpenOptionsExt;
+use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
@@ -23,6 +28,9 @@ const HIS_VERSION_PATTERN: &str = r".*- zama ucore (?<major>\d+).(?<minor>\d+)";
 use crate::ffi::v80::pdi::metadata::Version;
 use crate::ffi::v80::pdi::uuid::AMI_UUID_WORDS;
 
+const AMI_ACK_PTR_LEN: usize = 4096;
+const AMI_BAR_LEN: usize = 0x160000;
+const AMI_BAR_REG_OFFSET: u64 = 0x100000;
 const AMI_UUID_BAR_OFFSET: u64 = 0x1001000;
 
 // NB: Some field available in the driver file were never used
@@ -80,7 +88,8 @@ impl AmiInfo {
 
 pub struct AmiDriver {
     ami_dev: File,
-    ami_info: AmiInfo,
+    bar_reg_ptr: Option<NonNull<u8>>,
+    iop_ack_atomic_ptr: NonNull<AtomicU32>,
     retry_rate: Duration,
 }
 
@@ -99,13 +108,63 @@ impl AmiDriver {
             .read(true)
             .write(true)
             .create(false)
+            .custom_flags(libc::O_SYNC)
             .open(ami_path)?;
+
+        let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_info.devn);
+        let ami_proc = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(false)
+            .open(&ami_proc_path)
+            .unwrap();
+
+        let addr = unsafe {
+            mmap(
+                None,
+                NonZero::new(AMI_ACK_PTR_LEN).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+                MapFlags::MAP_SHARED,
+                &ami_proc,
+                0,
+            )?
+        };
+
+        let iop_ack_atomic_ptr: NonNull<AtomicU32> = addr.cast();
 
         Ok(Self {
             ami_dev,
-            ami_info,
+            bar_reg_ptr: None,
+            iop_ack_atomic_ptr,
             retry_rate: retry_rate.unwrap_or(std::time::Duration::from_micros(1)),
         })
+    }
+
+    pub fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let map_addr = unsafe {
+            mmap(
+                None,
+                NonZero::new(AMI_BAR_LEN).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE, // Read & Write
+                MapFlags::MAP_SHARED,
+                &self.ami_dev,
+                0, // Offset in BAR0
+            )?
+        };
+        tracing::info!("mapping HPU BAR0 at address -> {:p}", map_addr);
+
+        let bar_addr: NonNull<u8> = map_addr.cast();
+        self.bar_reg_ptr = Some(bar_addr);
+
+        Ok(())
+    }
+
+    pub fn munmap_cnt(&self) -> Result<(), Box<dyn Error>> {
+        let cnt_addr = self.iop_ack_atomic_ptr.cast();
+        unsafe {
+            munmap(cnt_addr, AMI_ACK_PTR_LEN)?;
+        }
+        Ok(())
     }
 
     /// Read currently loaded UUID in BAR
@@ -235,24 +294,34 @@ impl AmiDriver {
         let data = Box::<u32>::new(0xdeadc0de);
         let data_ptr = Box::into_raw(data);
 
-        // Populate payload
-        let payload = AmiPeakPokePayload {
-            data_ptr,
-            len: 0x1,
-            offset: addr as u32,
-        };
+        if let Some(base) = self.bar_reg_ptr {
+            unsafe {
+                let raw_base = base.as_ptr();
+                let reg_ptr =
+                    raw_base.add((addr + AMI_BAR_REG_OFFSET).try_into().unwrap()) as *const u32;
+                *data_ptr = std::ptr::read_volatile(reg_ptr);
+                tracing::trace!("AMI: BAR0 Read @{addr:x} {:x}", *data_ptr);
+            }
+        } else {
+            // Populate payload
+            let payload = AmiPeakPokePayload {
+                data_ptr,
+                len: 0x1,
+                offset: addr as u32,
+            };
 
-        tracing::trace!("AMI: Read request with following payload {payload:x?}");
-        loop {
-            let ret = unsafe { ami_peak(ami_fd, &payload) };
-            match ret {
-                Err(err) => {
-                    tracing::debug!("AMI: Read failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate);
-                }
-                Ok(val) => {
-                    tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
-                    break;
+            tracing::trace!("AMI: Read request with following payload {payload:x?}");
+            loop {
+                let ret = unsafe { ami_peak(ami_fd, &payload) };
+                match ret {
+                    Err(err) => {
+                        tracing::debug!("AMI: Read failed -> {err:?}");
+                        std::thread::sleep(self.retry_rate);
+                    }
+                    Ok(val) => {
+                        tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
+                        break;
+                    }
                 }
             }
         }
@@ -266,24 +335,34 @@ impl AmiDriver {
         let data = Box::<u32>::new(value);
         let data_ptr = Box::into_raw(data);
 
-        // Populate payload
-        let payload = AmiPeakPokePayload {
-            data_ptr,
-            len: 0x1,
-            offset: addr as u32,
-        };
+        if let Some(base) = self.bar_reg_ptr {
+            unsafe {
+                tracing::trace!("AMI: BAR0 Write @{addr:x} {value:x}");
+                let raw_base = base.as_ptr();
+                let reg_ptr =
+                    raw_base.add((addr + AMI_BAR_REG_OFFSET).try_into().unwrap()) as *mut u32;
+                std::ptr::write_volatile(reg_ptr, value);
+            }
+        } else {
+            // Populate payload
+            let payload = AmiPeakPokePayload {
+                data_ptr,
+                len: 0x1,
+                offset: addr as u32,
+            };
 
-        tracing::trace!("AMI: Write request with following payload {payload:x?}");
-        loop {
-            let ret = unsafe { ami_poke(ami_fd, &payload) };
-            match ret {
-                Err(err) => {
-                    tracing::debug!("AMI: Write failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate);
-                }
-                Ok(val) => {
-                    tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
-                    break;
+            tracing::trace!("AMI: Write request with following payload {payload:x?}");
+            loop {
+                let ret = unsafe { ami_poke(ami_fd, &payload) };
+                match ret {
+                    Err(err) => {
+                        tracing::debug!("AMI: Write failed -> {err:?}");
+                        std::thread::sleep(self.retry_rate);
+                    }
+                    Ok(val) => {
+                        tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
+                        break;
+                    }
                 }
             }
         }
@@ -360,36 +439,9 @@ impl AmiDriver {
         }
     }
 
-    // TODO ugly quick patch
-    // Clean this when driver interface is specified
+    // read shared atomic counter of iop acknowledge
     pub fn iop_ackq_rd(&self) -> u32 {
-        let ami_devn = self.ami_info.devn;
-        let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_devn);
-        let mut iop_ack_f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(false)
-            .open(&ami_proc_path)
-            .unwrap();
-
-        // Read a line and extract a 32b integer
-        let mut ack_str = String::new();
-        iop_ack_f.read_to_string(&mut ack_str).unwrap();
-        if ack_str.is_empty() {
-            0
-        } else {
-            let ack_nb = ack_str
-                .as_str()
-                .lines()
-                .map(|line| {
-                    line.trim_ascii().parse::<u32>().unwrap_or_else(|e| {
-                        panic!("Error with iop_ackq_rd in {ami_proc_path}::{ack_str}: {e}")
-                    })
-                })
-                .sum();
-            tracing::trace!("Get value {ack_str} from {ami_proc_path} => {ack_nb}",);
-            ack_nb
-        }
+        unsafe { self.iop_ack_atomic_ptr.as_ref().swap(0, Ordering::SeqCst) }
     }
 }
 
