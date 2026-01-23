@@ -8,35 +8,19 @@ use dyn_stack::{PodStack, StackReq};
 use std::sync::{Arc, OnceLock};
 use tfhe_fft::fft128::{f128, Plan};
 
-#[derive(Clone)]
-pub(crate) struct PlanWrapper(Plan);
-impl core::ops::Deref for PlanWrapper {
-    type Target = Plan;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl core::fmt::Debug for PlanWrapper {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        "[?]".fmt(f)
-    }
-}
-
 /// Negacyclic Fast Fourier Transform. See [`Fft128View`] for transform functions.
 ///
 /// This structure contains the twisting factors as well as the
 /// FFT plan needed for the negacyclic convolution over the reals.
 #[derive(Clone, Debug)]
 pub struct Fft128 {
-    plan: Arc<PlanWrapper>,
+    plan: Arc<Plan>,
 }
 
 /// View type for [`Fft128`].
 #[derive(Clone, Copy, Debug)]
 pub struct Fft128View<'a> {
-    pub(crate) plan: &'a PlanWrapper,
+    pub(crate) plan: &'a Plan,
 }
 
 impl Fft128 {
@@ -45,7 +29,7 @@ impl Fft128 {
     }
 }
 
-type PlanMap = GenericPlanMap<PolynomialSize, PlanWrapper>;
+type PlanMap = GenericPlanMap<PolynomialSize, Plan>;
 
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
@@ -58,7 +42,7 @@ impl Fft128 {
         let global_plans = plans();
 
         let plan = global_plans.get_or_init(polynomial_size, |polynomial_size| {
-            PlanWrapper(Plan::new(polynomial_size.to_fourier_polynomial_size().0))
+            Plan::new(polynomial_size.to_fourier_polynomial_size().0)
         });
 
         Self { plan }
