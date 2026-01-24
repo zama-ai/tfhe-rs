@@ -159,7 +159,7 @@ class GenericFormatter:
         self.requested_grouping_factor = grouping_factor
 
     def format_data(
-        self, data: dict[BenchDetails : list[int]], conversion_func: Callable
+        self, data: dict[BenchDetails : list[int]], conversion_func: Callable = None
     ):
         """
         Formats data based on the specified layer and applies a conversion function to
@@ -175,7 +175,7 @@ class GenericFormatter:
         :type data: dict[BenchDetails : list[int]]
         :param conversion_func: A callable function that will be applied to transform
             the data values based on the specific layer requirements.
-        :type conversion_func: Callable
+        :type conversion_func: Callable, optional
 
         :return: The formatted data results after applying layer and conversion logic.
         :rtype: Any
@@ -269,10 +269,9 @@ class CSVFormatter(GenericFormatter):
             case Layer.CoreCrypto:
                 headers = ["Operation \\ Parameters set", *headers_values]
             case _:
-                print(
+                raise NotImplementedError(
                     f"tfhe-rs layer '{self.layer}' currently not supported for CSV writing"
                 )
-                raise NotImplementedError
 
         csv_data = [headers]
         csv_data.extend(
@@ -374,6 +373,14 @@ class SVGFormatter(GenericFormatter):
         for row_idx, type_ident in enumerate(headers):
             curr_x = op_name_col_width + row_idx * per_timing_col_width
 
+            header_one_row_span = self._build_svg_text(
+                curr_x + per_timing_col_width / 2,
+                row_height / 2,
+                type_ident,
+                fill=WHITE_COLOR,
+                font_weight="bold",
+            )
+
             match layer:
                 case Layer.Integer:
                     if type_ident.startswith("FheUint"):
@@ -399,28 +406,16 @@ class SVGFormatter(GenericFormatter):
                             ]
                         )
                     else:  # Backends comparison (CPU, GPU, HPU)
-                        header_elements.append(
-                            self._build_svg_text(
-                                curr_x + per_timing_col_width / 2,
-                                row_height / 2,
-                                type_ident,
-                                fill=WHITE_COLOR,
-                                font_weight="bold",
-                            )
-                        )
+                        header_elements.append(header_one_row_span)
                 case Layer.CoreCrypto:
-                    header_elements.append(
-                        # Core_crypto arrays contains only ciphertext modulus size as headers
-                        self._build_svg_text(
-                            curr_x + per_timing_col_width / 2,
-                            row_height / 2,
-                            type_ident,
-                            fill=WHITE_COLOR,
-                            font_weight="bold",
-                        )
-                    )
+                    # Core_crypto arrays contains only ciphertext modulus size as headers
+                    header_elements.append(header_one_row_span)
+                case Layer.HLApi:
+                    header_elements.append(header_one_row_span)
                 case _:
-                    raise NotImplementedError
+                    raise NotImplementedError(
+                        f"svg header row generation not supported for '{layer}' layer"
+                    )
 
         return header_elements
 
