@@ -50,7 +50,7 @@ jobs:
       pull-requests: write # Needed to write a comment in a pull-request
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
             gcc: 11
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
@@ -191,7 +191,7 @@ jobs:
         command: ${{ fromJson(needs.prepare-benchmarks.outputs.commands) }}
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0  # Needed to get commit hash
           persist-credentials: 'false'
@@ -245,7 +245,7 @@ jobs:
           toolchain: nightly
 
       - name: Checkout Slab repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: zama-ai/slab
           path: slab
@@ -305,7 +305,7 @@ jobs:
       REF_NAME: ${{ github.head_ref || github.ref_name }}
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
