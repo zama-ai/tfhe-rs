@@ -119,7 +119,7 @@ jobs:
 
       - name: Node cache restoration
         id: node-cache
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb #v5.0.1
+        uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 #v5.0.2
         with:
           path: |
             ~/.nvm
@@ -132,7 +132,7 @@ jobs:
           make install_node
 
       - name: Node cache save
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb #v5.0.1
+        uses: actions/cache/save@8b402f58fbc84540c8b491a91e594a4576fec3d7 #v5.0.2
         if: steps.node-cache.outputs.cache-hit != 'true'
         with:
           path: |
