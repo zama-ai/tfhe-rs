@@ -482,4 +482,38 @@ public:
   }
 };
 
+// Event pool for managing temporary CUDA events in scatter/gather operations
+struct CudaEventPool {
+private:
+  std::vector<cudaEvent_t> _events;
+  std::vector<uint32_t> _gpu_indices;
+
+public:
+  CudaEventPool() {}
+
+  // Requests a new event from the pool (creates and stores it)
+  cudaEvent_t request_event(uint32_t gpu_index) {
+    cudaEvent_t event = cuda_create_event(gpu_index);
+    _events.push_back(event);
+    _gpu_indices.push_back(gpu_index);
+    return event;
+  }
+
+  // Releases all pooled events
+  // This should always be called in the release of the LUT, so streams
+  // are already synchronized
+  void release() {
+    for (size_t i = 0; i < _events.size(); i++) {
+      cuda_event_destroy(_events[i], _gpu_indices[i]);
+    }
+    _events.clear();
+    _gpu_indices.clear();
+  }
+
+  ~CudaEventPool() {
+    GPU_ASSERT(_events.empty(),
+               "CudaEventPool: must call release before destruction");
+  }
+};
+
 #endif

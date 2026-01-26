@@ -349,6 +349,7 @@ struct int_radix_lut_custom_input_output {
 
   CudaStreamsBarrier multi_gpu_scatter_barrier, multi_gpu_broadcast_barrier;
   CudaStreamsBarrier multi_gpu_gather_barrier;
+  CudaEventPool event_pool;
 
   // Setup the LUT configuration:
   // input_big_lwe_dimension: BIG LWE dimension of the KS output / PBS input
@@ -865,6 +866,7 @@ struct int_radix_lut_custom_input_output {
 
     if (active_streams.count() > 1) {
       active_streams.synchronize();
+      event_pool.release();
       multi_gpu_gather_barrier.release();
       multi_gpu_broadcast_barrier.release();
       multi_gpu_scatter_barrier.release();

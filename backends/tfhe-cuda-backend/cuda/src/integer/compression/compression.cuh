@@ -368,7 +368,7 @@ host_integer_decompress(CudaStreams streams,
       /// gather data to GPU 0 we can copy back to the original indexing
       multi_gpu_scatter_lwe_async<Torus>(
           active_streams, lwe_array_in_vec, extracted_lwe, lut->lwe_indexes_in,
-          lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
+          lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec, lut->event_pool,
           lut->active_streams.count(), num_blocks_to_decompress,
           compression_params.small_lwe_dimension + 1);
 
@@ -388,7 +388,7 @@ host_integer_decompress(CudaStreams streams,
       multi_gpu_gather_lwe_async<Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lwe_after_pbs_vec,
           lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-          lut->lwe_aligned_vec, num_blocks_to_decompress,
+          lut->lwe_aligned_vec, lut->event_pool, num_blocks_to_decompress,
           encryption_params.big_lwe_dimension + 1);
 
       /// Synchronize all GPUs
