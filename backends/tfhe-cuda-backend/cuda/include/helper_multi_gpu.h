@@ -11,10 +11,6 @@ extern bool p2p_enabled;
 extern const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS;
 extern const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
 
-extern "C" {
-int32_t cuda_setup_multi_gpu(int device_0_id);
-}
-
 // Define a variant type that can be either a vector or a single pointer
 template <typename Torus>
 using LweArrayVariant = std::variant<std::vector<Torus *>, Torus *>;
