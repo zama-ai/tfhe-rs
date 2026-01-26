@@ -158,13 +158,11 @@ __global__ void realign_with_indexes(Torus *d_vector,
 /// The output indexing is always the trivial one
 /// num_inputs: total num of lwe in src
 template <typename Torus>
-void multi_gpu_scatter_lwe_async(CudaStreams streams,
-                                 const std::vector<Torus *> &dest,
-                                 Torus const *src, Torus const *d_src_indexes,
-                                 bool is_trivial_index,
-                                 std::vector<Torus *> &aligned_vec,
-                                 uint32_t max_active_gpu_count,
-                                 uint32_t num_inputs, uint32_t lwe_size) {
+void multi_gpu_scatter_lwe_async(
+    CudaStreams streams, const std::vector<Torus *> &dest, Torus const *src,
+    Torus const *d_src_indexes, bool is_trivial_index,
+    std::vector<Torus *> &aligned_vec, CudaEventPool &event_pool,
+    uint32_t max_active_gpu_count, uint32_t num_inputs, uint32_t lwe_size) {
 
   PANIC_IF_FALSE(
       max_active_gpu_count >= streams.count(),
@@ -193,7 +191,7 @@ void multi_gpu_scatter_lwe_async(CudaStreams streams,
       if (d_src_indexes == nullptr)
         PANIC("Cuda error: source indexes should be initialized!");
 
-      cudaEvent_t temp_event2 = cuda_create_event(streams.gpu_index(0));
+      cudaEvent_t temp_event2 = event_pool.request_event(streams.gpu_index(0));
       cuda_set_device(streams.gpu_index(0));
       align_with_indexes<Torus><<<inputs_on_gpu, 1024, 0, streams.stream(0)>>>(
           aligned_vec[i], (Torus *)src, (Torus *)d_src_indexes + gpu_offset,
@@ -207,7 +205,7 @@ void multi_gpu_scatter_lwe_async(CudaStreams streams,
           dest[i], aligned_vec[i], inputs_on_gpu * lwe_size * sizeof(Torus),
           streams.stream(i), streams.gpu_index(i), true);
 
-      cudaEvent_t temp_event = cuda_create_event(streams.gpu_index(i));
+      cudaEvent_t temp_event = event_pool.request_event(streams.gpu_index(i));
       cuda_event_record(temp_event, streams.stream(i), streams.gpu_index(i));
       cuda_stream_wait_event(streams.stream(0), temp_event,
                              streams.gpu_index(0));
@@ -223,7 +221,8 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
                                 const std::vector<Torus *> &src,
                                 Torus *d_dest_indexes, bool is_trivial_index,
                                 std::vector<Torus *> &aligned_vec,
-                                uint32_t num_inputs, uint32_t lwe_size) {
+                                CudaEventPool &event_pool, uint32_t num_inputs,
+                                uint32_t lwe_size) {
 
   PANIC_IF_FALSE(src.size() >= streams.count(),
                  "Cuda error: src vector was not allocated for enough GPUs");
@@ -247,7 +246,7 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
       if (d_dest_indexes == nullptr)
         PANIC("Cuda error: destination indexes should be initialized!");
 
-      cudaEvent_t temp_event2 = cuda_create_event(streams.gpu_index(0));
+      cudaEvent_t temp_event2 = event_pool.request_event(streams.gpu_index(0));
 
       cuda_event_record(temp_event2, streams.stream(0), streams.gpu_index(0));
       cuda_stream_wait_event(streams.stream(i), temp_event2,
@@ -257,7 +256,7 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
           aligned_vec[i], src[i], inputs_on_gpu * lwe_size * sizeof(Torus),
           streams.stream(i), streams.gpu_index(i), true);
 
-      cudaEvent_t temp_event3 = cuda_create_event(streams.gpu_index(i));
+      cudaEvent_t temp_event3 = event_pool.request_event(streams.gpu_index(i));
       cuda_event_record(temp_event3, streams.stream(i), streams.gpu_index(i));
       cuda_stream_wait_event(streams.stream(0), temp_event3,
                              streams.gpu_index(0));

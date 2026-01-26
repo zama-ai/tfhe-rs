@@ -570,8 +570,8 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_in->ptr,
         lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
-        big_lwe_dimension + 1);
+        lut->lwe_aligned_vec, lut->event_pool, lut->active_streams.count(),
+        num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(
@@ -594,7 +594,8 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     multi_gpu_gather_lwe_async<Torus>(
         active_streams, (Torus *)lwe_array_out->ptr, lwe_after_pbs_vec,
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
+        lut->lwe_aligned_vec, lut->event_pool, num_radix_blocks,
+        big_lwe_dimension + 1);
     POP_RANGE()
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
         active_streams);
@@ -674,8 +675,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_in->ptr,
         lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
-        big_lwe_dimension + 1);
+        lut->lwe_aligned_vec, lut->event_pool, lut->active_streams.count(),
+        num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(
@@ -791,8 +792,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, (Torus *)lwe_array_pbs_in->ptr,
         lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, lut->active_streams.count(), num_radix_blocks,
-        big_lwe_dimension + 1);
+        lut->lwe_aligned_vec, lut->event_pool, lut->active_streams.count(),
+        num_radix_blocks, big_lwe_dimension + 1);
     POP_RANGE()
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(
@@ -815,7 +816,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     multi_gpu_gather_lwe_async<Torus>(
         active_streams, (Torus *)(lwe_array_out->ptr), lwe_after_pbs_vec,
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, num_radix_blocks, big_lwe_dimension + 1);
+        lut->lwe_aligned_vec, lut->event_pool, num_radix_blocks,
+        big_lwe_dimension + 1);
     POP_RANGE()
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
         active_streams);
@@ -2373,8 +2375,9 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
     multi_gpu_scatter_lwe_async<InputTorus>(
         active_streams, lwe_array_in_vec, (InputTorus *)lwe_array_pbs_in->ptr,
         lut->lwe_indexes_in, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_scatter_vec, lut->active_streams.count(),
-        lwe_array_out->num_radix_blocks, lut->input_big_lwe_dimension + 1);
+        lut->lwe_aligned_scatter_vec, lut->event_pool,
+        lut->active_streams.count(), lwe_array_out->num_radix_blocks,
+        lut->input_big_lwe_dimension + 1);
 
     execute_keyswitch_async<InputTorus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
@@ -2397,7 +2400,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
     multi_gpu_gather_lwe_async<__uint128_t>(
         active_streams, (__uint128_t *)lwe_array_out->ptr, lwe_after_pbs_vec,
         nullptr, lut->using_trivial_lwe_indexes, lut->lwe_aligned_gather_vec,
-        lwe_array_out->num_radix_blocks, big_lwe_dimension + 1);
+        lut->event_pool, lwe_array_out->num_radix_blocks,
+        big_lwe_dimension + 1);
 
     /// Synchronize all GPUs
     streams.synchronize();
