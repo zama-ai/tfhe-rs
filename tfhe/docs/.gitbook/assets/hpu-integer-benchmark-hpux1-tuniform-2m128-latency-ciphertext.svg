@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" preserveAspectRatio="meet" width="100%" height="520">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 560" preserveAspectRatio="meet" width="100%" height="560">
 	<rect x="0" y="0" width="720" height="40" fill="black"/>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="6" y="20.0">Operation \ Size</text>
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="342.0" y="13.333333333333334">FheUint</text>
@@ -12,80 +12,86 @@
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="594.0" y="29.666666666666668">64</text>
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="678.0" y="13.333333333333334">FheUint</text>
 	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="678.0" y="29.666666666666668">128</text>
-	<rect x="0" y="40" width="300" height="480" fill="#fbbc04"/>
-	<rect x="300" y="40" width="420" height="480" fill="#f3f3f3"/>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="60.0">Add / Sub (+,-)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="60.0">2.58 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="60.0">3.36 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="60.0">4.9 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="60.0">8.62 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="60.0">15.6 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="100.0">Mul (x)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="100.0">4.89 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="100.0">10.4 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="100.0">37.3 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="100.0">122 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="100.0">485 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="140.0">Equal / Not Equal (eq, ne)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="140.0">2.54 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="140.0">3.29 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="140.0">4.96 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="140.0">6.98 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="140.0">12.0 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="180.0">Comparisons (ge, gt, le, lt)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="180.0">2.55 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="180.0">3.31 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="180.0">5.06 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="180.0">6.94 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="180.0">12.0 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="220.0">Max / Min (max, min)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="220.0">3.23 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="220.0">4.82 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="220.0">7.38 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="220.0">11.8 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="220.0">21.1 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="260.0">Bitwise operations (&amp;, |, ^)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="260.0">1.14 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="260.0">1.28 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="260.0">2.15 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="260.0">3.08 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="260.0">5.71 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="300.0">Div / Rem  (/, %)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="300.0">41.8 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="300.0">102 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="300.0">278 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="300.0">925 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="300.0">3.45 s</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="340.0">Left / Right Shifts (&lt;&lt;, &gt;&gt;)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="340.0">3.29 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="340.0">5.13 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="340.0">29.8 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="340.0">82.0 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="340.0">290 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="380.0">Left / Right Rotations (left_rotate, right_rotate)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="380.0">3.36 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="380.0">6.22 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="380.0">34.4 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="380.0">88.9 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="380.0">318 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="420.0">Leading / Trailing zeros/ones</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="420.0">5.38 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="420.0">5.17 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="420.0">9.03 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="420.0">15.0 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="420.0">24.1 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="460.0">Log2</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="460.0">3.74 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="460.0">5.17 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="460.0">8.97 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="460.0">15.0 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="460.0">24.1 ms</text>
-	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="500.0">Select</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="500.0">1.24 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="500.0">2.17 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="500.0">3.05 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="500.0">5.69 ms</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="500.0">9.91 ms</text>
+	<rect x="0" y="40" width="300" height="520" fill="#fbbc04"/>
+	<rect x="300" y="40" width="420" height="520" fill="#f3f3f3"/>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="60.0">Negation (-)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="60.0">2.48 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="60.0">3.25 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="60.0">4.76 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="60.0">8.4 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="60.0">15.2 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="100.0">Add / Sub (+,-)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="100.0">2.55 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="100.0">3.2 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="100.0">4.69 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="100.0">8.35 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="100.0">15.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="140.0">Mul (x)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="140.0">4.72 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="140.0">10.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="140.0">37.0 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="140.0">122 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="140.0">484 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="180.0">Equal / Not Equal (eq, ne)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="180.0">2.47 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="180.0">3.18 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="180.0">4.88 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="180.0">6.77 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="180.0">11.9 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="220.0">Comparisons (ge, gt, le, lt)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="220.0">2.43 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="220.0">3.18 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="220.0">4.91 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="220.0">6.81 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="220.0">11.9 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="260.0">Max / Min (max, min)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="260.0">3.11 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="260.0">4.68 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="260.0">7.27 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="260.0">11.7 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="260.0">21.0 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="300.0">Bitwise operations (&amp;, |, ^)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="300.0">1.12 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="300.0">1.15 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="300.0">2.05 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="300.0">2.95 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="300.0">5.58 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="340.0">Div / Rem  (/, %)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="340.0">41.8 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="340.0">101 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="340.0">276 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="340.0">912 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="340.0">3.42 s</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="380.0">Left / Right Shifts (&lt;&lt;, &gt;&gt;)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="380.0">2.51 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="380.0">4.9 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="380.0">10.9 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="380.0">25.8 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="380.0">59.8 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="420.0">Left / Right Rotations (left_rotate, right_rotate)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="420.0">2.61 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="420.0">5.63 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="420.0">12.3 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="420.0">27.9 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="420.0">64.0 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="460.0">Leading / Trailing zeros/ones</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="460.0">5.19 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="460.0">5.04 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="460.0">8.87 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="460.0">14.7 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="460.0">23.7 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="500.0">Log2</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="500.0">3.63 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="500.0">5.13 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="500.0">8.82 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="500.0">14.8 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="500.0">23.6 ms</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="540.0">Select</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="540.0">1.13 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="540.0">2.02 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="540.0">2.95 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="540.0">5.53 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="540.0">9.85 ms</text>
 	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="720" y2="0"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="40" x2="720" y2="40"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="80" x2="720" y2="80"/>
@@ -99,11 +105,12 @@
 	<line stroke="white" stroke-width="2" x1="0" y1="400" x2="720" y2="400"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="440" x2="720" y2="440"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="480" x2="720" y2="480"/>
-	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="300.0" y1="0" x2="300.0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="384.0" y1="0" x2="384.0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="468.0" y1="0" x2="468.0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="552.0" y1="0" x2="552.0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="636.0" y1="0" x2="636.0" y2="520"/>
-	<line stroke="white" stroke-width="2" x1="720.0" y1="0" x2="720.0" y2="520"/>
+	<line stroke="white" stroke-width="2" x1="0" y1="520" x2="720" y2="520"/>
+	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="300.0" y1="0" x2="300.0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="384.0" y1="0" x2="384.0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="468.0" y1="0" x2="468.0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="552.0" y1="0" x2="552.0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="636.0" y1="0" x2="636.0" y2="560"/>
+	<line stroke="white" stroke-width="2" x1="720.0" y1="0" x2="720.0" y2="560"/>
 </svg>
