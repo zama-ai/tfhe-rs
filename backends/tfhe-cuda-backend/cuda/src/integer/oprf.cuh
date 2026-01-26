@@ -54,7 +54,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
         active_streams, lwe_array_in_vec, seeded_lwe_input, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec,
+        lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec, lut->event_pool,
         active_streams.count(), num_blocks_to_process,
         mem_ptr->params.small_lwe_dimension + 1);
     POP_RANGE()
@@ -72,7 +72,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
     multi_gpu_gather_lwe_async<Torus>(
         active_streams, (Torus *)radix_lwe_out->ptr, lwe_after_pbs_vec,
         lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        lut->lwe_aligned_vec, num_blocks_to_process,
+        lut->lwe_aligned_vec, lut->event_pool, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
     POP_RANGE()
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
