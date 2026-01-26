@@ -19,6 +19,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaRadixCiphertextInfo};
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
@@ -1007,6 +1008,71 @@ impl LweGenericBlindRotate128<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u12
                 "CPU manages this by taking a modswitched type to be able to apply \
                 the blind rotate correctly without redoing the modswitch, to adapt for the GPU case"
             ),
+        }
+    }
+}
+
+// Trait implementations for CudaKeySwitchingKey to enable noise distribution tests
+impl AllocateLweKeyswitchResult for CudaKeySwitchingKey<'_> {
+    type Output = CudaDynLwe;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let output_lwe_dimension = self
+            .key_switching_key_material
+            .lwe_keyswitch_key
+            .output_key_lwe_size()
+            .to_lwe_dimension();
+        let lwe_ciphertext_count = LweCiphertextCount(1);
+        let ciphertext_modulus = self.dest_server_key.ciphertext_modulus;
+
+        let cuda_lwe = CudaLweCiphertextList::new(
+            output_lwe_dimension,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            &side_resources.streams,
+        );
+        CudaDynLwe::U64(cuda_lwe)
+    }
+}
+
+impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaKeySwitchingKey<'_> {
+    type SideResources = CudaSideResources;
+
+    fn lwe_keyswitch(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        side_resources: &mut Self::SideResources,
+    ) {
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                let d_input_indexes = CudaVec::<u64>::new(1, &side_resources.streams, 0);
+                let d_output_indexes = CudaVec::<u64>::new(1, &side_resources.streams, 0);
+
+                cuda_keyswitch_lwe_ciphertext(
+                    &self.key_switching_key_material.lwe_keyswitch_key,
+                    input_cuda_lwe,
+                    output_cuda_lwe,
+                    &d_input_indexes,
+                    &d_output_indexes,
+                    false,
+                    &side_resources.streams,
+                    false,
+                );
+            }
+            (CudaDynLwe::U32(_), CudaDynLwe::U32(_)) => {
+                panic!(
+                    "U32 keyswitch not implemented for CudaKeySwitchingKey - only U64 is supported"
+                );
+            }
+            (CudaDynLwe::U128(_), CudaDynLwe::U128(_)) => {
+                panic!("U128 keyswitch not implemented for CudaKeySwitchingKey - only U64 is supported");
+            }
+            _ => panic!("Inconsistent input/output types for CudaDynLwe keyswitch"),
         }
     }
 }
