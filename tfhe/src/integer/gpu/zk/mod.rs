@@ -73,7 +73,8 @@ impl CudaProvenCompactCiphertextList {
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        self.d_flattened_compact_lists.expand(key, streams)
+        self.d_flattened_compact_lists
+            .expand(key, super::ZKType::Casting, streams)
     }
 
     pub fn from_proven_compact_ciphertext_list(
