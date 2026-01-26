@@ -180,12 +180,10 @@ fn main() {
     };
     #[cfg(not(feature = "hpu"))]
     let (cks, benched_device) = {
-        use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS;
         use tfhe::{set_server_key, ConfigBuilder};
-        let config = ConfigBuilder::with_custom_parameters(
-            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )
-        .build();
+        let config =
+            ConfigBuilder::with_custom_parameters(BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS).build();
         let cks = ClientKey::generate(config);
         let compressed_sks = CompressedServerKey::new(&cks);
 
