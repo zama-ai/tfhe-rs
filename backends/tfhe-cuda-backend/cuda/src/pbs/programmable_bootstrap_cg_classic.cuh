@@ -247,7 +247,9 @@ __host__ void host_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: Programmable bootstrap cg only supports 64-bit "
+                 "Torus type.");
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
   uint64_t full_sm =

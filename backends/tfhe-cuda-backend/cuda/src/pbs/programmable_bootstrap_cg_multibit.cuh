@@ -302,7 +302,10 @@ __host__ void execute_cg_external_product_loop(
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
   cuda_set_device(gpu_index);
-
+  PANIC_IF_FALSE(
+      sizeof(Torus) == 8,
+      "Error: Programmable bootstrap multi-bit cg only supports 64-bit "
+      "Torus type.");
   uint64_t full_sm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
