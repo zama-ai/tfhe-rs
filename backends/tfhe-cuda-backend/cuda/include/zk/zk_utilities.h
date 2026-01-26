@@ -1,6 +1,5 @@
 #ifndef ZK_UTILITIES_H
 #define ZK_UTILITIES_H
-
 #include "../integer/integer_utilities.h"
 #include "integer/integer.cuh"
 #include <cstdint>
@@ -105,6 +104,7 @@ template <typename Torus> struct zk_expand_mem {
   uint32_t num_compact_lists;
 
   int_radix_lut<Torus> *message_and_carry_extract_luts;
+  int_radix_lut<Torus> *identity_lut;
 
   Torus *tmp_expanded_lwes;
   Torus *tmp_ksed_small_to_big_expanded_lwes;
@@ -115,15 +115,18 @@ template <typename Torus> struct zk_expand_mem {
   expand_job<Torus> *d_expand_jobs;
   expand_job<Torus> *h_expand_jobs;
 
+  EXPAND_KIND expand_kind;
+
   zk_expand_mem(CudaStreams streams, int_radix_params computing_params,
                 int_radix_params casting_params, KS_TYPE casting_key_type,
                 const uint32_t *num_lwes_per_compact_list,
                 const bool *is_boolean_array,
                 const uint32_t is_boolean_array_len, uint32_t num_compact_lists,
-                bool allocate_gpu_memory, uint64_t &size_tracker)
+                bool allocate_gpu_memory, uint64_t &size_tracker,
+                EXPAND_KIND expand_kind_in)
       : computing_params(computing_params), casting_params(casting_params),
         num_compact_lists(num_compact_lists),
-        casting_key_type(casting_key_type) {
+        casting_key_type(casting_key_type), expand_kind(expand_kind_in) {
     gpu_memory_allocated = allocate_gpu_memory;
 
     // We copy num_lwes_per_compact_list so we get protection against
@@ -138,8 +141,21 @@ template <typename Torus> struct zk_expand_mem {
       num_lwes += this->num_lwes_per_compact_list[i];
     }
 
-    if (computing_params.carry_modulus != computing_params.message_modulus) {
+    if (computing_params.carry_modulus != computing_params.message_modulus &&
+        expand_kind == EXPAND_KIND::CASTING) {
       PANIC("GPU backend requires carry_modulus equal to message_modulus")
+    }
+
+    // We create the identity LUT only if we are doing a SANITY_CHECK
+    if (expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      identity_lut =
+          new int_radix_lut<Torus>(streams, computing_params, 1, 2 * num_lwes,
+                                   allocate_gpu_memory, size_tracker);
+
+      auto identity_lut_f = [](Torus x) -> Torus { return x; };
+
+      identity_lut->generate_and_broadcast_lut(streams, {0}, {identity_lut_f},
+                                               LUT_0_FOR_ALL_BLOCKS);
     }
 
     auto message_extract_lut_f = [casting_params](Torus x) -> Torus {
@@ -320,6 +336,11 @@ template <typename Torus> struct zk_expand_mem {
   void release(CudaStreams streams) {
     message_and_carry_extract_luts->release(streams);
     delete message_and_carry_extract_luts;
+
+    if (expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      identity_lut->release(streams);
+      delete identity_lut;
+    }
 
     cuda_drop_with_size_tracking_async(tmp_expanded_lwes, streams.stream(0),
                                        streams.gpu_index(0),

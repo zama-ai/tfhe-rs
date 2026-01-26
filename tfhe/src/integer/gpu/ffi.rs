@@ -71,6 +71,11 @@ pub enum ComparisonType {
     MAX = 6,
     MIN = 7,
 }
+pub enum ZKType {
+    NoCasting = 0,
+    Casting = 1,
+    SanityCheck = 2,
+}
 
 fn resolve_noise_reduction_type(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
@@ -7509,6 +7514,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
     num_lwes_per_compact_list: &[u32],
     is_boolean: &[bool],
     is_boolean_len: u32,
+    zk_type: ZKType,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
@@ -7581,6 +7587,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
         pbs_type as u32,
         casting_key_type as u32,
         true,
+        zk_type as u32,
         noise_reduction_type as u32,
     );
     cuda_expand_without_verification_64(
