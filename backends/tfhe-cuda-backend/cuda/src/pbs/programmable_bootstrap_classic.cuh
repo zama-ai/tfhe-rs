@@ -409,7 +409,9 @@ __host__ void execute_step_one(
     uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: Programmable bootstrap step one only supports 64-bit "
+                 "Torus type.");
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
@@ -451,7 +453,9 @@ __host__ void execute_step_two(
     uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
     uint32_t num_many_lut, uint32_t lut_stride) {
-
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: Programmable bootstrap step two only supports 64-bit "
+                 "Torus type.");
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
