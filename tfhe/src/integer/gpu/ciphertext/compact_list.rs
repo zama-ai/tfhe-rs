@@ -21,7 +21,6 @@ use crate::GpuIndex;
 use itertools::Itertools;
 use serde::Deserializer;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_to_gpu;
-
 #[derive(Clone)]
 pub struct CudaCompactCiphertextListInfo {
     pub info: CudaBlockInfo,
@@ -392,6 +391,7 @@ impl CudaFlattenedVecCompactCiphertextList {
     pub fn expand(
         &self,
         key: &CudaKeySwitchingKey,
+        zk_type: crate::integer::gpu::ZKType,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
         assert!(
@@ -462,6 +462,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                         self.num_lwe_per_compact_list.as_slice(),
                         self.is_boolean.as_slice(),
                         self.is_boolean.len() as u32,
+                        zk_type,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -498,6 +499,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                         self.num_lwe_per_compact_list.as_slice(),
                         self.is_boolean.as_slice(),
                         self.is_boolean.len() as u32,
+                        zk_type,
                         None,
                     );
                 }
