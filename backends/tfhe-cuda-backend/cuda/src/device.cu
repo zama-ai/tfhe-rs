@@ -6,6 +6,14 @@
 #include <cuda_profiler_api.h>
 #endif
 
+void validate_device_ptr(const void *ptr, uint32_t gpu_index) {
+  cudaPointerAttributes attr;
+  check_cuda_error(cudaPointerGetAttributes(&attr, ptr));
+  if (attr.device != gpu_index || attr.type != cudaMemoryTypeDevice) {
+    PANIC("Cuda error: invalid device pointer.")
+  }
+}
+
 uint32_t cuda_get_device() {
   int device;
   check_cuda_error(cudaGetDevice(&device));
@@ -249,11 +257,7 @@ void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
                                                  bool gpu_memory_allocated) {
   if (size == 0 || !gpu_memory_allocated)
     return;
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, dest));
-  if (attr.device != gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in async copy to GPU.")
-  }
+  validate_device_ptr(dest, gpu_index);
 
   cuda_set_device(gpu_index);
   check_cuda_error(
@@ -349,11 +353,7 @@ void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
                                           bool gpu_memory_allocated) {
   if (size == 0 || !gpu_memory_allocated)
     return;
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, dest));
-  if (attr.device != gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in cuda memset.")
-  }
+  validate_device_ptr(dest, gpu_index);
   cuda_set_device(gpu_index);
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream));
 }
@@ -408,11 +408,7 @@ void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index) {
   if (size == 0)
     return;
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, src));
-  if (attr.device != gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid src device pointer in copy to CPU async.")
-  }
+  validate_device_ptr(src, gpu_index);
 
   cuda_set_device(gpu_index);
   check_cuda_error(
