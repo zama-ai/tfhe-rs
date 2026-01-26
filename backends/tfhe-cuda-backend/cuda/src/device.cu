@@ -234,7 +234,14 @@ bool cuda_check_support_thread_block_clusters() {
 #endif
 }
 
-/// Copy memory to the GPU asynchronously
+/// Copy memory from the CPU to a GPU with size tracking.
+/// This copy is asynchronous only if the CPU memory was pinned, i.e.
+/// allocated using cudaMallocHost. This was shown to come with a performance
+/// penalty if we allocate all CPU data in this way in the backend, so
+/// cudaMallocHost is only used in specific places where we need an
+/// asynchronous data copy from the CPU to all the GPUs simultaneously (for
+/// example to copy the bootstrapping key).
+/// The copy only happens if gpu_memory_allocated is true.
 void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
                                                  uint64_t size,
                                                  cudaStream_t stream,
@@ -253,14 +260,21 @@ void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
       cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice, stream));
 }
 
-/// Copy memory to the GPU asynchronously
+/// Copy memory from the CPU to a GPU.
+/// This copy is asynchronous only if the CPU memory was pinned, i.e.
+/// allocated using cudaMallocHost. This was shown to come with a performance
+/// penalty if we allocate all CPU data in this way in the backend, so
+/// cudaMallocHost is only used in specific places where we need an
+/// asynchronous data copy from the CPU to all the GPUs simultaneously (for
+/// example to copy the bootstrapping key).
 void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index) {
   cuda_memcpy_with_size_tracking_async_to_gpu(dest, src, size, stream,
                                               gpu_index, true);
 }
 
-/// Copy memory within a GPU asynchronously
+/// Copy memory within a GPU asynchronously.
+/// The copy only happens if gpu_memory_allocated is true
 void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
     void *dest, void const *src, uint64_t size, cudaStream_t stream,
     uint32_t gpu_index, bool gpu_memory_allocated) {
@@ -327,6 +341,8 @@ void cuda_synchronize_device(uint32_t gpu_index) {
   check_cuda_error(cudaDeviceSynchronize());
 }
 
+/// cuda_memset sets bytes, we basically only use it to initialize data to 0
+/// The memset only happens if gpu_memory_allocated is true
 void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
                                           uint64_t size, cudaStream_t stream,
                                           uint32_t gpu_index,
@@ -342,6 +358,7 @@ void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream));
 }
 
+/// cuda_memset sets bytes, we basically only use it to initialize data to 0
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
                        cudaStream_t stream, uint32_t gpu_index) {
   cuda_memset_with_size_tracking_async(dest, val, size, stream, gpu_index,
@@ -384,6 +401,9 @@ template void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                                    uint32_t n);
 
 /// Copy memory to the CPU asynchronously
+/// This comes with a big penalty on performance even if the CPU
+/// memory is pinned (using cudaMallocHost for the CPU allocation),
+/// so it should be avoided at all costs
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index) {
   if (size == 0)
