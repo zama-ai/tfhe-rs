@@ -523,6 +523,11 @@ __host__ void execute_tbc_external_product_loop(
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
+
+  PANIC_IF_FALSE(
+      sizeof(Torus) == 8,
+      "Error: Programmable bootstrap multi-bit tbc only supports 64-bit "
+      "Torus type.");
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;

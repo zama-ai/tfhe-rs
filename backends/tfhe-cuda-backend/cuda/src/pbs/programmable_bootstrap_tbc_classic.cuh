@@ -458,6 +458,9 @@ __host__ void host_programmable_bootstrap_tbc(
     uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: Programmable bootstrap tbc only supports 64-bit "
+                 "Torus type.");
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<

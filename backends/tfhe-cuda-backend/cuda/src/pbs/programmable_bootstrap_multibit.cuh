@@ -663,7 +663,9 @@ __host__ void execute_compute_keybundle(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
   cuda_set_device(gpu_index);
-
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: PBS keybundle only supports 64-bit "
+                 "Torus type.");
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint64_t chunk_size = std::min(
       lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
@@ -735,7 +737,10 @@ __host__ void execute_step_one(
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count) {
   cuda_set_device(gpu_index);
-
+  PANIC_IF_FALSE(
+      sizeof(Torus) == 8,
+      "Error: Programmable bootstrap multi-bit step one only supports 64-bit "
+      "Torus type.");
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
@@ -789,7 +794,10 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
                  uint32_t level_count, uint32_t j, uint32_t num_many_lut,
                  uint32_t lut_stride) {
   cuda_set_device(gpu_index);
-
+  PANIC_IF_FALSE(
+      sizeof(Torus) == 8,
+      "Error: Programmable bootstrap multi-bit step two only supports 64-bit "
+      "Torus type.");
   uint32_t lwe_chunk_size = (uint32_t)(buffer->lwe_chunk_size);
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(

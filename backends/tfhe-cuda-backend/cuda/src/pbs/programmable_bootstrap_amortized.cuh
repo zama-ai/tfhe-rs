@@ -303,7 +303,9 @@ __host__ void host_programmable_bootstrap_amortized(
     int8_t *pbs_buffer, uint32_t glwe_dimension, uint32_t lwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
-
+  PANIC_IF_FALSE(sizeof(Torus) == 8,
+                 "Error: Programmable bootstrap amortized only supports 64-bit "
+                 "Torus type.");
   uint64_t SM_FULL =
       get_buffer_size_full_sm_programmable_bootstrap_amortized<Torus>(
           polynomial_size, glwe_dimension);
