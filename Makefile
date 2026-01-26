@@ -1674,14 +1674,14 @@ bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
 
 .PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
 bench_hlapi_unsigned: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi_unsigned \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_signed # Run benchmarks for signed integer operations
 bench_hlapi_signed: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi_signed \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
