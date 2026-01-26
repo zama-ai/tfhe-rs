@@ -36,7 +36,7 @@ impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
     #[cfg(feature = "gpu-debug-fake-multi-gpu")]
     pub fn new_multi_gpu() -> Self {
-        let gpu_count = setup_multi_gpu(GpuIndex::new(0)) + 3;
+        let gpu_count = 4;
         assert_eq!(
             gpu_count, 4,
             "The fake multi-gpu debug target can only be used on single GPU machines"
@@ -57,7 +57,7 @@ impl CudaStreams {
 
     #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     pub fn new_multi_gpu() -> Self {
-        let gpu_count = setup_multi_gpu(GpuIndex::new(0));
+        let gpu_count = get_number_of_gpus();
 
         let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
         let mut ptr_array = Vec::with_capacity(gpu_count as usize);
@@ -74,13 +74,15 @@ impl CudaStreams {
 
     /// Create a new `CudaStreams` structure with the GPUs with id provided in a list
     pub fn new_multi_gpu_with_indexes(indexes: &[GpuIndex]) -> Self {
-        let _gpu_count = setup_multi_gpu(indexes[0]);
+        let gpu_count = get_number_of_gpus();
 
         let mut gpu_indexes = Vec::with_capacity(indexes.len());
         let mut ptr_array = Vec::with_capacity(indexes.len());
 
         for &i in indexes {
-            ptr_array.push(unsafe { cuda_create_stream(i.get()) });
+            let index = i.get();
+            assert!(index < gpu_count, "Cuda error: invalid device index");
+            ptr_array.push(unsafe { cuda_create_stream(index) });
             gpu_indexes.push(i);
         }
         Self {
@@ -1291,11 +1293,6 @@ pub fn get_number_of_gpus() -> u32 {
 /// Get the number of sms on the GPU
 pub fn get_number_of_sms() -> u32 {
     unsafe { cuda_get_number_of_sms() as u32 }
-}
-
-/// Setup multi-GPU and return the number of GPUs used
-pub fn setup_multi_gpu(device_0_id: GpuIndex) -> u32 {
-    unsafe { cuda_setup_multi_gpu(device_0_id.get()) as u32 }
 }
 
 /// Synchronize device
