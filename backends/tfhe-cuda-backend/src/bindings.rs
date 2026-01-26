@@ -2586,6 +2586,10 @@ unsafe extern "C" {
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
 pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
 pub type KS_TYPE = ffi::c_uint;
+pub const EXPAND_KIND_NO_CASTING: EXPAND_KIND = 0;
+pub const EXPAND_KIND_CASTING: EXPAND_KIND = 1;
+pub const EXPAND_KIND_SANITY_CHECK: EXPAND_KIND = 2;
+pub type EXPAND_KIND = ffi::c_uint;
 unsafe extern "C" {
     pub fn scratch_cuda_expand_without_verification_64(
         streams: CudaStreamsFFI,
@@ -2612,6 +2616,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         casting_key_type: KS_TYPE,
         allocate_gpu_memory: bool,
+        expand_kind: EXPAND_KIND,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
