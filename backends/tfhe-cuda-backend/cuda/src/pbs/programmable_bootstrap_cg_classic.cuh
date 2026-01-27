@@ -18,7 +18,7 @@
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
-
+#include "utils/helper.cuh"
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
 
@@ -309,6 +309,7 @@ __host__ void host_programmable_bootstrap_cg(
   }
 
   check_cuda_error(cudaGetLastError());
+  print_debug("CG", lwe_array_out, 2048);
 }
 
 // Verify if the grid size satisfies the cooperative group constraints

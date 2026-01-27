@@ -68,9 +68,15 @@ struct alignas(16) f128 {
     auto t = two_sum(a.lo, b.lo);
 
     double hi = s.hi;
+#ifdef __CUDA_ARCH__
+    double lo = __dadd_rn(s.lo, t.hi);
+    hi = __dadd_rn(hi, lo);
+    lo = __dsub_rn(lo, __dsub_rn(hi, s.hi));
+#else
     double lo = s.lo + t.hi;
     hi = hi + lo;
     lo = lo - (hi - s.hi);
+#endif
 
     return f128(hi, lo + t.lo);
   }

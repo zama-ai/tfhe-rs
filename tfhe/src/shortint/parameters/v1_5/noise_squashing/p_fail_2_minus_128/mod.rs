@@ -5,13 +5,14 @@ use crate::shortint::parameters::{
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, PolynomialSize,
 };
 
+
 pub const V1_5_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     NoiseSquashingParameters = NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
-    glwe_dimension: GlweDimension(2),
+    glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
     decomp_base_log: DecompositionBaseLog(24),
-    decomp_level_count: DecompositionLevelCount(3),
+    decomp_level_count: DecompositionLevelCount(1),
     modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
@@ -31,13 +32,15 @@ pub const V1_5_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M12
     carry_modulus: CarryModulus(4),
 };
 
+
+// I need this
 pub const V1_5_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     NoiseSquashingParameters = NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
-    glwe_dimension: GlweDimension(2),
+    glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
     decomp_base_log: DecompositionBaseLog(24),
-    decomp_level_count: DecompositionLevelCount(3),
+    decomp_level_count: DecompositionLevelCount(1),
     modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),

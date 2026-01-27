@@ -13,6 +13,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector_64(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  printf("#2\n");
 
   return scratch_cuda_programmable_bootstrap_128_vector<uint64_t>(
       stream, gpu_index,
@@ -26,7 +27,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
-
+    printf("#1\n");
   return scratch_cuda_programmable_bootstrap_128_vector_64(
       stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
       polynomial_size, level_count, input_lwe_ciphertext_count,
@@ -138,6 +139,43 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
+  printf("#5\n");
+  printf("polynomial_size: %d\n", polynomial_size);
+  printf("lwe_dimension: %d\n", lwe_dimension);
+  printf("glwe_dimension: %d\n", glwe_dimension);
+  printf("level_count: %d\n", level_count);
+
+  int8_t *pbs_buffer_default;
+  size_t track_size = scratch_programmable_bootstrap_128<InputTorus,
+                                               AmortizedDegree<2048>>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      (pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **)&pbs_buffer_default, lwe_dimension,
+      glwe_dimension, polynomial_size, level_count,
+      num_samples, true,
+      buffer->noise_reduction_type);
+
+  int ITER = 1;
+  for (int i = 0; i < ITER; i++)
+    executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128<
+        InputTorus>(
+        stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+        lut_vector, static_cast<InputTorus const *>(lwe_array_in),
+        static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+
+
+  for (int i = 0; i < ITER; i++)
+    executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<InputTorus>(
+      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+      lut_vector, static_cast<InputTorus const *>(lwe_array_in),
+      static_cast<const double *>(bootstrapping_key),
+      (pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *)pbs_buffer_default, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+
+  cleanup_cuda_programmable_bootstrap_128(stream, gpu_index,
+                                             &pbs_buffer_default);
+
+  /*
   switch (buffer->pbs_variant) {
   case DEFAULT:
     executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<InputTorus>(
@@ -157,6 +195,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
   default:
     PANIC("Cuda error (PBS): unknown pbs variant.")
   }
+  */
 }
 
 /* Perform bootstrapping on a batch of input u128 LWE ciphertexts, storing the
@@ -220,7 +259,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
     uint32_t level_count, uint32_t num_samples) {
   pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *buffer =
       (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *)mem_ptr;
-
+  printf("#4\n");
   host_programmable_bootstrap_lwe_ciphertext_vector_128<uint64_t>(
       streams, gpu_index, lwe_array_out,
       static_cast<const __uint128_t *>(lut_vector), lwe_array_in,

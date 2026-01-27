@@ -63,7 +63,7 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestPar
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000000000029403601535432533,
     )),
-    pbs_base_log: DecompositionBaseLog(23),
+    pbs_base_log: DecompositionBaseLog(7),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
     ks_base_log: DecompositionBaseLog(3),

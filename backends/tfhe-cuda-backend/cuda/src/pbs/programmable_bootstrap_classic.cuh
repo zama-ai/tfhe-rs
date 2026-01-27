@@ -554,6 +554,9 @@ __host__ void host_programmable_bootstrap(
           num_many_lut, lut_stride);
     }
   }
+
+  print_debug("default", lwe_array_out, 2048);
+
 }
 
 #endif // CUDA_PBS_CUH

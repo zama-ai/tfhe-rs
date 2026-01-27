@@ -203,6 +203,7 @@ uint64_t scratch_cuda_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  printf("#s2\n");
 
   switch (polynomial_size) {
   case 256:
@@ -345,6 +346,7 @@ uint64_t scratch_cuda_programmable_bootstrap_64(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
+  printf("#s1\n");
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 #if (CUDA_ARCH >= 900)
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
@@ -380,6 +382,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride) {
+  printf("#h2\n");
 
   switch (polynomial_size) {
   case 256:
@@ -655,11 +658,49 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
+
+  printf("#h1\n");
+  printf("polynomial_size: %d\n", polynomial_size);
+  printf("lwe_dimension: %d\n", lwe_dimension);
+  printf("glwe_dimension: %d\n", glwe_dimension);
+  printf("level_count: %d\n", level_count);
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
 
   check_cuda_error(cudaGetLastError());
+  cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
+      stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_output_indexes),
+      static_cast<const uint64_t *>(lut_vector),
+      static_cast<const uint64_t *>(lut_vector_indexes),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(lwe_input_indexes),
+      static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      num_many_lut, lut_stride);
 
+  // default call
+  int8_t *pbs_buffer_default;
+  size_t track_size = scratch_cuda_programmable_bootstrap<uint64_t>(
+        stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&pbs_buffer_default,
+        lwe_dimension, glwe_dimension, polynomial_size, level_count,
+        num_samples, true, buffer->noise_reduction_type);
+
+  cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
+    static_cast<const uint64_t *>(lwe_output_indexes),
+    static_cast<const uint64_t *>(lut_vector),
+    static_cast<const uint64_t *>(lut_vector_indexes),
+    static_cast<const uint64_t *>(lwe_array_in),
+    static_cast<const uint64_t *>(lwe_input_indexes),
+    static_cast<const double2 *>(bootstrapping_key), (pbs_buffer<uint64_t, CLASSICAL> *)pbs_buffer_default, lwe_dimension,
+    glwe_dimension, polynomial_size, base_log, level_count, num_samples,
+    num_many_lut, lut_stride);
+
+  cleanup_cuda_programmable_bootstrap(stream, gpu_index,
+                                               &pbs_buffer_default);
+
+  /*
   switch (buffer->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if (CUDA_ARCH >= 900)
@@ -704,6 +745,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
   default:
     PANIC("Cuda error (PBS): unknown pbs variant.")
   }
+  */
 }
 
 /*

@@ -89,6 +89,7 @@ where
                     MonomialDegree(msed_lwe_body),
                 );
             }
+            println!("#cpu_3");
 
             // We initialize the ct_0 used for the successive cmuxes
             let mut ct0_lo = lut_lo;
@@ -168,6 +169,7 @@ where
             fft: Fft128View<'_>,
             stack: &mut PodStack,
         ) {
+            println!("#cpu_2");
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 

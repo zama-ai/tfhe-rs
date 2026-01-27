@@ -1050,22 +1050,22 @@ pub fn negacyclic_fwd_fft(
     twid_im0: &[f64],
     twid_im1: &[f64],
 ) {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx512")]
-        if let Some(simd) = V4::try_new() {
-            return negacyclic_fwd_fft_avx512(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-        if let Some(simd) = V3::try_new() {
-            return negacyclic_fwd_fft_avxfma(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-    }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // {
+    //     #[cfg(feature = "avx512")]
+    //     if let Some(simd) = V4::try_new() {
+    //         return negacyclic_fwd_fft_avx512(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    //     if let Some(simd) = V3::try_new() {
+    //         return negacyclic_fwd_fft_avxfma(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    // }
     negacyclic_fwd_fft_scalar(
         data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0, twid_im1,
     )
@@ -1082,22 +1082,22 @@ pub fn negacyclic_inv_fft(
     twid_im0: &[f64],
     twid_im1: &[f64],
 ) {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx512")]
-        if let Some(simd) = V4::try_new() {
-            return negacyclic_inv_fft_avx512(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-        if let Some(simd) = V3::try_new() {
-            return negacyclic_inv_fft_avxfma(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-    }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // {
+    //     #[cfg(feature = "avx512")]
+    //     if let Some(simd) = V4::try_new() {
+    //         return negacyclic_inv_fft_avx512(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    //     if let Some(simd) = V3::try_new() {
+    //         return negacyclic_inv_fft_avxfma(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    // }
     negacyclic_inv_fft_scalar(
         data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0, twid_im1,
     )

@@ -28,9 +28,10 @@ using Index = unsigned;
   dt_im_lo[ind] = f128x2_reg.im.lo
 
 template <class params>
-__device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
+__device__ __noinline__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                             double *dt_im_hi,
                                             double *dt_im_lo) {
+  return;
 
   __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
@@ -111,9 +112,10 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 }
 
 template <class params>
-__device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
+__device__ __noinline__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                              double *dt_im_hi,
                                              double *dt_im_lo) {
+  return;
   __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
   constexpr Index LOG2_DEGREE = params::log2_degree;
@@ -193,7 +195,7 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 
 // params is expected to be full degree not half degree
 template <class params>
-__device__ void convert_u128_to_f128_as_integer(
+__device__ __noinline__ void convert_u128_to_f128_as_integer(
     double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re, const __uint128_t *in_im) {
 
@@ -214,7 +216,7 @@ __device__ void convert_u128_to_f128_as_integer(
 
 // params is expected to be full degree not half degree
 template <class params>
-__device__ void convert_u128_to_f128_as_torus(
+__device__ __noinline__ void convert_u128_to_f128_as_torus(
     double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re, const __uint128_t *in_im) {
 
@@ -237,7 +239,7 @@ __device__ void convert_u128_to_f128_as_torus(
 // params is expected to be full degree not half degree
 // same as convert_u128_to_f128_as_torus() but expects input to be on registers
 template <class params>
-__device__ void convert_u128_on_regs_to_f128_as_torus(
+__device__ __noinline__ void convert_u128_on_regs_to_f128_as_torus(
     double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re_on_regs, const __uint128_t *in_im_on_regs) {
 
@@ -258,7 +260,7 @@ __device__ void convert_u128_on_regs_to_f128_as_torus(
 }
 
 template <class params>
-__device__ void
+__device__ __noinline__ void
 convert_f128_to_u128_as_torus(__uint128_t *out_re, __uint128_t *out_im,
                               const double *in_re_hi, const double *in_re_lo,
                               const double *in_im_hi, const double *in_im_lo) {

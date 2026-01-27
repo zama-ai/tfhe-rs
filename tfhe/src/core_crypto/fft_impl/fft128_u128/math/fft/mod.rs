@@ -991,19 +991,19 @@ pub fn convert_forward_integer(
     in_im_lo: &[u64],
     in_im_hi: &[u64],
 ) {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "avx512")]
-    if let Some(simd) = V4::try_new() {
-        return convert_forward_integer_avx512(
-            simd, out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
-        );
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    if let Some(simd) = V3::try_new() {
-        return convert_forward_integer_avx2(
-            simd, out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
-        );
-    }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // #[cfg(feature = "avx512")]
+    // if let Some(simd) = V4::try_new() {
+    //     return convert_forward_integer_avx512(
+    //         simd, out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
+    //     );
+    // }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // if let Some(simd) = V3::try_new() {
+    //     return convert_forward_integer_avx2(
+    //         simd, out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
+    //     );
+    // }
     convert_forward_integer_scalar(
         out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
     );
@@ -1231,19 +1231,19 @@ pub fn convert_add_backward_torus(
     in_im0: &[f64],
     in_im1: &[f64],
 ) {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "avx512")]
-    if let Some(simd) = V4::try_new() {
-        return convert_add_backward_torus_avx512(
-            simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
-        );
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    if let Some(simd) = V3::try_new() {
-        return convert_add_backward_torus_avx2(
-            simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
-        );
-    }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // #[cfg(feature = "avx512")]
+    // if let Some(simd) = V4::try_new() {
+    //     return convert_add_backward_torus_avx512(
+    //         simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
+    //     );
+    // }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // if let Some(simd) = V3::try_new() {
+    //     return convert_add_backward_torus_avx2(
+    //         simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
+    //     );
+    // }
     convert_add_backward_torus_scalar(
         out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
     );

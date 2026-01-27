@@ -17,6 +17,32 @@
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
+#include "utils/helper.cuh"
+
+template <bool HEX, bool BR>
+__host__ __device__ void print128(__uint128_t x) {
+  if constexpr (!HEX) {
+    uint8_t d = 0;
+    uint8_t digits[40];
+    do {
+      digits[d] = x % 10;
+      x /= 10;
+      d++;
+    } while (x);
+    for (int i = d - 1; i >= 0; i--) {
+      printf("%c", digits[i]);
+    }
+  } else {
+    uint64_t lo = (uint64_t)(x);
+    uint64_t hi = (uint64_t)(x >> 64);
+    printf("0x%016llx%016llx", hi, lo);
+  }
+  if constexpr (BR)
+    printf("\n");
+  else
+    printf(" ");
+}
+
 
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool first_iter>
@@ -80,6 +106,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       correction = centered_binary_modulus_switch_body_correction_to_add(
           block_lwe_array_in, lwe_dimension, log_modulus);
     }
+    correction = 0;
     modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
                    log_modulus);
 
@@ -326,6 +353,7 @@ __global__ void device_programmable_bootstrap_cg_128(
     correction = centered_binary_modulus_switch_body_correction_to_add(
         block_lwe_array_in, lwe_dimension, log_modulus);
   }
+  correction = 0;
   modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
                  log_modulus);
 
@@ -562,6 +590,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  printf("#3\n");
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto buffer = (pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **)pbs_buffer;
@@ -569,6 +598,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
   if (has_support_to_cuda_programmable_bootstrap_128_cg(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory)) {
+    printf("has support for CG\n");
     switch (polynomial_size) {
     case 256:
       return scratch_programmable_bootstrap_cg_128<InputTorus,
@@ -682,6 +712,7 @@ __host__ void execute_step_one_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
+    //printf("defailt_step_one_NOSM\n");
     device_programmable_bootstrap_step_one_128<InputTorus, params, NOSM,
                                                first_iter>
         <<<grid, thds, 0, stream>>>(
@@ -689,6 +720,7 @@ __host__ void execute_step_one_128(
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, full_dm, noise_reduction_type);
   } else if (max_shared_memory < full_sm) {
+    //printf("defailt_step_one_PARTIALSM\n");
     device_programmable_bootstrap_step_one_128<InputTorus, params, PARTIALSM,
                                                first_iter>
         <<<grid, thds, partial_sm, stream>>>(
@@ -696,6 +728,7 @@ __host__ void execute_step_one_128(
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, partial_dm, noise_reduction_type);
   } else {
+    //printf("defailt_step_one_FULLSM\n");
     device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                first_iter>
         <<<grid, thds, full_sm, stream>>>(
@@ -722,6 +755,7 @@ __host__ void execute_step_two_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
+    //printf("defailt_step_two_NOSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM,
                                                last_iter>
         <<<grid, thds, 0, stream>>>(
@@ -729,6 +763,7 @@ __host__ void execute_step_two_128(
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
+    //printf("defailt_step_two_PARTIALSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM,
                                                last_iter>
         <<<grid, thds, partial_sm, stream>>>(
@@ -736,6 +771,7 @@ __host__ void execute_step_two_128(
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, partial_dm);
   } else {
+    //printf("defailt_step_two_FULLSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                last_iter>
         <<<grid, thds, full_sm, stream>>>(
@@ -759,7 +795,7 @@ __host__ void host_programmable_bootstrap_128(
     uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
   cuda_set_device(gpu_index);
-
+  printf("#default_6\n");
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
   uint64_t full_sm_step_one =
@@ -815,6 +851,8 @@ __host__ void host_programmable_bootstrap_128(
           full_dm_step_two);
     }
   }
+  print_debug("default", lwe_array_out, 2048);
+
 }
 
 template <typename InputTorus, class params>
@@ -826,6 +864,7 @@ __host__ void host_programmable_bootstrap_cg_128(
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
+  printf("#cg_6\n");
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -866,16 +905,19 @@ __host__ void host_programmable_bootstrap_cg_128(
 
   if (max_shared_memory < partial_sm) {
     kernel_args[10] = &full_dm;
+    //printf("cg_NOSM\n");
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_programmable_bootstrap_cg_128<InputTorus, params, NOSM>,
         grid, thds, (void **)kernel_args, 0, stream));
   } else if (max_shared_memory < full_sm) {
+    //printf("PARTIALSM\n");
     kernel_args[10] = &partial_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)
             device_programmable_bootstrap_cg_128<InputTorus, params, PARTIALSM>,
         grid, thds, (void **)kernel_args, partial_sm, stream));
   } else {
+    //printf("FULLSM\n");
     int no_dm = 0;
     kernel_args[10] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
@@ -885,6 +927,8 @@ __host__ void host_programmable_bootstrap_cg_128(
   }
 
   check_cuda_error(cudaGetLastError());
+  print_debug("CG", lwe_array_out, 2048);
+
 }
 
 // Verify if the grid size satisfies the cooperative group constraints

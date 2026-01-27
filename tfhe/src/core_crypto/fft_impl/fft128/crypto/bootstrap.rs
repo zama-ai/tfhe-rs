@@ -355,6 +355,8 @@ where
         ContLweIn: Container<Element = InputScalar>,
         ContAcc: Container<Element = OutputScalar>,
     {
+        println!("#cpu_1");
+
         let log_modulus = accumulator
             .polynomial_size()
             .to_blind_rotation_input_modulus_log();

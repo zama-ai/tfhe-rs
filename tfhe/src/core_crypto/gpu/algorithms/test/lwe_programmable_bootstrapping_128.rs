@@ -4,6 +4,11 @@ use crate::shortint::parameters::{
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::prelude::DecompositionBaseLog;
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
+use aligned_vec::ABox;
+use dyn_stack::{PodBuffer, PodStack};
+// or whatever ABox type is in your crate
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKeyOwned;
 
 use crate::core_crypto::algorithms::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::test::{FftBootstrapKeys, TestResources};
@@ -14,7 +19,7 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::{
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
-
+use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::prelude::test::NoiseSquashingTestParams;
 use crate::core_crypto::prelude::{
     allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
@@ -26,6 +31,10 @@ use crate::shortint::parameters::{ModulusSwitchType, NoiseSquashingParameters};
 use crate::shortint::MultiBitPBSParameters;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use crate::core_crypto::entities::LweCiphertext;
+
+
+use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 
 pub fn generate_keys<
     Scalar: UnsignedTorus
@@ -71,6 +80,12 @@ pub fn generate_keys<
     }
 }
 
+fn u128_hi_lo(x: u128) -> (u64, u64) {
+    let low = x as u64;
+    let high = (x >> 64) as u64;
+    (high, low)
+}
+
 pub fn execute_bootstrap_u128(
     squash_params: NoiseSquashingParameters,
     input_params: MultiBitPBSParameters,
@@ -111,6 +126,17 @@ pub fn execute_bootstrap_u128(
             .map(|x| x as u64)
             .collect::<Vec<_>>(),
     );
+    let fft = Fft128::new(std_bootstrapping_key.polynomial_size());
+    let fft_view = fft.as_view();
+    type K128 = Fourier128LweBootstrapKey<ABox<[f64]>>;
+    let mut fourier_bsk = K128::new(
+        std_bootstrapping_key.input_lwe_dimension(),
+        std_bootstrapping_key.glwe_size(),
+        std_bootstrapping_key.polynomial_size(),
+        std_bootstrapping_key.decomposition_base_log(),
+        std_bootstrapping_key.decomposition_level_count(),
+    );
+    fourier_bsk.fill_with_forward_fourier(&std_bootstrapping_key, fft.as_view());
 
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -154,7 +180,11 @@ pub fn execute_bootstrap_u128(
         input_params.ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
-
+    let mut pbs_ct: LweCiphertext<Vec<u128>> = LweCiphertext::new(
+        0 as u128,
+        big_lwe_sk.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
+    );
     let f = |x: u128| x;
     let accumulator: GlweCiphertextOwned<u128> = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
@@ -177,6 +207,24 @@ pub fn execute_bootstrap_u128(
 
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
+    let mut buf = PodBuffer::try_new(
+        crate::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch::<u128>(
+            fourier_bsk.glwe_size(),
+            accumulator.polynomial_size(),
+            fft_view,
+        ),
+    )
+        .unwrap();
+
+    let mut stack = PodStack::new(&mut buf);
+    fourier_bsk.bootstrap(
+        &mut pbs_ct,
+        &lwe_ciphertext_in,
+        &accumulator,
+        fft_view,
+        &mut stack,
+    );
+
     cuda_programmable_bootstrap_128_lwe_ciphertext(
         &d_lwe_ciphertext_in,
         &mut d_out_pbs_ct,
@@ -185,8 +233,14 @@ pub fn execute_bootstrap_u128(
         &stream,
     );
 
-    let pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
+    //let pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
 
+    print!("cpu: ");
+    for &x in pbs_ct.as_ref() {
+        let (hi, lo) = u128_hi_lo(x);
+        print!("({}, {}), ", hi, lo);
+    }
+    println!();
     // Decrypt the PBS result
     let pbs_plaintext: Plaintext<u128> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);
     // Create a SignedDecomposer to perform the rounding of the decrypted plaintext

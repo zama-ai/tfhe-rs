@@ -202,6 +202,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M1
     deterministic_execution: false,
 };
 
+// I need this
 /// p-fail = 2^-134.345, algorithmic cost ~ 100, 2-norm = 5
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     MultiBitPBSParameters = MultiBitPBSParameters {

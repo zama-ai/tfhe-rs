@@ -38,6 +38,8 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) {
+        println!("#cpu_5");
+
         // we check that the polynomial sizes match
         debug_assert_eq!(ggsw.polynomial_size(), glwe_lo.polynomial_size());
         debug_assert_eq!(ggsw.polynomial_size(), glwe_hi.polynomial_size());
@@ -642,6 +644,8 @@ pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) {
+        println!("#cpu_4");
+
         for (c1_lo, c1_hi, c0_lo, c0_hi) in izip_eq!(
             ct1_lo.as_mut(),
             ct1_hi.as_mut(),

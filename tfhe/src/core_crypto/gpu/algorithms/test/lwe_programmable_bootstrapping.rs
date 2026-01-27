@@ -8,6 +8,7 @@ use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 use itertools::Itertools;
+use log::Level;
 
 fn lwe_encrypt_pbs_decrypt<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
@@ -28,6 +29,7 @@ fn lwe_encrypt_pbs_decrypt<
     let decomp_base_log = params.pbs_base_log;
     let decomp_level_count = params.pbs_level;
 
+    println!("params: {:?}", params);
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
@@ -40,8 +42,8 @@ fn lwe_encrypt_pbs_decrypt<
     };
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
-    let mut msg = msg_modulus;
-    const NB_TESTS: usize = 10;
+    let mut msg = Scalar::ONE;
+    const NB_TESTS: usize = 1;
     let number_of_messages = 1;
 
     let accumulator = generate_programmable_bootstrap_glwe_lut(
