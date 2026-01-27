@@ -240,10 +240,13 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
     } else if (blockIdx.y == glwe_dimension) {
+      __syncthreads();
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
     }
   } else {
-    // Persist the updated accumulator
+    // We don't sync here because we use same indexes to read from `accumulator`
+    // as it was used in `add_to_torus_128` to write inside it Persist the
+    // updated accumulator
     tid = threadIdx.x;
     for (int i = 0; i < params::opt; i++) {
       global_slice[tid] = accumulator[tid];
@@ -395,6 +398,7 @@ __global__ void device_programmable_bootstrap_cg_128(
                                                accumulator);
 
     } else if (blockIdx.y == glwe_dimension) {
+      __syncthreads();
       sample_extract_body<__uint128_t, params>(block_lwe_array_out, accumulator,
                                                0);
     }

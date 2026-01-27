@@ -211,6 +211,8 @@ __global__ void device_programmable_bootstrap_amortized(
   // For the mask it's more complicated
   sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator,
                                      glwe_dimension);
+
+  // No need to sync here, it is already synchronized after add_to_torus
   sample_extract_body<Torus, params>(block_lwe_array_out, accumulator,
                                      glwe_dimension);
 }

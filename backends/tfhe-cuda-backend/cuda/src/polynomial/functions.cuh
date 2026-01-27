@@ -339,8 +339,10 @@ template <typename Torus, class params>
 __device__ void sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
                                     uint32_t glwe_dimension, uint32_t nth = 0) {
   // Set first coefficient of the glwe as the body of the LWE sample
-  lwe_array_out[glwe_dimension * params::degree] =
-      glwe[glwe_dimension * params::degree + nth];
+  if (threadIdx.x == 0) {
+    lwe_array_out[glwe_dimension * params::degree] =
+        glwe[glwe_dimension * params::degree + nth];
+  }
 }
 
 // Extracts the mask from the nth-LWE in a GLWE.
