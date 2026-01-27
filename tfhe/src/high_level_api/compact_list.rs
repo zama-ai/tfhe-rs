@@ -901,7 +901,7 @@ impl CiphertextList for CompactCiphertextListExpander {
         match &self.inner {
             InnerCompactCiphertextListExpander::Cpu(inner) => inner.len(),
             #[cfg(feature = "gpu")]
-            InnerCompactCiphertextListExpander::Cuda(inner) => inner.len(),
+            InnerCompactCiphertextListExpander::Cuda(inner) => inner.lwe_ciphertext_count(),
         }
     }
 

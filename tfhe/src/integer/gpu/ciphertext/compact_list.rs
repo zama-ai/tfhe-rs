@@ -49,8 +49,12 @@ impl CudaCompactCiphertextListExpander {
         self.blocks_info.len()
     }
 
+    pub(crate) fn lwe_ciphertext_count(&self) -> usize {
+        self.expanded_blocks.lwe_ciphertext_count().0
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.lwe_ciphertext_count() == 0
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
