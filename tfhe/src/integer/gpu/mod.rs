@@ -7423,6 +7423,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
     grouping_factor: LweBskGroupingFactor,
     num_lwes_per_compact_list: &[u32],
     is_boolean: &[bool],
+    is_boolean_len: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
@@ -7485,6 +7486,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
         grouping_factor.0 as u32,
         num_lwes_per_compact_list.as_ptr(),
         is_boolean.as_ptr(),
+        is_boolean_len,
         num_compact_lists as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,

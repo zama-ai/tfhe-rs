@@ -2569,6 +2569,7 @@ unsafe extern "C" {
         grouping_factor: u32,
         num_lwes_per_compact_list: *const u32,
         is_boolean_array: *const bool,
+        is_boolean_array_len: u32,
         num_compact_lists: u32,
         message_modulus: u32,
         carry_modulus: u32,
