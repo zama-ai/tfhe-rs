@@ -66,7 +66,7 @@ fn zk_throughput_num_elements() -> u64 {
 }
 
 fn cpu_pke_zk_proof(c: &mut Criterion) {
-    let bench_name = "zk::pke_zk_proof";
+    let bench_name = "integer::zk::pke_zk_proof";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -189,7 +189,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 criterion_group!(zk_proof, cpu_pke_zk_proof);
 
 fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
-    let bench_name = "zk::pke_zk_verify";
+    let bench_name = "integer::zk::pke_zk_verify";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -464,7 +464,7 @@ mod cuda {
     use tfhe::integer::CompressedServerKey;
 
     fn gpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
-        let bench_name = "zk::cuda::pke_zk_verify";
+        let bench_name = "integer::cuda::zk::pke_zk_verify";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
