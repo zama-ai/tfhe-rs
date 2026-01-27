@@ -30,7 +30,7 @@ jobs:
         run: |
           echo ">>> Cloning source repo..."
           git lfs install
-          git clone "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs --origin source && cd ./tfhe-rs
+          git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs --origin source && cd ./tfhe-rs
           git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
 
           echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
@@ -47,6 +47,8 @@ jobs:
 
           echo ">>> Pushing all LFS items..."
           git lfs push --all destination "${DESTINATION_BRANCH}"
+          
+          shred --remove .git/config
 
       - name: git-sync-tags
         env:
@@ -59,7 +61,7 @@ jobs:
         run: |
           echo ">>> Cloning source repo..."
           git lfs install
-          git clone "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs-tag --origin source && cd ./tfhe-rs-tag
+          git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs-tag --origin source && cd ./tfhe-rs-tag
           git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
 
           echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
@@ -70,3 +72,5 @@ jobs:
 
           echo ">>> Pushing git changes..."
           git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
+          
+          shred --remove .git/config
