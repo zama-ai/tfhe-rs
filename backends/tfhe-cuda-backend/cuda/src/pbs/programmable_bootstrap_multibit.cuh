@@ -461,6 +461,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         }
       }
     } else if (blockIdx.y == glwe_dimension) {
+      // No need to sync here, it is already synchronized after add_to_torus
       sample_extract_body<Torus, params>(block_lwe_array_out, global_slice, 0);
       if (num_many_lut > 1) {
         for (int i = 1; i < num_many_lut; i++) {
@@ -473,6 +474,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
+          // No need to sync here, it is already synchronized after add_to_torus
           sample_extract_body<Torus, params>(next_block_lwe_array_out,
                                              global_slice, 0, i * lut_stride);
         }
