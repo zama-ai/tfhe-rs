@@ -14,10 +14,10 @@ uint64_t scratch_cuda_expand_without_verification_64(
     uint32_t casting_output_dimension, uint32_t casting_ks_level,
     uint32_t casting_ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, const uint32_t *num_lwes_per_compact_list,
-    const bool *is_boolean_array, uint32_t num_compact_lists,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    KS_TYPE casting_key_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    const bool *is_boolean_array, const uint32_t is_boolean_array_len,
+    uint32_t num_compact_lists, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, KS_TYPE casting_key_type,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_expand_without_verification_64(
     CudaStreamsFFI streams, void *lwe_array_out,

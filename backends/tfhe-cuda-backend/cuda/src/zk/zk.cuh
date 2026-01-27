@@ -15,6 +15,70 @@
 #include "zk/zk_utilities.h"
 #include <functional>
 
+/*
+ * =============================================================================
+ * GPU Expand Algorithm: Overview
+ * =============================================================================
+ *
+ * The expand algorithm transforms compact ciphertexts into standard LWE
+ * ciphertexts. Compact ciphertexts save space by sharing a single mask across
+ * multiple encrypted messages.
+ *
+ * -----------------------------------------------------------------------------
+ * INPUT STRUCTURE (lwe_flattened_compact_array_in)
+ * -----------------------------------------------------------------------------
+ *
+ * A contiguous array of concatenated compact ciphertext lists:
+ *
+ *  ┌─────────────────────────────────────────────────────────────────────────┐
+ *  │            lwe_flattened_compact_array_in (GPU memory)                  │
+ *  └─────────────────────────────────────────────────────────────────────────┘
+ *  ┌────────────────────────────────┬────────────────────────────────────────┐
+ *  │      Compact List 0            │           Compact List 1 │...
+ *  └────────────────────────────────┴────────────────────────────────────────┘
+ *
+ *  Each compact list structure:
+ *  ┌─────────────────────────────────────────────┬────────┬────────┬─────────┐
+ *  │  Shared Mask (lwe_dimension coefficients)   │ Body 0 │ Body 1 │ Body 2
+ * │... │  [a_0, a_1, ..., a_{n-1}]                   │  b_0   │  b_1   │  b_2 │
+ *  └─────────────────────────────────────────────┴────────┴────────┴─────────┘
+ *  │<────────── lwe_dimension ──────────────────>│<── num_lwes_in_list ─────>│
+ *
+ * -----------------------------------------------------------------------------
+ * EXPAND PROCESS
+ * -----------------------------------------------------------------------------
+ *
+ * 1. LWE Expansion (lwe_expand kernel):
+ *    Each (mask, body_i) pair becomes a standard LWE by rotating the mask
+ *    by i positions: LWE_i = (rotate(mask, i), body_i)
+ *
+ * 2. Message/Carry Extraction (PBS with LUTs):
+ *    Each expanded LWE contains packed data. PBS extracts both parts:
+ *
+ *    Input LWE_i ──PBS──> Output[2i]   (message extraction LUT)
+ *                   └───> Output[2i+1] (carry extraction LUT)
+ *
+ *    For boolean values, sanitization LUTs clamp output to {0, 1}.
+ *
+ * -----------------------------------------------------------------------------
+ * OUTPUT STRUCTURE (lwe_array_out)
+ * -----------------------------------------------------------------------------
+ *
+ *  ┌─────────────────────────────────────────────────────────────────────────┐
+ *  │             lwe_array_out (2 * num_lwes standard LWEs)                  │
+ *  └─────────────────────────────────────────────────────────────────────────┘
+ *  ┌──────────────┬──────────────┬──────────────┬──────────────┬─────────────┐
+ *  │  LWE 0 (msg) │ LWE 0 (carry)│  LWE 1 (msg) │ LWE 1 (carry)│    ...      │
+ *  └──────────────┴──────────────┴──────────────┴──────────────┴─────────────┘
+ *
+ *  Each output LWE: [mask (lwe_dimension), body (1)] = lwe_dimension + 1
+ * elements
+ *
+ * See zk_utilities.h for detailed documentation on the is_boolean array and
+ * LUT indexing logic.
+ * =============================================================================
+ */
+
 template <typename Torus, class params>
 __host__ void host_expand_without_verification(
     CudaStreams streams, Torus *lwe_array_out,
@@ -107,15 +171,15 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_expand_without_verification(
     CudaStreams streams, zk_expand_mem<Torus> **mem_ptr,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
-    uint32_t num_compact_lists, int_radix_params computing_params,
-    int_radix_params casting_params, KS_TYPE casting_key_type,
-    bool allocate_gpu_memory) {
+    const uint32_t is_boolean_array_len, uint32_t num_compact_lists,
+    int_radix_params computing_params, int_radix_params casting_params,
+    KS_TYPE casting_key_type, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new zk_expand_mem<Torus>(
       streams, computing_params, casting_params, casting_key_type,
-      num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
-      allocate_gpu_memory, size_tracker);
+      num_lwes_per_compact_list, is_boolean_array, is_boolean_array_len,
+      num_compact_lists, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

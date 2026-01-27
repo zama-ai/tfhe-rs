@@ -243,7 +243,18 @@ impl CudaFlattenedVecCompactCiphertextList {
             })
             .sum();
 
-        let is_boolean = data_info
+        let total_blocks: usize = data_info
+            .iter()
+            .map(|kind| kind.num_blocks(message_modulus))
+            .sum();
+
+        // Calculate the actual output size after unpacking
+        let log_message_modulus = message_modulus.0.ilog2() as usize;
+        let output_size = log_message_modulus * total_blocks.div_ceil(2);
+
+        // `is_boolean` is a vector indicating whether each LWE corresponds to a boolean value or is
+        // part of something else
+        let mut is_boolean = data_info
             .iter()
             .flat_map(|data_kind| {
                 let repetitions = match data_kind {
@@ -255,6 +266,10 @@ impl CudaFlattenedVecCompactCiphertextList {
                 std::iter::repeat_n(matches!(data_kind, DataKind::Boolean), repetitions)
             })
             .collect_vec();
+        // Usually we pack `log(message_modulus)` values per LWE; however, when the LWE comes from a
+        // boolean, only one message will be found. To avoid reading memory garbage in the
+        // backend, we need to pad to output_size when the block count is odd
+        is_boolean.resize(output_size, false);
 
         // d_vec is an array with the concatenated compact lists
         let d_flattened_d_vec = unsafe {
@@ -446,6 +461,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                         LweBskGroupingFactor(0),
                         self.num_lwe_per_compact_list.as_slice(),
                         self.is_boolean.as_slice(),
+                        self.is_boolean.len() as u32,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -481,6 +497,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                         d_multibit_bsk.grouping_factor,
                         self.num_lwe_per_compact_list.as_slice(),
                         self.is_boolean.as_slice(),
+                        self.is_boolean.len() as u32,
                         None,
                     );
                 }
