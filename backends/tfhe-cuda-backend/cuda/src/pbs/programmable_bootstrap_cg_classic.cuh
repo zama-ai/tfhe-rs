@@ -173,6 +173,7 @@ __global__ void device_programmable_bootstrap_cg(
         }
       }
     } else if (blockIdx.y == glwe_dimension) {
+      __syncthreads();
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
       if (num_many_lut > 1) {
         for (int i = 1; i < num_many_lut; i++) {
@@ -184,7 +185,8 @@ __global__ void device_programmable_bootstrap_cg(
               &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
-
+          // No need to sync, it is already synchronized before the first
+          // sample_extract_body call
           sample_extract_body<Torus, params>(next_block_lwe_array_out,
                                              accumulator, 0, i * lut_stride);
         }
