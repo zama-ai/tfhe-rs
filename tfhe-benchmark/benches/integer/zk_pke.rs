@@ -123,7 +123,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                     match get_bench_type() {
                         BenchmarkType::Latency => {
                             bench_id = format!(
-                                "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                             );
                             bench_group.bench_function(&bench_id, |b| {
                                 let input_msg = rng.gen::<u64>();
@@ -145,7 +145,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                             bench_group.throughput(Throughput::Elements(elements as u64));
 
                             bench_id = format!(
-                                "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                             );
                             bench_group.bench_function(&bench_id, |b| {
                                 let messages = (0..elements)
@@ -247,7 +247,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 println!("CRS size: {}", crs_data.len());
 
                 let test_name =
-                    format!("zk::crs_sizes::{param_name}_{bits}_bits_packed_ZK{zk_vers:?}");
+                    format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
                 write_result(&mut file, &test_name, crs_data.len());
                 write_to_json::<u64, _>(
@@ -272,10 +272,10 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     match get_bench_type() {
                         BenchmarkType::Latency => {
                             bench_id_verify = format!(
-                            "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                            "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
                             bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                            "{bench_name}_and_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
 
                             let input_msg = rng.gen::<u64>();
@@ -296,7 +296,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             );
 
                             let test_name = format!(
-                            "zk::proven_list_size::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                            "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
 
                             write_result(
@@ -318,7 +318,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             println!("proof size: {}", ct1.proof_size());
 
                             let test_name =
-                            format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
+                            format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
                             write_result(&mut file, &test_name, proof_size);
                             write_to_json::<u64, _>(
@@ -356,10 +356,10 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             // In throughput mode object sizes are not recorded.
 
                             bench_id_verify = format!(
-                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                            "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
                             bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                            "{bench_name}_and_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
 
                             println!("Generating proven ciphertexts list ({zk_load})... ");
@@ -526,7 +526,7 @@ mod cuda {
                     println!("CRS size: {}", crs_data.len());
 
                     let test_name =
-                        format!("zk::crs_sizes::{param_name}_{bits}_bits_packed_ZK{zk_vers:?}");
+                        format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
                     write_result(&mut file, &test_name, crs_data.len());
                     write_to_json::<u64, _>(
@@ -567,13 +567,13 @@ mod cuda {
                                     );
 
                                 bench_id_verify = format!(
-                                    "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
                                 bench_id_verify_and_expand = format!(
-                                    "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}_and_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
                                 bench_id_expand_without_verify = format!(
-                                    "{bench_name}_only_expand::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}_only_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
 
                                 let input_msg = rng.gen::<u64>();
@@ -598,7 +598,7 @@ mod cuda {
                                 );
 
                                 let test_name = format!(
-                                    "zk::proven_list_size::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
 
                                 write_result(
@@ -620,7 +620,7 @@ mod cuda {
                                 println!("proof size: {}", ct1.proof_size());
 
                                 let test_name =
-                                    format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
+                                    format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
                                 write_result(&mut file, &test_name, proof_size);
                                 write_to_json::<u64, _>(
@@ -667,13 +667,13 @@ mod cuda {
                                 bench_group.throughput(Throughput::Elements(elements));
 
                                 bench_id_verify = format!(
-                                    "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
                                 bench_id_verify_and_expand = format!(
-                                    "{bench_name}_and_expand::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}_and_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
                                 bench_id_expand_without_verify = format!(
-                                    "{bench_name}_only_expand::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
+                                    "{bench_name}_only_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
                                 println!("Generating proven ciphertexts list ({zk_load})... ");
                                 let cts = (0..elements)
