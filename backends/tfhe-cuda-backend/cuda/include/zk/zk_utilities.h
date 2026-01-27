@@ -118,7 +118,8 @@ template <typename Torus> struct zk_expand_mem {
   zk_expand_mem(CudaStreams streams, int_radix_params computing_params,
                 int_radix_params casting_params, KS_TYPE casting_key_type,
                 const uint32_t *num_lwes_per_compact_list,
-                const bool *is_boolean_array, uint32_t num_compact_lists,
+                const bool *is_boolean_array,
+                const uint32_t is_boolean_array_len, uint32_t num_compact_lists,
                 bool allocate_gpu_memory, uint64_t &size_tracker)
       : computing_params(computing_params), casting_params(casting_params),
         num_compact_lists(num_compact_lists),
@@ -270,14 +271,36 @@ template <typename Torus> struct zk_expand_mem {
       for (int i = 0; i < num_packed_msgs * num_lwes_in_kth; i++) {
         auto lwe_index = i + num_packed_msgs * offset;
         auto lwe_index_in_list = i % num_lwes_in_kth;
+        PANIC_IF_FALSE(lwe_index < num_packed_msgs * num_lwes,
+                       "Cuda error: index %d is beyond the max value %d",
+                       lwe_index, num_packed_msgs * num_lwes);
         h_indexes_in[lwe_index] = lwe_index_in_list + offset;
         h_indexes_out[lwe_index] =
             num_packed_msgs * h_indexes_in[lwe_index] + i / num_lwes_in_kth;
-        // If the input relates to a boolean, shift the LUT so the correct one
-        // with sanitization is used
+        PANIC_IF_FALSE(h_indexes_in[lwe_index] < num_packed_msgs * num_lwes,
+                       "Cuda error: index %d is beyond the max value %d",
+                       h_indexes_in[lwe_index], num_packed_msgs * num_lwes);
+        PANIC_IF_FALSE(h_indexes_out[lwe_index] < num_packed_msgs * num_lwes,
+                       "Cuda error: index %d is beyond the max value %d",
+                       h_indexes_out[lwe_index], num_packed_msgs * num_lwes);
+        // is_boolean_array tells us which input is a boolean and thus the
+        // related output needs boolean sanitization. It naturally has
+        // total_blocks entries, but h_indexes_out reaches
+        // message_modulus * ceil(total_blocks/2) - 1. When total_blocks is odd,
+        // the ceiling causes out-of-bounds access. Reading garbage "true" would
+        // set h_lut_indexes to an invalid index pointing to uninitialized
+        // memory instead of a real LUT. Rust pads is_boolean_array with FALSE
+        // to match.
+        PANIC_IF_FALSE(h_indexes_out[lwe_index] < is_boolean_array_len,
+                       "Cuda error: index %d for is_boolean_array is out of "
+                       "bounds (len is %d)",
+                       h_indexes_out[lwe_index], is_boolean_array_len);
         auto boolean_offset =
             is_boolean_array[h_indexes_out[lwe_index]] ? num_packed_msgs : 0;
         h_lut_indexes[lwe_index] = i / num_lwes_in_kth + boolean_offset;
+        PANIC_IF_FALSE(
+            h_lut_indexes[lwe_index] < 4,
+            "Cuda error: lut index is greater than the max possible value (3)");
       }
       offset += num_lwes_in_kth;
     }

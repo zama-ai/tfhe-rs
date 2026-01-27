@@ -128,7 +128,7 @@ impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
     }
 }
 
-#[cfg(all(feature = "zk-pok", feature = "gpu"))]
+#[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
     // Test utils for tests here
@@ -520,13 +520,19 @@ mod tests {
         let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
         // Create a proven compact list with 6 items (matching user's scenario)
+        let m0 = true;
+        let m1 = 42u8;
+        let m2 = 42u8;
+        let m3 = 12345u16;
+        let m4 = 67890u32;
+        let m5 = 1234567890u64;
         let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
-            .push(true)
-            .push(42u8)
-            .push(42u8)
-            .push(12345u16)
-            .push(67890u32)
-            .push(1234567890u64)
+            .push(m0)
+            .push(m1)
+            .push(m2)
+            .push(m3)
+            .push(m4)
+            .push(m5)
             .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)
             .unwrap();
 
@@ -582,11 +588,25 @@ mod tests {
         );
 
         // Verify we can actually retrieve the values
-        let _bool_val: crate::FheBool = expander.get(0).unwrap().unwrap();
-        let _u8_val_1: crate::FheUint8 = expander.get(1).unwrap().unwrap();
-        let _u8_val_2: crate::FheUint8 = expander.get(2).unwrap().unwrap();
-        let _u16_val: crate::FheUint16 = expander.get(3).unwrap().unwrap();
-        let _u32_val: crate::FheUint32 = expander.get(4).unwrap().unwrap();
-        let _u64_val: crate::FheUint64 = expander.get(5).unwrap().unwrap();
+        let bool_val: crate::FheBool = expander.get(0).unwrap().unwrap();
+        let u8_val_1: crate::FheUint8 = expander.get(1).unwrap().unwrap();
+        let u8_val_2: crate::FheUint8 = expander.get(2).unwrap().unwrap();
+        let u16_val: crate::FheUint16 = expander.get(3).unwrap().unwrap();
+        let u32_val: crate::FheUint32 = expander.get(4).unwrap().unwrap();
+        let u64_val: crate::FheUint64 = expander.get(5).unwrap().unwrap();
+
+        // Check if we retrieve the original values after decryption
+        let decrypted_m0: bool = bool_val.decrypt(&client_key);
+        assert_eq!(decrypted_m0, m0);
+        let decrypted_m1: u8 = u8_val_1.decrypt(&client_key);
+        assert_eq!(decrypted_m1, m1);
+        let decrypted_m2: u8 = u8_val_2.decrypt(&client_key);
+        assert_eq!(decrypted_m2, m2);
+        let decrypted_m3: u16 = u16_val.decrypt(&client_key);
+        assert_eq!(decrypted_m3, m3);
+        let decrypted_m4: u32 = u32_val.decrypt(&client_key);
+        assert_eq!(decrypted_m4, m4);
+        let decrypted_m5: u64 = u64_val.decrypt(&client_key);
+        assert_eq!(decrypted_m5, m5);
     }
 }
