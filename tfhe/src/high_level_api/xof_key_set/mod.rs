@@ -333,8 +333,9 @@ impl CompressedXofKeySet {
         })
     }
 
-    fn expand(self) -> (CompactPublicKey, IntegerExpandedServerKey) {
-        let mut mask_generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed);
+    fn expand(&self) -> (CompactPublicKey, IntegerExpandedServerKey) {
+        let mut mask_generator =
+            MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed.clone());
 
         let public_key = self
             .compressed_public_key
@@ -390,5 +391,55 @@ impl Named for XofKeySet {
 impl XofKeySet {
     pub fn into_raw_parts(self) -> (CompactPublicKey, ServerKey) {
         (self.public_key, self.server_key)
+    }
+}
+
+#[cfg(feature = "gpu")]
+pub use gpu::CudaXofKeySet;
+
+#[cfg(feature = "gpu")]
+mod gpu {
+    use std::sync::Arc;
+
+    use crate::{CompactPublicKey, CudaServerKey};
+
+    /// Same KeySet as [XofKeySet](super::XofKeySet) but on GPU
+    pub struct CudaXofKeySet {
+        public_key: CompactPublicKey,
+        server_key: CudaServerKey,
+    }
+
+    impl CudaXofKeySet {
+        pub fn into_raw_parts(self) -> (CompactPublicKey, CudaServerKey) {
+            (self.public_key, self.server_key)
+        }
+    }
+
+    impl super::CompressedXofKeySet {
+        pub fn decompress_to_gpu(&self) -> crate::Result<CudaXofKeySet> {
+            self.decompress_to_specific_gpu(crate::CudaGpuChoice::default())
+        }
+
+        pub fn decompress_to_specific_gpu(
+            &self,
+            gpu_choice: impl Into<crate::CudaGpuChoice>,
+        ) -> crate::Result<CudaXofKeySet> {
+            let streams = gpu_choice.into().build_streams();
+            let tag = self.compressed_server_key.tag.clone();
+
+            let (public_key, expanded_server_key) = self.expand();
+            let key = expanded_server_key.convert_to_gpu(&streams)?;
+
+            let server_key = CudaServerKey {
+                key: Arc::new(key),
+                tag,
+                streams,
+            };
+
+            Ok(CudaXofKeySet {
+                public_key,
+                server_key,
+            })
+        }
     }
 }
