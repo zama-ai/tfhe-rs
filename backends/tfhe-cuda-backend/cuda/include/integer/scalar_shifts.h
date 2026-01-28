@@ -85,15 +85,11 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       }
 
       // right shift
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          cur_lut_bivariate->get_lut(0, 0), cur_lut_bivariate->get_degree(0),
-          cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          shift_lut_f, gpu_memory_allocated);
+
       auto active_streams =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      cur_lut_bivariate->broadcast_lut(active_streams);
+      cur_lut_bivariate->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {shift_lut_f}, gpu_memory_allocated);
 
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
     }
@@ -172,16 +168,10 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       }
 
       // right shift
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          cur_lut_bivariate->get_lut(0, 0), cur_lut_bivariate->get_degree(0),
-          cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          shift_lut_f, gpu_memory_allocated);
       auto active_streams =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      cur_lut_bivariate->broadcast_lut(active_streams);
-
+      cur_lut_bivariate->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {shift_lut_f}, gpu_memory_allocated);
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
     }
   }
@@ -271,16 +261,11 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         return shifted | padding;
       };
 
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          shift_last_block_lut_univariate->get_lut(0, 0),
-          shift_last_block_lut_univariate->get_degree(0),
-          shift_last_block_lut_univariate->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, last_block_lut_f, gpu_memory_allocated);
       auto active_streams_shift_last =
           streams.active_gpu_subset(1, params.pbs_type);
-      shift_last_block_lut_univariate->broadcast_lut(active_streams_shift_last);
+      shift_last_block_lut_univariate->generate_and_broadcast_lut(
+          active_streams_shift_last, {0}, {last_block_lut_f},
+          gpu_memory_allocated);
 
       lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
     }
@@ -298,15 +283,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       return (params.message_modulus - 1) * x_sign_bit;
     };
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        padding_block_lut_univariate->get_lut(0, 0),
-        padding_block_lut_univariate->get_degree(0),
-        padding_block_lut_univariate->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        padding_block_lut_f, gpu_memory_allocated);
-    // auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-    padding_block_lut_univariate->broadcast_lut(active_streams);
+    padding_block_lut_univariate->generate_and_broadcast_lut(
+        active_streams, {0}, {padding_block_lut_f}, gpu_memory_allocated);
 
     lut_buffers_univariate.push_back(padding_block_lut_univariate);
 
@@ -339,16 +317,11 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         return message_of_current_block + carry_of_previous_block;
       };
 
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          shift_blocks_lut_bivariate->get_lut(0, 0),
-          shift_blocks_lut_bivariate->get_degree(0),
-          shift_blocks_lut_bivariate->get_max_degree(0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          blocks_lut_f, gpu_memory_allocated);
       auto active_streams_shift_blocks =
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-      shift_blocks_lut_bivariate->broadcast_lut(active_streams_shift_blocks);
+      shift_blocks_lut_bivariate->generate_and_broadcast_bivariate_lut(
+          active_streams_shift_blocks, {0}, {blocks_lut_f},
+          gpu_memory_allocated);
 
       lut_buffers_bivariate.push_back(shift_blocks_lut_bivariate);
     }
