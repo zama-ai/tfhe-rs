@@ -10,7 +10,7 @@ uint64_t scratch_cuda_expand_without_verification_64(
     uint32_t grouping_factor, const uint32_t *num_lwes_per_compact_list,
     const bool *is_boolean_array, uint32_t num_compact_lists,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    KS_TYPE casting_key_type, bool allocate_gpu_memory,
+    KS_TYPE casting_key_type, bool allocate_gpu_memory, EXPAND_KIND expand_kind,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
   // Since CUDA backend works with the concept of "big" and "small" key, instead
@@ -37,7 +37,8 @@ uint64_t scratch_cuda_expand_without_verification_64(
       CudaStreams(streams),
       reinterpret_cast<zk_expand_mem<uint64_t> **>(mem_ptr),
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,
-      computing_params, casting_params, casting_key_type, allocate_gpu_memory);
+      computing_params, casting_params, casting_key_type, allocate_gpu_memory,
+      expand_kind);
 }
 
 void cuda_expand_without_verification_64(
