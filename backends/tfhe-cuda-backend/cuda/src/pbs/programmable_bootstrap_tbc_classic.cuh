@@ -179,7 +179,10 @@ __global__ void device_programmable_bootstrap_tbc(
         }
       }
     } else if (blockIdx.y == glwe_dimension) {
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      __syncthreads();
+      if (threadIdx.x == 0) {
+        sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      }
 
       if (num_many_lut > 1) {
         for (int i = 1; i < num_many_lut; i++) {
@@ -192,8 +195,10 @@ __global__ void device_programmable_bootstrap_tbc(
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
-          sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
+          if (threadIdx.x == 0) {
+            sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                               accumulator, 0, i * lut_stride);
+          }
         }
       }
     }
@@ -360,7 +365,9 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
         }
       }
     } else if (blockIdx.y == glwe_dimension) {
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      if (threadIdx.x == 0) {
+        sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      }
 
       if (num_many_lut > 1) {
         for (int i = 1; i < num_many_lut; i++) {
@@ -373,8 +380,10 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
-          sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
+          if (threadIdx.x == 0) {
+            sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                               accumulator, 0, i * lut_stride);
+          }
         }
       }
     }
