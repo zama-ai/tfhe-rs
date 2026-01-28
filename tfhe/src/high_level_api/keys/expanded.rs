@@ -27,7 +27,7 @@ use crate::integer::compression_keys::CompressedDecompressionKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
 /// Bootstrapping Key with elements in the standard (i.e not fourier) domain
-pub(in crate::high_level_api) enum ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
+pub(crate) enum ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
 where
     Scalar: UnsignedInteger,
     ModSwitchScalar: UnsignedInteger,
@@ -146,56 +146,53 @@ where
     }
 }
 
-pub(in crate::high_level_api) struct ExpandedDecompressionKey {
+pub(crate) struct ExpandedDecompressionKey {
     pub bsk: ShortintExpandedBootstrappingKey<u64, u64>,
     pub lwe_per_glwe: LweCiphertextCount,
 }
 
-pub(in crate::high_level_api) struct ExpandedStandardAtomicPatternServerKey {
+pub(crate) struct ExpandedStandardAtomicPatternServerKey {
     pub key_switching_key: LweKeyswitchKeyOwned<u64>,
     pub bootstrapping_key: ShortintExpandedBootstrappingKey<u64, u64>,
     pub pbs_order: PBSOrder,
 }
 
-pub(in crate::high_level_api) struct ExpandedKS32AtomicPatternServerKey {
+pub(crate) struct ExpandedKS32AtomicPatternServerKey {
     pub key_switching_key: LweKeyswitchKeyOwned<u32>,
     pub bootstrapping_key: ShortintExpandedBootstrappingKey<u64, u32>,
     pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
-pub(in crate::high_level_api) enum ExpandedAtomicPatternServerKey {
+pub(crate) enum ExpandedAtomicPatternServerKey {
     Standard(ExpandedStandardAtomicPatternServerKey),
     KeySwitch32(ExpandedKS32AtomicPatternServerKey),
 }
 
-pub(in crate::high_level_api) type ShortintExpandedServerKey =
-    GenericServerKey<ExpandedAtomicPatternServerKey>;
+pub(crate) type ShortintExpandedServerKey = GenericServerKey<ExpandedAtomicPatternServerKey>;
 
-pub(in crate::high_level_api) enum ExpandedAtomicPatternNoiseSquashingKey {
+pub(crate) enum ExpandedAtomicPatternNoiseSquashingKey {
     Standard(ShortintExpandedBootstrappingKey<u128, u64>),
     KeySwitch32(ShortintExpandedBootstrappingKey<u128, u32>),
 }
 
-pub(in crate::high_level_api) type ExpandedNoiseSquashingKey =
+pub(crate) type ExpandedNoiseSquashingKey =
     GenericNoiseSquashingKey<ExpandedAtomicPatternNoiseSquashingKey>;
 
-pub(in crate::high_level_api) struct IntegerExpandedServerKey {
-    pub compute_key: ShortintExpandedServerKey,
-    pub cpk_key_switching_key_material:
+pub(crate) struct IntegerExpandedServerKey {
+    pub(crate) compute_key: ShortintExpandedServerKey,
+    pub(crate) cpk_key_switching_key_material:
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    pub compression_key: Option<CompressionKey>,
-    pub decompression_key: Option<ExpandedDecompressionKey>,
-    pub noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
-    pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub cpk_re_randomization_key_switching_key_material: Option<
+    pub(crate) compression_key: Option<CompressionKey>,
+    pub(crate) decompression_key: Option<ExpandedDecompressionKey>,
+    pub(crate) noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
+    pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
+    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
         ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
     >,
 }
 
 impl IntegerExpandedServerKey {
-    pub(in crate::high_level_api) fn convert_to_cpu(
-        self,
-    ) -> crate::high_level_api::keys::IntegerServerKey {
+    pub(crate) fn convert_to_cpu(self) -> crate::high_level_api::keys::IntegerServerKey {
         use crate::high_level_api::keys::IntegerServerKey;
         use crate::shortint::atomic_pattern::{
             AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
@@ -308,9 +305,7 @@ where
     ModSwitchScalar: UnsignedTorus,
 {
     /// Expand the compressed bootstrapping key to the standard (non-Fourier) domain.
-    pub(in crate::high_level_api) fn expand(
-        &self,
-    ) -> ShortintExpandedBootstrappingKey<u64, ModSwitchScalar> {
+    pub(crate) fn expand(&self) -> ShortintExpandedBootstrappingKey<u64, ModSwitchScalar> {
         match self {
             Self::Classic {
                 bsk,
@@ -357,9 +352,7 @@ where
     ModSwitchScalar: UnsignedTorus,
 {
     /// Expand the compressed 128-bit bootstrapping key to the standard (non-Fourier) domain.
-    pub(in crate::high_level_api) fn expand(
-        &self,
-    ) -> ShortintExpandedBootstrappingKey<u128, ModSwitchScalar> {
+    pub(crate) fn expand(&self) -> ShortintExpandedBootstrappingKey<u128, ModSwitchScalar> {
         match self {
             Self::Classic {
                 bsk,
@@ -394,7 +387,7 @@ where
 
 impl CompressedStandardAtomicPatternServerKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(in crate::high_level_api) fn expand(&self) -> ExpandedStandardAtomicPatternServerKey {
+    pub(crate) fn expand(&self) -> ExpandedStandardAtomicPatternServerKey {
         let key_switching_key = self
             .key_switching_key()
             .as_view()
@@ -411,7 +404,7 @@ impl CompressedStandardAtomicPatternServerKey {
 
 impl CompressedKS32AtomicPatternServerKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(in crate::high_level_api) fn expand(&self) -> ExpandedKS32AtomicPatternServerKey {
+    pub(crate) fn expand(&self) -> ExpandedKS32AtomicPatternServerKey {
         let ciphertext_modulus = self.bootstrapping_key().ciphertext_modulus();
 
         let key_switching_key = self
@@ -430,7 +423,7 @@ impl CompressedKS32AtomicPatternServerKey {
 
 impl CompressedAtomicPatternServerKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(in crate::high_level_api) fn expand(&self) -> ExpandedAtomicPatternServerKey {
+    pub(crate) fn expand(&self) -> ExpandedAtomicPatternServerKey {
         match self {
             Self::Standard(std) => ExpandedAtomicPatternServerKey::Standard(std.expand()),
             Self::KeySwitch32(ks32) => ExpandedAtomicPatternServerKey::KeySwitch32(ks32.expand()),
@@ -440,7 +433,7 @@ impl CompressedAtomicPatternServerKey {
 
 impl CompressedDecompressionKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(in crate::high_level_api) fn expand(&self) -> ExpandedDecompressionKey {
+    pub(crate) fn expand(&self) -> ExpandedDecompressionKey {
         ExpandedDecompressionKey {
             bsk: self.key.bsk.expand(),
             lwe_per_glwe: self.key.lwe_per_glwe,
@@ -450,7 +443,7 @@ impl CompressedDecompressionKey {
 
 impl CompressedNoiseSquashingKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(in crate::high_level_api) fn expand(&self) -> ExpandedNoiseSquashingKey {
+    pub(crate) fn expand(&self) -> ExpandedNoiseSquashingKey {
         let expanded_ap = match self.key.atomic_pattern() {
             CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
                 ExpandedAtomicPatternNoiseSquashingKey::Standard(

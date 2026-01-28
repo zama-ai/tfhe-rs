@@ -9,15 +9,18 @@ use crate::core_crypto::prelude::{
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned, LweDimension,
     LweMultiBitBootstrapKeyOwned,
 };
+use crate::high_level_api::keys::expanded::{
+    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
+    ExpandedStandardAtomicPatternServerKey, ShortintExpandedBootstrappingKey,
+    ShortintExpandedServerKey,
+};
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
 use crate::integer::ClientKey;
-use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchType;
-use crate::shortint::server_key::CompressedModulusSwitchConfiguration;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 
 mod radix;
@@ -25,6 +28,49 @@ mod radix;
 pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
     Classic(CudaLweBootstrapKey),
     MultiBit(CudaLweMultiBitBootstrapKey<Scalar>),
+}
+
+impl<Scalar> CudaBootstrappingKey<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    pub(crate) fn from_expanded_bootstrapping_key<ModSwitchScalar>(
+        expanded_bsk: &ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self>
+    where
+        ModSwitchScalar: UnsignedInteger,
+    {
+        match expanded_bsk {
+            ShortintExpandedBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                let modulus_switch_noise_reduction_configuration =
+                    CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_configuration(
+                        modulus_switch_noise_reduction_key,
+                    )?;
+
+                let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+                    bsk,
+                    modulus_switch_noise_reduction_configuration,
+                    streams,
+                );
+
+                Ok(Self::Classic(d_bootstrap_key))
+            }
+            ShortintExpandedBootstrappingKey::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                let d_bootstrap_key =
+                    CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(bsk, streams);
+
+                Ok(Self::MultiBit(d_bootstrap_key))
+            }
+        }
+    }
 }
 
 impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
@@ -241,109 +287,91 @@ impl CudaServerKey {
             carry_modulus,
             max_degree,
             max_noise_level,
-        } = cpu_key.key.clone();
+        } = &cpu_key.key;
 
-        let ciphertext_modulus = compressed_ap_server_key.ciphertext_modulus();
-        match compressed_ap_server_key {
-            CompressedAtomicPatternServerKey::Standard(std_key) => {
-                let (key_switching_key, bootstrapping_key, pbs_order) = std_key.into_raw_parts();
+        // Expand to standard domain first
+        let expanded_ap = compressed_ap_server_key.expand();
+        let expanded = ShortintExpandedServerKey {
+            atomic_pattern: expanded_ap,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            max_degree: *max_degree,
+            max_noise_level: *max_noise_level,
+            ciphertext_modulus: compressed_ap_server_key.ciphertext_modulus(),
+        };
 
-                let h_key_switching_key = key_switching_key.par_decompress_into_lwe_keyswitch_key();
-                let key_switching_key =
-                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
-                let bootstrapping_key = match bootstrapping_key {
-                    crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key, } => {
+        // Convert expanded key to CUDA
+        Self::from_expanded_server_key(&expanded, streams).expect("Unsupported configuration")
+    }
 
-                        let  modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
-                            CompressedModulusSwitchConfiguration::Standard => None,
-                            CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_modulus_switch_noise_reduction_key) => panic!("Drift noise reduction is not supported on GPU"),
-                            CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => Some(CudaModulusSwitchNoiseReductionConfiguration::Centered),
-                        };
+    /// Creates a `CudaServerKey` from an expanded (standard domain) server key.
+    ///
+    /// This method converts an already-expanded server key
+    /// to GPU memory. Use this when you have an `ShortintExpandedServerKey`
+    /// from calling `expand()` on a compressed key.
+    pub(crate) fn from_expanded_server_key(
+        expanded: &ShortintExpandedServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self> {
+        let message_modulus = expanded.message_modulus;
+        let carry_modulus = expanded.carry_modulus;
+        let max_degree = expanded.max_degree;
+        let max_noise_level = expanded.max_noise_level;
 
-                        let standard_bootstrapping_key = h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
-
-                        let d_bootstrap_key =
-                            CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, modulus_switch_noise_reduction_configuration, streams);
-
-                        CudaBootstrappingKey::Classic(d_bootstrap_key)
-                    }
-                    crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::MultiBit {
-                        seeded_bsk: bootstrapping_key,
-                        deterministic_execution: _,
-                    } => {
-                        let standard_bootstrapping_key =
-                            bootstrapping_key.par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                        let d_bootstrap_key =
-                            CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                                &standard_bootstrapping_key, streams);
-
-                        CudaBootstrappingKey::MultiBit(d_bootstrap_key)
-                    }
-                };
-
-                Self {
-                    key_switching_key: CudaDynamicKeyswitchingKey::Standard(key_switching_key),
+        match &expanded.atomic_pattern {
+            ExpandedAtomicPatternServerKey::Standard(std_key) => {
+                let ExpandedStandardAtomicPatternServerKey {
+                    key_switching_key,
                     bootstrapping_key,
-                    message_modulus,
-                    carry_modulus,
-                    max_degree,
-                    max_noise_level,
-                    ciphertext_modulus,
                     pbs_order,
-                }
-            }
-            CompressedAtomicPatternServerKey::KeySwitch32(ks32_key) => {
-                let key_switching_key = ks32_key.key_switching_key();
-                let bootstrapping_key = ks32_key.bootstrapping_key();
+                } = std_key;
 
-                let h_key_switching_key = key_switching_key
-                    .as_view()
-                    .par_decompress_into_lwe_keyswitch_key();
-                let key_switching_key =
-                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
+                let ciphertext_modulus = key_switching_key.ciphertext_modulus();
 
-                let bootstrapping_key = match bootstrapping_key {
-                    crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key, } => {
-
-                    let  modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
-                        CompressedModulusSwitchConfiguration::Standard => None,
-                        CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_modulus_switch_noise_reduction_key) => panic!("Drift noise reduction is not supported on GPU"),
-                        CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => Some(CudaModulusSwitchNoiseReductionConfiguration::Centered),
-                    };
-
-                    let standard_bootstrapping_key = h_bootstrap_key.as_view().par_decompress_into_lwe_bootstrap_key();
-
-                    let d_bootstrap_key =
-                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, modulus_switch_noise_reduction_configuration, streams);
-
-                    CudaBootstrappingKey::Classic(d_bootstrap_key)
-                }
-                crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::MultiBit {
-                    seeded_bsk: bootstrapping_key,
-                    deterministic_execution: _,
-                    } => {
-                        let standard_bootstrapping_key =
-                        bootstrapping_key.as_view().par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                        let d_bootstrap_key =
-                        CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                        &standard_bootstrapping_key, streams);
-
-                        CudaBootstrappingKey::MultiBit(d_bootstrap_key)
-                    }
-                };
-
-                Self {
-                    key_switching_key: CudaDynamicKeyswitchingKey::KeySwitch32(key_switching_key),
+                let cuda_key_switching_key =
+                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(key_switching_key, streams);
+                let cuda_bootstrapping_key = CudaBootstrappingKey::from_expanded_bootstrapping_key(
                     bootstrapping_key,
+                    streams,
+                )?;
+
+                Ok(Self {
+                    key_switching_key: CudaDynamicKeyswitchingKey::Standard(cuda_key_switching_key),
+                    bootstrapping_key: cuda_bootstrapping_key,
                     message_modulus,
                     carry_modulus,
                     max_degree,
                     max_noise_level,
                     ciphertext_modulus,
+                    pbs_order: *pbs_order,
+                })
+            }
+            ExpandedAtomicPatternServerKey::KeySwitch32(ks32_key) => {
+                let ExpandedKS32AtomicPatternServerKey {
+                    key_switching_key,
+                    bootstrapping_key,
+                    ciphertext_modulus,
+                } = ks32_key;
+
+                let cuda_key_switching_key =
+                    CudaLweKeyswitchKey::from_lwe_keyswitch_key(key_switching_key, streams);
+                let cuda_bootstrapping_key = CudaBootstrappingKey::from_expanded_bootstrapping_key(
+                    bootstrapping_key,
+                    streams,
+                )?;
+
+                Ok(Self {
+                    key_switching_key: CudaDynamicKeyswitchingKey::KeySwitch32(
+                        cuda_key_switching_key,
+                    ),
+                    bootstrapping_key: cuda_bootstrapping_key,
+                    message_modulus,
+                    carry_modulus,
+                    max_degree,
+                    max_noise_level,
+                    ciphertext_modulus: *ciphertext_modulus,
                     pbs_order: PBSOrder::KeyswitchBootstrap,
-                }
+                })
             }
         }
     }
