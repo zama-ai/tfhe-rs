@@ -355,7 +355,7 @@ impl CompressedCompactPublicKey {
 
 impl crate::CompressedServerKey {
     pub(super) fn decompress_with_pre_seeded_generator<Gen>(
-        self,
+        &self,
         generator: &mut MaskRandomGenerator<Gen>,
     ) -> IntegerExpandedServerKey
     where
@@ -364,11 +364,13 @@ impl crate::CompressedServerKey {
         let compression_key = self
             .integer_key
             .compression_key
+            .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
         let decompression_key = self
             .integer_key
             .decompression_key
+            .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
         let shortint_sk = &self.integer_key.key.key;
@@ -395,11 +397,13 @@ impl crate::CompressedServerKey {
         let cpk_key_switching_key_material = self
             .integer_key
             .cpk_key_switching_key_material
+            .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
         let cpk_re_randomization_key_switching_key_material = self
             .integer_key
             .cpk_re_randomization_key_switching_key_material
+            .as_ref()
             .map(|k| match k {
                 crate::CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
                     ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
@@ -414,6 +418,7 @@ impl crate::CompressedServerKey {
         let noise_squashing_compression_key = self
             .integer_key
             .noise_squashing_compression_key
+            .as_ref()
             .map(|ns_comp_key| ns_comp_key.decompress_with_pre_seeded_generator(generator));
 
         IntegerExpandedServerKey {
