@@ -249,7 +249,6 @@ macro_rules! generate_typed_benches {
         $fhe_type:ident,
         $integer_type:ty
     ) => {
-        // bench_type_unary_op!(type_name: $fhe_type, integer_type: $integer_type, display_name: "bitnot", operation: bitnot);
         bench_type_array_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
