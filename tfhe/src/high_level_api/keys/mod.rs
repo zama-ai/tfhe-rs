@@ -1,5 +1,5 @@
 mod client;
-pub(in crate::high_level_api) mod expanded;
+pub(crate) mod expanded;
 mod public;
 mod server;
 
