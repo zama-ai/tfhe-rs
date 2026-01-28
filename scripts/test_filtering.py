@@ -74,6 +74,12 @@ parser.add_argument(
     action="store_true",
     help="Do not run tests with big parameters set (e.g. 3bits message with 3 bits carry) for GPU",
 )
+parser.add_argument(
+    "--all-but-noise",
+    dest="all_but_noise",
+    action="store_true",
+    help="Run all tests except noise tests",
+)
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
@@ -114,6 +120,15 @@ EXCLUDED_BIG_PARAMETERS_GPU = [
 
 
 def filter_integer_tests(input_args):
+    # Run all tests except noise tests
+    if input_args.all_but_noise:
+        backend_filter = "gpu::" if input_args.backend == "gpu" else ""
+        filter_expression = [
+            f"test(/^integer::{backend_filter}.*/)",
+            f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*/)"
+        ]
+        return " and ".join(filter_expression)
+
     (multi_bit_filter, group_filter) = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
@@ -175,7 +190,7 @@ def filter_integer_tests(input_args):
 
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
-    filter =  filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")
+    filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")
 
     return " and ".join(filter_expression)
 
