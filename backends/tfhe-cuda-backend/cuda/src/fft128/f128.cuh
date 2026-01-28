@@ -68,9 +68,15 @@ struct alignas(16) f128 {
     auto t = two_sum(a.lo, b.lo);
 
     double hi = s.hi;
+#ifdef __CUDA_ARCH__
+    double lo = __dadd_rn(s.lo, t.hi);
+    hi = __dadd_rn(hi, lo);
+    lo = __dsub_rn(lo, __dsub_rn(hi, s.hi));
+#else
     double lo = s.lo + t.hi;
     hi = hi + lo;
     lo = lo - (hi - s.hi);
+#endif
 
     return f128(hi, lo + t.lo);
   }
@@ -104,8 +110,13 @@ struct alignas(16) f128 {
   __host__ __device__ static f128 sub(const f128 &a, const f128 &b) {
     auto s = two_diff(a.hi, b.hi);
     auto t = two_diff(a.lo, b.lo);
+#ifdef __CUDA_ARCH__
+    s = quick_two_sum(s.hi, __dadd_rn(s.lo, t.hi));
+    return quick_two_sum(s.hi, __dadd_rn(s.lo, t.lo));
+#else
     s = quick_two_sum(s.hi, s.lo + t.hi);
     return quick_two_sum(s.hi, s.lo + t.lo);
+#endif
   }
 
   // Multiplication
@@ -220,16 +231,16 @@ struct f128x2 {
   // Subtraction
   __host__ __device__ friend f128x2 operator-(const f128x2 &a,
                                               const f128x2 &b) {
-    return f128x2(f128::add(a.re, f128(-b.re.hi, -b.re.lo)),
-                  f128::add(a.im, f128(-b.im.hi, -b.im.lo)));
+    return f128x2(f128::sub_estimate(a.re, b.re),
+                  f128::sub_estimate(a.im, b.im));
   }
 
   // Multiplication (complex multiplication)
   __host__ __device__ friend f128x2 operator*(const f128x2 &a,
                                               const f128x2 &b) {
+    const f128 a_im_b_im = f128::mul(a.im, b.im);
     f128 real_part =
-        f128::add(f128::mul(a.re, b.re),
-                  f128(-f128::mul(a.im, b.im).hi, -f128::mul(a.im, b.im).lo));
+        f128::add(f128::mul(a.re, b.re), f128(-a_im_b_im.hi, -a_im_b_im.lo));
     f128 imag_part = f128::add(f128::mul(a.re, b.im), f128::mul(a.im, b.re));
     return f128x2(real_part, imag_part);
   }
@@ -243,8 +254,8 @@ struct f128x2 {
 
   // Subtraction-assignment operator
   __host__ __device__ f128x2 &operator-=(const f128x2 &other) {
-    re = f128::add(re, f128(-other.re.hi, -other.re.lo));
-    im = f128::add(im, f128(-other.im.hi, -other.im.lo));
+    re = f128::sub_estimate(re, other.re);
+    im = f128::sub_estimate(im, other.im);
     return *this;
   }
 
@@ -261,12 +272,20 @@ struct f128x2 {
 };
 
 __host__ __device__ inline uint64_t double_to_bits(double d) {
+#ifdef __CUDA_ARCH__
+  uint64_t bits = __double_as_longlong(d);
+#else
   uint64_t bits = *reinterpret_cast<uint64_t *>(&d);
+#endif
   return bits;
 }
 
 __host__ __device__ inline double bits_to_double(uint64_t bits) {
+#ifdef __CUDA_ARCH__
+  double d = __longlong_as_double(bits);
+#else
   double d = *reinterpret_cast<double *>(&bits);
+#endif
   return d;
 }
 
@@ -275,6 +294,8 @@ __host__ __device__ inline double u128_to_f64(__uint128_t x) {
   const double A = ONE << 52;
   const double B = ONE << 104;
   const double C = ONE << 76;
+  // NOTE: for some reason __longlong_as_double(0x37f0000000000000ULL)
+  // does not work here
   const double D = 340282366920938500000000000000000000000.;
 
   const __uint128_t threshold = (ONE << 104);
@@ -288,15 +309,20 @@ __host__ __device__ inline double u128_to_f64(__uint128_t x) {
 
     uint64_t bits_l = A_bits | lower64;
     double l_temp = bits_to_double(bits_l);
-    double l = l_temp - A;
 
     uint64_t B_bits = double_to_bits(B);
     uint64_t top64 = static_cast<uint64_t>(x >> 52);
     uint64_t bits_h = B_bits | top64;
     double h_temp = bits_to_double(bits_h);
+
+#ifdef __CUDA_ARCH__
+    return __dadd_rn(__dsub_rn(l_temp, A), __dsub_rn(h_temp, B));
+#else
+    double l = l_temp - A;
     double h = h_temp - B;
 
     return (l + h);
+#endif
 
   } else {
     uint64_t C_bits = double_to_bits(C);
@@ -310,15 +336,20 @@ __host__ __device__ inline double u128_to_f64(__uint128_t x) {
 
     uint64_t bits_l = C_bits | lower64 | mask_part;
     double l_temp = bits_to_double(bits_l);
-    double l = l_temp - C;
 
     uint64_t D_bits = double_to_bits(D);
     uint64_t top64 = static_cast<uint64_t>(x >> 76);
     uint64_t bits_h = D_bits | top64;
     double h_temp = bits_to_double(bits_h);
+
+#ifdef __CUDA_ARCH__
+    return __dadd_rn(__dsub_rn(l_temp, C), __dsub_rn(h_temp, D));
+#else
+    double l = l_temp - C;
     double h = h_temp - D;
 
     return (l + h);
+#endif
   }
 }
 
@@ -389,6 +420,8 @@ __host__ __device__ inline f128 u128_to_signed_to_f128(__uint128_t x) {
 
 __host__ __device__ inline __uint128_t u128_from_torus_f128(const f128 &a) {
   auto x = f128::sub_estimate(a, f128::f128_floor(a));
+  // NOTE: for some reason __longlong_as_double(0x37f0000000000000ULL)
+  // does not work here
   const double normalization = 340282366920938500000000000000000000000.;
 #ifdef __CUDA_ARCH__
   x.hi = __dmul_rn(x.hi, normalization);
@@ -398,7 +431,7 @@ __host__ __device__ inline __uint128_t u128_from_torus_f128(const f128 &a) {
   x.lo *= normalization;
 #endif
 
-  // TODO has to be round
+  x = f128::add_estimate(x, f128(0.5, 0.0));
   x = f128::f128_floor(x);
 
   __uint128_t x0 = f64_to_u128(x.hi);
