@@ -13,6 +13,7 @@ function usage() {
     echo "--nightly-tests           Run integer tests configured for nightly runs (3_3 params)"
     echo "--fast-tests              Run integer set but skip a subset of longer tests"
     echo "--long-tests              Run only long run integer tests"
+    echo "--all-but-noise           Run all tests except noise tests"
     echo "--cargo-profile           The cargo profile used to build tests"
     echo "--backend                 Backend to use with tfhe-rs"
     echo "--avx512-support          Set to ON to enable avx512"
@@ -26,6 +27,7 @@ sign_argument=
 fast_tests_argument=
 long_tests_argument=
 nightly_tests_argument=
+all_but_noise_argument=
 no_big_params_argument=
 no_big_params_argument_gpu=
 cargo_profile="release"
@@ -57,6 +59,10 @@ do
 
         "--signed-only" )
             sign_argument=--signed-only
+            ;;
+
+        "--all-but-noise" )
+            all_but_noise_argument=--all-but-noise
             ;;
 
         "--cargo-profile" )
@@ -102,6 +108,10 @@ fi
 
 if [[ "${NIGHTLY_TESTS}" == TRUE ]]; then
     nightly_tests_argument=--nightly-tests
+fi
+
+if [[ "${ALL_BUT_NOISE}" == TRUE ]]; then
+    all_but_noise_argument=--all-but-noise
 fi
 
 if [[ "${NO_BIG_PARAMS}" == TRUE ]]; then
@@ -150,7 +160,16 @@ if [[ "${backend}" == "gpu" ]]; then
     fi
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument})
+# Allow overriding test threads from environment
+if [[ -n "${TEST_THREADS}" ]]; then
+    test_threads="${TEST_THREADS}"
+fi
+
+if [[ -n "${DOCTEST_THREADS}" ]]; then
+    doctest_threads="${DOCTEST_THREADS}"
+fi
+
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${all_but_noise_argument:+$all_but_noise_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
