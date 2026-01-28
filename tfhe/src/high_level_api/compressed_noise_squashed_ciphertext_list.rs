@@ -359,7 +359,7 @@ mod gpu {
             };
             Ok(Self::new(
                 InnerSquashedNoiseBoolean::Cuda(cuda_ns_boolean_ct),
-                SquashedNoiseCiphertextState::Normal,
+                SquashedNoiseCiphertextState::PostDecompression,
                 Tag::default(),
             ))
         }
@@ -380,7 +380,7 @@ mod gpu {
             };
             Ok(Self::new(
                 InnerSquashedNoiseRadixCiphertext::Cuda(cuda_ns_ct),
-                SquashedNoiseCiphertextState::Normal,
+                SquashedNoiseCiphertextState::PostDecompression,
                 Tag::default(),
             ))
         }
@@ -402,7 +402,7 @@ mod gpu {
             };
             Ok(Self::new(
                 InnerSquashedNoiseSignedRadixCiphertext::Cuda(cuda_ns_signed_ct),
-                SquashedNoiseCiphertextState::Normal,
+                SquashedNoiseCiphertextState::PostDecompression,
                 Tag::default(),
             ))
         }
