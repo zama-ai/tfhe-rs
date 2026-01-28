@@ -2,13 +2,15 @@ use benchmark::high_level_api::bench_wait::*;
 use benchmark::high_level_api::benchmark_op::*;
 
 use benchmark::utilities::{
-    get_bench_type, write_to_json, BenchmarkType, OperandType, OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperandType, OperatorType,
 };
-use criterion::{black_box, Criterion};
+use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
+use rayon::prelude::*;
+use std::cmp::max;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::ClientKey;
+use tfhe::{get_pbs_count, reset_pbs_count, ClientKey};
 
 pub struct BenchConfig<'a> {
     pub type_name: &'a str,
@@ -25,7 +27,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
     config: BenchConfig,
     op: Op,
 ) where
-    Op: BenchmarkOp<FheType>,
+    Op: BenchmarkOp<FheType> + Sync,
     FheType: FheWait,
 {
     let mut bench_group = c.benchmark_group(config.type_name);
@@ -45,23 +47,24 @@ pub fn bench_fhe_type_op<FheType, Op>(
     let bit_size = config.bit_size as u32;
 
     let inputs = op.setup_inputs(client_key, &mut rng);
-    let bench_id = match config.operand_type {
-        OperandType::CipherText => {
-            format!(
-                "{bench_prefix}::{}::{param_name}::{}",
-                config.func_name, config.type_name
-            )
-        }
-        OperandType::PlainText => {
-            format!(
-                "{bench_prefix}::{}::{param_name}::scalar::{}",
-                config.func_name, config.type_name
-            )
-        }
-    };
+    let bench_id;
 
     match get_bench_type() {
         BenchmarkType::Latency => {
+            bench_id = match config.operand_type {
+                OperandType::PlainText => {
+                    format!(
+                        "{bench_prefix}::{}::{param_name}::scalar::{}",
+                        config.func_name, config.type_name
+                    )
+                }
+                OperandType::CipherText => {
+                    format!(
+                        "{bench_prefix}::{}::{param_name}::{}",
+                        config.func_name, config.type_name
+                    )
+                }
+            };
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     let res = op.execute(&inputs);
@@ -71,7 +74,53 @@ pub fn bench_fhe_type_op<FheType, Op>(
             });
         }
         BenchmarkType::Throughput => {
-            todo!()
+            reset_pbs_count();
+            let res = op.execute(&inputs);
+            res.wait_bench();
+            let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
+            let num_block =
+                (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
+
+            bench_id = match config.operand_type {
+                OperandType::PlainText => {
+                    format!(
+                        "{bench_prefix}::{}::throughput::{param_name}::scalar::{}",
+                        config.func_name, config.type_name
+                    )
+                }
+                OperandType::CipherText => {
+                    format!(
+                        "{bench_prefix}::{}::throughput::{param_name}::{}",
+                        config.func_name, config.type_name
+                    )
+                }
+            };
+
+            bench_group
+                .sample_size(10)
+                .measurement_time(std::time::Duration::from_secs(30));
+            let elements = throughput_num_threads(num_block, pbs_count);
+            bench_group.throughput(Throughput::Elements(elements));
+
+            bench_group.bench_function(&bench_id, |b| {
+                let setup_encrypted_inputs = || {
+                    (0..elements)
+                        .map(|_| op.setup_inputs(client_key, &mut rng))
+                        .collect::<Vec<_>>()
+                };
+                b.iter_batched(
+                    setup_encrypted_inputs,
+                    |inputs_vec| {
+                        inputs_vec.par_iter().for_each(|inputs| {
+                            let res = op.execute(inputs);
+                            res.wait_bench();
+                            black_box(res);
+                        })
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
         }
     }
 

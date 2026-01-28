@@ -7,7 +7,7 @@ use tfhe::{ClientKey, FheBool};
 
 pub trait BenchmarkOp<FheType> {
     type Output: BenchWait;
-    type Inputs;
+    type Inputs: Sync;
 
     /// Setup the encrypted inputs for the operation
     fn setup_inputs(&self, client_key: &ClientKey, rng: &mut ThreadRng) -> Self::Inputs;
@@ -25,7 +25,7 @@ impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for UnaryOp<F, EncryptType
 where
     F: Fn(&FheType) -> R,
     R: BenchWait,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
+    FheType: FheEncrypt<EncryptType, ClientKey> + Sync,
     Standard: Distribution<EncryptType>,
 {
     type Output = R;
@@ -51,8 +51,9 @@ where
     F: Fn(&FheType, &T) -> R,
     R: BenchWait,
     G: Fn() -> T,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
+    FheType: FheEncrypt<EncryptType, ClientKey> + Sync,
     Standard: Distribution<EncryptType>,
+    T: Sync,
 {
     type Output = R;
     type Inputs = (FheType, T);
@@ -81,8 +82,8 @@ impl<FheType, FheRhsType, F, R, EncryptLhsType, EncryptRhsType> BenchmarkOp<FheT
 where
     F: Fn(&FheType, &FheRhsType) -> R,
     R: BenchWait,
-    FheType: FheEncrypt<EncryptLhsType, ClientKey>,
-    FheRhsType: FheEncrypt<EncryptRhsType, ClientKey>,
+    FheType: FheEncrypt<EncryptLhsType, ClientKey> + Sync,
+    FheRhsType: FheEncrypt<EncryptRhsType, ClientKey> + Sync,
     Standard: Distribution<EncryptLhsType>,
     Standard: Distribution<EncryptRhsType>,
 {
@@ -110,7 +111,7 @@ impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for TernaryOp<F, EncryptTy
 where
     F: Fn(&FheBool, &FheType, &FheType) -> R,
     R: BenchWait,
-    FheType: FheEncrypt<EncryptType, ClientKey>,
+    FheType: FheEncrypt<EncryptType, ClientKey> + Sync,
     Standard: Distribution<EncryptType>,
 {
     type Output = R;
@@ -138,7 +139,7 @@ pub struct ArrayOp<F, EncryptType> {
 impl<FheType, F, EncryptType> BenchmarkOp<FheType> for ArrayOp<F, EncryptType>
 where
     F: for<'a> Fn(std::slice::Iter<'a, FheType>) -> FheType,
-    FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait,
+    FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait + Sync,
     Standard: Distribution<EncryptType>,
 {
     type Output = FheType;
