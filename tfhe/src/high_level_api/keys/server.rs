@@ -2,9 +2,7 @@ use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
-#[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
+use crate::core_crypto::gpu::CudaStreams;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
 use crate::high_level_api::keys::{
@@ -340,114 +338,13 @@ impl CompressedServerKey {
         gpu_choice: impl Into<crate::CudaGpuChoice>,
     ) -> CudaServerKey {
         let streams = gpu_choice.into().build_streams();
-        let key = crate::integer::gpu::CudaServerKey::decompress_from_cpu(
-            &self.integer_key.key,
-            &streams,
-        );
-        let cpk_key_switching_key_material = self
+        let key = self
             .integer_key
-            .cpk_key_switching_key_material
-            .as_ref()
-            .map(|cpk_ksk_material| {
-                let ksk_material = cpk_ksk_material.decompress();
-                let d_ksk = CudaLweKeyswitchKey::from_lwe_keyswitch_key(
-                    &ksk_material.material.key_switching_key,
-                    &streams,
-                );
-                CudaKeySwitchingKeyMaterial {
-                    lwe_keyswitch_key: d_ksk,
-                    destination_key: ksk_material.material.destination_key,
-                    cast_rshift: ksk_material.material.cast_rshift,
-                }
-            });
-
-        let cpk_re_randomization_key_switching_key_material = self
-            .integer_key
-            .cpk_re_randomization_key_switching_key_material
-            .as_ref()
-            .map(
-                |cpk_re_randomization_ksk_material| match cpk_re_randomization_ksk_material {
-                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
-                    }
-                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(dedicated_ksk) => {
-                        let ksk_material = dedicated_ksk.decompress();
-                        let d_ksk = CudaLweKeyswitchKey::from_lwe_keyswitch_key(
-                            &ksk_material.material.key_switching_key,
-                            &streams,
-                        );
-                        let d_ksk_material = CudaKeySwitchingKeyMaterial {
-                            lwe_keyswitch_key: d_ksk,
-                            destination_key: ksk_material.material.destination_key,
-                            cast_rshift: ksk_material.material.cast_rshift,
-                        };
-
-                        ReRandomizationKeySwitchingKey::DedicatedKSK(d_ksk_material)
-                    }
-                },
-            );
-
-        let compression_key: Option<
-            crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
-        > = self
-            .integer_key
-            .compression_key
-            .as_ref()
-            .map(|compression_key| compression_key.decompress_to_cuda(&streams));
-        let decompression_key: Option<
-            crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
-        > = match &self.integer_key.decompression_key {
-            // Convert decompression_key in the (cpu) integer keyset to the GPU if it's defined
-            Some(decompression_key) => {
-                let polynomial_size = decompression_key.key.polynomial_size();
-                let glwe_dimension = decompression_key.key.glwe_size().to_glwe_dimension();
-                let message_modulus = key.message_modulus;
-                let carry_modulus = key.carry_modulus;
-                let ciphertext_modulus = decompression_key.key.ciphertext_modulus();
-                Some(decompression_key.decompress_to_cuda(
-                    glwe_dimension,
-                    polynomial_size,
-                    message_modulus,
-                    carry_modulus,
-                    ciphertext_modulus,
-                    &streams,
-                ))
-            }
-            None => None,
-        };
-
-        // Convert noise_squashing_key in the (cpu) integer keyset to the GPU if it's defined
-        let noise_squashing_key: Option<
-            crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey,
-        > = self
-            .integer_key
-            .noise_squashing_key
-            .as_ref()
-            .map(|noise_squashing_key| noise_squashing_key.decompress_to_cuda(&streams));
-
-        // Convert noise_squashing_compression_key in the (cpu) integer keyset to the GPU if it's
-        // defined
-        let noise_squashing_compression_key: Option<
-            crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
-        > = self
-            .integer_key
-            .noise_squashing_compression_key
-            .as_ref()
-            .map(|noise_squashing_compression_key| {
-                noise_squashing_compression_key.decompress_to_cuda(&streams)
-            });
-
-        synchronize_devices(&streams);
+            .expand()
+            .convert_to_gpu(&streams)
+            .expect("Unsupported configuration");
         CudaServerKey {
-            key: Arc::new(IntegerCudaServerKey {
-                key,
-                cpk_key_switching_key_material,
-                compression_key,
-                decompression_key,
-                noise_squashing_key,
-                noise_squashing_compression_key,
-                cpk_re_randomization_key_switching_key_material,
-            }),
+            key: Arc::new(key),
             tag: self.tag.clone(),
             streams,
         }
