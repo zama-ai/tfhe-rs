@@ -32,7 +32,7 @@ use tfhe_versionable::Versionize;
 use crate::high_level_api::backward_compatibility::xof_key_set::XofKeySetVersions;
 use crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial;
 
-use internal::IntegerExpandedServerKey;
+use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 
 // Generation order:
 //
@@ -319,8 +319,13 @@ impl CompressedXofKeySet {
 
     /// Decompress the KeySet
     pub fn decompress(self) -> crate::Result<XofKeySet> {
+        let tag = self.compressed_server_key.tag.clone();
         let (public_key, expanded_server_key) = self.expand();
-        let server_key = expanded_server_key.convert_to_cpu();
+        let integer_server_key = expanded_server_key.convert_to_cpu();
+        let server_key = ServerKey {
+            key: std::sync::Arc::new(integer_server_key),
+            tag,
+        };
 
         Ok(XofKeySet {
             public_key,
@@ -328,18 +333,19 @@ impl CompressedXofKeySet {
         })
     }
 
-    fn expand(self) -> (CompactPublicKey, IntegerExpandedServerKey) {
-        let mut mask_generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed);
+    fn expand(&self) -> (CompactPublicKey, IntegerExpandedServerKey) {
+        let mut mask_generator =
+            MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed.clone());
 
         let public_key = self
             .compressed_public_key
             .decompress_with_pre_seeded_generator(&mut mask_generator);
 
-        let server_key = self
+        let expanded_server_key = self
             .compressed_server_key
             .decompress_with_pre_seeded_generator(&mut mask_generator);
 
-        (public_key, server_key)
+        (public_key, expanded_server_key)
     }
 
     pub fn from_raw_parts(
@@ -385,5 +391,55 @@ impl Named for XofKeySet {
 impl XofKeySet {
     pub fn into_raw_parts(self) -> (CompactPublicKey, ServerKey) {
         (self.public_key, self.server_key)
+    }
+}
+
+#[cfg(feature = "gpu")]
+pub use gpu::CudaXofKeySet;
+
+#[cfg(feature = "gpu")]
+mod gpu {
+    use std::sync::Arc;
+
+    use crate::{CompactPublicKey, CudaServerKey};
+
+    /// Same KeySet as [XofKeySet](super::XofKeySet) but on GPU
+    pub struct CudaXofKeySet {
+        public_key: CompactPublicKey,
+        server_key: CudaServerKey,
+    }
+
+    impl CudaXofKeySet {
+        pub fn into_raw_parts(self) -> (CompactPublicKey, CudaServerKey) {
+            (self.public_key, self.server_key)
+        }
+    }
+
+    impl super::CompressedXofKeySet {
+        pub fn decompress_to_gpu(&self) -> crate::Result<CudaXofKeySet> {
+            self.decompress_to_specific_gpu(crate::CudaGpuChoice::default())
+        }
+
+        pub fn decompress_to_specific_gpu(
+            &self,
+            gpu_choice: impl Into<crate::CudaGpuChoice>,
+        ) -> crate::Result<CudaXofKeySet> {
+            let streams = gpu_choice.into().build_streams();
+            let tag = self.compressed_server_key.tag.clone();
+
+            let (public_key, expanded_server_key) = self.expand();
+            let key = expanded_server_key.convert_to_gpu(&streams)?;
+
+            let server_key = CudaServerKey {
+                key: Arc::new(key),
+                tag,
+                streams,
+            };
+
+            Ok(CudaXofKeySet {
+                public_key,
+                server_key,
+            })
+        }
     }
 }
