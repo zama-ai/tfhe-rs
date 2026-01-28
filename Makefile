@@ -733,11 +733,12 @@ test_core_crypto_gpu:
 		--features=gpu -p tfhe -- core_crypto::gpu::
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
-test_integer_gpu:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=2
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
+test_integer_gpu: install_cargo_nextest
+	TEST_THREADS=2 \
+	DOCTEST_THREADS=4 \
+		./scripts/integer-tests.sh \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
+		--tfhe-package "tfhe" --all-but-noise
 
 .PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_integer_gpu_debug:
