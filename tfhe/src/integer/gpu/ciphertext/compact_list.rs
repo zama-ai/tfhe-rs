@@ -553,6 +553,10 @@ impl CudaFlattenedVecCompactCiphertextList {
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.data_info.get(index).copied()
     }
+
+    pub fn is_packed(&self) -> bool {
+        self.degree.get() > self.message_modulus.corresponding_max_degree().get()
+    }
 }
 
 impl<'de> serde::Deserialize<'de> for CudaFlattenedVecCompactCiphertextList {
