@@ -334,6 +334,12 @@ impl CompactCiphertextList {
             }
             #[cfg(feature = "gpu")]
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
+                if !cpu_inner.is_packed() {
+                    return Err(crate::error!(
+                        "GPU only supports packed lists. (built with build_packed)"
+                    ));
+                }
+
                 // CPU data, CUDA key case
                 // We copy data to GPU and then expand it
                 let streams = &cuda_key.streams;
@@ -375,6 +381,12 @@ impl CompactCiphertextList {
             }
             #[cfg(feature = "gpu")]
             (InnerCompactCiphertextList::Cuda(gpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
+                if !gpu_inner.is_packed() {
+                    return Err(crate::error!(
+                        "GPU only supports packed lists. (built with build_packed)"
+                    ));
+                }
+
                 // CUDA data, CUDA key case
                 assert!(
                     cuda_key.key.cpk_key_switching_key_material.is_some(),
