@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::{
     GlweCiphertextCount, LweBskGroupingFactor, LweCiphertextCount, PolynomialSize, UnsignedInteger,
 };
 use crate::error;
+use crate::high_level_api::keys::expanded::ExpandedDecompressionKey;
 use crate::integer::ciphertext::{DataKind, NoiseSquashingCompressionKey};
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -403,6 +404,31 @@ impl CudaCompressionKey {
 }
 
 impl CudaDecompressionKey {
+    /// Creates a `CudaDecompressionKey` from an expanded (standard domain) decompression key.
+    pub(crate) fn from_expanded_decompression_key(
+        expanded: &ExpandedDecompressionKey,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        ciphertext_modulus: CiphertextModulus<u64>,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self> {
+        let ExpandedDecompressionKey { bsk, lwe_per_glwe } = expanded;
+
+        let blind_rotate_key = CudaBootstrappingKey::from_expanded_bootstrapping_key(bsk, streams)?;
+
+        Ok(Self {
+            blind_rotate_key,
+            lwe_per_glwe: *lwe_per_glwe,
+            glwe_dimension,
+            polynomial_size,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+        })
+    }
+
     pub fn unpack(
         &self,
         packed_list: &CudaPackedGlweCiphertextList<u64>,
