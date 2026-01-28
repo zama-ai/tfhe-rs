@@ -301,6 +301,8 @@ void multi_gpu_gather_many_lut_lwe_async(CudaStreams streams, Torus *dest,
             d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus),
             streams.stream(i), streams.gpu_index(i), true);
       } else {
+        if (h_dest_indexes == nullptr)
+          PANIC("Cuda error: destination indexes should be initialized!");
         auto dest_indexes = h_dest_indexes + gpu_offset;
 
         for (uint j = 0; j < inputs_on_gpu; j++) {
