@@ -152,7 +152,7 @@ mod config;
 mod errors;
 mod global_state;
 mod integers;
-mod keys;
+pub(crate) mod keys;
 mod re_randomization;
 #[cfg(feature = "strings")]
 mod strings;
