@@ -43,6 +43,27 @@ where
     },
 }
 
+#[cfg(feature = "gpu")]
+impl<Scalar, ModSwitchScalar> ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
+where
+    Scalar: UnsignedInteger,
+    ModSwitchScalar: UnsignedInteger,
+{
+    pub(crate) fn glwe_dimension(&self) -> GlweDimension {
+        match self {
+            Self::Classic { bsk, .. } => bsk.glwe_size().to_glwe_dimension(),
+            Self::MultiBit { bsk, .. } => bsk.glwe_size().to_glwe_dimension(),
+        }
+    }
+
+    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic { bsk, .. } => bsk.polynomial_size(),
+            Self::MultiBit { bsk, .. } => bsk.polynomial_size(),
+        }
+    }
+}
+
 impl<ModSwitchScalar> ShortintExpandedBootstrappingKey<u64, ModSwitchScalar>
 where
     ModSwitchScalar: UnsignedInteger,
@@ -170,6 +191,29 @@ pub(crate) enum ExpandedAtomicPatternServerKey {
 
 pub(crate) type ShortintExpandedServerKey = GenericServerKey<ExpandedAtomicPatternServerKey>;
 
+#[cfg(feature = "gpu")]
+impl ShortintExpandedServerKey {
+    pub(crate) fn glwe_dimension(&self) -> GlweDimension {
+        match &self.atomic_pattern {
+            ExpandedAtomicPatternServerKey::Standard(std) => std.bootstrapping_key.glwe_dimension(),
+            ExpandedAtomicPatternServerKey::KeySwitch32(ks32) => {
+                ks32.bootstrapping_key.glwe_dimension()
+            }
+        }
+    }
+
+    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
+        match &self.atomic_pattern {
+            ExpandedAtomicPatternServerKey::Standard(std) => {
+                std.bootstrapping_key.polynomial_size()
+            }
+            ExpandedAtomicPatternServerKey::KeySwitch32(ks32) => {
+                ks32.bootstrapping_key.polynomial_size()
+            }
+        }
+    }
+}
+
 pub(crate) enum ExpandedAtomicPatternNoiseSquashingKey {
     Standard(ShortintExpandedBootstrappingKey<u128, u64>),
     KeySwitch32(ShortintExpandedBootstrappingKey<u128, u32>),
@@ -296,9 +340,95 @@ impl IntegerExpandedServerKey {
     }
 }
 
-// =============================================================================
-// Expand implementations for compressed types (NOT using pre-seeded generators)
-// =============================================================================
+#[cfg(feature = "gpu")]
+impl IntegerExpandedServerKey {
+    pub(crate) fn convert_to_gpu(
+        &self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> crate::Result<crate::high_level_api::keys::inner::IntegerCudaServerKey> {
+        use crate::high_level_api::keys::cpk_re_randomization::ReRandomizationKeySwitchingKey;
+        use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+        use crate::integer::gpu::list_compression::server_keys::{
+            CudaCompressionKey, CudaDecompressionKey, CudaNoiseSquashingCompressionKey,
+        };
+        use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
+        use crate::integer::gpu::CudaServerKey;
+
+        // Destructure to ensure all fields are handled
+        let Self {
+            compute_key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key,
+            noise_squashing_compression_key,
+            cpk_re_randomization_key_switching_key_material,
+        } = self;
+
+        let key = CudaServerKey::from_expanded_server_key(compute_key, streams)?;
+
+        let cpk_key_switching_key_material = cpk_key_switching_key_material.as_ref().map(|ksk| {
+            CudaKeySwitchingKeyMaterial::from_key_switching_key_material(&ksk.as_view(), streams)
+        });
+
+        let compression_key = compression_key
+            .as_ref()
+            .map(|ck| CudaCompressionKey::from_compression_key(ck, streams));
+
+        let decompression_key = decompression_key
+            .as_ref()
+            .map(|dk| {
+                CudaDecompressionKey::from_expanded_decompression_key(
+                    dk,
+                    compute_key.glwe_dimension(),
+                    compute_key.polynomial_size(),
+                    compute_key.message_modulus,
+                    compute_key.carry_modulus,
+                    compute_key.ciphertext_modulus,
+                    streams,
+                )
+            })
+            .transpose()?;
+
+        let noise_squashing_key = noise_squashing_key
+            .as_ref()
+            .map(|nsk| CudaNoiseSquashingKey::from_expanded_noise_squashing_key(nsk, streams));
+
+        let noise_squashing_compression_key =
+            noise_squashing_compression_key.as_ref().map(|nsck| {
+                CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
+                    nsck, streams,
+                )
+            });
+
+        let cpk_re_randomization_key_switching_key_material =
+            cpk_re_randomization_key_switching_key_material
+                .as_ref()
+                .map(|re_rand_ksk| match re_rand_ksk {
+                    ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                    }
+                    ReRandomizationKeySwitchingKey::DedicatedKSK(ksk) => {
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                            CudaKeySwitchingKeyMaterial::from_key_switching_key_material(
+                                &ksk.as_view(),
+                                streams,
+                            ),
+                        )
+                    }
+                });
+
+        Ok(crate::high_level_api::keys::inner::IntegerCudaServerKey {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key,
+            noise_squashing_compression_key,
+            cpk_re_randomization_key_switching_key_material,
+        })
+    }
+}
 
 impl<ModSwitchScalar> ShortintCompressedBootstrappingKey<ModSwitchScalar>
 where
