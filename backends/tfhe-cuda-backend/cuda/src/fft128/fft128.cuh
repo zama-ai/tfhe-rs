@@ -12,8 +12,9 @@
 using Index = unsigned;
 
 #define NEG_TWID(i)                                                            \
-  f128x2(f128(neg_twiddles_re_hi[(i)], neg_twiddles_re_lo[(i)]),               \
-         f128(neg_twiddles_im_hi[(i)], neg_twiddles_im_lo[(i)]))
+  f128x2(                                                                      \
+      f128(__ldg(&neg_twiddles_re_hi[(i)]), __ldg(&neg_twiddles_re_lo[(i)])),  \
+      f128(__ldg(&neg_twiddles_im_hi[(i)]), __ldg(&neg_twiddles_im_lo[(i)])))
 
 #define F64x4_TO_F128x2(f128x2_reg, ind)                                       \
   f128x2_reg.re.hi = dt_re_hi[ind];                                            \
@@ -218,7 +219,7 @@ __device__ void convert_u128_to_f128_as_torus(
     double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re, const __uint128_t *in_im) {
 
-  const double normalization = pow(2., -128.);
+  const double normalization = __longlong_as_double(0x37f0000000000000ULL);
   Index tid = threadIdx.x;
   // #pragma unroll
   for (Index i = 0; i < params::opt / 2; i++) {
@@ -241,7 +242,7 @@ __device__ void convert_u128_on_regs_to_f128_as_torus(
     double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re_on_regs, const __uint128_t *in_im_on_regs) {
 
-  const double normalization = pow(2., -128.);
+  const double normalization = __longlong_as_double(0x37f0000000000000ULL);
   Index tid = threadIdx.x;
   // #pragma unroll
   for (Index i = 0; i < params::opt / 2; i++) {
