@@ -32,7 +32,7 @@ use tfhe_versionable::Versionize;
 use crate::high_level_api::backward_compatibility::xof_key_set::XofKeySetVersions;
 use crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial;
 
-use internal::IntegerExpandedServerKey;
+use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 
 // Generation order:
 //
@@ -319,8 +319,13 @@ impl CompressedXofKeySet {
 
     /// Decompress the KeySet
     pub fn decompress(self) -> crate::Result<XofKeySet> {
+        let tag = self.compressed_server_key.tag.clone();
         let (public_key, expanded_server_key) = self.expand();
-        let server_key = expanded_server_key.convert_to_cpu();
+        let integer_server_key = expanded_server_key.convert_to_cpu();
+        let server_key = ServerKey {
+            key: std::sync::Arc::new(integer_server_key),
+            tag,
+        };
 
         Ok(XofKeySet {
             public_key,
@@ -335,11 +340,11 @@ impl CompressedXofKeySet {
             .compressed_public_key
             .decompress_with_pre_seeded_generator(&mut mask_generator);
 
-        let server_key = self
+        let expanded_server_key = self
             .compressed_server_key
             .decompress_with_pre_seeded_generator(&mut mask_generator);
 
-        (public_key, server_key)
+        (public_key, expanded_server_key)
     }
 
     pub fn from_raw_parts(
