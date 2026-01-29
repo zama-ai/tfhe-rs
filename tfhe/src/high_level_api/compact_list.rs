@@ -1,6 +1,6 @@
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKeyRef;

@@ -3,7 +3,7 @@ use super::{
     SquashedNoiseSignedRadixCiphertext,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 #[cfg(feature = "gpu")]

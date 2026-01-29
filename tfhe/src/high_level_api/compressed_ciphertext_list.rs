@@ -8,7 +8,7 @@ use super::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use super::GpuIndex;
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedCiphertextListVersions;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::booleans::InnerBoolean;
