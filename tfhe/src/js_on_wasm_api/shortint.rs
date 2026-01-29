@@ -409,7 +409,7 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
 
             // wasm bindgen does not support methods on enums
             #[wasm_bindgen]
-            pub fn shortint_params_name(param: Option<ShortintParametersName>) -> Result<String, JsError> {
+            pub fn shortint_params_name_from_name_enum(param: Option<ShortintParametersName>) -> Result<String, JsError> {
                 let Some(param) = param else {
                     return Err(JsError::new("invalid variant for ShortintParametersName"));
                 };

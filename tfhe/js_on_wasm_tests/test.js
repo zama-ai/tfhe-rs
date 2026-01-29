@@ -7,7 +7,7 @@ const {
   BooleanParameterSet,
   ShortintParametersName,
   ShortintParameters,
-  shortint_params_name,
+  shortint_params_name_from_name_enum,
 } = require("../pkg");
 
 function genRandomBigIntWithBytes(byteCount) {
@@ -16,7 +16,7 @@ function genRandomBigIntWithBytes(byteCount) {
 
 test("invalid variant of ShortintParametersName", (t) => {
   assert.throws(() => {
-    shortint_params_name(ShortintParametersName.IDontExist);
+    shortint_params_name_from_name_enum(ShortintParametersName.IDontExist);
   });
 
   assert.throws(() => {
