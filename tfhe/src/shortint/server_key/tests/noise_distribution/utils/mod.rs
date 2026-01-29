@@ -1,4 +1,5 @@
 pub mod noise_simulation;
+pub mod to_json;
 pub mod traits;
 
 use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
@@ -35,10 +36,15 @@ use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
+    AtomicPatternParameters, CarryModulus, MessageModulus, MetaParameters, PBSParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
+};
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    write_to_json_file, BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval,
+    ConfidenceIntervalWithLog2, Measurement, NoBounds, PfailMetadata, PfailTestResultJson,
+    StringConfidenceInterval, StringConfidenceIntervalWithLog2, ValueWithLog2,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -71,7 +77,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     noise_distribution_used_for_encryption: DynamicDistribution<Scalar>,
     decryption_key_lwe_dimension: LweDimension,
     modulus_as_f64: f64,
-) -> bool {
+) -> (bool, BoundedMeasurement, BoundedMeasurement) {
     assert!(expected_mean.is_finite(), "Expected mean is infinite");
     assert!(
         expected_variance.0.is_finite(),
@@ -100,6 +106,29 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     println!("expected_mean_{suffix}={expected_mean:?}");
     println!("mean_{suffix}_lower_bound={:?}", mean_ci.lower_bound());
     println!("mean_{suffix}_upper_bound={:?}", mean_ci.upper_bound());
+
+    let bounded_variance_measurement = BoundedMeasurement::new(
+        measured_variance.0.to_string(),
+        expected_variance.0.to_string(),
+        ConfidenceInterval::Bounded(
+            StringConfidenceInterval::builder()
+                .lower(variance_ci.lower_bound().0.to_string())
+                .upper(variance_ci.upper_bound().0.to_string())
+                .build()
+                .unwrap(),
+        ),
+    );
+    let bounded_mean_measurement = BoundedMeasurement::new(
+        measured_mean.to_string(),
+        expected_mean.to_string(),
+        ConfidenceInterval::Bounded(
+            StringConfidenceInterval::builder()
+                .lower(mean_ci.lower_bound().to_string())
+                .upper(mean_ci.upper_bound().to_string())
+                .build()
+                .unwrap(),
+        ),
+    );
 
     // Expected mean is 0
     let mean_is_in_interval = mean_ci.mean_is_in_interval(expected_mean);
@@ -168,7 +197,11 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
         interval_ok
     };
 
-    mean_is_in_interval && variance_is_ok
+    (
+        mean_is_in_interval && variance_is_ok,
+        bounded_variance_measurement,
+        bounded_mean_measurement,
+    )
 }
 
 pub fn encrypt_new_noiseless_lwe<
@@ -260,6 +293,21 @@ impl PfailTestMeta {
         }
     }
 
+    pub fn generate_serializable_data(self) -> PfailMetadata {
+        PfailMetadata::new(
+            ValueWithLog2::new(
+                self.original_pfail_and_precision.pfail().to_string(),
+                self.original_pfail_and_precision.pfail().log2().to_string(),
+            ),
+            ValueWithLog2::new(
+                self.new_pfail_and_precision.pfail().to_string(),
+                self.new_pfail_and_precision.pfail().log2().to_string(),
+            ),
+            self.expected_fails.to_string(),
+            self.total_runs_for_expected_fails.to_string(),
+        )
+    }
+
     pub fn new_with_total_runs(
         original_pfail_and_precision: PfailAndPrecision,
         new_pfail_and_precision: PfailAndPrecision,
@@ -298,7 +346,13 @@ pub struct PfailTestResult {
     pub measured_fails: f64,
 }
 
-pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTestResult) {
+pub fn pfail_check(
+    pfail_test_meta: &PfailTestMeta,
+    pfail_test_result: PfailTestResult,
+    param_name: &MetaParameters,
+    test_name: &str,
+    test_module_path: &str,
+) {
     let measured_fails = pfail_test_result.measured_fails;
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails;
     let expected_fails = pfail_test_meta.expected_fails();
@@ -334,6 +388,53 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
     );
     println!("original_expected_pfail_log2  ={}", original_pfail.log2());
 
+    let pfail_meta_serialized = pfail_test_meta.generate_serializable_data();
+
+    let fails_serialized = Measurement::new(measured_fails.to_string(), expected_fails.to_string());
+
+    let pfail_serialized = |confidence_interval: ConfidenceInterval| {
+        BoundedMeasurement::new(
+            measured_pfail.to_string(),
+            expected_pfail.to_string(),
+            confidence_interval,
+        )
+    };
+
+    let pfail_original_serialized = |confidence_interval_with_log2: ConfidenceIntervalWithLog2| {
+        BoundedLog2Measurement::new(
+            ValueWithLog2::new(
+                equivalent_measured_pfail.to_string(),
+                equivalent_measured_pfail.log2().to_string(),
+            ),
+            ValueWithLog2::new(
+                original_pfail.to_string(),
+                original_pfail.log2().to_string(),
+            ),
+            confidence_interval_with_log2,
+        )
+    };
+
+    let write_json = |warning: Option<String>,
+                      pass: bool,
+                      pfail_serialized: BoundedMeasurement,
+                      pfail_original_serialized: BoundedLog2Measurement| {
+        write_to_json_file(
+            param_name,
+            test_name,
+            test_module_path,
+            pass,
+            warning,
+            PfailTestResultJson::new(
+                pfail_meta_serialized.clone(),
+                fails_serialized.clone(),
+                pfail_serialized,
+                pfail_original_serialized,
+            )
+            .into_test_result(),
+        )
+        .unwrap();
+    };
+
     if measured_fails > 0.0 {
         let pfail_confidence_interval = pfail_clopper_pearson_exact_confidence_interval(
             total_runs_for_expected_fails as f64,
@@ -343,8 +444,6 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
 
         let pfail_lower_bound = pfail_confidence_interval.lower_bound();
         let pfail_upper_bound = pfail_confidence_interval.upper_bound();
-        println!("pfail_lower_bound={pfail_lower_bound}");
-        println!("pfail_upper_bound={pfail_upper_bound}");
 
         let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
             new_precision_with_padding.value,
@@ -356,6 +455,29 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
             pfail_upper_bound,
             original_precision_with_padding.value,
         );
+
+        let confidence_interval = ConfidenceInterval::Bounded(
+            StringConfidenceInterval::builder()
+                .lower(pfail_lower_bound.to_string())
+                .upper(pfail_upper_bound.to_string())
+                .build()
+                .unwrap(),
+        );
+        let confidence_interval_with_log2 = ConfidenceIntervalWithLog2::Bounded(
+            StringConfidenceIntervalWithLog2::builder()
+                .lower(ValueWithLog2::new(
+                    equivalent_pfail_lower_bound.to_string(),
+                    equivalent_pfail_lower_bound.log2().to_string(),
+                ))
+                .upper(ValueWithLog2::new(
+                    equivalent_pfail_upper_bound.to_string(),
+                    equivalent_pfail_upper_bound.log2().to_string(),
+                ))
+                .build()
+                .unwrap(),
+        );
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
 
         println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
         println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
@@ -369,28 +491,63 @@ pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: PfailTest
         );
 
         if measured_pfail <= expected_pfail {
+            let mut warning = None;
             if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
-                println!(
-                    "\n==========\n\
-                    WARNING: measured pfail is smaller than expected pfail \
-                    and out of the confidence interval\n\
-                    the optimizer might be pessimistic when generating parameters.\n\
-                    ==========\n"
-                );
+                let warning_raw = "measured pfail is smaller than expected pfail \
+                    and out of the confidence interval. \n\
+                    the optimizer might be pessimistic when generating parameters.";
+                let warning_message = format_warning_message(warning_raw);
+                warning = Some(format_json_warning_message(warning_raw));
+                println!("{warning_message}");
             }
+            write_json(
+                warning,
+                true,
+                pfail_serialized(confidence_interval),
+                pfail_original_serialized(confidence_interval_with_log2),
+            )
         } else {
-            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+            let cond = pfail_confidence_interval.mean_is_in_interval(expected_pfail);
+            write_json(
+                None,
+                cond,
+                pfail_serialized(confidence_interval),
+                pfail_original_serialized(confidence_interval_with_log2),
+            );
+            assert!(cond);
         }
     } else {
-        println!(
-            "\n==========\n\
-            WARNING: measured pfail is 0, it is either a bug or \
-            it is way smaller than the expected pfail\n\
+        let confidence_interval = ConfidenceInterval::NoBounds(NoBounds::new(
+            "Unable to compute bounds, 0 fails measured",
+        ));
+        let confidence_interval_with_log2 = ConfidenceIntervalWithLog2::NoBounds(NoBounds::new(
+            "Unable to compute bounds, 0 fails measured",
+        ));
+        let warning_raw = "measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail. \n\
             the optimizer might be pessimistic when generating parameters, \
-            or some hypothesis does not hold.\n\
-            ==========\n"
+            or some hypothesis does not hold.";
+        let warning = format_warning_message(warning_raw);
+        write_json(
+            Some(format_json_warning_message(warning_raw)),
+            true,
+            pfail_serialized(confidence_interval),
+            pfail_original_serialized(confidence_interval_with_log2),
         );
+        println!("{warning}");
     }
+}
+
+fn format_json_warning_message(m: &str) -> String {
+    m.replace(['\n', '\\'], "")
+}
+
+fn format_warning_message(to_print: &str) -> String {
+    format!(
+        "\n==========\n\
+    WARNING: {to_print}\n\
+    ==========\n"
+    )
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -623,7 +780,7 @@ pub fn update_ap_params_for_pfail(
     new_message_modulus: MessageModulus,
     new_carry_modulus: CarryModulus,
 ) -> (PfailAndPrecision, PfailAndPrecision) {
-    let orig_pfail_and_precision = PfailAndPrecision::new_from_ap_params(&*ap_params);
+    let orig_pfail_and_precision = PfailAndPrecision::new_from_ap_params(ap_params);
 
     println!("original_pfail: {}", orig_pfail_and_precision.pfail());
     println!(
