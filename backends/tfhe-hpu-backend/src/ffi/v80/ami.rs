@@ -131,6 +131,23 @@ impl AmiDriver {
         }
     }
 
+    pub fn munmap_cnt(&self) -> Result<(), Box<dyn Error>> {
+        let cnt_addr = self.iop_ack_atomic_ptr.as_ptr() as *mut libc::c_void;
+        unsafe {
+            let retc = libc::munmap(cnt_addr, 4096);
+
+            if retc == 0 {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Could not unmap the atomic shared cnt (mumap returned {})",
+                    retc
+                )
+                .into())
+            }
+        }
+    }
+
     /// Read currently loaded UUID in BAR
     pub fn uuid(&self) -> String {
         let ami_fd = self.ami_dev.as_raw_fd();
