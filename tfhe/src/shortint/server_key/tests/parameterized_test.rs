@@ -61,6 +61,61 @@ macro_rules! create_parameterized_test{
     };
 }
 
+#[cfg(not(tarpaulin))]
+macro_rules! create_parameterized_stringified_test{
+    ($name:ident { $($param:ident),* $(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param, stringify!($param))
+            }
+            )*
+        }
+    };
+    ($name:ident)=> {
+        create_parameterized_stringified_test!($name
+        {
+            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            // 2M128 are 2x slower and killing tests
+            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
+        });
+    };
+}
+
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
 macro_rules! create_parameterized_test{
@@ -84,7 +139,29 @@ macro_rules! create_parameterized_test{
     };
 }
 
-pub(crate) use create_parameterized_test;
+#[cfg(tarpaulin)]
+macro_rules! create_parameterized_test{
+    ($name:ident { $($param:ident),*$(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param, stringify!($param))
+            }
+            )*
+        }
+    };
+    ($name:ident)=> {
+        create_parameterized_stringified_test!($name
+        {
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+        });
+    };
+}
+
+pub(crate) use {create_parameterized_stringified_test, create_parameterized_test};
 
 //These functions are compatible with all parameter sets.
 create_parameterized_test!(shortint_encrypt_decrypt);
