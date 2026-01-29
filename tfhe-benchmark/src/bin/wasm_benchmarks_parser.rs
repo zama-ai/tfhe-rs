@@ -49,7 +49,13 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
 
     for (full_name, val) in results_as_json.iter() {
         let prefixed_full_name = format!("{BENCHMARK_NAME_PREFIX}{full_name}");
-        let name_parts = full_name.split("_mean_").collect::<Vec<_>>();
+        let mut name_parts = full_name.split("::").collect::<Vec<_>>();
+        if name_parts[0] == "zk" {
+            // For WASM benchmarks are ZK related, the bench name is prefixed
+            // with 'zk::' in the full name.
+            name_parts.remove(0);
+        }
+
         let bench_name = name_parts[0];
         let params: PBSParameters = params_from_name(name_parts[1]).into();
         println!("{name_parts:?}");
