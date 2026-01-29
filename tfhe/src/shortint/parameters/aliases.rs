@@ -1,6 +1,7 @@
+use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     current_params, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
-    CompressionParameters, KeySwitch32PBSParameters, MultiBitPBSParameters,
+    CompressionParameters, KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 
@@ -74,11 +75,6 @@ pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
     V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-pub const PARAM_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
 // 2M64
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -87,6 +83,21 @@ pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
 // 2M128
 pub const PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
     V1_6_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+
+// "Naked" aliases
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const PARAM_MESSAGE_2_CARRY_2_KS32_PBS: KeySwitch32PBSParameters =
+    PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+
+pub const META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
+    V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const PARAM_MESSAGE_2_CARRY_2: KeySwitch32PBSParameters = PARAM_MESSAGE_2_CARRY_2_KS32_PBS;
 
 // Compression Gaussian
 // 2M128
