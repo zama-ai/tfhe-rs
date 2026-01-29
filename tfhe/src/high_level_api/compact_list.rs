@@ -1253,6 +1253,80 @@ mod tests {
         }
     }
 
+    /// Tests expanding compact ciphertext lists containing a single item on GPU.
+    /// This is an edge case since the underlying expand implementation handles
+    /// odd numbers of LWE ciphertexts differently.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compact_list_single_item() {
+        for i in [0, 1] {
+            let config = if i == 0 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else if i == 1 {
+                crate::ConfigBuilder::with_custom_parameters(
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build()
+            } else {
+                panic!("Unexpected parameter set")
+            };
+
+            let ck = crate::ClientKey::generate(config);
+            let compressed_server_key = CompressedServerKey::new(&ck);
+            let gpu_sk = compressed_server_key.decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
+
+            set_server_key(gpu_sk);
+
+            // Single boolean
+            {
+                let compact_list = CompactCiphertextList::builder(&pk)
+                    .push(true)
+                    .build_packed();
+
+                let expander = compact_list.expand().unwrap();
+                let a: FheBool = expander.get(0).unwrap().unwrap();
+                let decrypted = a.decrypt(&ck);
+                assert!(decrypted);
+            }
+
+            // Single signed integer
+            {
+                let compact_list = CompactCiphertextList::builder(&pk)
+                    .push(-42i64)
+                    .build_packed();
+
+                let expander = compact_list.expand().unwrap();
+                let a: FheInt64 = expander.get(0).unwrap().unwrap();
+                let decrypted: i64 = a.decrypt(&ck);
+                assert_eq!(decrypted, -42);
+            }
+
+            // Single unsigned integer
+            {
+                let compact_list = CompactCiphertextList::builder(&pk)
+                    .push(17u32)
+                    .build_packed();
+
+                let expander = compact_list.expand().unwrap();
+                let a: FheUint32 = expander.get(0).unwrap().unwrap();
+                let decrypted: u32 = a.decrypt(&ck);
+                assert_eq!(decrypted, 17);
+            }
+        }
+    }
+
     #[cfg(feature = "extended-types")]
     #[test]
     fn test_compact_list_extended_types() {
