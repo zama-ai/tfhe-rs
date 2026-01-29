@@ -2,25 +2,22 @@ use super::utils::noise_simulation::CudaSideResources;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateLweBootstrapResult, LweClassicFftBootstrap,
 };
+use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
+use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
 use crate::integer::gpu::server_key::CudaServerKey;
-use crate::integer::IntegerCiphertext;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
-
-use crate::core_crypto::commons::numeric::Numeric;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::prelude::LweCiphertext;
-use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
-use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::unchecked_small_scalar_mul_integer;
-use crate::integer::CompressedServerKey;
-use crate::prelude::CastInto;
+use crate::integer::gpu::{unchecked_small_scalar_mul_integer, CastInto, CudaVec};
+use crate::integer::{CompressedServerKey, IntegerCiphertext};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
+use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -30,6 +27,9 @@ use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    write_empty_json_file, write_to_json_file, DpKsMsNoiseCheckResult, TestResult,
+};
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
@@ -38,12 +38,19 @@ use crate::shortint::server_key::tests::noise_distribution::{
     should_run_short_pfail_tests_debug, should_use_single_key_debug,
 };
 use crate::shortint::{ClientKey, ShortintParameterSet};
+use crate::this_function_name;
 use itertools::Itertools;
 use rayon::prelude::*;
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
-fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters) {
+fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let block_params = meta_params.compute_parameters;
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -89,6 +96,9 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters) {
     };
 
     let mut cuda_side_resources = CudaSideResources::new(&streams, block_info);
+
+    type SanityVec = (LweCiphertext<Vec<u64>>, LweCiphertext<Vec<u64>>);
+    let mut results: Vec<SanityVec> = Vec::new();
 
     for _ in 0..10 {
         let ct_input = cks.key.encrypt(0);
@@ -152,11 +162,31 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters) {
             shortint_res_list.clone().into_container(),
             shortint_res_list.ciphertext_modulus(),
         );
+
+        results.push((after_pbs_ct, shortint_res_ct));
+    }
+
+    let res_cond = results
+        .iter()
+        .all(|(lhs, rhs)| lhs.as_view() == rhs.as_view());
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        res_cond,
+        None,
+        TestResult::Empty {},
+    )
+    .unwrap();
+
+    // We check each step to preserve failure details and print the invalid case if one occurs
+    for (after_pbs_ct, shortint_res_ct) in results.iter() {
         assert_eq!(after_pbs_ct.as_view(), shortint_res_ct.as_view());
     }
 }
 
-create_gpu_parameterized_test!(sanity_check_encrypt_dp_ks_pbs_gpu {
+create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_pbs_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
@@ -330,8 +360,14 @@ fn encrypt_dp_ks_any_ms_pfail_helper_gpu(
 }
 
 /// GPU version of the noise checking test
-fn noise_check_encrypt_dp_ks_ms_noise_gpu(params: MetaParameters) {
-    let params = params.compute_parameters;
+fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
+    let params = meta_params.compute_parameters;
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_modulus_switch_config =
@@ -434,25 +470,52 @@ fn noise_check_encrypt_dp_ks_ms_noise_gpu(params: MetaParameters) {
 
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
-    let after_ms_is_ok = mean_and_variance_check(
-        &noise_samples_after_ms,
-        "after_ms",
-        expected_average_after_ms,
-        after_ms_sim.variance(),
-        params.lwe_noise_distribution(),
-        after_ms_sim.lwe_dimension(),
-        after_ms_sim.modulus().as_f64(),
-    );
+    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
+        mean_and_variance_check(
+            &noise_samples_after_ms,
+            "after_ms",
+            expected_average_after_ms,
+            after_ms_sim.variance(),
+            params.lwe_noise_distribution(),
+            after_ms_sim.lwe_dimension(),
+            after_ms_sim.modulus().as_f64(),
+        );
 
-    assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
+    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
+
+    let sanity_check_valid = before_ms_normality_valid && after_ms_is_ok;
+
+    let noise_check = TestResult::DpKsMsNoiseCheckResult(Box::new(DpKsMsNoiseCheckResult::new(
+        bounded_variance_measurement,
+        bounded_mean_measurement,
+        before_ms_normality_valid,
+    )));
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        sanity_check_valid,
+        None,
+        noise_check,
+    )
+    .unwrap();
+
+    assert!(sanity_check_valid);
 }
 
-create_gpu_parameterized_test!(noise_check_encrypt_dp_ks_ms_noise_gpu {
+create_gpu_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_noise_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
-fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters) {
+fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let mut ap_params = meta_params.compute_parameters;
     let (pfail_test_meta, params) = {
         let original_message_modulus = ap_params.message_modulus();
@@ -529,10 +592,16 @@ fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters) {
         .sum();
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(&pfail_test_meta, test_result);
+    pfail_check(
+        &pfail_test_meta,
+        test_result,
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    );
 }
 
-create_gpu_parameterized_test!(noise_check_encrypt_dp_ks_ms_pfail_gpu {
+create_gpu_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_pfail_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
