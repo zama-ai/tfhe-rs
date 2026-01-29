@@ -69,4 +69,8 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
     pub(crate) fn decomposition_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
     }
+
+    pub(crate) fn ciphertext_modulus(&self) -> CiphertextModulus<T> {
+        self.ciphertext_modulus
+    }
 }

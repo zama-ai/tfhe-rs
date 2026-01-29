@@ -22,6 +22,60 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async<S
     let input_lwe_dimension = input_lwe_ciphertext_list.lwe_dimension();
     let output_glwe_dimension = output_glwe_ciphertext.glwe_dimension();
     let output_polynomial_size = output_glwe_ciphertext.polynomial_size();
+
+    // Parameter validation
+    assert!(
+        lwe_pksk.input_key_lwe_dimension() == input_lwe_dimension,
+        "Mismatched input LweDimension. \
+        LwePackingKeyswitchKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        lwe_pksk.input_key_lwe_dimension(),
+        input_lwe_dimension
+    );
+    assert!(
+        lwe_pksk.output_glwe_size().to_glwe_dimension() == output_glwe_dimension,
+        "Mismatched output GlweDimension. \
+        LwePackingKeyswitchKey output GlweDimension: {:?}, \
+        output GlweCiphertext GlweDimension {:?}.",
+        lwe_pksk.output_glwe_size().to_glwe_dimension(),
+        output_glwe_dimension
+    );
+    assert!(
+        lwe_pksk.output_polynomial_size() == output_polynomial_size,
+        "Mismatched output PolynomialSize. \
+        LwePackingKeyswitchKey output PolynomialSize: {:?}, \
+        output GlweCiphertext PolynomialSize {:?}.",
+        lwe_pksk.output_polynomial_size(),
+        output_polynomial_size
+    );
+    assert!(
+        lwe_pksk.ciphertext_modulus() == input_lwe_ciphertext_list.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LwePackingKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+        lwe_pksk.ciphertext_modulus(),
+        input_lwe_ciphertext_list.ciphertext_modulus()
+    );
+    assert!(
+        lwe_pksk.ciphertext_modulus() == output_glwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LwePackingKeyswitchKey CiphertextModulus: {:?}, \
+        output GlweCiphertext CiphertextModulus {:?}.",
+        lwe_pksk.ciphertext_modulus(),
+        output_glwe_ciphertext.ciphertext_modulus()
+    );
+    assert!(
+        input_lwe_ciphertext_list
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU packing keyswitch currently only supports power of 2 moduli"
+    );
+    assert!(
+        input_lwe_ciphertext_list.lwe_ciphertext_count().0 <= output_polynomial_size.0,
+        "Input LWE ciphertext count ({}) exceeds output polynomial size ({})",
+        input_lwe_ciphertext_list.lwe_ciphertext_count().0,
+        output_polynomial_size.0
+    );
+
+    // GPU index checks
     assert_eq!(
         streams.gpu_indexes[0],
         input_lwe_ciphertext_list.0.d_vec.gpu_index(0),
@@ -93,6 +147,60 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_128_async<
     let input_lwe_dimension = input_lwe_ciphertext_list.lwe_dimension();
     let output_glwe_dimension = output_glwe_ciphertext.glwe_dimension();
     let output_polynomial_size = output_glwe_ciphertext.polynomial_size();
+
+    // Parameter validation
+    assert!(
+        lwe_pksk.input_key_lwe_dimension() == input_lwe_dimension,
+        "Mismatched input LweDimension. \
+        LwePackingKeyswitchKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        lwe_pksk.input_key_lwe_dimension(),
+        input_lwe_dimension
+    );
+    assert!(
+        lwe_pksk.output_glwe_size().to_glwe_dimension() == output_glwe_dimension,
+        "Mismatched output GlweDimension. \
+        LwePackingKeyswitchKey output GlweDimension: {:?}, \
+        output GlweCiphertext GlweDimension {:?}.",
+        lwe_pksk.output_glwe_size().to_glwe_dimension(),
+        output_glwe_dimension
+    );
+    assert!(
+        lwe_pksk.output_polynomial_size() == output_polynomial_size,
+        "Mismatched output PolynomialSize. \
+        LwePackingKeyswitchKey output PolynomialSize: {:?}, \
+        output GlweCiphertext PolynomialSize {:?}.",
+        lwe_pksk.output_polynomial_size(),
+        output_polynomial_size
+    );
+    assert!(
+        lwe_pksk.ciphertext_modulus() == input_lwe_ciphertext_list.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LwePackingKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+        lwe_pksk.ciphertext_modulus(),
+        input_lwe_ciphertext_list.ciphertext_modulus()
+    );
+    assert!(
+        lwe_pksk.ciphertext_modulus() == output_glwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LwePackingKeyswitchKey CiphertextModulus: {:?}, \
+        output GlweCiphertext CiphertextModulus {:?}.",
+        lwe_pksk.ciphertext_modulus(),
+        output_glwe_ciphertext.ciphertext_modulus()
+    );
+    assert!(
+        input_lwe_ciphertext_list
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU packing keyswitch currently only supports power of 2 moduli"
+    );
+    assert!(
+        input_lwe_ciphertext_list.lwe_ciphertext_count().0 <= output_polynomial_size.0,
+        "Input LWE ciphertext count ({}) exceeds output polynomial size ({})",
+        input_lwe_ciphertext_list.lwe_ciphertext_count().0,
+        output_polynomial_size.0
+    );
+
+    // GPU index checks
     assert_eq!(
         streams.gpu_indexes[0],
         input_lwe_ciphertext_list.0.d_vec.gpu_index(0),
