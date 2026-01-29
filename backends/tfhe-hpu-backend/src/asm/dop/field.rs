@@ -317,8 +317,11 @@ impl std::str::FromStr for UserFlag {
 /// Ucore event are used for Src/Dst arguments fetching
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash)]
 pub struct UcoreFlag {
-    pub pos: NodeId,
-    pub slot: CtId,
+    pub tid: u8,
+    pub bid: u8,
+    //NB: Targeted Hpu could have not received associated IOp (with trgt dst position)
+    // Giving position in the payload enable direct data fetch
+    pub trgt_cid: CtId,
 }
 
 /// Ucore payload could be issued by:
@@ -328,6 +331,7 @@ pub struct UcoreFlag {
 pub enum UcorePayloadMode {
     Ucore(UcoreFlag),
     User(UserFlag),
+    IOpDone(u8),
 }
 
 // PeUcore instructions are enhanced at execution with context information and shared across Hpu
