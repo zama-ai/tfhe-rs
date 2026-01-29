@@ -3,6 +3,7 @@ use super::utils::noise_simulation::{
     NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
+use super::utils::to_json::{write_to_json_file, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -22,10 +23,14 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MetaParameters};
-use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
-use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
+use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
+    DynLwe, NoiseSimulationModulus,
+};
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::write_empty_json_file;
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::Ciphertext;
+use crate::this_function_name;
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -111,7 +116,14 @@ where
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint
-fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters) {
+fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
+
     let params = meta_params
         .compute_parameters
         .with_deterministic_execution();
@@ -124,6 +136,8 @@ fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters) {
 
     let br_input_modulus_log = sks.br_input_modulus_log();
     let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
+
+    let mut results: Vec<(DynLwe, Ciphertext)> = Vec::new();
 
     for _ in 0..10 {
         let input_zero_as_lwe = cks.encrypt_noiseless_pbs_input_dyn_lwe(br_input_modulus_log, 0);
@@ -165,11 +179,30 @@ fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters) {
         sks.unchecked_scalar_mul_assign(&mut shortint_res, max_scalar_mul.try_into().unwrap());
         sks.apply_lookup_table_assign(&mut shortint_res, &id_lut);
 
+        results.push((pbs_result, shortint_res));
+    }
+
+    let all_results_match = results
+        .iter()
+        .all(|(lhs, rhs)| lhs.as_lwe_64() == rhs.ct.as_view());
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        all_results_match,
+        None,
+        TestResult::Empty {},
+    )
+    .unwrap();
+
+    // We check each step to preserve failure details and print the invalid case if one occurs
+    for (pbs_result, shortint_res) in results.iter() {
         assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
 }
 
-create_parameterized_test!(sanity_check_encrypt_br_dp_ks_pbs {
+create_parameterized_stringified_test!(sanity_check_encrypt_br_dp_ks_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -303,7 +336,13 @@ fn encrypt_br_dp_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters) {
+fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let params = meta_params
         .compute_parameters
         .with_deterministic_execution();
@@ -400,27 +439,56 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters) {
 
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
-    let after_ms_is_ok = mean_and_variance_check(
-        &noise_samples_after_ms,
-        "after_ms",
-        expected_average_after_ms,
-        after_ms_sim.variance(),
-        params.lwe_noise_distribution(),
-        after_ms_sim.lwe_dimension(),
-        after_ms_sim.modulus().as_f64(),
-    );
+    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
+        mean_and_variance_check(
+            &noise_samples_after_ms,
+            "after_ms",
+            expected_average_after_ms,
+            after_ms_sim.variance(),
+            params.lwe_noise_distribution(),
+            after_ms_sim.lwe_dimension(),
+            after_ms_sim.modulus().as_f64(),
+        );
 
-    assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
+    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
+
+    let noise_check_valid = before_ms_normality_valid && after_ms_is_ok;
+
+    let noise_check = TestResult::NoiseCheckWithNormalityCheck(Box::new(
+        super::utils::to_json::NoiseCheckWithNormalityCheck::new(
+            bounded_variance_measurement,
+            bounded_mean_measurement,
+            before_ms_normality_valid,
+        ),
+    ));
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        noise_check_valid,
+        None,
+        noise_check,
+    )
+    .unwrap();
+
+    assert!(noise_check_valid);
 }
 
-create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_noise {
+create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
-fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters) {
+fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (pfail_test_meta, params) = {
         let mut ap_params = meta_params
             .compute_parameters
@@ -479,10 +547,16 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters) {
 
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(&pfail_test_meta, test_result);
+    pfail_check(
+        &pfail_test_meta,
+        test_result,
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    );
 }
 
-create_parameterized_test!(noise_check_encrypt_br_dp_ks_ms_pfail {
+create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
