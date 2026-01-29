@@ -54,9 +54,22 @@ macro_rules! create_gpu_parameterized_test{
     };
 }
 
+macro_rules! create_gpu_parameterized_stringified_test{
+    ($name:ident { $($param:ident),* $(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_gpu_ $name _ $param:lower>]() {
+                $name($param, stringify!($param))
+            }
+            )*
+        }
+    };
+}
+
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
-pub(crate) use create_gpu_parameterized_test;
 use tfhe_csprng::seeders::Seed;
+pub(crate) use {create_gpu_parameterized_stringified_test, create_gpu_parameterized_test};
 
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,
