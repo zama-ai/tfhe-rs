@@ -44,6 +44,12 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
         input_glwe_list.ciphertext_modulus(),
         output_lwe_list.ciphertext_modulus()
     );
+    assert!(
+        input_glwe_list
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU sample extraction currently only supports power of 2 moduli"
+    );
     assert_eq!(
         streams.gpu_indexes[0],
         input_glwe_list.0.d_vec.gpu_index(0),
