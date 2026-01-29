@@ -1,4 +1,5 @@
 # CUST_HPU0_32 for VirtualHpu 1
+# WARNING: Prototype must be `--user-proto "[2]<N,N>::<N,N><0>"`
 # IOp to debug multi-hpu data xfer and sync
 # This IOp take two sources and generate two destination (one written by each node)
 # Focus on LD templated Op from other Hpu

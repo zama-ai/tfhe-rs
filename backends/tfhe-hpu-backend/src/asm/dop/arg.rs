@@ -439,7 +439,7 @@ impl ToAsm for PePbsInsn {
 impl FromAsm for field::PeUcoreInsn {
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
         if args.len() != 3 {
-            return Err(ParsingError::ArgNumber(2, args.len()));
+            return Err(ParsingError::ArgNumber(3, args.len()));
         }
 
         let hid = match args[0] {

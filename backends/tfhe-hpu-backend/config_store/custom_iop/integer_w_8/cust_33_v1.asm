@@ -1,0 +1,30 @@
+# CUST_HPU0_33 for VirtualHpu 1
+# WARNING: Prototype must be `--user-proto "[2]<N>::<N><0>"`
+# IOp to debug multi-hpu data xfer and sync
+# This IOp has two actors: one consumer and one producer.
+# Consumer read the IOp source and send them through explicit xfer toward the producer
+# Producer retrieved value with explicit lb_b2b and generate the output
+# Focus on explicit xfer between HPU
+# Below producer code
+
+# Issue read value from Node0
+LD_B2B N0 F0 TH.10
+LD_B2B N0 F1 TH.11
+LD_B2B N0 F2 TH.12
+LD_B2B N0 F3 TH.13
+
+# Wait for B2b load end and load in reg
+WAIT N0 F0 TH.0
+LD R0 TH.10
+WAIT N0 F1 TH.1
+LD R1 TH.11
+WAIT N0 F2 TH.2
+LD R2 TH.12
+WAIT N0 F3 TH.3
+LD R3 TH.13
+
+# Store in Dst variable
+ST TD[0].0 R0 
+ST TD[0].1 R1 
+ST TD[0].2 R2 
+ST TD[0].3 R3 
