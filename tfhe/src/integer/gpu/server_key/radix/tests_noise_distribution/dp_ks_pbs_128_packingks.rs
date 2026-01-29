@@ -11,7 +11,7 @@ use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::prelude::generate_programmable_bootstrap_glwe_lut;
 use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
-use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
+use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::IntegerCiphertext;
@@ -30,16 +30,28 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    write_empty_json_file, write_to_json_file, DpKsPackingNoiseCheckResult, TestResult,
+};
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, DecryptionAndNoiseResult, NoiseSample,
 };
 use crate::shortint::{PaddingBit, ShortintEncoding, ShortintParameterSet};
-use crate::GpuIndex;
+use crate::{this_function_name, GpuIndex};
 use rayon::prelude::*;
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
-fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(meta_params: MetaParameters) {
+fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -177,12 +189,31 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(meta_params: MetaPa
     // Bodies that were not filled are discarded
     after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        after_packing.as_view() == extracted_glwe.as_view(),
+        None,
+        TestResult::Empty {},
+    )
+    .unwrap();
+
     assert_eq!(after_packing.as_view(), extracted_glwe.as_view());
 }
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
-fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(meta_params: MetaParameters) {
+fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (params, noise_squashing_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -329,6 +360,16 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(meta_params: MetaParameters) {
                 .clone()
         })
         .collect();
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        vector_pattern_cpu == vector_non_pattern_cpu,
+        None,
+        TestResult::Empty {},
+    )
+    .unwrap();
 
     // Compare that all the results are equivalent
     assert_eq!(vector_pattern_cpu, vector_non_pattern_cpu);
@@ -671,7 +712,16 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_noise_helper_gpu(
     )
 }
 
-fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(meta_params: MetaParameters) {
+fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -835,29 +885,46 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(meta_params: M
         .map(|x| x.value)
         .collect();
 
-    let after_packing_is_ok = mean_and_variance_check(
-        &noise_samples_after_packing_flattened,
-        "after_packing",
-        0.0,
-        after_packing_sim.variance(),
-        noise_squashing_compression_params.packing_ks_key_noise_distribution,
-        after_packing_sim.lwe_dimension(),
-        after_packing_sim.modulus().as_f64(),
-    );
+    let (after_packing_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
+        mean_and_variance_check(
+            &noise_samples_after_packing_flattened,
+            "after_packing",
+            0.0,
+            after_packing_sim.variance(),
+            noise_squashing_compression_params.packing_ks_key_noise_distribution,
+            after_packing_sim.lwe_dimension(),
+            after_packing_sim.modulus().as_f64(),
+        );
+
+    let noise_check = TestResult::DpKsPackingNoiseCheckResult(Box::new(
+        DpKsPackingNoiseCheckResult::new(bounded_variance_measurement, bounded_mean_measurement),
+    ));
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        after_packing_is_ok,
+        None,
+        noise_check,
+    )
+    .unwrap();
 
     assert!(after_packing_is_ok);
 }
 
-create_gpu_parameterized_test!(
+create_gpu_parameterized_stringified_test!(
     noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu {
         TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     }
 );
 
-create_gpu_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-});
+create_gpu_parameterized_stringified_test!(
+    sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu {
+        TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    }
+);
 
-create_gpu_parameterized_test!(sanity_check_encrypt_dp_ks_standard_pbs128_gpu {
+create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_standard_pbs128_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });

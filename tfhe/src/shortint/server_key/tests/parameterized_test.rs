@@ -61,6 +61,19 @@ macro_rules! create_parameterized_test{
     };
 }
 
+macro_rules! create_parameterized_stringified_test{
+    ($name:ident { $($param:ident),* $(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param, stringify!($param))
+            }
+            )*
+        }
+    };
+}
+
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
 macro_rules! create_parameterized_test{
@@ -84,7 +97,7 @@ macro_rules! create_parameterized_test{
     };
 }
 
-pub(crate) use create_parameterized_test;
+pub(crate) use {create_parameterized_stringified_test, create_parameterized_test};
 
 //These functions are compatible with all parameter sets.
 create_parameterized_test!(shortint_encrypt_decrypt);

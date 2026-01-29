@@ -3,6 +3,7 @@ use super::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe,
     NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
+use super::utils::to_json::{write_to_json_file, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -39,9 +40,11 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
-use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::write_empty_json_file;
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
-use crate::shortint::PaddingBit;
+use crate::shortint::{Ciphertext, PaddingBit};
+use crate::this_function_name;
 use rayon::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -479,7 +482,16 @@ fn encrypt_br_rerand_dp_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
+fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -669,26 +681,58 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(meta_params: MetaParameters) {
 
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
-    let after_ms_is_ok = mean_and_variance_check(
-        &noise_samples_after_ms,
-        "after_ms",
-        expected_average_after_ms,
-        after_ms_sim.variance(),
-        params.lwe_noise_distribution(),
-        after_ms_sim.lwe_dimension(),
-        after_ms_sim.modulus().as_f64(),
-    );
+    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
+        mean_and_variance_check(
+            &noise_samples_after_ms,
+            "after_ms",
+            expected_average_after_ms,
+            after_ms_sim.variance(),
+            params.lwe_noise_distribution(),
+            after_ms_sim.lwe_dimension(),
+            after_ms_sim.modulus().as_f64(),
+        );
 
-    assert!(before_ms_normality.null_hypothesis_is_valid && after_ms_is_ok);
+    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
+
+    let noise_check_valid = before_ms_normality_valid && after_ms_is_ok;
+
+    let noise_check = TestResult::DpKsMsNoiseCheckResult(Box::new(
+        super::utils::to_json::DpKsMsNoiseCheckResult::new(
+            bounded_variance_measurement,
+            bounded_mean_measurement,
+            before_ms_normality_valid,
+        ),
+    ));
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        noise_check_valid,
+        None,
+        noise_check,
+    )
+    .unwrap();
+
+    assert!(noise_check_valid);
 }
 
-create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_noise {
+create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
-fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
+fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -789,16 +833,28 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(meta_params: MetaParameters) {
 
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(&pfail_test_meta, test_result);
+    pfail_check(
+        &pfail_test_meta,
+        test_result,
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    );
 }
 
-create_parameterized_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pfail {
+create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pfail {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
-fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
+fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, filename_suffix: &str) {
+    write_empty_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+    )
+    .unwrap();
     let (params, cpk_params, rerand_ksk_params, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -849,6 +905,8 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
     let storage_modulus = comp_private_key.params.storage_log_modulus();
 
     let id_lut = sks.generate_lookup_table(|x| x);
+
+    let mut results: Vec<(DynLwe, Ciphertext)> = Vec::new();
 
     for idx in 0..10 {
         let seed_bytes = vec![idx as u8; 256 / 8];
@@ -952,11 +1010,30 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
         let mut pbs_result = id_lut.allocate_lwe_bootstrap_result(&mut ());
         sks.apply_generic_blind_rotation(&after_ms, &mut pbs_result, &id_lut);
 
+        results.push((pbs_result, shortint_res));
+    }
+
+    let all_result_match = results
+        .iter()
+        .all(|(lhs, rhs)| lhs.as_lwe_64() == rhs.ct.as_view());
+
+    write_to_json_file(
+        &meta_params,
+        filename_suffix,
+        this_function_name!().as_str(),
+        all_result_match,
+        None,
+        TestResult::Empty {},
+    )
+    .unwrap();
+
+    // We check each step to preserve failure details and print the invalid case if one occurs
+    for (pbs_result, shortint_res) in results.iter() {
         assert_eq!(pbs_result.as_lwe_64(), shortint_res.ct.as_view());
     }
 }
 
-create_parameterized_test!(sanity_check_encrypt_br_rerand_dp_ks_ms_pbs {
+create_parameterized_stringified_test!(sanity_check_encrypt_br_rerand_dp_ks_ms_pbs {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
