@@ -12,6 +12,121 @@
 #include "polynomial/functions.cuh"
 #include "utils/kernel_dimensions.cuh"
 
+/*
+ * =============================================================================
+ * GPU Compression/Decompression Algorithm: Overview
+ * =============================================================================
+ *
+ * The compression algorithm transforms standard LWE ciphertexts into a compact
+ * packed format. Decompression reverses this process.
+ *
+ * -----------------------------------------------------------------------------
+ * COMPRESSION INPUT (lwe_array_in)
+ * -----------------------------------------------------------------------------
+ *
+ *  +-------------------------------------------------------------------------+
+ *  |                    lwe_array_in (GPU memory)                            |
+ *  +-------------------------------------------------------------------------+
+ *  +---------------------------+---------------------------+-----------------+
+ *  |          LWE 0            |          LWE 1            |      ...        |
+ *  |      [mask, body]         |      [mask, body]         |                 |
+ *  +---------------------------+---------------------------+-----------------+
+ *  |<-- lwe_dimension + 1 -->|
+ *
+ *  Total LWEs: total_lwe_bodies_count (num_radix_blocks)
+ *
+ * -----------------------------------------------------------------------------
+ * COMPRESSION PROCESS
+ * -----------------------------------------------------------------------------
+ *
+ * 1. Message Shift (64-bit only):
+ *    Each LWE is multiplied by message_modulus to shift the message to MSB
+ *
+ * 2. Packing Keyswitch (LWE -> GLWE):
+ *    Groups of up to lwe_per_glwe LWEs are packed into a single GLWE:
+ *
+ *    +--------------------------------------------------------------+
+ *    |   lwe_per_glwe LWEs (input batch)                            |
+ *    |   LWE[0], LWE[1], ..., LWE[lwe_per_glwe-1]                   |
+ *    +--------------------------------------------------------------+
+ *                              |
+ *                    Packing Keyswitch
+ *                              v
+ *    +--------------------------------------------------------------+
+ *    |            Single GLWE Ciphertext                            |
+ *    |   [A_0, A_1, ..., A_{k-1}, B]                                |
+ *    |   |<-- k * polynomial_size -->| |<-- polynomial_size -->|   |
+ *    +--------------------------------------------------------------+
+ *
+ *    Number of output GLWEs: num_glwes = ceil(total_lwe_bodies_count /
+ *                                             lwe_per_glwe)
+ *
+ * 3. Modulus Switch:
+ *    Reduce precision from 64-bit torus to storage_log_modulus bits
+ *
+ * 4. Bit Packing:
+ *    Pack multiple reduced-precision elements into dense bit representation
+ *
+ * -----------------------------------------------------------------------------
+ * COMPRESSION MEMORY LAYOUT (tmp_glwe_array_out)
+ * -----------------------------------------------------------------------------
+ *
+ *  +-------------------------------------------------------------------------+
+ *  |                 tmp_glwe_array_out (intermediate buffer)                |
+ *  +-------------------------------------------------------------------------+
+ *  +----------------------------+----------------------------+---------------+
+ *  |         GLWE 0             |         GLWE 1             |    ...        |
+ *  |  [A_0..A_{k-1}, B_0..B_N]  |  [A_0..A_{k-1}, B_0..B_N]  |               |
+ *  +----------------------------+----------------------------+---------------+
+ *       |<-- glwe_accumulator_size = (k+1)*N -->|
+ *
+ *  Total size needed: num_glwes * glwe_accumulator_size elements
+ *  Where: num_glwes = ceil(total_lwe_bodies_count / lwe_per_glwe)
+ *
+ * -----------------------------------------------------------------------------
+ * PACKED OUTPUT (glwe_array_out)
+ * -----------------------------------------------------------------------------
+ *
+ *  +-------------------------------------------------------------------------+
+ *  |              Packed GLWE Ciphertext List (bit-packed)                   |
+ *  +-------------------------------------------------------------------------+
+ *  +-------------------------------------------------------------------------+
+ *  |  Elements packed with storage_log_modulus bits per original element    |
+ *  |  Total packed size: ceil(in_len * storage_log_modulus / 64) elements   |
+ *  +-------------------------------------------------------------------------+
+ *
+ * =============================================================================
+ * DECOMPRESSION (Extract) Algorithm
+ * =============================================================================
+ *
+ * Decompression receives an array of LWE indexes. For each index, it identifies
+ * the corresponding GLWE, extracts that GLWE from the packed representation,
+ * and then sample-extracts the requested LWE from the GLWE.
+ *
+ * -----------------------------------------------------------------------------
+ * EXTRACT OUTPUT LAYOUT (glwe_array_out in host_extract)
+ * -----------------------------------------------------------------------------
+ *
+ *  +-------------------------------------------------------------------------+
+ *  |               Extracted GLWE Ciphertext                                 |
+ *  +-------------------------------------------------------------------------+
+ *  +---------------------------------------+-----------------+---------------+
+ *  |    Mask (A polynomials)               |   Body (B)      |    Tail       |
+ *  |    [A_0, ..., A_{k-1}]                |   (body_count)  |   (zeroed)    |
+ *  |    k * polynomial_size elements       |   elements      |   elements    |
+ *  +---------------------------------------+-----------------+---------------+
+ *  |<------------------- initial_out_len ------------------->|               |
+ *  |<------------------------ glwe_ciphertext_size ------------------------->|
+ *
+ *  For the last GLWE, body_count may be less than polynomial_size (partial).
+ *  The tail region must be zeroed to ensure defined behavior.
+ *
+ *  tail_size = glwe_ciphertext_size - initial_out_len
+ *  tail_offset = initial_out_len  (NOT 0!)
+ *
+ * =============================================================================
+ */
+
 template <typename Torus>
 __global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
                      uint32_t num_coeffs, uint32_t in_len, uint32_t out_len) {
@@ -108,6 +223,8 @@ host_integer_compress(CudaStreams streams,
   uint32_t num_glwes = (glwe_array_out->total_lwe_bodies_count +
                         glwe_array_out->lwe_per_glwe - 1) /
                        glwe_array_out->lwe_per_glwe;
+  PANIC_IF_FALSE(num_glwes <= mem_ptr->max_num_glwes,
+                 "Invalid number of GLWEs");
 
   // Keyswitch LWEs to GLWE
   auto tmp_glwe_array_out = mem_ptr->tmp_glwe_array_out;
@@ -229,8 +346,11 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   auto chunk_array_in = (Torus *)array_in->ptr + glwe_index * len;
 
   // Ensure the tail of the GLWE is zeroed
+  // The extract kernel writes initial_out_len elements starting at offset 0.
+  // We must zero the tail region (from initial_out_len to
+  // glwe_ciphertext_size)
   if (initial_out_len < glwe_ciphertext_size) {
-    cuda_memset_async(glwe_array_out, 0,
+    cuda_memset_async(glwe_array_out + initial_out_len, 0,
                       (glwe_ciphertext_size - initial_out_len) * sizeof(Torus),
                       stream, gpu_index);
   }
