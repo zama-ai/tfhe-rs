@@ -79,6 +79,28 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar, KSKScalar>(
         output_indexes.gpu_index(0).get(),
     );
 
+    // Modulus checks (mirroring keyswitch_lwe_ciphertext_native_mod_compatible)
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus()
+    );
+    assert!(
+        output_lwe_ciphertext
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU keyswitch currently only supports power of 2 moduli for the output ciphertext"
+    );
+    assert!(
+        input_lwe_ciphertext
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU keyswitch currently only supports power of 2 moduli for the input ciphertext"
+    );
+
     let mut ks_tmp_buffer: *mut ffi::c_void = std::ptr::null_mut();
 
     let num_lwes_to_ks = min(

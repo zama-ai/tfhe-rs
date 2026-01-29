@@ -114,6 +114,10 @@ pub unsafe fn cuda_lwe_ciphertext_add_assign_async<Scalar>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert!(
+        lhs.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext add currently only supports power of 2 moduli"
+    );
     assert_eq!(
         streams.gpu_indexes[0],
         lhs.0.d_vec.gpu_index(0),
@@ -213,6 +217,28 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
     let num_samples = lhs.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &lhs.lwe_dimension();
 
+    // GPU index checks
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs.gpu_index(0).get(),
+    );
+
+    // Native modulus check
+    assert!(
+        lhs.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext plaintext add currently only supports power of 2 moduli"
+    );
+
     add_lwe_ciphertext_vector_plaintext_vector_assign_async(
         streams,
         &mut lhs.0.d_vec,
@@ -305,6 +331,19 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
         "Mismatched number of ciphertexts between input ({:?}) and output ({:?})",
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
+    );
+    assert_eq!(
+        output.ciphertext_modulus(),
+        input.ciphertext_modulus(),
+        "Mismatched moduli between output ({:?}) and input ({:?}) LweCiphertext",
+        output.ciphertext_modulus(),
+        input.ciphertext_modulus()
+    );
+    assert!(
+        input
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
     );
     assert_eq!(
         streams.gpu_indexes[0],
