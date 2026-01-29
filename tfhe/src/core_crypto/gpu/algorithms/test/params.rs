@@ -1,10 +1,10 @@
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
     GlweDimension, LweBskGroupingFactor, LweDimension, MessageModulusLog, PolynomialSize,
     UnsignedInteger,
 };
 use crate::shortint::EncryptionKeyChoice;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MultiBitTestKS32Params<Scalar: UnsignedInteger> {

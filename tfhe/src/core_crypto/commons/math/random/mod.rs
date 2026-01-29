@@ -16,6 +16,7 @@
 use crate::core_crypto::backward_compatibility::commons::math::random::DynamicDistributionVersions;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
 use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
+use serde::{Deserialize, Serialize};
 use std::ops::Bound;
 
 use crate::core_crypto::prelude::{CastInto, Numeric};

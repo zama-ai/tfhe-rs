@@ -3,7 +3,6 @@ use super::{
     SquashedNoiseSignedRadixCiphertext,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::list_compression::{
@@ -24,6 +23,7 @@ use crate::shortint::list_compression::{
 };
 use crate::shortint::parameters::NoiseSquashingCompressionParameters;
 use crate::Versionize;
+use serde::{Deserialize, Serialize};
 use std::num::NonZero;
 
 use crate::integer::backward_compatibility::list_compression::NoiseSquashingCompressionKeyVersions;
