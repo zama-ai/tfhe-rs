@@ -28,4 +28,4 @@ tfhe-cuda-backend = { version = "0.13.0", path = "../tfhe-cuda-backend" }
 
 [features]
 default = []
-validate_points = []  # Enable on-curve validation for points
+validate_points = [] # Enable on-curve validation for points
