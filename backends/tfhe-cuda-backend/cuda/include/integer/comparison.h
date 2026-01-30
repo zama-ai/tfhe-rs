@@ -39,22 +39,21 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         max_chunks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
-                                            allocate_gpu_memory, size_tracker);
-    auto is_max_value_f = [max_value](Torus x) -> Torus {
-      return x == max_value;
-    };
     preallocated_h_lut = (Torus *)malloc(
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), is_max_value->get_lut(0, 0),
-        is_max_value->get_degree(0), is_max_value->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_max_value_f, gpu_memory_allocated);
+
+    is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
+                                            allocate_gpu_memory, size_tracker);
 
     auto active_streams =
         streams.active_gpu_subset(max_chunks, params.pbs_type);
-    is_max_value->broadcast_lut(active_streams);
+
+    auto is_max_value_f = [max_value](Torus x) -> Torus {
+      return x == max_value;
+    };
+
+    is_max_value->generate_and_broadcast_lut(
+        active_streams, {0}, {is_max_value_f}, gpu_memory_allocated);
   }
 
   void release(CudaStreams streams) {
@@ -103,15 +102,10 @@ template <typename Torus> struct int_comparison_eq_buffer {
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), is_non_zero_lut->get_lut(0, 0),
-        is_non_zero_lut->get_degree(0), is_non_zero_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_non_zero_lut_f, gpu_memory_allocated);
-
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    is_non_zero_lut->broadcast_lut(active_streams);
+    is_non_zero_lut->generate_and_broadcast_lut(
+        active_streams, {0}, {is_non_zero_lut_f}, gpu_memory_allocated);
 
     // Scalar may have up to num_radix_blocks blocks
     scalar_comparison_luts = new int_radix_lut<Torus>(
@@ -129,32 +123,27 @@ template <typename Torus> struct int_comparison_eq_buffer {
         return (lhs == rhs);
       }
     };
+
+    std::vector<std::function<Torus(Torus)>> lut_funcs;
+    std::vector<uint32_t> lut_indices;
     for (int i = 0; i < total_modulus; i++) {
       auto lut_f = [i, operator_f](Torus x) -> Torus {
         return operator_f(i, x);
       };
-
-      generate_device_accumulator<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          scalar_comparison_luts->get_lut(0, i),
-          scalar_comparison_luts->get_degree(i),
-          scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f, gpu_memory_allocated);
+      lut_funcs.push_back(lut_f);
+      lut_indices.push_back(i);
     }
-    scalar_comparison_luts->broadcast_lut(active_streams);
+
+    scalar_comparison_luts->generate_and_broadcast_lut(
+        active_streams, lut_indices, lut_funcs, gpu_memory_allocated);
+
     if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
       operator_lut =
           new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                    allocate_gpu_memory, size_tracker);
 
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0), operator_lut->get_lut(0, 0),
-          operator_lut->get_degree(0), operator_lut->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, operator_f, gpu_memory_allocated);
-
-      operator_lut->broadcast_lut(active_streams);
+      operator_lut->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {operator_f}, gpu_memory_allocated);
     } else {
       operator_lut = nullptr;
     }
@@ -221,9 +210,6 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         streams.stream(0), streams.gpu_index(0), tmp_y, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     // LUTs
-    tree_inner_leaf_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
 
     tree_last_leaf_lut = new int_radix_lut<Torus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
@@ -234,15 +220,14 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_scalar_lut = new int_radix_lut<Torus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        tree_inner_leaf_lut->get_lut(0, 0), tree_inner_leaf_lut->get_degree(0),
-        tree_inner_leaf_lut->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        block_selector_f, gpu_memory_allocated);
+    tree_inner_leaf_lut =
+        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                 allocate_gpu_memory, size_tracker);
+
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
-    tree_inner_leaf_lut->broadcast_lut(active_streams);
+    tree_inner_leaf_lut->generate_and_broadcast_bivariate_lut(
+        active_streams, {0}, {block_selector_f}, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams) {
@@ -426,12 +411,8 @@ template <typename Torus> struct int_comparison_buffer {
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), identity_lut->get_lut(0, 0),
-        identity_lut->get_degree(0), identity_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, identity_lut_f, gpu_memory_allocated);
-    identity_lut->broadcast_lut(active_streams);
+    identity_lut->generate_and_broadcast_lut(
+        active_streams, {0}, {identity_lut_f}, gpu_memory_allocated);
 
     uint32_t total_modulus = params.message_modulus * params.carry_modulus;
     auto is_zero_f = [total_modulus](Torus x) -> Torus {
@@ -441,13 +422,8 @@ template <typename Torus> struct int_comparison_buffer {
     is_zero_lut = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                            allocate_gpu_memory, size_tracker);
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), is_zero_lut->get_lut(0, 0),
-        is_zero_lut->get_degree(0), is_zero_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, is_zero_f, gpu_memory_allocated);
-
-    is_zero_lut->broadcast_lut(active_streams);
+    is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
+                                            gpu_memory_allocated);
 
     switch (op) {
     case COMPARISON_TYPE::MAX:
@@ -522,13 +498,9 @@ template <typename Torus> struct int_comparison_buffer {
         PANIC("Cuda error: sign_lut creation failed due to wrong function.")
       };
 
-      generate_device_accumulator_bivariate<Torus>(
-          streams.stream(0), streams.gpu_index(0), signed_lut->get_lut(0, 0),
-          signed_lut->get_degree(0), signed_lut->get_max_degree(0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, signed_lut_f, gpu_memory_allocated);
       auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-      signed_lut->broadcast_lut(active_streams);
+      signed_lut->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {signed_lut_f}, gpu_memory_allocated);
     }
     preallocated_h_lut = (Torus *)malloc(
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));

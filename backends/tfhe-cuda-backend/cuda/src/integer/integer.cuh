@@ -962,8 +962,9 @@ uint64_t generate_many_lookup_table(
 template <typename Torus>
 void generate_lookup_table_no_encoding(Torus *acc, uint32_t glwe_dimension,
                                        uint32_t polynomial_size,
-                                       std::function<Torus(uint32_t)> f) {
+                                       std::function<Torus(Torus)> f) {
 
+  // accumulator number of elements is (glwe_dimension + 1) * polynomial_size
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
   auto body = &acc[glwe_dimension * polynomial_size];
@@ -975,9 +976,9 @@ void generate_lookup_table_no_encoding(Torus *acc, uint32_t glwe_dimension,
 
 template <typename Torus>
 void generate_device_accumulator_no_encoding(
-    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t &degree,
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
     uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
-    uint32_t polynomial_size, std::function<Torus(uint32_t)> f,
+    uint32_t polynomial_size, std::function<Torus(Torus)> f,
     bool gpu_memory_allocated) {
 
   Torus *h_lut =
@@ -986,7 +987,7 @@ void generate_device_accumulator_no_encoding(
   generate_lookup_table_no_encoding<Torus>(h_lut, glwe_dimension,
                                            polynomial_size, f);
 
-  degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
+  *degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
 
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
@@ -1738,12 +1739,9 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
       signs_array_in, 0, num_sign_blocks);
   if (num_sign_blocks > 2) {
     auto lut = diff_buffer->reduce_signs_lut;
-    generate_device_accumulator_with_cpu_prealloc<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-        lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus,
-        reduce_two_orderings_function, true, diff_buffer->preallocated_h_lut1);
-    lut->broadcast_lut(lut->active_streams);
+    lut->generate_and_broadcast_lut(lut->active_streams, {0},
+                                    {reduce_two_orderings_function}, true, true,
+                                    {diff_buffer->preallocated_h_lut1});
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
@@ -1769,12 +1767,10 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
     };
 
     auto lut = diff_buffer->reduce_signs_lut;
-    generate_device_accumulator_with_cpu_prealloc<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-        lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, final_lut_f, true,
-        diff_buffer->preallocated_h_lut2);
-    lut->broadcast_lut(lut->active_streams);
+
+    lut->generate_and_broadcast_lut(lut->active_streams, {0}, {final_lut_f},
+                                    true, true,
+                                    {diff_buffer->preallocated_h_lut2});
 
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
                        signs_a, num_sign_blocks, message_modulus);
@@ -1789,12 +1785,9 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
     };
 
     auto lut = mem_ptr->diff_buffer->reduce_signs_lut;
-    generate_device_accumulator_with_cpu_prealloc<Torus>(
-        streams.stream(0), streams.gpu_index(0), lut->get_lut(0, 0),
-        lut->get_degree(0), lut->get_max_degree(0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, final_lut_f, true,
-        diff_buffer->preallocated_h_lut2);
-    lut->broadcast_lut(lut->active_streams);
+    lut->generate_and_broadcast_lut(lut->active_streams, {0}, {final_lut_f},
+                                    true, true,
+                                    {diff_buffer->preallocated_h_lut2});
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, signs_array_out, signs_a, bsks, ksks, lut, 1);

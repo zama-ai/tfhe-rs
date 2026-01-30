@@ -116,19 +116,14 @@ template <typename Torus> struct int_decompression {
           encryption_params.carry_modulus;
       auto effective_compression_carry_modulus = 1;
 
-      generate_device_accumulator_with_encoding<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          decompression_rescale_lut->get_lut(0, 0),
-          decompression_rescale_lut->get_degree(0),
-          decompression_rescale_lut->get_max_degree(0),
-          encryption_params.glwe_dimension, encryption_params.polynomial_size,
+      auto active_streams = streams.active_gpu_subset(
+          num_blocks_to_decompress, decompression_rescale_lut->params.pbs_type);
+      decompression_rescale_lut->generate_and_broadcast_lut_with_encoding(
+          active_streams, {0}, {decompression_rescale_f},
           effective_compression_message_modulus,
           effective_compression_carry_modulus,
           encryption_params.message_modulus, encryption_params.carry_modulus,
-          decompression_rescale_f, gpu_memory_allocated);
-      auto active_streams = streams.active_gpu_subset(
-          num_blocks_to_decompress, decompression_rescale_lut->params.pbs_type);
-      decompression_rescale_lut->broadcast_lut(active_streams);
+          gpu_memory_allocated);
     }
   }
   void release(CudaStreams streams) {

@@ -53,13 +53,8 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
       return count;
     };
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), univ_lut_mem->get_lut(0, 0),
-        univ_lut_mem->get_degree(0), univ_lut_mem->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, generate_uni_lut_lambda, allocate_gpu_memory);
-
-    univ_lut_mem->broadcast_lut(active_streams);
+    univ_lut_mem->generate_and_broadcast_lut(
+        active_streams, {0}, {generate_uni_lut_lambda}, allocate_gpu_memory);
 
     auto generate_bi_lut_lambda =
         [num_bits](Torus block_num_bit_count,
@@ -70,13 +65,8 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
       return 0;
     };
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), biv_lut_mem->get_lut(0, 0),
-        biv_lut_mem->get_degree(0), biv_lut_mem->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, generate_bi_lut_lambda, allocate_gpu_memory);
-
-    biv_lut_mem->broadcast_lut(active_streams);
+    biv_lut_mem->generate_and_broadcast_bivariate_lut(
+        active_streams, {0}, {generate_bi_lut_lambda}, allocate_gpu_memory);
 
     this->tmp_ct = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -232,7 +222,7 @@ template <typename Torus> struct int_ilog2_buffer {
         this->sum_output_not_propagated, counter_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->lut_message_not =
+    lut_message_not =
         new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
                                  allocate_gpu_memory, size_tracker);
     std::function<Torus(Torus)> lut_message_lambda =
@@ -240,16 +230,11 @@ template <typename Torus> struct int_ilog2_buffer {
       uint64_t message = x % this->params.message_modulus;
       return (~message) % this->params.message_modulus;
     };
-    generate_device_accumulator(streams.stream(0), streams.gpu_index(0),
-                                this->lut_message_not->get_lut(0, 0),
-                                this->lut_message_not->get_degree(0),
-                                this->lut_message_not->get_max_degree(0),
-                                params.glwe_dimension, params.polynomial_size,
-                                params.message_modulus, params.carry_modulus,
-                                lut_message_lambda, allocate_gpu_memory);
+
     auto active_streams =
         streams.active_gpu_subset(counter_num_blocks, params.pbs_type);
-    lut_message_not->broadcast_lut(active_streams);
+    lut_message_not->generate_and_broadcast_lut(
+        active_streams, {0}, {lut_message_lambda}, allocate_gpu_memory);
 
     this->lut_carry_not =
         new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
@@ -259,13 +244,8 @@ template <typename Torus> struct int_ilog2_buffer {
       uint64_t carry = x / this->params.message_modulus;
       return (~carry) % this->params.message_modulus;
     };
-    generate_device_accumulator(
-        streams.stream(0), streams.gpu_index(0),
-        this->lut_carry_not->get_lut(0, 0), this->lut_carry_not->get_degree(0),
-        this->lut_carry_not->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_carry_lambda, allocate_gpu_memory);
-    lut_carry_not->broadcast_lut(active_streams);
+    lut_carry_not->generate_and_broadcast_lut(
+        active_streams, {0}, {lut_carry_lambda}, allocate_gpu_memory);
 
     this->message_blocks_not = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
