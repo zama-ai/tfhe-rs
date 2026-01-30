@@ -14,7 +14,6 @@ use aligned_vec::{avec, ABox};
 use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use std::any::TypeId;
-use std::collections::hash_map::Entry;
 use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
@@ -116,14 +115,7 @@ pub fn setup_custom_fft_plan(plan: Plan) {
 
     let global_plans = plans();
 
-    let mut write = global_plans.0.write().unwrap();
-
-    match write.entry(n) {
-        Entry::Occupied(mut occupied_entry) => *occupied_entry.get_mut() = plan,
-        Entry::Vacant(vacant_entry) => {
-            vacant_entry.insert(plan);
-        }
-    }
+    global_plans.set(n, plan);
 }
 
 /// Return the input slice, cast to the same type.

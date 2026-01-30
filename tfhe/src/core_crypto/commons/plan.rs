@@ -9,6 +9,14 @@ impl<Key: Eq + Hash + Copy, Value> GenericPlanMap<Key, Value> {
         Self(RwLock::new(HashMap::new()))
     }
 
+    pub fn set(&self, key: Key, new_value: Arc<Value>) {
+        let mut values = self.0.write().unwrap();
+
+        let _old_value = values.insert(key, new_value);
+
+        drop(values);
+    }
+
     pub fn get_or_init(&self, key: Key, new_value: impl Fn(Key) -> Value) -> Arc<Value> {
         let values = self.0.read().unwrap();
 
