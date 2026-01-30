@@ -6,7 +6,8 @@
 //! seeds that can accommodate varying scenarios.
 
 /// A seed value, used to initialize a generator.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(SeedVersions)]
 pub struct Seed(pub u128);
 
 /// A Seed as described in the [Threshold (Fully) Homomorphic Encryption]
@@ -138,7 +139,7 @@ mod implem;
 pub use implem::*;
 use tfhe_versionable::Versionize;
 
-use crate::seeders::backward_compatibility::XofSeedVersions;
+use crate::seeders::backward_compatibility::{SeedVersions, XofSeedVersions};
 
 #[cfg(test)]
 mod generic_tests {

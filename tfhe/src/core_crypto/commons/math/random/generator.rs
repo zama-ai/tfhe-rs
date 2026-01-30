@@ -1,6 +1,4 @@
-use crate::core_crypto::backward_compatibility::commons::math::random::{
-    CompressionSeedVersioned, CompressionSeedVersionedOwned,
-};
+use crate::core_crypto::backward_compatibility::commons::math::random::CompressionSeedVersions;
 use crate::core_crypto::commons::math::random::{
     Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
@@ -10,58 +8,19 @@ use crate::core_crypto::commons::parameters::CiphertextModulus;
 use rayon::prelude::*;
 use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 
+use serde::{Deserialize, Serialize};
 pub use tfhe_csprng::generators::{
     ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,
 };
 use tfhe_csprng::seeders::SeedKind;
 pub use tfhe_csprng::seeders::{Seed, Seeder, XofSeed};
+use tfhe_versionable::Versionize;
 
-/// Module to proxy the serialization for `tfhe-csprng::Seed` to avoid adding serde as a
-/// dependency to `tfhe-csprng`
-pub mod serialization_proxy {
-    pub(crate) use serde::{Deserialize, Serialize};
-    pub(crate) use tfhe_csprng::seeders::Seed;
-    // See https://serde.rs/remote-derive.html
-    // Serde calls this the definition of the remote type. It is just a copy of the remote data
-    // structure. The `remote` attribute gives the path to the actual type we intend to derive code
-    // for. This avoids having to introduce serde in tfhe-csprng
-    #[derive(Serialize, Deserialize)]
-    #[serde(remote = "Seed")]
-    pub(crate) struct SeedSerdeDef(pub u128);
-}
-
-pub(crate) use serialization_proxy::*;
-use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(CompressionSeedVersions)]
 /// New type to manage seeds used for compressed/seeded types.
 pub struct CompressionSeed {
-    #[serde(with = "SeedSerdeDef")]
     pub seed: Seed,
-}
-
-impl Versionize for CompressionSeed {
-    type Versioned<'vers> = CompressionSeedVersioned<'vers>;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.into()
-    }
-}
-
-impl VersionizeOwned for CompressionSeed {
-    type VersionedOwned = CompressionSeedVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into()
-    }
-}
-
-impl Unversionize for CompressionSeed {
-    fn unversionize(
-        versioned: Self::VersionedOwned,
-    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
-        Ok(versioned.into())
-    }
 }
 
 impl From<Seed> for CompressionSeed {
