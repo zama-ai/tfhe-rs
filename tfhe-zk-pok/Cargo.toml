@@ -24,9 +24,13 @@ serde = { workspace = true, features = ["default", "derive"] }
 zeroize = "1.7.0"
 num-bigint = "0.4.5"
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
+zk-cuda-backend = { path = "../backends/zk-cuda-backend", optional = true }
+tfhe-cuda-backend = { path = "../backends/tfhe-cuda-backend", optional = true }
+itertools.workspace = true
 
 [features]
 experimental = []
+experimental-gpu = ["dep:zk-cuda-backend", "dep:tfhe-cuda-backend"]
 
 [dev-dependencies]
 serde_json = "~1.0"

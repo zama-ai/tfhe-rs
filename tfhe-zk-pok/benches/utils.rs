@@ -344,6 +344,7 @@ impl PkeTestcase {
 }
 
 /// Compact key params used with pkev2
+#[allow(dead_code)]
 pub const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
     d: 2048,
     k: 1024,
