@@ -1,29 +1,12 @@
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
+use crate::core_crypto::commons::plan::GenericPlanMap;
 use crate::core_crypto::commons::utils::izip_eq;
 use core::any::TypeId;
 use dyn_stack::{PodStack, StackReq};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock};
 use tfhe_fft::fft128::{f128, Plan};
-
-#[derive(Clone)]
-pub(crate) struct PlanWrapper(Plan);
-impl core::ops::Deref for PlanWrapper {
-    type Target = Plan;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl core::fmt::Debug for PlanWrapper {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        "[?]".fmt(f)
-    }
-}
 
 /// Negacyclic Fast Fourier Transform. See [`Fft128View`] for transform functions.
 ///
@@ -31,13 +14,13 @@ impl core::fmt::Debug for PlanWrapper {
 /// FFT plan needed for the negacyclic convolution over the reals.
 #[derive(Clone, Debug)]
 pub struct Fft128 {
-    plan: Arc<PlanWrapper>,
+    plan: Arc<Plan>,
 }
 
 /// View type for [`Fft128`].
 #[derive(Clone, Copy, Debug)]
 pub struct Fft128View<'a> {
-    pub(crate) plan: &'a PlanWrapper,
+    pub(crate) plan: &'a Plan,
 }
 
 impl Fft128 {
@@ -46,46 +29,23 @@ impl Fft128 {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<PlanWrapper>>>>>;
+type PlanMap = GenericPlanMap<PolynomialSize, Plan>;
+
 pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
-    PLANS.get_or_init(|| RwLock::new(HashMap::new()))
+    PLANS.get_or_init(GenericPlanMap::new)
 }
 
 impl Fft128 {
     /// Real polynomial of size `size`.
-    pub fn new(size: PolynomialSize) -> Self {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let global_plans = plans();
 
-        let n = size.0;
-        let get_plan = || {
-            let plans = global_plans.read().unwrap();
-            let plan = plans.get(&n).cloned();
-            drop(plans);
+        let plan = global_plans.get_or_init(polynomial_size, |polynomial_size| {
+            Plan::new(polynomial_size.to_fourier_polynomial_size().0)
+        });
 
-            plan.map(|p| {
-                p.get_or_init(|| Arc::new(PlanWrapper(Plan::new(n / 2))))
-                    .clone()
-            })
-        };
-
-        get_plan().map_or_else(
-            || {
-                // If we don't find a plan for the given size, we insert a new OnceLock,
-                // drop the write lock on the map and then let get_plan() initialize the OnceLock
-                // (without holding the write lock on the map).
-                let mut plans = global_plans.write().unwrap();
-                if let Entry::Vacant(v) = plans.entry(n) {
-                    v.insert(Arc::new(OnceLock::new()));
-                }
-                drop(plans);
-
-                Self {
-                    plan: get_plan().unwrap(),
-                }
-            },
-            |plan| Self { plan },
-        )
+        Self { plan }
     }
 }
 

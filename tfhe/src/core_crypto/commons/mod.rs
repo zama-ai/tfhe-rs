@@ -17,6 +17,7 @@ pub mod math;
 pub mod noise_formulas;
 pub mod numeric;
 pub mod parameters;
+pub mod plan;
 pub mod utils;
 
 // Refactor modules
