@@ -923,9 +923,9 @@ struct int_radix_lut_custom_input_output {
       }
       ks_tmp_buf_vec.clear();
     }
-    /*free(h_lut_indexes);
+    free(h_lut_indexes);
     free(degrees);
-    free(max_degrees);*/
+    free(max_degrees);
   }
 };
 
