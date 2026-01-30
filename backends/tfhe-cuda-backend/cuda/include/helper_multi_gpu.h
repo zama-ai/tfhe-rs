@@ -113,6 +113,9 @@ public:
                    "Cuda error: Assign clone to non-empty CudaStreams");
     PANIC_IF_FALSE(_gpu_count <= 8,
                    "Cuda error: GPU count should be in the interval [0, 8]");
+    PANIC_IF_FALSE(!other._owns_streams, "Cannot nest create_on_same_gpus. Call create_on_same_gpus on "
+                                         "a CudaStreams object that has streams created on the Rust side or "
+                                         "on a subset of such an object created with active_gpu_subset.");
 
     cudaStream_t *new_streams = new cudaStream_t[other._gpu_count];
 
