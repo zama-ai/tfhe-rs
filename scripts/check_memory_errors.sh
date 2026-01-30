@@ -55,7 +55,10 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
         echo "Running valgrind on: $t"
 
         VALGRIND_EXIT=0
-        valgrind --leak-check=full --show-leak-kinds=definite \
+        valgrind --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --errors-for-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
             "$EXECUTABLE" -- "$t" 2>&1 | tee /tmp/valgrind_output.log || VALGRIND_EXIT=$?
 
         # Fail if the test crashed (non-zero exit code from valgrind)
@@ -65,7 +68,7 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
         fi
 
         # Also fail if memory errors reference tfhe/cuda code (not system libraries)
-        if grep -E "definitely lost|Invalid read|Invalid write|Invalid free|Mismatched free" /tmp/valgrind_output.log | \
+        if grep -E "definitely lost|indirectly lost|Invalid read|Invalid write|Invalid free|Mismatched free" /tmp/valgrind_output.log | \
            grep -q "tfhe\|cuda"; then
             ERROR_MESSAGES+=("Memory error detected in tfhe/cuda code for test: $t")
             RESULT=1
