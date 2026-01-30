@@ -103,6 +103,7 @@ impl HpuHw {
             tracing::info!("Current pdi -> [\n{uuid}]");
             Ok(hw)
         } else {
+            hw.ami.munmap_cnt().unwrap();
             Err(format!(
                 "UUID mismatch loaded {:?} expected {:?}",
                 current_uuid,
