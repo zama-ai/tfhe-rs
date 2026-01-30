@@ -116,14 +116,7 @@ pub fn setup_custom_fft_plan(plan: Plan) {
 
     let global_plans = plans();
 
-    let mut write = global_plans.0.write().unwrap();
-
-    match write.entry(n) {
-        Entry::Occupied(mut occupied_entry) => *occupied_entry.get_mut() = plan,
-        Entry::Vacant(vacant_entry) => {
-            vacant_entry.insert(plan);
-        }
-    }
+    global_plans.set(n, plan);
 }
 
 /// Return the input slice, cast to the same type.
