@@ -1,6 +1,6 @@
 //! Module with primitives pertaining to [`LweCompactCiphertextList`] expansion.
 
-use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
+use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul;
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -41,14 +41,15 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
             .enumerate()
         {
             let (mut out_mask, out_body) = out_ct.get_mut_mask_and_body();
-            out_mask.as_mut().copy_from_slice(input_mask.as_ref());
 
             let mut out_mask_as_polynomial = Polynomial::from_container(out_mask.as_mut());
+            let input_mask_as_polynomial = Polynomial::from_container(input_mask.as_ref());
 
-            // This the Psi_jl from the paper, it's equivalent to a multiplication in the X^N + 1
+            // This is the Psi_jl from the paper, it's equivalent to a multiplication in the X^N + 1
             // ring for our choice of i == n
-            polynomial_wrapping_monic_monomial_mul_assign(
+            polynomial_wrapping_monic_monomial_mul(
                 &mut out_mask_as_polynomial,
+                &input_mask_as_polynomial,
                 MonomialDegree(ct_idx),
             );
 
@@ -93,14 +94,15 @@ pub fn par_expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
                 .enumerate()
                 .for_each(|(ct_idx, (mut out_ct, input_body))| {
                     let (mut out_mask, out_body) = out_ct.get_mut_mask_and_body();
-                    out_mask.as_mut().copy_from_slice(input_mask.as_ref());
 
                     let mut out_mask_as_polynomial = Polynomial::from_container(out_mask.as_mut());
+                    let input_mask_as_polynomial = Polynomial::from_container(input_mask.as_ref());
 
                     // This is the Psi_jl from the paper, it's equivalent to a multiplication in the
                     // X^N + 1 ring for our choice of i == n
-                    polynomial_wrapping_monic_monomial_mul_assign(
+                    polynomial_wrapping_monic_monomial_mul(
                         &mut out_mask_as_polynomial,
+                        &input_mask_as_polynomial,
                         MonomialDegree(ct_idx),
                     );
 
