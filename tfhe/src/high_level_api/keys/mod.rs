@@ -1,4 +1,5 @@
 mod client;
+pub(crate) mod expanded;
 mod public;
 mod server;
 
