@@ -11,7 +11,7 @@
 
 template <typename Torus, class params>
 void host_rerand_inplace(
-    CudaStreams const streams, Torus *lwe_array,
+    CudaStreams streams, Torus *lwe_array,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *ksk, int_rerand_mem<Torus> *mem_ptr) {
   auto zero_lwes = mem_ptr->tmp_zero_lwes;

@@ -1,5 +1,8 @@
 #ifndef HELPER_MULTI_GPU_H
 #define HELPER_MULTI_GPU_H
+#include <algorithm>
+#include <list>
+#include <memory>
 #include <mutex>
 #include <variant>
 #include <vector>
@@ -49,15 +52,18 @@ int get_gpu_offset(int total_num_inputs, int gpu_index, int gpu_count);
 // This class should only be constructed from the FFI struct,
 // through class methods or through the copy constructor. The class
 // can also be constructed as an empty set
-struct CudaStreams {
+struct CudaStreams : std::enable_shared_from_this<CudaStreams> {
 private:
   cudaStream_t const *_streams;
   uint32_t const *_gpu_indexes;
   uint32_t _gpu_count;
   bool _owns_streams;
+  bool _last_action_is_sync;
+  std::list<std::shared_ptr<CudaStreams>> _children;
+  std::shared_ptr<CudaStreams> _parent;
 
   // Prevent the construction of a CudaStreams class from user-code
-  CudaStreams(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+  CudaStreams(cudaStream_t const *streams, uint32_t const *gpu_indexes, std::shared_ptr<CudaStreams> parent,
               uint32_t gpu_count)
       : _streams(streams), _gpu_indexes(gpu_indexes), _gpu_count(gpu_count),
         _owns_streams(false) {}
@@ -67,19 +73,43 @@ public:
   // right away through asserts or because of a nullptr dereference
   CudaStreams()
       : _streams(nullptr), _gpu_indexes(nullptr), _gpu_count(0),
-        _owns_streams(false) {}
+        _owns_streams(false), _last_action_is_sync(false) {}
 
   // Returns a subset of this set as an active subset. An active subset is one
   // that is temporarily used to perform some computation
   CudaStreams active_gpu_subset(int num_radix_blocks, PBS_TYPE pbs_type) {
     return CudaStreams(
-        _streams, _gpu_indexes,
+        _streams, _gpu_indexes, shared_from_this(),
         get_active_gpu_count(num_radix_blocks, _gpu_count, pbs_type));
   }
 
+  // CudaStreams streams(cuda_streams_ffi)
+  // CudaStreams active_streams = streams.active_stream_subset(N)
+  // lut->generate_and_broadcast(active_streams):
+  //      generate
+  //      broadcast
+  //      lut->generate_streams = active_streams
+  //      lut->generate_streams->needs_sync = true
+  //  CudaStreams new_active_streams = streams.active_stream_subset(M)
+  // CudaStreams compute_streams = new_active_streams.create_on_same_gpus()
+  // requires new_active_streams.synchronize() or active_streams.sychronize() or streams.synchronize()
+  //  streams.synchronize()
+  //    streams->needs_sync = false
+  //    for active_subset in active_subsets:
+  //      active_subset->needs_sync = false
+  // lut->apply(compute_streams)
+  //      if compute_streams not same or subset of lut->generate_streams
+  //          if (lut->generate_streams->needs_sync())
+  //              PANIC("Not synched")
+
+  bool is_a_view(const CudaStreams& other)
+  {
+    return !_owns_streams;
+  }
+
   // Returns a CudaStreams struct containing only the ith stream
-  CudaStreams get_ith(int i) const {
-    return CudaStreams(&_streams[i], &_gpu_indexes[i], 1);
+  CudaStreams get_ith(int i) {
+    return CudaStreams(&_streams[i], &_gpu_indexes[i], shared_from_this(), 1);
   }
 
   // Synchronize all the streams in the set
@@ -108,7 +138,7 @@ public:
   // Create a new set of streams on the same gpus as those of the current stream
   // set Can be used to parallelize computation by issuing kernels on multiple
   // streams on the same GPU
-  void create_on_same_gpus(const CudaStreams &other) {
+  void create_on_same_gpus(CudaStreams &other) {
     PANIC_IF_FALSE(_streams == nullptr,
                    "Cuda error: Assign clone to non-empty CudaStreams");
     PANIC_IF_FALSE(_gpu_count <= 8,
@@ -132,6 +162,11 @@ public:
     // Flag this instance as owning streams so that we can destroy
     // the streams when they aren't needed anymore
     this->_owns_streams = true;
+
+    if (other._parent != nullptr)
+      this->_parent = other._parent;
+    else
+      this->_parent = other.shared_from_this();
   }
 
   // Copy constructor, setting the own flag to false
@@ -150,6 +185,11 @@ public:
     this->_gpu_indexes = other._gpu_indexes;
     this->_gpu_count = other._gpu_count;
 
+    if (other._parent != nullptr)
+    {
+      this->_parent = other._parent;
+      this->_parent->_children.push_back(this->shared_from_this());
+    }
     // Only the initial instance of CudaStreams created with
     // assign_clone owns streams, all copies of it do not own the
     // streams
@@ -185,6 +225,15 @@ public:
         "is a clone "
         "of another one, %p",
         this, this->_streams);
+    if (this->_parent != nullptr)
+    {
+      auto parent_ptr = std::find(this->_parent->_children.begin(),this->_parent->_children.end(), shared_from_this());
+      GPU_ASSERT(parent_ptr != this->_parent->_children.end(), "Can't find cuda streams in parent");
+      this->_parent->_children.erase(parent_ptr);
+    } else
+    {
+      GPU_ASSERT(this->_children.empty(), "Children should have been destroyed before parent");
+    }
   }
 };
 
@@ -210,7 +259,7 @@ public:
   }
 
   void create_internal_cuda_streams_on_same_gpus(
-      const CudaStreams &base_streams, uint32_t num_internal_cuda_streams) {
+      CudaStreams &base_streams, uint32_t num_internal_cuda_streams) {
 
     PANIC_IF_FALSE(_internal_cuda_streams == nullptr,
                    "InternalCudaStreams: object already initialized.");
