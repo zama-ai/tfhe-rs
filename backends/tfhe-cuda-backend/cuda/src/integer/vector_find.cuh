@@ -175,6 +175,10 @@ __host__ void host_aggregate_one_hot_vector(
     Torus *const *ksks) {
 
   int_radix_params params = mem_ptr->params;
+  if (params.message_modulus > 4 && params.carry_modulus > 4) {
+    PANIC("Cuda error: aggregate one hot vector is only implemented for 1_1 "
+          "and 2_2 params");
+  }
   uint32_t chunk_size = mem_ptr->chunk_size;
   uint32_t num_streams = mem_ptr->num_streams;
 
@@ -255,7 +259,10 @@ __host__ void host_aggregate_one_hot_vector(
 
   //
   // Aggregate partial results from all streams into the final aggregated vector
+  // num_streams has to be less than the max noise level otherwise we accumulate
+  // too much and the noise limit is exceeded
   //
+  CHECK_NOISE_LEVEL(num_streams, params.message_modulus, params.carry_modulus);
   for (uint32_t s = 1; s < num_streams; s++) {
     uint32_t start_idx = s * inputs_per_stream;
     if (start_idx >= num_input_ciphertexts)
