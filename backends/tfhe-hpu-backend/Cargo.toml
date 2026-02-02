@@ -46,7 +46,7 @@ rayon = { workspace = true }
 zhc = "0.7.0"
 
 # Dependencies used for Sim feature
-ra2m_ffi = {git = "ssh://git@github.com/zama-ai/ra2m.git", branch = "hpu_sim", features = []}
+ra2m_ffi = {git = "ssh://git@github.com/zama-ai/ra2m.git", branch = "main", features = []}
 
 # Dependencies used for debug feature
 num-traits = { version = "0.2", optional = true }
