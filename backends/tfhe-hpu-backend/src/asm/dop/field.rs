@@ -90,6 +90,12 @@ impl MemId {
     }
 }
 
+impl Default for MemId {
+    fn default() -> Self {
+        Self::Addr(CtId(0))
+    }
+}
+
 impl std::fmt::Display for MemId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

@@ -437,39 +437,72 @@ impl ToAsm for PePbsInsn {
 }
 
 impl FromAsm for field::PeUcoreInsn {
+    /// Parsing of PeUcoreInsn is a bit special
+    /// Indeed, there is two mode:
+    /// * Notify that start with NodeId and have Data optional
+    /// * Wait/Ld_b2b that start with Flag and have Data optional
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
-        if args.len() != 3 {
-            return Err(ParsingError::ArgNumber(3, args.len()));
+        fn get_flag(arg: &arg::Arg) -> Result<UserFlag, ParsingError> {
+            match arg {
+                Arg::UcoreFlag(flag) => Ok(flag.clone()),
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::UcoreFlag".to_string(),
+                        arg.clone(),
+                    ))
+                }
+            }
         }
 
-        let hid = match args[0] {
-            Arg::HpuId(id) => id,
+        fn get_slot(arg: Option<&arg::Arg>) -> Result<Option<MemId>, ParsingError> {
+            if let Some(a) = arg {
+                match a {
+                    Arg::Mem(cid) => Ok(Some(cid.clone())),
+                    _ => Err(ParsingError::ArgType("Arg::Mem".to_string(), a.clone())),
+                }
+            } else {
+                Ok(None)
+            }
+        }
+
+        if args.len() < 2 {
+            return Err(ParsingError::ArgNumber(2, args.len()));
+        }
+
+        let (hid, flag, slot) = match args[0] {
+            Arg::HpuId(hid) => {
+                // Only NOTIFY start with HpuId
+                if opcode != u8::from(Opcode::NOTIFY()) {
+                    return Err(ParsingError::ArgType(
+                        "Arg::UcoreFlag".to_string(),
+                        args[0].clone(),
+                    ));
+                }
+                let flag = get_flag(&args[1])?;
+                let slot = get_slot(args.get(2))?.unwrap_or_default();
+                (hid, flag, slot)
+            }
+            Arg::UcoreFlag(flag) => {
+                // Notify must start with HpuId
+                if opcode == u8::from(Opcode::NOTIFY()) {
+                    return Err(ParsingError::ArgType(
+                        "Arg::HpuId".to_string(),
+                        args[0].clone(),
+                    ));
+                }
+                if let Some(slot) = get_slot(args.get(1))? {
+                    (NodeId(1), flag, slot)
+                } else {
+                    (NodeId::default(), flag, MemId::default())
+                }
+            }
             _ => {
                 return Err(ParsingError::ArgType(
-                    "Arg::HpuId".to_string(),
+                    "Arg::HpuId|Arg::UcoreFlag".to_string(),
                     args[0].clone(),
                 ))
             }
         };
-        let flag = match args[1] {
-            Arg::UcoreFlag(flag) => flag,
-            _ => {
-                return Err(ParsingError::ArgType(
-                    "Arg::UcoreFlag".to_string(),
-                    args[1].clone(),
-                ))
-            }
-        };
-        let slot = match args[2] {
-            Arg::Mem(id) => id,
-            _ => {
-                return Err(ParsingError::ArgType(
-                    "Arg::Mem".to_string(),
-                    args[2].clone(),
-                ))
-            }
-        };
-
         Ok(Self {
             opcode: Opcode::from(opcode),
             hid,
@@ -484,11 +517,20 @@ impl ToAsm for PeUcoreInsn {
         vec![]
     }
     fn src(&self) -> Vec<arg::Arg> {
-        vec![
-            Arg::HpuId(self.hid),
-            Arg::UcoreFlag(self.flag),
-            Arg::Mem(self.slot),
-        ]
+        if self.opcode == Opcode::NOTIFY() {
+            vec![
+                Arg::HpuId(self.hid),
+                Arg::UcoreFlag(self.flag),
+                Arg::Mem(self.slot),
+            ]
+        } else {
+            if self.hid == NodeId(0) {
+                // No Data
+                vec![Arg::UcoreFlag(self.flag)]
+            } else {
+                vec![Arg::UcoreFlag(self.flag), Arg::Mem(self.slot)]
+            }
+        }
     }
 }
 
