@@ -7,7 +7,8 @@
 #include <functional>
 #include <vector>
 
-const uint32_t MAX_STREAMS_FOR_VECTOR_FIND = 10;
+// If we use more than 5 streams the result is incorrect
+const uint32_t MAX_STREAMS_FOR_VECTOR_FIND = 5;
 
 template <typename Torus> struct int_equality_selectors_buffer {
   int_radix_params params;
