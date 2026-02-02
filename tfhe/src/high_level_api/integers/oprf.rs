@@ -565,6 +565,8 @@ fn mod_pow_2(exponent: u64, modulus: u64) -> u64 {
 mod test {
 
     use super::*;
+    #[cfg(feature = "gpu")]
+    use crate::core_crypto::gpu::get_number_of_gpus;
     use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
         oprf_density_function, p_value_upper_bound_oprf_almost_uniformity_from_values,
         probability_density_function_from_density,
@@ -575,9 +577,17 @@ mod test {
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheUint8, Seed};
+    #[cfg(feature = "gpu")]
+    use crate::{CompressedServerKey, GpuIndex};
     use num_bigint::BigUint;
     use rand::{thread_rng, Rng};
+    #[cfg(feature = "gpu")]
+    use rayon::iter::IndexedParallelIterator;
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
+    #[cfg(feature = "gpu")]
+    use rayon::prelude::{IntoParallelRefIterator, ParallelSlice};
+    #[cfg(feature = "gpu")]
+    use rayon::ThreadPoolBuilder;
 
     // Helper: The "Oracle" implementation using BigInt
     // This is slow but mathematically guaranteed to be correct.
@@ -725,7 +735,17 @@ mod test {
 
                 assert_eq!(num_input_random_bits, expected_num_input_random_bits);
 
+                #[cfg(not(feature = "gpu"))]
                 test_uniformity_generate_oblivious_pseudo_random_custom_range2(
+                    sample_count,
+                    p_value_limit,
+                    message_modulus,
+                    cks,
+                    excluded_upper_bound,
+                    max_distance,
+                );
+                #[cfg(feature = "gpu")]
+                test_uniformity_generate_oblivious_pseudo_random_custom_range2_gpu(
                     sample_count,
                     p_value_limit,
                     message_modulus,
@@ -752,11 +772,10 @@ mod test {
         let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let config = ConfigBuilder::with_custom_parameters(params).build();
         let cks = ClientKey::generate(config);
-        let sks = crate::CompressedServerKey::new(&cks).decompress_to_gpu();
-        rayon::broadcast(|_| set_server_key(sks.clone()));
         test_case_uniformity_generate_oblivious_pseudo_random_custom_range(&cks);
     }
 
+    #[cfg(not(feature = "gpu"))]
     fn test_uniformity_generate_oblivious_pseudo_random_custom_range2(
         sample_count: usize,
         p_value_limit: f64,
@@ -785,6 +804,117 @@ mod test {
                 img.decrypt(cks)
             })
             .collect();
+
+        let excluded_upper_bound = excluded_upper_bound.get();
+
+        let uniform_values: Vec<u64> = (0..sample_count)
+            .into_par_iter()
+            .map(|_| thread_rng().gen_range(0..excluded_upper_bound))
+            .collect();
+
+        let clear_oprf_value_lower_num_input_random_bits = (0..sample_count)
+            .into_par_iter()
+            .map(|_| oprf_clear_equivalent(excluded_upper_bound, num_input_random_bits - 1))
+            .collect();
+
+        let clear_oprf_value_same_num_input_random_bits = (0..sample_count)
+            .into_par_iter()
+            .map(|_| oprf_clear_equivalent(excluded_upper_bound, num_input_random_bits))
+            .collect();
+
+        let clear_oprf_value_higher_num_input_random_bits = (0..sample_count)
+            .into_par_iter()
+            .map(|_| oprf_clear_equivalent(excluded_upper_bound, num_input_random_bits + 1))
+            .collect();
+
+        for (values, should_have_low_p_value) in [
+            (&real_values, false),
+            // to test that the same distribution passes
+            (&clear_oprf_value_same_num_input_random_bits, false),
+            // to test that other distribution don't pass
+            // (makes sure the test is statistically powerful)
+            (&uniform_values, true),
+            (&clear_oprf_value_lower_num_input_random_bits, true),
+            (&clear_oprf_value_higher_num_input_random_bits, true),
+        ] {
+            let p_value_upper_bound = p_value_upper_bound_oprf_almost_uniformity_from_values(
+                values,
+                num_input_random_bits,
+                excluded_upper_bound,
+            );
+
+            println!("p_value_upper_bound: {p_value_upper_bound}");
+
+            if should_have_low_p_value {
+                assert!(
+                    p_value_upper_bound < p_value_limit,
+                    "p_value_upper_bound (={p_value_upper_bound}) expected to be smaller than {p_value_limit}"
+                );
+            } else {
+                assert!(
+                    p_value_limit < p_value_upper_bound ,
+                    "p_value_upper_bound (={p_value_upper_bound}) expected to be bigger than {p_value_limit}"
+                );
+            }
+        }
+    }
+    #[cfg(feature = "gpu")]
+    fn test_uniformity_generate_oblivious_pseudo_random_custom_range2_gpu(
+        sample_count: usize,
+        p_value_limit: f64,
+        message_modulus: MessageModulus,
+        cks: &ClientKey,
+        excluded_upper_bound: NonZeroU64,
+        max_distance: f64,
+    ) {
+        let num_input_random_bits = num_input_random_bits_for_max_distance(
+            excluded_upper_bound,
+            max_distance,
+            message_modulus,
+        );
+
+        let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
+
+        let num_gpus = get_number_of_gpus() as usize;
+
+        let compressed_sks = CompressedServerKey::new(cks);
+        let sks_vec = (0..num_gpus)
+            .map(|i| compressed_sks.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+            .collect::<Vec<_>>();
+
+        let idx: Vec<usize> = (0..sample_count).collect();
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(8 * num_gpus)
+            .build()
+            .unwrap();
+        let real_values: Vec<u64> = pool.install(|| {
+            idx.par_chunks(sample_count / num_gpus)
+                .enumerate()
+                .flat_map(|(gpu_index, chunk)| {
+                    // Note: gpu_index must be valid for sks_vec
+                    let sks = sks_vec[gpu_index].clone();
+
+                    chunk
+                        .par_iter()
+                        .map_init(
+                            move || {
+                                // runs once per Rayon worker thread used for this chunk
+                                set_server_key(sks.clone());
+                                rand::thread_rng()
+                            },
+                            |rng, _| {
+                                let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
+                                    Seed(rng.gen::<u128>()),
+                                    &range,
+                                    Some(max_distance),
+                                );
+                                img.decrypt(cks)
+                            },
+                        )
+                        .collect::<Vec<u64>>()
+                })
+                .collect()
+        });
 
         let excluded_upper_bound = excluded_upper_bound.get();
 
