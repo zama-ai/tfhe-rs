@@ -24,14 +24,18 @@ impl<Key: Eq + Hash + Copy, Value> GenericPlanMap<Key, Value> {
         drop(values);
 
         value.unwrap_or_else(|| {
-            // If we don't find a plan for the given polynomial size and modulus, we insert a
-            // new one (if we still don't find it after getting a write lock)
-
-            let new_value = Arc::new(new_value(key));
-
+            // If we don't find a plan for the given key (e.g. polynomial size, modulus), we insert
+            // a new one (if we still don't find it after getting a write lock)
+            //
+            // Note: We could find a plan after getting the write lock if another thread already
+            // populated the slot while we were waiting on it
             let mut values = self.0.write().unwrap();
 
-            let value = Arc::clone(values.entry(key).or_insert(new_value));
+            let value = Arc::clone(
+                values
+                    .entry(key)
+                    .or_insert_with(|| Arc::new(new_value(key))),
+            );
 
             drop(values);
 
