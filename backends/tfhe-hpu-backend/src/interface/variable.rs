@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::asm::iop::VarMode;
-use crate::asm::{IOpId, NodeId, SW_IOP_ID};
+use crate::asm::{IOpId, PhysId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use std::sync::{Arc, Mutex};
 
@@ -54,7 +54,7 @@ pub struct HpuVarWrapped {
     pub(crate) width: usize,
     pub(crate) mode: VarMode,
     /// Reference to associated cluster
-    pub(crate) hpu_id: NodeId,
+    pub(crate) hpu_id: PhysId,
     pub(crate) parent: HpuClusterWrapped,
 }
 
@@ -67,7 +67,7 @@ impl std::fmt::Debug for HpuVarWrapped {
 /// Conversion function between inner type and HpuLweCiphertext
 impl HpuVarWrapped {
     fn new_on(
-        hpu_id: NodeId,
+        hpu_id: PhysId,
         cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         width: usize,
@@ -92,7 +92,7 @@ impl HpuVarWrapped {
     }
 
     pub(crate) fn new_from(
-        hpu_id: NodeId,
+        hpu_id: PhysId,
         cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         ct: Vec<HpuLweCiphertextOwned<u64>>,

@@ -18,7 +18,7 @@ pub enum Arg {
     Imm(ImmId),
     Pbs(Pbs),
     IOpId(IOpId),
-    HpuId(NodeId),
+    HpuId(VirtId),
     UcoreFlag(UserFlag),
 }
 
@@ -69,8 +69,8 @@ impl std::str::FromStr for Arg {
             Ok(Self::Pbs(pbs))
         } else if let Ok(iid) = IOpId::from_str(s) {
             Ok(Self::IOpId(iid))
-        } else if let Ok(hid) = NodeId::from_str(s) {
-            Ok(Self::HpuId(hid))
+        } else if let Ok(hid) = VirtId::from_str(s) {
+            Ok(Self::HpuId(VirtId(hid.0)))
         } else if let Ok(flag) = UserFlag::from_str(s) {
             Ok(Self::UcoreFlag(flag))
         } else {
@@ -439,7 +439,7 @@ impl ToAsm for PePbsInsn {
 impl FromAsm for field::PeUcoreInsn {
     /// Parsing of PeUcoreInsn is a bit special
     /// Indeed, there is two mode:
-    /// * Notify that start with NodeId and have Data optional
+    /// * Notify that start with VirtId and have Data optional
     /// * Wait/Ld_b2b that start with Flag and have Data optional
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
         fn get_flag(arg: &arg::Arg) -> Result<UserFlag, ParsingError> {
@@ -491,9 +491,9 @@ impl FromAsm for field::PeUcoreInsn {
                     ));
                 }
                 if let Some(slot) = get_slot(args.get(1))? {
-                    (NodeId(1), flag, slot)
+                    (VirtId(1), flag, slot)
                 } else {
-                    (NodeId::default(), flag, MemId::default())
+                    (VirtId::default(), flag, MemId::default())
                 }
             }
             _ => {
@@ -524,7 +524,7 @@ impl ToAsm for PeUcoreInsn {
                 Arg::Mem(self.slot),
             ]
         } else {
-            if self.hid == NodeId(0) {
+            if self.hid == VirtId(0) {
                 // No Data
                 vec![Arg::UcoreFlag(self.flag)]
             } else {

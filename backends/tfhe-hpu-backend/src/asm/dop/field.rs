@@ -5,7 +5,7 @@
 // Those definition are on the boundaries between IOp and DOp and thus define in the top.
 use super::opcode::Opcode;
 use crate::asm::dop::ParsingError;
-use crate::asm::{CtId, IOpId, NodeId};
+use crate::asm::{CtId, IOpId, PhysId, VirtId};
 use lazy_static::lazy_static;
 
 /// Register argument
@@ -347,7 +347,7 @@ pub enum UcorePayloadMode {
 pub struct UcorePayload {
     pub mode: UcorePayloadMode,
     pub slot: Option<CtId>,
-    pub from_hid: NodeId,
+    pub from_hid: PhysId,
     pub iid: IOpId,
 }
 
@@ -406,6 +406,6 @@ pub struct PePbsInsn {
 pub struct PeUcoreInsn {
     pub slot: MemId,
     pub flag: UserFlag,
-    pub hid: NodeId,
+    pub hid: VirtId,
     pub opcode: Opcode,
 }

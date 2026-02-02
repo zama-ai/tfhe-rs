@@ -7,7 +7,7 @@ use super::node::HpuNodeWrapped;
 use super::{cmd, HpuInstError, HpuVarWrapped};
 use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::iop::IOpMapping;
-use crate::asm::{IOpId, IOpProto, NodeId};
+use crate::asm::{IOpId, IOpProto, PhysId};
 use crate::entities::*;
 use crate::ffi::HpuHw;
 use itertools::*;
@@ -261,7 +261,7 @@ impl HpuClusterWrapped {
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
         mode: crate::asm::iop::VarMode,
-        pos: Option<crate::asm::NodeId>,
+        pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         // Compute workload and allocate on the less loaded node
         let trgt_id = if let Some(hid) = pos {
@@ -280,7 +280,7 @@ impl HpuClusterWrapped {
                 .map(|x| x.0)
                 .next()
                 .expect("HpuCluster must contains at least one HpuNode");
-            NodeId(hid)
+            PhysId(hid)
         };
 
         tracing::debug!("HpuVariable will be created on Hpu {trgt_id}");

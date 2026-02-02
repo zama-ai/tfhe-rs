@@ -22,13 +22,6 @@ pub const ASM_COMMENT_PREFIX: [char; 2] = [';', '#'];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CtId(pub u16);
 
-/// Physical Id
-/// Depict the Hpu target for a given board to board access
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
-)]
-pub struct PhysId(pub u8);
-
 /// Virtual Id
 /// Depict the Hpu virtual target for firmware definition
 #[derive(
@@ -36,34 +29,13 @@ pub struct PhysId(pub u8);
 )]
 pub struct VirtId(pub u8);
 
-/// TargetId
-/// Templated DOp used same field to encode PhysId/VirtId without available bit to keep the type
-/// information TargetId is a generic type that collude to PhysId/VirtId.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
-)]
-pub struct NodeId(pub u8);
-
-/// Convert from PhysId to TargetId other direction must be explicitly done by user
-impl From<PhysId> for NodeId {
-    fn from(value: PhysId) -> Self {
-        Self(value.0)
-    }
-}
-/// Convert from VirtId to TargetId other direction must be explicitly done by user
-impl From<VirtId> for NodeId {
-    fn from(value: VirtId) -> Self {
-        Self(value.0)
-    }
-}
-
-impl std::fmt::Display for NodeId {
+impl std::fmt::Display for VirtId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "N{}", self.0)
     }
 }
 
-impl std::str::FromStr for NodeId {
+impl std::str::FromStr for VirtId {
     type Err = ParsingError;
 
     #[tracing::instrument(level = "trace", ret)]
@@ -79,9 +51,23 @@ impl std::str::FromStr for NodeId {
             Ok(Self(hid))
         } else {
             Err(ParsingError::Unmatch(format!(
-                "Invalid argument format for NodeId {s}"
+                "Invalid argument format for VirtId {s}"
             )))
         }
+    }
+}
+
+/// TargetId
+/// Templated DOp used same field to encode PhysId/VirtId without available bit to keep the type
+/// information TargetId is a generic type that collude to PhysId/VirtId.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
+)]
+pub struct PhysId(pub u8);
+
+impl std::fmt::Display for PhysId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Np{}", self.0)
     }
 }
 

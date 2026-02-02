@@ -8,7 +8,7 @@ pub mod pbs_macro;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-pub use super::{IOpId, NodeId};
+pub use super::{IOpId, PhysId, VirtId};
 use crate::{dop, impl_dop, impl_dop_parser};
 pub use arg::{FromAsm, IsFlush, ParsingError, ToAsm, ToFlush};
 pub use field::{

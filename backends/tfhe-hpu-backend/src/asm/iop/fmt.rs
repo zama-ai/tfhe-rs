@@ -3,7 +3,7 @@
 //! Rely on `bitfield_struct` crate to define bit-accurate insn format
 //! and some manual From/To implementation to move to internal type
 use crate::asm::dop::MAX_HPU_IN_CLUSTER;
-use crate::asm::{CtId, IOpId, NodeId, PhysId, VirtId};
+use crate::asm::{CtId, IOpId, PhysId, VirtId};
 use bitfield_struct::bitfield;
 
 use super::field::{OperandAddr, OperandProperties};
@@ -49,7 +49,7 @@ impl From<&OperandPropertiesHex> for field::OperandProperties {
             vec_size: field::VectorSize(value.vec_size()),
             is_last: value.is_last(),
             iid: IOpId(value.iid()),
-            pos: NodeId(value.pos()),
+            pos: PhysId(value.pos()),
             kind,
         }
     }

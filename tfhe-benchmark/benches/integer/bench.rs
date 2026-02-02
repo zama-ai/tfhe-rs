@@ -3146,7 +3146,7 @@ mod hpu {
                                                 !0_u128
                                             };
                                         let fhe = cks.encrypt_radix(clear, block);
-                                        let trgt_node = hpu_asm::NodeId(
+                                        let trgt_node = hpu_asm::PhysId(
                                             hpu_config.fpga.node_id[(i as usize) % hpu_node_nb],
                                         );
                                         HpuRadixCiphertext::from_radix_ciphertext(

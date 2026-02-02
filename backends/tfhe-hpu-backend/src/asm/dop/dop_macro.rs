@@ -295,7 +295,7 @@ macro_rules! impl_dop {
             pub struct [<DOp $asm:camel>](pub PeUcoreInsn);
 
             impl [<DOp $asm:camel>] {
-                pub fn new(hid: NodeId, flag: UserFlag, slot: MemId) -> Self {
+                pub fn new(hid: VirtId, flag: UserFlag, slot: MemId) -> Self {
                     Self(PeUcoreInsn {
                         opcode: $opcode,
                         hid,

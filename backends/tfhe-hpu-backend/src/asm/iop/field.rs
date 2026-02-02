@@ -2,7 +2,7 @@
 //! Mainly thin wrapper over basic type to enforce correct used of asm fields
 use super::*;
 use crate::asm::dop::MAX_HPU_IN_CLUSTER;
-use crate::asm::{CtId, IOpId, NodeId, PhysId, VirtId};
+use crate::asm::{CtId, IOpId, PhysId, VirtId};
 
 use thiserror::Error;
 
@@ -72,7 +72,7 @@ pub struct OperandProperties {
     pub block: OperandBlock,
     pub vec_size: VectorSize,
     pub iid: IOpId,
-    pub pos: NodeId,
+    pub pos: PhysId,
     pub is_last: bool,
     pub kind: OperandKind,
 }
@@ -94,7 +94,7 @@ impl Operand {
         block: u8,
         base_cid: u16,
         vec_size: u8,
-        pos: NodeId,
+        pos: PhysId,
         iid: IOpId,
         kind: Option<OperandKind>,
     ) -> Self {
@@ -532,7 +532,7 @@ impl IOp {
         &self.map
     }
 
-    pub fn phys_id(&self, tid: NodeId) -> Option<PhysId> {
+    pub fn phys_id(&self, tid: PhysId) -> Option<PhysId> {
         self.map.phys_id(VirtId(tid.0))
     }
 

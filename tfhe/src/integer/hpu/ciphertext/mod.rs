@@ -23,7 +23,7 @@ impl HpuRadixCiphertext {
     pub fn from_radix_ciphertext(
         cpu_ct: &RadixCiphertext,
         device: &HpuDevice,
-        pos: Option<hpu_asm::NodeId>,
+        pos: Option<hpu_asm::PhysId>,
     ) -> Self {
         let params = device.params().clone();
 
@@ -66,7 +66,7 @@ impl HpuRadixCiphertext {
     pub fn from_boolean_ciphertext(
         cpu_ct: &BooleanBlock,
         device: &HpuDevice,
-        pos: Option<hpu_asm::NodeId>,
+        pos: Option<hpu_asm::PhysId>,
     ) -> Self {
         let params = device.params().clone();
 

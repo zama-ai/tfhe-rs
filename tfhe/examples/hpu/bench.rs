@@ -272,7 +272,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                             let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
                                 &fhe,
                                 &hpu_device,
-                                Some(hpu_asm::NodeId(*node)),
+                                Some(hpu_asm::PhysId(*node)),
                             );
                             (clear, hpu_fhe)
                         })

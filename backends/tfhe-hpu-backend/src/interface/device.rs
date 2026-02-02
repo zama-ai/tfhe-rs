@@ -81,7 +81,7 @@ impl HpuDevice {
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
         mode: crate::asm::iop::VarMode,
-        pos: Option<crate::asm::NodeId>,
+        pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         self.cluster.new_var_from(ct, mode, pos)
     }

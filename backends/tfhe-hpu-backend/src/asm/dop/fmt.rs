@@ -298,7 +298,7 @@ impl From<&PeUcoreHex> for PeUcoreInsn {
         };
 
         Self {
-            hid: NodeId(value.hid()),
+            hid: VirtId(value.hid()),
             opcode: Opcode::from(value.opcode()),
             slot,
             flag: UserFlag(value.flag()),

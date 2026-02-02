@@ -94,14 +94,14 @@ impl HpuHw {
                 // Check state and version
                 match AmiDriver::new(dev, &hpu_pdi.metadata.amc.his_version, None) {
                     Ok(ami) => {
-                        if hpu_pdi.metadata.bitstream.uuid == ami.uuid() {
+                        if hpu_pdi.metadata.bitstream.uuid.to_lowercase() == ami.uuid().to_lowercase() {
                             tracing::info!("Board[{dev}::{sn}] -> [{hpu_uuid}]");
                             None
                         } else {
                             tracing::warn!(
                                 "Board[{dev}::{sn}] -> UUID mismatch loaded {:?} expected {:?}",
-                                ami.uuid(),
-                                hpu_pdi.metadata.bitstream.uuid
+                                ami.uuid().to_lowercase(),
+                                hpu_pdi.metadata.bitstream.uuid.to_lowercase()
                             );
                             Some((dev.clone(), sn.clone()))
                         }

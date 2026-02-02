@@ -73,7 +73,7 @@ pub enum Commands {
 
 /// Action for the Register command
 #[derive(Clone, Debug, Subcommand)]
-enum RegisterAction {
+pub enum RegisterAction {
     /// Read from a register address
     #[command(about = "Read register")]
     Read {
@@ -124,7 +124,7 @@ pub enum Section {
 
 /// Action for the Memory command
 #[derive(Clone, Debug, Subcommand)]
-enum MemoryAction {
+pub enum MemoryAction {
     /// Read from memory address
     #[command(about = "Read memory")]
     Read {
@@ -171,7 +171,7 @@ enum MemoryAction {
 
 /// Action for the Memory command
 #[derive(Clone, Debug, Subcommand)]
-enum ResetAction {
+pub enum ResetAction {
     Soft,
     Hard,
     Flush,

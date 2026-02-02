@@ -240,7 +240,7 @@ mod hpu_test {
                 // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
                 //  with the node id you want to target.
                 // This will fallback in mono-hpu setup
-                let targeted_node = hpu_asm::NodeId(device.config().fpga.node_id[0]);
+                let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
                 (0..iter).map(|_| {
                     // Generate inputs ciphertext
                     let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto

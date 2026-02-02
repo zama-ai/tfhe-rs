@@ -2,7 +2,7 @@
 //! Gather IOp argument in a common type
 //! Provides a FromStr implementation for parsing
 
-use crate::asm::{IOpId, NodeId};
+use crate::asm::{IOpId, PhysId};
 
 use super::*;
 use field::{
@@ -341,7 +341,7 @@ impl std::str::FromStr for OperandBundle {
                     .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
                 let block = (width / MSG_WIDTH as u16) as u8;
 
-                let pos = NodeId(
+                let pos = PhysId(
                     caps["pos"]
                         .parse::<u8>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
