@@ -151,7 +151,7 @@ jobs:
 
       - name: Run High Level API Tests
         run: |
-          make test_high_level_api_gpu
+          make test_high_level_api_gpu_fast
 
   slack-notify:
     name: gpu_fast_tests/slack-notify
