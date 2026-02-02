@@ -1050,10 +1050,16 @@ test_high_level_api:
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
 		-- high_level_api::
 
-test_high_level_api_gpu: install_cargo_nextest
+test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
-		-E "test(/high_level_api::.*gpu.*/)"
+	  -E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/)"
+
+
+test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+  	-E "test(/high_level_api::.*gpu.*/)"
 
 test_list_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \
