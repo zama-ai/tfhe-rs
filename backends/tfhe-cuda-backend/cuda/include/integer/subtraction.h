@@ -74,26 +74,27 @@ template <typename Torus> struct int_overflowing_sub_memory {
                                            luts_array, size_tracker,
                                            allocate_gpu_memory, size_tracker);
 
-    if (allocate_gpu_memory)
-      cuda_set_value_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                  luts_array->get_lut_indexes(0, 1), 1,
-                                  num_radix_blocks - 1);
-
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     luts_borrow_propagation_sum->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {f_luts_borrow_propagation_sum},
-        gpu_memory_allocated);
+        LUT_0_FOR_ALL_BLOCKS);
 
+    auto luts_array_index_generator = [](Torus *h_lut_indexes,
+                                         uint32_t num_indexes) {
+      for (uint32_t i = 0; i < num_indexes; i++) {
+        h_lut_indexes[i] = (i == 0) ? 0 : 1;
+      }
+    };
     luts_array->generate_and_broadcast_lut(
         active_streams, {0, 1},
         {f_lut_does_block_generate_carry,
          f_lut_does_block_generate_or_propagate},
-        gpu_memory_allocated);
+        luts_array_index_generator);
     // generate luts (aka accumulators)
 
     message_acc->generate_and_broadcast_lut(
-        active_streams, {0}, {f_message_acc}, gpu_memory_allocated);
+        active_streams, {0}, {f_message_acc}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {

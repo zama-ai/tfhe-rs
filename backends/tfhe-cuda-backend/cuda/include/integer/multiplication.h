@@ -42,7 +42,7 @@ template <typename Torus> struct int_mul_memory {
           streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
       zero_out_predicate_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {zero_out_predicate_lut_f},
-          gpu_memory_allocated);
+          LUT_0_FOR_ALL_BLOCKS);
 
       zero_out_mem = new int_zero_out_if_buffer<Torus>(
           streams, params, num_radix_blocks, allocate_gpu_memory, size_tracker);
@@ -61,6 +61,10 @@ template <typename Torus> struct int_mul_memory {
     int msb_vector_block_count = num_radix_blocks * (num_radix_blocks - 1) / 2;
 
     int total_block_count = num_radix_blocks * num_radix_blocks;
+
+    GPU_ASSERT(lsb_vector_block_count + msb_vector_block_count ==
+                   total_block_count,
+               "MSB and LSB vector block counts don't match");
 
     // allocate memory for intermediate buffers
     vector_result_sb = new CudaRadixCiphertextFFI;
@@ -96,16 +100,16 @@ template <typename Torus> struct int_mul_memory {
     // first lsb_vector_block_count value should reference to lsb_acc
     // last msb_vector_block_count values should reference to msb_acc
     // for message and carry default lut_indexes_vec is fine
-    if (allocate_gpu_memory)
-      cuda_set_value_async<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
-          msb_vector_block_count);
-
     auto active_streams =
         streams.active_gpu_subset(total_block_count, params.pbs_type);
+    auto lut_index_generator = [lsb_vector_block_count](Torus *h_lut_indexes,
+                                                        uint32_t num_indexes) {
+      for (uint32_t i = 0; i < num_indexes; i++) {
+        h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 1;
+      }
+    };
     luts_array->generate_and_broadcast_bivariate_lut(
-        active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, gpu_memory_allocated);
+        active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, lut_index_generator);
 
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(

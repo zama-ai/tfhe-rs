@@ -261,33 +261,41 @@ template <typename Torus> struct zk_expand_mem {
                        "Cuda error: index %d for is_boolean_array is out of "
                        "bounds (len is %d)",
                        h_indexes_out[lwe_index], is_boolean_array_len);
-        auto boolean_offset =
-            is_boolean_array[h_indexes_out[lwe_index]] ? num_packed_msgs : 0;
-        h_lut_indexes[lwe_index] = i / num_lwes_in_kth + boolean_offset;
-        PANIC_IF_FALSE(
-            h_lut_indexes[lwe_index] < 4,
-            "Cuda error: lut index is greater than the max possible value (3)");
       }
       offset += num_lwes_in_kth;
     }
 
     message_and_carry_extract_luts->set_lwe_indexes(
         streams.stream(0), streams.gpu_index(0), h_indexes_in, h_indexes_out);
-    auto lut_indexes = message_and_carry_extract_luts->get_lut_indexes(0, 0);
-
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        lut_indexes, h_lut_indexes, num_packed_msgs * num_lwes * sizeof(Torus),
-        streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
 
     auto active_streams =
         streams.active_gpu_subset(2 * num_lwes, params.pbs_type);
+
+    // Index generator for message/carry extraction LUTs
+    auto index_gen = [num_compact_lists,
+                      num_lwes_per_compact_list =
+                          this->num_lwes_per_compact_list,
+                      num_packed_msgs, is_boolean_array,
+                      h_indexes_out](Torus *h_lut_indexes, uint32_t) {
+      auto offset = 0;
+      for (int k = 0; k < num_compact_lists; k++) {
+        auto num_lwes_in_kth = num_lwes_per_compact_list[k];
+        for (int i = 0; i < num_packed_msgs * num_lwes_in_kth; i++) {
+          auto lwe_index = i + num_packed_msgs * offset;
+          auto boolean_offset =
+              is_boolean_array[h_indexes_out[lwe_index]] ? num_packed_msgs : 0;
+          h_lut_indexes[lwe_index] = i / num_lwes_in_kth + boolean_offset;
+        }
+        offset += num_lwes_in_kth;
+      }
+    };
 
     message_and_carry_extract_luts->generate_and_broadcast_lut(
         active_streams, {0, 1, 2, 3},
         {message_extract_lut_f, carry_extract_lut_f,
          message_extract_and_sanitize_bool_lut_f,
          carry_extract_and_sanitize_bool_lut_f},
-        gpu_memory_allocated);
+        index_gen, true, {}, h_lut_indexes);
 
     message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(
         active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);

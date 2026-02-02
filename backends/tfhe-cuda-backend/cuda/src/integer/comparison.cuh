@@ -135,23 +135,25 @@ __host__ void are_all_comparisons_block_true(
           return x == chunk_length;
         };
 
-        Torus *h_lut_indexes = is_max_value_lut->h_lut_indexes;
-        for (int index = 0; index < num_chunks; index++) {
-          if (index == num_chunks - 1) {
-            h_lut_indexes[index] = 1;
-          } else {
-            h_lut_indexes[index] = 0;
-          }
-        }
-        cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
-                                 h_lut_indexes, num_chunks * sizeof(Torus),
-                                 streams.stream(0), streams.gpu_index(0));
+        auto num_blocks = is_max_value_lut->num_blocks;
         auto active_streams =
             streams.active_gpu_subset(num_chunks, params.pbs_type);
 
+        // Index generator: last chunk uses LUT 1, others use LUT 0
+        auto index_gen = [num_chunks, num_blocks](Torus *h_lut_indexes,
+                                                  uint32_t) {
+          for (uint32_t index = 0; index < num_blocks; index++) {
+            if (index == num_chunks - 1) {
+              h_lut_indexes[index] = 1;
+            } else if (index < num_chunks - 1 || index >= num_chunks) {
+              h_lut_indexes[index] = 0;
+            }
+          }
+        };
+
         is_max_value_lut->generate_and_broadcast_lut(
-            active_streams, {1}, {is_equal_to_num_blocks_lut_f}, true, true,
-            {are_all_block_true_buffer->preallocated_h_lut});
+            active_streams, {1}, {is_equal_to_num_blocks_lut_f}, index_gen,
+            true, {are_all_block_true_buffer->preallocated_h_lut});
       }
       lut = is_max_value_lut;
     }
@@ -163,15 +165,10 @@ __host__ void are_all_comparisons_block_true(
           streams, lwe_array_out, accumulator, bsks, ksks, lut, 1);
       // Reset max_value_lut_indexes before returning, otherwise if the lut is
       // reused the lut indexes will be wrong
-      memset(is_max_value_lut->h_lut_indexes, 0,
-             is_max_value_lut->num_blocks * sizeof(Torus));
-      cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
-                               is_max_value_lut->h_lut_indexes,
-                               is_max_value_lut->num_blocks * sizeof(Torus),
-                               streams.stream(0), streams.gpu_index(0));
       auto active_gpu_count_is_max = streams.active_gpu_subset(
           is_max_value_lut->num_blocks, params.pbs_type);
-      is_max_value_lut->broadcast_lut(active_gpu_count_is_max, false);
+      is_max_value_lut->set_lut_indexes_and_broadcast_constant(
+          active_gpu_count_is_max, 0);
 
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
@@ -481,7 +478,8 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   }
 
   auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-  last_lut->generate_and_broadcast_lut(active_streams, {0}, {f}, true, true,
+  last_lut->generate_and_broadcast_lut(active_streams, {0}, {f},
+                                       LUT_0_FOR_ALL_BLOCKS, true,
                                        {tree_buffer->preallocated_h_lut});
 
   // Last leaf

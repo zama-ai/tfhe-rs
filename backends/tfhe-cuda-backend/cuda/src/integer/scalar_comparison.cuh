@@ -143,8 +143,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
     lut->generate_and_broadcast_lut(
-        active_streams, {0}, {scalar_last_leaf_lut_f}, true, true,
-        {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
+        active_streams, {0}, {scalar_last_leaf_lut_f}, LUT_0_FOR_ALL_BLOCKS,
+        true, {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, bsks, ksks, lut, 1);
@@ -233,7 +233,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
     lut->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {scalar_bivariate_last_leaf_lut_f}, true,
+        active_streams, {0}, {scalar_bivariate_last_leaf_lut_f},
+        LUT_0_FOR_ALL_BLOCKS,
         {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
 
     integer_radix_apply_bivariate_lookup_table<Torus>(
@@ -262,9 +263,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
       auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-      one_block_lut->generate_and_broadcast_lut(active_streams, {0},
-                                                {one_block_lut_f}, true, true,
-                                                {mem_ptr->preallocated_h_lut});
+      one_block_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {one_block_lut_f}, LUT_0_FOR_ALL_BLOCKS, true,
+          {mem_ptr->preallocated_h_lut});
 
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array_out, lwe_array_in, bsks, ksks, one_block_lut, 1);
@@ -405,7 +406,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
 
     auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
     lut->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {scalar_bivariate_last_leaf_lut_f}, true,
+        active_streams, {0}, {scalar_bivariate_last_leaf_lut_f},
+        LUT_0_FOR_ALL_BLOCKS,
         {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
 
     integer_radix_apply_bivariate_lookup_table<Torus>(
@@ -503,7 +505,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
     auto signed_msb_lut = mem_ptr->signed_msb_lut;
     auto msb_active_streams = msb_streams.active_gpu_subset(1, params.pbs_type);
     signed_msb_lut->generate_and_broadcast_bivariate_lut(
-        msb_active_streams, {0}, {lut_f}, true, {mem_ptr->preallocated_h_lut});
+        msb_active_streams, {0}, {lut_f}, LUT_0_FOR_ALL_BLOCKS,
+        {mem_ptr->preallocated_h_lut});
 
     CudaRadixCiphertextFFI sign_block;
     as_radix_ciphertext_slice<Torus>(
@@ -543,9 +546,9 @@ __host__ void integer_radix_signed_scalar_difference_check(
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
       auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-      one_block_lut->generate_and_broadcast_lut(active_streams, {0},
-                                                {one_block_lut_f}, true, true,
-                                                {mem_ptr->preallocated_h_lut});
+      one_block_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {one_block_lut_f}, LUT_0_FOR_ALL_BLOCKS, true,
+          {mem_ptr->preallocated_h_lut});
 
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array_out, lwe_array_in, bsks, ksks, one_block_lut, 1);
@@ -742,6 +745,8 @@ __host__ void host_scalar_equality_check(
     as_radix_ciphertext_slice<Torus>(&packed_scalar, packed_blocks,
                                      num_halved_lsb_radix_blocks,
                                      packed_blocks->num_radix_blocks);
+    auto active_lsb_streams = lsb_streams.active_gpu_subset(
+        num_halved_scalar_blocks, params.pbs_type);
     if (num_lsb_radix_blocks > 1) {
       pack_blocks<Torus>(lsb_streams.stream(0), lsb_streams.gpu_index(0),
                          packed_blocks, lwe_array_in, num_lsb_radix_blocks,
@@ -749,23 +754,16 @@ __host__ void host_scalar_equality_check(
       scalar_pack_blocks(lsb_streams.stream(0), streams.gpu_index(0),
                          &packed_scalar, scalar_blocks, num_scalar_blocks,
                          message_modulus);
-      cuda_memcpy_async_gpu_to_gpu(
-          scalar_comparison_luts->get_lut_indexes(0, 0), packed_scalar.ptr,
-          num_halved_scalar_blocks * sizeof(Torus), lsb_streams.stream(0),
-          lsb_streams.gpu_index(0));
+      scalar_comparison_luts->set_lut_indexes_and_broadcast_from_gpu(
+          active_lsb_streams, (Torus const *)packed_scalar.ptr,
+          num_halved_scalar_blocks);
     } else if (num_lsb_radix_blocks == 1) {
       copy_radix_ciphertext_slice_async<Torus>(
           lsb_streams.stream(0), lsb_streams.gpu_index(0), packed_blocks, 0, 1,
           lwe_array_in, 0, 1);
-      cuda_memcpy_async_gpu_to_gpu(
-          scalar_comparison_luts->get_lut_indexes(0, 0), scalar_blocks,
-          num_halved_scalar_blocks * sizeof(Torus), lsb_streams.stream(0),
-          lsb_streams.gpu_index(0));
+      scalar_comparison_luts->set_lut_indexes_and_broadcast_from_gpu(
+          active_lsb_streams, scalar_blocks, num_halved_scalar_blocks);
     }
-    auto active_streams = lsb_streams.active_gpu_subset(
-        num_halved_scalar_blocks, params.pbs_type);
-    // We use false cause we only will broadcast the indexes
-    scalar_comparison_luts->broadcast_lut(active_streams, false);
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         lsb_streams, mem_ptr->tmp_lwe_array_out, mem_ptr->tmp_packed_input,

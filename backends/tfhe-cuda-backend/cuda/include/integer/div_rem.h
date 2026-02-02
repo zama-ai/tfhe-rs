@@ -285,7 +285,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_1_lut_f},
-                                          gpu_memory_allocated);
+                                          LUT_0_FOR_ALL_BLOCKS);
     }
 
     luts[0] = zero_out_if_not_2_lut_1;
@@ -295,7 +295,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_2_lut_f},
-                                          gpu_memory_allocated);
+                                          LUT_0_FOR_ALL_BLOCKS);
     }
 
     quotient_lut_1 =
@@ -316,11 +316,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     auto quotient_lut_3_f = [](Torus cond) -> Torus { return cond * 3; };
 
     quotient_lut_1->generate_and_broadcast_lut(
-        streams.get_ith(2), {0}, {quotient_lut_1_f}, gpu_memory_allocated);
+        streams.get_ith(2), {0}, {quotient_lut_1_f}, LUT_0_FOR_ALL_BLOCKS);
     quotient_lut_2->generate_and_broadcast_lut(
-        streams.get_ith(1), {0}, {quotient_lut_2_f}, gpu_memory_allocated);
+        streams.get_ith(1), {0}, {quotient_lut_2_f}, LUT_0_FOR_ALL_BLOCKS);
     quotient_lut_3->generate_and_broadcast_lut(
-        streams.get_ith(0), {0}, {quotient_lut_3_f}, gpu_memory_allocated);
+        streams.get_ith(0), {0}, {quotient_lut_3_f}, LUT_0_FOR_ALL_BLOCKS);
 
     message_extract_lut_1 = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
@@ -340,7 +340,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
 
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
@@ -991,12 +991,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
       auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
       masking_luts_1[i]->generate_and_broadcast_lut(
-          active_streams_1, {0}, {lut_f_masking}, gpu_memory_allocated);
+          active_streams_1, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
 
       auto active_streams_2 =
           streams.active_gpu_subset(num_blocks, params.pbs_type);
       masking_luts_2[i]->generate_and_broadcast_lut(
-          active_streams_2, {0}, {lut_f_masking}, gpu_memory_allocated);
+          active_streams_2, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     // create and generate message_extract_lut_1 and message_extract_lut_2
@@ -1019,7 +1019,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     // Give name to closures to improve readability
@@ -1047,11 +1047,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     zero_out_if_overflow_did_not_happen[0]
         ->generate_and_broadcast_bivariate_lut(active_streams, {0}, {cur_lut_f},
-                                               gpu_memory_allocated, {},
+                                               LUT_0_FOR_ALL_BLOCKS, {},
                                                params.message_modulus - 2);
     zero_out_if_overflow_did_not_happen[1]
         ->generate_and_broadcast_bivariate_lut(active_streams, {0}, {cur_lut_f},
-                                               gpu_memory_allocated, {},
+                                               LUT_0_FOR_ALL_BLOCKS, {},
                                                params.message_modulus - 1);
 
     // create and generate zero_out_if_overflow_happened
@@ -1070,10 +1070,10 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     };
 
     zero_out_if_overflow_happened[0]->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {overflow_happened_f}, gpu_memory_allocated, {},
+        active_streams, {0}, {overflow_happened_f}, LUT_0_FOR_ALL_BLOCKS, {},
         params.message_modulus - 2);
     zero_out_if_overflow_happened[1]->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {overflow_happened_f}, gpu_memory_allocated, {},
+        active_streams, {0}, {overflow_happened_f}, LUT_0_FOR_ALL_BLOCKS, {},
         params.message_modulus - 1);
 
     // merge_overflow_flags_luts
@@ -1089,7 +1089,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       merge_overflow_flags_luts[i]->generate_and_broadcast_bivariate_lut(
-          active_gpu_count_for_bits, {0}, {lut_f_bit}, gpu_memory_allocated);
+          active_gpu_count_for_bits, {0}, {lut_f_bit}, LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
@@ -1503,7 +1503,7 @@ template <typename Torus> struct int_div_rem_memory {
 
       compare_signed_bits_lut->generate_and_broadcast_bivariate_lut(
           active_gpu_count_cmp, {0}, {f_compare_extracted_signed_bits},
-          gpu_memory_allocated);
+          LUT_0_FOR_ALL_BLOCKS);
     }
   }
 

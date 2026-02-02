@@ -542,6 +542,24 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
   auto active_streams =
       streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+
+  // Verify consistency between set_lut_indexes and apply_lookup_table
+  GPU_ASSERT(
+      num_radix_blocks <= lut->last_broadcast_num_radix_blocks,
+      "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
+      num_radix_blocks, lut->last_broadcast_num_radix_blocks);
+  GPU_ASSERT(active_streams.count() <= lut->last_broadcast_streams.count(),
+             "active_streams count (%u) must match last_broadcast_streams "
+             "count (%u)",
+             active_streams.count(), lut->last_broadcast_streams.count());
+  for (uint32_t i = 0; i < active_streams.count(); i++) {
+    GPU_ASSERT(active_streams.gpu_index(i) ==
+                   lut->last_broadcast_streams.gpu_index(i),
+               "active_streams gpu_index(%u) = %u must match "
+               "last_broadcast_streams gpu_index(%u) = %u",
+               i, active_streams.gpu_index(i), i,
+               lut->last_broadcast_streams.gpu_index(i));
+  }
   if (active_streams.count() == 1) {
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
@@ -1737,9 +1755,9 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
       signs_array_in, 0, num_sign_blocks);
   if (num_sign_blocks > 2) {
     auto lut = diff_buffer->reduce_signs_lut;
-    lut->generate_and_broadcast_lut(lut->active_streams, {0},
-                                    {reduce_two_orderings_function}, true, true,
-                                    {diff_buffer->preallocated_h_lut1});
+    lut->generate_and_broadcast_lut(
+        lut->active_streams, {0}, {reduce_two_orderings_function},
+        LUT_0_FOR_ALL_BLOCKS, true, {diff_buffer->preallocated_h_lut1});
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
@@ -1767,7 +1785,7 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
     auto lut = diff_buffer->reduce_signs_lut;
 
     lut->generate_and_broadcast_lut(lut->active_streams, {0}, {final_lut_f},
-                                    true, true,
+                                    LUT_0_FOR_ALL_BLOCKS, true,
                                     {diff_buffer->preallocated_h_lut2});
 
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
@@ -1784,7 +1802,7 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
 
     auto lut = mem_ptr->diff_buffer->reduce_signs_lut;
     lut->generate_and_broadcast_lut(lut->active_streams, {0}, {final_lut_f},
-                                    true, true,
+                                    LUT_0_FOR_ALL_BLOCKS, true,
                                     {diff_buffer->preallocated_h_lut2});
 
     integer_radix_apply_univariate_lookup_table<Torus>(
