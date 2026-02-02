@@ -4,6 +4,7 @@ use benchmark::high_level_api::random_generator::{random_non_zero, random_not_po
 use benchmark::utilities::{BitSizesSet, EnvConfig, OperandType};
 use criterion::Criterion;
 use oprf::oprf_any_range2;
+use std::env;
 use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
@@ -76,16 +77,43 @@ fn main() {
 
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {
-            run_benches!(&mut c, &cks, FheInt64);
+            match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+                // Call all benchmarks for all types
+                Ok("fast_default") => {
+                    run_benches_dedup!(&mut c, &cks, FheInt64,);
+                    run_scalar_benches_dedup!(&mut c, &cks, FheInt64,);
+                }
+                _ => {
+                    run_benches!(&mut c, &cks, FheInt64,);
+                    run_scalar_benches!(&mut c, &cks, FheInt64,);
+                }
+            }
         }
         _ => {
             // Call all benchmarks for all types
-            run_benches!(
-                &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128
-            );
-            run_scalar_benches!(
-                &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128
-            );
+            match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+                // Call all benchmarks for all types
+                Ok("fast_default") => {
+                    run_benches_dedup!(
+                        &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64,
+                        FheInt128,
+                    );
+                    run_scalar_benches_dedup!(
+                        &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64,
+                        FheInt128,
+                    );
+                }
+                _ => {
+                    run_benches!(
+                        &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64,
+                        FheInt128,
+                    );
+                    run_scalar_benches!(
+                        &mut c, &cks, FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64,
+                        FheInt128,
+                    );
+                }
+            }
         }
     }
 
