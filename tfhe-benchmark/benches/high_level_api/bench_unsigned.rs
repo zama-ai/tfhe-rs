@@ -9,6 +9,7 @@ use benchmark::utilities::{
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::env;
 use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
@@ -197,7 +198,16 @@ fn main() {
 
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {
-            run_benches!(&mut c, &cks, FheUint64);
+            match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+                Ok("fast_default") => {
+                    run_benches_dedup!(&mut c, &cks, FheUint64);
+                    run_scalar_benches_dedup!(&mut c, &cks, FheUint64);
+                }
+                _ => {
+                    run_benches!(&mut c, &cks, FheUint64);
+                    run_scalar_benches!(&mut c, &cks, FheUint64);
+                }
+            };
 
             // KVStore Benches
             if benched_device == tfhe::Device::Cpu {
@@ -205,15 +215,29 @@ fn main() {
             }
         }
         _ => {
-            // Call all benchmarks for all types
-            run_benches!(
-                &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64,
-                FheUint128,
-            );
-            run_scalar_benches!(
-                &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64,
-                FheUint128,
-            );
+            match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+                // Call all benchmarks for all types
+                Ok("fast_default") => {
+                    run_benches_dedup!(
+                        &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
+                        FheUint64, FheUint128,
+                    );
+                    run_scalar_benches_dedup!(
+                        &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
+                        FheUint64, FheUint128,
+                    );
+                }
+                _ => {
+                    run_benches!(
+                        &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
+                        FheUint64, FheUint128,
+                    );
+                    run_scalar_benches!(
+                        &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
+                        FheUint64, FheUint128,
+                    );
+                }
+            }
 
             // KVStore Benches
             if benched_device == tfhe::Device::Cpu {
