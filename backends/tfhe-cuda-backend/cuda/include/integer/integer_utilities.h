@@ -2565,7 +2565,9 @@ template <typename Torus> struct int_borrow_prop_memory {
   void release(CudaStreams streams) {
 
     shifted_blocks_borrow_state_mem->release(streams);
+    delete shifted_blocks_borrow_state_mem;
     prop_simu_group_carries_mem->release(streams);
+    delete prop_simu_group_carries_mem;
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    overflow_block, gpu_memory_allocated);
 
