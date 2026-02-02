@@ -37,7 +37,7 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
             const auto sign_bit = (xm >> (bits_per_block - 1)) & 1;
             return (Torus)((msg_modulus - 1) * sign_bit);
           }},
-          allocate_gpu_memory);
+          LUT_0_FOR_ALL_BLOCKS);
 
       this->last_block = new CudaRadixCiphertextFFI;
 

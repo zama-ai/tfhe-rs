@@ -53,7 +53,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     };
 
     is_max_value->generate_and_broadcast_lut(
-        active_streams, {0}, {is_max_value_f}, gpu_memory_allocated);
+        active_streams, {0}, {is_max_value_f}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
@@ -105,7 +105,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     is_non_zero_lut->generate_and_broadcast_lut(
-        active_streams, {0}, {is_non_zero_lut_f}, gpu_memory_allocated);
+        active_streams, {0}, {is_non_zero_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
     // Scalar may have up to num_radix_blocks blocks
     scalar_comparison_luts = new int_radix_lut<Torus>(
@@ -135,7 +135,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
     }
 
     scalar_comparison_luts->generate_and_broadcast_lut(
-        active_streams, lut_indices, lut_funcs, gpu_memory_allocated);
+        active_streams, lut_indices, lut_funcs, LUT_0_FOR_ALL_BLOCKS);
 
     if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
       operator_lut =
@@ -143,7 +143,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
                                    allocate_gpu_memory, size_tracker);
 
       operator_lut->generate_and_broadcast_bivariate_lut(
-          active_streams, {0}, {operator_f}, gpu_memory_allocated);
+          active_streams, {0}, {operator_f}, LUT_0_FOR_ALL_BLOCKS);
     } else {
       operator_lut = nullptr;
     }
@@ -227,7 +227,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     tree_inner_leaf_lut->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {block_selector_f}, allocate_gpu_memory);
+        active_streams, {0}, {block_selector_f}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
@@ -412,7 +412,7 @@ template <typename Torus> struct int_comparison_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     identity_lut->generate_and_broadcast_lut(
-        active_streams, {0}, {identity_lut_f}, gpu_memory_allocated);
+        active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
     uint32_t total_modulus = params.message_modulus * params.carry_modulus;
     auto is_zero_f = [total_modulus](Torus x) -> Torus {
@@ -423,7 +423,7 @@ template <typename Torus> struct int_comparison_buffer {
                                            allocate_gpu_memory, size_tracker);
 
     is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
-                                            gpu_memory_allocated);
+                                            LUT_0_FOR_ALL_BLOCKS);
 
     switch (op) {
     case COMPARISON_TYPE::MAX:
@@ -500,7 +500,7 @@ template <typename Torus> struct int_comparison_buffer {
 
       auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
       signed_lut->generate_and_broadcast_bivariate_lut(
-          active_streams, {0}, {signed_lut_f}, gpu_memory_allocated);
+          active_streams, {0}, {signed_lut_f}, LUT_0_FOR_ALL_BLOCKS);
     }
     preallocated_h_lut = (Torus *)malloc(
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));

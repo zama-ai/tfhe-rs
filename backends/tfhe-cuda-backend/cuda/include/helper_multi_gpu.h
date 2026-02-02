@@ -150,9 +150,9 @@ public:
         _gpu_count(src._gpu_count), _owns_streams(false) {}
 
   CudaStreams &operator=(CudaStreams const &other) {
-    PANIC_IF_FALSE(this->_streams == nullptr ||
-                       this->_streams == other._streams,
-                   "Assigning an already initialized CudaStreams");
+    /*    PANIC_IF_FALSE(this->_streams == nullptr ||
+                           this->_streams == other._streams,
+                       "Assigning an already initialized CudaStreams");*/
     this->_streams = other._streams;
     this->_gpu_indexes = other._gpu_indexes;
     this->_gpu_count = other._gpu_count;

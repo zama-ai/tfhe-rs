@@ -122,8 +122,7 @@ template <typename Torus> struct int_decompression {
           active_streams, {0}, {decompression_rescale_f},
           effective_compression_message_modulus,
           effective_compression_carry_modulus,
-          encryption_params.message_modulus, encryption_params.carry_modulus,
-          gpu_memory_allocated);
+          encryption_params.message_modulus, encryption_params.carry_modulus);
     }
   }
   void release(CudaStreams streams) {

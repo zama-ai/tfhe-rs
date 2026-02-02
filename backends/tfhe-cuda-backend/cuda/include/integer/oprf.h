@@ -105,10 +105,6 @@ template <typename Torus> struct int_grouped_oprf_memory {
       Torus plaintext_to_add = (p - 1) * delta / 2;
 
       h_corrections[i * lwe_size + params.big_lwe_dimension] = plaintext_to_add;
-      if (bits_for_this_block < 1) {
-        PANIC("bits_for_this_block should be greater than 1");
-      }
-      this->h_lut_indexes[i] = bits_for_this_block - 1;
 
       bits_processed += bits_for_this_block;
     }
@@ -125,17 +121,30 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
     // Copy the prepared LUT indexes to the GPU 0, before broadcast to all other
     // GPUs.
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        luts->get_lut_indexes(0, 0), this->h_lut_indexes,
-        num_blocks_to_process * sizeof(Torus), streams.stream(0),
-        streams.gpu_index(0), allocate_gpu_memory);
     auto active_streams =
         streams.active_gpu_subset(num_blocks_to_process, params.pbs_type);
-
     // No encoding for these LUTS. Generate LUT also sets LUT degrees to default
     // values
+    auto luts_index_generator = [total_random_bits, message_bits_per_block](
+                                    Torus *h_lut_indexes, uint32_t num_blocks) {
+      uint64_t bits_processed = 0;
+      for (uint32_t i = 0; i < num_blocks; ++i) {
+        if (total_random_bits <= bits_processed) {
+          PANIC("total_random_bits should be greater than bits_processed");
+        }
+        uint64_t bits_remaining = total_random_bits - bits_processed;
+        uint32_t bits_for_this_block =
+            std::min((uint64_t)message_bits_per_block, bits_remaining);
+        if (bits_for_this_block < 1) {
+          PANIC("bits_for_this_block should be greater than 1");
+        }
+        h_lut_indexes[i] = bits_for_this_block - 1;
+        bits_processed += bits_for_this_block;
+      }
+    };
     luts->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
-                                     allocate_gpu_memory, false);
+                                     luts_index_generator, false, {},
+                                     this->h_lut_indexes);
 
     // OPRF requires custom LUT degrees
     for (uint32_t i = 0; i < lut_degrees.size(); ++i) {
