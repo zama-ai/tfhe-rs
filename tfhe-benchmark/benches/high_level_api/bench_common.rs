@@ -28,7 +28,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
     op: Op,
 ) where
     Op: BenchmarkOp<FheType> + Sync,
-    FheType: FheWait,
+    FheType: FheWait + Send,
 {
     let mut bench_group = c.benchmark_group(config.type_name);
     let mut bench_prefix = "hlapi".to_string();
@@ -106,7 +106,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
             bench_group.bench_function(&bench_id, |b| {
                 let setup_encrypted_inputs = || {
                     (0..elements)
-                        .map(|_| op.setup_inputs(client_key, &mut rng))
+                        .into_par_iter()
+                        .map(|_| op.setup_inputs(client_key, &mut thread_rng()))
                         .collect::<Vec<_>>()
                 };
                 b.iter_batched(
@@ -837,6 +838,43 @@ macro_rules! run_benches {
     };
 }
 
+macro_rules! run_benches_dedup {
+    (
+        $c:expr,
+        $cks:expr,
+        $($fhe_type:ident),
+        + $(,)?
+    ) => {
+        $(
+            ::paste::paste! {
+                [<bench_ $fhe_type:snake _add>]($c, $cks);
+                [<bench_ $fhe_type:snake _bitand>]($c, $cks);
+                [<bench_ $fhe_type:snake _checked_ilog2>]($c, $cks);
+                [<bench_ $fhe_type:snake _count_ones>]($c, $cks);
+                [<bench_ $fhe_type:snake _div_rem>]($c, $cks);
+                [<bench_ $fhe_type:snake _eq>]($c, $cks);
+                [<bench_ $fhe_type:snake _flip>]($c, $cks);
+                [<bench_ $fhe_type:snake _gt>]($c, $cks);
+                [<bench_ $fhe_type:snake _if_then_else>]($c, $cks);
+                [<bench_ $fhe_type:snake _ilog2>]($c, $cks);
+                [<bench_ $fhe_type:snake _is_even>]($c, $cks);
+                [<bench_ $fhe_type:snake _leading_zeros>]($c, $cks);
+                [<bench_ $fhe_type:snake _max>]($c, $cks);
+                [<bench_ $fhe_type:snake _mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _neg>]($c, $cks);
+                [<bench_ $fhe_type:snake _not>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _overflowing_neg>]($c, $cks);
+                [<bench_ $fhe_type:snake _reverse_bits>]($c, $cks);
+                [<bench_ $fhe_type:snake _rotate_left>]($c, $cks);
+                [<bench_ $fhe_type:snake _shl>]($c, $cks);
+                [<bench_ $fhe_type:snake _sum>]($c, $cks);
+            }
+        )+
+    };
+}
+
 macro_rules! run_scalar_benches {
     (
         $c:expr,
@@ -868,6 +906,31 @@ macro_rules! run_scalar_benches {
                 [<bench_ $fhe_type:snake _scalar_shl>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_shr>]($c, $cks);
                 [<bench_ $fhe_type:snake _scalar_sub>]($c, $cks);
+            }
+        )+
+    };
+}
+
+macro_rules! run_scalar_benches_dedup {
+    (
+        $c:expr,
+        $cks:expr,
+        $($fhe_type:ident),
+        + $(,)?
+    ) => {
+        $(
+            ::paste::paste! {
+                [<bench_ $fhe_type:snake _scalar_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_bitand>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_div>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_eq>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_gt>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_max>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_mul>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_overflowing_add>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_rem>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_rotate_left>]($c, $cks);
+                [<bench_ $fhe_type:snake _scalar_shl>]($c, $cks);
             }
         )+
     };
