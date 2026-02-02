@@ -25,10 +25,6 @@ on:
         description: "Generate SVG tables"
         type: boolean
         default: true
-      open-pr:
-        description: "Open a PR with the benchmark results"
-        type: boolean
-        default: false
 
 permissions: {}
 
@@ -166,54 +162,3 @@ jobs:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
-
-  open-pr:
-    name: benchmark-documentation/open-pr
-    needs: [ generate-svgs-with-benchmarks-run, generate-svgs-without-benchmarks-run ]
-    if: ${{ always() && inputs.open-pr &&
-      (needs.generate-svgs-with-benchmarks-run.result == 'success' || needs.generate-svgs-without-benchmarks-run.result == 'success') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Needed to create a commit
-      pull-requests: write # Needed to open a pull-request
-    env:
-      PATH_TO_DOC_ASSETS: tfhe/docs/.gitbook/assets
-    steps:
-      - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: 'false'
-
-      - name: Download SVG tables
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          path: svg_tables
-          merge-multiple: 'true'
-
-      # Perform best effort to copy SVG tables. If the copy fails or files don't exist, the PR will still be created.
-      - name: Copy SVG tables to documentation location
-        run: |
-          cp -f svg_tables/*integer-benchmark*.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
-          cp -f svg_tables/*pbs-benchmark-tuniform*.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
-          cp -f svg_tables/cpu-gpu-hpu-integer-benchmark-fheuint64-tuniform-2m128-ciphertext.svg "${PATH_TO_DOC_ASSETS}" 2>/dev/null
-
-      - name: Get current date
-        id: get-date
-        run: |
-          echo "date=$(date '+%g_%m_%d_%Hh%Mm%Ss')" >> "${GITHUB_OUTPUT}"
-
-      - name: Create pull-request
-        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
-        with:
-          sign-commits: true # Commit will be signed by github-actions bot
-          add-paths: ${{ env.PATH_TO_DOC_ASSETS }}/*.svg
-          branch: gh-bot/docs/update-svg-tables-${{ steps.get-date.outputs.date }}
-          commit-message: |
-            chore(docs): update benchmark results for all backends
-
-            Automated documentation update from tfhe-rs CI pipeline.
-          title: |
-            [CI] chore(docs): update benchmark results for all backends
-          body: |
-            Documentation update triggered by GitHub workflow.
-          labels: documentation
