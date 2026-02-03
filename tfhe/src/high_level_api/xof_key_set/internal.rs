@@ -36,10 +36,12 @@ use crate::{
 
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus as CoreCiphertextModulus;
 use crate::high_level_api::keys::expanded::{
-    ExpandedAtomicPatternNoiseSquashingKey, ExpandedAtomicPatternServerKey,
-    ExpandedDecompressionKey, ExpandedKS32AtomicPatternServerKey, ExpandedNoiseSquashingKey,
-    ExpandedStandardAtomicPatternServerKey, IntegerExpandedServerKey,
-    ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
+    ExpandedAtomicPatternNoiseSquashingKey, ExpandedDecompressionKey, ExpandedNoiseSquashingKey,
+    IntegerExpandedServerKey, ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
+};
+use crate::shortint::atomic_pattern::expanded::{
+    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
+    ExpandedStandardAtomicPatternServerKey,
 };
 use crate::high_level_api::keys::{CompactPrivateKey, ReRandomizationKeyGenerationInfo};
 use crate::shortint::key_switching_key::KeySwitchingKeyDestinationAtomicPattern;

@@ -10,9 +10,11 @@ use crate::core_crypto::prelude::{
     LweMultiBitBootstrapKeyOwned,
 };
 use crate::high_level_api::keys::expanded::{
+    ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
+};
+use crate::shortint::atomic_pattern::expanded::{
     ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
-    ExpandedStandardAtomicPatternServerKey, ShortintExpandedBootstrappingKey,
-    ShortintExpandedServerKey,
+    ExpandedStandardAtomicPatternServerKey,
 };
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
