@@ -11,29 +11,30 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128(
   switch (polynomial_size) {
   case 256:
     return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        AmortizedDegree<256>>(
+                                                        Degree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 512:
     return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        AmortizedDegree<512>>(
+                                                        Degree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 1024:
     return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        AmortizedDegree<1024>>(
+                                                        Degree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 2048:
     return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        AmortizedDegree<2048>>(
+                                                        Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 4096:
+    // We use AmortizedDegree for 4096 to avoid register exhaustion
     return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
                                                         AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
@@ -55,30 +56,31 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
 
   switch (polynomial_size) {
   case 256:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<
-        InputTorus, AmortizedDegree<256>>(
+    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
+                                                           Degree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 512:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<
-        InputTorus, AmortizedDegree<512>>(
+    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
+                                                           Degree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 1024:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<
-        InputTorus, AmortizedDegree<1024>>(
+    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
+                                                           Degree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 2048:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<
-        InputTorus, AmortizedDegree<2048>>(
+    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
+                                                           Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
         polynomial_size, level_count, input_lwe_ciphertext_count,
         allocate_gpu_memory);
   case 4096:
+    // We use AmortizedDegree for 4096 to avoid register exhaustion
     return scratch_cg_multi_bit_programmable_bootstrap_128<
         InputTorus, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
@@ -97,7 +99,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   bool supports_cg =
-      supports_cooperative_groups_on_multibit_programmable_bootstrap<
+      supports_cooperative_groups_on_multibit_programmable_bootstrap_128<
           __uint128_t>(glwe_dimension, polynomial_size, level_count,
                        input_lwe_ciphertext_count,
                        cuda_get_max_shared_memory(gpu_index));
@@ -129,7 +131,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
 
   switch (polynomial_size) {
   case 256:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, AmortizedDegree<256>>(
+    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -137,7 +139,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 512:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, AmortizedDegree<512>>(
+    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -145,8 +147,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 1024:
-    host_multi_bit_programmable_bootstrap_128<InputTorus,
-                                              AmortizedDegree<1024>>(
+    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -154,8 +155,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 2048:
-    host_multi_bit_programmable_bootstrap_128<InputTorus,
-                                              AmortizedDegree<2048>>(
+    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -163,6 +163,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 4096:
+    // We use AmortizedDegree for 4096 to avoid register exhaustion
     host_multi_bit_programmable_bootstrap_128<InputTorus,
                                               AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
@@ -191,8 +192,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
 
   switch (polynomial_size) {
   case 256:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                 AmortizedDegree<256>>(
+    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -200,8 +200,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 512:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                 AmortizedDegree<512>>(
+    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -209,8 +208,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 1024:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                 AmortizedDegree<1024>>(
+    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -218,8 +216,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 2048:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                 AmortizedDegree<2048>>(
+    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -227,6 +224,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
         num_many_lut, lut_stride);
     break;
   case 4096:
+    // We use AmortizedDegree for 4096 to avoid register exhaustion
     host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
                                                  AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
