@@ -10,13 +10,15 @@ use crate::core_crypto::prelude::{
     LweMultiBitBootstrapKeyOwned,
 };
 use crate::high_level_api::keys::expanded::{
-    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
-    ExpandedStandardAtomicPatternServerKey, ShortintExpandedBootstrappingKey,
-    ShortintExpandedServerKey,
+    ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
 use crate::integer::ClientKey;
+use crate::shortint::atomic_pattern::expanded::{
+    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
+    ExpandedStandardAtomicPatternServerKey,
+};
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;

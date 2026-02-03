@@ -11,7 +11,7 @@ pub use compressed_server_key::{
 pub use private_key::NoiseSquashingPrivateKey;
 pub(crate) use private_key::NoiseSquashingPrivateKeyView;
 pub use server_key::{
-    GenericNoiseSquashingKey, NoiseSquashingKey, NoiseSquashingKeyConformanceParams,
-    NoiseSquashingKeyView, Shortint128BootstrappingKey, StandardNoiseSquashingKey,
-    StandardNoiseSquashingKeyView,
+    ExpandedNoiseSquashingKey, GenericNoiseSquashingKey, NoiseSquashingKey,
+    NoiseSquashingKeyConformanceParams, NoiseSquashingKeyView, Shortint128BootstrappingKey,
+    StandardNoiseSquashingKey, StandardNoiseSquashingKeyView,
 };
