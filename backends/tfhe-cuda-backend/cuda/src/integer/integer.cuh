@@ -2337,7 +2337,7 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
 
   // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
   // from the output ct
-  auto active_streams = streams.active_gpu_subset(
+  auto active_streams = streams.active_gpu_subset_u128(
       lwe_array_out->num_radix_blocks, params.pbs_type);
   if (active_streams.count() == 1) {
     execute_keyswitch_async<InputTorus>(
