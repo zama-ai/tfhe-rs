@@ -23,6 +23,7 @@ use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchType,
     NoiseSquashingParameters,
 };
+use crate::shortint::server_key::expanded::ShortintExpandedBootstrappingKey;
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
 };
@@ -120,6 +121,39 @@ where
                         deterministic_execution: params.deterministic_execution,
                     }
                 })
+            }
+        }
+    }
+
+    /// Expand the compressed 128-bit bootstrapping key to the standard (non-Fourier) domain.
+    pub fn expand(&self) -> ShortintExpandedBootstrappingKey<u128, Scalar> {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                let core_bsk = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
+                let modulus_switch_noise_reduction_key =
+                    modulus_switch_noise_reduction_key.decompress();
+                ShortintExpandedBootstrappingKey::Classic {
+                    bsk: core_bsk,
+                    modulus_switch_noise_reduction_key,
+                }
+            }
+            Self::MultiBit {
+                bsk,
+                thread_count,
+                deterministic_execution,
+            } => {
+                let core_bsk = bsk
+                    .as_view()
+                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                ShortintExpandedBootstrappingKey::MultiBit {
+                    bsk: core_bsk,
+                    thread_count: *thread_count,
+                    deterministic_execution: *deterministic_execution,
+                }
             }
         }
     }

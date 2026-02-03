@@ -15,6 +15,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, ModulusSwitchType,
 };
+use crate::shortint::server_key::expanded::ShortintExpandedBootstrappingKey;
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
     ShortintBootstrappingKey,
@@ -126,6 +127,47 @@ where
 }
 
 impl<InputScalar: UnsignedTorus> ShortintCompressedBootstrappingKey<InputScalar> {
+    /// Expand the compressed bootstrapping key to the standard (non-Fourier) domain.
+    pub fn expand(&self) -> ShortintExpandedBootstrappingKey<u64, InputScalar> {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                let core_bsk = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
+                let modulus_switch_noise_reduction_key =
+                    modulus_switch_noise_reduction_key.decompress();
+                ShortintExpandedBootstrappingKey::Classic {
+                    bsk: core_bsk,
+                    modulus_switch_noise_reduction_key,
+                }
+            }
+            Self::MultiBit {
+                seeded_bsk,
+                deterministic_execution,
+            } => {
+                let core_bsk = seeded_bsk
+                    .as_view()
+                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                    core_bsk.input_lwe_dimension(),
+                    core_bsk.glwe_size().to_glwe_dimension(),
+                    core_bsk.polynomial_size(),
+                    core_bsk.decomposition_base_log(),
+                    core_bsk.decomposition_level_count(),
+                    core_bsk.grouping_factor(),
+                );
+
+                ShortintExpandedBootstrappingKey::MultiBit {
+                    bsk: core_bsk,
+                    thread_count,
+                    deterministic_execution: *deterministic_execution,
+                }
+            }
+        }
+    }
+
     pub fn decompress(&self) -> ShortintBootstrappingKey<InputScalar> {
         match self {
             Self::Classic {

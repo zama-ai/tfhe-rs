@@ -1,6 +1,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_seeded_lwe_keyswitch_key;
 use crate::core_crypto::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyOwned;
+use crate::shortint::atomic_pattern::expanded::ExpandedStandardAtomicPatternServerKey;
 use crate::shortint::atomic_pattern::standard::StandardAtomicPatternServerKey;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedStandardAtomicPatternServerKeyVersions;
 use crate::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
@@ -126,6 +127,21 @@ impl CompressedStandardAtomicPatternServerKey {
 
     pub fn ciphertext_modulus(&self) -> CiphertextModulus {
         self.bootstrapping_key.ciphertext_modulus()
+    }
+
+    /// Expand to standard domain without Fourier conversion.
+    pub fn expand(&self) -> ExpandedStandardAtomicPatternServerKey {
+        let key_switching_key = self
+            .key_switching_key()
+            .as_view()
+            .par_decompress_into_lwe_keyswitch_key();
+        let bootstrapping_key = self.bootstrapping_key().expand();
+
+        ExpandedStandardAtomicPatternServerKey {
+            key_switching_key,
+            bootstrapping_key,
+            pbs_order: self.pbs_order(),
+        }
     }
 
     pub fn decompress(&self) -> StandardAtomicPatternServerKey {
