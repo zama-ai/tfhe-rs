@@ -1093,4 +1093,109 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
   return size_tracker;
 }
 
+// Verify if the grid size satisfies the cooperative group constraints
+template <typename Torus, class params>
+__host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
+    int glwe_dimension, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
+
+  // If Cooperative Groups is not supported, no need to check anything else
+  if (!cuda_check_support_cooperative_groups())
+    return false;
+
+  // Calculate the dimension of the kernel
+  uint64_t full_sm_cg_accumulate =
+      get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
+          params::degree);
+  uint64_t partial_sm_cg_accumulate =
+      get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<Torus>(
+          params::degree);
+
+  int thds = params::degree / params::opt;
+
+  // Get the maximum number of active blocks per streaming multiprocessors
+  int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
+  int max_active_blocks_per_sm;
+
+  if (max_shared_memory < partial_sm_cg_accumulate) {
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
+            Torus, params, NOSM>,
+        thds, 0);
+  } else if (max_shared_memory < full_sm_cg_accumulate) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
+                                                                  PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm_cg_accumulate));
+    cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
+                                                                  PARTIALSM>,
+        cudaFuncCachePreferShared);
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
+            Torus, params, PARTIALSM>,
+        thds, partial_sm_cg_accumulate);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
+                                                                  FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_cg_accumulate));
+    cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
+                                                                  FULLSM>,
+        cudaFuncCachePreferShared);
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
+            Torus, params, FULLSM>,
+        thds, full_sm_cg_accumulate);
+    check_cuda_error(cudaGetLastError());
+  }
+
+  // Get the number of streaming multiprocessors
+  int number_of_sm = 0;
+  cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+  return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
+}
+
+// Verify if the grid size for the multi-bit kernel satisfies the cooperative
+// group constraints
+template <typename Torus>
+__host__ bool
+supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
+    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
+  switch (polynomial_size) {
+  case 256:
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+        Torus, Degree<256>>(glwe_dimension, level_count, num_samples,
+                            max_shared_memory);
+  case 512:
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+        Torus, Degree<512>>(glwe_dimension, level_count, num_samples,
+                            max_shared_memory);
+  case 1024:
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+        Torus, Degree<1024>>(glwe_dimension, level_count, num_samples,
+                             max_shared_memory);
+  case 2048:
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+        Torus, Degree<2048>>(glwe_dimension, level_count, num_samples,
+                             max_shared_memory);
+  case 4096:
+    // We use AmortizedDegree for 4096 to avoid register exhaustion
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
+  default:
+    PANIC(
+        "Cuda error (multi-bit PBS128): unsupported polynomial size. Supported "
+        "N's are powers of two"
+        " in the interval [256..4096].")
+  }
+}
+
 #endif // PROGRAMMABLE_BOOTSTRAP_MULTIBIT_128_CUH
