@@ -400,8 +400,13 @@ struct int_radix_lut_custom_input_output {
     this->num_input_blocks = num_input_blocks;
     this->gpu_memory_allocated = allocate_gpu_memory;
 
-    this->active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+    if (sizeof(OutputTorus) == 16) {
+      this->active_streams =
+          streams.active_gpu_subset_u128(num_radix_blocks, params.pbs_type);
+    } else {
+      this->active_streams =
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+    }
   }
 
   void setup_degrees() {
@@ -413,9 +418,13 @@ struct int_radix_lut_custom_input_output {
   void allocate_pbs_buffers(int_radix_params params, uint32_t num_radix_blocks,
                             bool allocate_gpu_memory, uint64_t &size_tracker) {
 
+    int classical_threshold =
+        sizeof(OutputTorus) == 16
+            ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+            : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
     int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                        : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+                        : classical_threshold;
 
     for (uint i = 0; i < active_streams.count(); i++) {
       cuda_set_device(active_streams.gpu_index(i));
@@ -487,11 +496,14 @@ struct int_radix_lut_custom_input_output {
                                lwe_trivial_indexes, num_radix_blocks,
                                allocate_gpu_memory);
   }
-
   void setup_gemm_batch_ks_temp_buffers(uint64_t &size_tracker) {
+    int classical_threshold =
+        sizeof(OutputTorus) == 16
+            ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+            : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
     int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                        : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+                        : classical_threshold;
 
     auto inputs_on_gpu = std::min(
         (int)num_input_blocks,
@@ -838,10 +850,13 @@ struct int_radix_lut_custom_input_output {
   void allocate_lwe_vector_for_non_trivial_indexes(
       CudaStreams streams, uint64_t max_num_radix_blocks,
       uint64_t &size_tracker, bool allocate_gpu_memory) {
-
+    int classical_threshold =
+        sizeof(OutputTorus) == 16
+            ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+            : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
     int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                        : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+                        : classical_threshold;
 
     // We need to create the auxiliary array only in GPU 0
     if (active_streams.count() > 1) {
