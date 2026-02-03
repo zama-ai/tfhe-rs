@@ -20,6 +20,9 @@ mod shift;
 mod sub;
 
 pub mod compressed;
+pub mod expanded;
+
+pub use expanded::{ShortintExpandedBootstrappingKey, ShortintExpandedServerKey};
 
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,

@@ -9,234 +9,43 @@ use crate::core_crypto::prelude::*;
 use crate::integer::ciphertext::NoiseSquashingCompressionKey;
 use crate::integer::compression_keys::CompressionKey;
 
-use crate::shortint::atomic_pattern::compressed::{
-    CompressedAtomicPatternServerKey, CompressedKS32AtomicPatternServerKey,
-    CompressedStandardAtomicPatternServerKey,
-};
 use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
-use crate::shortint::noise_squashing::{
-    CompressedShortint128BootstrappingKey, GenericNoiseSquashingKey, Shortint128BootstrappingKey,
-};
-use crate::shortint::server_key::{
-    GenericServerKey, ModulusSwitchConfiguration, ShortintBootstrappingKey,
-    ShortintCompressedBootstrappingKey,
-};
 
 use crate::high_level_api::keys::cpk_re_randomization::ReRandomizationKeySwitchingKey;
 use crate::integer::compression_keys::CompressedDecompressionKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
-/// Bootstrapping Key with elements in the standard (i.e not fourier) domain
-pub(crate) enum ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
-where
-    Scalar: UnsignedInteger,
-    ModSwitchScalar: UnsignedInteger,
-{
-    Classic {
-        bsk: LweBootstrapKey<Vec<Scalar>>,
-        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<ModSwitchScalar>,
-    },
-    MultiBit {
-        bsk: LweMultiBitBootstrapKey<Vec<Scalar>>,
-        thread_count: ThreadCount,
-        deterministic_execution: bool,
-    },
-}
+// Re-export types from shortint for backward compatibility
+pub use crate::shortint::atomic_pattern::expanded::{
+    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
+    ExpandedStandardAtomicPatternServerKey,
+};
+pub use crate::shortint::noise_squashing::atomic_pattern::ExpandedAtomicPatternNoiseSquashingKey;
+pub use crate::shortint::noise_squashing::ExpandedNoiseSquashingKey;
+pub use crate::shortint::server_key::expanded::{
+    ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
+};
 
-#[cfg(feature = "gpu")]
-impl<Scalar, ModSwitchScalar> ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
-where
-    Scalar: UnsignedInteger,
-    ModSwitchScalar: UnsignedInteger,
-{
-    pub(crate) fn glwe_dimension(&self) -> GlweDimension {
-        match self {
-            Self::Classic { bsk, .. } => bsk.glwe_size().to_glwe_dimension(),
-            Self::MultiBit { bsk, .. } => bsk.glwe_size().to_glwe_dimension(),
-        }
-    }
-
-    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
-        match self {
-            Self::Classic { bsk, .. } => bsk.polynomial_size(),
-            Self::MultiBit { bsk, .. } => bsk.polynomial_size(),
-        }
-    }
-}
-
-impl<ModSwitchScalar> ShortintExpandedBootstrappingKey<u64, ModSwitchScalar>
-where
-    ModSwitchScalar: UnsignedInteger,
-{
-    pub(in crate::high_level_api) fn into_fourier(
-        self,
-    ) -> ShortintBootstrappingKey<ModSwitchScalar> {
-        match self {
-            Self::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                let mut fourier_bsk = FourierLweBootstrapKey::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                );
-                par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fourier_bsk);
-                ShortintBootstrappingKey::Classic {
-                    bsk: fourier_bsk,
-                    modulus_switch_noise_reduction_key,
-                }
-            }
-            Self::MultiBit {
-                bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                let mut fourier_bsk = FourierLweMultiBitBootstrapKeyOwned::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                    bsk.grouping_factor(),
-                );
-                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fourier_bsk);
-                ShortintBootstrappingKey::MultiBit {
-                    fourier_bsk,
-                    thread_count,
-                    deterministic_execution,
-                }
-            }
-        }
-    }
-}
-
-impl<ModSwitchScalar> ShortintExpandedBootstrappingKey<u128, ModSwitchScalar>
-where
-    ModSwitchScalar: UnsignedInteger,
-{
-    pub(in crate::high_level_api) fn into_fourier(
-        self,
-    ) -> Shortint128BootstrappingKey<ModSwitchScalar> {
-        match self {
-            Self::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                let mut fourier_bsk = Fourier128LweBootstrapKeyOwned::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                );
-                par_convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
-                Shortint128BootstrappingKey::Classic {
-                    bsk: fourier_bsk,
-                    modulus_switch_noise_reduction_key,
-                }
-            }
-            Self::MultiBit {
-                bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                let mut fourier_bsk = Fourier128LweMultiBitBootstrapKey::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                    bsk.grouping_factor(),
-                );
-
-                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128(
-                    &bsk,
-                    &mut fourier_bsk,
-                );
-
-                Shortint128BootstrappingKey::MultiBit {
-                    bsk: fourier_bsk,
-                    thread_count,
-                    deterministic_execution,
-                }
-            }
-        }
-    }
-}
-
-pub(crate) struct ExpandedDecompressionKey {
+pub struct ExpandedDecompressionKey {
     pub bsk: ShortintExpandedBootstrappingKey<u64, u64>,
     pub lwe_per_glwe: LweCiphertextCount,
 }
 
-pub(crate) struct ExpandedStandardAtomicPatternServerKey {
-    pub key_switching_key: LweKeyswitchKeyOwned<u64>,
-    pub bootstrapping_key: ShortintExpandedBootstrappingKey<u64, u64>,
-    pub pbs_order: PBSOrder,
-}
-
-pub(crate) struct ExpandedKS32AtomicPatternServerKey {
-    pub key_switching_key: LweKeyswitchKeyOwned<u32>,
-    pub bootstrapping_key: ShortintExpandedBootstrappingKey<u64, u32>,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
-}
-
-pub(crate) enum ExpandedAtomicPatternServerKey {
-    Standard(ExpandedStandardAtomicPatternServerKey),
-    KeySwitch32(ExpandedKS32AtomicPatternServerKey),
-}
-
-pub(crate) type ShortintExpandedServerKey = GenericServerKey<ExpandedAtomicPatternServerKey>;
-
-#[cfg(feature = "gpu")]
-impl ShortintExpandedServerKey {
-    pub(crate) fn glwe_dimension(&self) -> GlweDimension {
-        match &self.atomic_pattern {
-            ExpandedAtomicPatternServerKey::Standard(std) => std.bootstrapping_key.glwe_dimension(),
-            ExpandedAtomicPatternServerKey::KeySwitch32(ks32) => {
-                ks32.bootstrapping_key.glwe_dimension()
-            }
-        }
-    }
-
-    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
-        match &self.atomic_pattern {
-            ExpandedAtomicPatternServerKey::Standard(std) => {
-                std.bootstrapping_key.polynomial_size()
-            }
-            ExpandedAtomicPatternServerKey::KeySwitch32(ks32) => {
-                ks32.bootstrapping_key.polynomial_size()
-            }
-        }
-    }
-}
-
-pub(crate) enum ExpandedAtomicPatternNoiseSquashingKey {
-    Standard(ShortintExpandedBootstrappingKey<u128, u64>),
-    KeySwitch32(ShortintExpandedBootstrappingKey<u128, u32>),
-}
-
-pub(crate) type ExpandedNoiseSquashingKey =
-    GenericNoiseSquashingKey<ExpandedAtomicPatternNoiseSquashingKey>;
-
-pub(crate) struct IntegerExpandedServerKey {
-    pub(crate) compute_key: ShortintExpandedServerKey,
-    pub(crate) cpk_key_switching_key_material:
+pub struct IntegerExpandedServerKey {
+    pub compute_key: ShortintExpandedServerKey,
+    pub cpk_key_switching_key_material:
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    pub(crate) compression_key: Option<CompressionKey>,
-    pub(crate) decompression_key: Option<ExpandedDecompressionKey>,
-    pub(crate) noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
-    pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
+    pub compression_key: Option<CompressionKey>,
+    pub decompression_key: Option<ExpandedDecompressionKey>,
+    pub noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
+    pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
+    pub cpk_re_randomization_key_switching_key_material: Option<
         ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
     >,
 }
 
 impl IntegerExpandedServerKey {
-    pub(crate) fn convert_to_cpu(self) -> crate::high_level_api::keys::IntegerServerKey {
+    pub fn convert_to_cpu(self) -> crate::high_level_api::keys::IntegerServerKey {
         use crate::high_level_api::keys::IntegerServerKey;
         use crate::shortint::atomic_pattern::{
             AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
@@ -342,7 +151,7 @@ impl IntegerExpandedServerKey {
 
 #[cfg(feature = "gpu")]
 impl IntegerExpandedServerKey {
-    pub(crate) fn convert_to_gpu(
+    pub fn convert_to_gpu(
         &self,
         streams: &crate::core_crypto::gpu::CudaStreams,
     ) -> crate::Result<crate::high_level_api::keys::inner::IntegerCudaServerKey> {
@@ -430,140 +239,9 @@ impl IntegerExpandedServerKey {
     }
 }
 
-impl<ModSwitchScalar> ShortintCompressedBootstrappingKey<ModSwitchScalar>
-where
-    ModSwitchScalar: UnsignedTorus,
-{
-    /// Expand the compressed bootstrapping key to the standard (non-Fourier) domain.
-    pub(crate) fn expand(&self) -> ShortintExpandedBootstrappingKey<u64, ModSwitchScalar> {
-        match self {
-            Self::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                let core_bsk = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
-                let modulus_switch_noise_reduction_key =
-                    modulus_switch_noise_reduction_key.decompress();
-                ShortintExpandedBootstrappingKey::Classic {
-                    bsk: core_bsk,
-                    modulus_switch_noise_reduction_key,
-                }
-            }
-            Self::MultiBit {
-                seeded_bsk,
-                deterministic_execution,
-            } => {
-                let core_bsk = seeded_bsk
-                    .as_view()
-                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                let thread_count =
-                    crate::shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
-                        core_bsk.input_lwe_dimension(),
-                        core_bsk.glwe_size().to_glwe_dimension(),
-                        core_bsk.polynomial_size(),
-                        core_bsk.decomposition_base_log(),
-                        core_bsk.decomposition_level_count(),
-                        core_bsk.grouping_factor(),
-                    );
-
-                ShortintExpandedBootstrappingKey::MultiBit {
-                    bsk: core_bsk,
-                    thread_count,
-                    deterministic_execution: *deterministic_execution,
-                }
-            }
-        }
-    }
-}
-
-impl<ModSwitchScalar> CompressedShortint128BootstrappingKey<ModSwitchScalar>
-where
-    ModSwitchScalar: UnsignedTorus,
-{
-    /// Expand the compressed 128-bit bootstrapping key to the standard (non-Fourier) domain.
-    pub(crate) fn expand(&self) -> ShortintExpandedBootstrappingKey<u128, ModSwitchScalar> {
-        match self {
-            Self::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                let core_bsk = bsk.as_view().par_decompress_into_lwe_bootstrap_key();
-                let modulus_switch_noise_reduction_key =
-                    modulus_switch_noise_reduction_key.decompress();
-                ShortintExpandedBootstrappingKey::Classic {
-                    bsk: core_bsk,
-                    modulus_switch_noise_reduction_key,
-                }
-            }
-            Self::MultiBit {
-                bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                let core_bsk = bsk
-                    .as_view()
-                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                ShortintExpandedBootstrappingKey::MultiBit {
-                    bsk: core_bsk,
-                    thread_count: *thread_count,
-                    deterministic_execution: *deterministic_execution,
-                }
-            }
-        }
-    }
-}
-
-impl CompressedStandardAtomicPatternServerKey {
-    /// Expand to standard domain without Fourier conversion.
-    pub(crate) fn expand(&self) -> ExpandedStandardAtomicPatternServerKey {
-        let key_switching_key = self
-            .key_switching_key()
-            .as_view()
-            .par_decompress_into_lwe_keyswitch_key();
-        let bootstrapping_key = self.bootstrapping_key().expand();
-
-        ExpandedStandardAtomicPatternServerKey {
-            key_switching_key,
-            bootstrapping_key,
-            pbs_order: self.pbs_order(),
-        }
-    }
-}
-
-impl CompressedKS32AtomicPatternServerKey {
-    /// Expand to standard domain without Fourier conversion.
-    pub(crate) fn expand(&self) -> ExpandedKS32AtomicPatternServerKey {
-        let ciphertext_modulus = self.bootstrapping_key().ciphertext_modulus();
-
-        let key_switching_key = self
-            .key_switching_key()
-            .as_view()
-            .par_decompress_into_lwe_keyswitch_key();
-        let bootstrapping_key = self.bootstrapping_key().expand();
-
-        ExpandedKS32AtomicPatternServerKey {
-            key_switching_key,
-            bootstrapping_key,
-            ciphertext_modulus,
-        }
-    }
-}
-
-impl CompressedAtomicPatternServerKey {
-    /// Expand to standard domain without Fourier conversion.
-    pub(crate) fn expand(&self) -> ExpandedAtomicPatternServerKey {
-        match self {
-            Self::Standard(std) => ExpandedAtomicPatternServerKey::Standard(std.expand()),
-            Self::KeySwitch32(ks32) => ExpandedAtomicPatternServerKey::KeySwitch32(ks32.expand()),
-        }
-    }
-}
-
 impl CompressedDecompressionKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(crate) fn expand(&self) -> ExpandedDecompressionKey {
+    pub fn expand(&self) -> ExpandedDecompressionKey {
         ExpandedDecompressionKey {
             bsk: self.key.bsk.expand(),
             lwe_per_glwe: self.key.lwe_per_glwe,
@@ -573,7 +251,7 @@ impl CompressedDecompressionKey {
 
 impl CompressedNoiseSquashingKey {
     /// Expand to standard domain without Fourier conversion.
-    pub(crate) fn expand(&self) -> ExpandedNoiseSquashingKey {
+    pub fn expand(&self) -> ExpandedNoiseSquashingKey {
         let expanded_ap = match self.key.atomic_pattern() {
             CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
                 ExpandedAtomicPatternNoiseSquashingKey::Standard(
