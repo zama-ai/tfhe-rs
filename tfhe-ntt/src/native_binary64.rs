@@ -446,6 +446,11 @@ impl Plan32 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "avx512")]
 impl Plan52 {
+    #[inline(always)]
+    pub fn is_available() -> bool {
+        crate::V4IFma::try_new().is_some()
+    }
+
     /// Returns a negacyclic NTT plan for the given polynomial size, or `None` if no
     /// suitable roots of unity can be found for the wanted parameters, or if the AVX512
     /// instruction set isn't detected.
