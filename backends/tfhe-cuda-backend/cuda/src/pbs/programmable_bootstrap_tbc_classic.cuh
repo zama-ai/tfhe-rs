@@ -200,6 +200,9 @@ __global__ void device_programmable_bootstrap_tbc(
       }
     }
   }
+  // Before exiting the kernel we need to sync the cluster to ensure that
+  // other blocks can still access the dsm in the mul ggsw glwe
+  cluster.sync();
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
@@ -383,6 +386,9 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
       }
     }
   }
+  // Before exiting the kernel we need to sync the cluster to ensure that
+  // other blocks can still access the dsm in the mul ggsw glwe or the
+  // ping pong buffers
   cluster.sync();
 }
 
