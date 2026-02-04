@@ -705,18 +705,21 @@ void point_msm_async_pippenger_impl(
 
   // Clear all scratch space
   const uint32_t clear_blocks = CEIL_DIV(total_scratch, 256);
+  PANIC_IF_FALSE(clear_blocks * 256 >= total_scratch,
+                 "kernel_clear_buckets: insufficient threads (%u) to clear "
+                 "buffer (%u elements)",
+                 clear_blocks * 256, total_scratch);
   kernel_clear_buckets<ProjectiveType>
       <<<clear_blocks, 256, 0, stream>>>(d_internal_scratch, total_scratch);
   check_cuda_error(cudaGetLastError());
 
   // Phase 1: Accumulate ALL windows in parallel (SINGLE kernel launch!)
-  // Shared memory: counts + offsets + sorted_points + sorted_buckets
-  // OPTIMIZED: sorted_points uses AffineType (smaller) instead of
-  // ProjectiveType OPTIMIZED: shared_buckets removed - using register-based
-  // accumulation
   const uint32_t total_accum_blocks =
       num_windows * launch_params.num_blocks_per_window;
-
+  PANIC_IF_FALSE(
+      total_accum_blocks * bucket_count <= all_block_buckets_size,
+      "kernel_accumulate_all_windows: max write index (%u) exceeds buffer (%u)",
+      total_accum_blocks * bucket_count, all_block_buckets_size);
   kernel_accumulate_all_windows<AffineType, ProjectiveType>
       <<<total_accum_blocks, launch_params.adjusted_threads_per_block,
          launch_params.accum_shared_mem, stream>>>(
@@ -728,7 +731,10 @@ void point_msm_async_pippenger_impl(
   const uint32_t total_reduce_blocks = num_windows * bucket_count;
   Phase2KernelLaunchParams<ProjectiveType> reduce_params(
       launch_params.num_blocks_per_window, gpu_index);
-
+  PANIC_IF_FALSE(
+      total_reduce_blocks <= all_final_buckets_size,
+      "kernel_reduce_all_windows: blocks (%u) exceeds output buffer (%u)",
+      total_reduce_blocks, all_final_buckets_size);
   kernel_reduce_all_windows<ProjectiveType>
       <<<total_reduce_blocks, reduce_params.adjusted_threads,
          reduce_params.shared_mem, stream>>>(
@@ -739,6 +745,10 @@ void point_msm_async_pippenger_impl(
   // Phase 3: Compute window sums in parallel (SINGLE kernel launch!)
   const uint32_t combine_threads = bucket_count - 1;
   const size_t combine_shared_mem = combine_threads * sizeof(ProjectiveType);
+  PANIC_IF_FALSE(num_windows * bucket_count <= all_final_buckets_size,
+                 "kernel_compute_window_sums: max read index (%u) exceeds "
+                 "input buffer (%u)",
+                 num_windows * bucket_count, all_final_buckets_size);
   kernel_compute_window_sums<ProjectiveType>
       <<<num_windows, combine_threads, combine_shared_mem, stream>>>(
           d_window_sums, d_all_final_buckets, num_windows, bucket_count);
