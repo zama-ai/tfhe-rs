@@ -1,13 +1,22 @@
 #pragma once
 
+#include "fp.h" // For LIMB_BITS_CONFIG
+
+// ============================================================================
 // BLS12-446 curve parameters
+// ============================================================================
 // Prime modulus p for BLS12-446 (Fq field)
 // From tfhe-rs/tfhe-zk-pok/src/curve_446/mod.rs
 // Modulus:
 // 172824703542857155980071276579495962243492693522789898437834836356385656662277472896902502740297183690175962001546428467344062165330603
-// This is a 448-bit prime (Fp448)
+// This is a 446-bit prime
 // Format: little-endian, limb[0] is least significant
-// Converted from decimal to hex and split into 7 limbs of 64 bits each
+// ============================================================================
+
+#if LIMB_BITS_CONFIG == 64
+// ============================================================================
+// 64-bit limb constants (7 limbs for Fp, 5 limbs for scalar)
+// ============================================================================
 
 // Prime modulus p (7 limbs, little-endian)
 #define BLS12_446_MODULUS_LIMBS                                                \
@@ -38,26 +47,17 @@
 #define BLS12_446_P_PRIME 0xcd63fd900035fffdULL
 
 // Scalar field modulus r (group order) for BLS12-446
-// From tfhe-rs/tfhe-zk-pok/src/curve_446/mod.rs
 // Modulus:
 // 645383785691237230677916041525710377746967055506026847120930304831624105190538527824412673
-// This is a 320-bit prime (Fp320)
-// Format: little-endian, limb[0] is least significant
-// Converted from decimal to hex and split into 5 limbs of 64 bits each
-
-// Scalar field modulus r (5 limbs, little-endian)
+// This is a 320-bit prime (5 limbs of 64 bits)
 #define BLS12_446_SCALAR_MODULUS_LIMBS                                         \
   {                                                                            \
     0x0428001400040001ULL, 0x7bb9b0e8d8ca3461ULL, 0xd04c98ccc4c050bcULL,       \
         0x7995b34995830fa4ULL, 0x00000511b70539f2ULL                           \
   }
 
-// ============================================================================
 // Precomputed Montgomery form constants for Fp
 // These are computed as: value * R mod p, where R = 2^448
-// Used by point operations to avoid recomputing on every call
-// ============================================================================
-
 #define BLS12_446_TWO_MONT_LIMBS                                               \
   {                                                                            \
     0x771FFECAAA7AAAA8ULL, 0x488DD6B9D462519EULL, 0xED8C91E0EE29908DULL,       \
@@ -85,3 +85,13 @@
         0x01D5903CEC5629ADULL, 0xECB5C457359D3B8CULL, 0xDDF7D389E4FA61BFULL,   \
         0x2744FF9FBE7D7426ULL                                                  \
   }
+
+#elif LIMB_BITS_CONFIG == 32
+// ============================================================================
+// 32-bit limb constants (14 limbs for Fp, 10 limbs for scalar)
+// ============================================================================
+// TODO: Compute these constants for 32-bit limbs
+#error                                                                         \
+    "32-bit limb constants not yet implemented. Please compute the constants."
+
+#endif // LIMB_BITS_CONFIG

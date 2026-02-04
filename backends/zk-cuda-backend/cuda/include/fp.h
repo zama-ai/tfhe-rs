@@ -6,14 +6,41 @@
 // Ceiling division: computes (M + N - 1) / N
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
-// Limb type for multi-precision integers
+// ============================================================================
+// LIMB SIZE CONFIGURATION
+// ============================================================================
+// Define LIMB_BITS_CONFIG before including this header to change limb size.
+// Default: 64-bit limbs.
+//
+// Supported values: 32, 64.
+// ============================================================================
+#ifndef LIMB_BITS_CONFIG
+#define LIMB_BITS_CONFIG 64
+#endif
+
+#if LIMB_BITS_CONFIG == 64
 using UNSIGNED_LIMB = uint64_t;
-
-// Bits per limb (derived from limb type size)
-constexpr int LIMB_BITS = sizeof(UNSIGNED_LIMB) * 8;
-
-// Number of limbs for scalars (Zp)
 #define ZP_LIMBS 5
+#elif LIMB_BITS_CONFIG == 32
+using UNSIGNED_LIMB = uint32_t;
+#define ZP_LIMBS 10
+#else
+#error "Unsupported LIMB_BITS_CONFIG value. Only 32 and 64 are supported."
+#endif
+
+// BLS12-446: 446-bit prime field
+// For 64-bit limbs: ceil(446 / 64) = 7 limbs (448 bits total)
+// For 32-bit limbs: ceil(446 / 32) = 14 limbs (448 bits total)
+#if LIMB_BITS_CONFIG == 64
+#define FP_LIMBS 7
+#elif LIMB_BITS_CONFIG == 32
+#define FP_LIMBS 14
+#endif
+#define FP_BITS 446
+
+// Bits per limb (derived from configuration, also available as constexpr)
+#define LIMB_BITS LIMB_BITS_CONFIG
+constexpr int LIMB_BITS_CONSTEXPR = LIMB_BITS;
 
 // Generic BigInt template for N limbs
 // Represents a big integer as N limbs of LIMB_BITS bits each
@@ -25,11 +52,6 @@ template <int N> struct BigInt {
   // Total bits in this BigInt
   static constexpr int NUM_BITS = N * LIMB_BITS;
 };
-
-// BLS12-446: 446-bit prime field
-// Using 7 limbs of 64 bits each (448 bits total, 2 bits headroom)
-#define FP_LIMBS 7
-#define FP_BITS 446
 
 // ============================================================================
 // MONTGOMERY FORM CONVENTION
