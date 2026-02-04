@@ -1,0 +1,209 @@
+# Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
+name: gpu_hlapi_h100_tests
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  PULL_REQUEST_MD_LINK: ""
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets will be available only to zama-ai organization members
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+  EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+  pull_request:
+    types: [ labeled ]
+
+permissions:
+  contents: read
+
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
+jobs:
+  should-run:
+    name: gpu_hlapi_h100_tests/should-run
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read  # Needed to check for file change
+    outputs:
+      gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@e0021407031f5be11a464abee9a0776171c79891 # v47.0.1
+        with:
+          files_yaml: |
+            gpu:
+              - tfhe/Cargo.toml
+              - tfhe/build.rs
+              - backends/tfhe-cuda-backend/**
+              - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/gpu/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
+              - tfhe/src/shortint/parameters/**
+              - tfhe/src/high_level_api/**
+              - tfhe/src/c_api/**
+              - 'tfhe/docs/**/**.md'
+              - '.github/workflows/gpu_hlapi_h100_tests.yml'
+              - scripts/integer-tests.sh
+              - ci/slab.toml
+
+  setup-instance:
+    name: gpu_hlapi_h100_tests/setup-instance
+    needs: should-run
+    if: github.event_name != 'pull_request' ||
+      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      # Use permanent remote instance label first as on-demand remote instance label output is set before the end of start-remote-instance step.
+      # If the latter fails due to a failed GitHub action runner set up, we have to fallback on the permanent instance.
+      # Since the on-demand remote label is set before failure, we have to do the logical OR in this order,
+      # otherwise we'll try to run the next job on a non-existing on-demand instance.
+      runner-name: ${{ steps.use-permanent-instance.outputs.runner_group || steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      remote-instance-outcome: ${{ steps.start-remote-instance.outcome }}
+    steps:
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        continue-on-error: true
+        uses: zama-ai/slab-github-runner@d4580322fc216877c48ac2987df9573ffd03476c # v1.5.0
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: hyperstack
+          profile: single-h100
+
+      # This will allow to fallback on permanent instances running on Hyperstack.
+      - name: Use permanent remote instance
+        id: use-permanent-instance
+        if: env.SECRETS_AVAILABLE == 'true' && steps.start-remote-instance.outcome == 'failure'
+        run: |
+          echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
+
+      # This instance will be spawned especially for pull-request from forked repository
+      - name: Start GitHub instance
+        id: start-github-instance
+        if: env.SECRETS_AVAILABLE == 'false'
+        run: |
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+
+  cuda-tests-linux:
+    name: gpu_hlapi_h100_tests/cuda-tests-linux
+    needs: [ should-run, setup-instance ]
+    if: github.event_name != 'pull_request' ||
+      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
+    concurrency:
+      group: ${{ github.workflow_ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.8"
+            gcc: 11 
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Setup Hyperstack dependencies
+        if: needs.setup-instance.outputs.remote-instance-outcome == 'success'
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+      - name: Enable nvidia multi-process service
+        run: |
+          nvidia-cuda-mps-control -d
+      
+      - name: Run user docs tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu
+
+      - name: Test C API
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu
+
+      - name: Run High Level API Tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
+
+  slack-notify:
+    name: gpu_hlapi_h100_tests/slack-notify
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Set pull-request URL
+        if: env.SECRETS_AVAILABLE == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
+      - name: Send message
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
+          SLACK_MESSAGE: "HL API H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+
+  teardown-instance:
+    name: gpu_hlapi_h100_tests/teardown-instance
+    if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop remote instance
+        id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@d4580322fc216877c48ac2987df9573ffd03476c # v1.5.0
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
