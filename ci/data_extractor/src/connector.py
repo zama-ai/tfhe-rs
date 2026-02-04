@@ -132,7 +132,8 @@ class PostgreConnector:
         operation_filter: list = None,
         layer: Layer = None,
         branch: str = None,
-        name_suffix: str = "_mean_avx512",
+        # name_suffix: str = "_mean_avx512",
+        name_suffix: str = "_chrome_mean",  # DEBUG  # TODO ajouter une input arg name_suffix (et filter sur "_mean" pour le wasm)
         last_value_only: bool = True,
     ) -> dict[BenchDetails, list[int]]:
         """

@@ -24,6 +24,7 @@ import connector
 import formatters.core
 import formatters.hlapi
 import formatters.integer
+import formatters.wasm
 import regression
 from benchmark_specs import BenchSubset, BenchType, Layer, OperandType, RustType
 from formatters.common import BenchArray, CSVFormatter, MarkdownFormatter, SVGFormatter
@@ -136,10 +137,7 @@ parser.add_argument(
 parser.add_argument(
     "--bench-subset",
     dest="bench_subset",
-    choices=[
-        "all",
-        "erc20",
-    ],
+    choices=["all", "erc20", "zk"],
     default="all",
     help="Subset of benchmarks to filter against, dedicated formatting will be applied",
 )
@@ -283,6 +281,8 @@ def get_formatter(layer: Layer, bench_subset: BenchSubset):
     match bench_subset:
         case BenchSubset.Erc20:
             return formatters.hlapi.Erc20Formatter
+        case BenchSubset.Zk:
+            return formatters.wasm.ZKFormatter
 
     match layer:
         case Layer.Integer:
@@ -425,6 +425,23 @@ def generate_files_from_arrays(
             )
 
 
+def get_operands_types(layer: Layer, bench_subset: BenchSubset = None):
+    ciphertext_only = (OperandType.CipherText,)
+
+    if layer == Layer.CoreCrypto:
+        return ciphertext_only
+    elif bench_subset:
+        match bench_subset:
+            case BenchSubset.Zk | BenchSubset.Erc20:
+                return ciphertext_only
+            case _:
+                raise NotImplementedError(
+                    f"operand types cannot be defined for bench subset '{bench_subset}'"
+                )
+    else:
+        return OperandType.CipherText, OperandType.PlainText
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
     user_config = config.UserConfig(args)
@@ -472,17 +489,14 @@ if __name__ == "__main__":
         args.hardware_comp.lower().split(",") if args.hardware_comp else None
     )
 
-    for operand_type in (OperandType.CipherText, OperandType.PlainText):
+    operands_types = get_operands_types(layer, bench_subset)
+
+    for operand_type in operands_types:
         if hardware_list:
             perform_hardware_comparison(user_config, layer)
 
             if args.generate_markdown:
                 print("Markdown generation is not supported with comparisons")
-            continue
-
-        if (
-            layer == Layer.CoreCrypto or (layer == Layer.HLApi and bench_subset)
-        ) and operand_type == OperandType.PlainText:
             continue
 
         file_suffix = f"_{operand_type.lower()}"
