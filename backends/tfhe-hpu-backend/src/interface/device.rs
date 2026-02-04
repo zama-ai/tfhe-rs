@@ -94,6 +94,18 @@ impl HpuDevice {
     ) where
         F: Fn(HpuParameters, &crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
+        // print HPU version
+        #[cfg(feature = "hw-v80")]
+        {
+            let mut backend = self.backend.lock().unwrap();
+            let (major, minor) = backend.get_hpu_version();
+            tracing::info!("HPU version -> {}.{}", major, minor);
+
+            if major >= 2 && minor >= 3 {
+                backend.map_bar_reg().unwrap();
+            }
+        }
+
         // Properly reset keys
         self.bsk_unset();
         self.ksk_unset();

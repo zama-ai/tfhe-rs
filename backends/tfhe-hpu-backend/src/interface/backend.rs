@@ -24,6 +24,10 @@ pub struct HpuBackend {
 
     // Extracted parameters
     pub(crate) params: HpuParameters,
+    #[cfg(feature = "hw-v80")]
+    hpu_version_major: u32,
+    #[cfg(feature = "hw-v80")]
+    hpu_version_minor: u32,
     // Prevent to parse regmap at each polling iteration
     #[cfg(not(feature = "hw-v80"))]
     workq_addr: u64,
@@ -108,6 +112,20 @@ impl HpuBackend {
             .collect::<Vec<_>>();
         let regmap = hw_regmap::FlatRegmap::from_file(&regmap_str);
         let mut params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+
+        #[cfg(feature = "hw-v80")]
+        let (hpu_version_major, hpu_version_minor) = {
+            let version_reg = regmap
+                .register()
+                .get("info::version")
+                .expect("Unknown register, check regmap definition");
+            let hpu_version_val = hpu_hw.read_reg(*version_reg.offset() as u64);
+            let hpu_version_fields = version_reg.as_field(hpu_version_val);
+            (
+                *hpu_version_fields.get("major").expect("Unknown field"),
+                *hpu_version_fields.get("minor").expect("Unknown field"),
+            )
+        };
 
         // In case this is not filled by from_rtl()
         if params.ntt_params.min_pbs_nb.is_none() {
@@ -282,6 +300,10 @@ impl HpuBackend {
                 hpu_hw,
                 regmap,
                 params,
+                #[cfg(feature = "hw-v80")]
+                hpu_version_major,
+                #[cfg(feature = "hw-v80")]
+                hpu_version_minor,
                 #[cfg(not(feature = "hw-v80"))]
                 workq_addr,
                 #[cfg(not(feature = "hw-v80"))]
@@ -915,6 +937,16 @@ impl HpuBackend {
     pub(crate) fn flush_ackq(&mut self) -> Result<(), HpuInternalError> {
         while self.poll_ack_q()? {}
         Ok(())
+    }
+
+    #[cfg(feature = "hw-v80")]
+    pub(crate) fn get_hpu_version(&self) -> (u32, u32) {
+        (self.hpu_version_major, self.hpu_version_minor)
+    }
+
+    #[cfg(feature = "hw-v80")]
+    pub(crate) fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.hpu_hw.map_bar_reg()
     }
 }
 
