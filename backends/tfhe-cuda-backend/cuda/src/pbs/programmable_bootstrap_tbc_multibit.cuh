@@ -181,6 +181,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
           accumulator, global_accumulator_slice);
     }
   }
+  // Before exiting the kernel we need to sync the cluster to ensure that
+  // other blocks can still access the dsm in the mul ggsw glwe
+  cluster.sync();
 }
 
 // Specialized version for the multi-bit bootstrap using 2_2 params:
@@ -383,7 +386,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         reg_acc_rotated, global_accumulator_slice);
   }
   // Before exiting the kernel we need to sync the cluster to ensure that
-  //  that other blocks can still access the dsm in the ping pong buffer
+  // other blocks can still access the dsm in the ping pong buffer
   cluster.sync();
 }
 
