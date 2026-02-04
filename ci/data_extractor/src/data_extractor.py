@@ -25,7 +25,7 @@ import formatters.core
 import formatters.hlapi
 import formatters.integer
 import regression
-from benchmark_specs import BenchType, Layer, OperandType, RustType
+from benchmark_specs import BenchSubset, BenchType, Layer, OperandType, RustType
 from formatters.common import BenchArray, CSVFormatter, MarkdownFormatter, SVGFormatter
 
 import utils
@@ -129,9 +129,19 @@ parser.add_argument(
 parser.add_argument(
     "--bench-type",
     dest="bench_type",
-    choices=["latency", "throughput"],
+    choices=["latency", "throughput", "both"],
     default="latency",
     help="Type of benchmark to filter against",
+)
+parser.add_argument(
+    "--bench-subset",
+    dest="bench_subset",
+    choices=[
+        "all",
+        "erc20",
+    ],
+    default="all",
+    help="Subset of benchmarks to filter against, dedicated formatting will be applied",
 )
 parser.add_argument(
     "--regression-profiles",
@@ -269,7 +279,11 @@ def perform_hardware_comparison(
         )
 
 
-def get_formatter(layer: Layer):
+def get_formatter(layer: Layer, bench_subset: BenchSubset):
+    match bench_subset:
+        case BenchSubset.Erc20:
+            return formatters.hlapi.Erc20Formatter
+
     match layer:
         case Layer.Integer:
             return formatters.integer.IntegerFormatter
@@ -286,6 +300,7 @@ def perform_data_extraction(
     layer: Layer,
     operand_type: OperandType,
     output_filename: str,
+    bench_subset: BenchSubset,
 ):
     """
     Extracts, formats, and processes benchmark data for a specified operand type and
@@ -308,8 +323,12 @@ def perform_data_extraction(
     :return: Generic formatted arrays
     :rtype: list[BenchArray]
     """
+    operation_filter = [bench_subset.value] if bench_subset != BenchSubset.All else None
+
     try:
-        res = conn.fetch_benchmark_data(user_config, operand_type)
+        res = conn.fetch_benchmark_data(
+            user_config, operand_type, operation_filter=operation_filter
+        )
     except RuntimeError as err:
         print(f"Failed to fetch benchmark data: {err}")
         sys.exit(2)
@@ -319,8 +338,10 @@ def perform_data_extraction(
             conversion_func = utils.convert_latency_value_to_readable_text
         case BenchType.Throughput:
             conversion_func = utils.convert_throughput_value_to_readable_text
+        case BenchType.Both:
+            conversion_func = None
 
-    generic_formatter_class = get_formatter(layer)
+    generic_formatter_class = get_formatter(layer, bench_subset)
     generic_formatter = generic_formatter_class(
         layer, user_config.backend, user_config.pbs_kind, user_config.grouping_factor
     )
@@ -335,12 +356,16 @@ def perform_data_extraction(
         file_suffix = ""
     filename = utils.append_suffix_to_filename(output_filename, file_suffix, ".csv")
 
-    utils.write_to_csv(
-        CSVFormatter(layer, user_config.backend, user_config.pbs_kind).generate_csv(
-            formatted_results
-        ),
-        filename,
-    )
+    try:
+        utils.write_to_csv(
+            CSVFormatter(layer, user_config.backend, user_config.pbs_kind).generate_csv(
+                formatted_results
+            ),
+            filename,
+        )
+    except NotImplementedError as err:
+        # Ignore this error if a formatter does not support CSV generation.
+        print(f"CSV generation not supported (error: {err})")
 
     generic_arrays = generic_formatter.generate_array(
         formatted_results,
@@ -404,6 +429,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     user_config = config.UserConfig(args)
     layer = user_config.layer
+    bench_subset = user_config.bench_subset
 
     if args.generate_svg_from_file:
         generate_svg_from_file(user_config, layer, args.generate_svg_from_file)
@@ -454,12 +480,18 @@ if __name__ == "__main__":
                 print("Markdown generation is not supported with comparisons")
             continue
 
-        if layer == Layer.CoreCrypto and operand_type == OperandType.PlainText:
+        if (
+            layer == Layer.CoreCrypto or (layer == Layer.HLApi and bench_subset)
+        ) and operand_type == OperandType.PlainText:
             continue
 
         file_suffix = f"_{operand_type.lower()}"
         arrays = perform_data_extraction(
-            user_config, layer, operand_type, user_config.output_file
+            user_config,
+            layer,
+            operand_type,
+            user_config.output_file,
+            bench_subset=bench_subset,
         )
         generate_files_from_arrays(
             arrays,

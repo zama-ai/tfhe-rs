@@ -228,6 +228,9 @@ class PostgreConnector:
                 filters.append("test.name NOT SIMILAR TO '%::throughput::%'")
             case BenchType.Throughput:
                 filters.append("test.name LIKE '%::throughput::%'")
+            case BenchType.Both:
+                # No need to add a filter.
+                pass
 
         select_parts = (
             "SELECT",
