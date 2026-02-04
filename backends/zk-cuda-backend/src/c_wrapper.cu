@@ -95,15 +95,12 @@ void g1_msm_unmanaged_wrapper(
         PANIC_IF_FALSE(d_points_converted != nullptr, "G1 MSM error: failed to allocate memory for Montgomery conversion");
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, n * sizeof(G1Affine), stream, gpu_index, true);
         convert_g1_points_to_montgomery(stream, gpu_index, d_points_converted, n);
-        auto err = cudaGetLastError();
-        PANIC_IF_FALSE(err == cudaSuccess, "G1 MSM error: Montgomery conversion failed: %s", cudaGetErrorString(err));
+        check_cuda_error(cudaGetLastError());
         points_to_use = d_points_converted;
     }
-    
-    point_msm_async_g1(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
 
-    auto err = cudaPeekAtLastError();
-    PANIC_IF_FALSE(err == cudaSuccess, "G1 MSM error: CUDA kernel failed: %s", cudaGetErrorString(err));
+    point_msm_async_g1(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
+    check_cuda_error(cudaGetLastError());
 
     if (d_points_converted != nullptr) {
         cuda_drop_with_size_tracking_async(d_points_converted, stream, gpu_index, true);
@@ -145,15 +142,12 @@ void g2_msm_unmanaged_wrapper(
         PANIC_IF_FALSE(d_points_converted != nullptr, "G2 MSM error: failed to allocate memory for Montgomery conversion");
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, n * sizeof(G2Affine), stream, gpu_index, true);
         convert_g2_points_to_montgomery(stream, gpu_index, d_points_converted, n);
-        auto err = cudaGetLastError();
-        PANIC_IF_FALSE(err == cudaSuccess, "G2 MSM error: Montgomery conversion failed: %s", cudaGetErrorString(err));
+        check_cuda_error(cudaGetLastError());
         points_to_use = d_points_converted;
     }
-    
-    point_msm_async_g2(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
 
-    auto err = cudaPeekAtLastError();
-    PANIC_IF_FALSE(err == cudaSuccess, "G2 MSM error: CUDA kernel failed: %s", cudaGetErrorString(err));
+    point_msm_async_g2(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
+    check_cuda_error(cudaGetLastError());
 
     // Free temporary memory if allocated
     if (d_points_converted != nullptr) {
@@ -235,7 +229,7 @@ void g1_msm_managed_wrapper(
     // Convert to Montgomery form on GPU if not already in Montgomery form
     if (!points_in_montgomery) {
         convert_g1_points_to_montgomery(stream, gpu_index, d_points, n);
-        check_cuda_error(cudaGetLastError()); // TODO: Check errors like these in the other parts of the wrapper
+        check_cuda_error(cudaGetLastError());
     }
 
     point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
