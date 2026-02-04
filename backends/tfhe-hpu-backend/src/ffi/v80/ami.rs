@@ -3,11 +3,13 @@
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
 use lazy_static::lazy_static;
-use libc;
+use nix::sys::mman::{mmap, munmap, MapFlags, ProtFlags};
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read};
+use std::num::NonZero;
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::OpenOptionsExt;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
@@ -81,6 +83,7 @@ impl AmiInfo {
 
 pub struct AmiDriver {
     ami_dev: File,
+    bar_reg_ptr: Option<NonNull<u8>>,
     iop_ack_atomic_ptr: NonNull<AtomicU32>,
     retry_rate: Duration,
 }
@@ -100,6 +103,7 @@ impl AmiDriver {
             .read(true)
             .write(true)
             .create(false)
+            .custom_flags(libc::O_SYNC)
             .open(ami_path)?;
 
         let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_info.devn);
@@ -109,43 +113,55 @@ impl AmiDriver {
             .create(false)
             .open(&ami_proc_path)
             .unwrap();
-        unsafe {
-            let addr = libc::mmap(
-                std::ptr::null_mut(),
-                4096,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_SHARED,
-                ami_proc.as_raw_fd(),
+
+        let addr = unsafe {
+            mmap(
+                None,
+                NonZero::new(4096 as usize).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+                MapFlags::MAP_SHARED,
+                &ami_proc,
                 0,
-            );
+            )?
+        };
 
-            if addr == libc::MAP_FAILED {
-                return Err(format!("mmap on ami_iop_ack_{} failed", ami_info.devn).into());
-            }
+        let iop_ack_atomic_ptr: NonNull<AtomicU32> = addr.cast();
 
-            Ok(Self {
-                ami_dev,
-                iop_ack_atomic_ptr: NonNull::new_unchecked(addr as *mut AtomicU32),
-                retry_rate,
-            })
-        }
+        Ok(Self {
+            ami_dev,
+            bar_reg_ptr: None,
+            iop_ack_atomic_ptr,
+            retry_rate,
+        })
+    }
+
+    pub fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let length: usize = 0x140000;
+
+        let map_addr = unsafe {
+            mmap(
+                None,
+                NonZero::new(length).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE, // Read & Write
+                MapFlags::MAP_SHARED,
+                &self.ami_dev,
+                0, // Offset in BAR0
+            )?
+        };
+        tracing::info!("mapping HPU BAR0 at address -> {:p}", map_addr);
+
+        let bar_addr: NonNull<u8> = map_addr.cast();
+        self.bar_reg_ptr = Some(bar_addr);
+
+        Ok(())
     }
 
     pub fn munmap_cnt(&self) -> Result<(), Box<dyn Error>> {
-        let cnt_addr = self.iop_ack_atomic_ptr.as_ptr() as *mut libc::c_void;
+        let cnt_addr = self.iop_ack_atomic_ptr.cast();
         unsafe {
-            let retc = libc::munmap(cnt_addr, 4096);
-
-            if retc == 0 {
-                Ok(())
-            } else {
-                Err(format!(
-                    "Could not unmap the atomic shared cnt (mumap returned {})",
-                    retc
-                )
-                .into())
-            }
+            munmap(cnt_addr, 4096)?;
         }
+        Ok(())
     }
 
     /// Read currently loaded UUID in BAR
@@ -276,24 +292,32 @@ impl AmiDriver {
         let data = Box::<u32>::new(0xdeadc0de);
         let data_ptr = Box::into_raw(data);
 
-        // Populate payload
-        let payload = AmiPeakPokePayload {
-            data_ptr,
-            len: 0x1,
-            offset: addr as u32,
-        };
+        if let Some(base) = self.bar_reg_ptr {
+            unsafe {
+                let raw_base = base.as_ptr();
+                let reg_ptr = raw_base.add((addr + 0x100000).try_into().unwrap()) as *const u32;
+                *data_ptr = std::ptr::read_volatile(reg_ptr);
+            }
+        } else {
+            // Populate payload
+            let payload = AmiPeakPokePayload {
+                data_ptr,
+                len: 0x1,
+                offset: addr as u32,
+            };
 
-        tracing::trace!("AMI: Read request with following payload {payload:x?}");
-        loop {
-            let ret = unsafe { ami_peak(ami_fd, &payload) };
-            match ret {
-                Err(err) => {
-                    tracing::debug!("AMI: Read failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate);
-                }
-                Ok(val) => {
-                    tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
-                    break;
+            tracing::trace!("AMI: Read request with following payload {payload:x?}");
+            loop {
+                let ret = unsafe { ami_peak(ami_fd, &payload) };
+                match ret {
+                    Err(err) => {
+                        tracing::debug!("AMI: Read failed -> {err:?}");
+                        std::thread::sleep(self.retry_rate);
+                    }
+                    Ok(val) => {
+                        tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
+                        break;
+                    }
                 }
             }
         }
@@ -307,24 +331,32 @@ impl AmiDriver {
         let data = Box::<u32>::new(value);
         let data_ptr = Box::into_raw(data);
 
-        // Populate payload
-        let payload = AmiPeakPokePayload {
-            data_ptr,
-            len: 0x1,
-            offset: addr as u32,
-        };
+        if let Some(base) = self.bar_reg_ptr {
+            unsafe {
+                let raw_base = base.as_ptr();
+                let reg_ptr = raw_base.add((addr + 0x100000).try_into().unwrap()) as *mut u32;
+                std::ptr::write_volatile(reg_ptr, value);
+            }
+        } else {
+            // Populate payload
+            let payload = AmiPeakPokePayload {
+                data_ptr,
+                len: 0x1,
+                offset: addr as u32,
+            };
 
-        tracing::trace!("AMI: Write request with following payload {payload:x?}");
-        loop {
-            let ret = unsafe { ami_poke(ami_fd, &payload) };
-            match ret {
-                Err(err) => {
-                    tracing::debug!("AMI: Write failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate);
-                }
-                Ok(val) => {
-                    tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
-                    break;
+            tracing::trace!("AMI: Write request with following payload {payload:x?}");
+            loop {
+                let ret = unsafe { ami_poke(ami_fd, &payload) };
+                match ret {
+                    Err(err) => {
+                        tracing::debug!("AMI: Write failed -> {err:?}");
+                        std::thread::sleep(self.retry_rate);
+                    }
+                    Ok(val) => {
+                        tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
+                        break;
+                    }
                 }
             }
         }
