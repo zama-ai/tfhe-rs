@@ -15,7 +15,7 @@
 // Supported values: 32, 64.
 // ============================================================================
 #ifndef LIMB_BITS_CONFIG
-#define LIMB_BITS_CONFIG 64
+#define LIMB_BITS_CONFIG 32
 #endif
 
 #if LIMB_BITS_CONFIG == 64
