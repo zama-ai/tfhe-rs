@@ -186,15 +186,20 @@ void g1_msm_managed_wrapper(
                    cuda_get_number_of_gpus());
     
     cuda_set_device(gpu_index);
-    
+
+    /////////////////////////////////
+    // TODO: Move this check closer to the kernels
     const auto threadsPerBlock = get_msm_threads_per_block<G1Affine>(n);
-    const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
     size_t scratch_elems = 0;
+    // TODO: calculate the size of the scratch_* outside the  (don't modify anything inside a macro)
     PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)(num_blocks + 1),
                                           (size_t)MSM_G1_BUCKET_COUNT,
                                           &scratch_elems),
                    "G1 MSM error: scratch element count overflow (num_blocks=%u)",
                    num_blocks);
+    /////////////////////////////////
+    ///
     size_t scratch_size = 0;
     PANIC_IF_FALSE(!__builtin_mul_overflow(scratch_elems, sizeof(G1Projective),
                                           &scratch_size),
@@ -223,14 +228,11 @@ void g1_msm_managed_wrapper(
     // Convert to Montgomery form on GPU if not already in Montgomery form
     if (!points_in_montgomery) {
         convert_g1_points_to_montgomery(stream, gpu_index, d_points, n);
-        auto err = cudaGetLastError();
-        PANIC_IF_FALSE(err == cudaSuccess, "G1 MSM error: Montgomery conversion failed: %s", cudaGetErrorString(err));
+        check_cuda_error(cudaGetLastError()); // TODO: Check errors like these in the other parts of the wrapper
     }
 
     point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
-
-    auto err = cudaPeekAtLastError();
-    PANIC_IF_FALSE(err == cudaSuccess, "G1 MSM error: CUDA kernel failed: %s", cudaGetErrorString(err));
+    check_cuda_error(cudaGetLastError());
 
     cuda_memcpy_async_to_cpu(result, d_result, sizeof(G1Projective), stream, gpu_index);
 
@@ -268,7 +270,7 @@ void g2_msm_managed_wrapper(
     cuda_set_device(gpu_index);
     
     const auto threadsPerBlock = get_msm_threads_per_block<G2Affine>(n);
-    const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
     size_t scratch_elems = 0;
     PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)(num_blocks + 1),
                                           (size_t)MSM_G2_BUCKET_COUNT,
@@ -300,14 +302,12 @@ void g2_msm_managed_wrapper(
     
     if (!points_in_montgomery) {
         convert_g2_points_to_montgomery(stream, gpu_index, d_points, n);
-        auto err = cudaGetLastError();
-        PANIC_IF_FALSE(err == cudaSuccess, "G2 MSM error: Montgomery conversion failed: %s", cudaGetErrorString(err));
+        check_cuda_error(cudaGetLastError());
     }
 
     point_msm_async_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
+    check_cuda_error(cudaGetLastError());
 
-    auto err = cudaPeekAtLastError();
-    PANIC_IF_FALSE(err == cudaSuccess, "G2 MSM error: CUDA kernel failed: %s", cudaGetErrorString(err));
 
     cuda_memcpy_async_to_cpu(result, d_result, sizeof(G2Projective), stream, gpu_index);
 

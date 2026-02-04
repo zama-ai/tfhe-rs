@@ -1625,7 +1625,7 @@ void point_to_montgomery_batch_async(cudaStream_t stream, uint32_t gpu_index,
 
   cuda_set_device(gpu_index);
   uint32_t threadsPerBlock = 256;
-  uint32_t blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  uint32_t blocks = CEIL_DIV(n, threadsPerBlock);
   kernel_point_to_montgomery_batch<PointType>
       <<<blocks, threadsPerBlock, 0, stream>>>(d_points, n);
   check_cuda_error(cudaGetLastError());
@@ -2445,7 +2445,7 @@ __global__ void kernel_accumulate_buckets_bigint5_projective_template(
   __syncthreads();
 
   const int WARP_SIZE = 32;
-  uint32_t num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;
+  uint32_t num_warps = CEIL_DIV(blockDim.x, WARP_SIZE);
   uint32_t warp_id = threadIdx.x / WARP_SIZE;
   uint32_t lane_id = threadIdx.x % WARP_SIZE;
 
@@ -2563,7 +2563,7 @@ __global__ void kernel_accumulate_buckets_bigint5_projective_g1(
   __syncthreads();
 
   const int WARP_SIZE = 32;
-  uint32_t num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;
+  uint32_t num_warps = CEIL_DIV(blockDim.x, WARP_SIZE);
   uint32_t warp_id = threadIdx.x / WARP_SIZE;
   uint32_t lane_id = threadIdx.x % WARP_SIZE;
 
@@ -2697,7 +2697,7 @@ __global__ void kernel_accumulate_buckets_bigint5_projective_g2(
   __syncthreads();
 
   const int WARP_SIZE = 32;
-  uint32_t num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;
+  uint32_t num_warps = CEIL_DIV(blockDim.x, WARP_SIZE);
   uint32_t warp_id = threadIdx.x / WARP_SIZE;
   uint32_t lane_id = threadIdx.x % WARP_SIZE;
 

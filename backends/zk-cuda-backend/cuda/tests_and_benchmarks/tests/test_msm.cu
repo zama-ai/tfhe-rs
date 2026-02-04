@@ -194,7 +194,7 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G1_BUCKET_COUNT
   // (projective points)
   int threadsPerBlock = 256;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -342,7 +342,7 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G2_BUCKET_COUNT
   // (projective points)
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -396,7 +396,7 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
 
   // Convert points to Montgomery form (required for performance)
   int threadsPerBlock_conv = 128;
-  int blocks_conv = (N + threadsPerBlock_conv - 1) / threadsPerBlock_conv;
+  int blocks_conv = CEIL_DIV(N, threadsPerBlock_conv);
   point_to_montgomery_batch<G2Affine>(stream, gpu_index, d_points, N);
   check_cuda_error(cudaGetLastError());
 
@@ -492,7 +492,7 @@ TEST_F(MSMTest, G1MSMLargeN) {
     // (projective points) Note: Must match threadsPerBlock used in Pippenger
     // implementation (128 for G1)
     int threadsPerBlock = 128;
-    int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+    int num_blocks = CEIL_DIV(N, threadsPerBlock);
     size_t scratch_size =
         (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -657,7 +657,7 @@ TEST_F(MSMTest, G2MSMLargeN) {
     // (projective points) Note: Must match threadsPerBlock used in Pippenger
     // implementation (64 for G2)
     int threadsPerBlock = 64;
-    int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+    int num_blocks = CEIL_DIV(N, threadsPerBlock);
     size_t scratch_size =
         (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -822,7 +822,7 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -946,7 +946,7 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   }
 
   int threadsPerBlock = 80;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -1083,7 +1083,7 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -1214,7 +1214,7 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -1381,7 +1381,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -1545,7 +1545,7 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   }
 
   int threadsPerBlock = 80;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -1707,7 +1707,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -1835,7 +1835,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -1963,7 +1963,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -2092,7 +2092,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   }
 
   int threadsPerBlock = 128;
-  int num_blocks = (N + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(N, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 

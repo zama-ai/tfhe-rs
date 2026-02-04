@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
-#include <cstdint>
-#include <cuda_runtime.h>
+// Ceiling division: computes (M + N - 1) / N
+#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
 // Number of limbs for scalars (Zp)
 #define ZP_LIMBS 5

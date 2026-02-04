@@ -76,7 +76,7 @@ TEST_F(ScalarMulTest, G1ScalarMulOne) {
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
   int threadsPerBlock = 256;
-  int num_blocks = (1 + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(1, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
   auto *d_scratch =
@@ -153,7 +153,7 @@ TEST_F(ScalarMulTest, G1ScalarMulZero) {
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
   int threadsPerBlock = 256;
-  int num_blocks = (1 + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(1, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
   auto *d_scratch =
@@ -222,7 +222,7 @@ TEST_F(ScalarMulTest, G1ScalarMulTwo) {
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
   int threadsPerBlock = 256;
-  int num_blocks = (1 + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(1, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
   auto *d_scratch =
@@ -319,7 +319,7 @@ TEST_F(ScalarMulTest, G1ScalarMulThree) {
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
   int threadsPerBlock = 256;
-  int num_blocks = (1 + threadsPerBlock - 1) / threadsPerBlock;
+  int num_blocks = CEIL_DIV(1, threadsPerBlock);
   size_t scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
   auto *d_scratch =

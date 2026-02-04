@@ -47,8 +47,7 @@ template <typename AffineType> struct Phase1KernelLaunchParams {
         std::min(requested_threads_per_block, max_threads_for_shared_mem);
 
     // Calculate number of blocks per window
-    num_blocks_per_window =
-        (n + adjusted_threads_per_block - 1) / adjusted_threads_per_block;
+    num_blocks_per_window = CEIL_DIV(n, adjusted_threads_per_block);
 
     // Calculate actual shared memory requirement
     accum_shared_mem =
@@ -678,7 +677,7 @@ void point_msm_async_pippenger_impl(
 
   // Calculate number of windows (5 limbs * 64 bits = 320 bits / window_size)
   const uint32_t total_bits = ZP_LIMBS * 64; // ZP has 5 limbs
-  const uint32_t num_windows = (total_bits + window_size - 1) / window_size;
+  const uint32_t num_windows = CEIL_DIV(total_bits, window_size);
 
   // Calculate kernel launch parameters respecting shared memory limits
   Phase1KernelLaunchParams<AffineType> launch_params(n, threads_per_block,
@@ -705,7 +704,7 @@ void point_msm_async_pippenger_impl(
   ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
 
   // Clear all scratch space
-  const uint32_t clear_blocks = (total_scratch + 256 - 1) / 256;
+  const uint32_t clear_blocks = CEIL_DIV(total_scratch, 256);
   kernel_clear_buckets<ProjectiveType>
       <<<clear_blocks, 256, 0, stream>>>(d_internal_scratch, total_scratch);
   check_cuda_error(cudaGetLastError());

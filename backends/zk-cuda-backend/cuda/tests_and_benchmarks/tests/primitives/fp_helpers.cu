@@ -169,7 +169,7 @@ void fp_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
 
   // Declare all variables at the top to avoid goto issues
   const uint32_t threadsPerBlock = 256;
-  const uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   // Allocate device memory (asynchronous with stream)
   auto *d_c = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
@@ -228,7 +228,7 @@ void fp_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
 
   // Declare all variables at the top to avoid goto issues
   const uint32_t threadsPerBlock = 256;
-  const uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   // Allocate device memory (asynchronous with stream)
   auto *d_c = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
@@ -285,7 +285,7 @@ void fp_add_array_on_device(cudaStream_t stream, uint32_t gpu_index, Fp *d_c,
   cuda_set_device(gpu_index);
 
   uint32_t threadsPerBlock = 256;
-  uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   // Launch kernel (with stream)
   kernel_fp_add_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,
@@ -309,7 +309,7 @@ void fp_mul_array_on_device(cudaStream_t stream, uint32_t gpu_index, Fp *d_c,
   cuda_set_device(gpu_index);
 
   uint32_t threadsPerBlock = 256;
-  uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   // Launch kernel (with stream)
   kernel_fp_mul_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,

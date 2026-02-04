@@ -327,7 +327,7 @@ void point_to_montgomery_batch(cudaStream_t stream, uint32_t gpu_index,
 // Temporary buffer must be provided by caller:
 //   - d_scratch: buffer of size (num_blocks + 1) * MSM_G1_BUCKET_COUNT *
 //   sizeof(G1Point/G2Affine)
-//     where num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock (typically
+//     where num_blocks = CEIL_DIV(n, threadsPerBlock) (typically
 //     256 threads per block) This provides space for:
 //       * num_blocks * MSM_G1_BUCKET_COUNT points for per-block bucket
 //       accumulations

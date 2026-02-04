@@ -108,7 +108,7 @@ void fp2_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
   uint64_t size_tracker = 0;
 
   const uint32_t threadsPerBlock = 256;
-  const uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   auto *d_c = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
       n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
@@ -156,7 +156,7 @@ void fp2_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
   uint64_t size_tracker = 0;
 
   const uint32_t threadsPerBlock = 256;
-  const uint32_t blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   auto *d_c = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
       n * sizeof(Fp2), stream, gpu_index, size_tracker, true));

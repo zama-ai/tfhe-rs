@@ -198,7 +198,7 @@ static void BM_G1_MSM_Generator(benchmark::State &state) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G1_BUCKET_COUNT
   // (projective points)
   const int threadsPerBlock = 128; // Reduced for projective points
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -295,7 +295,7 @@ static void BM_G2_MSM_Generator(benchmark::State &state) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G1_BUCKET_COUNT
   // (projective points)
   const int threadsPerBlock = 64; // Reduced for G2 projective points
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -389,7 +389,7 @@ static void BM_G1_MSM_BigInt(benchmark::State &state) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G1_BUCKET_COUNT
   // (projective points)
   const int threadsPerBlock = 128; // Same as u64 version
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -484,7 +484,7 @@ static void BM_G2_MSM_BigInt(benchmark::State &state) {
   // (projective points)
   const int threadsPerBlock =
       get_msm_threads_per_block<G2Affine>(n); // Must match MSM implementation
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
@@ -581,7 +581,7 @@ static void BM_G1_MSM_BigInt_Generator(benchmark::State &state) {
   // Calculate required scratch space: (num_blocks + 1) * MSM_G1_BUCKET_COUNT
   // (projective points)
   const int threadsPerBlock = 128;
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
 
@@ -679,7 +679,7 @@ static void BM_G2_MSM_BigInt_Generator(benchmark::State &state) {
   // (projective points)
   const int threadsPerBlock =
       get_msm_threads_per_block<G2Affine>(n); // Must match MSM implementation
-  const auto num_blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
   const auto scratch_size =
       (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
 
