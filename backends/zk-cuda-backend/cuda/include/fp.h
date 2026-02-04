@@ -64,9 +64,7 @@ template <int N> struct BigInt {
 // 1. CUDA __constant__ memory aggregate initialization (DEVICE_MODULUS, etc.)
 // 2. Rust FFI bindings that expect POD layout (#[repr(C)])
 // Use helper functions like fp_zero() for initialization instead.
-struct Fp {
-  uint64_t limb[FP_LIMBS];
-};
+struct Fp : BigInt<FP_LIMBS> {};
 
 static_assert(sizeof(Fp) == 56,
               "Fp must be 56 bytes for optimal memory access");
