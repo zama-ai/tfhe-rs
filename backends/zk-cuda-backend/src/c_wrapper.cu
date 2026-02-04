@@ -191,28 +191,35 @@ void g1_msm_managed_wrapper(
     // TODO: Move this check closer to the kernels
     const auto threadsPerBlock = get_msm_threads_per_block<G1Affine>(n);
     const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
+    /////////////////////////////////
+
+    // Compute buffer sizes with overflow checking.
     size_t scratch_elems = 0;
-    // TODO: calculate the size of the scratch_* outside the  (don't modify anything inside a macro)
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)(num_blocks + 1),
-                                          (size_t)MSM_G1_BUCKET_COUNT,
-                                          &scratch_elems),
+    bool scratch_elems_overflow = __builtin_mul_overflow(
+        (size_t)(num_blocks + 1), (size_t)MSM_G1_BUCKET_COUNT, &scratch_elems);
+    PANIC_IF_FALSE(!scratch_elems_overflow,
                    "G1 MSM error: scratch element count overflow (num_blocks=%u)",
                    num_blocks);
-    /////////////////////////////////
-    ///
+
     size_t scratch_size = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow(scratch_elems, sizeof(G1Projective),
-                                          &scratch_size),
+    bool scratch_size_overflow =
+        __builtin_mul_overflow(scratch_elems, sizeof(G1Projective), &scratch_size);
+    PANIC_IF_FALSE(!scratch_size_overflow,
                    "G1 MSM error: scratch size overflow (scratch_elems=%zu)",
                    scratch_elems);
-    // Also validate point/scalar transfer sizes won't overflow size_t.
+
     size_t points_bytes = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes),
+    bool points_overflow =
+        __builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes);
+    PANIC_IF_FALSE(!points_overflow,
                    "G1 MSM error: points byte size overflow (n=%u)", n);
+
     size_t scalars_bytes = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes),
+    bool scalars_overflow =
+        __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
+    PANIC_IF_FALSE(!scalars_overflow,
                    "G1 MSM error: scalars byte size overflow (n=%u)", n);
-    
+
     auto* d_points = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_result = static_cast<G1Projective*>(cuda_malloc_with_size_tracking_async(sizeof(G1Projective), stream, gpu_index, size_tracker_ref, true));
@@ -271,22 +278,32 @@ void g2_msm_managed_wrapper(
     
     const auto threadsPerBlock = get_msm_threads_per_block<G2Affine>(n);
     const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
+
+    // Compute buffer sizes with overflow checking.
     size_t scratch_elems = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)(num_blocks + 1),
-                                          (size_t)MSM_G2_BUCKET_COUNT,
-                                          &scratch_elems),
+    bool scratch_elems_overflow = __builtin_mul_overflow(
+        (size_t)(num_blocks + 1), (size_t)MSM_G2_BUCKET_COUNT, &scratch_elems);
+    PANIC_IF_FALSE(!scratch_elems_overflow,
                    "G2 MSM error: scratch element count overflow (num_blocks=%u)",
                    num_blocks);
+
     size_t scratch_size = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow(scratch_elems, sizeof(G2Projective),
-                                          &scratch_size),
+    bool scratch_size_overflow =
+        __builtin_mul_overflow(scratch_elems, sizeof(G2Projective), &scratch_size);
+    PANIC_IF_FALSE(!scratch_size_overflow,
                    "G2 MSM error: scratch size overflow (scratch_elems=%zu)",
                    scratch_elems);
+
     size_t points_bytes = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes),
+    bool points_overflow =
+        __builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes);
+    PANIC_IF_FALSE(!points_overflow,
                    "G2 MSM error: points byte size overflow (n=%u)", n);
+
     size_t scalars_bytes = 0;
-    PANIC_IF_FALSE(!__builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes),
+    bool scalars_overflow =
+        __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
+    PANIC_IF_FALSE(!scalars_overflow,
                    "G2 MSM error: scalars byte size overflow (n=%u)", n);
     
     auto* d_points = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
