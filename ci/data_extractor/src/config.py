@@ -35,6 +35,8 @@ class UserConfig:
 
         self.bench_subset = BenchSubset.from_str(input_args.bench_subset)
 
+        self.name_suffix = input_args.name_suffix
+
         self.layer = Layer.from_str(input_args.layer.lower())
         self.pbs_kind = PBSKind.from_str(input_args.pbs_kind)
         self.grouping_factor = input_args.grouping_factor

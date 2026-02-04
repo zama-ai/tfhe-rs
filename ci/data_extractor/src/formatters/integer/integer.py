@@ -5,10 +5,17 @@ from benchmark_specs import (
     ALL_RUST_INTEGER_TYPES,
     Backend,
     BenchDetails,
+    BenchType,
     OperandType,
     RustType,
+    ZKOperation,
 )
-from formatters.common import OPERATION_SIZE_COLUMN_HEADER, BenchArray, GenericFormatter
+from formatters.common import (
+    OPERATION_SIZE_COLUMN_HEADER,
+    BenchArray,
+    GenericFormatter,
+    ZKGenericFormatter,
+)
 
 
 class OperationDisplayName(enum.StrEnum):
@@ -233,3 +240,21 @@ class IntegerFormatter(GenericFormatter):
         return [
             BenchArray(result_lines, self.layer),
         ]
+
+
+class ZKFormatter(ZKGenericFormatter):
+    @staticmethod
+    def _get_default_dict() -> collections.defaultdict:
+        return collections.defaultdict(
+            lambda: {
+                ZKOperation.Proof: "N/A",
+                ZKOperation.Verify: "N/A",
+                ZKOperation.VerifyAndExpand: "N/A",
+            }
+        )
+
+    @staticmethod
+    def _match_case_variation_filter(*args, **kwargs):
+        # At this layer, server-like ZK are performed there are no variations such as browser kind.
+        # Simply match all cases.
+        return True
