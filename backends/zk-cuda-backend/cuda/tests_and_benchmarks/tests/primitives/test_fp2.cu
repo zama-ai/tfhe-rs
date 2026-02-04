@@ -48,20 +48,14 @@ Fp2 make_fp2_simple(uint64_t c0_val, uint64_t c1_val) {
 // Generate a random Fp2 value
 Fp2 random_fp2(std::mt19937_64 &rng) {
   Fp2 result;
-  Fp p;
-  // Get modulus
-  p.limb[0] = 0x311c0026aab0aaabULL;
-  p.limb[1] = 0x56ee4528c573b5ccULL;
-  p.limb[2] = 0x824e6dc3e23acdeeULL;
-  p.limb[3] = 0x0f75a64bbac71602ULL;
-  p.limb[4] = 0x0095a4b78a02fe32ULL;
-  p.limb[5] = 0x200fc34965aad640ULL;
-  p.limb[6] = 0x3cdee0fb28c5e535ULL;
+  const Fp &p = fp_modulus();
 
   // Generate random Fp values for c0 and c1
+  // Note: For 64-bit limbs, rng() returns uint64_t which fits
+  // For 32-bit limbs, we truncate which is fine for randomness
   for (int i = 0; i < FP_LIMBS; i++) {
-    result.c0.limb[i] = rng();
-    result.c1.limb[i] = rng();
+    result.c0.limb[i] = static_cast<UNSIGNED_LIMB>(rng());
+    result.c1.limb[i] = static_cast<UNSIGNED_LIMB>(rng());
   }
 
   // Reduce if needed

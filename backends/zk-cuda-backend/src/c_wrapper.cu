@@ -404,9 +404,11 @@ bool is_on_curve_g2_wrapper(const G2Affine* point) {
 }
 
 // Scalar modulus accessor - returns the scalar field modulus (group order)
+// Output is always 5 x 64-bit limbs (40 bytes) regardless of internal LIMB_BITS
 void scalar_modulus_limbs_wrapper(uint64_t* limbs) {
     PANIC_IF_FALSE(limbs != nullptr, "scalar_modulus_limbs error: limbs is null");
-    const uint64_t modulus[5] = BLS12_446_SCALAR_MODULUS_LIMBS;
+    const UNSIGNED_LIMB modulus[ZP_LIMBS] = BLS12_446_SCALAR_MODULUS_LIMBS;
+    // Byte layout is identical for little-endian regardless of limb size
     std::memcpy(limbs, modulus, 5 * sizeof(uint64_t));
 }
 

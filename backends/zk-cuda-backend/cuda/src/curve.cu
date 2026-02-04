@@ -892,61 +892,68 @@ __host__ __device__ bool g2_is_infinity(const G2Affine &point) {
 // Hardcoded at compile time (like DEVICE_MODULUS) to avoid cudaMemcpyToSymbol
 // Generator points from tfhe-rs:
 // https://github.com/zama-ai/tfhe-rs/blob/main/tfhe-zk-pok/src/curve_446/mod.rs
-// G1_GENERATOR_X =
-// 143189966182216199425404656824735381247272236095050141599848381692039676741476615087722874458136990266833440576646963466074693171606778
-// G1_GENERATOR_Y =
-// 75202396197342917254523279069469674666303680671605970245803554133573745859131002231546341942288521574682619325841484506619191207488304
 // Values are stored in NORMAL form (not Montgomery form)
-// The test will convert them to Montgomery form before use
+
+#if LIMB_BITS_CONFIG == 64
+// 64-bit limb generator constants (7 limbs per Fp)
 __constant__ const G1Affine DEVICE_G1_GENERATOR = {
-    // x in normal form (tfhe-rs G1_GENERATOR_X) - little-endian: limb[0] is LSB
     {{0x3bf9166c8236f4faULL, 0x8bc02b7cbe6a9e8dULL, 0x11c1e56b3e4bc80bULL,
       0x6b20d782901a6f62ULL, 0x2ce8c34265bf3841ULL, 0x11b73d3d76ae9851ULL,
       0x326ed6bd777fc6a3ULL}},
-    // y in normal form (tfhe-rs G1_GENERATOR_Y) - little-endian: limb[0] is LSB
     {{0xfe6f792612016b30ULL, 0x22db0ce6034a9db9ULL, 0xb9093f32002756daULL,
       0x39d7f424b6660204ULL, 0xf843c947aa57f571ULL, 0xd6d62d244e413636ULL,
       0x1a7caf4a4d3887a6ULL}},
-    false}; // infinity
+    false};
 
-// Generator points from tfhe-rs:
-// https://github.com/zama-ai/tfhe-rs/blob/main/tfhe-zk-pok/src/curve_446/mod.rs
-// G2_GENERATOR_X_C0 =
-// 96453755443802578867745476081903764610578492683850270111202389209355548711427786327510993588141991264564812146530214503491136289085725
-// G2_GENERATOR_X_C1 =
-// 85346509177292795277012009839788781950274202400882571466460158277083221521663169974265433098009350061415973662678938824527658049065530
-// G2_GENERATOR_Y_C0 =
-// 49316184343270950587272132771103279293158283984999436491292404103501221698714795975575879957605051223501287444864258801515822358837529
-// G2_GENERATOR_Y_C1 =
-// 107680854723992552431070996218129928499826544031468382031848626814251381379173928074140221537929995580031433096217223703806029068859074
-// Values are stored in NORMAL form (not Montgomery form)
-// The test will convert them to Montgomery form before use
 __constant__ const G2Affine DEVICE_G2_GENERATOR = {
-    // x (Fp2) in normal form - little-endian: limb[0] is LSB
-    {// x.c0 in normal form (tfhe-rs G2_GENERATOR_X_C0)
-     {{0x0e529ee4dce9991dULL, 0xd6ebaf149094f1ccULL, 0x043c6bf16312d638ULL,
+    {{{0x0e529ee4dce9991dULL, 0xd6ebaf149094f1ccULL, 0x043c6bf16312d638ULL,
        0x062b61439640e885ULL, 0x18dad8ed784dd225ULL, 0xa57c0038441f7d15ULL,
        0x21f8d4a76f74541aULL}},
-     // x.c1 in normal form (tfhe-rs G2_GENERATOR_X_C1)
      {{0xcaf5185423a7d23aULL, 0x7cef6acb145b6413ULL, 0x2879dd439b019b8bULL,
        0x71449cdeca4f0007ULL, 0xdebaf4a2c5534527ULL, 0xa1b4e791d1b86560ULL,
        0x1e0f563c601bb8dcULL}}},
-    // y (Fp2) in normal form - little-endian: limb[0] is LSB
-    {// y.c0 in normal form (tfhe-rs G2_GENERATOR_Y_C0)
-     {{0x274315837455b919ULL, 0x82039e4221ff3507ULL, 0x00346cebad16a036ULL,
+    {{{0x274315837455b919ULL, 0x82039e4221ff3507ULL, 0x00346cebad16a036ULL,
        0x0177bfd6654e681eULL, 0xddff621b5db3f897ULL, 0x0cc61570301497a7ULL,
        0x115ea2305a78f646ULL}},
-     // y.c1 in normal form (tfhe-rs G2_GENERATOR_Y_C1)
      {{0x392236e9cf2976c2ULL, 0xd8ab17c84b9f03cdULL, 0x8a8e6755f9d82fd1ULL,
        0x7532834528cd5a64ULL, 0x0b0bcc3fb6f2161cULL, 0x76a2ffcb7d47679dULL,
        0x25ed2192b203c1feULL}}},
-    false}; // infinity
+    false};
+
+#elif LIMB_BITS_CONFIG == 32
+// 32-bit limb generator constants (14 limbs per Fp)
+// Each 64-bit value 0xHHHHHHHHLLLLLLLL splits into: 0xLLLLLLLL, 0xHHHHHHHH
+__constant__ const G1Affine DEVICE_G1_GENERATOR = {
+    {{0x8236f4faU, 0x3bf9166cU, 0xbe6a9e8dU, 0x8bc02b7cU, 0x3e4bc80bU,
+      0x11c1e56bU, 0x901a6f62U, 0x6b20d782U, 0x65bf3841U, 0x2ce8c342U,
+      0x76ae9851U, 0x11b73d3dU, 0x777fc6a3U, 0x326ed6bdU}},
+    {{0x12016b30U, 0xfe6f7926U, 0x034a9db9U, 0x22db0ce6U, 0x002756daU,
+      0xb9093f32U, 0xb6660204U, 0x39d7f424U, 0xaa57f571U, 0xf843c947U,
+      0x4e413636U, 0xd6d62d24U, 0x4d3887a6U, 0x1a7caf4aU}},
+    false};
+
+__constant__ const G2Affine DEVICE_G2_GENERATOR = {
+    {{{0xdce9991dU, 0x0e529ee4U, 0x9094f1ccU, 0xd6ebaf14U, 0x6312d638U,
+       0x043c6bf1U, 0x9640e885U, 0x062b6143U, 0x784dd225U, 0x18dad8edU,
+       0x441f7d15U, 0xa57c0038U, 0x6f74541aU, 0x21f8d4a7U}},
+     {{0x23a7d23aU, 0xcaf51854U, 0x145b6413U, 0x7cef6acbU, 0x9b019b8bU,
+       0x2879dd43U, 0xca4f0007U, 0x71449cdeU, 0xc5534527U, 0xdebaf4a2U,
+       0xd1b86560U, 0xa1b4e791U, 0x601bb8dcU, 0x1e0f563cU}}},
+    {{{0x7455b919U, 0x27431583U, 0x21ff3507U, 0x82039e42U, 0xad16a036U,
+       0x00346cebU, 0x654e681eU, 0x0177bfd6U, 0x5db3f897U, 0xddff621bU,
+       0x301497a7U, 0x0cc61570U, 0x5a78f646U, 0x115ea230U}},
+     {{0xcf2976c2U, 0x392236e9U, 0x4b9f03cdU, 0xd8ab17c8U, 0xf9d82fd1U,
+       0x8a8e6755U, 0x28cd5a64U, 0x75328345U, 0xb6f2161cU, 0x0b0bcc3fU,
+       0x7d47679dU, 0x76a2ffcbU, 0xb203c1feU, 0x25ed2192U}}},
+    false};
+#endif
 
 __host__ __device__ const G1Affine &g1_generator() {
 #ifdef __CUDA_ARCH__
   return DEVICE_G1_GENERATOR;
 #else
   // Host code: use the same hardcoded values as device (in normal form)
+#if LIMB_BITS_CONFIG == 64
   static const G1Affine host_gen = {
       {{0x3bf9166c8236f4faULL, 0x8bc02b7cbe6a9e8dULL, 0x11c1e56b3e4bc80bULL,
         0x6b20d782901a6f62ULL, 0x2ce8c34265bf3841ULL, 0x11b73d3d76ae9851ULL,
@@ -954,7 +961,17 @@ __host__ __device__ const G1Affine &g1_generator() {
       {{0xfe6f792612016b30ULL, 0x22db0ce6034a9db9ULL, 0xb9093f32002756daULL,
         0x39d7f424b6660204ULL, 0xf843c947aa57f571ULL, 0xd6d62d244e413636ULL,
         0x1a7caf4a4d3887a6ULL}},
-      false}; // infinity
+      false};
+#elif LIMB_BITS_CONFIG == 32
+  static const G1Affine host_gen = {
+      {{0x8236f4faU, 0x3bf9166cU, 0xbe6a9e8dU, 0x8bc02b7cU, 0x3e4bc80bU,
+        0x11c1e56bU, 0x901a6f62U, 0x6b20d782U, 0x65bf3841U, 0x2ce8c342U,
+        0x76ae9851U, 0x11b73d3dU, 0x777fc6a3U, 0x326ed6bdU}},
+      {{0x12016b30U, 0xfe6f7926U, 0x034a9db9U, 0x22db0ce6U, 0x002756daU,
+        0xb9093f32U, 0xb6660204U, 0x39d7f424U, 0xaa57f571U, 0xf843c947U,
+        0x4e413636U, 0xd6d62d24U, 0x4d3887a6U, 0x1a7caf4aU}},
+      false};
+#endif
   return host_gen;
 #endif
 }
@@ -964,6 +981,7 @@ __host__ __device__ const G2Affine &g2_generator() {
   return DEVICE_G2_GENERATOR;
 #else
   // Host code: use the same hardcoded values as device (in normal form)
+#if LIMB_BITS_CONFIG == 64
   static const G2Affine host_gen = {
       {{{0x0e529ee4dce9991dULL, 0xd6ebaf149094f1ccULL, 0x043c6bf16312d638ULL,
          0x062b61439640e885ULL, 0x18dad8ed784dd225ULL, 0xa57c0038441f7d15ULL,
@@ -977,7 +995,23 @@ __host__ __device__ const G2Affine &g2_generator() {
        {{0x392236e9cf2976c2ULL, 0xd8ab17c84b9f03cdULL, 0x8a8e6755f9d82fd1ULL,
          0x7532834528cd5a64ULL, 0x0b0bcc3fb6f2161cULL, 0x76a2ffcb7d47679dULL,
          0x25ed2192b203c1feULL}}},
-      false}; // infinity
+      false};
+#elif LIMB_BITS_CONFIG == 32
+  static const G2Affine host_gen = {
+      {{{0xdce9991dU, 0x0e529ee4U, 0x9094f1ccU, 0xd6ebaf14U, 0x6312d638U,
+         0x043c6bf1U, 0x9640e885U, 0x062b6143U, 0x784dd225U, 0x18dad8edU,
+         0x441f7d15U, 0xa57c0038U, 0x6f74541aU, 0x21f8d4a7U}},
+       {{0x23a7d23aU, 0xcaf51854U, 0x145b6413U, 0x7cef6acbU, 0x9b019b8bU,
+         0x2879dd43U, 0xca4f0007U, 0x71449cdeU, 0xc5534527U, 0xdebaf4a2U,
+         0xd1b86560U, 0xa1b4e791U, 0x601bb8dcU, 0x1e0f563cU}}},
+      {{{0x7455b919U, 0x27431583U, 0x21ff3507U, 0x82039e42U, 0xad16a036U,
+         0x00346cebU, 0x654e681eU, 0x0177bfd6U, 0x5db3f897U, 0xddff621bU,
+         0x301497a7U, 0x0cc61570U, 0x5a78f646U, 0x115ea230U}},
+       {{0xcf2976c2U, 0x392236e9U, 0x4b9f03cdU, 0xd8ab17c8U, 0xf9d82fd1U,
+         0x8a8e6755U, 0x28cd5a64U, 0x75328345U, 0xb6f2161cU, 0x0b0bcc3fU,
+         0x7d47679dU, 0x76a2ffcbU, 0xb203c1feU, 0x25ed2192U}}},
+      false};
+#endif
   return host_gen;
 #endif
 }
@@ -989,10 +1023,10 @@ __host__ __device__ const G2Affine &g2_generator() {
 // Pippenger algorithm parameters
 // MSM_G1_WINDOW_SIZE and MSM_G2_BUCKET_COUNT are defined in msm.h
 
-// Helper function to extract a window from a multi-limb scalar
-__device__ __forceinline__ uint32_t
-extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
-                     uint32_t window_idx, uint32_t window_size) {
+// Helper function to extract a window from a multi-limb scalar (internal)
+__device__ __forceinline__ uint32_t extract_window_multi_internal(
+    const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs, uint32_t window_idx,
+    uint32_t window_size) {
   uint32_t total_bits = scalar_limbs * LIMB_BITS;
   uint32_t bit_offset = window_idx * window_size;
   if (bit_offset >= total_bits)
@@ -1016,6 +1050,18 @@ extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
   }
 
   return static_cast<uint32_t>(window);
+}
+
+// Wrapper for external API (scalar is uint64_t* from FFI)
+// Handles conversion from 64-bit limbs to UNSIGNED_LIMB
+__device__ __forceinline__ uint32_t
+extract_window_multi(const uint64_t *scalar, uint32_t scalar_limbs_64,
+                     uint32_t window_idx, uint32_t window_size) {
+  const UNSIGNED_LIMB *scalar_native =
+      reinterpret_cast<const UNSIGNED_LIMB *>(scalar);
+  const uint32_t scalar_limbs_native = scalar_limbs_64 * (64 / LIMB_BITS);
+  return extract_window_multi_internal(scalar_native, scalar_limbs_native,
+                                       window_idx, window_size);
 }
 
 // Pippenger kernel: Clear buckets
@@ -2398,7 +2444,8 @@ __host__ __device__ void projective_point_double(G2Projective &result,
 // Helper function to extract a window from a BigInt5 scalar
 __device__ __forceinline__ uint32_t extract_window_bigint5(
     const Scalar &scalar, uint32_t window_idx, uint32_t window_size) {
-  return extract_window_multi(scalar.limb, ZP_LIMBS, window_idx, window_size);
+  return extract_window_multi_internal(scalar.limb, ZP_LIMBS, window_idx,
+                                       window_size);
 }
 
 // ============================================================================

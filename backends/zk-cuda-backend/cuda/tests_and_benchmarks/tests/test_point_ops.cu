@@ -22,9 +22,8 @@ std::string fp_to_decimal_string(const Fp &val_montgomery) {
     return "0";
   }
 
-  // Work with limbs directly for integer division
   // Create a working copy as an array of limbs for easier manipulation
-  uint64_t limbs[FP_LIMBS];
+  UNSIGNED_LIMB limbs[FP_LIMBS];
   std::memcpy(limbs, val_normal.limb, sizeof(limbs));
 
   // Repeatedly divide by 10 and collect remainders
@@ -41,16 +40,24 @@ std::string fp_to_decimal_string(const Fp &val_montgomery) {
       break;
     }
 
+#if LIMB_BITS_CONFIG == 64
+    // 64-bit limbs: use 128-bit intermediate for division
     uint64_t remainder = 0;
     for (int i = FP_LIMBS - 1; i >= 0; i--) {
-      // Combine remainder with current limb: value = remainder * 2^64 +
-      // limbs[i] We can't represent this exactly in 64 bits, so we use a
-      // 128-bit approach
       __uint128_t value =
           (static_cast<__uint128_t>(remainder) << 64) | limbs[i];
       limbs[i] = value / 10;
       remainder = value % 10;
     }
+#elif LIMB_BITS_CONFIG == 32
+    // 32-bit limbs: use 64-bit intermediate for division
+    uint32_t remainder = 0;
+    for (int i = FP_LIMBS - 1; i >= 0; i--) {
+      uint64_t value = (static_cast<uint64_t>(remainder) << 32) | limbs[i];
+      limbs[i] = static_cast<uint32_t>(value / 10);
+      remainder = static_cast<uint32_t>(value % 10);
+    }
+#endif
 
     // The remainder is our digit
     result = std::to_string(remainder) + result;

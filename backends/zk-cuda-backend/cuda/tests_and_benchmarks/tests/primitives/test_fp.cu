@@ -51,7 +51,9 @@ void fp_pow_u64_gpu(cudaStream_t stream, uint32_t gpu_index, Fp *result,
 
 namespace test_utils {
 
-// Helper to create Fp from hex values (little-endian limbs)
+// Create an Fp from limb values (64-bit limbs only)
+// This helper is only available for 64-bit limb configurations
+#if LIMB_BITS_CONFIG == 64
 Fp make_fp(uint64_t l0, uint64_t l1, uint64_t l2, uint64_t l3, uint64_t l4,
            uint64_t l5, uint64_t l6) {
   Fp result;
@@ -62,24 +64,21 @@ Fp make_fp(uint64_t l0, uint64_t l1, uint64_t l2, uint64_t l3, uint64_t l4,
   result.limb[4] = l4;
   result.limb[5] = l5;
   result.limb[6] = l6;
-  // Note: Value is in normal form
   return result;
 }
+#endif
 
-// Get the modulus p
-Fp get_modulus() {
-  return make_fp(0x311c0026aab0aaabULL, 0x56ee4528c573b5ccULL,
-                 0x824e6dc3e23acdeeULL, 0x0f75a64bbac71602ULL,
-                 0x0095a4b78a02fe32ULL, 0x200fc34965aad640ULL,
-                 0x3cdee0fb28c5e535ULL);
-}
+// Get the modulus p (use fp_modulus() from the library)
+Fp get_modulus() { return fp_modulus(); }
 
 // Get p - 1
 Fp get_modulus_minus_one() {
-  return make_fp(0x311c0026aab0aaaaULL, 0x56ee4528c573b5ccULL,
-                 0x824e6dc3e23acdeeULL, 0x0f75a64bbac71602ULL,
-                 0x0095a4b78a02fe32ULL, 0x200fc34965aad640ULL,
-                 0x3cdee0fb28c5e535ULL);
+  Fp p = fp_modulus();
+  Fp one;
+  fp_one(one);
+  Fp result;
+  fp_sub_raw(result, p, one);
+  return result;
 }
 
 // Get p - 2
@@ -106,7 +105,7 @@ Fp random_fp(std::mt19937_64 &rng) {
   // Generate random limbs, ensuring result < p
   // We'll generate random values and reduce if needed
   for (int i = 0; i < FP_LIMBS; i++) {
-    result.limb[i] = rng();
+    result.limb[i] = static_cast<UNSIGNED_LIMB>(rng());
   }
 
   // If result >= p, reduce it
@@ -142,7 +141,7 @@ Fp random_fp_bounded(std::mt19937_64 &rng, const Fp &max) {
 Fp max_limb_fp() {
   Fp result;
   for (int i = 0; i < FP_LIMBS; i++) {
-    result.limb[i] = UINT64_MAX;
+    result.limb[i] = LIMB_MAX;
   }
   // Reduce if needed - keep subtracting p until result < p
   Fp p = get_modulus();
@@ -158,8 +157,12 @@ Fp max_limb_fp() {
 Fp alternating_bits_fp() {
   Fp result;
   for (int i = 0; i < FP_LIMBS; i++) {
+#if LIMB_BITS_CONFIG == 64
     result.limb[i] =
         (i % 2 == 0) ? 0xAAAAAAAAAAAAAAAAULL : 0x5555555555555555ULL;
+#elif LIMB_BITS_CONFIG == 32
+    result.limb[i] = (i % 2 == 0) ? 0xAAAAAAAAU : 0x55555555U;
+#endif
   }
   // Reduce if needed - keep subtracting p until result < p
   Fp p = get_modulus();
@@ -984,7 +987,10 @@ TEST_F(FpArithmeticTest, BatchMontgomeryConversion) {
 
 // ============================================================================
 // Hardcoded Large Value Tests - Testing with values near modulus
+// These tests use hardcoded 64-bit limb values, so they're only valid for
+// 64-bit limb configurations.
 // ============================================================================
+#if LIMB_BITS_CONFIG == 64
 
 // Test 1: Addition that doesn't overflow (on GPU)
 TEST_F(FpArithmeticTest, LargeAddition1) {
@@ -1345,6 +1351,8 @@ TEST_F(FpArithmeticTest, LargeMultiplication5Complex) {
       << "GPU result should match CPU result";
   cuda_synchronize_stream(stream, gpu_index);
 }
+
+#endif // LIMB_BITS_CONFIG == 64
 
 // ============================================================================
 // Property-Based Tests

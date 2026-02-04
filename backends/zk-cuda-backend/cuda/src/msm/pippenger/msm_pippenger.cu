@@ -89,10 +89,10 @@ template <typename ProjectiveType> struct Phase2KernelLaunchParams {
 // ============================================================================
 // Template kernels are defined in msm/common.cuh
 
-// Helper function to extract a window from a multi-limb scalar
-__device__ __forceinline__ uint32_t
-extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
-                     uint32_t window_idx, uint32_t window_size) {
+// Helper function to extract a window from a multi-limb scalar (internal)
+__device__ __forceinline__ uint32_t extract_window_multi_internal(
+    const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs, uint32_t window_idx,
+    uint32_t window_size) {
   const uint32_t total_bits = scalar_limbs * LIMB_BITS;
   const uint32_t bit_offset = window_idx * window_size;
   if (bit_offset >= total_bits)
@@ -118,10 +118,25 @@ extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
   return static_cast<uint32_t>(window);
 }
 
+// Wrapper for external API (scalar is uint64_t* from FFI)
+// Handles conversion from 64-bit limbs to UNSIGNED_LIMB
+__device__ __forceinline__ uint32_t
+extract_window_multi(const uint64_t *scalar, uint32_t scalar_limbs_64,
+                     uint32_t window_idx, uint32_t window_size) {
+  // Byte layout is identical on little-endian, so we can reinterpret_cast
+  // and adjust the limb count
+  const UNSIGNED_LIMB *scalar_native =
+      reinterpret_cast<const UNSIGNED_LIMB *>(scalar);
+  const uint32_t scalar_limbs_native = scalar_limbs_64 * (64 / LIMB_BITS);
+  return extract_window_multi_internal(scalar_native, scalar_limbs_native,
+                                       window_idx, window_size);
+}
+
 // Helper function to extract a window from a BigInt scalar
 __device__ __forceinline__ uint32_t extract_window_bigint(
     const Scalar &scalar, uint32_t window_idx, uint32_t window_size) {
-  return extract_window_multi(scalar.limb, 5, window_idx, window_size);
+  return extract_window_multi_internal(scalar.limb, ZP_LIMBS, window_idx,
+                                       window_size);
 }
 
 // Forward declarations for projective point operations (needed by kernels)

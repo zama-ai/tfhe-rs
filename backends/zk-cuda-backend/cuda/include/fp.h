@@ -42,6 +42,16 @@ using UNSIGNED_LIMB = uint32_t;
 #define LIMB_BITS LIMB_BITS_CONFIG
 constexpr int LIMB_BITS_CONSTEXPR = LIMB_BITS;
 
+// Maximum value for a limb
+#if LIMB_BITS_CONFIG == 64
+#define LIMB_MAX UINT64_MAX
+#elif LIMB_BITS_CONFIG == 32
+#define LIMB_MAX UINT32_MAX
+#endif
+
+static_assert(LIMB_BITS == 32 || LIMB_BITS == 64,
+              "LIMB_BITS_CONFIG must be 32 or 64");
+
 // Generic BigInt template for N limbs
 // Represents a big integer as N limbs of LIMB_BITS bits each
 // Little-endian: limb[0] is least significant word
@@ -97,8 +107,10 @@ template <int N> struct BigInt {
 // Use helper functions like fp_zero() for initialization instead.
 struct Fp : BigInt<FP_LIMBS> {};
 
-static_assert(sizeof(Fp) == 56,
-              "Fp must be 56 bytes for optimal memory access");
+// 64-bit: 7 limbs * 8 bytes = 56 bytes
+// 32-bit: 14 limbs * 4 bytes = 56 bytes
+static_assert(sizeof(Fp) == FP_LIMBS * sizeof(UNSIGNED_LIMB),
+              "Fp size mismatch");
 
 // ============================================================================
 // Operator Overloading for Fp
@@ -131,11 +143,11 @@ __host__ __device__ Fp &operator/=(Fp &a, const Fp &b);
 extern __constant__ const Fp DEVICE_MODULUS;
 
 // Montgomery constants
-// R = 2^448 (for 7 limbs of 64 bits)
-// R^2 mod p and p' = -p^(-1) mod 2^64
+// R = 2^448 (for 7 limbs of 64 bits, or 14 limbs of 32 bits)
+// R^2 mod p and p' = -p^(-1) mod 2^LIMB_BITS
 // All hardcoded at compile time
 extern __constant__ const Fp DEVICE_R2;
-extern __constant__ const uint64_t DEVICE_P_PRIME_MOD_U64;
+extern __constant__ const UNSIGNED_LIMB DEVICE_P_PRIME;
 
 // Multi-precision arithmetic operations
 // All operations are CUDA-compatible (can be called from host or device)
@@ -174,13 +186,13 @@ __host__ __device__ void fp_copy(Fp &dst, const Fp &src);
 // "Raw" means the operation is performed without modular reduction modulo p.
 // The result may be >= p or may overflow (indicated by carry).
 // Returns carry out (1 if result >= 2^448, 0 otherwise)
-__host__ __device__ uint64_t fp_add_raw(Fp &c, const Fp &a, const Fp &b);
+__host__ __device__ UNSIGNED_LIMB fp_add_raw(Fp &c, const Fp &a, const Fp &b);
 
 // Subtraction: c = a - b (without reduction)
 // "Raw" means the operation is performed without modular reduction modulo p.
 // The result may be negative (indicated by borrow).
 // Returns borrow (1 if a < b, 0 otherwise)
-__host__ __device__ uint64_t fp_sub_raw(Fp &c, const Fp &a, const Fp &b);
+__host__ __device__ UNSIGNED_LIMB fp_sub_raw(Fp &c, const Fp &a, const Fp &b);
 
 // Addition with modular reduction: c = (a + b) mod p
 // MONTGOMERY: Both inputs and output must be in Montgomery form
@@ -192,15 +204,15 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b);
 
 // Multiplication: c = a * b (without reduction)
 // "Raw" means the operation is performed without modular reduction modulo p.
-// The result is stored in double-width (14 limbs) and may be >= p.
+// The result is stored in double-width (2*FP_LIMBS limbs) and may be >= p.
 // Result stored in c[0..2*FP_LIMBS-1] (little-endian)
-__host__ __device__ void fp_mul_schoolbook_raw(uint64_t *c, const Fp &a,
+__host__ __device__ void fp_mul_schoolbook_raw(UNSIGNED_LIMB *c, const Fp &a,
                                                const Fp &b);
 
 // Montgomery reduction: c = (a * R_INV) mod p
 // Input a is 2*FP_LIMBS limbs (result of multiplication)
 // Output c is FP_LIMBS limbs in Montgomery form
-__host__ __device__ void fp_mont_reduce(Fp &c, const uint64_t *a);
+__host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a);
 
 // Montgomery multiplication: c = (a * b * R_INV) mod p
 // Both a and b are in Montgomery form, result is in Montgomery form
@@ -231,9 +243,9 @@ __host__ __device__ void fp_div(Fp &c, const Fp &a, const Fp &b);
 
 // Exponentiation: c = a^e mod p
 // e is represented as a big integer in little-endian format (limb[0] is LSB)
-// e_limbs is the number of limbs in the exponent (at most FP_LIMBS)
-// For exponents larger than 448 bits, only the lower 448 bits are used
-__host__ __device__ void fp_pow(Fp &c, const Fp &a, const uint64_t *e,
+// e_limbs is the number of UNSIGNED_LIMB limbs in the exponent
+// For exponents larger than FP_BITS, only the lower FP_BITS bits are used
+__host__ __device__ void fp_pow(Fp &c, const Fp &a, const UNSIGNED_LIMB *e,
                                 int e_limbs);
 
 // Exponentiation with 64-bit exponent: c = a^e mod p

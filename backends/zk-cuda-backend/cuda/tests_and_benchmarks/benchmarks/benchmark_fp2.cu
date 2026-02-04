@@ -6,19 +6,8 @@
 #include <cuda_runtime.h>
 #include <random>
 
-// Helper to get modulus (duplicated from test utilities)
-static Fp get_modulus() {
-  Fp p;
-  p.limb[0] = 0x311c0026aab0aaabULL;
-  p.limb[1] = 0x56ee4528c573b5ccULL;
-  p.limb[2] = 0x824e6dc3e23acdeeULL;
-  p.limb[3] = 0x0f75a64bbac71602ULL;
-  p.limb[4] = 0x0095a4b78a02fe32ULL;
-  p.limb[5] = 0x200fc34965aad640ULL;
-  p.limb[6] = 0x3cdee0fb28c5e535ULL;
-  // Note: Value is in normal form
-  return p;
-}
+// Helper to get modulus (use fp_modulus() from the library)
+static Fp get_modulus() { return fp_modulus(); }
 
 // Global stream and gpu_index for benchmarks
 static cudaStream_t g_benchmark_stream = nullptr;
@@ -52,7 +41,7 @@ static Fp random_fp_value(std::mt19937_64 &rng) {
 
   // Generate random limbs
   for (int i = 0; i < FP_LIMBS; i++) {
-    result.limb[i] = rng();
+    result.limb[i] = static_cast<UNSIGNED_LIMB>(rng());
   }
 
   // Reduce if needed

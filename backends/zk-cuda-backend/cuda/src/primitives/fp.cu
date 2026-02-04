@@ -15,7 +15,7 @@ __constant__ const Fp DEVICE_MODULUS = {BLS12_446_MODULUS_LIMBS};
 // Note: DEVICE_R2 is in normal form (used for conversion to Montgomery)
 __constant__ const Fp DEVICE_R2 = {BLS12_446_R2_LIMBS};
 
-__constant__ const uint64_t DEVICE_P_PRIME_MOD_U64 = BLS12_446_P_PRIME;
+__constant__ const UNSIGNED_LIMB DEVICE_P_PRIME = BLS12_446_P_PRIME;
 
 // Precomputed Montgomery form constants for small integers
 // These avoid recomputing 2*R, 3*R, 4*R, 8*R mod p on every point operation
@@ -82,9 +82,9 @@ __host__ __device__ const Fp &fp_r2() {
 #endif
 }
 
-__host__ __device__ uint64_t fp_p_prime() {
+__host__ __device__ UNSIGNED_LIMB fp_p_prime() {
 #ifdef __CUDA_ARCH__
-  return DEVICE_P_PRIME_MOD_U64;
+  return DEVICE_P_PRIME;
 #else
   return BLS12_446_P_PRIME;
 #endif
@@ -129,7 +129,7 @@ __host__ __device__ void fp_zero(Fp &a) {
   }
 #else
   // Host code: use memset for better performance
-  memset(&a.limb[0], 0, FP_LIMBS * sizeof(uint64_t));
+  memset(&a.limb[0], 0, FP_LIMBS * sizeof(UNSIGNED_LIMB));
 #endif
   // Note: Zero is zero in both normal and Montgomery forms
 }
@@ -144,7 +144,7 @@ __host__ __device__ void fp_one(Fp &a) {
 #else
   // Host code: use memset for better performance
   if (FP_LIMBS > 1) {
-    memset(&a.limb[1], 0, (FP_LIMBS - 1) * sizeof(uint64_t));
+    memset(&a.limb[1], 0, (FP_LIMBS - 1) * sizeof(UNSIGNED_LIMB));
   }
 #endif
 }
@@ -179,19 +179,19 @@ __host__ __device__ void fp_copy(Fp &dst, const Fp &src) {
   }
 #else
   // Host code: use memcpy for better performance
-  memcpy(&dst.limb[0], &src.limb[0], FP_LIMBS * sizeof(uint64_t));
+  memcpy(&dst.limb[0], &src.limb[0], FP_LIMBS * sizeof(UNSIGNED_LIMB));
 #endif
 }
 
 // Addition with carry propagation
 // "Raw" means without modular reduction - performs a + b and returns carry.
 // This is an internal helper used by fp_add() which handles reduction.
-__host__ __device__ uint64_t fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
-  uint64_t carry = 0;
+__host__ __device__ UNSIGNED_LIMB fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
+  UNSIGNED_LIMB carry = 0;
 
   for (int i = 0; i < FP_LIMBS; i++) {
     // Add with carry: c = a + b + carry
-    uint64_t sum = a.limb[i] + carry;
+    UNSIGNED_LIMB sum = a.limb[i] + carry;
     carry = (sum < a.limb[i]) ? 1 : 0; // Check for overflow
     sum += b.limb[i];
     carry += (sum < b.limb[i]) ? 1 : 0; // Check for overflow
@@ -204,14 +204,14 @@ __host__ __device__ uint64_t fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
 // Subtraction with borrow propagation
 // "Raw" means without modular reduction - performs a - b and returns borrow.
 // This is an internal helper used by fp_sub() which handles reduction.
-__host__ __device__ uint64_t fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
-  uint64_t borrow = 0;
+__host__ __device__ UNSIGNED_LIMB fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
+  UNSIGNED_LIMB borrow = 0;
 
   for (int i = 0; i < FP_LIMBS; i++) {
     // Subtract with borrow: c = a - b - borrow
-    uint64_t diff = a.limb[i] - borrow;
+    UNSIGNED_LIMB diff = a.limb[i] - borrow;
     borrow = (diff > a.limb[i]) ? 1 : 0; // Check for underflow
-    uint64_t old_diff = diff;
+    UNSIGNED_LIMB old_diff = diff;
     diff -= b.limb[i];
     borrow += (diff > old_diff) ? 1 : 0; // Check for underflow
     c.limb[i] = diff;
@@ -224,7 +224,7 @@ __host__ __device__ uint64_t fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
 // MONTGOMERY: Both inputs and output must be in Montgomery form
 __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b) {
   Fp sum;
-  uint64_t carry = fp_add_raw(sum, a, b);
+  UNSIGNED_LIMB carry = fp_add_raw(sum, a, b);
 
   // If there's a carry or sum >= MODULUS, we need to reduce
   const Fp &p = fp_modulus();
@@ -241,7 +241,7 @@ __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b) {
 // MONTGOMERY: Both inputs and output must be in Montgomery form
 __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
   Fp diff;
-  uint64_t borrow = fp_sub_raw(diff, a, b);
+  UNSIGNED_LIMB borrow = fp_sub_raw(diff, a, b);
 
   // If there was a borrow, we need to add MODULUS
   const Fp &p = fp_modulus();
@@ -252,10 +252,12 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
   }
 }
 
-// Helper function for 64x64 -> 128 bit multiply
-// Returns (hi, lo) as a struct would, but we use output parameters
-__host__ __device__ inline void mul64x64(uint64_t a, uint64_t b, uint64_t &hi,
-                                         uint64_t &lo) {
+// Helper function for limb multiplication: LIMB_BITS x LIMB_BITS -> 2*LIMB_BITS
+// Returns (hi, lo) via output parameters
+__host__ __device__ inline void mul_limbs(UNSIGNED_LIMB a, UNSIGNED_LIMB b,
+                                          UNSIGNED_LIMB &hi,
+                                          UNSIGNED_LIMB &lo) {
+#if LIMB_BITS_CONFIG == 64
 #ifdef __CUDA_ARCH__
   // Use CUDA intrinsics for device code
   lo = a * b;
@@ -289,13 +291,19 @@ __host__ __device__ inline void mul64x64(uint64_t a, uint64_t b, uint64_t &hi,
   hi = p3 + (mid2 >> 32) + (carry1 << 32) + (carry2 << 32);
 #endif
 #endif
+#elif LIMB_BITS_CONFIG == 32
+  // 32x32 -> 64 bit multiplication, then split
+  uint64_t product = static_cast<uint64_t>(a) * static_cast<uint64_t>(b);
+  lo = static_cast<uint32_t>(product);
+  hi = static_cast<uint32_t>(product >> 32);
+#endif
 }
 
 // Multiplication using schoolbook method
 // "Raw" means without modular reduction - performs a * b and stores result in
 // double-width. This is an internal helper used by fp_mont_mul() which handles
 // reduction. Result is stored in c[0..2*FP_LIMBS-1] (little-endian)
-__host__ __device__ void fp_mul_schoolbook_raw(uint64_t *c, const Fp &a,
+__host__ __device__ void fp_mul_schoolbook_raw(UNSIGNED_LIMB *c, const Fp &a,
                                                const Fp &b) {
   // Initialize result to zero
 #ifdef __CUDA_ARCH__
@@ -304,32 +312,32 @@ __host__ __device__ void fp_mul_schoolbook_raw(uint64_t *c, const Fp &a,
   }
 #else
   // Host code: use memset for better performance
-  memset(c, 0, 2 * FP_LIMBS * sizeof(uint64_t));
+  memset(c, 0, 2 * FP_LIMBS * sizeof(UNSIGNED_LIMB));
 #endif
 
   // Schoolbook multiplication: c[i+j] += a[i] * b[j]
   for (int i = 0; i < FP_LIMBS; i++) {
-    uint64_t carry = 0;
+    UNSIGNED_LIMB carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
-      // Multiply a[i] * b[j] to get 128-bit result
-      uint64_t lo, hi;
-      mul64x64(a.limb[i], b.limb[j], hi, lo);
+      // Multiply a[i] * b[j] to get double-width result
+      UNSIGNED_LIMB lo, hi;
+      mul_limbs(a.limb[i], b.limb[j], hi, lo);
 
       // Add lo to c[i+j]
-      uint64_t sum_lo = c[i + j] + lo;
-      uint64_t carry_lo = (sum_lo < c[i + j]) ? 1 : 0;
+      UNSIGNED_LIMB sum_lo = c[i + j] + lo;
+      UNSIGNED_LIMB carry_lo = (sum_lo < c[i + j]) ? 1 : 0;
       c[i + j] = sum_lo;
 
       // Add hi + carry + carry_lo to c[i + j + 1]
-      uint64_t old_val = c[i + j + 1];
-      uint64_t sum1 = old_val + hi;
-      uint64_t carry1 = (sum1 < old_val) ? 1 : 0;
+      UNSIGNED_LIMB old_val = c[i + j + 1];
+      UNSIGNED_LIMB sum1 = old_val + hi;
+      UNSIGNED_LIMB carry1 = (sum1 < old_val) ? 1 : 0;
 
-      uint64_t sum2 = sum1 + carry;
-      uint64_t carry2 = (sum2 < sum1) ? 1 : 0;
+      UNSIGNED_LIMB sum2 = sum1 + carry;
+      UNSIGNED_LIMB carry2 = (sum2 < sum1) ? 1 : 0;
 
-      uint64_t sum3 = sum2 + carry_lo;
-      uint64_t carry3 = (sum3 < sum2) ? 1 : 0;
+      UNSIGNED_LIMB sum3 = sum2 + carry_lo;
+      UNSIGNED_LIMB carry3 = (sum3 < sum2) ? 1 : 0;
 
       c[i + j + 1] = sum3;
       carry = carry1 + carry2 + carry3;
@@ -338,7 +346,7 @@ __host__ __device__ void fp_mul_schoolbook_raw(uint64_t *c, const Fp &a,
     // Propagate remaining carry through higher limbs
     int idx = i + FP_LIMBS;
     while (carry && idx < 2 * FP_LIMBS) {
-      uint64_t sum = c[idx] + carry;
+      UNSIGNED_LIMB sum = c[idx] + carry;
       carry = (sum < c[idx]) ? 1 : 0;
       c[idx] = sum;
       idx++;
@@ -350,33 +358,33 @@ __host__ __device__ void fp_mul_schoolbook_raw(uint64_t *c, const Fp &a,
 // Input a is 2*FP_LIMBS limbs (result of multiplication)
 // Output c is FP_LIMBS limbs in Montgomery form
 // Algorithm: Standard Montgomery reduction for R = 2^448
-__host__ __device__ void fp_mont_reduce(Fp &c, const uint64_t *a) {
+__host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
   const Fp &p = fp_modulus();
-  uint64_t p_prime = fp_p_prime();
+  UNSIGNED_LIMB p_prime = fp_p_prime();
 
   // Working array: copy input
-  uint64_t t[2 * FP_LIMBS + 1];
-  memcpy(t, a, 2 * FP_LIMBS * sizeof(uint64_t));
+  UNSIGNED_LIMB t[2 * FP_LIMBS + 1];
+  memcpy(t, a, 2 * FP_LIMBS * sizeof(UNSIGNED_LIMB));
   t[2 * FP_LIMBS] = 0;
 
-  // Montgomery reduction: for each limb, compute u = t[i] * p' mod 2^64
+  // Montgomery reduction: for each limb, compute u = t[i] * p' mod 2^LIMB_BITS
   // then add u * p to t, which zeros out t[i]
   for (int i = 0; i < FP_LIMBS; i++) {
-    uint64_t u = t[i] * p_prime; // u = t[i] * p' mod 2^64
+    UNSIGNED_LIMB u = t[i] * p_prime; // u = t[i] * p' mod 2^LIMB_BITS
 
     // Add u * p to t, starting at position i
-    uint64_t carry = 0;
+    UNSIGNED_LIMB carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
-      uint64_t hi, lo;
-      mul64x64(u, p.limb[j], hi, lo);
+      UNSIGNED_LIMB hi, lo;
+      mul_limbs(u, p.limb[j], hi, lo);
 
       // Three-way addition: t[i+j] + lo + carry
       // Do it in two steps to handle carries properly
-      uint64_t temp = t[i + j] + lo;
-      uint64_t carry1 = (temp < t[i + j]) ? 1 : 0;
+      UNSIGNED_LIMB temp = t[i + j] + lo;
+      UNSIGNED_LIMB carry1 = (temp < t[i + j]) ? 1 : 0;
 
-      uint64_t sum = temp + carry;
-      uint64_t carry2 = (sum < temp) ? 1 : 0;
+      UNSIGNED_LIMB sum = temp + carry;
+      UNSIGNED_LIMB carry2 = (sum < temp) ? 1 : 0;
 
       t[i + j] = sum;
 
@@ -387,7 +395,7 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const uint64_t *a) {
     // Propagate remaining carry
     int idx = i + FP_LIMBS;
     while (carry != 0 && idx <= 2 * FP_LIMBS) {
-      uint64_t sum = t[idx] + carry;
+      UNSIGNED_LIMB sum = t[idx] + carry;
       carry = (sum < t[idx]) ? 1 : 0;
       t[idx] = sum;
       idx++;
@@ -403,7 +411,7 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const uint64_t *a) {
   }
 #else
   // Host code: use memcpy for better performance
-  memcpy(&c.limb[0], &t[FP_LIMBS], FP_LIMBS * sizeof(uint64_t));
+  memcpy(&c.limb[0], &t[FP_LIMBS], FP_LIMBS * sizeof(UNSIGNED_LIMB));
 #endif
 
   // Final reduction: if c >= p, subtract p
@@ -421,68 +429,68 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const uint64_t *a) {
 // Both a and b are in Montgomery form, result is in Montgomery form.
 __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
   const Fp &p = fp_modulus();
-  uint64_t p_prime = fp_p_prime();
+  UNSIGNED_LIMB p_prime = fp_p_prime();
 
   // Working array: only n+1 limbs needed (vs 2n for separate mul+reduce)
-  uint64_t t[FP_LIMBS + 1];
+  UNSIGNED_LIMB t[FP_LIMBS + 1];
 #ifdef __CUDA_ARCH__
   for (int i = 0; i < FP_LIMBS + 1; i++) {
     t[i] = 0;
   }
 #else
-  memset(t, 0, (FP_LIMBS + 1) * sizeof(uint64_t));
+  memset(t, 0, (FP_LIMBS + 1) * sizeof(UNSIGNED_LIMB));
 #endif
 
   // Main CIOS loop: for each limb of b
   for (int i = 0; i < FP_LIMBS; i++) {
     // Step 1: Multiply-accumulate t += a * b[i]
-    uint64_t carry = 0;
+    UNSIGNED_LIMB carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
-      uint64_t hi, lo;
-      mul64x64(a.limb[j], b.limb[i], hi, lo);
+      UNSIGNED_LIMB hi, lo;
+      mul_limbs(a.limb[j], b.limb[i], hi, lo);
 
       // t[j] = t[j] + lo + carry
-      uint64_t sum1 = t[j] + lo;
-      uint64_t c1 = (sum1 < t[j]) ? 1 : 0;
-      uint64_t sum2 = sum1 + carry;
-      uint64_t c2 = (sum2 < sum1) ? 1 : 0;
+      UNSIGNED_LIMB sum1 = t[j] + lo;
+      UNSIGNED_LIMB c1 = (sum1 < t[j]) ? 1 : 0;
+      UNSIGNED_LIMB sum2 = sum1 + carry;
+      UNSIGNED_LIMB c2 = (sum2 < sum1) ? 1 : 0;
       t[j] = sum2;
 
       // carry = hi + c1 + c2
       carry = hi + c1 + c2;
     }
     // Add carry to t[n]
-    uint64_t sum = t[FP_LIMBS] + carry;
-    uint64_t overflow = (sum < t[FP_LIMBS]) ? 1 : 0;
+    UNSIGNED_LIMB sum = t[FP_LIMBS] + carry;
+    UNSIGNED_LIMB overflow = (sum < t[FP_LIMBS]) ? 1 : 0;
     t[FP_LIMBS] = sum;
 
-    // Step 2: Reduction - compute m = t[0] * p' mod 2^64
-    uint64_t m = t[0] * p_prime;
+    // Step 2: Reduction - compute m = t[0] * p' mod 2^LIMB_BITS
+    UNSIGNED_LIMB m = t[0] * p_prime;
 
     // Add m * p to t (this zeros out t[0])
     carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
-      uint64_t hi, lo;
-      mul64x64(m, p.limb[j], hi, lo);
+      UNSIGNED_LIMB hi, lo;
+      mul_limbs(m, p.limb[j], hi, lo);
 
       // t[j] = t[j] + lo + carry
-      uint64_t s1 = t[j] + lo;
-      uint64_t c1 = (s1 < t[j]) ? 1 : 0;
-      uint64_t s2 = s1 + carry;
-      uint64_t c2 = (s2 < s1) ? 1 : 0;
+      UNSIGNED_LIMB s1 = t[j] + lo;
+      UNSIGNED_LIMB c1 = (s1 < t[j]) ? 1 : 0;
+      UNSIGNED_LIMB s2 = s1 + carry;
+      UNSIGNED_LIMB c2 = (s2 < s1) ? 1 : 0;
       t[j] = s2;
 
       carry = hi + c1 + c2;
     }
     // Add carry + overflow to t[n]
-    uint64_t s1 = t[FP_LIMBS] + carry;
-    uint64_t c1 = (s1 < t[FP_LIMBS]) ? 1 : 0;
-    uint64_t s2 = s1 + overflow;
-    uint64_t c2 = (s2 < s1) ? 1 : 0;
+    UNSIGNED_LIMB s1 = t[FP_LIMBS] + carry;
+    UNSIGNED_LIMB c1 = (s1 < t[FP_LIMBS]) ? 1 : 0;
+    UNSIGNED_LIMB s2 = s1 + overflow;
+    UNSIGNED_LIMB c2 = (s2 < s1) ? 1 : 0;
     t[FP_LIMBS] = s2;
     overflow = c1 + c2; // Track overflow for final reduction
 
-    // Step 3: Shift right by one limb (divide by 2^64)
+    // Step 3: Shift right by one limb (divide by 2^LIMB_BITS)
     // t[0..n-1] = t[1..n], t[n] = overflow
     for (int j = 0; j < FP_LIMBS; j++) {
       t[j] = t[j + 1];
@@ -497,7 +505,7 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
     c.limb[i] = t[i];
   }
 #else
-  memcpy(&c.limb[0], t, FP_LIMBS * sizeof(uint64_t));
+  memcpy(&c.limb[0], t, FP_LIMBS * sizeof(UNSIGNED_LIMB));
 #endif
 
   // Final reduction: if result >= p or there's overflow, subtract p
@@ -553,7 +561,7 @@ __host__ __device__ void fp_neg(Fp &c, const Fp &a) {
 // NOTE: All inputs and outputs are in Montgomery form
 __host__ __device__ static void fp_pow_internal_mont(Fp &result,
                                                      const Fp &base_mont,
-                                                     const uint64_t *exp,
+                                                     const UNSIGNED_LIMB *exp,
                                                      int exp_limbs) {
   // Result starts as 1 in Montgomery form
   fp_one_montgomery(result);
@@ -602,7 +610,7 @@ __host__ __device__ static void fp_pow_internal_mont(Fp &result,
 // Computes base^exp mod p where exp is a big integer
 // Uses Montgomery form internally for efficiency
 __host__ __device__ static void fp_pow_internal(Fp &result, const Fp &base,
-                                                const uint64_t *exp,
+                                                const UNSIGNED_LIMB *exp,
                                                 int exp_limbs) {
   // Convert base to Montgomery form
   Fp base_mont;
@@ -618,14 +626,21 @@ __host__ __device__ static void fp_pow_internal(Fp &result, const Fp &base,
 
 // Exponentiation with 64-bit exponent
 __host__ __device__ void fp_pow_u64(Fp &c, const Fp &a, uint64_t e) {
-  uint64_t exp_array[1] = {e};
+#if LIMB_BITS_CONFIG == 64
+  UNSIGNED_LIMB exp_array[1] = {e};
   fp_pow_internal(c, a, exp_array, 1);
+#elif LIMB_BITS_CONFIG == 32
+  // Split 64-bit exponent into two 32-bit limbs (little-endian)
+  UNSIGNED_LIMB exp_array[2] = {static_cast<UNSIGNED_LIMB>(e & 0xFFFFFFFF),
+                                static_cast<UNSIGNED_LIMB>(e >> 32)};
+  int exp_limbs = (exp_array[1] == 0) ? 1 : 2;
+  fp_pow_internal(c, a, exp_array, exp_limbs);
+#endif
 }
 
-// Exponentiation with big integer exponent
-__host__ __device__ void fp_pow(Fp &c, const Fp &a, const uint64_t *e,
+// Exponentiation with big integer exponent (native limb type)
+__host__ __device__ void fp_pow(Fp &c, const Fp &a, const UNSIGNED_LIMB *e,
                                 int e_limbs) {
-  // Limit to FP_LIMBS to avoid issues
   int actual_limbs = (e_limbs > FP_LIMBS) ? FP_LIMBS : e_limbs;
   fp_pow_internal(c, a, e, actual_limbs);
 }
@@ -791,7 +806,7 @@ __host__ __device__ bool fp_sqrt(Fp &c, const Fp &a) {
 
 // Conditional assignment: if condition, dst = src, else dst unchanged
 __host__ __device__ void fp_cmov(Fp &dst, const Fp &src, uint64_t condition) {
-  uint64_t mask = -(condition & 1);
+  UNSIGNED_LIMB mask = -static_cast<UNSIGNED_LIMB>(condition & 1);
 
   for (int i = 0; i < FP_LIMBS; i++) {
     dst.limb[i] = (dst.limb[i] & ~mask) | (src.limb[i] & mask);

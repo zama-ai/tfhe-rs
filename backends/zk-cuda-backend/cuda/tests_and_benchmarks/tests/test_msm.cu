@@ -59,18 +59,8 @@ std::string fp_to_decimal_string(const Fp &val_montgomery) {
     return "0";
   }
 
-  // Work with limbs directly for integer division
-  // We'll use a simple approach: extract digits from the lowest limb,
-  // then shift right (divide by 10) using proper big integer division
-
-  // For now, use a simpler approach: convert the big integer to a string
-  // by processing it as a base-10 number
-
-  // Since Fp is a 448-bit number, we can represent it as a string
-  // We'll do this by repeatedly dividing by 10 and collecting remainders
-
   // Create a working copy as an array of limbs for easier manipulation
-  uint64_t limbs[FP_LIMBS];
+  UNSIGNED_LIMB limbs[FP_LIMBS];
   std::memcpy(limbs, val_normal.limb, sizeof(limbs));
 
   // Repeatedly divide by 10 and collect remainders
@@ -87,16 +77,24 @@ std::string fp_to_decimal_string(const Fp &val_montgomery) {
       break;
     }
 
+#if LIMB_BITS_CONFIG == 64
+    // 64-bit limbs: use 128-bit intermediate for division
     uint64_t remainder = 0;
     for (int i = FP_LIMBS - 1; i >= 0; i--) {
-      // Combine remainder with current limb: value = remainder * 2^64 +
-      // limbs[i] We can't represent this exactly in 64 bits, so we use a
-      // 128-bit approach
       __uint128_t value =
           (static_cast<__uint128_t>(remainder) << 64) | limbs[i];
       limbs[i] = value / 10;
       remainder = value % 10;
     }
+#elif LIMB_BITS_CONFIG == 32
+    // 32-bit limbs: use 64-bit intermediate for division
+    uint32_t remainder = 0;
+    for (int i = FP_LIMBS - 1; i >= 0; i--) {
+      uint64_t value = (static_cast<uint64_t>(remainder) << 32) | limbs[i];
+      limbs[i] = static_cast<uint32_t>(value / 10);
+      remainder = static_cast<uint32_t>(value % 10);
+    }
+#endif
 
     // The remainder is our digit
     result = std::to_string(remainder) + result;
@@ -108,7 +106,7 @@ std::string fp_to_decimal_string(const Fp &val_montgomery) {
 std::string scalar_to_decimal_string(const Scalar &scalar) {
   std::string result;
   // Create a working copy as an array of limbs for easier manipulation
-  uint64_t limbs[ZP_LIMBS];
+  UNSIGNED_LIMB limbs[ZP_LIMBS];
   std::memcpy(limbs, scalar.limb, sizeof(limbs));
 
   // Repeatedly divide by 10 and collect remainders
@@ -125,16 +123,24 @@ std::string scalar_to_decimal_string(const Scalar &scalar) {
       break;
     }
 
+#if LIMB_BITS_CONFIG == 64
+    // 64-bit limbs: use 128-bit intermediate for division
     uint64_t remainder = 0;
     for (int i = ZP_LIMBS - 1; i >= 0; i--) {
-      // Combine remainder with current limb: value = remainder * 2^64 +
-      // limbs[i] We can't represent this exactly in 64 bits, so we use a
-      // 128-bit approach
       __uint128_t value =
           (static_cast<__uint128_t>(remainder) << 64) | limbs[i];
       limbs[i] = value / 10;
       remainder = value % 10;
     }
+#elif LIMB_BITS_CONFIG == 32
+    // 32-bit limbs: use 64-bit intermediate for division
+    uint32_t remainder = 0;
+    for (int i = ZP_LIMBS - 1; i >= 0; i--) {
+      uint64_t value = (static_cast<uint64_t>(remainder) << 32) | limbs[i];
+      limbs[i] = static_cast<uint32_t>(value / 10);
+      remainder = static_cast<uint32_t>(value % 10);
+    }
+#endif
 
     // The remainder is our digit
     result = std::to_string(remainder) + result;
@@ -236,7 +242,7 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
     // Convert uint64_t to BigInt5 (put value in first limb, zeros in rest)
     h_scalars[i].limb[0] = i + 1;
     // Use memset to zero the remaining limbs
-    memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(uint64_t));
+    memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(UNSIGNED_LIMB));
   }
 
   // Copy to device
@@ -385,7 +391,7 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
     // Convert uint64_t to BigInt5 (put value in first limb, zeros in rest)
     h_scalars[i].limb[0] = i + 1;
     // Use memset to zero the remaining limbs
-    memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(uint64_t));
+    memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(UNSIGNED_LIMB));
   }
 
   // Copy to device
@@ -538,7 +544,7 @@ TEST_F(MSMTest, G1MSMLargeN) {
       // Convert uint64_t to BigInt5 (put value in first limb, zeros in rest)
       h_scalars[i].limb[0] = i + 1;
       // Use memset to zero the remaining limbs
-      memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(uint64_t));
+      memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(UNSIGNED_LIMB));
     }
 
     // Copy to device
@@ -700,7 +706,7 @@ TEST_F(MSMTest, G2MSMLargeN) {
       // Convert uint64_t to BigInt5 (put value in first limb, zeros in rest)
       h_scalars[i].limb[0] = i + 1;
       // Use memset to zero the remaining limbs
-      memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(uint64_t));
+      memset(&h_scalars[i].limb[1], 0, (ZP_LIMBS - 1) * sizeof(UNSIGNED_LIMB));
     }
 
     // Copy to device
@@ -1057,7 +1063,14 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
 
-// Helper function to create Scalar from multiple limbs
+// ============================================================================
+// 64-bit limb specific helper and tests
+// These use hardcoded 64-bit limb values and are only valid when
+// LIMB_BITS_CONFIG == 64 (ZP_LIMBS == 5)
+// ============================================================================
+#if LIMB_BITS_CONFIG == 64
+
+// Helper function to create Scalar from multiple 64-bit limbs
 Scalar scalar_from_limbs(uint64_t l0, uint64_t l1, uint64_t l2, uint64_t l3,
                          uint64_t l4) {
   Scalar result;
@@ -2211,3 +2224,5 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
+
+#endif // LIMB_BITS_CONFIG == 64
