@@ -1180,58 +1180,32 @@ mod tests {
     #[test]
     fn reconstruct_32bit() {
         for n in [32, 64, 256, 1024, 2048] {
-            let value = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
-            let mut value_roundtrip = vec![0; n];
-            let mut mod_p0 = vec![0; n];
-            let mut mod_p1 = vec![0; n];
-            let mut mod_p2 = vec![0; n];
-            let mut mod_p3 = vec![0; n];
-            let mut mod_p4 = vec![0; n];
-
-            let plan = Plan32::try_new(n).unwrap();
-            plan.fwd(
-                &value,
-                &mut mod_p0,
-                &mut mod_p1,
-                &mut mod_p2,
-                &mut mod_p3,
-                &mut mod_p4,
-            );
-            plan.inv(
-                &mut value_roundtrip,
-                &mut mod_p0,
-                &mut mod_p1,
-                &mut mod_p2,
-                &mut mod_p3,
-                &mut mod_p4,
-            );
-            for (&value, &value_roundtrip) in crate::izip!(&value, &value_roundtrip) {
-                assert_eq!(value_roundtrip, value.wrapping_mul(n as u64));
-            }
-
-            let (lhs, rhs, negacyclic_convolution) =
-                random_lhs_rhs_with_negacyclic_convolution(n, 0);
-
-            let mut prod = vec![0; n];
-            plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
-            assert_eq!(prod, negacyclic_convolution);
-        }
-    }
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    #[cfg(feature = "avx512")]
-    #[test]
-    fn reconstruct_52bit() {
-        for n in [32, 64, 256, 1024, 2048] {
-            if let Some(plan) = Plan52::try_new(n) {
+            for _ in 0..10_000 {
                 let value = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
                 let mut value_roundtrip = vec![0; n];
                 let mut mod_p0 = vec![0; n];
                 let mut mod_p1 = vec![0; n];
                 let mut mod_p2 = vec![0; n];
+                let mut mod_p3 = vec![0; n];
+                let mut mod_p4 = vec![0; n];
 
-                plan.fwd(&value, &mut mod_p0, &mut mod_p1, &mut mod_p2);
-                plan.inv(&mut value_roundtrip, &mut mod_p0, &mut mod_p1, &mut mod_p2);
+                let plan = Plan32::try_new(n).unwrap();
+                plan.fwd(
+                    &value,
+                    &mut mod_p0,
+                    &mut mod_p1,
+                    &mut mod_p2,
+                    &mut mod_p3,
+                    &mut mod_p4,
+                );
+                plan.inv(
+                    &mut value_roundtrip,
+                    &mut mod_p0,
+                    &mut mod_p1,
+                    &mut mod_p2,
+                    &mut mod_p3,
+                    &mut mod_p4,
+                );
                 for (&value, &value_roundtrip) in crate::izip!(&value, &value_roundtrip) {
                     assert_eq!(value_roundtrip, value.wrapping_mul(n as u64));
                 }
@@ -1247,51 +1221,83 @@ mod tests {
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(feature = "avx512")]
+    #[test]
+    fn reconstruct_52bit() {
+        for n in [32, 64, 256, 1024, 2048] {
+            if let Some(plan) = Plan52::try_new(n) {
+                for _ in 0..10_000 {
+                    let value = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
+                    let mut value_roundtrip = vec![0; n];
+                    let mut mod_p0 = vec![0; n];
+                    let mut mod_p1 = vec![0; n];
+                    let mut mod_p2 = vec![0; n];
+
+                    plan.fwd(&value, &mut mod_p0, &mut mod_p1, &mut mod_p2);
+                    plan.inv(&mut value_roundtrip, &mut mod_p0, &mut mod_p1, &mut mod_p2);
+                    for (&value, &value_roundtrip) in crate::izip!(&value, &value_roundtrip) {
+                        assert_eq!(value_roundtrip, value.wrapping_mul(n as u64));
+                    }
+
+                    let (lhs, rhs, negacyclic_convolution) =
+                        random_lhs_rhs_with_negacyclic_convolution(n, 0);
+
+                    let mut prod = vec![0; n];
+                    plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
+                    assert_eq!(prod, negacyclic_convolution);
+                }
+            }
+        }
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[test]
     fn reconstruct_32bit_avx() {
         for n in [16, 32, 64, 256, 1024, 2048] {
-            use crate::primes32::*;
+            for _ in 0..10_000 {
+                use crate::primes32::*;
 
-            let mut value = vec![0; n];
-            let mut value_avx2 = vec![0; n];
-            #[cfg(feature = "avx512")]
-            let mut value_avx512 = vec![0; n];
-            let mod_p0 = (0..n).map(|_| random::<u32>() % P0).collect::<Vec<_>>();
-            let mod_p1 = (0..n).map(|_| random::<u32>() % P1).collect::<Vec<_>>();
-            let mod_p2 = (0..n).map(|_| random::<u32>() % P2).collect::<Vec<_>>();
-            let mod_p3 = (0..n).map(|_| random::<u32>() % P3).collect::<Vec<_>>();
-            let mod_p4 = (0..n).map(|_| random::<u32>() % P4).collect::<Vec<_>>();
+                let mut value = vec![0; n];
+                let mut value_avx2 = vec![0; n];
+                #[cfg(feature = "avx512")]
+                let mut value_avx512 = vec![0; n];
+                let mod_p0 = (0..n).map(|_| random::<u32>() % P0).collect::<Vec<_>>();
+                let mod_p1 = (0..n).map(|_| random::<u32>() % P1).collect::<Vec<_>>();
+                let mod_p2 = (0..n).map(|_| random::<u32>() % P2).collect::<Vec<_>>();
+                let mod_p3 = (0..n).map(|_| random::<u32>() % P3).collect::<Vec<_>>();
+                let mod_p4 = (0..n).map(|_| random::<u32>() % P4).collect::<Vec<_>>();
 
-            for (value, &mod_p0, &mod_p1, &mod_p2, &mod_p3, &mod_p4) in
-                crate::izip!(&mut value, &mod_p0, &mod_p1, &mod_p2, &mod_p3, &mod_p4)
-            {
-                *value = reconstruct_32bit_01234_v2(mod_p0, mod_p1, mod_p2, mod_p3, mod_p4);
-            }
+                for (value, &mod_p0, &mod_p1, &mod_p2, &mod_p3, &mod_p4) in
+                    crate::izip!(&mut value, &mod_p0, &mod_p1, &mod_p2, &mod_p3, &mod_p4)
+                {
+                    *value = reconstruct_32bit_01234_v2(mod_p0, mod_p1, mod_p2, mod_p3, mod_p4);
+                }
 
-            if let Some(simd) = crate::V3::try_new() {
-                reconstruct_slice_32bit_01234_avx2(
-                    simd,
-                    &mut value_avx2,
-                    &mod_p0,
-                    &mod_p1,
-                    &mod_p2,
-                    &mod_p3,
-                    &mod_p4,
-                );
-                assert_eq!(value, value_avx2);
-            }
-            #[cfg(feature = "avx512")]
-            if let Some(simd) = crate::V4IFma::try_new() {
-                reconstruct_slice_32bit_01234_avx512(
-                    simd,
-                    &mut value_avx512,
-                    &mod_p0,
-                    &mod_p1,
-                    &mod_p2,
-                    &mod_p3,
-                    &mod_p4,
-                );
-                assert_eq!(value, value_avx512);
+                if let Some(simd) = crate::V3::try_new() {
+                    reconstruct_slice_32bit_01234_avx2(
+                        simd,
+                        &mut value_avx2,
+                        &mod_p0,
+                        &mod_p1,
+                        &mod_p2,
+                        &mod_p3,
+                        &mod_p4,
+                    );
+                    assert_eq!(value, value_avx2);
+                }
+                #[cfg(feature = "avx512")]
+                if let Some(simd) = crate::V4IFma::try_new() {
+                    reconstruct_slice_32bit_01234_avx512(
+                        simd,
+                        &mut value_avx512,
+                        &mod_p0,
+                        &mod_p1,
+                        &mod_p2,
+                        &mod_p3,
+                        &mod_p4,
+                    );
+                    assert_eq!(value, value_avx512);
+                }
             }
         }
     }

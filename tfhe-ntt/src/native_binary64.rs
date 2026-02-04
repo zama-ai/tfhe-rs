@@ -537,14 +537,15 @@ mod tests {
     fn reconstruct_32bit() {
         for n in [32, 64, 256, 1024, 2048] {
             let plan = Plan32::try_new(n).unwrap();
+            for _ in 0..10_000 {
+                let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
+                let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
+                let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
 
-            let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
-            let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
-            let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
-
-            let mut prod = vec![0; n];
-            plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
-            assert_eq!(prod, negacyclic_convolution);
+                let mut prod = vec![0; n];
+                plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
+                assert_eq!(prod, negacyclic_convolution);
+            }
         }
     }
 
@@ -554,13 +555,15 @@ mod tests {
     fn reconstruct_52bit() {
         for n in [32, 64, 256, 1024, 2048] {
             if let Some(plan) = Plan52::try_new(n) {
-                let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
-                let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
-                let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
+                for _ in 0..10_000 {
+                    let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
+                    let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
+                    let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
 
-                let mut prod = vec![0; n];
-                plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
-                assert_eq!(prod, negacyclic_convolution);
+                    let mut prod = vec![0; n];
+                    plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
+                    assert_eq!(prod, negacyclic_convolution);
+                }
             }
         }
     }
