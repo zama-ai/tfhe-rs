@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: gpu_fast_h100_tests
+name: gpu_core_h100_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   should-run:
-    name: gpu_fast_h100_tests/should-run
+    name: gpu_core_h100_tests/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read  # Needed to check for file change
@@ -61,15 +61,14 @@ jobs:
               - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
               - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
               - tfhe/src/shortint/parameters/**
-              - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**/**.md'
-              - '.github/workflows/gpu_fast_h100_tests.yml'
+              - '.github/workflows/gpu_core_h100_tests.yml'
               - scripts/integer-tests.sh
               - ci/slab.toml
 
   setup-instance:
-    name: gpu_fast_h100_tests/setup-instance
+    name: gpu_core_h100_tests/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
@@ -111,7 +110,7 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: gpu_fast_h100_tests/cuda-tests-linux
+    name: gpu_core_h100_tests/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -155,20 +154,8 @@ jobs:
           BIG_TESTS_INSTANCE=TRUE make test_integer_compression_gpu
           BIG_TESTS_INSTANCE=TRUE make test_cuda_backend
 
-      - name: Run user docs tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
-
   slack-notify:
-    name: gpu_fast_h100_tests/slack-notify
+    name: gpu_core_h100_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -187,10 +174,10 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Fast H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "Core H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_fast_h100_tests/teardown-instance
+    name: gpu_core_h100_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
