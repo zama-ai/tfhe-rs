@@ -97,17 +97,41 @@ fn test_g2_infinity_to_projective() {
 }
 
 #[test]
-#[should_panic(expected = "points and scalars must have the same length")]
-fn test_g1_msm_panics_on_length_mismatch() {
+fn test_g1_msm_returns_err_on_length_mismatch() {
     let points = vec![G1Affine::infinity()];
     let scalars: Vec<Scalar> = vec![];
-    let _ = G1Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    let result = G1Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .contains("points and scalars must have the same length"));
 }
 
 #[test]
-#[should_panic(expected = "points and scalars must have the same length")]
-fn test_g2_msm_panics_on_length_mismatch() {
+fn test_g2_msm_returns_err_on_length_mismatch() {
     let points = vec![G2Affine::infinity()];
     let scalars: Vec<Scalar> = vec![];
-    let _ = G2Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    let result = G2Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .contains("points and scalars must have the same length"));
+}
+
+#[test]
+fn test_g1_msm_returns_err_on_null_stream() {
+    let points = vec![G1Affine::infinity()];
+    let scalars = vec![Scalar::from_u64(1)];
+    let result = G1Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("stream pointer is null"));
+}
+
+#[test]
+fn test_g2_msm_returns_err_on_null_stream() {
+    let points = vec![G2Affine::infinity()];
+    let scalars = vec![Scalar::from_u64(1)];
+    let result = G2Projective::msm(&points, &scalars, std::ptr::null_mut(), 0u32, false);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("stream pointer is null"));
 }

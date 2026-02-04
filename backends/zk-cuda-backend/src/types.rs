@@ -64,6 +64,9 @@ impl G1Affine {
     pub fn infinity() -> Self {
         let mut point = zero_g1_point();
         point.infinity = true;
+        // SAFETY: `point` is a valid, zero-initialized G1Point with repr(C) layout.
+        // The FFI function only writes to the output pointer, which is valid for the
+        // duration of this call since `point` is stack-allocated.
         unsafe {
             crate::ffi::g1_point_at_infinity_wrapper(&mut point);
         }
@@ -71,16 +74,21 @@ impl G1Affine {
     }
 
     /// Check if this point is at infinity
+    #[inline]
     pub fn is_infinity(&self) -> bool {
+        // SAFETY: `self.inner` is a valid G1Point with repr(C) layout that remains
+        // valid for the duration of this call. The FFI function only reads from it.
         unsafe { crate::ffi::g1_is_infinity_wrapper(&self.inner) }
     }
 
     /// Get the x coordinate
+    #[inline]
     pub fn x(&self) -> [u64; 7] {
         self.inner.x.limb
     }
 
     /// Get the y coordinate
+    #[inline]
     pub fn y(&self) -> [u64; 7] {
         self.inner.y.limb
     }
@@ -98,6 +106,9 @@ impl G1Affine {
     /// Convert to projective coordinates
     pub fn to_projective(&self) -> G1Projective {
         let mut proj = zero_g1_projective_point();
+        // SAFETY: Both `proj` and `self.inner` are valid repr(C) structs.
+        // `proj` is a mutable reference to stack-allocated memory, and `self.inner`
+        // is a shared reference valid for the duration of this call.
         unsafe {
             crate::ffi::affine_to_projective_g1_wrapper(&mut proj, &self.inner);
         }
@@ -108,6 +119,8 @@ impl G1Affine {
     /// Only available when the `validate_points` feature is enabled
     #[cfg(feature = "validate_points")]
     pub fn is_on_curve(&self) -> bool {
+        // SAFETY: `self.inner` is a valid G1Point with repr(C) layout.
+        // The FFI function only reads from the pointer.
         unsafe { crate::ffi::is_on_curve_g1_wrapper(&self.inner) }
     }
 }
@@ -171,6 +184,23 @@ impl fmt::Debug for G1Affine {
     }
 }
 
+impl PartialEq for G1Affine {
+    fn eq(&self, other: &Self) -> bool {
+        // Both infinity
+        if self.is_infinity() && other.is_infinity() {
+            return true;
+        }
+        // One infinity, one not
+        if self.is_infinity() != other.is_infinity() {
+            return false;
+        }
+        // Compare coordinates (both must be in same form - either both Montgomery or both normal)
+        self.inner.x.limb == other.inner.x.limb && self.inner.y.limb == other.inner.y.limb
+    }
+}
+
+impl Eq for G1Affine {}
+
 /// G2 affine point on the BLS12-446 curve
 #[derive(Clone, Copy)]
 pub struct G2Affine {
@@ -200,6 +230,9 @@ impl G2Affine {
     pub fn infinity() -> Self {
         let mut point = zero_g2_point();
         point.infinity = true;
+        // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
+        // The FFI function only writes to the output pointer, which is valid for the
+        // duration of this call since `point` is stack-allocated.
         unsafe {
             crate::ffi::g2_point_at_infinity_wrapper(&mut point);
         }
@@ -207,16 +240,21 @@ impl G2Affine {
     }
 
     /// Check if this point is at infinity
+    #[inline]
     pub fn is_infinity(&self) -> bool {
+        // SAFETY: `self.inner` is a valid G2Point with repr(C) layout that remains
+        // valid for the duration of this call. The FFI function only reads from it.
         unsafe { crate::ffi::g2_is_infinity_wrapper(&self.inner) }
     }
 
     /// Get the x coordinate as (c0, c1)
+    #[inline]
     pub fn x(&self) -> ([u64; 7], [u64; 7]) {
         (self.inner.x.c0.limb, self.inner.x.c1.limb)
     }
 
     /// Get the y coordinate as (c0, c1)
+    #[inline]
     pub fn y(&self) -> ([u64; 7], [u64; 7]) {
         (self.inner.y.c0.limb, self.inner.y.c1.limb)
     }
@@ -234,6 +272,9 @@ impl G2Affine {
     /// Convert to projective coordinates
     pub fn to_projective(&self) -> G2Projective {
         let mut proj = zero_g2_projective_point();
+        // SAFETY: Both `proj` and `self.inner` are valid repr(C) structs.
+        // `proj` is a mutable reference to stack-allocated memory, and `self.inner`
+        // is a shared reference valid for the duration of this call.
         unsafe {
             crate::ffi::affine_to_projective_g2_wrapper(&mut proj, &self.inner);
         }
@@ -244,6 +285,8 @@ impl G2Affine {
     /// Only available when the `validate_points` feature is enabled
     #[cfg(feature = "validate_points")]
     pub fn is_on_curve(&self) -> bool {
+        // SAFETY: `self.inner` is a valid G2Point with repr(C) layout.
+        // The FFI function only reads from the pointer.
         unsafe { crate::ffi::is_on_curve_g2_wrapper(&self.inner) }
     }
 }
@@ -294,6 +337,26 @@ impl fmt::Debug for G2Affine {
     }
 }
 
+impl PartialEq for G2Affine {
+    fn eq(&self, other: &Self) -> bool {
+        // Both infinity
+        if self.is_infinity() && other.is_infinity() {
+            return true;
+        }
+        // One infinity, one not
+        if self.is_infinity() != other.is_infinity() {
+            return false;
+        }
+        // Compare coordinates (both must be in same form - either both Montgomery or both normal)
+        self.inner.x.c0.limb == other.inner.x.c0.limb
+            && self.inner.x.c1.limb == other.inner.x.c1.limb
+            && self.inner.y.c0.limb == other.inner.y.c0.limb
+            && self.inner.y.c1.limb == other.inner.y.c1.limb
+    }
+}
+
+impl Eq for G2Affine {}
+
 /// G1 projective point on the BLS12-446 curve
 #[derive(Clone, Copy)]
 pub struct G1Projective {
@@ -316,23 +379,38 @@ impl G1Projective {
     /// Create the point at infinity (Z = 0)
     pub fn infinity() -> Self {
         let mut point = zero_g1_projective_point();
+        // SAFETY: `point` is a valid, zero-initialized G1ProjectivePoint with repr(C) layout.
+        // The FFI function only writes to the output pointer, which is valid since `point`
+        // is stack-allocated.
         unsafe {
             crate::ffi::g1_projective_point_at_infinity_wrapper(&mut point);
         }
         Self { inner: point }
     }
 
-    /// Get the X coordinate
+    /// Get the X coordinate (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn X(&self) -> [u64; 7] {
         self.inner.X.limb
     }
 
-    /// Get the Y coordinate
+    /// Get the Y coordinate (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn Y(&self) -> [u64; 7] {
         self.inner.Y.limb
     }
 
-    /// Get the Z coordinate
+    /// Get the Z coordinate (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn Z(&self) -> [u64; 7] {
         self.inner.Z.limb
     }
@@ -352,6 +430,9 @@ impl G1Projective {
     /// Convert to affine coordinates
     pub fn to_affine(&self) -> G1Affine {
         let mut affine = zero_g1_point();
+        // SAFETY: Both `affine` and `self.inner` are valid repr(C) structs.
+        // `affine` is a mutable reference to stack-allocated memory, and `self.inner`
+        // is a shared reference valid for the duration of this call.
         unsafe {
             crate::ffi::projective_to_affine_g1_wrapper(&mut affine, &self.inner);
         }
@@ -361,6 +442,9 @@ impl G1Projective {
     /// Convert from Montgomery form to normal form (projective coordinates)
     pub fn from_montgomery_normalized(&self) -> Self {
         let mut result = Self::infinity();
+        // SAFETY: Both `result.inner` and `self.inner` are valid repr(C) structs.
+        // `result.inner` is a mutable reference, and `self.inner` is a shared reference.
+        // The FFI function reads from `self.inner` and writes to `result.inner`.
         unsafe {
             crate::ffi::g1_projective_from_montgomery_normalized_wrapper(
                 &mut result.inner,
@@ -382,6 +466,7 @@ impl G1Projective {
     /// Returns the result and the size_tracker (GPU memory allocated in bytes) if successful,
     /// or an error if MSM computation fails.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    #[must_use = "GPU MSM result must be handled"]
     pub fn msm(
         points: &[G1Affine],
         scalars: &[Scalar],
@@ -389,21 +474,25 @@ impl G1Projective {
         gpu_index: u32,
         points_in_montgomery: bool,
     ) -> Result<(Self, u64), String> {
-        assert_eq!(
-            points.len(),
-            scalars.len(),
-            "points and scalars must have the same length: {} != {}",
-            points.len(),
-            scalars.len()
-        );
+        if points.len() != scalars.len() {
+            return Err(format!(
+                "GPU MSM: points and scalars must have the same length: {} != {}",
+                points.len(),
+                scalars.len()
+            ));
+        }
         if points.is_empty() {
             return Ok((Self::infinity(), 0));
         }
-        assert!(
-            points.len() <= u32::MAX as usize,
-            "MSM input length too large for u32: {}",
-            points.len()
-        );
+        if stream.is_null() {
+            return Err("GPU MSM: stream pointer is null".to_string());
+        }
+        if points.len() > u32::MAX as usize {
+            return Err(format!(
+                "GPU MSM: input length too large for u32: {}",
+                points.len()
+            ));
+        }
         let n = points.len() as u32;
         let points_ffi: Vec<G1Point> = points.iter().map(|p| p.inner).collect();
         let scalars_ffi: Vec<ScalarFFI> = scalars.iter().map(|s| *s.inner()).collect();
@@ -413,6 +502,14 @@ impl G1Projective {
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
         // where all data is already on the device and memory is managed externally, consider
         // using the unmanaged API (g1_msm_unmanaged_wrapper) instead for better performance.
+        //
+        // SAFETY:
+        // - `stream` was validated as non-null above and must be a valid CUDA stream handle created
+        //   by cuda_create_stream
+        // - `gpu_index` is passed directly to CUDA; the C++ wrapper validates it
+        // - `points_ffi` and `scalars_ffi` are valid Vec slices with matching length `n`
+        // - `result` and `size_tracker` are valid stack-allocated outputs
+        // - The managed wrapper handles all device memory allocation/deallocation internally
         unsafe {
             crate::ffi::g1_msm_managed_wrapper(
                 &mut result,
@@ -455,6 +552,19 @@ impl fmt::Debug for G1Projective {
     }
 }
 
+impl PartialEq for G1Projective {
+    fn eq(&self, other: &Self) -> bool {
+        // For projective points, we compare all coordinates directly.
+        // Note: This is coordinate equality, not geometric equality (which would require
+        // checking if they represent the same point via cross-multiplication).
+        self.inner.X.limb == other.inner.X.limb
+            && self.inner.Y.limb == other.inner.Y.limb
+            && self.inner.Z.limb == other.inner.Z.limb
+    }
+}
+
+impl Eq for G1Projective {}
+
 /// G2 projective point on the BLS12-446 curve
 #[derive(Clone, Copy)]
 pub struct G2Projective {
@@ -486,23 +596,38 @@ impl G2Projective {
     /// Create the point at infinity (Z = 0)
     pub fn infinity() -> Self {
         let mut point = zero_g2_projective_point();
+        // SAFETY: `point` is a valid, zero-initialized G2ProjectivePoint with repr(C) layout.
+        // The FFI function only writes to the output pointer, which is valid since `point`
+        // is stack-allocated.
         unsafe {
             crate::ffi::g2_projective_point_at_infinity_wrapper(&mut point);
         }
         Self { inner: point }
     }
 
-    /// Get the X coordinate as (c0, c1)
+    /// Get the X coordinate as (c0, c1) (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn X(&self) -> ([u64; 7], [u64; 7]) {
         (self.inner.X.c0.limb, self.inner.X.c1.limb)
     }
 
-    /// Get the Y coordinate as (c0, c1)
+    /// Get the Y coordinate as (c0, c1) (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn Y(&self) -> ([u64; 7], [u64; 7]) {
         (self.inner.Y.c0.limb, self.inner.Y.c1.limb)
     }
 
-    /// Get the Z coordinate as (c0, c1)
+    /// Get the Z coordinate as (c0, c1) (projective).
+    ///
+    /// Note: Projective coordinates use uppercase (X, Y, Z) following standard
+    /// mathematical notation, distinguishing them from affine coordinates (x, y).
+    #[inline]
     pub fn Z(&self) -> ([u64; 7], [u64; 7]) {
         (self.inner.Z.c0.limb, self.inner.Z.c1.limb)
     }
@@ -522,6 +647,9 @@ impl G2Projective {
     /// Convert to affine coordinates
     pub fn to_affine(&self) -> G2Affine {
         let mut affine = zero_g2_point();
+        // SAFETY: Both `affine` and `self.inner` are valid repr(C) structs.
+        // `affine` is a mutable reference to stack-allocated memory, and `self.inner`
+        // is a shared reference valid for the duration of this call.
         unsafe {
             crate::ffi::projective_to_affine_g2_wrapper(&mut affine, &self.inner);
         }
@@ -531,6 +659,9 @@ impl G2Projective {
     /// Convert from Montgomery form to normal form (projective coordinates)
     pub fn from_montgomery_normalized(&self) -> Self {
         let mut result = Self::infinity();
+        // SAFETY: Both `result.inner` and `self.inner` are valid repr(C) structs.
+        // `result.inner` is a mutable reference, and `self.inner` is a shared reference.
+        // The FFI function reads from `self.inner` and writes to `result.inner`.
         unsafe {
             crate::ffi::g2_projective_from_montgomery_normalized_wrapper(
                 &mut result.inner,
@@ -551,6 +682,7 @@ impl G2Projective {
     /// Returns the result and the size_tracker (GPU memory allocated in bytes) if successful,
     /// or an error if MSM computation fails.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    #[must_use = "GPU MSM result must be handled"]
     pub fn msm(
         points: &[G2Affine],
         scalars: &[Scalar],
@@ -558,22 +690,25 @@ impl G2Projective {
         gpu_index: u32,
         points_in_montgomery: bool,
     ) -> Result<(Self, u64), String> {
-        assert_eq!(
-            points.len(),
-            scalars.len(),
-            "points and scalars must have the same length: {} != {}",
-            points.len(),
-            scalars.len()
-        );
+        if points.len() != scalars.len() {
+            return Err(format!(
+                "GPU MSM: points and scalars must have the same length: {} != {}",
+                points.len(),
+                scalars.len()
+            ));
+        }
         if points.is_empty() {
             return Ok((Self::infinity(), 0));
         }
-
-        assert!(
-            points.len() <= u32::MAX as usize,
-            "MSM input length too large for u32: {}",
-            points.len()
-        );
+        if stream.is_null() {
+            return Err("GPU MSM: stream pointer is null".to_string());
+        }
+        if points.len() > u32::MAX as usize {
+            return Err(format!(
+                "GPU MSM: input length too large for u32: {}",
+                points.len()
+            ));
+        }
         let n = points.len() as u32;
         let points_ffi: Vec<G2Point> = points.iter().map(|p| p.inner).collect();
         let scalars_ffi: Vec<ScalarFFI> = scalars.iter().map(|s| *s.inner()).collect();
@@ -584,6 +719,14 @@ impl G2Projective {
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
         // where all data is already on the device and memory is managed externally, consider
         // using the unmanaged API (g2_msm_unmanaged_wrapper) instead for better performance.
+        //
+        // SAFETY:
+        // - `stream` was validated as non-null above and must be a valid CUDA stream handle created
+        //   by cuda_create_stream
+        // - `gpu_index` is passed directly to CUDA; the C++ wrapper validates it
+        // - `points_ffi` and `scalars_ffi` are valid Vec slices with matching length `n`
+        // - `result` and `size_tracker` are valid stack-allocated outputs
+        // - The managed wrapper handles all device memory allocation/deallocation internally
         unsafe {
             crate::ffi::g2_msm_managed_wrapper(
                 &mut result,
@@ -627,6 +770,22 @@ impl fmt::Debug for G2Projective {
     }
 }
 
+impl PartialEq for G2Projective {
+    fn eq(&self, other: &Self) -> bool {
+        // For projective points, we compare all coordinates directly.
+        // Note: This is coordinate equality, not geometric equality (which would require
+        // checking if they represent the same point via cross-multiplication).
+        self.inner.X.c0.limb == other.inner.X.c0.limb
+            && self.inner.X.c1.limb == other.inner.X.c1.limb
+            && self.inner.Y.c0.limb == other.inner.Y.c0.limb
+            && self.inner.Y.c1.limb == other.inner.Y.c1.limb
+            && self.inner.Z.c0.limb == other.inner.Z.c0.limb
+            && self.inner.Z.c1.limb == other.inner.Z.c1.limb
+    }
+}
+
+impl Eq for G2Projective {}
+
 /// Scalar type for BLS12-446 (320-bit integers, 5 limbs)
 /// This matches the C++ Scalar type (BigInt<ZP_LIMBS>)
 #[derive(Clone, Copy)]
@@ -637,6 +796,8 @@ pub struct Scalar {
 /// Get the scalar field modulus from C++ via FFI
 fn scalar_modulus_limbs() -> [u64; 5] {
     let mut limbs = [0u64; 5];
+    // SAFETY: `limbs.as_mut_ptr()` points to a valid array of 5 u64 values.
+    // The FFI function writes exactly 5 limbs to this pointer.
     unsafe {
         crate::ffi::scalar_modulus_limbs_wrapper(limbs.as_mut_ptr());
     }
@@ -669,17 +830,20 @@ impl Scalar {
     }
 
     /// Get the limbs of the scalar
+    #[inline]
     pub fn limbs(&self) -> [u64; 5] {
         self.inner.limb
     }
 
     /// Get the inner FFI type (for internal use)
+    #[inline]
     #[allow(dead_code)]
     pub(crate) fn inner(&self) -> &ScalarFFI {
         &self.inner
     }
 
     /// Get a mutable reference to the inner FFI type (for internal use)
+    #[inline]
     #[allow(dead_code)]
     pub(crate) fn inner_mut(&mut self) -> &mut ScalarFFI {
         &mut self.inner
@@ -733,6 +897,20 @@ impl fmt::Debug for Scalar {
 impl fmt::Display for Scalar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Scalar({:?})", self.limbs())
+    }
+}
+
+impl PartialEq for Scalar {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.limb == other.inner.limb
+    }
+}
+
+impl Eq for Scalar {}
+
+impl Default for Scalar {
+    fn default() -> Self {
+        Self::from_u64(0)
     }
 }
 

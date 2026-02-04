@@ -8,6 +8,20 @@
 //! The API exposes G1 and G2 points in both affine and projective coordinates,
 //! with conversion functions for arkworks types.
 //!
+//! ## Montgomery Form Convention
+//!
+//! All field arithmetic uses Montgomery form internally for efficiency.
+//! - **Input**: Points can be in normal form (`points_in_montgomery = false`) or Montgomery form
+//!   (`points_in_montgomery = true`)
+//! - **Output**: Results from MSM are in Montgomery form
+//! - **Conversion**: Use `from_montgomery_normalized()` to convert to normal form
+//!
+//! ## Thread Safety
+//!
+//! CUDA operations require stream synchronization. Each CUDA stream should be
+//! used by only one thread at a time. The caller is responsible for managing
+//! stream lifetime and synchronization.
+//!
 //! ## Example
 //!
 //! ```rust,no_run

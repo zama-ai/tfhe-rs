@@ -177,7 +177,7 @@ mod g1 {
                 gpu_index,
                 false,
             )
-            .expect("G1 MSM failed");
+            .unwrap_or_else(|e| panic!("G1Affine MSM failed: {e}"));
 
             // Destroy stream
             unsafe { cuda_destroy_stream(stream, gpu_index) };
@@ -365,7 +365,7 @@ mod g1 {
                 gpu_index,
                 false,
             )
-            .expect("G1 MSM failed");
+            .unwrap_or_else(|e| panic!("G1 MSM failed: {e}"));
 
             // Destroy stream
             unsafe { cuda_destroy_stream(stream, gpu_index) };
@@ -613,7 +613,7 @@ mod g2 {
                 gpu_index,
                 false,
             )
-            .expect("G2 MSM failed");
+            .unwrap_or_else(|e| panic!("G2Affine MSM failed: {e}"));
 
             // Destroy stream
             unsafe { cuda_destroy_stream(stream, gpu_index) };
@@ -943,7 +943,7 @@ mod g2 {
                 gpu_index,
                 false,
             )
-            .expect("G2 MSM failed");
+            .unwrap_or_else(|e| panic!("G2 MSM failed: {e}"));
 
             // Destroy stream
             unsafe { cuda_destroy_stream(stream, gpu_index) };
