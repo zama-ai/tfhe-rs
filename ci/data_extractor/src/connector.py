@@ -132,7 +132,7 @@ class PostgreConnector:
         operation_filter: list = None,
         layer: Layer = None,
         branch: str = None,
-        name_suffix: str = "_mean_avx512",
+        name_suffix: str = None,
         last_value_only: bool = True,
     ) -> dict[BenchDetails, list[int]]:
         """
@@ -155,7 +155,7 @@ class PostgreConnector:
         :type layer: Layer, optional
         :param branch: Optional branch filter, defaulting to the user's head branch if not specified.
         :type branch: str, optional
-        :param name_suffix: Suffix to match the test names, defaulting to "_mean_avx512".
+        :param name_suffix: Suffix to match the test names.
         :type name_suffix: str, optional
         :param last_value_only: A flag indicating whether to fetch only the most recent metric value for each benchmark.
         :type last_value_only: bool
@@ -169,6 +169,7 @@ class PostgreConnector:
         layer = layer if layer else user_config.layer
         version = user_config.project_version
         pbs_kind = user_config.pbs_kind
+        name_suffix = name_suffix if name_suffix else user_config.name_suffix
 
         timestamp_range_end = user_config.bench_date
         timestamp = datetime.datetime.fromisoformat(timestamp_range_end)

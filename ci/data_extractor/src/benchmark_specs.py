@@ -34,6 +34,7 @@ class Layer(enum.StrEnum):
     Integer = "integer"
     Shortint = "shortint"
     CoreCrypto = "core_crypto"
+    Wasm = "wasm"
 
     @staticmethod
     def from_str(layer_name):
@@ -46,6 +47,8 @@ class Layer(enum.StrEnum):
                 return Layer.Shortint
             case "core_crypto":
                 return Layer.CoreCrypto
+            case "wasm":
+                return Layer.Wasm
             case _:
                 raise NotImplementedError(f"layer '{layer_name}' not supported")
 
@@ -300,6 +303,7 @@ class BenchType(enum.StrEnum):
 class BenchSubset(enum.StrEnum):
     All = "all"
     Erc20 = "erc20"
+    Zk = "zk"
 
     @staticmethod
     def from_str(bench_subset):
@@ -308,8 +312,50 @@ class BenchSubset(enum.StrEnum):
                 return BenchSubset.All
             case "erc20":
                 return BenchSubset.Erc20
+            case "zk":
+                return BenchSubset.Zk
             case _:
                 raise ValueError(f"BenchSubset '{bench_subset}' not supported")
+
+
+class ZKOperation(enum.StrEnum):
+    """
+    Operations names mapped to their display in the public documentation.
+    """
+
+    Proof = "Proving"
+    Verify = "Verifying"
+    VerifyAndExpand = "Verify + expand"
+
+    @staticmethod
+    def from_str(op_name):
+        match op_name.lower().rsplit("pke_zk_")[-1]:
+            case "proof":
+                return ZKOperation.Proof
+            case "verify":
+                return ZKOperation.Verify
+            case "verify_and_expand":
+                return ZKOperation.VerifyAndExpand
+            case _:
+                raise ValueError(f"ZK operation '{op_name}' not supported")
+
+
+class ZKComputeLoad(enum.StrEnum):
+    Proof = "slow proof / fast verify"
+    Verify = "fast proof / slow verify"
+
+    @staticmethod
+    def from_str(load):
+        match load.lower():
+            case "proof":
+                return ZKComputeLoad.Proof
+            case "verify":
+                return ZKComputeLoad.Verify
+            case _:
+                raise ValueError(f"ZK compute load '{load}' not supported")
+
+    def fs_safe_str(self):
+        return self.value.replace(" ", "_").replace("/", "and")
 
 
 class ParamsDefinition:
@@ -469,6 +515,7 @@ class BenchDetails:
     def __init__(self, layer: Layer, bench_full_name: str, bit_size: int):
         self.layer = layer
 
+        self.bench_type = BenchType.Latency
         self.operation_name = None
         self.bit_size = bit_size
         self.params = None
@@ -476,11 +523,12 @@ class BenchDetails:
         self.sign_flavor = None
         # Only relevant for HLApi layer
         self.rust_type = None
+        self.case_variation = None
 
         self.parse_test_name(bench_full_name)
 
     def __repr__(self):
-        return f"BenchDetails(layer={self.layer.value}, operation_name={self.operation_name}, bit_size={self.bit_size}, params={self.params}, {self.sign_flavor})"
+        return f"BenchDetails(layer={self.layer.value}, type={self.bench_type}, operation_name={self.operation_name}, bit_size={self.bit_size}, params={self.params}, sign={self.sign_flavor or 'N/A'}, case={self.case_variation or 'N/A'})"
 
     def __str__(self):
         return self.__repr__()
@@ -488,22 +536,26 @@ class BenchDetails:
     def __eq__(self, other):
         return (
             self.layer == other.layer
+            and self.bench_type == other.bench_type
             and self.operation_name == other.operation_name
             and self.bit_size == other.bit_size
             and self.params == other.params
             and self.sign_flavor == other.sign_flavor
             and self.rust_type == other.rust_type
+            and self.case_variation == other.case_variation
         )
 
     def __hash__(self):
         return hash(
             (
                 self.layer,
+                self.bench_type,
                 self.operation_name,
                 self.bit_size,
                 self.params,
                 self.rust_type,
                 self.sign_flavor,
+                self.case_variation,
             )
         )
 
@@ -518,6 +570,9 @@ class BenchDetails:
         """
         parts = name.split("::")
 
+        if "throughput" in parts:
+            self.bench_type = BenchType.Throughput
+
         for part in parts:
             if "PARAM" in part:
                 self.params = part.partition("_mean")[0]
@@ -525,7 +580,11 @@ class BenchDetails:
 
         match self.layer:
             case Layer.Integer:
-                op_name_index = 2 if parts[1] in ["cuda", "hpu"] else 1
+                op_name_index = 2 if parts[1] in ["cuda", "hpu", "zk"] else 1
+
+                if self.params and not parts[-1].startswith(self.params):
+                    self.case_variation = parts[-1].partition("_mean")[0]
+
                 if parts[op_name_index] == "signed":
                     op_name_index += 1
                     self.sign_flavor = SignFlavor.Signed
@@ -564,6 +623,12 @@ class BenchDetails:
                 self.rust_type = parts[-1].partition("_mean")[0]
             case Layer.Shortint:
                 self.operation_name = parts[1]
+            case Layer.Wasm:
+                op_name_index = 2 if parts[1] in ["cuda", "hpu", "zk"] else 1
+                self.operation_name = parts[op_name_index]
+
+                if self.params and not parts[-1].startswith(self.params):
+                    self.case_variation = parts[-1].partition("_mean")[0]
             case _:
                 raise NotImplementedError(
                     f"layer '{self.layer}' not supported yet for name parsing"

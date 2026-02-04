@@ -15,6 +15,8 @@ from benchmark_specs import (
     OperandType,
     PBSKind,
     RustType,
+    ZKComputeLoad,
+    ZKOperation,
 )
 from py_markdown_table.markdown_table import markdown_table
 
@@ -307,6 +309,109 @@ class MarkdownFormatter(GenericFormatter):
         return md_array
 
 
+class ZKGenericFormatter(GenericFormatter):
+    INPUTS_PROOF_COLUMN_HEADERS = f"Inputs ({ZKComputeLoad.Proof.value})"
+    INPUTS_VERIFY_COLUMN_HEADERS = f"Inputs ({ZKComputeLoad.Verify.value})"
+    DEFAULT_CRS_SIZE = 2048
+
+    @staticmethod
+    def _get_default_dict() -> collections.defaultdict:
+        raise NotImplementedError("This method must be implemented by subclasses")
+
+    @staticmethod
+    def _match_case_variation_filter(case_variation: dict):
+        raise NotImplementedError("This method must be implemented by subclasses")
+
+    def _format_data(self, data: dict[BenchDetails : list[int]], conversion_func):
+        formatted = self._get_default_dict()
+
+        for details, timings in data.items():
+            parsed_case_variation = self._parse_benchmarks_case_variation(
+                details.case_variation
+            )
+
+            if not (
+                (parsed_case_variation["crs_size"] == self.DEFAULT_CRS_SIZE)
+                and self._match_case_variation_filter(parsed_case_variation)
+            ):
+                continue
+
+            test_name = "::".join(
+                [
+                    parsed_case_variation["compute_load"],
+                    str(parsed_case_variation["packed_size"]),
+                    str(parsed_case_variation["crs_size"]),
+                ]
+            )
+
+            value = conversion_func(timings[-1])
+            formatted[test_name][ZKOperation.from_str(details.operation_name)] = value
+        return formatted
+
+    @staticmethod
+    def _parse_benchmarks_case_variation(case_variation: str):
+        parts = case_variation.split("_")
+        return {
+            "packed_size": int(parts[0]),
+            "crs_size": int(parts[3]),
+            "compute_load": parts[8],
+        }
+
+    def _generate_arrays(self, data, *args, **kwargs):
+        # Sorted as they appear in the public documentation.
+        input_names = {
+            64: "1xFheUint64 (64 bits)",
+            256: "4xFheUint64 (256 bits) ",
+            2048: "32xFheUint64 (2048 bits)",
+        }
+
+        sorted_with_compute_load = {
+            ZKComputeLoad.Proof: {},
+            ZKComputeLoad.Verify: {},
+        }
+
+        result_lines_compute_load_proof = []
+        result_lines_compute_load_verify = []
+
+        for key in data:
+            compute_load, packed_bits, _ = key.split("::")
+            packed_bits = int(packed_bits)
+
+            if packed_bits not in input_names:
+                continue
+
+            sorted_with_compute_load[ZKComputeLoad.from_str(compute_load)][
+                packed_bits
+            ] = data[key]
+
+        for load, results in sorted_with_compute_load.items():
+            if load == ZKComputeLoad.Proof:
+                table = result_lines_compute_load_proof
+                header = self.INPUTS_PROOF_COLUMN_HEADERS
+            elif load == ZKComputeLoad.Verify:
+                table = result_lines_compute_load_verify
+                header = self.INPUTS_VERIFY_COLUMN_HEADERS
+
+            # The following loop ensures display consistency between inputs
+            for packed_bits, input_name in input_names.items():
+                line = {header: input_name}
+                line.update({op.value: v for op, v in results[packed_bits].items()})
+                table.append(line)
+
+        return [
+            BenchArray(
+                result_lines_compute_load_proof,
+                self.layer,
+                metadata={"compute_load": ZKComputeLoad.Proof.fs_safe_str()},
+            ),
+            BenchArray(
+                result_lines_compute_load_verify,
+                self.layer,
+                metadata={"compute_load": ZKComputeLoad.Verify.fs_safe_str()},
+            ),
+        ]
+
+
 # -------------
 # SVG constants
 # -------------
@@ -407,7 +512,7 @@ class SVGFormatter(GenericFormatter):
                         )
                     else:  # Backends comparison (CPU, GPU, HPU)
                         header_elements.append(header_one_row_span)
-                case Layer.HLApi | Layer.CoreCrypto:
+                case Layer.HLApi | Layer.CoreCrypto | Layer.Wasm:
                     # Core_crypto arrays contains only ciphertext modulus size as headers
                     header_elements.append(header_one_row_span)
                 case _:
