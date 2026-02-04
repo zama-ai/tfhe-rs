@@ -276,7 +276,7 @@ __host__ __device__ void projective_scalar_mul(PointType &result,
     if (scalar.limb[limb] != 0) {
       msb_limb = limb;
       // Find the MSB bit in this limb
-      for (int bit = 63; bit >= 0; bit--) {
+      for (int bit = LIMB_BITS - 1; bit >= 0; bit--) {
         if ((scalar.limb[limb] >> bit) & 1) {
           msb_bit = bit;
           break;
@@ -649,7 +649,7 @@ point_scalar_mul(PointType &result, const PointType &point,
       msb_limb = limb;
       // Find the MSB bit in this limb
       // TODO: Isn't there a intrinsic for that?
-      for (int bit = 63; bit >= 0; bit--) {
+      for (int bit = LIMB_BITS - 1; bit >= 0; bit--) {
         if ((scalar[limb] >> bit) & 1) {
           msb_bit = bit;
           break;
@@ -990,28 +990,28 @@ __host__ __device__ const G2Affine &g2_generator() {
 // MSM_G1_WINDOW_SIZE and MSM_G2_BUCKET_COUNT are defined in msm.h
 
 // Helper function to extract a window from a multi-limb scalar
-__device__ __forceinline__ uint32_t extract_window_multi(const uint64_t *scalar,
-                                                         uint32_t scalar_limbs,
-                                                         uint32_t window_idx,
-                                                         uint32_t window_size) {
-  uint32_t total_bits = scalar_limbs * 64;
+__device__ __forceinline__ uint32_t
+extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
+                     uint32_t window_idx, uint32_t window_size) {
+  uint32_t total_bits = scalar_limbs * LIMB_BITS;
   uint32_t bit_offset = window_idx * window_size;
   if (bit_offset >= total_bits)
     return 0;
 
-  uint32_t limb_idx = bit_offset / 64;
-  uint32_t bit_in_limb = bit_offset % 64;
+  uint32_t limb_idx = bit_offset / LIMB_BITS;
+  uint32_t bit_in_limb = bit_offset % LIMB_BITS;
 
   if (limb_idx >= scalar_limbs)
     return 0;
 
-  uint64_t mask = (1ULL << window_size) - 1;
-  uint64_t window = (scalar[limb_idx] >> bit_in_limb) & mask;
+  UNSIGNED_LIMB mask = (1ULL << window_size) - 1;
+  UNSIGNED_LIMB window = (scalar[limb_idx] >> bit_in_limb) & mask;
 
   // If window spans two limbs, combine them
-  if (bit_in_limb + window_size > 64 && limb_idx + 1 < scalar_limbs) {
-    uint32_t bits_from_next = (bit_in_limb + window_size) - 64;
-    uint64_t next_bits = scalar[limb_idx + 1] & ((1ULL << bits_from_next) - 1);
+  if (bit_in_limb + window_size > LIMB_BITS && limb_idx + 1 < scalar_limbs) {
+    uint32_t bits_from_next = (bit_in_limb + window_size) - LIMB_BITS;
+    UNSIGNED_LIMB next_bits =
+        scalar[limb_idx + 1] & ((1ULL << bits_from_next) - 1);
     window |= (next_bits << (window_size - bits_from_next));
   }
 

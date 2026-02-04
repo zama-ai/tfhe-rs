@@ -90,28 +90,27 @@ template <typename ProjectiveType> struct Phase2KernelLaunchParams {
 // Template kernels are defined in msm/common.cuh
 
 // Helper function to extract a window from a multi-limb scalar
-__device__ __forceinline__ uint32_t extract_window_multi(const uint64_t *scalar,
-                                                         uint32_t scalar_limbs,
-                                                         uint32_t window_idx,
-                                                         uint32_t window_size) {
-  const uint32_t total_bits = scalar_limbs * 64;
+__device__ __forceinline__ uint32_t
+extract_window_multi(const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs,
+                     uint32_t window_idx, uint32_t window_size) {
+  const uint32_t total_bits = scalar_limbs * LIMB_BITS;
   const uint32_t bit_offset = window_idx * window_size;
   if (bit_offset >= total_bits)
     return 0;
 
-  const uint32_t limb_idx = bit_offset / 64;
-  const uint32_t bit_in_limb = bit_offset % 64;
+  const uint32_t limb_idx = bit_offset / LIMB_BITS;
+  const uint32_t bit_in_limb = bit_offset % LIMB_BITS;
 
   if (limb_idx >= scalar_limbs)
     return 0;
 
-  const uint64_t mask = (1ULL << window_size) - 1;
-  uint64_t window = (scalar[limb_idx] >> bit_in_limb) & mask;
+  const UNSIGNED_LIMB mask = (1ULL << window_size) - 1;
+  UNSIGNED_LIMB window = (scalar[limb_idx] >> bit_in_limb) & mask;
 
   // If window spans two limbs, combine them
-  if (bit_in_limb + window_size > 64 && limb_idx + 1 < scalar_limbs) {
-    const uint32_t bits_from_next = (bit_in_limb + window_size) - 64;
-    const uint64_t next_bits =
+  if (bit_in_limb + window_size > LIMB_BITS && limb_idx + 1 < scalar_limbs) {
+    const uint32_t bits_from_next = (bit_in_limb + window_size) - LIMB_BITS;
+    const UNSIGNED_LIMB next_bits =
         scalar[limb_idx + 1] & ((1ULL << bits_from_next) - 1);
     window |= (next_bits << (window_size - bits_from_next));
   }
@@ -675,8 +674,8 @@ void point_msm_async_pippenger_impl(
 
   cuda_set_device(gpu_index);
 
-  // Calculate number of windows (5 limbs * 64 bits = 320 bits / window_size)
-  const uint32_t total_bits = ZP_LIMBS * 64; // ZP has 5 limbs
+  // Calculate number of windows based on scalar bit width
+  const uint32_t total_bits = Scalar::NUM_BITS;
   const uint32_t num_windows = CEIL_DIV(total_bits, window_size);
 
   // Calculate kernel launch parameters respecting shared memory limits

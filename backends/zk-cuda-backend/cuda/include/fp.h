@@ -6,15 +6,24 @@
 // Ceiling division: computes (M + N - 1) / N
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
+// Limb type for multi-precision integers
+using UNSIGNED_LIMB = uint64_t;
+
+// Bits per limb (derived from limb type size)
+constexpr int LIMB_BITS = sizeof(UNSIGNED_LIMB) * 8;
+
 // Number of limbs for scalars (Zp)
 #define ZP_LIMBS 5
 
 // Generic BigInt template for N limbs
-// Represents a big integer as N limbs of 64 bits each
+// Represents a big integer as N limbs of LIMB_BITS bits each
 // Little-endian: limb[0] is least significant word
 // Note: This is a POD (Plain Old Data) type for CUDA __constant__ compatibility
 template <int N> struct BigInt {
-  uint64_t limb[N];
+  UNSIGNED_LIMB limb[N];
+
+  // Total bits in this BigInt
+  static constexpr int NUM_BITS = N * LIMB_BITS;
 };
 
 // BLS12-446: 446-bit prime field

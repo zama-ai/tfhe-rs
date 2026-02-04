@@ -203,7 +203,7 @@ __host__ __device__ void fp_inv_fermat(Fp &result, const Fp &a) {
 
   bool found_first_bit = false;
   for (int limb = FP_LIMBS - 1; limb >= 0; limb--) {
-    for (int bit = 63; bit >= 0; bit--) {
+    for (int bit = LIMB_BITS - 1; bit >= 0; bit--) {
       if (found_first_bit || ((p_minus_2.limb[limb] >> bit) & 1)) {
         found_first_bit = true;
         Fp temp;

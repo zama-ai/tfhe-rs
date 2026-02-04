@@ -572,8 +572,8 @@ __host__ __device__ static void fp_pow_internal_mont(Fp &result,
   }
 
   // Find the most significant bit in the highest non-zero limb
-  uint64_t msb_val = exp[msb_idx];
-  int bit_pos = 63;
+  UNSIGNED_LIMB msb_val = exp[msb_idx];
+  int bit_pos = LIMB_BITS - 1;
   while (bit_pos >= 0 && ((msb_val >> bit_pos) & 1) == 0) {
     // TODO: Possible branching?
     bit_pos--;
@@ -581,7 +581,7 @@ __host__ __device__ static void fp_pow_internal_mont(Fp &result,
 
   // Square-and-multiply algorithm (all in Montgomery form)
   for (int limb_idx = msb_idx; limb_idx >= 0; limb_idx--) {
-    int start_bit = (limb_idx == msb_idx) ? bit_pos : 63;
+    int start_bit = (limb_idx == msb_idx) ? bit_pos : LIMB_BITS - 1;
 
     for (int bit = start_bit; bit >= 0; bit--) {
       // Square result
@@ -687,9 +687,9 @@ __host__ __device__ void fp_div(Fp &c, const Fp &a, const Fp &b) {
 }
 
 __host__ __device__ static void fp_div_by_2(Fp &result, const Fp &a) {
-  uint64_t carry = 0;
+  UNSIGNED_LIMB carry = 0;
   for (int i = FP_LIMBS - 1; i >= 0; i--) {
-    uint64_t new_val = (a.limb[i] >> 1) | (carry << 63);
+    UNSIGNED_LIMB new_val = (a.limb[i] >> 1) | (carry << (LIMB_BITS - 1));
     carry = a.limb[i] & 1;
     result.limb[i] = new_val;
   }
