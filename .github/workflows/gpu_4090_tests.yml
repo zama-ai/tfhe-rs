@@ -19,8 +19,8 @@ on:
   pull_request:
     types: [ labeled ]
   schedule:
-    # Nightly tests @ 1AM after each work day
-    - cron: "0 1 * * MON-FRI"
+   # Every other day at 1AM
+   - cron: "0 1 */2 * *"
 
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
-    timeout-minutes: 1440 # 24 hours
+    timeout-minutes: 2880 # 48 hours
 
     steps:
       - name: Checkout tfhe-rs
