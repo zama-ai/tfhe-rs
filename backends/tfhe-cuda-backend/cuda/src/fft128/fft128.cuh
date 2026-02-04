@@ -76,7 +76,11 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
     for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      F128x2_TO_F64x4(((u_stays_in_register) ? v[i] : u[i]), tid);
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
       tid = tid + STRIDE;
     }
     __syncthreads();
@@ -87,8 +91,11 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
       F64x4_TO_F128x2(w, tid ^ lane_mask);
-      u[i] = (u_stays_in_register) ? u[i] : w;
-      v[i] = (u_stays_in_register) ? w : v[i];
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
       w = NEG_TWID(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
@@ -152,7 +159,11 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       // keep one of the register for next iteration and store another one in sm
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      F128x2_TO_F64x4(((u_stays_in_register) ? v[i] : u[i]), tid);
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
 
       tid = tid + STRIDE;
     }
@@ -166,8 +177,11 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       bool u_stays_in_register = rank < lane_mask;
       F64x4_TO_F128x2(w, tid ^ lane_mask);
 
-      u[i] = (u_stays_in_register) ? u[i] : w;
-      v[i] = (u_stays_in_register) ? w : v[i];
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
 
       tid = tid + STRIDE;
     }
