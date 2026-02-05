@@ -73,9 +73,10 @@ void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 int8_t **fp_ks_buffer,
                                                 bool gpu_memory_allocated);
 
-void cuda_closest_representable_64(void *stream, uint32_t gpu_index,
-                                   void const *input, void *output,
-                                   uint32_t base_log, uint32_t level_count);
+void cuda_closest_representable_64_async(void *stream, uint32_t gpu_index,
+                                         void const *input, void *output,
+                                         uint32_t base_log,
+                                         uint32_t level_count);
 }
 
 #endif // CNCRT_KS_H_

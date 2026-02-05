@@ -5,11 +5,10 @@ use crate::core_crypto::gpu::{extract_lwe_samples_from_glwe_ciphertext_list_asyn
 use crate::core_crypto::prelude::{MonomialDegree, UnsignedTorus};
 use itertools::Itertools;
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
+/// For each [`GLWE Ciphertext`] (`CudaGlweCiphertextList`) given as input, extract the nth
+/// coefficient from its body as an [`LWE ciphertext`](`CudaLweCiphertextList`). This variant is
+/// GPU-accelerated.
+pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
     input_glwe_list: &CudaGlweCiphertextList<Scalar>,
     output_lwe_list: &mut CudaLweCiphertextList<Scalar>,
     vec_nth: &[MonomialDegree],
@@ -79,29 +78,6 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
             input_glwe_list.glwe_dimension(),
             input_glwe_list.polynomial_size(),
         );
+        streams.synchronize();
     }
-}
-
-/// For each [`GLWE Ciphertext`] (`CudaGlweCiphertextList`) given as input, extract the nth
-/// coefficient from its body as an [`LWE ciphertext`](`CudaLweCiphertextList`). This variant is
-/// GPU-accelerated.
-pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
-    input_glwe_list: &CudaGlweCiphertextList<Scalar>,
-    output_lwe_list: &mut CudaLweCiphertextList<Scalar>,
-    vec_nth: &[MonomialDegree],
-    lwe_per_glwe: u32,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedTorus,
-{
-    unsafe {
-        cuda_extract_lwe_samples_from_glwe_ciphertext_list_async(
-            input_glwe_list,
-            output_lwe_list,
-            vec_nth,
-            lwe_per_glwe,
-            streams,
-        );
-    }
-    streams.synchronize();
 }

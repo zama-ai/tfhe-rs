@@ -183,9 +183,10 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_128(
       base_log, level_count, num_lwes);
 }
 
-void cuda_closest_representable_64(void *stream, uint32_t gpu_index,
-                                   void const *input, void *output,
-                                   uint32_t base_log, uint32_t level_count) {
+void cuda_closest_representable_64_async(void *stream, uint32_t gpu_index,
+                                         void const *input, void *output,
+                                         uint32_t base_log,
+                                         uint32_t level_count) {
   host_cuda_closest_representable(static_cast<cudaStream_t>(stream), gpu_index,
                                   static_cast<const uint64_t *>(input),
                                   static_cast<uint64_t *>(output), base_log,

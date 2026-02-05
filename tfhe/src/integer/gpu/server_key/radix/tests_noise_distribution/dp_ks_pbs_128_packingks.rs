@@ -13,7 +13,7 @@ use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::unchecked_small_scalar_mul_integer_async;
+use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::IntegerCiphertext;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
@@ -142,16 +142,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(meta_params: MetaPa
             let cloned_ct = ct;
             let radix_ct = crate::integer::RadixCiphertext::from_blocks(vec![cloned_ct]);
             let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_ct, &streams);
-            unsafe {
-                unchecked_small_scalar_mul_integer_async(
-                    &streams,
-                    &mut d_ct.ciphertext,
-                    max_scalar_mul,
-                    atomic_params.message_modulus(),
-                    atomic_params.carry_modulus(),
-                );
-            }
-            streams.synchronize();
+            unchecked_small_scalar_mul_integer(
+                &streams,
+                &mut d_ct.ciphertext,
+                max_scalar_mul,
+                atomic_params.message_modulus(),
+                atomic_params.carry_modulus(),
+            );
             cuda_noise_squashing_key.unchecked_squash_ciphertext_noise(
                 &d_ct.ciphertext,
                 &cuda_sks,
@@ -299,17 +296,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(meta_params: MetaParameters) {
     let vector_non_pattern: Vec<_> = input_zeros_non_pattern
         .into_par_iter()
         .map(|mut d_ct_input2| {
-            unsafe {
-                unchecked_small_scalar_mul_integer_async(
-                    &streams,
-                    &mut d_ct_input2.ciphertext,
-                    max_scalar_mul,
-                    params.message_modulus(),
-                    params.carry_modulus(),
-                );
-            }
-
-            streams.synchronize();
+            unchecked_small_scalar_mul_integer(
+                &streams,
+                &mut d_ct_input2.ciphertext,
+                max_scalar_mul,
+                params.message_modulus(),
+                params.carry_modulus(),
+            );
 
             cuda_noise_squashing_key
                 .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_input2.ciphertext, &streams)

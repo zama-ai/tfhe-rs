@@ -2784,7 +2784,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_closest_representable_64(
+    pub fn cuda_closest_representable_64_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         input: *const ffi::c_void,

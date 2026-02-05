@@ -17,7 +17,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::{unchecked_small_scalar_mul_integer_async, CastInto, CudaVec};
+use crate::integer::gpu::{unchecked_small_scalar_mul_integer, CastInto, CudaVec};
 use crate::integer::CompressedServerKey;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::parameters::test_params::{
@@ -124,16 +124,13 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters) {
             &cuda_side_resources.streams,
         );
 
-        unsafe {
-            unchecked_small_scalar_mul_integer_async(
-                &cuda_side_resources.streams,
-                &mut d_ct.ciphertext,
-                max_scalar_mul,
-                block_params.message_modulus(),
-                block_params.carry_modulus(),
-            );
-        }
-        cuda_side_resources.streams.synchronize();
+        unchecked_small_scalar_mul_integer(
+            &cuda_side_resources.streams,
+            &mut d_ct.ciphertext,
+            max_scalar_mul,
+            block_params.message_modulus(),
+            block_params.carry_modulus(),
+        );
 
         let mut after_pbs_shortint_ct: CudaUnsignedRadixCiphertext =
             cuda_sks.create_trivial_zero_radix(1, &cuda_side_resources.streams);
