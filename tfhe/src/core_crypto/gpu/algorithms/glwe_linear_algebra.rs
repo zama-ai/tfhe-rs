@@ -33,6 +33,21 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
         "CUDA polynomial multiplication one to many: expected
         the polynomial size to be a multiple of two"
     );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        lhs.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        out.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -97,6 +112,21 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
         "CUDA GLWE polynomial multiplication one to many: expected
         a single GLWE"
     );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        out.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -150,6 +180,21 @@ pub fn cuda_glwe_dot_product_with_clear_one_to_many<Scalar>(
         lhs.glwe_ciphertext_count().0,
         1,
         "GLWE dot product implemented only for a single GLWE in the lhs list"
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        out.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
     );
 
     let mut glwe_list = CudaGlweCiphertextList::<Scalar>::new(

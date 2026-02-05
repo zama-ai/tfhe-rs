@@ -210,6 +210,14 @@ pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
     let num_samples = lhs.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &lhs.lwe_dimension();
 
+    assert_eq!(
+        rhs.len(),
+        lhs.lwe_ciphertext_count().0,
+        "Mismatched number of ciphertexts between output ({:?}) and lhs ({:?})",
+        rhs.len(),
+        lhs.lwe_ciphertext_count().0
+    );
+
     // GPU index checks
     assert_eq!(
         streams.gpu_indexes[0],
@@ -293,6 +301,13 @@ pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ct.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        ct.0.d_vec.gpu_index(0).get(),
+    );
     let num_samples = ct.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &ct.lwe_dimension();
 
@@ -321,6 +336,13 @@ pub fn cuda_lwe_ciphertext_cleartext_mul<Scalar>(
         "Mismatched number of ciphertexts between input ({:?}) and output ({:?})",
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
+    );
+    assert_eq!(
+        input.lwe_ciphertext_count().0,
+        cleartext.len(),
+        "Mismatched number of ciphertexts between input ({:?}) and cleartext ({:?})",
+        input.lwe_ciphertext_count(),
+        cleartext.len()
     );
     assert_eq!(
         output.ciphertext_modulus(),
@@ -379,6 +401,27 @@ pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ct.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        ct.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        cleartext.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first cleartext pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        cleartext.gpu_index(0).get(),
+    );
+    assert_eq!(
+        ct.lwe_ciphertext_count().0,
+        cleartext.len(),
+        "Mismatched number of ciphertexts between input ({:?}) and cleartext ({:?})",
+        ct.lwe_ciphertext_count(),
+        cleartext.len()
+    );
     let num_samples = ct.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = ct.lwe_dimension();
 
