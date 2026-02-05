@@ -12,11 +12,8 @@
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
 #include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
 #include <thread>
 #include <vector>
-
-#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
 // Finish the keyswitching operation and prepare GLWEs for accumulation.
 // 1. Finish the keyswitching computation partially performed with a GEMM:

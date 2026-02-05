@@ -185,8 +185,7 @@ __host__ void host_aggregate_one_hot_vector(
   mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
       streams);
 
-  uint32_t inputs_per_stream =
-      (num_input_ciphertexts + num_streams - 1) / num_streams;
+  uint32_t inputs_per_stream = CEIL_DIV(num_input_ciphertexts, num_streams);
 
   for (uint32_t s = 0; s < num_streams; s++) {
 
@@ -214,7 +213,7 @@ __host__ void host_aggregate_one_hot_vector(
     if (count_in_stream == 0)
       continue;
 
-    uint32_t num_chunks = (count_in_stream + chunk_size - 1) / chunk_size;
+    uint32_t num_chunks = CEIL_DIV(count_in_stream, chunk_size);
 
     //
     // Process chunks of input ciphertexts for the current stream

@@ -29,7 +29,7 @@ template <typename Torus> struct int_compression {
     // Calculate the actual number of GLWEs needed based on total radix blocks.
     // This ensures we allocate enough memory when num_radix_blocks >
     // lwe_per_glwe.
-    max_num_glwes = (num_radix_blocks + lwe_per_glwe - 1) / lwe_per_glwe;
+    max_num_glwes = CEIL_DIV(num_radix_blocks, lwe_per_glwe);
 
     tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * (compression_params.small_lwe_dimension + 1) *

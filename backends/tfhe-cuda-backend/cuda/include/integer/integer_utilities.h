@@ -2165,7 +2165,7 @@ template <typename Torus> struct int_sc_prop_memory {
     uint32_t block_modulus = message_modulus * carry_modulus;
     uint32_t num_bits_in_block = std::log2(block_modulus);
     uint32_t grouping_size = num_bits_in_block;
-    num_groups = (num_radix_blocks + grouping_size - 1) / grouping_size;
+    num_groups = CEIL_DIV(num_radix_blocks, grouping_size);
 
     num_many_lut = 2; // many luts apply 2 luts
     uint32_t box_size = polynomial_size / block_modulus;
@@ -2550,7 +2550,7 @@ template <typename Torus> struct int_borrow_prop_memory {
     uint32_t num_bits_in_block = std::log2(block_modulus);
     uint32_t grouping_size = num_bits_in_block;
     group_size = grouping_size;
-    num_groups = (num_radix_blocks + grouping_size - 1) / grouping_size;
+    num_groups = CEIL_DIV(num_radix_blocks, grouping_size);
 
     num_many_lut = 2; // many luts apply 2 luts
     uint32_t box_size = polynomial_size / block_modulus;

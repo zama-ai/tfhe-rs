@@ -6,7 +6,7 @@
 #include "helper_multi_gpu.h"
 #include "polynomial/parameters.cuh"
 #include "types/int128.cuh"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 #include <limits>
 
 template <typename T>
