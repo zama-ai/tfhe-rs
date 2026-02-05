@@ -2,6 +2,8 @@ mod internal;
 #[cfg(test)]
 mod test;
 
+use crate::keys::IntegerServerKeyConformanceParams;
+use crate::prelude::ParameterSetConformant;
 use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 
 use crate::backward_compatibility::xof_key_set::CompressedXofKeySetVersions;
@@ -15,6 +17,7 @@ use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
 use crate::named::Named;
 
+use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use crate::{
     integer, shortint, ClientKey, CompactPublicKey, CompressedCompactPublicKey,
     CompressedReRandomizationKeySwitchingKey, CompressedServerKey, Config, ServerKey, Tag,
@@ -368,6 +371,41 @@ impl CompressedXofKeySet {
         } = self;
 
         (seed, compressed_public_key, compressed_server_key)
+    }
+}
+
+impl ParameterSetConformant for CompressedXofKeySet {
+    type ParameterSet = Config;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let config = *parameter_set;
+        if let Some((pke_params, _)) = &config.inner.dedicated_compact_public_key_parameters {
+            if !self.compressed_public_key.is_conformant(pke_params) {
+                return false;
+            }
+        } else {
+            let shortint_param_set: ShortintParameterSet = config.inner.block_parameters.into();
+
+            let Ok(compact_pk_params): Result<CompactPublicKeyEncryptionParameters, _> =
+                shortint_param_set.try_into()
+            else {
+                return false;
+            };
+
+            if !self.compressed_public_key.is_conformant(&compact_pk_params) {
+                return false;
+            }
+        }
+
+        let sk_conformance_params = IntegerServerKeyConformanceParams::from(config);
+        if !self
+            .compressed_server_key
+            .is_conformant(&sk_conformance_params)
+        {
+            return false;
+        }
+
+        true
     }
 }
 
