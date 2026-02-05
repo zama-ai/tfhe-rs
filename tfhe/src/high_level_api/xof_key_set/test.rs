@@ -179,6 +179,8 @@ fn test_xof_key_set(
     let expected_pk_tag = compressed_key_set.compressed_public_key.tag().clone();
     let expected_sk_tag = compressed_key_set.compressed_server_key.tag().clone();
 
+    assert!(compressed_key_set.is_conformant(&config));
+
     let pk = match device {
         Device::Cpu => {
             let key_set = compressed_key_set.decompress().unwrap();
@@ -190,7 +192,6 @@ fn test_xof_key_set(
 
             let (pk, sk) = key_set.into_raw_parts();
             assert_eq!(sk.tag(), &expected_sk_tag);
-            assert!(sk.is_conformant(&config.into()));
             set_server_key(sk);
             pk
         }
