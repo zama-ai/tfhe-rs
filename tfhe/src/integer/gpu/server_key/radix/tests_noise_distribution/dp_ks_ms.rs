@@ -4,7 +4,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::GpuIndex;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
@@ -17,8 +17,9 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::{unchecked_small_scalar_mul_integer, CastInto, CudaVec};
+use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::CompressedServerKey;
+use crate::prelude::CastInto;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,

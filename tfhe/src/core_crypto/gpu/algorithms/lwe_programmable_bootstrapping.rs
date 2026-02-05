@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -130,7 +131,7 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
             bsk.polynomial_size(),
             bsk.decomp_base_log(),
             bsk.decomp_level_count(),
-            num_samples.0 as u32,
+            u32::try_from(num_samples.0).unwrap(),
             bsk.ms_noise_reduction_configuration.as_ref(),
         );
         streams.synchronize();
@@ -258,7 +259,7 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
             bsk.polynomial_size(),
             bsk.decomp_base_log(),
             bsk.decomp_level_count(),
-            num_samples.0 as u32,
+            u32::try_from(num_samples.0).unwrap(),
             bsk.ms_noise_reduction_configuration.as_ref(),
         );
         streams.synchronize();
