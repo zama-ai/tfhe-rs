@@ -42,38 +42,30 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         h_ct: &LweCiphertextList<C>,
         streams: &CudaStreams,
     ) -> Self {
-        let res = unsafe { Self::from_lwe_ciphertext_list_async(h_ct, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn from_lwe_ciphertext_list_async<C: Container<Element = T>>(
-        h_ct: &LweCiphertextList<C>,
-        streams: &CudaStreams,
-    ) -> Self {
         let lwe_dimension = h_ct.lwe_size().to_lwe_dimension();
         let lwe_ciphertext_count = h_ct.lwe_ciphertext_count();
         let ciphertext_modulus = h_ct.ciphertext_modulus();
 
         // Copy to the GPU
         let h_input = h_ct.as_view().into_container();
-        let mut d_vec = CudaVec::new_async(
-            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-            streams,
-            0,
-        );
-        d_vec.copy_from_cpu_async(h_input.as_ref(), streams, 0);
-        let cuda_lwe_list = CudaLweList {
+        let mut d_vec = unsafe {
+            CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+                streams,
+                0,
+            )
+        };
+        unsafe {
+            d_vec.copy_from_cpu_async(h_input.as_ref(), streams, 0);
+        }
+        streams.synchronize();
+        let res = CudaLweList {
             d_vec,
             lwe_ciphertext_count,
             lwe_dimension,
             ciphertext_modulus,
         };
-        Self(cuda_lwe_list)
+        Self(res)
     }
 
     pub fn from_cuda_vec(
@@ -141,6 +133,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                 );
                 ptr = ptr.wrapping_byte_add(size);
             }
+            streams.synchronize();
         }
 
         let cuda_lwe_list = CudaLweList {

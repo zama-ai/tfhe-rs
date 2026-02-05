@@ -1,9 +1,10 @@
 use super::*;
-use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{
+    cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64, CudaStreams,
+};
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 use serde::de::DeserializeOwned;
@@ -103,14 +104,12 @@ where
                 &stream,
             );
 
-            unsafe {
-                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async(
-                    &pksk,
-                    &d_input_lwe,
-                    &mut d_output_glwe,
-                    &stream,
-                );
-            }
+            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                &pksk,
+                &d_input_lwe,
+                &mut d_output_glwe,
+                &stream,
+            );
             let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&stream);
             let mut decrypted_plaintext_list = PlaintextList::new(
                 Scalar::ZERO,
@@ -196,14 +195,12 @@ where
                 &stream,
             );
 
-            unsafe {
-                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async(
-                    &pksk,
-                    &d_input_lwe_list,
-                    &mut d_output_glwe,
-                    &stream,
-                );
-            }
+            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                &pksk,
+                &d_input_lwe_list,
+                &mut d_output_glwe,
+                &stream,
+            );
 
             let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&stream);
 
