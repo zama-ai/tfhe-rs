@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
@@ -358,7 +359,6 @@ impl CudaCompressedSquashedNoiseCiphertextList {
                 indexes_array_len.0 as u32,
             );
         }
-        streams.synchronize();
         let degree = match kind {
             DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
                 Degree::new(message_modulus.0 - 1)
@@ -596,7 +596,7 @@ mod test {
 
             for _ in 0..NB_TESTS {
                 // Unsigned
-                let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+                let modulus = message_modulus.pow(u32::try_from(NUM_BLOCKS).unwrap());
                 for _ in 0..NB_OPERATOR_TESTS {
                     let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
@@ -636,7 +636,7 @@ mod test {
                 }
 
                 // Signed
-                let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+                let modulus = message_modulus.pow(u32::try_from(NUM_BLOCKS - 1).unwrap()) as i128;
                 for _ in 0..NB_OPERATOR_TESTS {
                     let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
@@ -733,7 +733,8 @@ mod test {
                         match case_selector {
                             0 => {
                                 // Unsigned
-                                let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+                                let modulus =
+                                    message_modulus.pow(u32::try_from(NUM_BLOCKS).unwrap());
                                 let message = rng.gen::<u128>() % modulus;
                                 let ct = radix_cks.encrypt(message);
                                 let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
@@ -752,7 +753,9 @@ mod test {
                             }
                             1 => {
                                 // Signed
-                                let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+                                let modulus = message_modulus
+                                    .pow(u32::try_from(NUM_BLOCKS - 1).unwrap())
+                                    as i128;
                                 let message = rng.gen::<i128>() % modulus;
                                 let ct = radix_cks.encrypt_signed(message);
                                 let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(

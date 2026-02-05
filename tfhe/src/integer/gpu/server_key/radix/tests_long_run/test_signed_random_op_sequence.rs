@@ -234,10 +234,10 @@ where
     let right_shift_executor =
         OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::right_shift);
     // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_left = |x: i64, y: u64| x.rotate_left(y as u32);
+    let clear_rotate_left = |x: i64, y: u64| x.rotate_left(u32::try_from(y).unwrap());
     let clear_left_shift = |x: i64, y: u64| x << y;
     // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_right = |x: i64, y: u64| x.rotate_right(y as u32);
+    let clear_rotate_right = |x: i64, y: u64| x.rotate_right(u32::try_from(y).unwrap());
     let clear_right_shift = |x: i64, y: u64| x >> y;
     #[allow(clippy::type_complexity)]
     let mut shift_rotate_ops: Vec<(

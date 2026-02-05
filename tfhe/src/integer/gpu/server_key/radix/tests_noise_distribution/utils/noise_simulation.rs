@@ -351,12 +351,13 @@ impl StandardModSwitch<Self> for CudaDynLwe {
                 let mut internal_output = input.duplicate(&side_resources.streams);
                 cuda_modulus_switch_ciphertext(
                     &mut internal_output.0.d_vec,
-                    output_modulus_log.0 as u32,
+                    u32::try_from(output_modulus_log.0).unwrap(),
                     &side_resources.streams,
                 );
                 let mut cpu_lwe = internal_output.to_lwe_ciphertext_list(&side_resources.streams);
 
-                let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
+                let shift_to_map_to_native =
+                    u64::BITS - u32::try_from(output_modulus_log.0).unwrap();
                 for val in cpu_lwe.as_mut_view().into_container().iter_mut() {
                     *val <<= shift_to_map_to_native;
                 }
@@ -407,8 +408,8 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
                     0u32,
                     internal_output.0.d_vec.as_mut_c_ptr(0),
                     input.0.d_vec.as_c_ptr(0),
-                    input.lwe_dimension().0 as u32,
-                    output_modulus_log.0 as u32,
+                    u32::try_from(input.lwe_dimension().0).unwrap(),
+                    u32::try_from(output_modulus_log.0).unwrap(),
                 );
                 side_resources.streams.synchronize();
                 let cpu_lwe = internal_output.into_lwe_ciphertext(&side_resources.streams);
@@ -416,7 +417,8 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
                     cpu_lwe.clone().into_container(),
                     cpu_lwe.ciphertext_modulus(),
                 );
-                let shift_to_map_to_native = u64::BITS - output_modulus_log.0 as u32;
+                let shift_to_map_to_native =
+                    u64::BITS - u32::try_from(output_modulus_log.0).unwrap();
                 for val in cpu_ct.as_mut() {
                     *val <<= shift_to_map_to_native;
                 }
@@ -872,13 +874,13 @@ impl StandardModSwitch<Self> for CudaGlweCiphertextList<u64> {
 
         cuda_modulus_switch_ciphertext(
             &mut internal_output.0.d_vec,
-            storage_log_modulus.0 as u32,
+            u32::try_from(storage_log_modulus.0).unwrap(),
             &side_resources.streams,
         );
         side_resources.streams.synchronize();
         let mut cpu_glwe = internal_output.to_glwe_ciphertext_list(&side_resources.streams);
 
-        let shift_to_map_to_native = u64::BITS - storage_log_modulus.0 as u32;
+        let shift_to_map_to_native = u64::BITS - u32::try_from(storage_log_modulus.0).unwrap();
         for val in cpu_glwe.as_mut_view().into_container().iter_mut() {
             *val <<= shift_to_map_to_native;
         }

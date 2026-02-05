@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 pub mod br_dp_ks_ms;
 pub mod br_dp_packingks_ms;
 pub mod dp_ks_ms;

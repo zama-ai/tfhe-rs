@@ -199,7 +199,7 @@ mod tests {
             let modulus = pke_params
                 .message_modulus
                 .0
-                .checked_pow(num_blocks as u32)
+                .checked_pow(u32::try_from(num_blocks).unwrap())
                 .unwrap();
 
             let crs =

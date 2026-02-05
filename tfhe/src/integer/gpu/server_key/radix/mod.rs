@@ -234,7 +234,7 @@ impl CudaServerKey {
     {
         let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
         let ciphertext = ct.as_mut();
-        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_blocks = u32::try_from(ciphertext.d_blocks.lwe_ciphertext_count().0).unwrap();
         let uses_carry = input_carry.map_or(0u32, |_block| 1u32);
         let aux_block: T = self.create_trivial_zero_radix(1, streams);
         let in_carry: &CudaRadixCiphertext =
@@ -307,7 +307,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) {
         let ciphertext = ct.as_mut();
-        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_blocks = u32::try_from(ciphertext.d_blocks.lwe_ciphertext_count().0).unwrap();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -706,7 +706,7 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        let num_ct_blocks = block_range.len() as u32;
+        let num_ct_blocks = u32::try_from(block_range.len()).unwrap();
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -897,13 +897,13 @@ impl CudaServerKey {
                         computing_ks_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
-                        num_ct_blocks as u32,
+                        u32::try_from(num_ct_blocks).unwrap(),
                         self.message_modulus,
                         self.carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        function_count as u32,
-                        lut.sample_extraction_stride as u32,
+                        u32::try_from(function_count).unwrap(),
+                        u32::try_from(lut.sample_extraction_stride).unwrap(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -925,13 +925,13 @@ impl CudaServerKey {
                         computing_ks_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        num_ct_blocks as u32,
+                        u32::try_from(num_ct_blocks).unwrap(),
                         self.message_modulus,
                         self.carry_modulus,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
-                        function_count as u32,
-                        lut.sample_extraction_stride as u32,
+                        u32::try_from(function_count).unwrap(),
+                        u32::try_from(lut.sample_extraction_stride).unwrap(),
                         None,
                     );
                 }
@@ -1026,7 +1026,7 @@ impl CudaServerKey {
                         source.as_mut(),
                         T::IS_SIGNED,
                         requires_full_propagate,
-                        target_num_blocks as u32,
+                        u32::try_from(target_num_blocks).unwrap(),
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_bsk.glwe_dimension,
@@ -1049,7 +1049,7 @@ impl CudaServerKey {
                         source.as_mut(),
                         T::IS_SIGNED,
                         requires_full_propagate,
-                        target_num_blocks as u32,
+                        u32::try_from(target_num_blocks).unwrap(),
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_multibit_bsk.glwe_dimension,
@@ -1233,8 +1233,8 @@ impl CudaServerKey {
                         computing_ks_key.decomposition_base_log(),
                         bsk.decomp_level_count,
                         bsk.decomp_base_log,
-                        num_output_blocks as u32,
-                        input.d_blocks.lwe_ciphertext_count().0 as u32,
+                        u32::try_from(num_output_blocks).unwrap(),
+                        u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap(),
                         self.message_modulus,
                         self.carry_modulus,
                         PBSType::Classical,
@@ -1260,8 +1260,8 @@ impl CudaServerKey {
                         computing_ks_key.decomposition_base_log(),
                         mb_bsk.decomp_level_count,
                         mb_bsk.decomp_base_log,
-                        num_output_blocks as u32,
-                        input.d_blocks.lwe_ciphertext_count().0 as u32,
+                        u32::try_from(num_output_blocks).unwrap(),
+                        u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap(),
                         self.message_modulus,
                         self.carry_modulus,
                         PBSType::MultiBit,

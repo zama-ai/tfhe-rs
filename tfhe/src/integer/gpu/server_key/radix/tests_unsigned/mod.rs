@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
 pub(crate) mod test_aes256;

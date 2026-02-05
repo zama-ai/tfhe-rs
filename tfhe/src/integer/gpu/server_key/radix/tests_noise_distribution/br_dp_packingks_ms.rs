@@ -656,7 +656,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(meta_params: MetaParameters
 
         assert!(
             (params.message_modulus().0 * params.carry_modulus().0).ilog2()
-                <= comp_params.storage_log_modulus().0 as u32,
+                <= u32::try_from(comp_params.storage_log_modulus().0).unwrap(),
             "Compression storage modulus cannot store enough bits for pfail estimation"
         );
 
@@ -677,7 +677,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(meta_params: MetaParameters
         let pfail_test_meta = if should_run_short_pfail_tests_debug() {
             // To have the same amount of keys generated as the case where a single run is a single
             // sample
-            let expected_fails = 200 * lwe_per_glwe.0 as u32;
+            let expected_fails = 200 * u32::try_from(lwe_per_glwe.0).unwrap();
             PfailTestMeta::new_with_desired_expected_fails(
                 original_pfail_and_precision,
                 new_expected_pfail_and_precision,
@@ -685,7 +685,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(meta_params: MetaParameters
             )
         } else {
             // To guarantee 1_000_000 keysets are generated
-            let total_runs = 1_000_000 * lwe_per_glwe.0 as u32;
+            let total_runs = 1_000_000 * u32::try_from(lwe_per_glwe.0).unwrap();
             PfailTestMeta::new_with_total_runs(
                 original_pfail_and_precision,
                 new_expected_pfail_and_precision,

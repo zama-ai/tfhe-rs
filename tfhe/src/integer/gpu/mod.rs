@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 pub mod ciphertext;
 pub mod client_key;
 pub mod key_switching_key;
@@ -136,8 +137,8 @@ fn prepare_cuda_lwe_ct_ffi<T: UnsignedInteger>(
 ) -> CudaLweCiphertextListFFI {
     CudaLweCiphertextListFFI {
         ptr: input.0.d_vec.get_mut_c_ptr(0),
-        num_radix_blocks: input.0.lwe_ciphertext_count.0 as u32,
-        lwe_dimension: input.0.lwe_dimension.0 as u32,
+        num_radix_blocks: u32::try_from(input.0.lwe_ciphertext_count.0).unwrap(),
+        lwe_dimension: u32::try_from(input.0.lwe_dimension.0).unwrap(),
     }
 }
 
@@ -146,11 +147,11 @@ fn prepare_cuda_packed_glwe_ct_ffi<T: UnsignedInteger>(
 ) -> CudaPackedGlweCiphertextListFFI {
     CudaPackedGlweCiphertextListFFI {
         ptr: input.data.get_mut_c_ptr(0),
-        storage_log_modulus: input.meta.unwrap().storage_log_modulus.0 as u32,
-        lwe_per_glwe: input.meta.unwrap().lwe_per_glwe.0 as u32,
-        total_lwe_bodies_count: input.meta.unwrap().total_lwe_bodies_count as u32,
-        glwe_dimension: input.meta.unwrap().glwe_dimension.0 as u32,
-        polynomial_size: input.meta.unwrap().polynomial_size.0 as u32,
+        storage_log_modulus: u32::try_from(input.meta.unwrap().storage_log_modulus.0).unwrap(),
+        lwe_per_glwe: u32::try_from(input.meta.unwrap().lwe_per_glwe.0).unwrap(),
+        total_lwe_bodies_count: u32::try_from(input.meta.unwrap().total_lwe_bodies_count).unwrap(),
+        glwe_dimension: u32::try_from(input.meta.unwrap().glwe_dimension.0).unwrap(),
+        polynomial_size: u32::try_from(input.meta.unwrap().polynomial_size.0).unwrap(),
     }
 }
 
@@ -167,9 +168,9 @@ fn prepare_cuda_radix_ffi(
         ptr: input.d_blocks.0.d_vec.get_mut_c_ptr(0),
         degrees: degrees_vec.as_mut_ptr(),
         noise_levels: noise_levels_vec.as_mut_ptr(),
-        num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
-        max_num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
-        lwe_dimension: input.d_blocks.0.lwe_dimension.0 as u32,
+        num_radix_blocks: u32::try_from(input.d_blocks.0.lwe_ciphertext_count.0).unwrap(),
+        max_num_radix_blocks: u32::try_from(input.d_blocks.0.lwe_ciphertext_count.0).unwrap(),
+        lwe_dimension: u32::try_from(input.d_blocks.0.lwe_dimension.0).unwrap(),
     }
 }
 
@@ -428,28 +429,31 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         &mut lwe_array_noise_levels,
     );
     let msg_bits = message_modulus.0.ilog2() as usize;
-    let num_blocks = lwe_array.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(lwe_array.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_ciphertext_bits = msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == T::ONE)
-        .count() as u32;
+    let num_scalar_bits = u32::try_from(
+        decomposed_scalar
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&rhs_bit| rhs_bit == T::ONE)
+            .count(),
+    )
+    .unwrap();
 
     scratch_cuda_integer_scalar_mul_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        lwe_array.d_blocks.0.lwe_ciphertext_count.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(lwe_array.d_blocks.0.lwe_ciphertext_count.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         num_scalar_bits,
         true,
@@ -464,8 +468,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        polynomial_size.0 as u32,
-        message_modulus.0 as u32,
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
         num_scalars,
     );
 
@@ -496,27 +500,30 @@ pub(crate) fn cuda_backend_get_scalar_mul_size_on_gpu<T: UnsignedInteger>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let msg_bits = message_modulus.0.ilog2() as usize;
     let num_ciphertext_bits = msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == T::ONE)
-        .count() as u32;
+    let num_scalar_bits = u32::try_from(
+        decomposed_scalar
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&rhs_bit| rhs_bit == T::ONE)
+            .count(),
+    )
+    .unwrap();
 
     let size_tracker = unsafe {
         scratch_cuda_integer_scalar_mul_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             num_scalar_bits,
             false,
@@ -575,7 +582,7 @@ where
         let e = MiniUnsignedInteger::ilog2(two_pow_e);
         let divisor_odd_dp = divisor_dp / two_pow_e;
 
-        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
         let divisor_odd: Scalar = divisor_odd_dp.cast_into();
         chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
     }
@@ -593,11 +600,14 @@ where
         .iter_as::<u64>()
         .collect::<Vec<_>>();
 
-    scalar_divisor_ffi.active_bits = decomposed_rhs
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
@@ -607,17 +617,17 @@ where
         scratch_cuda_integer_unsigned_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             false,
@@ -685,11 +695,14 @@ where
         .collect::<Vec<_>>();
 
     let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    scalar_divisor_ffi.active_bits = decomposed_rhs
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_rhs
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
@@ -699,17 +712,17 @@ where
         scratch_cuda_integer_signed_scalar_div_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             false,
@@ -780,14 +793,14 @@ pub(crate) unsafe fn cuda_backend_compress<
         scratch_cuda_integer_compress_radix_ciphertext_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            compression_glwe_dimension.0 as u32,
-            compression_polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
+            u32::try_from(compression_glwe_dimension.0).unwrap(),
+            u32::try_from(compression_polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             PBSType::Classical as u32,
             lwe_per_glwe,
             true,
@@ -810,14 +823,14 @@ pub(crate) unsafe fn cuda_backend_compress<
         scratch_cuda_integer_compress_radix_ciphertext_128(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            compression_glwe_dimension.0 as u32,
-            compression_polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
+            u32::try_from(compression_glwe_dimension.0).unwrap(),
+            u32::try_from(compression_polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             PBSType::Classical as u32,
             lwe_per_glwe,
             true,
@@ -856,14 +869,14 @@ pub(crate) fn cuda_backend_get_compression_size_on_gpu(
         scratch_cuda_integer_compress_radix_ciphertext_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            compression_glwe_dimension.0 as u32,
-            compression_polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
+            u32::try_from(compression_glwe_dimension.0).unwrap(),
+            u32::try_from(compression_polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             PBSType::Classical as u32,
             lwe_per_glwe,
             false,
@@ -912,17 +925,17 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
     scratch_cuda_integer_decompress_radix_ciphertext_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        encryption_glwe_dimension.0 as u32,
-        encryption_polynomial_size.0 as u32,
-        compression_glwe_dimension.0 as u32,
-        compression_polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(encryption_glwe_dimension.0).unwrap(),
+        u32::try_from(encryption_polynomial_size.0).unwrap(),
+        u32::try_from(compression_glwe_dimension.0).unwrap(),
+        u32::try_from(compression_polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks_to_decompress,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         PBSMSNoiseReductionType::NoReduction as u32,
@@ -986,12 +999,12 @@ pub(crate) unsafe fn cuda_backend_decompress_128(
     scratch_cuda_integer_decompress_radix_ciphertext_128(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        compression_glwe_dimension.0 as u32,
-        compression_polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
+        u32::try_from(compression_glwe_dimension.0).unwrap(),
+        u32::try_from(compression_polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_blocks_to_decompress,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         true,
     );
 
@@ -1030,17 +1043,17 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
         scratch_cuda_integer_decompress_radix_ciphertext_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            encryption_glwe_dimension.0 as u32,
-            encryption_polynomial_size.0 as u32,
-            compression_glwe_dimension.0 as u32,
-            compression_polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(encryption_glwe_dimension.0).unwrap(),
+            u32::try_from(encryption_polynomial_size.0).unwrap(),
+            u32::try_from(compression_glwe_dimension.0).unwrap(),
+            u32::try_from(compression_polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks_to_decompress,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             PBSMSNoiseReductionType::NoReduction as u32,
@@ -1235,16 +1248,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         std::ptr::addr_of_mut!(mem_ptr),
         is_boolean_left,
         is_boolean_right,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        glwe_dimension.0 as u32,
-        lwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        pbs_base_log.0 as u32,
-        pbs_level.0 as u32,
-        ks_base_log.0 as u32,
-        ks_level.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
         pbs_type as u32,
         true,
@@ -1260,7 +1273,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         mem_ptr,
-        polynomial_size.0 as u32,
+        u32::try_from(polynomial_size.0).unwrap(),
         num_blocks,
     );
     cleanup_cuda_integer_mult(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1295,16 +1308,16 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
             std::ptr::addr_of_mut!(mem_ptr),
             is_boolean_left,
             is_boolean_right,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
             pbs_type as u32,
             false,
@@ -1419,18 +1432,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
     scratch_cuda_bitop_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         op as u32,
         true,
@@ -1552,18 +1565,18 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
     scratch_cuda_boolean_bitop_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         op as u32,
         is_unchecked,
@@ -1610,18 +1623,18 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
         scratch_cuda_boolean_bitop_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             op as u32,
             is_unchecked,
@@ -1661,17 +1674,17 @@ pub(crate) fn cuda_backend_get_boolean_bitnot_size_on_gpu(
         scratch_cuda_boolean_bitnot_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             num_blocks,
             is_unchecked,
@@ -1711,18 +1724,18 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
         scratch_cuda_bitop_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             op as u32,
             false,
@@ -1814,18 +1827,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
     scratch_cuda_bitop_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         op as u32,
         true,
@@ -1837,7 +1850,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         &raw const cuda_ffi_radix_lwe,
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
-        min(clear_blocks.len() as u32, num_blocks),
+        min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
@@ -1872,18 +1885,18 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
         scratch_cuda_bitop_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             op as u32,
             false,
@@ -2020,18 +2033,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
     scratch_cuda_comparison_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(radix_lwe_left.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         op as u32,
         is_signed,
@@ -2080,18 +2093,18 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
         scratch_cuda_comparison_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             op as u32,
             is_signed,
@@ -2215,18 +2228,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
     scratch_cuda_comparison_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         op as u32,
         signed_with_positive_scalar,
@@ -2319,16 +2332,16 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
     scratch_cuda_full_propagation_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -2368,16 +2381,16 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
         scratch_cuda_full_propagation_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -2443,7 +2456,7 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
     let mut radix_lwe_input_degrees = radix_lwe_input
         .info
         .blocks
@@ -2485,18 +2498,18 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
     scratch_cuda_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
         big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         requested_flag as u32,
         true,
@@ -2539,23 +2552,23 @@ pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
     let size_tracker = unsafe {
         scratch_cuda_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
             big_lwe_dimension,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             requested_flag as u32,
             false,
@@ -2589,23 +2602,23 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
     let size_tracker = unsafe {
         scratch_cuda_add_and_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
             big_lwe_dimension,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             requested_flag as u32,
             false,
@@ -2698,7 +2711,7 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
 
     let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut lhs_input_noise_levels = lhs_input
@@ -2752,18 +2765,18 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
     scratch_cuda_sub_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
         big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         requested_flag as u32,
         true,
@@ -2868,7 +2881,7 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
     let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut lhs_input_noise_levels = lhs_input
         .info
@@ -2917,18 +2930,18 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     scratch_cuda_add_and_propagate_single_carry_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
         big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         requested_flag as u32,
         true,
@@ -3007,17 +3020,17 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
     scratch_cuda_integer_grouped_oprf_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks_to_process,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         message_bits_per_block,
@@ -3084,7 +3097,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
-    let num_scalars = decomposed_scalar.len() as u32;
+    let num_scalars = u32::try_from(decomposed_scalar.len()).unwrap();
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3106,17 +3119,17 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     scratch_cuda_integer_grouped_oprf_custom_range_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks_intermediate,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         message_bits_per_block,
@@ -3174,17 +3187,17 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
         scratch_cuda_integer_grouped_oprf_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks_to_process,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             message_bits_per_block,
@@ -3230,9 +3243,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
 ) where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
-    let num_blocks = quotient.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(quotient.d_blocks.lwe_ciphertext_count().0).unwrap();
     let msg_bits = message_modulus.0.ilog2() as usize;
-    let numerator_bits = msg_bits as u32 * num_blocks;
+    let numerator_bits = u32::try_from(msg_bits).unwrap() * num_blocks;
 
     let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
 
@@ -3252,7 +3265,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         let e = MiniUnsignedInteger::ilog2(two_pow_e);
         let divisor_odd_dp = divisor_dp / two_pow_e;
 
-        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
         let divisor_odd: Scalar = divisor_odd_dp.cast_into();
         chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
         e as u64
@@ -3286,12 +3299,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
     scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
     scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
         multiplier_has_at_least_one_set.as_ptr();
-    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
-    scalar_divisor_ffi.active_bits = decomposed_multiplier
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_multiplier
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
     scalar_divisor_ffi.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
     scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
     scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
@@ -3339,27 +3355,30 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
     let mut cuda_ffi_remainder =
         prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
 
-    let num_scalars_divisor = decomposed_divisor.len() as u32;
-    let active_bits_divisor = decomposed_divisor
-        .iter()
-        .take(msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    let num_scalars_divisor = u32::try_from(decomposed_divisor.len()).unwrap();
+    let active_bits_divisor = u32::try_from(
+        decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     scratch_integer_unsigned_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
@@ -3380,7 +3399,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         num_scalars_divisor,
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
-        min(clear_blocks.len() as u32, num_blocks),
+        min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
     );
 
     cleanup_cuda_integer_unsigned_scalar_div_rem_radix_64(
@@ -3425,9 +3444,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
-    let num_blocks = quotient.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(quotient.d_blocks.lwe_ciphertext_count().0).unwrap();
     let msg_bits = message_modulus.0.ilog2() as usize;
-    let numerator_bits = msg_bits as u32 * num_blocks;
+    let numerator_bits = u32::try_from(msg_bits).unwrap() * num_blocks;
 
     let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
 
@@ -3483,12 +3502,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
         multiplier_has_at_least_one_set.as_ptr();
     scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
-    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
-    scalar_divisor_ffi.active_bits = decomposed_multiplier
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_multiplier
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     scalar_divisor_ffi.is_chosen_multiplier_pow2 = rhs.is_power_of_two();
     scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
@@ -3518,27 +3540,30 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     let mut cuda_ffi_remainder =
         prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
 
-    let num_scalars_divisor = decomposed_divisor.len() as u32;
-    let active_bits_divisor = decomposed_divisor
-        .iter()
-        .take(message_modulus.0.ilog2() as usize * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    let num_scalars_divisor = u32::try_from(decomposed_divisor.len()).unwrap();
+    let active_bits_divisor = u32::try_from(
+        decomposed_divisor
+            .iter()
+            .take(message_modulus.0.ilog2() as usize * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     scratch_integer_signed_scalar_div_rem_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
@@ -3604,11 +3629,14 @@ where
     let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    let active_bits_divisor = decomposed_divisor
-        .iter()
-        .take(msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    let active_bits_divisor = u32::try_from(
+        decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
@@ -3623,7 +3651,7 @@ where
         let e = MiniUnsignedInteger::ilog2(two_pow_e);
         let divisor_odd_dp = divisor_dp / two_pow_e;
 
-        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
         let divisor_odd: Scalar = divisor_odd_dp.cast_into();
         chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
     }
@@ -3640,11 +3668,14 @@ where
     let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    scalar_divisor_ffi.active_bits = decomposed_rhs
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
@@ -3654,17 +3685,17 @@ where
         scratch_integer_unsigned_scalar_div_rem_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             active_bits_divisor,
@@ -3719,11 +3750,14 @@ where
     let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    let active_bits_divisor = decomposed_divisor
-        .iter()
-        .take(msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    let active_bits_divisor = u32::try_from(
+        decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let chosen_multiplier = choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
     scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
@@ -3741,11 +3775,14 @@ where
     let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    scalar_divisor_ffi.active_bits = decomposed_rhs
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
@@ -3755,17 +3792,17 @@ where
         scratch_integer_signed_scalar_div_rem_radix_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             &raw const scalar_divisor_ffi,
             active_bits_divisor,
@@ -3822,7 +3859,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
     assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
 
-    let num_blocks = numerator.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(numerator.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let numerator_bits = message_modulus.0.ilog2() * num_blocks;
     let msg_bits = message_modulus.0.ilog2() as usize;
@@ -3850,7 +3887,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         let e = MiniUnsignedInteger::ilog2(two_pow_e);
         let divisor_odd_dp = divisor_dp / two_pow_e;
 
-        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
         let divisor_odd: Scalar = divisor_odd_dp.cast_into();
         chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
         e as u64
@@ -3885,12 +3922,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
     scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
         multiplier_has_at_least_one_set.as_ptr();
     scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
-    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
-    scalar_divisor_ffi.active_bits = decomposed_multiplier
-        .iter()
-        .take(2 * msg_bits * num_blocks as usize)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_multiplier
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     scalar_divisor_ffi.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
     scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
@@ -3924,17 +3964,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
     scratch_cuda_integer_unsigned_scalar_div_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         true,
@@ -3990,9 +4030,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
-    let num_blocks = numerator.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(numerator.d_blocks.lwe_ciphertext_count().0).unwrap();
     let msg_bits = message_modulus.0.ilog2() as usize;
-    let numerator_bits = msg_bits as u32 * num_blocks;
+    let numerator_bits = u32::try_from(msg_bits).unwrap() * num_blocks;
 
     let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
 
@@ -4032,12 +4072,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
         multiplier_has_at_least_one_set.as_ptr();
     scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
-    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
-    scalar_divisor_ffi.active_bits = decomposed_multiplier
-        .iter()
-        .take(msg_bits * 2 * num_blocks as usize)
-        .filter(|&&bit| bit == 1u64)
-        .count() as u32;
+    scalar_divisor_ffi.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
+    scalar_divisor_ffi.active_bits = u32::try_from(
+        decomposed_multiplier
+            .iter()
+            .take(msg_bits * 2 * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count(),
+    )
+    .unwrap();
 
     scalar_divisor_ffi.is_chosen_multiplier_pow2 = rhs.is_power_of_two();
     scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
@@ -4068,17 +4111,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     scratch_cuda_integer_signed_scalar_div_radix_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         &raw const scalar_divisor_ffi,
         true,
@@ -4167,18 +4210,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
     scratch_cuda_logical_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::LeftShift as u32,
         true,
@@ -4263,18 +4306,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     scratch_cuda_logical_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
@@ -4358,18 +4401,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
     scratch_cuda_arithmetic_scalar_shift_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        input.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
@@ -4475,18 +4518,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
     scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         is_signed,
@@ -4593,18 +4636,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
     scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::LeftShift as u32,
         is_signed,
@@ -4716,18 +4759,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
     scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::RightRotate as u32,
         is_signed,
@@ -4839,18 +4882,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
     scratch_cuda_shift_and_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::LeftRotate as u32,
         is_signed,
@@ -4894,18 +4937,18 @@ pub(crate) fn cuda_backend_get_scalar_left_shift_size_on_gpu(
         scratch_cuda_logical_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::LeftShift as u32,
             false,
@@ -4943,18 +4986,18 @@ pub(crate) fn cuda_backend_get_scalar_logical_right_shift_size_on_gpu(
         scratch_cuda_logical_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
@@ -4992,18 +5035,18 @@ pub(crate) fn cuda_backend_get_scalar_arithmetic_right_shift_size_on_gpu(
         scratch_cuda_arithmetic_scalar_shift_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
@@ -5042,18 +5085,18 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
         scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             is_signed,
@@ -5093,18 +5136,18 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
         scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::LeftShift as u32,
             is_signed,
@@ -5144,18 +5187,18 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
         scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::RightRotate as u32,
             is_signed,
@@ -5195,18 +5238,18 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
         scratch_cuda_shift_and_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::LeftRotate as u32,
             is_signed,
@@ -5382,18 +5425,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
     scratch_cuda_cmux_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -5457,13 +5500,13 @@ pub(crate) unsafe fn cuda_backend_rerand_assign<T: UnsignedInteger>(
     scratch_cuda_rerand_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         true,
     );
     cuda_rerand_64(
@@ -5500,18 +5543,18 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
         scratch_cuda_cmux_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -5592,18 +5635,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
     scratch_cuda_scalar_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::LeftShift as u32,
         true,
@@ -5690,18 +5733,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
     scratch_cuda_scalar_rotate_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         ShiftRotateType::RightShift as u32,
         true,
@@ -5744,18 +5787,18 @@ pub(crate) fn cuda_backend_get_scalar_rotate_left_size_on_gpu(
         scratch_cuda_scalar_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::LeftShift as u32,
             false,
@@ -5793,18 +5836,18 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
         scratch_cuda_scalar_rotate_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             ShiftRotateType::RightShift as u32,
             false,
@@ -5898,18 +5941,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     scratch_cuda_partial_sum_ciphertexts_vec_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
         num_radixes,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         reduce_degrees_for_single_carry_propagation,
         true,
@@ -5998,30 +6041,30 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
         output_degrees,
         output_noise_levels,
         num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+        u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap(),
     );
     let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
         input,
         output_degrees,
         output_noise_levels,
         num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+        u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap(),
     );
     scratch_cuda_apply_univariate_lut_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         lut_degree,
         true,
@@ -6110,30 +6153,30 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         output_degrees,
         output_noise_levels,
         num_blocks * num_many_lut,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+        u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap(),
     );
     let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
         input,
         output_degrees,
         output_noise_levels,
         num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+        u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap(),
     );
     scratch_cuda_apply_many_univariate_lut_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         num_many_lut,
         lut_degree,
@@ -6274,18 +6317,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         streams.ffi(),
         is_signed,
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -6333,18 +6376,18 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
             streams.ffi(),
             is_signed,
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -6404,8 +6447,8 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
         "GPU error: stream and keyswitch_key are on different GPUs"
     );
 
-    let num_blocks = input_ct.d_blocks.lwe_ciphertext_count().0 as u32;
-    let counter_num_blocks = output_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(input_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let counter_num_blocks = u32::try_from(output_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -6434,18 +6477,18 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
     scratch_integer_count_of_consecutive_bits_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
         counter_num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         direction,
         bit_value,
@@ -6586,16 +6629,16 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
     scratch_integer_ilog2_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         input_num_blocks,
         counter_num_blocks,
@@ -6684,7 +6727,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let big_lwe_dimension: u32 = u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap();
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
         .blocks
@@ -6743,18 +6786,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     scratch_cuda_integer_overflowing_sub_64_inplace(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
         big_lwe_dimension,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(radix_lwe_left.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         compute_overflow as u32,
         true,
@@ -6835,18 +6878,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         true,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -6960,18 +7003,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
     scratch_cuda_integer_is_at_least_one_comparisons_block_true_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -6984,7 +7027,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
 
     cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
@@ -7091,18 +7134,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
     scratch_cuda_integer_are_all_comparisons_block_true_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7115,7 +7158,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
 
     cleanup_cuda_integer_are_all_comparisons_block_true(
@@ -7179,7 +7222,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_negate(
         &raw const cuda_ffi_radix_lwe_in,
         message_modulus,
         carry_modulus,
-        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
+        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
@@ -7341,33 +7384,33 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         output_degrees,
         output_noise_levels,
         num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+        u32::try_from(glwe_dimension.0 * polynomial_size.0).unwrap(),
     );
     let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
         input,
         output_degrees,
         output_noise_levels,
         original_num_blocks,
-        (input_glwe_dimension.0 * input_polynomial_size.0) as u32,
+        u32::try_from(input_glwe_dimension.0 * input_polynomial_size.0).unwrap(),
     );
 
     scratch_cuda_apply_noise_squashing(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        input_glwe_dimension.0 as u32,
-        input_polynomial_size.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(input_glwe_dimension.0).unwrap(),
+        u32::try_from(input_polynomial_size.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_blocks,
         original_num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7469,27 +7512,30 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
     scratch_cuda_expand_without_verification_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        computing_glwe_dimension.0 as u32,
-        computing_polynomial_size.0 as u32,
-        computing_glwe_dimension
-            .to_equivalent_lwe_dimension(computing_polynomial_size)
-            .0 as u32,
-        computing_lwe_dimension.0 as u32,
-        computing_ks_level.0 as u32,
-        computing_ks_base_log.0 as u32,
-        casting_input_lwe_dimension.0 as u32,
-        casting_output_lwe_dimension.0 as u32,
-        casting_ks_level.0 as u32,
-        casting_ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(computing_glwe_dimension.0).unwrap(),
+        u32::try_from(computing_polynomial_size.0).unwrap(),
+        u32::try_from(
+            computing_glwe_dimension
+                .to_equivalent_lwe_dimension(computing_polynomial_size)
+                .0,
+        )
+        .unwrap(),
+        u32::try_from(computing_lwe_dimension.0).unwrap(),
+        u32::try_from(computing_ks_level.0).unwrap(),
+        u32::try_from(computing_ks_base_log.0).unwrap(),
+        u32::try_from(casting_input_lwe_dimension.0).unwrap(),
+        u32::try_from(casting_output_lwe_dimension.0).unwrap(),
+        u32::try_from(casting_ks_level.0).unwrap(),
+        u32::try_from(casting_ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_lwes_per_compact_list.as_ptr(),
         is_boolean.as_ptr(),
         is_boolean_len,
-        num_compact_lists as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(num_compact_lists).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         casting_key_type as u32,
         true,
@@ -7571,16 +7617,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
     scratch_cuda_integer_aes_encrypt_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7669,16 +7715,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
     scratch_cuda_integer_aes_encrypt_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7728,16 +7774,16 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
         scratch_cuda_integer_aes_encrypt_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -7804,16 +7850,16 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
     scratch_cuda_integer_key_expansion_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7856,16 +7902,16 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
         scratch_cuda_integer_key_expansion_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             true,
             noise_reduction_type as u32,
@@ -7932,16 +7978,16 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: N
     scratch_cuda_integer_key_expansion_256_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -7984,16 +8030,16 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
         scratch_cuda_integer_key_expansion_256_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             true,
             noise_reduction_type as u32,
@@ -8073,17 +8119,17 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
     scratch_cuda_boolean_bitnot_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         1u32,
         is_unchecked,
@@ -8138,9 +8184,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitnot_assign(
     cuda_bitnot_ciphertext_64(
         streams.ffi(),
         &raw mut cuda_ffi_ciphertext,
-        param_message_modulus.0 as u32,
-        param_message_modulus.0 as u32,
-        param_carry_modulus.0 as u32,
+        u32::try_from(param_message_modulus.0).unwrap(),
+        u32::try_from(param_message_modulus.0).unwrap(),
+        u32::try_from(param_carry_modulus.0).unwrap(),
     );
     update_noise_degree(ciphertext, &cuda_ffi_ciphertext);
 }
@@ -8199,7 +8245,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
             .gpu_index(0)
     );
 
-    let num_input_blocks = lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks =
+        u32::try_from(lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
     let h_match_inputs: Vec<u64> = matches
         .get_values()
@@ -8221,11 +8268,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         .expect("luts is not empty at this point")
         .1;
 
-    let num_output_unpacked_blocks = lwe_array_out_result
-        .as_ref()
-        .d_blocks
-        .lwe_ciphertext_count()
-        .0 as u32;
+    let num_output_unpacked_blocks = u32::try_from(
+        lwe_array_out_result
+            .as_ref()
+            .d_blocks
+            .lwe_ciphertext_count()
+            .0,
+    )
+    .unwrap();
     let num_output_packed_blocks = num_output_unpacked_blocks.div_ceil(2);
 
     let h_match_outputs: Vec<u64> = matches
@@ -8241,7 +8291,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         .collect();
 
     let max_output_is_zero = max_output_value == Clear::ZERO;
-    let num_matches = matches.get_values().len() as u32;
+    let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -8303,21 +8353,21 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     scratch_cuda_unchecked_match_value_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_matches,
         num_input_blocks,
         num_output_packed_blocks,
         max_output_is_zero as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -8372,7 +8422,7 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
 where
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 {
-    let num_input_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks = u32::try_from(ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let max_output_value = matches
         .get_values()
@@ -8393,7 +8443,7 @@ where
 
     let num_output_packed_blocks = num_output_unpacked_blocks.div_ceil(2);
     let max_output_is_zero = max_output_value == Clear::ZERO;
-    let num_matches = matches.get_values().len() as u32;
+    let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -8402,21 +8452,21 @@ where
         scratch_cuda_unchecked_match_value_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_matches,
             num_input_blocks,
             num_output_packed_blocks,
             max_output_is_zero as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -8458,7 +8508,7 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu<Clear>(
 where
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 {
-    let num_input_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks = u32::try_from(ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let max_output_value = matches
@@ -8486,7 +8536,7 @@ where
     let num_output_blocks = num_blocks_match.max(num_blocks_or);
     let num_match_packed_blocks = num_blocks_match.div_ceil(2);
     let max_output_is_zero = max_output_value == Clear::ZERO;
-    let num_matches = matches.get_values().len() as u32;
+    let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -8495,22 +8545,22 @@ where
         scratch_cuda_unchecked_match_value_or_64(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(big_lwe_dimension.0).unwrap(),
+            u32::try_from(small_lwe_dimension.0).unwrap(),
+            u32::try_from(ks_level.0).unwrap(),
+            u32::try_from(ks_base_log.0).unwrap(),
+            u32::try_from(pbs_level.0).unwrap(),
+            u32::try_from(pbs_base_log.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
             num_matches,
             num_input_blocks,
             num_match_packed_blocks,
             num_output_blocks,
             max_output_is_zero as u32,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
             false,
             noise_reduction_type as u32,
@@ -8553,7 +8603,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
 ) {
     let message_modulus = input.info.blocks.first().unwrap().message_modulus;
     let carry_modulus = input.info.blocks.first().unwrap().carry_modulus;
-    let num_input_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -8574,21 +8624,21 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
     scratch_cuda_cast_to_unsigned_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_input_blocks,
         target_num_blocks,
         input_is_signed,
         requires_full_propagate,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -8659,7 +8709,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
-    let num_input_blocks = lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks =
+        u32::try_from(lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let h_match_inputs: Vec<u64> = matches
@@ -8702,7 +8753,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         })
         .collect();
 
-    let num_final_blocks = lwe_array_out.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_final_blocks =
+        u32::try_from(lwe_array_out.as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let h_or_value: Vec<u64> = BlockDecomposer::new(or_value, num_bits_in_message)
         .take(num_final_blocks as usize)
@@ -8710,7 +8762,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         .collect();
 
     let max_output_is_zero = max_output_value == Clear::ZERO;
-    let num_matches = matches.get_values().len() as u32;
+    let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
     let mut ffi_out_degrees: Vec<u64> = lwe_array_out
         .as_ref()
@@ -8755,22 +8807,22 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     scratch_cuda_unchecked_match_value_or_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_matches,
         num_input_blocks,
         num_match_packed_blocks,
         num_final_blocks,
         max_output_is_zero as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -8828,8 +8880,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -8881,19 +8933,19 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     scratch_cuda_unchecked_contains_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -8957,8 +9009,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         );
     }
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks = inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks = u32::try_from(inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let h_clear_blocks: Vec<u64> = BlockDecomposer::new(clear, num_bits_in_message)
@@ -9011,19 +9063,19 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     scratch_cuda_unchecked_contains_clear_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9081,8 +9133,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
-    let num_clears = clears.len() as u32;
-    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_clears = u32::try_from(clears.len()).unwrap();
+    let num_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let h_decomposed_cleartexts: Vec<u64> = clears
@@ -9115,19 +9167,19 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     scratch_cuda_unchecked_is_in_clears_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_clears,
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9186,9 +9238,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
-    let num_clears = clears.len() as u32;
-    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_clears = u32::try_from(clears.len()).unwrap();
+    let num_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let h_decomposed_cleartexts: Vec<u64> = clears
@@ -9236,20 +9288,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     scratch_cuda_unchecked_index_in_clears_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_clears,
         num_blocks,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9312,8 +9364,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
     let num_bits_in_message = message_modulus.0.ilog2();
-    let num_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let unique_elements: Vec<(usize, &Clear)> = clears
         .iter()
@@ -9321,7 +9373,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         .unique_by(|&(_, value)| value)
         .collect();
 
-    let num_unique = unique_elements.len() as u32;
+    let num_unique = u32::try_from(unique_elements.len()).unwrap();
 
     let h_unique_values: Vec<u64> = unique_elements
         .par_iter()
@@ -9341,7 +9393,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         .flat_map(|(index, _)| {
             let val = *index as u64;
             (0..num_packed_blocks).into_par_iter().map(move |b| {
-                let shift = b as u32 * bits_per_packed_block;
+                let shift = u32::try_from(b).unwrap() * bits_per_packed_block;
                 if shift >= 64 {
                     0
                 } else {
@@ -9386,20 +9438,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     scratch_cuda_unchecked_first_index_in_clears_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_unique,
         num_blocks,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9462,9 +9514,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks = inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks = u32::try_from(inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_bits_in_message = message_modulus.0.ilog2();
 
     let h_clear_blocks: Vec<u64> = BlockDecomposer::new(clear, num_bits_in_message)
@@ -9532,20 +9584,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     scratch_cuda_unchecked_first_index_of_clear_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9607,9 +9659,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -9676,20 +9728,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     scratch_cuda_unchecked_first_index_of_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9751,9 +9803,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks = value.d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -9820,20 +9872,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     scratch_cuda_unchecked_index_of_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -9895,9 +9947,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
-    let num_inputs = inputs.len() as u32;
-    let num_blocks_in_ct = inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-    let num_blocks_index = index_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(inputs.len()).unwrap();
+    let num_blocks_in_ct =
+        u32::try_from(inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let mut scalar_blocks =
         BlockDecomposer::with_early_stop_at_zero(clear, message_modulus.0.ilog2())
@@ -9909,7 +9962,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
 
     scalar_blocks.truncate(num_blocks_in_ct as usize);
-    let num_scalar_blocks = scalar_blocks.len() as u32;
+    let num_scalar_blocks = u32::try_from(scalar_blocks.len()).unwrap();
 
     let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
 
@@ -9973,20 +10026,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     scratch_cuda_unchecked_index_of_clear_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks_in_ct,
         num_blocks_index,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -10048,8 +10101,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
-    let num_inputs = lhs.len() as u32;
-    let num_blocks = lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs = u32::try_from(lhs.len()).unwrap();
+    let num_blocks = u32::try_from(lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
@@ -10125,19 +10178,19 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
     scratch_cuda_unchecked_all_eq_slices_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -10194,9 +10247,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
-    let num_inputs_lhs = lhs.len() as u32;
-    let num_inputs_rhs = rhs.len() as u32;
-    let num_blocks = lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_inputs_lhs = u32::try_from(lhs.len()).unwrap();
+    let num_inputs_rhs = u32::try_from(rhs.len()).unwrap();
+    let num_blocks = u32::try_from(lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
@@ -10272,20 +10325,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     scratch_cuda_unchecked_contains_sub_slice_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_inputs_lhs,
         num_inputs_rhs,
         num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,
@@ -10337,8 +10390,8 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
-    let num_input_blocks = input.d_blocks.lwe_ciphertext_count().0 as u32;
-    let target_num_blocks = output.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_input_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let target_num_blocks = u32::try_from(output.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -10356,18 +10409,18 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
     scratch_cuda_cast_to_signed_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
         num_input_blocks,
         target_num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         input_is_signed,
         true,
@@ -10422,8 +10475,8 @@ pub unsafe fn unchecked_small_scalar_mul_integer_async(
         streams.ffi(),
         &raw mut cuda_ffi_lwe_array,
         small_scalar,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
     );
 }
 
@@ -10522,7 +10575,7 @@ pub(crate) unsafe fn cuda_backend_trivium_generate_keystream<T: UnsignedInteger,
     let mut iv_noise_levels = iv.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let cuda_ffi_iv = prepare_cuda_radix_ffi(iv, &mut iv_degrees, &mut iv_noise_levels);
 
-    let num_inputs = (key.info.blocks.len() / 80) as u32;
+    let num_inputs = u32::try_from(key.info.blocks.len() / 80).unwrap();
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -10531,16 +10584,16 @@ pub(crate) unsafe fn cuda_backend_trivium_generate_keystream<T: UnsignedInteger,
     scratch_cuda_trivium_64(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
         true,
         noise_reduction_type as u32,

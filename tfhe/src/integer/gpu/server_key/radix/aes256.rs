@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::{
     check_valid_cuda_malloc, check_valid_cuda_malloc_assert_oom, CudaStreams,
 };
