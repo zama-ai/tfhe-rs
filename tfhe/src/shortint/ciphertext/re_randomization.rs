@@ -3,10 +3,8 @@
 //! This works by generating encrypted zeros using a public key, that will be added to the input
 //! ciphertexts
 
-use crate::core_crypto::algorithms::{
-    encrypt_lwe_compact_ciphertext_list_with_compact_public_key, keyswitch_lwe_ciphertext,
-    lwe_ciphertext_add_assign,
-};
+use crate::core_crypto::algorithms::lwe_encryption::re_randomization::rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
+use crate::core_crypto::algorithms::{keyswitch_lwe_ciphertext, lwe_ciphertext_add_assign};
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, XofSeed};
 use crate::core_crypto::commons::parameters::{LweCiphertextCount, PlaintextCount};
@@ -264,7 +262,7 @@ impl CompactPublicKey {
 
         let cpk_encryption_noise_distribution = self.parameters().encryption_noise_distribution;
 
-        encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+        rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
             &self.key,
             &mut encryption_of_zero,
             &plaintext_list,
