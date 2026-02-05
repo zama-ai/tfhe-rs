@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -64,7 +65,10 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
         output_lwe_list.0.d_vec.gpu_index(0).get(),
     );
 
-    let nth_array: Vec<u32> = vec_nth.iter().map(|x| x.0 as u32).collect_vec();
+    let nth_array: Vec<u32> = vec_nth
+        .iter()
+        .map(|x| u32::try_from(x.0).unwrap())
+        .collect_vec();
     let gpu_indexes = &streams.gpu_indexes;
     unsafe {
         let d_nth_array = CudaVec::from_cpu_async(&nth_array, streams, gpu_indexes[0].get());
@@ -73,7 +77,7 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
             &mut output_lwe_list.0.d_vec,
             &input_glwe_list.0.d_vec,
             &d_nth_array,
-            vec_nth.len() as u32,
+            u32::try_from(vec_nth.len()).unwrap(),
             lwe_per_glwe,
             input_glwe_list.glwe_dimension(),
             input_glwe_list.polynomial_size(),
