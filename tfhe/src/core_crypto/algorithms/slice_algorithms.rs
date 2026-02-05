@@ -1,8 +1,11 @@
 //! Module providing algorithms to perform computations on raw slices.
 
 use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_add_mul_assign;
+use crate::core_crypto::commons::math::ntt::ntt_native_binary64::NttNativeBinary64;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::commons::parameters::PolynomialSize;
 use crate::core_crypto::entities::Polynomial;
+use core::any::TypeId;
 
 /// Compute a dot product between two slices containing unsigned integers.
 ///
@@ -661,4 +664,121 @@ pub fn slice_semi_reverse_negacyclic_convolution<Scalar>(
         &lhs_as_polynomial,
         &phi_1_rhs_as_polynomial,
     );
+}
+
+/// Specialized variant of [`slice_semi_reverse_negacyclic_convolution`] where the right hand side
+/// input **has** to be binary.
+///
+/// Here $i$ from section 3 of <https://eprint.iacr.org/2023/603> is taken equal to $n$.
+/// ```rust
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let lhs = vec![1u8, 2u8, 3u8];
+/// let rhs = vec![0u8, 1u8, 1u8];
+/// let mut output = vec![0u8; 3];
+/// slice_binary_semi_reverse_negacyclic_convolution(&mut output, &lhs, &rhs);
+/// assert_eq!(&output, &[254u8, 3, 5]);
+/// ```
+pub fn slice_binary_semi_reverse_negacyclic_convolution<Scalar>(
+    output: &mut [Scalar],
+    lhs: &[Scalar],
+    rhs: &[Scalar],
+) where
+    Scalar: UnsignedInteger,
+{
+    debug_assert!(rhs.iter().all(|&x| x <= Scalar::ONE));
+
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    assert!(
+        output.len() == lhs.len(),
+        "output (len: {}) and lhs (len: {}) must have the same length",
+        output.len(),
+        lhs.len()
+    );
+
+    // Compile-time check
+    if TypeId::of::<Scalar>() == TypeId::of::<u64>() {
+        let poly_size = PolynomialSize(lhs.len());
+
+        // Runtime check
+        // 32 and 32768 are limit sizes valid for the native64 NTT from tfhe_ntt
+        if poly_size.0 >= 32 && poly_size.0 <= 32768 {
+            // Apply phi_1 to the rhs term
+            let mut phi_1_rhs: Vec<_> = rhs.to_vec();
+            phi_1_rhs.reverse();
+
+            let output: &mut [u64] = bytemuck::cast_slice_mut(output);
+            let lhs: &[u64] = bytemuck::cast_slice(lhs);
+
+            let rhs = phi_1_rhs.as_slice();
+            let rhs: &[u64] = bytemuck::cast_slice(rhs);
+
+            #[cfg(all(feature = "avx512", any(target_arch = "x86", target_arch = "x86_64")))]
+            {
+                use crate::core_crypto::commons::math::ntt::ntt_native_binary64::NttNativeBinary64Avx512;
+                if let Some(ntt_native_64) = NttNativeBinary64Avx512::try_new(poly_size) {
+                    ntt_native_64.as_view().negacyclic_polymul(output, lhs, rhs);
+                    return;
+                }
+            }
+
+            // Fallback if avx512 is not available
+            let ntt_native_64 = NttNativeBinary64::new(poly_size);
+            ntt_native_64.as_view().negacyclic_polymul(output, lhs, rhs);
+            return;
+        }
+    }
+
+    // Fallback to generic impl
+    slice_semi_reverse_negacyclic_convolution(output, lhs, rhs);
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// This test does not use the optimized variant since the optimized variant is only available
+    /// for u64 as of the time of the introduction of this test
+    #[test]
+    fn test_equivalence_slice_binary_semi_reverse_negacyclic_convolution_u32() {
+        let poly_size = 2048;
+        let mut output_ref = vec![0u32; poly_size];
+        let mut output_optimized = vec![0u32; poly_size];
+        let mut lhs = vec![0u32; poly_size];
+        let mut rhs = vec![0u32; poly_size];
+
+        for _ in 0..100_000 {
+            lhs.fill_with(rand::random);
+            rhs.fill_with(|| rand::random::<u32>() % 2);
+
+            slice_semi_reverse_negacyclic_convolution(&mut output_ref, &lhs, &rhs);
+            slice_binary_semi_reverse_negacyclic_convolution(&mut output_optimized, &lhs, &rhs);
+
+            assert_eq!(output_ref, output_optimized, "lhs: {lhs:?}, rhs: {rhs:?}");
+        }
+    }
+
+    /// This test uses the optimized variant since the optimized variant is available for u64
+    #[test]
+    fn test_equivalence_slice_binary_semi_reverse_negacyclic_convolution_u64() {
+        let poly_size = 2048;
+        let mut output_ref = vec![0u64; poly_size];
+        let mut output_optimized = vec![0u64; poly_size];
+        let mut lhs = vec![0u64; poly_size];
+        let mut rhs = vec![0u64; poly_size];
+
+        for _ in 0..100_000 {
+            lhs.fill_with(rand::random);
+            rhs.fill_with(|| rand::random::<u64>() % 2);
+
+            slice_semi_reverse_negacyclic_convolution(&mut output_ref, &lhs, &rhs);
+            slice_binary_semi_reverse_negacyclic_convolution(&mut output_optimized, &lhs, &rhs);
+
+            assert_eq!(output_ref, output_optimized, "lhs: {lhs:?}, rhs: {rhs:?}");
+        }
+    }
 }
