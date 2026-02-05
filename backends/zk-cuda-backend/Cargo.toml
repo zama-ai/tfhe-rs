@@ -1,23 +1,31 @@
 [package]
-name = "tfhe-cuda-backend"
-version = "0.13.0"
+name = "zk-cuda-backend"
+version = "0.1.0"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Zama team"]
 license = "BSD-3-Clause-Clear"
-description = "Cuda implementation of TFHE-rs primitives."
+description = "Cuda implementation of TFHE-rs' ZK primitives."
 homepage = "https://www.zama.ai/"
 documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 
+[lib]
+name = "zk_cuda_backend"
+crate-type = ["rlib"]
+
 [build-dependencies]
 cmake.workspace = true
 pkg-config.workspace = true
 bindgen.workspace = true
 
+[dependencies]
+ark-ec.workspace = true
+ark-ff.workspace = true
+tfhe-cuda-backend = { version = "0.13.0", path = "../tfhe-cuda-backend" }
+
 [features]
-experimental-multi-arch = []
-profile = []
-debug = []
-debug-fake-multi-gpu = []
+default = []
+validate_points = []  # Enable on-curve validation for points

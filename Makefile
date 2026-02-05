@@ -55,6 +55,9 @@ REGEX_PATTERN?=''
 # tfhe-cuda-backend
 TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
+ZKCUDA_SRC=backends/zk-cuda-backend/cuda
+ZKCUDA_BUILD=$(ZKCUDA_SRC)/build
+ZKCUDARS_SRC=backends/zk-cuda-backend/src
 
 # tfhe-hpu-backend
 HPU_CONFIG=v80
@@ -283,6 +286,7 @@ fmt_js: check_nvm_installed
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh
+	cd "$(ZKCUDA_SRC)" && ./format_zk_cuda_backend.sh
 
 .PHONY: fmt_c_tests # Format c tests
 fmt_c_tests:
@@ -307,6 +311,7 @@ check_fmt_c_tests:
 check_fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh -c
+	cd "$(ZKCUDA_SRC)" && ./format_zk_cuda_backend.sh -c
 
 .PHONY: check_fmt_js # Check javascript code format
 check_fmt_js: check_nvm_installed
@@ -551,6 +556,8 @@ clippy_core clippy_tfhe_csprng
 clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p zk-cuda-backend -- --no-deps -D warnings
 
 .PHONY: clippy_hpu_backend # Run clippy lints on the tfhe-hpu-backend
 clippy_hpu_backend: install_rs_check_toolchain
@@ -721,6 +728,17 @@ test_cuda_backend:
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)" && \
 		"$(MAKE)" test
+
+.PHONY: test_zk_cuda_backend # Run the internal tests of the CUDA ZK backend
+test_zk_cuda_backend:
+	mkdir -p "$(ZKCUDA_BUILD)" && \
+		cd "$(ZKCUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DZK_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" && \
+		"$(MAKE)" test
+	cd "$(ZKCUDARS_SRC)" && \
+		cargo test --release
+
 
 .PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
