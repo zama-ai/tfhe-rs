@@ -1,0 +1,853 @@
+#include "../common.cuh"
+#include "curve.h"
+#include "device.h"
+#include "fp.h"
+#include "fp2.h"
+#include "msm.h"
+#include <algorithm>
+#include <cstring>
+#include <vector>
+
+// ============================================================================
+// Kernel Launch Parameter Helpers
+// ============================================================================
+
+// Phase 1: Helper structure for accumulate_all_windows kernel launch parameters
+template <typename AffineType> struct Phase1KernelLaunchParams {
+  uint32_t adjusted_threads_per_block;
+  uint32_t num_blocks_per_window;
+  size_t accum_shared_mem;
+
+  Phase1KernelLaunchParams(uint32_t n, uint32_t requested_threads_per_block,
+                           uint32_t bucket_count, uint32_t gpu_index) {
+    // Shared memory layout:
+    // - bucket_counts: [bucket_count] * sizeof(uint32_t)
+    // - bucket_offsets: [bucket_count] * sizeof(uint32_t)
+    // - sorted_points: [threads_per_block] * sizeof(AffineType)
+    // - sorted_buckets: [threads_per_block] * sizeof(uint32_t)
+    constexpr size_t per_thread_shared_mem =
+        sizeof(AffineType) + sizeof(uint32_t); // sorted_points + sorted_buckets
+    const size_t fixed_shared_mem =
+        2 * bucket_count * sizeof(uint32_t); // bucket_counts + bucket_offsets
+
+    // Query the actual per-block shared memory limit from the device
+    const uint32_t max_shared_mem_per_block =
+        cuda_get_max_shared_memory_per_block(gpu_index);
+
+    // Calculate maximum threads that fit within shared memory limit
+    const size_t available_shared_mem =
+        (max_shared_mem_per_block > fixed_shared_mem)
+            ? (max_shared_mem_per_block - fixed_shared_mem)
+            : 0;
+    const uint32_t max_threads_for_shared_mem =
+        available_shared_mem / per_thread_shared_mem;
+
+    // Cap threads_per_block to respect shared memory limit
+    adjusted_threads_per_block =
+        std::min(requested_threads_per_block, max_threads_for_shared_mem);
+
+    // Calculate number of blocks per window
+    num_blocks_per_window = CEIL_DIV(n, adjusted_threads_per_block);
+
+    // Calculate actual shared memory requirement
+    accum_shared_mem =
+        fixed_shared_mem + adjusted_threads_per_block * per_thread_shared_mem;
+  }
+};
+
+// Phase 2: Helper structure for reduce_all_windows kernel launch parameters
+template <typename ProjectiveType> struct Phase2KernelLaunchParams {
+  uint32_t adjusted_threads;
+  size_t shared_mem;
+
+  Phase2KernelLaunchParams(uint32_t requested_threads, uint32_t gpu_index) {
+    // Query the actual per-block shared memory limit from the device
+    const uint32_t max_shared_mem_per_block =
+        cuda_get_max_shared_memory_per_block(gpu_index);
+
+    // Calculate maximum threads that fit within shared memory limit
+    const uint32_t max_threads_for_shared =
+        max_shared_mem_per_block / sizeof(ProjectiveType);
+
+    // Cap threads to respect shared memory limit
+    uint32_t threads = std::min(requested_threads, max_threads_for_shared);
+    threads = std::min(threads, (uint32_t)KERNEL_THREADS_MAX);
+
+    // Round up to nearest power of 2 (required for tree reduction)
+    uint32_t pow2_threads = 1;
+    while (pow2_threads < threads)
+      pow2_threads *= 2;
+    adjusted_threads = pow2_threads;
+
+    // Calculate actual shared memory requirement
+    shared_mem = adjusted_threads * sizeof(ProjectiveType);
+  }
+};
+
+// ============================================================================
+// Pippenger Algorithm MSM kernels and helpers
+// ============================================================================
+// Template kernels are defined in msm/common.cuh
+
+// Helper function to extract a window from a multi-limb scalar (internal)
+__device__ __forceinline__ uint32_t extract_window_multi_internal(
+    const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs, uint32_t window_idx,
+    uint32_t window_size) {
+  const uint32_t total_bits = scalar_limbs * LIMB_BITS;
+  const uint32_t bit_offset = window_idx * window_size;
+  if (bit_offset >= total_bits)
+    return 0;
+
+  const uint32_t limb_idx = bit_offset / LIMB_BITS;
+  const uint32_t bit_in_limb = bit_offset % LIMB_BITS;
+
+  if (limb_idx >= scalar_limbs)
+    return 0;
+
+  const UNSIGNED_LIMB mask = (1ULL << window_size) - 1;
+  UNSIGNED_LIMB window = (scalar[limb_idx] >> bit_in_limb) & mask;
+
+  // If window spans two limbs, combine them
+  if (bit_in_limb + window_size > LIMB_BITS && limb_idx + 1 < scalar_limbs) {
+    const uint32_t bits_from_next = (bit_in_limb + window_size) - LIMB_BITS;
+    const UNSIGNED_LIMB next_bits =
+        scalar[limb_idx + 1] & ((1ULL << bits_from_next) - 1);
+    window |= (next_bits << (window_size - bits_from_next));
+  }
+
+  return static_cast<uint32_t>(window);
+}
+
+// Wrapper for external API (scalar is uint64_t* from FFI)
+// Handles conversion from 64-bit limbs to UNSIGNED_LIMB
+__device__ __forceinline__ uint32_t
+extract_window_multi(const uint64_t *scalar, uint32_t scalar_limbs_64,
+                     uint32_t window_idx, uint32_t window_size) {
+  // Byte layout is identical on little-endian, so we can reinterpret_cast
+  // and adjust the limb count
+  const UNSIGNED_LIMB *scalar_native =
+      reinterpret_cast<const UNSIGNED_LIMB *>(scalar);
+  const uint32_t scalar_limbs_native = scalar_limbs_64 * (64 / LIMB_BITS);
+  return extract_window_multi_internal(scalar_native, scalar_limbs_native,
+                                       window_idx, window_size);
+}
+
+// Helper function to extract a window from a BigInt scalar
+__device__ __forceinline__ uint32_t extract_window_bigint(
+    const Scalar &scalar, uint32_t window_idx, uint32_t window_size) {
+  return extract_window_multi_internal(scalar.limb, ZP_LIMBS, window_idx,
+                                       window_size);
+}
+
+// Forward declarations for projective point operations (needed by kernels)
+__host__ __device__ void projective_point_add(G1Projective &result,
+                                              const G1Projective &p1,
+                                              const G1Projective &p2);
+__host__ __device__ void projective_point_add(G2ProjectivePoint &result,
+                                              const G2ProjectivePoint &p1,
+                                              const G2ProjectivePoint &p2);
+__host__ __device__ void projective_point_double(G1Projective &result,
+                                                 const G1Projective &p);
+__host__ __device__ void projective_point_double(G2ProjectivePoint &result,
+                                                 const G2ProjectivePoint &p);
+
+// Pippenger kernel: Accumulate points into buckets for multi-limb scalars
+template <typename PointType>
+__global__ void
+kernel_accumulate_buckets_multi(PointType *buckets, const PointType *points,
+                                const uint64_t *scalars, uint32_t scalar_limbs,
+                                uint32_t n, uint32_t window_idx,
+                                uint32_t window_size) {
+  using AffinePoint = PointSelector<PointType>;
+  // Same approach as u64 version: process each bucket sequentially
+  const uint32_t bucket_idx = blockIdx.x;
+  if (bucket_idx == 0 || bucket_idx >= MSM_G1_BUCKET_COUNT)
+    return;
+
+  PointType bucket_sum;
+  AffinePoint::point_at_infinity(bucket_sum);
+
+  const uint32_t points_per_thread = (n + blockDim.x - 1) / blockDim.x;
+  const uint32_t start_idx = threadIdx.x * points_per_thread;
+  const uint32_t end_idx = min(start_idx + points_per_thread, n);
+
+  for (uint32_t i = start_idx; i < end_idx; i++) {
+    const uint32_t point_bucket = extract_window_multi(
+        scalars + i * scalar_limbs, scalar_limbs, window_idx, window_size);
+    if (point_bucket == bucket_idx) {
+      if (AffinePoint::is_infinity(bucket_sum)) {
+        bucket_sum = points[i];
+      } else {
+        PointType temp;
+        point_add(temp, bucket_sum, points[i]);
+        bucket_sum = temp;
+      }
+    }
+  }
+
+  // Reduce within block using dynamic shared memory
+  extern __shared__ char shared_mem[];
+  auto *shared_sums = reinterpret_cast<PointType *>(shared_mem);
+  shared_sums[threadIdx.x] = bucket_sum;
+  __syncthreads();
+
+  // Thread 0 reduces all thread results
+  if (threadIdx.x == 0) {
+    PointType total_sum;
+    AffinePoint::point_at_infinity(total_sum);
+    for (uint32_t i = 0; i < blockDim.x; i++) {
+      if (!AffinePoint::is_infinity(shared_sums[i])) {
+        if (AffinePoint::is_infinity(total_sum)) {
+          total_sum = shared_sums[i];
+        } else {
+          PointType temp;
+          point_add(temp, total_sum, shared_sums[i]);
+          total_sum = temp;
+        }
+      }
+    }
+    buckets[bucket_idx] = total_sum;
+  }
+}
+
+template <typename PointType>
+__device__ void point_scalar_mul_small(PointType &result, const PointType &P,
+                                       uint32_t k) {
+  using AffinePoint = PointSelector<PointType>;
+
+  if (k == 0 || AffinePoint::is_infinity(P)) {
+    AffinePoint::point_at_infinity(result);
+    return;
+  }
+
+  if (k == 1) {
+    result = P;
+    return;
+  }
+
+  // Binary scalar multiplication: k * P
+  // Start with P, then for each bit from MSB-1 to LSB: double, then add P if
+  // bit is set
+  PointType acc = P;
+
+  // Find the MSB of k
+  // __clz operates on 32-bit integers, so MSB position is (32 - 1) - leading
+  // zeros
+  const uint32_t msb = (32 - 1) - __clz(k);
+
+  // Process bits from msb-1 down to 0
+  if (msb > 0) {
+    for (uint32_t bit = msb - 1;; bit--) {
+      point_double(acc, acc);
+      if (k & (1U << bit)) {
+        PointType temp;
+        point_add(temp, acc, P);
+        acc = temp;
+      }
+      if (bit == 0)
+        break;
+    }
+  }
+
+  result = acc;
+}
+
+template <typename PointType>
+__global__ void kernel_combine_buckets(PointType *result, PointType *buckets,
+                                       uint32_t num_buckets,
+                                       uint32_t window_idx) {
+  using AffinePoint = PointSelector<PointType>;
+
+  // Shared memory for storing weighted buckets and reduction tree
+  extern __shared__ char shared_mem[];
+  auto *shared_weighted = reinterpret_cast<PointType *>(shared_mem);
+
+  // Each thread processes one bucket (bucket index = threadIdx.x + 1, since
+  // bucket[0] is not used)
+  const uint32_t bucket_idx = threadIdx.x + 1;
+
+  // Compute i * bucket[i] for this thread's bucket using binary scalar
+  // multiplication
+  if (bucket_idx < num_buckets) {
+    if (!AffinePoint::is_infinity(buckets[bucket_idx])) {
+      point_scalar_mul_small(shared_weighted[threadIdx.x], buckets[bucket_idx],
+                             bucket_idx);
+    } else {
+      AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
+    }
+  } else {
+    // Threads beyond num_buckets-1 set to infinity
+    AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
+  }
+
+  __syncthreads();
+
+  // Reduction tree: combine all weighted buckets
+  // Use standard parallel reduction pattern
+  uint32_t active_threads =
+      num_buckets -
+      1; // Number of buckets to process (buckets 1 to num_buckets-1)
+
+  for (uint32_t stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    if (threadIdx.x < stride && threadIdx.x + stride < active_threads) {
+      if (!AffinePoint::is_infinity(shared_weighted[threadIdx.x + stride])) {
+        if (AffinePoint::is_infinity(shared_weighted[threadIdx.x])) {
+          AffinePoint::point_copy(shared_weighted[threadIdx.x],
+                                  shared_weighted[threadIdx.x + stride]);
+        } else {
+          PointType temp;
+          point_add(temp, shared_weighted[threadIdx.x],
+                    shared_weighted[threadIdx.x + stride]);
+          AffinePoint::point_copy(shared_weighted[threadIdx.x], temp);
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+  // Thread 0 has the final window_sum, add it to result
+  if (threadIdx.x == 0) {
+    PointType window_sum = shared_weighted[0];
+
+    // Add window sum to result
+    // For windows processed from MSB to LSB:
+    // - First window (MSB, highest window_idx): result = window_sum (no
+    // multiplication)
+    // - Subsequent windows: result = result * 2^window_size + window_sum
+    if (!AffinePoint::is_infinity(window_sum)) {
+      if (AffinePoint::is_infinity(*result)) {
+        // First non-zero window: just copy window_sum
+        AffinePoint::point_copy(*result, window_sum);
+      } else {
+        // Multiply result by 2^window_size before adding window_sum
+        constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
+        for (uint32_t i = 0; i < window_size; i++) {
+          point_double(*result, *result);
+        }
+        // Add window_sum to result
+        PointType temp;
+        point_add(temp, *result, window_sum);
+        AffinePoint::point_copy(*result, temp);
+      }
+    } else if (!AffinePoint::is_infinity(*result)) {
+      // Window sum is zero but result is not: still need to multiply result
+      constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
+      for (uint32_t i = 0; i < window_size; i++) {
+        point_double(*result, *result);
+      }
+    }
+  }
+}
+
+// Kernel: Accumulate ALL windows in parallel using SORT-THEN-REDUCE
+// Grid: (num_windows * num_blocks_per_window) blocks
+// Each block processes points for ONE window
+// Uses counting sort by bucket, then parallel tree reduction per bucket
+// Uses mixed addition (affine + projective) to save 3 field muls per add
+template <typename AffineType, typename ProjectiveType>
+__global__ void kernel_accumulate_all_windows(
+    ProjectiveType
+        *all_block_buckets, // [num_windows * num_blocks * bucket_count]
+    const AffineType *points, const Scalar *scalars, uint32_t num_points,
+    uint32_t num_windows, uint32_t num_blocks_per_window, uint32_t window_size,
+    uint32_t bucket_count) {
+  using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
+
+  const uint32_t window_idx = blockIdx.x / num_blocks_per_window;
+  const uint32_t block_within_window = blockIdx.x % num_blocks_per_window;
+
+  if (window_idx >= num_windows)
+    return;
+
+  // Output offset for this block's buckets
+  uint32_t bucket_offset =
+      (window_idx * num_blocks_per_window + block_within_window) * bucket_count;
+  ProjectiveType *my_buckets = all_block_buckets + bucket_offset;
+
+  // Shared memory layout (register-based optimization):
+  // - bucket_counts: [bucket_count] for counting sort
+  // - bucket_offsets: [bucket_count] for prefix sums
+  // - sorted_points: [blockDim.x] for sorted points (AFFINE - smaller!)
+  // - sorted_buckets: [blockDim.x] for sorted bucket indices
+  // NOTE: shared_buckets removed - using register-based accumulation instead
+  extern __shared__ char shared_mem[];
+  auto *bucket_counts_arr = reinterpret_cast<uint32_t *>(shared_mem);
+  auto *bucket_offsets = bucket_counts_arr + bucket_count;
+  // Store affine points instead of projective - saves shared memory
+  auto *sorted_points =
+      reinterpret_cast<AffineType *>(bucket_offsets + bucket_count);
+  auto *sorted_buckets =
+      reinterpret_cast<uint32_t *>(sorted_points + blockDim.x);
+
+  // Initialize bucket counts
+  if (threadIdx.x < bucket_count) {
+    bucket_counts_arr[threadIdx.x] = 0;
+  }
+  __syncthreads();
+
+  // Each thread loads its affine point and computes bucket index
+  // No conversion to projective here - we keep points affine
+  uint32_t point_idx = threadIdx.x + block_within_window * blockDim.x;
+  AffineType my_point;
+  uint32_t my_bucket = 0;
+  bool valid = point_idx < num_points;
+
+  if (valid) {
+    uint32_t scalar_window = num_windows - 1 - window_idx;
+    my_bucket =
+        extract_window_bigint(scalars[point_idx], scalar_window, window_size);
+    my_point = points[point_idx]; // Keep as affine!
+  }
+
+  // Count points per bucket (atomic within block)
+  if (valid && my_bucket > 0) {
+    atomicAdd(&bucket_counts_arr[my_bucket], 1);
+  }
+  __syncthreads();
+
+  // Compute prefix sums for bucket offsets
+  if (threadIdx.x == 0) {
+    uint32_t offset = 0;
+    for (uint32_t b = 0; b < bucket_count; b++) {
+      bucket_offsets[b] = offset;
+      offset += bucket_counts_arr[b];
+      bucket_counts_arr[b] = 0; // Reset for scatter phase
+    }
+  }
+  __syncthreads();
+
+  // Scatter affine points to sorted positions
+  if (valid && my_bucket > 0) {
+    uint32_t pos =
+        bucket_offsets[my_bucket] + atomicAdd(&bucket_counts_arr[my_bucket], 1);
+    sorted_points[pos] = my_point; // Store affine point directly
+    sorted_buckets[pos] = my_bucket;
+  }
+  __syncthreads();
+
+  // Parallel tree reduction within each bucket using MIXED ADDITION
+  // Each thread is assigned to reduce points in one bucket
+  // REGISTER-BASED: Accumulate in registers, write directly to global memory
+  for (uint32_t bucket = threadIdx.x + 1; bucket < bucket_count;
+       bucket += blockDim.x) {
+    uint32_t start = bucket_offsets[bucket];
+    uint32_t count = bucket_counts_arr[bucket];
+
+    if (count == 0) {
+      // Empty bucket - write infinity point
+      ProjectivePoint::point_at_infinity(my_buckets[bucket]);
+      continue;
+    }
+
+    // Tree reduction for this bucket using mixed addition
+    // Accumulate in registers (compiler will optimize this)
+    ProjectiveType sum;
+    // Initialize sum from first affine point
+    const AffineType &first_point = sorted_points[start];
+    if (first_point.infinity) {
+      ProjectivePoint::point_at_infinity(sum);
+    } else {
+      ProjectivePoint::affine_to_projective(sum, first_point);
+    }
+
+    // Use mixed addition for remaining points (saves 3 muls per add!)
+    for (uint32_t i = 1; i < count; i++) {
+      const AffineType &pt = sorted_points[start + i];
+      if (!pt.infinity) {
+        if (ProjectivePoint::is_infinity(sum)) {
+          ProjectivePoint::affine_to_projective(sum, pt);
+        } else {
+          ProjectiveType temp;
+          // MIXED ADDITION: projective + affine (saves 3 field muls)
+          ProjectivePoint::mixed_add(temp, sum, pt);
+          ProjectivePoint::point_copy(sum, temp);
+        }
+      }
+    }
+
+    // Write directly from registers to global memory (no shared memory
+    // intermediate)
+    ProjectivePoint::point_copy(my_buckets[bucket], sum);
+  }
+}
+
+// Kernel: Reduce ALL windows' buckets in parallel
+// Grid: (num_windows * num_buckets) blocks
+// Each block reduces one (window, bucket) pair across all block contributions
+template <typename ProjectiveType>
+__global__ void kernel_reduce_all_windows(
+    ProjectiveType *all_final_buckets, // [num_windows * NUM_BUCKETS]
+    const ProjectiveType
+        *all_block_buckets, // [num_windows * num_blocks * NUM_BUCKETS]
+    uint32_t num_windows, uint32_t num_blocks_per_window,
+    uint32_t num_buckets) {
+  using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
+
+  const uint32_t flat_idx = blockIdx.x;
+  const uint32_t window_idx = flat_idx / num_buckets;
+  const uint32_t bucket_idx = flat_idx % num_buckets;
+
+  if (window_idx >= num_windows || bucket_idx == 0)
+    return;
+
+  extern __shared__ char shared_mem[];
+  auto *shared_sums = reinterpret_cast<ProjectiveType *>(shared_mem);
+
+  ProjectiveType local_sum;
+  ProjectivePoint::point_at_infinity(local_sum);
+
+  // Each thread sums a subset of block contributions
+  for (uint32_t block = threadIdx.x; block < num_blocks_per_window;
+       block += blockDim.x) {
+    uint32_t idx =
+        (window_idx * num_blocks_per_window + block) * num_buckets + bucket_idx;
+    const ProjectiveType &contrib = all_block_buckets[idx];
+    if (!ProjectivePoint::is_infinity(contrib)) {
+      if (ProjectivePoint::is_infinity(local_sum)) {
+        ProjectivePoint::point_copy(local_sum, contrib);
+      } else {
+        ProjectiveType temp;
+        ProjectivePoint::projective_add(temp, local_sum, contrib);
+        ProjectivePoint::point_copy(local_sum, temp);
+      }
+    }
+  }
+
+  shared_sums[threadIdx.x] = local_sum;
+  __syncthreads();
+
+  // Tree reduction
+  for (uint32_t s = blockDim.x / 2; s > 0; s >>= 1) {
+    if (threadIdx.x < s &&
+        !ProjectivePoint::is_infinity(shared_sums[threadIdx.x + s])) {
+      if (ProjectivePoint::is_infinity(shared_sums[threadIdx.x])) {
+        ProjectivePoint::point_copy(shared_sums[threadIdx.x],
+                                    shared_sums[threadIdx.x + s]);
+      } else {
+        ProjectiveType temp;
+        ProjectivePoint::projective_add(temp, shared_sums[threadIdx.x],
+                                        shared_sums[threadIdx.x + s]);
+        ProjectivePoint::point_copy(shared_sums[threadIdx.x], temp);
+      }
+    }
+    __syncthreads();
+  }
+
+  // Thread 0 writes final bucket value
+  if (threadIdx.x == 0) {
+    uint32_t out_idx = window_idx * num_buckets + bucket_idx;
+    ProjectivePoint::point_copy(all_final_buckets[out_idx], shared_sums[0]);
+  }
+}
+
+// Kernel: Compute window sums for ALL windows in parallel
+// Grid: num_windows blocks
+// Each block computes the window sum: sum(i * bucket[i]) for i=1..15
+template <typename ProjectiveType>
+__global__ void kernel_compute_window_sums(
+    ProjectiveType *window_sums,             // [num_windows]
+    const ProjectiveType *all_final_buckets, // [num_windows * NUM_BUCKETS]
+    uint32_t num_windows, uint32_t num_buckets) {
+  using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
+
+  const uint32_t window_idx = blockIdx.x;
+  if (window_idx >= num_windows)
+    return;
+
+  extern __shared__ char shared_mem[];
+  auto *work = reinterpret_cast<ProjectiveType *>(shared_mem);
+
+  const uint32_t tid = threadIdx.x;
+  const uint32_t n = num_buckets - 1;
+
+  // Load buckets for this window
+  const ProjectiveType *my_buckets =
+      all_final_buckets + window_idx * num_buckets;
+
+  if (tid < n) {
+    ProjectivePoint::point_copy(work[tid], my_buckets[tid + 1]);
+  }
+  __syncthreads();
+
+  // Suffix sum
+  for (uint32_t stride = 1; stride < n; stride *= 2) {
+    ProjectiveType temp;
+    if (tid < n) {
+      if (tid + stride < n &&
+          !ProjectivePoint::is_infinity(work[tid + stride])) {
+        if (ProjectivePoint::is_infinity(work[tid])) {
+          ProjectivePoint::point_copy(temp, work[tid + stride]);
+        } else {
+          ProjectivePoint::projective_add(temp, work[tid], work[tid + stride]);
+        }
+      } else {
+        ProjectivePoint::point_copy(temp, work[tid]);
+      }
+    }
+    __syncthreads();
+    if (tid < n) {
+      ProjectivePoint::point_copy(work[tid], temp);
+    }
+    __syncthreads();
+  }
+
+  // Reduction
+  for (uint32_t stride = (n + 1) / 2; stride > 0;
+       stride = (stride > 1) ? (stride + 1) / 2 : 0) {
+    if (tid < stride && tid + stride < n) {
+      if (!ProjectivePoint::is_infinity(work[tid + stride])) {
+        if (ProjectivePoint::is_infinity(work[tid])) {
+          ProjectivePoint::point_copy(work[tid], work[tid + stride]);
+        } else {
+          ProjectiveType temp;
+          ProjectivePoint::projective_add(temp, work[tid], work[tid + stride]);
+          ProjectivePoint::point_copy(work[tid], temp);
+        }
+      }
+    }
+    __syncthreads();
+    if (stride == 1)
+      break;
+  }
+
+  // Thread 0 writes window sum
+  if (tid == 0) {
+    ProjectivePoint::point_copy(window_sums[window_idx], work[0]);
+  }
+}
+
+// ============================================================================
+// CPU-side Horner Combination (faster than single-thread GPU)
+// ============================================================================
+
+// CPU Horner: combine window sums using Horner's method on host
+// Single-threaded CPU execution is faster than single-threaded GPU for this
+// sequential operation. The memcpy overhead is smaller than the GPU's memory
+// latency penalty for sequential access patterns.
+template <typename ProjectiveType>
+void horner_combine_cpu(ProjectiveType &result,
+                        const ProjectiveType *window_sums, uint32_t num_windows,
+                        uint32_t window_size) {
+  using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
+
+  ProjectiveType acc;
+  ProjectivePoint::point_at_infinity(acc);
+
+  // Process from MSB (window 0) to LSB (window num_windows-1)
+  for (uint32_t w = 0; w < num_windows; w++) {
+    const ProjectiveType &ws = window_sums[w];
+    ProjectiveType temp;
+
+    if (!ProjectivePoint::is_infinity(ws)) {
+      if (ProjectivePoint::is_infinity(acc)) {
+        ProjectivePoint::point_copy(acc, ws);
+      } else {
+        // acc = acc * 2^window_size + ws
+        for (uint32_t i = 0; i < window_size; i++) {
+          ProjectivePoint::projective_double(temp, acc);
+          ProjectivePoint::point_copy(acc, temp);
+        }
+        ProjectivePoint::projective_add(temp, acc, ws);
+        ProjectivePoint::point_copy(acc, temp);
+      }
+    } else if (!ProjectivePoint::is_infinity(acc)) {
+      // Window sum is zero, but still need to shift
+      for (uint32_t i = 0; i < window_size; i++) {
+        ProjectivePoint::projective_double(temp, acc);
+        ProjectivePoint::point_copy(acc, temp);
+      }
+    }
+  }
+
+  ProjectivePoint::point_copy(result, acc);
+}
+
+// ============================================================================
+// Pippenger MSM Implementation Functions
+// ============================================================================
+
+// Template MSM with BigInt scalars - ALL WINDOWS PARALLEL
+template <typename AffineType, typename ProjectiveType>
+void point_msm_async_pippenger_impl(
+    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
+    const AffineType *d_points, const Scalar *d_scalars,
+    ProjectiveType *d_scratch, uint32_t n, uint32_t threads_per_block,
+    uint32_t window_size, uint32_t bucket_count) {
+  using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
+
+  if (n == 0) {
+    cuda_set_device(gpu_index);
+    kernel_clear_buckets<ProjectiveType><<<1, 1, 0, stream>>>(d_result, 1);
+    check_cuda_error(cudaGetLastError());
+    return;
+  }
+
+  PANIC_IF_FALSE(n > 0, "point_msm_async_pippenger_impl: invalid size n=%u", n);
+  PANIC_IF_FALSE(d_result != nullptr && d_points != nullptr &&
+                     d_scalars != nullptr && d_scratch != nullptr,
+                 "point_msm_async_pippenger_impl: null pointer argument");
+
+  cuda_set_device(gpu_index);
+
+  // Calculate number of windows based on scalar bit width
+  const uint32_t total_bits = Scalar::NUM_BITS;
+  const uint32_t num_windows = CEIL_DIV(total_bits, window_size);
+
+  // Calculate kernel launch parameters respecting shared memory limits
+  Phase1KernelLaunchParams<AffineType> launch_params(n, threads_per_block,
+                                                     bucket_count, gpu_index);
+
+  // Scratch space layout for ALL-WINDOWS-PARALLEL:
+  // - all_block_buckets: [num_windows * num_blocks * bucket_count]
+  // - all_final_buckets: [num_windows * bucket_count]
+  // - window_sums: [num_windows]
+  const uint32_t all_block_buckets_size =
+      num_windows * launch_params.num_blocks_per_window * bucket_count;
+  const uint32_t all_final_buckets_size = num_windows * bucket_count;
+  const uint32_t total_scratch =
+      all_block_buckets_size + all_final_buckets_size + num_windows;
+
+  // Allocate internal scratch space (user-provided scratch is too small for
+  // all-windows-parallel)
+  ProjectiveType *d_internal_scratch = (ProjectiveType *)cuda_malloc_async(
+      total_scratch * sizeof(ProjectiveType), stream, gpu_index);
+
+  ProjectiveType *d_all_block_buckets = d_internal_scratch;
+  ProjectiveType *d_all_final_buckets =
+      d_internal_scratch + all_block_buckets_size;
+  ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
+
+  // Clear all scratch space
+  const uint32_t clear_blocks = CEIL_DIV(total_scratch, KERNEL_THREADS_MAX);
+  PANIC_IF_FALSE(clear_blocks * KERNEL_THREADS_MAX >= total_scratch,
+                 "kernel_clear_buckets: insufficient threads (%u) to clear "
+                 "buffer (%u elements)",
+                 clear_blocks * KERNEL_THREADS_MAX, total_scratch);
+  kernel_clear_buckets<ProjectiveType>
+      <<<clear_blocks, KERNEL_THREADS_MAX, 0, stream>>>(d_internal_scratch,
+                                                        total_scratch);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 1: Accumulate ALL windows in parallel (SINGLE kernel launch!)
+  const uint32_t total_accum_blocks =
+      num_windows * launch_params.num_blocks_per_window;
+  PANIC_IF_FALSE(
+      total_accum_blocks * bucket_count <= all_block_buckets_size,
+      "kernel_accumulate_all_windows: max write index (%u) exceeds buffer (%u)",
+      total_accum_blocks * bucket_count, all_block_buckets_size);
+  kernel_accumulate_all_windows<AffineType, ProjectiveType>
+      <<<total_accum_blocks, launch_params.adjusted_threads_per_block,
+         launch_params.accum_shared_mem, stream>>>(
+          d_all_block_buckets, d_points, d_scalars, n, num_windows,
+          launch_params.num_blocks_per_window, window_size, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 2: Reduce ALL windows' buckets in parallel (SINGLE kernel launch!)
+  const uint32_t total_reduce_blocks = num_windows * bucket_count;
+  Phase2KernelLaunchParams<ProjectiveType> reduce_params(
+      launch_params.num_blocks_per_window, gpu_index);
+  PANIC_IF_FALSE(
+      total_reduce_blocks <= all_final_buckets_size,
+      "kernel_reduce_all_windows: blocks (%u) exceeds output buffer (%u)",
+      total_reduce_blocks, all_final_buckets_size);
+  kernel_reduce_all_windows<ProjectiveType>
+      <<<total_reduce_blocks, reduce_params.adjusted_threads,
+         reduce_params.shared_mem, stream>>>(
+          d_all_final_buckets, d_all_block_buckets, num_windows,
+          launch_params.num_blocks_per_window, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 3: Compute window sums in parallel (SINGLE kernel launch!)
+  const uint32_t combine_threads = bucket_count - 1;
+  const size_t combine_shared_mem = combine_threads * sizeof(ProjectiveType);
+  PANIC_IF_FALSE(num_windows * bucket_count <= all_final_buckets_size,
+                 "kernel_compute_window_sums: max read index (%u) exceeds "
+                 "input buffer (%u)",
+                 num_windows * bucket_count, all_final_buckets_size);
+  kernel_compute_window_sums<ProjectiveType>
+      <<<num_windows, combine_threads, combine_shared_mem, stream>>>(
+          d_window_sums, d_all_final_buckets, num_windows, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 4: CPU-side Horner combine (faster than single GPU thread!)
+  // Download window sums to host
+  std::vector<ProjectiveType> h_window_sums(num_windows);
+  cuda_memcpy_async_to_cpu(h_window_sums.data(), d_window_sums,
+                           num_windows * sizeof(ProjectiveType), stream,
+                           gpu_index);
+  cuda_synchronize_stream(stream, gpu_index);
+
+  // Perform Horner combination on CPU
+  ProjectiveType h_result;
+  horner_combine_cpu(h_result, h_window_sums.data(), num_windows, window_size);
+
+  // Upload result back to device
+  cuda_memcpy_async_to_gpu(d_result, &h_result, sizeof(ProjectiveType), stream,
+                           gpu_index);
+
+  // Cleanup - must sync before returning since h_result is a local variable
+  cuda_synchronize_stream(stream, gpu_index);
+  cuda_drop_async(d_internal_scratch, stream, gpu_index);
+}
+
+// ============================================================================
+// Dynamic Window Size Selection
+// ============================================================================
+
+// Select optimal window size for G1 MSM based on input count
+// Trade-off: larger windows = fewer Horner doublings but more bucket work
+// Optimal window size grows with log(n) approximately
+inline void get_g1_window_params(uint32_t n, uint32_t &window_size,
+                                 uint32_t &bucket_count) {
+  if (n <= MSM_G1_SMALL_THRESHOLD) {
+    window_size = 4;
+    bucket_count = (1u << 4); // 2^window_size
+  } else if (n <= MSM_G1_MEDIUM_THRESHOLD) {
+    window_size = 5;
+    bucket_count = (1u << 5);
+  } else {
+    window_size = 6;
+    bucket_count = (1u << 6);
+  }
+}
+
+// Select optimal window size for G2 MSM based on input count
+// G2 has 2x more expensive field ops, but empirical testing shows
+// that the 5-bit fixed window size is optimal - larger windows cause
+// too much bucket overhead that exceeds the Horner doubling savings
+inline void get_g2_window_params(uint32_t n, uint32_t &window_size,
+                                 uint32_t &bucket_count) {
+  (void)n;                            // Fixed window size works best for G2
+  window_size = MSM_G2_WINDOW_SIZE;   // 5-bit windows
+  bucket_count = MSM_G2_BUCKET_COUNT; // 32 buckets
+}
+
+// MSM with BigInt scalars for G1 (projective coordinates internally)
+void point_msm_async_g1_pippenger(cudaStream_t stream, uint32_t gpu_index,
+                                  G1Projective *d_result,
+                                  const G1Affine *d_points,
+                                  const Scalar *d_scalars,
+                                  G1Projective *d_scratch, uint32_t n) {
+  uint32_t window_size, bucket_count;
+  get_g1_window_params(n, window_size, bucket_count);
+
+  point_msm_async_pippenger_impl<G1Affine, G1Projective>(
+      stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n,
+      get_msm_threads_per_block<G1Affine>(n), window_size, bucket_count);
+}
+
+// MSM with BigInt scalars for G2 (projective coordinates internally)
+// Uses larger window size to reduce Horner doublings (G2 ops are 2x more
+// expensive)
+void point_msm_async_g2_pippenger(cudaStream_t stream, uint32_t gpu_index,
+                                  G2ProjectivePoint *d_result,
+                                  const G2Point *d_points,
+                                  const Scalar *d_scalars,
+                                  G2ProjectivePoint *d_scratch, uint32_t n) {
+  uint32_t window_size, bucket_count;
+  get_g2_window_params(n, window_size, bucket_count);
+
+  point_msm_async_pippenger_impl<G2Point, G2ProjectivePoint>(
+      stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n,
+      get_msm_threads_per_block<G2Point>(n), window_size, bucket_count);
+}
