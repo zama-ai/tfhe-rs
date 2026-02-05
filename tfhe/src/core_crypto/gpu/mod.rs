@@ -502,6 +502,7 @@ pub unsafe fn keyswitch_async_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
     ks_tmp_buffer: *const ffi::c_void,
     uses_trivial_indices: bool,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     if TypeId::of::<KST>() == TypeId::of::<u32>() {
         cuda_keyswitch_gemm_lwe_ciphertext_vector_64_32(
             streams.ptr[0],
@@ -561,6 +562,8 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
     l_gadget: DecompositionLevelCount,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
+
     if TypeId::of::<KT>() == TypeId::of::<u32>() {
         cuda_keyswitch_lwe_ciphertext_vector_64_32(
             streams.ptr[0],
@@ -591,6 +594,8 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
             l_gadget.0 as u32,
             num_samples,
         );
+    } else {
+        panic!("Unknown LWE KS dtype of size {}B", size_of::<KT>());
     }
 }
 /// Convert keyswitch key
@@ -627,6 +632,8 @@ pub unsafe fn packing_keyswitch_list_64_async<T: UnsignedInteger>(
     l_gadget: DecompositionLevelCount,
     num_lwes: LweCiphertextCount,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
+
     let mut fp_ks_buffer: *mut i8 = std::ptr::null_mut();
     scratch_packing_keyswitch_lwe_list_to_glwe_64(
         streams.ptr[0],
@@ -679,6 +686,7 @@ pub unsafe fn packing_keyswitch_list_128_async<T: UnsignedInteger>(
     l_gadget: DecompositionLevelCount,
     num_lwes: LweCiphertextCount,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u128>());
     let mut fp_ks_buffer: *mut i8 = std::ptr::null_mut();
     scratch_packing_keyswitch_lwe_list_to_glwe_128(
         streams.ptr[0],
@@ -862,6 +870,7 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     lwe_array_out: &mut CudaVec<T>,
     log_modulus: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_modulus_switch_inplace_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -898,6 +907,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     let mut output_degrees_vec: Vec<u64> = vec![0; num_samples as usize];
     let mut output_noise_levels_vec: Vec<u64> = vec![0; num_samples as usize];
     let mut input_1_degrees_vec = output_degrees_vec.clone();
@@ -950,6 +960,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     let mut output_degrees_vec: Vec<u64> = vec![0; num_samples as usize];
     let mut output_noise_levels_vec: Vec<u64> = vec![0; num_samples as usize];
     let mut input_degrees_vec = output_degrees_vec.clone();
@@ -993,6 +1004,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1018,6 +1030,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_scalar_async<T: UnsignedIntege
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_add_lwe_ciphertext_vector_plaintext_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1042,6 +1055,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1066,6 +1080,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_negate_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1088,6 +1103,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_negate_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1111,6 +1127,7 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector_assign_async<T: Unsign
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1136,6 +1153,7 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
     cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1164,6 +1182,7 @@ pub unsafe fn fourier_transform_forward_as_integer_f128_async<T: UnsignedInteger
     fft_size: u32,
     number_of_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u128>());
     cuda_fourier_transform_forward_as_integer_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1194,6 +1213,7 @@ pub unsafe fn fourier_transform_forward_as_torus_f128_async<T: UnsignedInteger>(
     fft_size: u32,
     number_of_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u128>());
     cuda_fourier_transform_forward_as_torus_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -1224,6 +1244,7 @@ pub unsafe fn fourier_transform_backward_as_torus_f128_async<T: UnsignedInteger>
     fft_size: u32,
     number_of_samples: u32,
 ) {
+    assert_eq!(TypeId::of::<T>(), TypeId::of::<u128>());
     cuda_fourier_transform_backward_as_torus_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
