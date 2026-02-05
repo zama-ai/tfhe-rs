@@ -23,8 +23,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   schedule:
-    # every month
-    - cron: "0 0 1 * *"
+    # every friday noon
+    - cron: "0 12 * * 5"
 
 permissions:
   contents: read
