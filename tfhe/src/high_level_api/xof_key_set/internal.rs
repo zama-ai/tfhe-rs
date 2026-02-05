@@ -502,30 +502,65 @@ impl integer::compression_keys::CompressedDecompressionKey {
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
     where
-        Gen: ByteRandomGenerator,
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
         let compression_params = private_compression_key.key.params;
 
-        let core_bsk = allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
-            &private_compression_key
-                .key
-                .post_packing_ks_key
-                .as_lwe_secret_key(),
-            glwe_secret_key,
-            compression_params.br_base_log(),
-            compression_params.br_level(),
-            computation_parameters.glwe_noise_distribution(),
-            computation_parameters.ciphertext_modulus(),
-            generator,
-        );
-
-        Self {
-            key: crate::shortint::list_compression::CompressedDecompressionKey {
-                bsk: ShortintCompressedBootstrappingKey::Classic {
+        let bsk = match compression_params {
+            CompressionParameters::Classic(classic) => {
+                let core_bsk =
+                    allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+                        &private_compression_key
+                            .key
+                            .post_packing_ks_key
+                            .as_lwe_secret_key(),
+                        glwe_secret_key,
+                        classic.br_base_log,
+                        classic.br_level,
+                        computation_parameters.glwe_noise_distribution(),
+                        computation_parameters.ciphertext_modulus(),
+                        generator,
+                    );
+                ShortintCompressedBootstrappingKey::Classic {
                     bsk: core_bsk,
                     modulus_switch_noise_reduction_key:
                         CompressedModulusSwitchConfiguration::Standard,
-                },
+                }
+            }
+            CompressionParameters::MultiBit(multi_bit) => {
+                let input_lwe_sk = private_compression_key
+                    .key
+                    .post_packing_ks_key
+                    .as_lwe_secret_key();
+                let mut bsk = SeededLweMultiBitBootstrapKeyOwned::new(
+                    0u64,
+                    glwe_secret_key.glwe_dimension().to_glwe_size(),
+                    glwe_secret_key.polynomial_size(),
+                    multi_bit.br_base_log,
+                    multi_bit.br_level,
+                    input_lwe_sk.lwe_dimension(),
+                    multi_bit.decompression_grouping_factor,
+                    CompressionSeed::from(Seed(0)),
+                    computation_parameters.ciphertext_modulus(),
+                );
+
+                par_generate_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator(
+                    &input_lwe_sk,
+                    glwe_secret_key,
+                    &mut bsk,
+                    computation_parameters.glwe_noise_distribution(),
+                    generator,
+                );
+                ShortintCompressedBootstrappingKey::MultiBit {
+                    seeded_bsk: bsk,
+                    deterministic_execution: true,
+                }
+            }
+        };
+
+        Self {
+            key: crate::shortint::list_compression::CompressedDecompressionKey {
+                bsk,
                 lwe_per_glwe: compression_params.lwe_per_glwe(),
             },
         }
