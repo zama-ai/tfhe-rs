@@ -13,10 +13,11 @@ use crate::core_crypto::prelude::{DefaultRandomGenerator, LweBskGroupingFactor};
 
 use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
 
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
-    cuda_backend_grouped_oprf_custom_range, CudaVec, PBSType,
+    cuda_backend_grouped_oprf_custom_range, PBSType,
 };
 pub use tfhe_csprng::seeders::{Seed, Seeder};
 

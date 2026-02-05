@@ -3,9 +3,8 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRa
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::{
-    cuda_backend_kreyvium_generate_keystream, LweBskGroupingFactor, PBSType,
-};
+use crate::integer::gpu::{cuda_backend_kreyvium_generate_keystream, PBSType};
+use crate::shortint::parameters::LweBskGroupingFactor;
 
 impl CudaServerKey {
     pub fn kreyvium_generate_keystream(
