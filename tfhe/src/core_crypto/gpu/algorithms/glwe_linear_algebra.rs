@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::glwe_sample_extraction::cuda_extract_lwe_samples_from_glwe_ciphertext_list;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -55,7 +56,7 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
         scratch_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
-            lhs.len() as u32,
+            u32::try_from(lhs.len()).unwrap(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
         cuda_wrapping_polynomial_mul_one_to_many_64(
@@ -65,8 +66,8 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
             lhs.as_c_ptr(0),
             mem_ptr,
             rhs.as_c_ptr(0),
-            lhs.len() as u32,
-            (rhs.len() / lhs.len()) as u32,
+            u32::try_from(lhs.len()).unwrap(),
+            u32::try_from(rhs.len() / lhs.len()).unwrap(),
         );
         cleanup_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],
@@ -134,7 +135,7 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
         scratch_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
-            lhs.polynomial_size().0 as u32,
+            u32::try_from(lhs.polynomial_size().0).unwrap(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
         cuda_glwe_wrapping_polynomial_mul_one_to_many_64(
@@ -144,9 +145,9 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
             lhs.0.d_vec.as_c_ptr(0),
             mem_ptr,
             rhs.as_c_ptr(0),
-            lhs.polynomial_size().0 as u32,
-            lhs.glwe_dimension().0 as u32,
-            (rhs.len() / lhs.polynomial_size().0) as u32,
+            u32::try_from(lhs.polynomial_size().0).unwrap(),
+            u32::try_from(lhs.glwe_dimension().0).unwrap(),
+            u32::try_from(rhs.len() / lhs.polynomial_size().0).unwrap(),
         );
         cleanup_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],

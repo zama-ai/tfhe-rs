@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
@@ -17,7 +18,7 @@ pub fn cuda_lwe_ciphertext_add<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    let num_samples = output.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(output.lwe_ciphertext_count().0).unwrap();
 
     assert_eq!(
         lhs.lwe_ciphertext_count(),
@@ -92,7 +93,7 @@ pub fn cuda_lwe_ciphertext_add_assign<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    let num_samples = lhs.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(lhs.lwe_ciphertext_count().0).unwrap();
 
     assert_eq!(
         lhs.lwe_ciphertext_count(),
@@ -148,7 +149,7 @@ pub fn cuda_lwe_ciphertext_plaintext_add<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    let num_samples = output.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(output.lwe_ciphertext_count().0).unwrap();
 
     assert_eq!(
         output.lwe_ciphertext_count(),
@@ -207,7 +208,7 @@ pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    let num_samples = lhs.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(lhs.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = &lhs.lwe_dimension();
 
     assert_eq!(
@@ -280,7 +281,7 @@ pub fn cuda_lwe_ciphertext_negate<Scalar>(
         streams.gpu_indexes[0].get(),
         output.0.d_vec.gpu_index(0).get(),
     );
-    let num_samples = output.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(output.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = &output.lwe_dimension();
 
     unsafe {
@@ -308,7 +309,7 @@ pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
         streams.gpu_indexes[0].get(),
         ct.0.d_vec.gpu_index(0).get(),
     );
-    let num_samples = ct.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(ct.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = &ct.lwe_dimension();
 
     unsafe {
@@ -378,7 +379,7 @@ pub fn cuda_lwe_ciphertext_cleartext_mul<Scalar>(
         streams.gpu_indexes[0].get(),
         cleartext.gpu_index(0).get(),
     );
-    let num_samples = output.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(output.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = &output.lwe_dimension();
 
     unsafe {
@@ -422,7 +423,7 @@ pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
         ct.lwe_ciphertext_count(),
         cleartext.len()
     );
-    let num_samples = ct.lwe_ciphertext_count().0 as u32;
+    let num_samples = u32::try_from(ct.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = ct.lwe_dimension();
 
     unsafe {

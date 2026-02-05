@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -115,9 +116,10 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
             cuda_scratch_keyswitch_lwe_ciphertext::<Scalar>(
                 streams,
                 std::ptr::addr_of_mut!(ks_tmp_buffer),
-                lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension().0 as u32,
-                lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension().0 as u32,
-                num_lwes_to_ks as u32,
+                u32::try_from(lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension().0).unwrap(),
+                u32::try_from(lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension().0)
+                    .unwrap(),
+                u32::try_from(num_lwes_to_ks).unwrap(),
                 true,
             );
 
@@ -133,7 +135,7 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
                 &lwe_keyswitch_key.d_vec,
                 lwe_keyswitch_key.decomposition_base_log(),
                 lwe_keyswitch_key.decomposition_level_count(),
-                num_lwes_to_ks as u32,
+                u32::try_from(num_lwes_to_ks).unwrap(),
                 ks_tmp_buffer,
                 uses_trivial_indices,
             );
@@ -151,7 +153,7 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
                 &lwe_keyswitch_key.d_vec,
                 lwe_keyswitch_key.decomposition_base_log(),
                 lwe_keyswitch_key.decomposition_level_count(),
-                num_lwes_to_ks as u32,
+                u32::try_from(num_lwes_to_ks).unwrap(),
             );
         }
         streams.synchronize();

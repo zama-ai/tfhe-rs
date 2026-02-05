@@ -10,12 +10,12 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
 };
 use crate::core_crypto::gpu::algorithms::lwe_keyswitch::cuda_keyswitch_lwe_ciphertext;
-use crate::core_crypto::gpu::cuda_modulus_switch_ciphertext;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext, CudaStreams};
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
@@ -23,15 +23,14 @@ use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaRadixCip
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::{
-    cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer, CudaStreams,
-};
+use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     NoiseSimulationGenericBootstrapKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
 };
+use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64;
 /// Side resources for CUDA operations in noise simulation
 #[derive(Clone)]
 pub struct CudaSideResources {
@@ -677,7 +676,6 @@ impl LweClassicFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
         use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_lwe_ciphertext;
         use crate::core_crypto::gpu::vec::CudaVec;
         use crate::integer::gpu::server_key::CudaBootstrappingKey;
-        use crate::integer::gpu::CastInto;
 
         match (input, output) {
             (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
