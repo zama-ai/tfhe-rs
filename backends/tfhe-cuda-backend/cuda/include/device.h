@@ -132,6 +132,8 @@ void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index);
 
 uint32_t cuda_get_max_shared_memory(uint32_t gpu_index);
 
+uint32_t cuda_get_max_shared_memory_per_block(uint32_t gpu_index);
+
 bool cuda_check_support_cooperative_groups();
 
 bool cuda_check_support_thread_block_clusters();
