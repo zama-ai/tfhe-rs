@@ -1459,7 +1459,7 @@ bench_integer_compression_128b_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
 	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release_lto_off --
@@ -1526,7 +1526,7 @@ bench_signed_integer_multi_bit_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
 	--features=integer,internal-keycache,zk-pok,pbs-stats \

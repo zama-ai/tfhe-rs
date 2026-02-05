@@ -5,6 +5,7 @@ use benchmark::utilities::{
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -32,11 +33,29 @@ impl ProofConfig {
 }
 
 fn default_proof_config() -> Vec<ProofConfig> {
-    vec![
-        ProofConfig::new(64, &[64]),
-        ProofConfig::new(2048, &[64, 4 * 64, 2048]),
-        ProofConfig::new(4096, &[4096]),
-    ]
+    match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+        Ok("fast_default") | Ok("fast") => {
+            vec![ProofConfig::new(2048, &[64, 4 * 64])]
+        }
+        _ => {
+            vec![
+                ProofConfig::new(64, &[64]),
+                ProofConfig::new(2048, &[64, 4 * 64, 2048]),
+                ProofConfig::new(4096, &[4096]),
+            ]
+        }
+    }
+}
+
+fn compute_load_config() -> Vec<ZkComputeLoad> {
+    match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+        Ok("fast_default") | Ok("fast") => {
+            vec![ZkComputeLoad::Verify]
+        }
+        _ => {
+            vec![ZkComputeLoad::Proof, ZkComputeLoad::Verify]
+        }
+    }
 }
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -112,7 +131,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 
                 let fhe_uint_count = bits / 64;
 
-                for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
+                for compute_load in compute_load_config() {
                     let zk_load = match compute_load {
                         ZkComputeLoad::Proof => "compute_load_proof",
                         ZkComputeLoad::Verify => "compute_load_verify",
@@ -260,7 +279,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     vec![],
                 );
 
-                for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
+                for compute_load in compute_load_config() {
                     let zk_load = match compute_load {
                         ZkComputeLoad::Proof => "compute_load_proof",
                         ZkComputeLoad::Verify => "compute_load_verify",
@@ -539,7 +558,7 @@ mod cuda {
                         vec![],
                     );
 
-                    for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
+                    for compute_load in compute_load_config() {
                         let zk_load = match compute_load {
                             ZkComputeLoad::Proof => "compute_load_proof",
                             ZkComputeLoad::Verify => "compute_load_verify",
