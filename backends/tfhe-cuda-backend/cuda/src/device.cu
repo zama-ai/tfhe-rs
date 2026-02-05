@@ -493,3 +493,13 @@ uint32_t cuda_get_max_shared_memory(uint32_t gpu_index) {
 #endif
   return (uint32_t)(max_shared_memory);
 }
+
+/// Get the maximum size for the shared memory per block
+uint32_t cuda_get_max_shared_memory_per_block(uint32_t gpu_index) {
+  int max_shared_memory_per_block = 0;
+  cuda_set_device(gpu_index);
+  check_cuda_error(cudaDeviceGetAttribute(&max_shared_memory_per_block,
+                                          cudaDevAttrMaxSharedMemoryPerBlock,
+                                          gpu_index));
+  return static_cast<uint32_t>(max_shared_memory_per_block);
+}

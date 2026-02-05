@@ -1,0 +1,14 @@
+# Clang-Tidy configuration for zk-cuda-backend
+#
+# This configuration suppresses warnings about uninitialized record types
+# for Fp and Fp2, which are POD types that must remain POD-compatible
+# for CUDA __constant__ memory usage.
+
+Checks: '-*,cppcoreguidelines-pro-type-member-init'
+
+CheckOptions:
+  # Ignore arrays in member initialization checks
+  # This suppresses warnings for Fp and Fp2 which contain array members
+  # that are intentionally uninitialized and immediately assigned via
+  # helper functions (e.g., fp_sub_raw, fp_zero, etc.)
+  cppcoreguidelines-pro-type-member-init.IgnoreArrays: true
