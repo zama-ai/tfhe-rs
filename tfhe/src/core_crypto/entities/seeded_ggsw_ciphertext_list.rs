@@ -473,6 +473,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         Self: 'this;
 }
 
+#[derive(Debug)]
 pub struct GgswCiphertextListConformanceParams<Scalar: UnsignedInteger> {
     pub len: usize,
     pub glwe_size: GlweSize,
@@ -496,7 +497,7 @@ impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Sca
             return Err(());
         }
 
-        let group_count = value.input_lwe_dimension.0 % value.grouping_factor.0;
+        let group_count = value.input_lwe_dimension.0 / value.grouping_factor.0;
 
         Ok(Self {
             len: group_count * value.grouping_factor.ggsw_per_multi_bit_element().0,

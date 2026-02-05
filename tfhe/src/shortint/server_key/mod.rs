@@ -1725,7 +1725,7 @@ pub struct PBSConformanceParams {
     pub pbs_type: PbsTypeConformanceParams,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PbsTypeConformanceParams {
     Classic {
         modulus_switch_noise_reduction: ModulusSwitchType,
