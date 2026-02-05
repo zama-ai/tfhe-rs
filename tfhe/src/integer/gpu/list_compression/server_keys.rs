@@ -18,7 +18,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_compress, cuda_backend_decompress, cuda_backend_get_compression_size_on_gpu,
-    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu, extract_glwe_async,
+    cuda_backend_get_decompression_size_on_gpu, cuda_memcpy_async_gpu_to_gpu, extract_glwe,
     PBSType,
 };
 use crate::prelude::CastInto;
@@ -218,10 +218,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             streams,
         );
 
-        unsafe {
-            extract_glwe_async(streams, &mut output_cuda_glwe_list, self, glwe_index as u32);
-        }
-        streams.synchronize();
+        extract_glwe(streams, &mut output_cuda_glwe_list, self, glwe_index as u32);
         output_cuda_glwe_list
     }
 }

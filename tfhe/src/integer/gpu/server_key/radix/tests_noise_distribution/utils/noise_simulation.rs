@@ -24,7 +24,7 @@ use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
 use crate::integer::gpu::{
-    cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer_async, CudaStreams,
+    cuda_centered_modulus_switch_64, unchecked_small_scalar_mul_integer, CudaStreams,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     NoiseSimulationGenericBootstrapKey, NoiseSimulationModulusSwitchConfig,
@@ -190,16 +190,14 @@ impl ScalarMul<u64> for CudaDynLwe {
                         blocks: vec![side_resources.block_info],
                     },
                 );
-                unsafe {
-                    unchecked_small_scalar_mul_integer_async(
-                        &side_resources.streams,
-                        &mut cuda_radix,
-                        scalar,
-                        side_resources.block_info.message_modulus,
-                        side_resources.block_info.carry_modulus,
-                    );
-                    side_resources.streams.synchronize();
-                }
+                unchecked_small_scalar_mul_integer(
+                    &side_resources.streams,
+                    &mut cuda_radix,
+                    scalar,
+                    side_resources.block_info.message_modulus,
+                    side_resources.block_info.carry_modulus,
+                );
+                side_resources.streams.synchronize();
 
                 Self::U64(cuda_radix.d_blocks)
             }
@@ -763,7 +761,7 @@ impl LweClassicFft128Bootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u1
         accumulator: &CudaGlweCiphertextList<u128>,
         side_resources: &mut Self::SideResources,
     ) {
-        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext_async;
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext;
         use crate::integer::gpu::server_key::CudaBootstrappingKey;
 
         match (input, output) {
@@ -776,16 +774,13 @@ impl LweClassicFft128Bootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u1
                     }
                 };
 
-                unsafe {
-                    cuda_programmable_bootstrap_128_lwe_ciphertext_async(
-                        input_cuda_lwe,
-                        output_cuda_lwe,
-                        accumulator,
-                        bsk,
-                        &side_resources.streams,
-                    );
-                    side_resources.streams.synchronize();
-                }
+                cuda_programmable_bootstrap_128_lwe_ciphertext(
+                    input_cuda_lwe,
+                    output_cuda_lwe,
+                    accumulator,
+                    bsk,
+                    &side_resources.streams,
+                );
             }
             _ => panic!("128-bit PBS expects U64 input and U128 output for CudaDynLwe"),
         }

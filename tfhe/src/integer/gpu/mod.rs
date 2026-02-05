@@ -10389,11 +10389,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
     update_noise_degree(output, &cuda_ffi_output);
 }
 
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn unchecked_small_scalar_mul_integer_async(
+pub fn unchecked_small_scalar_mul_integer(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     small_scalar: u64,
@@ -10418,21 +10414,20 @@ pub unsafe fn unchecked_small_scalar_mul_integer_async(
         &mut lwe_array_noise_levels,
     );
 
-    cuda_small_scalar_multiplication_integer_64_inplace(
-        streams.ffi(),
-        &raw mut cuda_ffi_lwe_array,
-        small_scalar,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-    );
+    unsafe {
+        cuda_small_scalar_multiplication_integer_64_inplace(
+            streams.ffi(),
+            &raw mut cuda_ffi_lwe_array,
+            small_scalar,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+        );
+        streams.synchronize();
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
+pub fn extract_glwe<T: UnsignedInteger>(
     streams: &CudaStreams,
     glwe_array_out: &mut CudaGlweCiphertextList<T>,
     glwe_list: &CudaPackedGlweCiphertextList<T>,
@@ -10450,22 +10445,26 @@ pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
     );
     let packed_glwe_list_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_list);
 
-    if T::BITS == 128 {
-        cuda_integer_extract_glwe_128(
-            streams.ffi(),
-            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
-            &raw const packed_glwe_list_ffi,
-            glwe_index,
-        );
-    } else if T::BITS == 64 {
-        cuda_integer_extract_glwe_64(
-            streams.ffi(),
-            glwe_array_out.0.d_vec.as_mut_c_ptr(0),
-            &raw const packed_glwe_list_ffi,
-            glwe_index,
-        );
-    } else {
-        panic!("Unsupported integer size for CUDA GLWE extraction");
+    unsafe {
+        if T::BITS == 128 {
+            cuda_integer_extract_glwe_128(
+                streams.ffi(),
+                glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+                &raw const packed_glwe_list_ffi,
+                glwe_index,
+            );
+            streams.synchronize();
+        } else if T::BITS == 64 {
+            cuda_integer_extract_glwe_64(
+                streams.ffi(),
+                glwe_array_out.0.d_vec.as_mut_c_ptr(0),
+                &raw const packed_glwe_list_ffi,
+                glwe_index,
+            );
+            streams.synchronize();
+        } else {
+            panic!("Unsupported integer size for CUDA GLWE extraction");
+        }
     }
 }
 

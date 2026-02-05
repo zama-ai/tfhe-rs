@@ -7,12 +7,8 @@ use crate::core_crypto::gpu::{
 };
 use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
-/// # Safety
-///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
+pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
     input: &CudaLweCiphertextList<Scalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
@@ -119,31 +115,39 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
 
     let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
-    programmable_bootstrap_async(
-        streams,
-        &mut output.0.d_vec,
-        output_indexes,
-        &accumulator.0.d_vec,
-        lut_indexes,
-        &input.0.d_vec,
-        input_indexes,
-        &bsk.d_vec,
-        lwe_dimension,
-        bsk.glwe_dimension(),
-        bsk.polynomial_size(),
-        bsk.decomp_base_log(),
-        bsk.decomp_level_count(),
-        num_samples.0 as u32,
-        bsk.ms_noise_reduction_configuration.as_ref(),
-    );
+    unsafe {
+        programmable_bootstrap_async(
+            streams,
+            &mut output.0.d_vec,
+            output_indexes,
+            &accumulator.0.d_vec,
+            lut_indexes,
+            &input.0.d_vec,
+            input_indexes,
+            &bsk.d_vec,
+            lwe_dimension,
+            bsk.glwe_dimension(),
+            bsk.polynomial_size(),
+            bsk.decomp_base_log(),
+            bsk.decomp_level_count(),
+            num_samples.0 as u32,
+            bsk.ms_noise_reduction_configuration.as_ref(),
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
+/// Performs a programmable bootstrap (PBS) on a list of 128-bit LWE ciphertexts,
+/// storing the result back into the provided `output` list.
 ///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronised
+/// # Behavior
+///
+/// - **Single-GLWE requirement**: The `accumulator` must contain exactly **one** GLWE ciphertext
+///   (i.e., one LUT).
+/// - **One LUT for all inputs**: That single LUT is applied uniformly to every LWE ciphertext in
+///   `input`.
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
+pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
     input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
@@ -242,79 +246,21 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
     );
     let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
-    programmable_bootstrap_128_async(
-        streams,
-        &mut output.0.d_vec,
-        &accumulator.0.d_vec,
-        &input.0.d_vec,
-        &bsk.d_vec,
-        lwe_dimension,
-        bsk.glwe_dimension(),
-        bsk.polynomial_size(),
-        bsk.decomp_base_log(),
-        bsk.decomp_level_count(),
-        num_samples.0 as u32,
-        bsk.ms_noise_reduction_configuration.as_ref(),
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
-    output: &mut CudaLweCiphertextList<Scalar>,
-    accumulator: &CudaGlweCiphertextList<Scalar>,
-    lut_indexes: &CudaVec<Scalar>,
-    output_indexes: &CudaVec<Scalar>,
-    input_indexes: &CudaVec<Scalar>,
-    bsk: &CudaLweBootstrapKey,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedTorus + CastInto<usize>,
-{
     unsafe {
-        cuda_programmable_bootstrap_lwe_ciphertext_async(
-            input,
-            output,
-            accumulator,
-            lut_indexes,
-            output_indexes,
-            input_indexes,
-            bsk,
+        programmable_bootstrap_128_async(
             streams,
+            &mut output.0.d_vec,
+            &accumulator.0.d_vec,
+            &input.0.d_vec,
+            &bsk.d_vec,
+            lwe_dimension,
+            bsk.glwe_dimension(),
+            bsk.polynomial_size(),
+            bsk.decomp_base_log(),
+            bsk.decomp_level_count(),
+            num_samples.0 as u32,
+            bsk.ms_noise_reduction_configuration.as_ref(),
         );
+        streams.synchronize();
     }
-    streams.synchronize();
-}
-
-/// Performs a programmable bootstrap (PBS) on a list of 128-bit LWE ciphertexts,
-/// storing the result back into the provided `output` list at matching indices.
-///
-/// # Behavior
-///
-/// - **Single-GLWE requirement**: The `accumulator` must contain exactly **one** GLWE ciphertext
-///   (i.e., one LUT).
-/// - **One LUT for all inputs**: That single LUT is applied uniformly to every LWE ciphertext in
-///   `input`.
-/// - **Index matching**: Each LWE ciphertext in `input` is transformed and stored at the **same
-///   index** in `output`.
-#[allow(clippy::too_many_arguments)]
-pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<u64>,
-    output: &mut CudaLweCiphertextList<Scalar>,
-    accumulator: &CudaGlweCiphertextList<Scalar>,
-    bsk: &CudaLweBootstrapKey,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedTorus + CastInto<usize>,
-{
-    unsafe {
-        cuda_programmable_bootstrap_128_lwe_ciphertext_async(
-            input,
-            output,
-            accumulator,
-            bsk,
-            streams,
-        );
-    }
-    streams.synchronize();
 }

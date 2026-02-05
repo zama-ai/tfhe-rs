@@ -213,8 +213,7 @@ impl CudaServerKey {
             });
         }
 
-        let d_blocks =
-            CudaLweCiphertextList::from_lwe_ciphertext_list_async(&cpu_lwe_list, streams);
+        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&cpu_lwe_list, streams);
 
         T::from(CudaRadixCiphertext {
             d_blocks,
