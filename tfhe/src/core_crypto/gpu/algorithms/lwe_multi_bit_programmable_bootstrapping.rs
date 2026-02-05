@@ -5,12 +5,8 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{programmable_bootstrap_multi_bit_async, CudaStreams};
 use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
-/// # Safety
-///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
+pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
     input: &CudaLweCiphertextList<Scalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
@@ -124,60 +120,30 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
         lut_indexes.gpu_index(0).get(),
     );
 
-    programmable_bootstrap_multi_bit_async(
-        streams,
-        &mut output.0.d_vec,
-        output_indexes,
-        &accumulator.0.d_vec,
-        lut_indexes,
-        &input.0.d_vec,
-        input_indexes,
-        &multi_bit_bsk.d_vec,
-        input.lwe_dimension(),
-        multi_bit_bsk.glwe_dimension(),
-        multi_bit_bsk.polynomial_size(),
-        multi_bit_bsk.decomp_base_log(),
-        multi_bit_bsk.decomp_level_count(),
-        multi_bit_bsk.grouping_factor(),
-        input.lwe_ciphertext_count().0 as u32,
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
-    output: &mut CudaLweCiphertextList<Scalar>,
-    accumulator: &CudaGlweCiphertextList<Scalar>,
-    lut_indexes: &CudaVec<Scalar>,
-    output_indexes: &CudaVec<Scalar>,
-    input_indexes: &CudaVec<Scalar>,
-    multi_bit_bsk: &CudaLweMultiBitBootstrapKey<Scalar>,
-    streams: &CudaStreams,
-) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-{
     unsafe {
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async(
-            input,
-            output,
-            accumulator,
-            lut_indexes,
-            output_indexes,
-            input_indexes,
-            multi_bit_bsk,
+        programmable_bootstrap_multi_bit_async(
             streams,
+            &mut output.0.d_vec,
+            output_indexes,
+            &accumulator.0.d_vec,
+            lut_indexes,
+            &input.0.d_vec,
+            input_indexes,
+            &multi_bit_bsk.d_vec,
+            input.lwe_dimension(),
+            multi_bit_bsk.glwe_dimension(),
+            multi_bit_bsk.polynomial_size(),
+            multi_bit_bsk.decomp_base_log(),
+            multi_bit_bsk.decomp_level_count(),
+            multi_bit_bsk.grouping_factor(),
+            input.lwe_ciphertext_count().0 as u32,
         );
+        streams.synchronize();
     }
-    streams.synchronize();
 }
 
-/// # Safety
-///
-/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext_async<OutputScalar>(
+pub fn cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext<OutputScalar>(
     input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<OutputScalar>,
     accumulator: &CudaGlweCiphertextList<OutputScalar>,
@@ -283,50 +249,24 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext_async<Out
         lut_indexes.gpu_index(0).get(),
     );
 
-    programmable_bootstrap_multi_bit_async(
-        streams,
-        &mut output.0.d_vec,
-        output_indexes,
-        &accumulator.0.d_vec,
-        lut_indexes,
-        &input.0.d_vec,
-        input_indexes,
-        &multi_bit_bsk.d_vec,
-        input.lwe_dimension(),
-        multi_bit_bsk.glwe_dimension(),
-        multi_bit_bsk.polynomial_size(),
-        multi_bit_bsk.decomp_base_log(),
-        multi_bit_bsk.decomp_level_count(),
-        multi_bit_bsk.grouping_factor(),
-        input.lwe_ciphertext_count().0 as u32,
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<u64>,
-    output: &mut CudaLweCiphertextList<Scalar>,
-    accumulator: &CudaGlweCiphertextList<Scalar>,
-    lut_indexes: &CudaVec<u64>,
-    output_indexes: &CudaVec<u64>,
-    input_indexes: &CudaVec<u64>,
-    multi_bit_bsk: &CudaLweMultiBitBootstrapKey<Scalar>,
-    streams: &CudaStreams,
-) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-{
     unsafe {
-        cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext_async(
-            input,
-            output,
-            accumulator,
-            lut_indexes,
-            output_indexes,
-            input_indexes,
-            multi_bit_bsk,
+        programmable_bootstrap_multi_bit_async(
             streams,
+            &mut output.0.d_vec,
+            output_indexes,
+            &accumulator.0.d_vec,
+            lut_indexes,
+            &input.0.d_vec,
+            input_indexes,
+            &multi_bit_bsk.d_vec,
+            input.lwe_dimension(),
+            multi_bit_bsk.glwe_dimension(),
+            multi_bit_bsk.polynomial_size(),
+            multi_bit_bsk.decomp_base_log(),
+            multi_bit_bsk.decomp_level_count(),
+            multi_bit_bsk.grouping_factor(),
+            input.lwe_ciphertext_count().0 as u32,
         );
+        streams.synchronize();
     }
-    streams.synchronize();
 }

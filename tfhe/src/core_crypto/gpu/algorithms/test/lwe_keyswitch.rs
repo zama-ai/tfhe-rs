@@ -503,15 +503,13 @@ fn test_util_closest_representable_on_gpu(
 
     let mut d_output = unsafe { CudaVec::<u64>::new_async(1, &stream, 0) };
 
-    unsafe {
-        cuda_closest_representable(
-            &stream,
-            &d_input,
-            &mut d_output,
-            base_log.0 as u32,
-            level_count.0 as u32,
-        );
-    }
+    cuda_closest_representable(
+        &stream,
+        &d_input,
+        &mut d_output,
+        base_log.0 as u32,
+        level_count.0 as u32,
+    );
 
     let mut h_output: Vec<u64> = vec![0];
     unsafe {

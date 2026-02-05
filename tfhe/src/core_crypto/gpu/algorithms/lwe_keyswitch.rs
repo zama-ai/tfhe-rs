@@ -2,19 +2,15 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
-    cleanup_cuda_keyswitch_gemm_64, cuda_closest_representable_64, keyswitch_async,
+    cleanup_cuda_keyswitch_gemm_64, cuda_closest_representable_64_async, keyswitch_async,
     keyswitch_async_gemm, scratch_cuda_keyswitch_gemm_64, CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
 use std::cmp::min;
 use tfhe_cuda_backend::ffi;
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar, KSKScalar>(
+pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
     lwe_keyswitch_key: &CudaLweKeyswitchKey<KSKScalar>,
     input_lwe_ciphertext: &CudaLweCiphertextList<Scalar>,
     output_lwe_ciphertext: &mut CudaLweCiphertextList<KSKScalar>,
@@ -113,90 +109,61 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar, KSKScalar>(
         "The number of input and output indexes must be the same for LWE keyswitch"
     );
 
-    if use_gemm_ks {
-        // Scratch allocations uses input LWE dtype for buffer size
-        cuda_scratch_keyswitch_lwe_ciphertext_async::<Scalar>(
-            streams,
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension().0 as u32,
-            lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension().0 as u32,
-            num_lwes_to_ks as u32,
-            true,
-        );
-
-        // Gemm KS can KS with input LWE dtype Scalar to output LWE dtype KSKScalar
-        keyswitch_async_gemm(
-            streams,
-            &mut output_lwe_ciphertext.0.d_vec,
-            output_indexes,
-            &input_lwe_ciphertext.0.d_vec,
-            input_indexes,
-            lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension(),
-            lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension(),
-            &lwe_keyswitch_key.d_vec,
-            lwe_keyswitch_key.decomposition_base_log(),
-            lwe_keyswitch_key.decomposition_level_count(),
-            num_lwes_to_ks as u32,
-            ks_tmp_buffer,
-            uses_trivial_indices,
-        );
-
-        cleanup_cuda_keyswitch_async::<Scalar>(
-            streams,
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            true,
-        );
-    } else {
-        keyswitch_async(
-            streams,
-            &mut output_lwe_ciphertext.0.d_vec,
-            output_indexes,
-            &input_lwe_ciphertext.0.d_vec,
-            input_indexes,
-            lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension(),
-            lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension(),
-            &lwe_keyswitch_key.d_vec,
-            lwe_keyswitch_key.decomposition_base_log(),
-            lwe_keyswitch_key.decomposition_level_count(),
-            num_lwes_to_ks as u32,
-        );
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
-    lwe_keyswitch_key: &CudaLweKeyswitchKey<KSKScalar>,
-    input_lwe_ciphertext: &CudaLweCiphertextList<Scalar>,
-    output_lwe_ciphertext: &mut CudaLweCiphertextList<KSKScalar>,
-    input_indexes: &CudaVec<Scalar>,
-    output_indexes: &CudaVec<Scalar>,
-    uses_trivial_indices: bool,
-    streams: &CudaStreams,
-    use_gemm_ks: bool,
-) where
-    Scalar: UnsignedInteger,
-    KSKScalar: UnsignedInteger,
-{
     unsafe {
-        cuda_keyswitch_lwe_ciphertext_async(
-            lwe_keyswitch_key,
-            input_lwe_ciphertext,
-            output_lwe_ciphertext,
-            input_indexes,
-            output_indexes,
-            uses_trivial_indices,
-            streams,
-            use_gemm_ks,
-        );
+        if use_gemm_ks {
+            // Scratch allocations uses input LWE dtype for buffer size
+            cuda_scratch_keyswitch_lwe_ciphertext::<Scalar>(
+                streams,
+                std::ptr::addr_of_mut!(ks_tmp_buffer),
+                lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension().0 as u32,
+                lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension().0 as u32,
+                num_lwes_to_ks as u32,
+                true,
+            );
+
+            // Gemm KS can KS with input LWE dtype Scalar to output LWE dtype KSKScalar
+            keyswitch_async_gemm(
+                streams,
+                &mut output_lwe_ciphertext.0.d_vec,
+                output_indexes,
+                &input_lwe_ciphertext.0.d_vec,
+                input_indexes,
+                lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension(),
+                lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension(),
+                &lwe_keyswitch_key.d_vec,
+                lwe_keyswitch_key.decomposition_base_log(),
+                lwe_keyswitch_key.decomposition_level_count(),
+                num_lwes_to_ks as u32,
+                ks_tmp_buffer,
+                uses_trivial_indices,
+            );
+
+            cleanup_cuda_keyswitch::<Scalar>(streams, std::ptr::addr_of_mut!(ks_tmp_buffer), true);
+        } else {
+            keyswitch_async(
+                streams,
+                &mut output_lwe_ciphertext.0.d_vec,
+                output_indexes,
+                &input_lwe_ciphertext.0.d_vec,
+                input_indexes,
+                lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension(),
+                lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension(),
+                &lwe_keyswitch_key.d_vec,
+                lwe_keyswitch_key.decomposition_base_log(),
+                lwe_keyswitch_key.decomposition_level_count(),
+                num_lwes_to_ks as u32,
+            );
+        }
+        streams.synchronize();
     }
-    streams.synchronize();
 }
 
 /// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronized
-pub unsafe fn cuda_scratch_keyswitch_lwe_ciphertext_async<Scalar>(
+/// - `ks_tmp_buffer` must be a valid, writable pointer to a GPU pointer
+/// - Must be allocated for the correct CUDA device
+/// - Must not be aliased while this function runs
+/// - `streams` must outlive the kernel execution
+pub unsafe fn cuda_scratch_keyswitch_lwe_ciphertext<Scalar>(
     streams: &CudaStreams,
     ks_tmp_buffer: *mut *mut ffi::c_void,
     lwe_dimension_in: u32,
@@ -215,13 +182,15 @@ pub unsafe fn cuda_scratch_keyswitch_lwe_ciphertext_async<Scalar>(
         num_lwes,
         allocate_gpu_memory,
     );
+    streams.synchronize();
 }
 
 /// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronized
-pub unsafe fn cleanup_cuda_keyswitch_async<Scalar>(
+/// - `ks_tmp_buffer` must be a valid, writable pointer to a GPU pointer
+/// - Must be allocated for the correct CUDA device
+/// - Must not be aliased while this function runs
+/// - `streams` must outlive the kernel execution
+pub unsafe fn cleanup_cuda_keyswitch<Scalar>(
     streams: &CudaStreams,
     ks_tmp_buffer: *mut *mut ffi::c_void,
     allocate_gpu_memory: bool,
@@ -232,12 +201,10 @@ pub unsafe fn cleanup_cuda_keyswitch_async<Scalar>(
         ks_tmp_buffer,
         allocate_gpu_memory,
     );
+    streams.synchronize();
 }
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronized
-pub unsafe fn cuda_closest_representable<Scalar>(
+
+pub fn cuda_closest_representable<Scalar>(
     streams: &CudaStreams,
     input: &CudaVec<Scalar>,
     output: &mut CudaVec<Scalar>,
@@ -246,12 +213,15 @@ pub unsafe fn cuda_closest_representable<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    cuda_closest_representable_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        input.as_c_ptr(0),
-        output.as_mut_c_ptr(0),
-        base_log,
-        level_count,
-    );
+    unsafe {
+        cuda_closest_representable_64_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            input.as_c_ptr(0),
+            output.as_mut_c_ptr(0),
+            base_log,
+            level_count,
+        );
+        streams.synchronize();
+    }
 }

@@ -9,11 +9,7 @@ use crate::core_crypto::gpu::{
 };
 use crate::core_crypto::prelude::UnsignedInteger;
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_add_async<Scalar>(
+pub fn cuda_lwe_ciphertext_add<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     lhs: &CudaLweCiphertextList<Scalar>,
     rhs: &CudaLweCiphertextList<Scalar>,
@@ -76,21 +72,20 @@ pub unsafe fn cuda_lwe_ciphertext_add_async<Scalar>(
         output.0.d_vec.gpu_index(0).get(),
     );
 
-    add_lwe_ciphertext_vector_async(
-        streams,
-        &mut output.0.d_vec,
-        &lhs.0.d_vec,
-        &rhs.0.d_vec,
-        lhs.lwe_dimension(),
-        num_samples,
-    );
+    unsafe {
+        add_lwe_ciphertext_vector_async(
+            streams,
+            &mut output.0.d_vec,
+            &lhs.0.d_vec,
+            &rhs.0.d_vec,
+            lhs.lwe_dimension(),
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_add_assign_async<Scalar>(
+pub fn cuda_lwe_ciphertext_add_assign<Scalar>(
     lhs: &mut CudaLweCiphertextList<Scalar>,
     rhs: &CudaLweCiphertextList<Scalar>,
     streams: &CudaStreams,
@@ -133,20 +128,19 @@ pub unsafe fn cuda_lwe_ciphertext_add_assign_async<Scalar>(
         rhs.0.d_vec.gpu_index(0).get(),
     );
 
-    add_lwe_ciphertext_vector_assign_async(
-        streams,
-        &mut lhs.0.d_vec,
-        &rhs.0.d_vec,
-        rhs.lwe_dimension(),
-        num_samples,
-    );
+    unsafe {
+        add_lwe_ciphertext_vector_assign_async(
+            streams,
+            &mut lhs.0.d_vec,
+            &rhs.0.d_vec,
+            rhs.lwe_dimension(),
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
+pub fn cuda_lwe_ciphertext_plaintext_add<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     lhs: &CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
@@ -193,21 +187,20 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
         output.0.d_vec.gpu_index(0).get(),
     );
 
-    add_lwe_ciphertext_vector_plaintext_vector_async(
-        streams,
-        &mut output.0.d_vec,
-        &lhs.0.d_vec,
-        rhs,
-        lhs.lwe_dimension(),
-        num_samples,
-    );
+    unsafe {
+        add_lwe_ciphertext_vector_plaintext_vector_async(
+            streams,
+            &mut output.0.d_vec,
+            &lhs.0.d_vec,
+            rhs,
+            lhs.lwe_dimension(),
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
+pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
     lhs: &mut CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
     streams: &CudaStreams,
@@ -239,20 +232,19 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
         "GPU LWE ciphertext plaintext add currently only supports power of 2 moduli"
     );
 
-    add_lwe_ciphertext_vector_plaintext_vector_assign_async(
-        streams,
-        &mut lhs.0.d_vec,
-        rhs,
-        *lwe_dimension,
-        num_samples,
-    );
+    unsafe {
+        add_lwe_ciphertext_vector_plaintext_vector_assign_async(
+            streams,
+            &mut lhs.0.d_vec,
+            rhs,
+            *lwe_dimension,
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
+pub fn cuda_lwe_ciphertext_negate<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
     streams: &CudaStreams,
@@ -283,20 +275,19 @@ pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
 
-    negate_lwe_ciphertext_vector_async(
-        streams,
-        &mut output.0.d_vec,
-        &input.0.d_vec,
-        *lwe_dimension,
-        num_samples,
-    );
+    unsafe {
+        negate_lwe_ciphertext_vector_async(
+            streams,
+            &mut output.0.d_vec,
+            &input.0.d_vec,
+            *lwe_dimension,
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_negate_assign_async<Scalar>(
+pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
     ct: &mut CudaLweCiphertextList<Scalar>,
     streams: &CudaStreams,
 ) where
@@ -305,19 +296,18 @@ pub unsafe fn cuda_lwe_ciphertext_negate_assign_async<Scalar>(
     let num_samples = ct.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &ct.lwe_dimension();
 
-    negate_lwe_ciphertext_vector_assign_async(
-        streams,
-        &mut ct.0.d_vec,
-        *lwe_dimension,
-        num_samples,
-    );
+    unsafe {
+        negate_lwe_ciphertext_vector_assign_async(
+            streams,
+            &mut ct.0.d_vec,
+            *lwe_dimension,
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
+pub fn cuda_lwe_ciphertext_cleartext_mul<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
     cleartext: &CudaVec<Scalar>,
@@ -369,21 +359,20 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
 
-    mult_lwe_ciphertext_vector_cleartext_vector(
-        streams,
-        &mut output.0.d_vec,
-        &input.0.d_vec,
-        cleartext,
-        *lwe_dimension,
-        num_samples,
-    );
+    unsafe {
+        mult_lwe_ciphertext_vector_cleartext_vector(
+            streams,
+            &mut output.0.d_vec,
+            &input.0.d_vec,
+            cleartext,
+            *lwe_dimension,
+            num_samples,
+        );
+        streams.synchronize();
+    }
 }
 
-/// # Safety
-///
-/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
-///   be dropped until stream is synchronised
-pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_assign_async<Scalar>(
+pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
     ct: &mut CudaLweCiphertextList<Scalar>,
     cleartext: &CudaVec<Scalar>,
     streams: &CudaStreams,
@@ -393,117 +382,14 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_assign_async<Scalar>(
     let num_samples = ct.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = ct.lwe_dimension();
 
-    mult_lwe_ciphertext_vector_cleartext_vector_assign_async(
-        streams,
-        &mut ct.0.d_vec,
-        cleartext,
-        lwe_dimension,
-        num_samples,
-    );
-}
-
-pub fn cuda_lwe_ciphertext_add<Scalar>(
-    output: &mut CudaLweCiphertextList<Scalar>,
-    lhs: &CudaLweCiphertextList<Scalar>,
-    rhs: &CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
     unsafe {
-        cuda_lwe_ciphertext_add_async(output, lhs, rhs, streams);
+        mult_lwe_ciphertext_vector_cleartext_vector_assign_async(
+            streams,
+            &mut ct.0.d_vec,
+            cleartext,
+            lwe_dimension,
+            num_samples,
+        );
+        streams.synchronize();
     }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_add_assign<Scalar>(
-    lhs: &mut CudaLweCiphertextList<Scalar>,
-    rhs: &CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_add_assign_async(lhs, rhs, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_plaintext_add<Scalar>(
-    output: &mut CudaLweCiphertextList<Scalar>,
-    lhs: &CudaLweCiphertextList<Scalar>,
-    rhs: &CudaVec<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_plaintext_add_async(output, lhs, rhs, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
-    lhs: &mut CudaLweCiphertextList<Scalar>,
-    rhs: &CudaVec<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_plaintext_add_assign_async(lhs, rhs, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_negate<Scalar>(
-    output: &mut CudaLweCiphertextList<Scalar>,
-    input: &CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_negate_async(output, input, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
-    ct: &mut CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_negate_assign_async(ct, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_cleartext_mul<Scalar>(
-    output: &mut CudaLweCiphertextList<Scalar>,
-    input: &CudaLweCiphertextList<Scalar>,
-    cleartext: &CudaVec<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_cleartext_mul_async(output, input, cleartext, streams);
-    }
-    streams.synchronize();
-}
-
-pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
-    ct: &mut CudaLweCiphertextList<Scalar>,
-    cleartext: &CudaVec<Scalar>,
-    stream: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    unsafe {
-        cuda_lwe_ciphertext_cleartext_mul_assign_async(ct, cleartext, stream);
-    }
-    stream.synchronize();
 }
