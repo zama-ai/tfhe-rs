@@ -176,8 +176,7 @@ template <typename Torus> struct int_possible_results_buffer {
     this->lut_stride =
         (ciphertext_modulus / this->max_luts_per_call) * box_size;
 
-    this->num_lut_accumulators =
-        (total_luts_needed + max_luts_per_call - 1) / max_luts_per_call;
+    this->num_lut_accumulators = CEIL_DIV(total_luts_needed, max_luts_per_call);
 
     stream_luts =
         new int_radix_lut<Torus> *[num_streams * num_lut_accumulators];

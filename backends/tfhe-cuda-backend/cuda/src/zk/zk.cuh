@@ -11,7 +11,6 @@
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
-#include "utils/kernel_dimensions.cuh"
 #include "zk/zk_utilities.h"
 #include <functional>
 

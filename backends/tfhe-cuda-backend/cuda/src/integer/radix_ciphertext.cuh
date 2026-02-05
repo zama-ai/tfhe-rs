@@ -4,8 +4,8 @@
 #include "device.h"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
+#include "utils/helper.cuh"
 #include "utils/helper_profile.cuh"
-#include "utils/kernel_dimensions.cuh"
 
 inline CudaLweCiphertextListFFI
 to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
