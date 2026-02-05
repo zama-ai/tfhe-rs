@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #endif
 
-#include "../utils/kernel_dimensions.cuh"
+#include "../utils/helper.cuh"
 #include "device.h"
 #include "linear_algebra.h"
 #include <fstream>

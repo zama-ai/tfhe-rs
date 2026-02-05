@@ -8,7 +8,7 @@
 
 #include "device.h"
 #include "helper_multi_gpu.h"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 #include <stdio.h>
 
 template <typename Torus>

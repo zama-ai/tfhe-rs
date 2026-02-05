@@ -10,7 +10,7 @@
 #include "device.h"
 #include "integer/integer.cuh"
 #include "integer/integer_utilities.h"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 #include <iostream>
 #include <sstream>
 #include <string>

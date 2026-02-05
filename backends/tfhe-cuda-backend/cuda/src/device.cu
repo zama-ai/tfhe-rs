@@ -1,4 +1,5 @@
 #include "device.h"
+#include "utils/helper.cuh"
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <mutex>
@@ -383,7 +384,7 @@ void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
     }
     cuda_set_device(gpu_index);
     int block_size = 256;
-    int num_blocks = (n + block_size - 1) / block_size;
+    int num_blocks = CEIL_DIV(n, block_size);
 
     // Launch the kernel
     cuda_set_value_kernel<Torus>

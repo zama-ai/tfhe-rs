@@ -362,7 +362,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   radix_columns current_columns(current_blocks->degrees, num_radix_blocks,
                                 num_radix_in_vec, chunk_size, needs_processing);
   int number_of_threads = std::min(256, (int)mem_ptr->params.polynomial_size);
-  int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
+  int part_count = CEIL_DIV(big_lwe_size, number_of_threads);
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
 
   mem_ptr->setup_lookup_tables(streams, num_radix_in_vec,

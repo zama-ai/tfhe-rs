@@ -12,7 +12,7 @@
 #include "integer/subtraction.cuh"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 
 // lwe_dimension + 1 threads
 // todo: This kernel MUST be refactored to a binary reduction
@@ -98,7 +98,7 @@ __host__ void are_all_comparisons_block_true(
 
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
+    int num_chunks = CEIL_DIV(remaining_blocks, max_value);
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
@@ -218,7 +218,7 @@ __host__ void is_at_least_one_comparisons_block_true(
   uint32_t remaining_blocks = num_radix_blocks;
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
+    int num_chunks = CEIL_DIV(remaining_blocks, max_value);
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones

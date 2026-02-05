@@ -22,8 +22,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     uint32_t calculated_active_blocks =
         total_random_bits == 0
             ? 0
-            : (total_random_bits + message_bits_per_block - 1) /
-                  message_bits_per_block;
+            : CEIL_DIV(total_random_bits, message_bits_per_block);
     if (num_blocks_to_process != calculated_active_blocks) {
       PANIC(
           "num_blocks_to_process should be equal to calculated_active_blocks");
@@ -182,8 +181,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     this->num_random_input_blocks =
-        (num_input_random_bits + message_bits_per_block - 1) /
-        message_bits_per_block;
+        CEIL_DIV(num_input_random_bits, message_bits_per_block);
 
     this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
         streams, params, this->num_random_input_blocks, message_bits_per_block,

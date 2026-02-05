@@ -28,7 +28,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     Torus total_modulus = params.message_modulus * params.carry_modulus;
     uint32_t max_value = (total_modulus - 1) / (params.message_modulus - 1);
 
-    int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
+    int max_chunks = CEIL_DIV(num_radix_blocks, max_value);
     tmp_out = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_out, num_radix_blocks,

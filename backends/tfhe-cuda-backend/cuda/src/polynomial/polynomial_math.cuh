@@ -8,8 +8,6 @@
 #include "parameters.cuh"
 #include "types/complex/operations.cuh"
 
-#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
-
 template <typename T>
 __device__ T *get_chunk(T *data, int chunk_num, int chunk_size) {
   int pos = chunk_num * chunk_size;

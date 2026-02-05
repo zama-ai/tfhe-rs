@@ -14,7 +14,6 @@
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include "utils/helper_profile.cuh"
-#include "utils/kernel_dimensions.cuh"
 #include <algorithm>
 #include <functional>
 
@@ -273,8 +272,7 @@ __global__ void device_radix_split_simulators_and_grouping_pgns(
       }
     }
 
-    if ((blockIdx.x / group_size + 1) <
-        (blocks_count + group_size - 1) / group_size) {
+    if ((blockIdx.x / group_size + 1) < CEIL_DIV(blocks_count, group_size)) {
       size_t src_offset = (blockIdx.x + group_size - 1) * lwe_size;
       size_t pgns_offset = (blockIdx.x / group_size) * lwe_size;
       for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
@@ -363,7 +361,7 @@ __host__ void host_radix_sum_in_groups(cudaStream_t stream, uint32_t gpu_index,
       num_radix_blocks > src1->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks should have more "
           "blocks than the number used in sum in groups")
-  auto num_groups = (num_radix_blocks + group_size - 1) / group_size;
+  auto num_groups = CEIL_DIV(num_radix_blocks, group_size);
   if (src2->num_radix_blocks < num_groups)
     PANIC("Cuda error: second input in sum in groups should have at least "
           "num_groups blocks")
