@@ -10,7 +10,6 @@
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
 #include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
 #include <thread>
 #include <vector>
 

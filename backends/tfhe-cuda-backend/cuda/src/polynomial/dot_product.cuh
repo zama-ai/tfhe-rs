@@ -3,8 +3,6 @@
 
 #include "crypto/torus.cuh"
 
-#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
-
 #define CIRCULANT_BLOCKTILE 32
 // Make a circulant matrix that serves to multiply a polynomial
 // with another one. Each thread loads a part of the original

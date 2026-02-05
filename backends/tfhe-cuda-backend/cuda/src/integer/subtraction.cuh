@@ -116,7 +116,7 @@ __host__ void host_integer_overflowing_sub(
       radix_params.message_modulus * radix_params.carry_modulus;
   uint32_t num_bits_in_block = log2_int(block_modulus);
   uint32_t grouping_size = num_bits_in_block;
-  uint32_t num_groups = (num_blocks + grouping_size - 1) / grouping_size;
+  uint32_t num_groups = CEIL_DIV(num_blocks, grouping_size);
 
   host_unchecked_sub_with_correcting_term<Torus>(
       streams.stream(0), streams.gpu_index(0), output, input_left, input_right,

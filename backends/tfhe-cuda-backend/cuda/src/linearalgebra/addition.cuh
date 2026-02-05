@@ -8,7 +8,7 @@
 #include "helper_multi_gpu.h"
 #include "integer/integer.h"
 #include "integer/integer_utilities.h"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 #include <stdio.h>
 
 template <typename T>

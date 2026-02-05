@@ -12,7 +12,7 @@
 #include "integer/scalar_mul.h"
 #include "multiplication.cuh"
 #include "scalar_shifts.cuh"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 #include <stdio.h>
 
 template <typename T>

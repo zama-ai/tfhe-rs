@@ -10,7 +10,7 @@
 #include "integer/integer.cuh"
 #include "linearalgebra/multiplication.cuh"
 #include "polynomial/functions.cuh"
-#include "utils/kernel_dimensions.cuh"
+#include "utils/helper.cuh"
 
 /*
  * =============================================================================
@@ -181,7 +181,7 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 
   // number_bits_to_pack.div_ceil(Scalar::BITS)
   auto nbits = sizeof(Torus) * 8;
-  auto out_len = (number_bits_to_pack + nbits - 1) / nbits;
+  auto out_len = CEIL_DIV(number_bits_to_pack, nbits);
 
   int num_blocks = 0, num_threads = 0;
   getNumBlocksAndThreads(out_len, 1024, num_blocks, num_threads);
@@ -317,8 +317,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   auto glwe_ciphertext_size = (glwe_dimension + 1) * polynomial_size;
 
-  uint32_t num_glwes =
-      (total_lwe_bodies_count + polynomial_size - 1) / polynomial_size;
+  uint32_t num_glwes = CEIL_DIV(total_lwe_bodies_count, polynomial_size);
 
   // Compressed length of the compressed GLWE we want to extract
   uint32_t body_count = 0;
@@ -341,7 +340,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   // Calculates how many bits a full-packed GLWE shall use
   number_bits_to_unpack = glwe_ciphertext_size * log_modulus;
-  auto len = (number_bits_to_unpack + nbits - 1) / nbits;
+  auto len = CEIL_DIV(number_bits_to_unpack, nbits);
   // Uses that length to set the input pointer
   auto chunk_array_in = (Torus *)array_in->ptr + glwe_index * len;
 
