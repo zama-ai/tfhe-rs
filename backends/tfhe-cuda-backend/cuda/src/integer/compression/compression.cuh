@@ -334,12 +334,11 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   uint32_t initial_out_len = glwe_dimension * polynomial_size + body_count;
 
-  // Calculates how many bits this particular GLWE shall use
-  auto number_bits_to_unpack = initial_out_len * log_modulus;
   auto nbits = sizeof(Torus) * 8;
 
-  // Calculates how many bits a full-packed GLWE shall use
-  number_bits_to_unpack = glwe_ciphertext_size * log_modulus;
+  // Calculate how many bits a full-packed GLWE uses, to determine
+  // the stride between consecutive packed GLWEs in the input buffer
+  auto number_bits_to_unpack = glwe_ciphertext_size * log_modulus;
   auto len = CEIL_DIV(number_bits_to_unpack, nbits);
   // Uses that length to set the input pointer
   auto chunk_array_in = (Torus *)array_in->ptr + glwe_index * len;
