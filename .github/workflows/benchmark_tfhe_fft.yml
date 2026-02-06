@@ -31,6 +31,9 @@ permissions: {}
 jobs:
   setup-instance:
     name: benchmark_tfhe_fft/setup-instance
+    if:
+      (github.event_name != 'workflow_dispatch' && github.repository == 'zama-ai/tfhe-rs') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
