@@ -75,7 +75,8 @@ jobs:
     name: make_release_common/provenance
     if: ${{ !inputs.dry-run  }}
     needs: package
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
+    # This action cannot be pinned to a specific commit (see https://github.com/slsa-framework/slsa-github-generator/blob/main/README.md#referencing-slsa-builders-and-generators)
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       actions: read # Needed to detect the GitHub Actions environment
       id-token: write # Needed to create the provenance via GitHub OIDC
