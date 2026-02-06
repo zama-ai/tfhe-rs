@@ -285,7 +285,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_1_lut_f},
-                                          gpu_memory_allocated);
+                                          LUT_0_FOR_ALL_BLOCKS);
     }
 
     luts[0] = zero_out_if_not_2_lut_1;
@@ -295,7 +295,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(streams.get_ith(lut_gpu_indexes[j]),
                                           {0}, {zero_out_if_not_2_lut_f},
-                                          gpu_memory_allocated);
+                                          LUT_0_FOR_ALL_BLOCKS);
     }
 
     quotient_lut_1 =
@@ -316,11 +316,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     auto quotient_lut_3_f = [](Torus cond) -> Torus { return cond * 3; };
 
     quotient_lut_1->generate_and_broadcast_lut(
-        streams.get_ith(2), {0}, {quotient_lut_1_f}, gpu_memory_allocated);
+        streams.get_ith(2), {0}, {quotient_lut_1_f}, LUT_0_FOR_ALL_BLOCKS);
     quotient_lut_2->generate_and_broadcast_lut(
-        streams.get_ith(1), {0}, {quotient_lut_2_f}, gpu_memory_allocated);
+        streams.get_ith(1), {0}, {quotient_lut_2_f}, LUT_0_FOR_ALL_BLOCKS);
     quotient_lut_3->generate_and_broadcast_lut(
-        streams.get_ith(0), {0}, {quotient_lut_3_f}, gpu_memory_allocated);
+        streams.get_ith(0), {0}, {quotient_lut_3_f}, LUT_0_FOR_ALL_BLOCKS);
 
     message_extract_lut_1 = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
@@ -340,7 +340,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
 
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
@@ -485,29 +485,35 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           (Torus *)cuda_malloc_with_size_tracking_async(
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
-      for (int index = 0; index < nb; index++) {
-        uint32_t grouping_index = index / group_size;
-        bool is_in_first_grouping = (grouping_index == 0);
-        uint32_t index_in_grouping = index % group_size;
-        bool is_last_index = (index == (nb - 1));
-        if (is_last_index) {
-          if (nb == 1) {
-            h_lut_indexes[index] = 2 * group_size;
+
+      auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
+        for (int index = 0; index < nb; index++) {
+          uint32_t grouping_index = index / group_size;
+          bool is_in_first_grouping = (grouping_index == 0);
+          uint32_t index_in_grouping = index % group_size;
+          bool is_last_index = (index == (nb - 1));
+          if (is_last_index) {
+            if (nb == 1) {
+              h_lut_indexes[index] = 2 * group_size;
+            } else {
+              h_lut_indexes[index] = 2;
+            }
+          } else if (is_in_first_grouping) {
+            h_lut_indexes[index] = index_in_grouping;
           } else {
-            h_lut_indexes[index] = 2;
+            h_lut_indexes[index] = index_in_grouping + group_size;
           }
-        } else if (is_in_first_grouping) {
-          h_lut_indexes[index] = index_in_grouping;
-        } else {
-          h_lut_indexes[index] = index_in_grouping + group_size;
         }
-      }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          first_indexes_for_overflow_sub_gpu_0[nb - 1], h_lut_indexes,
-          nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-          allocate_gpu_memory);
+      };
+
+      generate_lut_indexes<Torus>(streams, index_generator,
+                                  first_indexes_for_overflow_sub_gpu_0[nb - 1],
+                                  nb, 2 * group_size + 1, h_lut_indexes,
+                                  allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
+    uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
+    uint32_t num_luts_second_step = 2 * group_size + num_extra_luts;
     for (int nb = 1; nb <= num_blocks; nb++) {
       second_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
@@ -518,24 +524,37 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
+      auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
+                                                       uint32_t) {
+        for (int index = 0; index < nb; index++) {
+          uint32_t grouping_index = index / group_size;
+          bool is_in_first_grouping = (grouping_index == 0);
+          uint32_t index_in_grouping = index % group_size;
+
+          if (is_in_first_grouping) {
+            h_lut_indexes[index] = index_in_grouping;
+          } else if (index_in_grouping == (group_size - 1)) {
+            if (use_seq) {
+              int inner_index = (grouping_index - 1) % (group_size - 1);
+              h_lut_indexes[index] = inner_index + 2 * group_size;
+            } else {
+              h_lut_indexes[index] = 2 * group_size;
+            }
+          } else {
+            h_lut_indexes[index] = index_in_grouping + group_size;
+          }
+        }
+      };
+
+      generate_lut_indexes<Torus>(streams, index_generator,
+                                  second_indexes_for_overflow_sub_gpu_0[nb - 1],
+                                  nb, num_luts_second_step, h_lut_indexes,
+                                  allocate_gpu_memory);
+
       for (int index = 0; index < nb; index++) {
         uint32_t grouping_index = index / group_size;
         bool is_in_first_grouping = (grouping_index == 0);
         uint32_t index_in_grouping = index % group_size;
-
-        if (is_in_first_grouping) {
-          h_lut_indexes[index] = index_in_grouping;
-        } else if (index_in_grouping == (group_size - 1)) {
-          if (use_seq) {
-            int inner_index = (grouping_index - 1) % (group_size - 1);
-            h_lut_indexes[index] = inner_index + 2 * group_size;
-          } else {
-            h_lut_indexes[index] = 2 * group_size;
-          }
-        } else {
-          h_lut_indexes[index] = index_in_grouping + group_size;
-        }
-
         bool may_have_its_padding_bit_set =
             !is_in_first_grouping && (index_in_grouping == group_size - 1);
 
@@ -549,10 +568,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           h_scalar[index] = 0;
         }
       }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          second_indexes_for_overflow_sub_gpu_0[nb - 1], h_lut_indexes,
-          nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-          allocate_gpu_memory);
       cuda_memcpy_with_size_tracking_async_to_gpu(
           scalars_for_overflow_sub_gpu_0[nb - 1], h_scalar, nb * sizeof(Torus),
           streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
@@ -991,12 +1006,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
       auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
       masking_luts_1[i]->generate_and_broadcast_lut(
-          active_streams_1, {0}, {lut_f_masking}, gpu_memory_allocated);
+          active_streams_1, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
 
       auto active_streams_2 =
           streams.active_gpu_subset(num_blocks, params.pbs_type);
       masking_luts_2[i]->generate_and_broadcast_lut(
-          active_streams_2, {0}, {lut_f_masking}, gpu_memory_allocated);
+          active_streams_2, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     // create and generate message_extract_lut_1 and message_extract_lut_2
@@ -1019,7 +1034,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         streams.active_gpu_subset(num_blocks, params.pbs_type);
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     // Give name to closures to improve readability
@@ -1047,11 +1062,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     zero_out_if_overflow_did_not_happen[0]
         ->generate_and_broadcast_bivariate_lut(active_streams, {0}, {cur_lut_f},
-                                               gpu_memory_allocated, {},
+                                               LUT_0_FOR_ALL_BLOCKS, {},
                                                params.message_modulus - 2);
     zero_out_if_overflow_did_not_happen[1]
         ->generate_and_broadcast_bivariate_lut(active_streams, {0}, {cur_lut_f},
-                                               gpu_memory_allocated, {},
+                                               LUT_0_FOR_ALL_BLOCKS, {},
                                                params.message_modulus - 1);
 
     // create and generate zero_out_if_overflow_happened
@@ -1070,10 +1085,10 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     };
 
     zero_out_if_overflow_happened[0]->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {overflow_happened_f}, gpu_memory_allocated, {},
+        active_streams, {0}, {overflow_happened_f}, LUT_0_FOR_ALL_BLOCKS, {},
         params.message_modulus - 2);
     zero_out_if_overflow_happened[1]->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {overflow_happened_f}, gpu_memory_allocated, {},
+        active_streams, {0}, {overflow_happened_f}, LUT_0_FOR_ALL_BLOCKS, {},
         params.message_modulus - 1);
 
     // merge_overflow_flags_luts
@@ -1089,7 +1104,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
       merge_overflow_flags_luts[i]->generate_and_broadcast_bivariate_lut(
-          active_gpu_count_for_bits, {0}, {lut_f_bit}, gpu_memory_allocated);
+          active_gpu_count_for_bits, {0}, {lut_f_bit}, LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
@@ -1161,29 +1176,34 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           (Torus *)cuda_malloc_with_size_tracking_async(
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
-      for (int index = 0; index < nb; index++) {
-        uint32_t grouping_index = index / group_size;
-        bool is_in_first_grouping = (grouping_index == 0);
-        uint32_t index_in_grouping = index % group_size;
-        bool is_last_index = (index == (nb - 1));
-        if (is_last_index) {
-          if (nb == 1) {
-            h_lut_indexes[index] = 2 * group_size;
+
+      auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
+        for (int index = 0; index < nb; index++) {
+          uint32_t grouping_index = index / group_size;
+          bool is_in_first_grouping = (grouping_index == 0);
+          uint32_t index_in_grouping = index % group_size;
+          bool is_last_index = (index == (nb - 1));
+          if (is_last_index) {
+            if (nb == 1) {
+              h_lut_indexes[index] = 2 * group_size;
+            } else {
+              h_lut_indexes[index] = 2;
+            }
+          } else if (is_in_first_grouping) {
+            h_lut_indexes[index] = index_in_grouping;
           } else {
-            h_lut_indexes[index] = 2;
+            h_lut_indexes[index] = index_in_grouping + group_size;
           }
-        } else if (is_in_first_grouping) {
-          h_lut_indexes[index] = index_in_grouping;
-        } else {
-          h_lut_indexes[index] = index_in_grouping + group_size;
         }
-      }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          first_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
-          nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-          allocate_gpu_memory);
+      };
+
+      generate_lut_indexes<Torus>(
+          streams, index_generator, first_indexes_for_overflow_sub[nb - 1], nb,
+          2 * group_size + 1, h_lut_indexes, allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
+    uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
+    uint32_t num_luts_second_step = 2 * group_size + num_extra_luts;
     for (int nb = 1; nb <= num_blocks; nb++) {
       second_indexes_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
@@ -1194,24 +1214,36 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
+      auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
+                                                       uint32_t) {
+        for (int index = 0; index < nb; index++) {
+          uint32_t grouping_index = index / group_size;
+          bool is_in_first_grouping = (grouping_index == 0);
+          uint32_t index_in_grouping = index % group_size;
+
+          if (is_in_first_grouping) {
+            h_lut_indexes[index] = index_in_grouping;
+          } else if (index_in_grouping == (group_size - 1)) {
+            if (use_seq) {
+              int inner_index = (grouping_index - 1) % (group_size - 1);
+              h_lut_indexes[index] = inner_index + 2 * group_size;
+            } else {
+              h_lut_indexes[index] = 2 * group_size;
+            }
+          } else {
+            h_lut_indexes[index] = index_in_grouping + group_size;
+          }
+        }
+      };
+
+      generate_lut_indexes<Torus>(
+          streams, index_generator, second_indexes_for_overflow_sub[nb - 1], nb,
+          num_luts_second_step, h_lut_indexes, allocate_gpu_memory);
+
       for (int index = 0; index < nb; index++) {
         uint32_t grouping_index = index / group_size;
         bool is_in_first_grouping = (grouping_index == 0);
         uint32_t index_in_grouping = index % group_size;
-
-        if (is_in_first_grouping) {
-          h_lut_indexes[index] = index_in_grouping;
-        } else if (index_in_grouping == (group_size - 1)) {
-          if (use_seq) {
-            int inner_index = (grouping_index - 1) % (group_size - 1);
-            h_lut_indexes[index] = inner_index + 2 * group_size;
-          } else {
-            h_lut_indexes[index] = 2 * group_size;
-          }
-        } else {
-          h_lut_indexes[index] = index_in_grouping + group_size;
-        }
-
         bool may_have_its_padding_bit_set =
             !is_in_first_grouping && (index_in_grouping == group_size - 1);
 
@@ -1225,10 +1257,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           h_scalar[index] = 0;
         }
       }
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          second_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
-          nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-          allocate_gpu_memory);
       cuda_memcpy_with_size_tracking_async_to_gpu(
           scalars_for_overflow_sub[nb - 1], h_scalar, nb * sizeof(Torus),
           streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
@@ -1503,7 +1531,7 @@ template <typename Torus> struct int_div_rem_memory {
 
       compare_signed_bits_lut->generate_and_broadcast_bivariate_lut(
           active_gpu_count_cmp, {0}, {f_compare_extracted_signed_bits},
-          gpu_memory_allocated);
+          LUT_0_FOR_ALL_BLOCKS);
     }
   }
 

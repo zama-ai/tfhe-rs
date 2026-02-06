@@ -85,30 +85,28 @@ template <typename Torus> struct int_cmux_buffer {
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
 
-    Torus *h_lut_indexes = predicate_lut->h_lut_indexes;
-    for (int index = 0; index < 2 * num_radix_blocks; index++) {
-      if (index < num_radix_blocks) {
-        h_lut_indexes[index] = 0;
-      } else {
-        h_lut_indexes[index] = 1;
-      }
-    }
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        predicate_lut->get_lut_indexes(0, 0), h_lut_indexes,
-        2 * num_radix_blocks * sizeof(Torus), streams.stream(0),
-        streams.gpu_index(0), allocate_gpu_memory);
-
     auto active_streams_pred =
         streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
+    auto lut_index_generator = [num_radix_blocks](Torus *h_lut_indexes,
+                                                  uint32_t num_indexes) {
+      for (int index = 0; index < 2 * num_radix_blocks; index++) {
+        if (index < num_radix_blocks) {
+          h_lut_indexes[index] = 0;
+        } else {
+          h_lut_indexes[index] = 1;
+        }
+      }
+    };
+
     predicate_lut->generate_and_broadcast_bivariate_lut(
         active_streams_pred, {0, 1}, {inverted_lut_f, lut_f},
-        gpu_memory_allocated);
+        lut_index_generator);
 
     auto active_streams_msg =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
     message_extract_lut->generate_and_broadcast_lut(
-        active_streams_msg, {0}, {message_extract_lut_f}, gpu_memory_allocated);
+        active_streams_msg, {0}, {message_extract_lut_f}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {

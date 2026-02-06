@@ -54,7 +54,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     };
 
     univ_lut_mem->generate_and_broadcast_lut(
-        active_streams, {0}, {generate_uni_lut_lambda}, allocate_gpu_memory);
+        active_streams, {0}, {generate_uni_lut_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
     auto generate_bi_lut_lambda =
         [num_bits](Torus block_num_bit_count,
@@ -66,7 +66,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     };
 
     biv_lut_mem->generate_and_broadcast_bivariate_lut(
-        active_streams, {0}, {generate_bi_lut_lambda}, allocate_gpu_memory);
+        active_streams, {0}, {generate_bi_lut_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
     this->tmp_ct = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -234,7 +234,7 @@ template <typename Torus> struct int_ilog2_buffer {
     auto active_streams =
         streams.active_gpu_subset(counter_num_blocks, params.pbs_type);
     lut_message_not->generate_and_broadcast_lut(
-        active_streams, {0}, {lut_message_lambda}, allocate_gpu_memory);
+        active_streams, {0}, {lut_message_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
     this->lut_carry_not =
         new int_radix_lut<Torus>(streams, params, 1, counter_num_blocks,
@@ -245,7 +245,7 @@ template <typename Torus> struct int_ilog2_buffer {
       return (~carry) % this->params.message_modulus;
     };
     lut_carry_not->generate_and_broadcast_lut(
-        active_streams, {0}, {lut_carry_lambda}, allocate_gpu_memory);
+        active_streams, {0}, {lut_carry_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
     this->message_blocks_not = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(

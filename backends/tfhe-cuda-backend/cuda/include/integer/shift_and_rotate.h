@@ -117,7 +117,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         bits_per_block * num_radix_blocks, params.pbs_type);
 
     mux_lut->generate_and_broadcast_lut(active_gpu_count_mux, {0}, {mux_lut_f},
-                                        gpu_memory_allocated);
+                                        LUT_0_FOR_ALL_BLOCKS);
 
     auto cleaning_lut_f = [params](Torus x) -> Torus {
       return x % params.message_modulus;
@@ -126,7 +126,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     auto active_gpu_count_cleaning =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     cleaning_lut->generate_and_broadcast_lut(
-        active_gpu_count_cleaning, {0}, {cleaning_lut_f}, gpu_memory_allocated);
+        active_gpu_count_cleaning, {0}, {cleaning_lut_f}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {

@@ -47,7 +47,7 @@ template <typename Torus> struct boolean_bitop_buffer {
         // only lut for degree = 1 is generated
         lut->generate_and_broadcast_bivariate_lut(active_streams, {0},
                                                   {lut_bivariate_f},
-                                                  gpu_memory_allocated, {}, 2);
+                                                  LUT_0_FOR_ALL_BLOCKS, {}, 2);
       }
       break;
     default:
@@ -63,7 +63,7 @@ template <typename Torus> struct boolean_bitop_buffer {
       };
 
       message_extract_lut->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
     tmp_lwe_left = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -134,7 +134,7 @@ template <typename Torus> struct int_bitop_buffer {
         };
 
         lut->generate_and_broadcast_bivariate_lut(
-            active_streams, {0}, {lut_bivariate_f}, gpu_memory_allocated);
+            active_streams, {0}, {lut_bivariate_f}, LUT_0_FOR_ALL_BLOCKS);
       }
       break;
     default:
@@ -166,7 +166,7 @@ template <typename Torus> struct int_bitop_buffer {
       }
 
       lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
-                                      gpu_memory_allocated);
+                                      LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
@@ -203,7 +203,7 @@ template <typename Torus> struct boolean_bitnot_buffer {
           streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
 
       message_extract_lut->generate_and_broadcast_lut(
-          active_streams, {0}, {lut_f_message_extract}, gpu_memory_allocated);
+          active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
   }
 
