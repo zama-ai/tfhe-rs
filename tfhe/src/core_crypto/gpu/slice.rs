@@ -152,7 +152,7 @@ where
         let (start, end) = range_bounds_to_start_end(self.len(index), range).into_inner();
 
         // Check the range is compatible with the vec
-        if end <= start || end > self.lengths[index] - 1 {
+        if start > end || end >= self.lengths[index] {
             None
         } else {
             // Shift ptr
