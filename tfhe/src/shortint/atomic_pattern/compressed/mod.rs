@@ -3,6 +3,7 @@ pub mod standard;
 pub use ks32::*;
 pub use standard::*;
 
+use super::expanded::ExpandedAtomicPatternServerKey;
 use super::AtomicPatternServerKey;
 use crate::conformance::ParameterSetConformant;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedAtomicPatternServerKeyVersions;
@@ -73,6 +74,14 @@ impl CompressedAtomicPatternServerKey {
                     compressed_ks32_atomic_pattern_server_key.decompress(),
                 )
             }
+        }
+    }
+
+    /// Expand to standard domain without Fourier conversion.
+    pub fn expand(&self) -> ExpandedAtomicPatternServerKey {
+        match self {
+            Self::Standard(std) => ExpandedAtomicPatternServerKey::Standard(std.expand()),
+            Self::KeySwitch32(ks32) => ExpandedAtomicPatternServerKey::KeySwitch32(ks32.expand()),
         }
     }
 }

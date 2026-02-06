@@ -1,4 +1,5 @@
 use super::current_params::meta::cpu::*;
+use super::current_params::meta::gpu::*;
 use super::current_params::*;
 use super::{
     AtomicPatternParameters, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
@@ -235,5 +236,17 @@ pub const TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaP
 pub const TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
     V1_5_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 
+pub const TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaParameters =
+    V1_5_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
 pub const TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     V1_5_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128;
+
+// GPU params we want to check for full scenario
+pub const TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;

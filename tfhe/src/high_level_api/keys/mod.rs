@@ -1,4 +1,5 @@
 mod client;
+pub(crate) mod expanded;
 mod public;
 mod server;
 
@@ -24,7 +25,7 @@ pub(crate) use server::{InternalServerKey, InternalServerKeyRef};
 
 pub(in crate::high_level_api) use inner::{
     IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
-    IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
+    IntegerCompressedServerKey, IntegerConfig, IntegerServerKey, IntegerServerKeyConformanceParams,
 };
 
 /// Generates keys using the provided config.

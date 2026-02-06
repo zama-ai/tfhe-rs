@@ -670,36 +670,65 @@ impl IntegerCompressedServerKey {
     }
 
     pub(in crate::high_level_api) fn decompress(&self) -> IntegerServerKey {
-        let compression_key = self
-            .compression_key
-            .as_ref()
-            .map(CompressedCompressionKey::decompress);
+        self.expand().convert_to_cpu()
+    }
 
-        let decompression_key = self
-            .decompression_key
-            .as_ref()
-            .map(CompressedDecompressionKey::decompress);
+    /// Expand the compressed server key to the standard (non-Fourier) domain.
+    ///
+    /// Unlike `decompress()` which returns keys ready for computation,
+    /// `expand()` returns keys in the standard domain (before Fourier conversion).
+    pub(in crate::high_level_api) fn expand(
+        &self,
+    ) -> crate::high_level_api::keys::expanded::IntegerExpandedServerKey {
+        use crate::high_level_api::keys::expanded::{
+            IntegerExpandedServerKey, ShortintExpandedServerKey,
+        };
 
-        let noise_squashing_key = self
-            .noise_squashing_key
-            .as_ref()
-            .map(CompressedNoiseSquashingKey::decompress);
+        // Destructure to ensure no field is forgotten
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key,
+            noise_squashing_compression_key,
+            cpk_re_randomization_key_switching_key_material,
+        } = self;
 
-        let noise_squashing_compression_key = self
-            .noise_squashing_compression_key
-            .as_ref()
-            .map(CompressedNoiseSquashingCompressionKey::decompress);
+        // Expand the main server key (compute key)
+        let shortint_sk = &key.key;
+        let compute_key = ShortintExpandedServerKey {
+            atomic_pattern: shortint_sk.compressed_ap_server_key.expand(),
+            message_modulus: shortint_sk.message_modulus,
+            carry_modulus: shortint_sk.carry_modulus,
+            max_degree: shortint_sk.max_degree,
+            max_noise_level: shortint_sk.max_noise_level,
+            ciphertext_modulus: shortint_sk.ciphertext_modulus(),
+        };
 
-        let cpk_re_randomization_key_switching_key_material = self
-            .cpk_re_randomization_key_switching_key_material
+        // Types without BSK use regular decompress()
+        let cpk_key_switching_key_material = cpk_key_switching_key_material
             .as_ref()
-            .map(CompressedReRandomizationKeySwitchingKey::decompress);
+            .map(|k| k.decompress());
+        let compression_key = compression_key.as_ref().map(|k| k.decompress());
 
-        IntegerServerKey {
-            key: self.key.decompress(),
-            cpk_key_switching_key_material: self.cpk_key_switching_key_material.as_ref().map(
-                crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial::decompress,
-            ),
+        // Types with BSK use expand()
+        let decompression_key = decompression_key.as_ref().map(|k| k.expand());
+        let noise_squashing_key = noise_squashing_key.as_ref().map(|k| k.expand());
+
+        // No BSK
+        let noise_squashing_compression_key = noise_squashing_compression_key
+            .as_ref()
+            .map(|k| k.decompress());
+
+        let cpk_re_randomization_key_switching_key_material =
+            cpk_re_randomization_key_switching_key_material
+                .as_ref()
+                .map(|k| k.decompress());
+
+        IntegerExpandedServerKey {
+            compute_key,
+            cpk_key_switching_key_material,
             compression_key,
             decompression_key,
             noise_squashing_key,

@@ -299,6 +299,35 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_compressed_compression_decompression_keys_multibit_conformance_ci_run_filter() {
+        use crate::conformance::ParameterSetConformant;
+        use crate::shortint::list_compression::CompressionKeyConformanceParams;
+
+        let params: ShortintParameterSet =
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let compression_params =
+            TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
+        let private_compression_key = cks.new_compression_private_key(compression_params);
+        let (compressed_compression_key, compressed_decompression_key) =
+            cks.new_compressed_compression_decompression_keys(&private_compression_key);
+
+        let conformance_params: CompressionKeyConformanceParams =
+            (params.pbs_parameters().unwrap().into(), compression_params).into();
+
+        assert!(
+            compressed_compression_key.is_conformant(&conformance_params),
+            "Compressed compression key should be conformant with its own parameters"
+        );
+
+        assert!(
+            compressed_decompression_key.is_conformant(&conformance_params),
+            "Compressed decompression key should be conformant with its own parameters"
+        );
+    }
+
     fn test_packing_(
         comp_key: &CompressionKey,
         decomp_key: &DecompressionKey,

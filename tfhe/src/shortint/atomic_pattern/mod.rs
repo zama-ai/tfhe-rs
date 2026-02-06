@@ -5,8 +5,14 @@
 //! Keyswitch and a PBS.
 
 pub mod compressed;
+pub mod expanded;
 pub mod ks32;
 pub mod standard;
+
+pub use expanded::{
+    ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
+    ExpandedStandardAtomicPatternServerKey,
+};
 
 use std::any::Any;
 

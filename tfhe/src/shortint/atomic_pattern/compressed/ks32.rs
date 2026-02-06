@@ -1,6 +1,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_seeded_lwe_keyswitch_key;
 use crate::core_crypto::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyOwned;
+use crate::shortint::atomic_pattern::expanded::ExpandedKS32AtomicPatternServerKey;
 use crate::shortint::atomic_pattern::ks32::KS32AtomicPatternServerKey;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedKS32AtomicPatternServerKeyVersions;
 use crate::shortint::client_key::atomic_pattern::KS32AtomicPatternClientKey;
@@ -84,6 +85,23 @@ impl CompressedKS32AtomicPatternServerKey {
 
     pub fn bootstrapping_key(&self) -> &ShortintCompressedBootstrappingKey<u32> {
         &self.bootstrapping_key
+    }
+
+    /// Expand to standard domain without Fourier conversion.
+    pub fn expand(&self) -> ExpandedKS32AtomicPatternServerKey {
+        let ciphertext_modulus = self.bootstrapping_key().ciphertext_modulus();
+
+        let key_switching_key = self
+            .key_switching_key()
+            .as_view()
+            .par_decompress_into_lwe_keyswitch_key();
+        let bootstrapping_key = self.bootstrapping_key().expand();
+
+        ExpandedKS32AtomicPatternServerKey {
+            key_switching_key,
+            bootstrapping_key,
+            ciphertext_modulus,
+        }
     }
 
     pub fn decompress(&self) -> KS32AtomicPatternServerKey {

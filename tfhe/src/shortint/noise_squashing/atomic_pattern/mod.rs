@@ -14,8 +14,11 @@ use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 use super::NoiseSquashingPrivateKey;
 
 pub mod compressed;
+pub mod expanded;
 pub mod ks32;
 pub mod standard;
+
+pub use expanded::ExpandedAtomicPatternNoiseSquashingKey;
 
 pub trait NoiseSquashingAtomicPattern {
     fn squash_ciphertext_noise(

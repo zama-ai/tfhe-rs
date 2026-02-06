@@ -4,9 +4,28 @@ use crate::core_crypto::prelude::{
     lwe_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
 };
+use crate::shortint::server_key::ModulusSwitchConfiguration;
+
 #[derive(Clone, Debug)]
 pub enum CudaModulusSwitchNoiseReductionConfiguration {
     Centered,
+}
+
+impl CudaModulusSwitchNoiseReductionConfiguration {
+    pub fn from_modulus_switch_configuration<Scalar>(
+        modulus_switch_noise_reduction_key: &ModulusSwitchConfiguration<Scalar>,
+    ) -> crate::Result<Option<Self>>
+    where
+        Scalar: UnsignedInteger,
+    {
+        match modulus_switch_noise_reduction_key {
+            ModulusSwitchConfiguration::Standard => Ok(None),
+            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(_) => Err(crate::error!(
+                "GPU does not support drift noise reduction technique"
+            )),
+            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => Ok(Some(Self::Centered)),
+        }
+    }
 }
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.

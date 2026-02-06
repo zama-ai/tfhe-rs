@@ -261,6 +261,9 @@ pub type NoiseSquashingKeyView<'key> =
 pub type StandardNoiseSquashingKeyView<'key> =
     GenericNoiseSquashingKey<&'key StandardAtomicPatternNoiseSquashingKey>;
 
+pub type ExpandedNoiseSquashingKey =
+    GenericNoiseSquashingKey<super::atomic_pattern::ExpandedAtomicPatternNoiseSquashingKey>;
+
 impl<'key> TryFrom<NoiseSquashingKeyView<'key>> for StandardNoiseSquashingKeyView<'key> {
     type Error = UnsupportedOperation;
 
