@@ -72,8 +72,7 @@ jobs:
 
   run-benchmarks-integer:
     name: benchmark_cpu_weekly/run-benchmarks-integer
-    if: github.repository == 'zama-ai/tfhe-rs' 
-      && (needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true' || needs.prepare-inputs.outputs.is_quarterly_bench == 'true')
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true' || needs.prepare-inputs.outputs.is_quarterly_bench == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -92,8 +91,7 @@ jobs:
 
   run-benchmarks-integer-zk-pke:
     name: benchmark_cpu_weekly/run-benchmarks-integer-zk-pke
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -111,8 +109,7 @@ jobs:
 
   run-benchmarks-hlapi-erc20:
     name: benchmark_cpu_weekly/run-benchmarks-hlapi-erc20
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -130,8 +127,7 @@ jobs:
 
   run-benchmarks-hlapi-dex:
     name: benchmark_cpu_weekly/run-benchmarks-hlapi-dex
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -149,8 +145,7 @@ jobs:
 
   run-benchmarks-core-crypto:
     name: benchmark_cpu_weekly/run-benchmarks-core-crypto
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -167,8 +162,7 @@ jobs:
 
   run-benchmarks-shortint:
     name: benchmark_cpu_weekly/run-benchmarks-shortint
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && (needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true' || needs.prepare-inputs.outputs.is_quarterly_bench == 'true')
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true' || needs.prepare-inputs.outputs.is_quarterly_bench == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -186,8 +180,7 @@ jobs:
 
   run-benchmarks-boolean:
     name: benchmark_cpu_weekly/run-benchmarks-boolean
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
@@ -206,8 +199,7 @@ jobs:
 
   run-benchmarks-tfhe-zk-pok:
     name: benchmark_cpu_weekly/run-benchmarks-tfhe-zk-pok
-    if: github.repository == 'zama-ai/tfhe-rs'
-      && needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:

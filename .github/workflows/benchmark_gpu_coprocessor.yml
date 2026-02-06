@@ -50,6 +50,8 @@ env:
 jobs:
   parse-inputs:
     name: benchmark_gpu_coprocessor/parse-inputs
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'

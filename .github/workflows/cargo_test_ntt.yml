@@ -2,6 +2,7 @@
 name: cargo_test_ntt
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -24,6 +25,8 @@ permissions:
 jobs:
   should-run:
     name: cargo_test_ntt/should-run
+    if: github.event_name != 'push' ||
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read  # Needed to check for file change
