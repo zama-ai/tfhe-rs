@@ -1,0 +1,15 @@
+runners:
+  cpu-big:
+    family: m6i.32xlarge
+    image: cpu-tests-eu-west-3
+    volume: 200gb
+    spot: false
+  cpu-small:
+    family: m6i.4xlarge
+    image: cpu-tests-eu-west-3
+    volume: 200gb
+    spot: false
+
+images:
+  cpu-tests-eu-west-3:
+    ami: "ami-0a786ffdb1411fac4"  # Ubuntu 24.04
