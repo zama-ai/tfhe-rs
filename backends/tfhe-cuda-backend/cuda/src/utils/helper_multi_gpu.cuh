@@ -30,6 +30,9 @@ void multi_gpu_copy_array_async(CudaStreams streams,
                                 const std::vector<Torus *> &dest,
                                 Torus const *src, uint32_t elements_per_gpu,
                                 bool gpu_memory_allocated) {
+  PANIC_IF_FALSE(
+      dest.size() >= streams.count(),
+      "Cuda error: destination vector was not allocated for enough GPUs");
   for (uint i = 0; i < streams.count(); i++) {
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         dest[i], src, elements_per_gpu * sizeof(Torus), streams.stream(i),
@@ -189,8 +192,11 @@ void multi_gpu_scatter_lwe_async(
           streams.stream(i), streams.gpu_index(i), true);
 
     } else {
-      if (aligned_vec.size() == 0)
-        PANIC("Cuda error: auxiliary arrays should be setup!");
+      PANIC_IF_FALSE(aligned_vec.size() > 0,
+                     "Cuda error: auxiliary arrays should be setup!");
+      PANIC_IF_FALSE(
+          aligned_vec.size() >= streams.count(),
+          "Cuda error: aligned vec was not allocated for enough GPUs");
 
       if (d_src_indexes == nullptr)
         PANIC("Cuda error: source indexes should be initialized!");
@@ -245,8 +251,11 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
           d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus),
           streams.stream(i), streams.gpu_index(i), true);
     } else {
-      if (aligned_vec.size() == 0)
-        PANIC("Cuda error: auxiliary arrays should be setup!");
+      PANIC_IF_FALSE(aligned_vec.size() > 0,
+                     "Cuda error: auxiliary arrays should be setup!");
+      PANIC_IF_FALSE(
+          aligned_vec.size() >= streams.count(),
+          "Cuda error: aligned vec was not allocated for enough GPUs");
       if (d_dest_indexes == nullptr)
         PANIC("Cuda error: destination indexes should be initialized!");
 
@@ -327,6 +336,8 @@ void multi_gpu_gather_many_lut_lwe_async(CudaStreams streams, Torus *dest,
 template <typename Torus>
 void multi_gpu_release_async(CudaStreams streams, std::vector<Torus *> &vec) {
 
+  PANIC_IF_FALSE(vec.size() >= streams.count(),
+                 "Cuda error: vec was not allocated for enough GPUs");
   for (uint i = 0; i < vec.size(); i++)
     cuda_drop_async(vec[i], streams.stream(i), streams.gpu_index(i));
 }
