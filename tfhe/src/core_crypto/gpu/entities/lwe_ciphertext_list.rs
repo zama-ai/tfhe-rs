@@ -189,6 +189,12 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
     }
 
     pub fn into_lwe_ciphertext(&self, streams: &CudaStreams) -> LweCiphertext<Vec<T>> {
+        assert_eq!(
+            self.lwe_ciphertext_count().0,
+            1,
+            "CudaLweCiphertextList::into_lwe_ciphertext requires exactly one element, got {}",
+            self.lwe_ciphertext_count().0
+        );
         let lwe_ct_size = self.0.lwe_dimension.to_lwe_size().0;
         let mut container: Vec<T> = vec![T::ZERO; lwe_ct_size];
 
