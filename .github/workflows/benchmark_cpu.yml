@@ -14,6 +14,7 @@ on:
           - signed_integer
           - integer_compression
           - integer_zk
+          - msm_zk
           - shortint
           - shortint_oprf
           - hlapi_unsigned

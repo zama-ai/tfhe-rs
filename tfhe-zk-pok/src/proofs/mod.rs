@@ -15,7 +15,7 @@ use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[repr(transparent)]
-pub(crate) struct OneBased<T: ?Sized>(T);
+pub(crate) struct OneBased<T: ?Sized>(pub(crate) T);
 
 /// The proving scheme is available in 2 versions, one that puts more load on the prover and one
 /// that puts more load on the verifier
@@ -153,7 +153,7 @@ pub(crate) enum ProofSanityCheckMode {
 /// Check the preconditions of the pke proof before computing it. Panic if one of the conditions
 /// does not hold.
 #[allow(clippy::too_many_arguments)]
-fn assert_pke_proof_preconditions(
+pub(crate) fn assert_pke_proof_preconditions(
     a: &[i64],
     b: &[i64],
     c1: &[i64],
@@ -179,7 +179,7 @@ fn assert_pke_proof_preconditions(
 
 /// q (modulus) is encoded on 64b, with 0 meaning 2^64. This converts the encoded q to its effective
 /// value for modular operations.
-fn decode_q(q: u64) -> u128 {
+pub(crate) fn decode_q(q: u64) -> u128 {
     if q == 0 {
         1u128 << 64
     } else {
@@ -193,7 +193,7 @@ fn decode_q(q: u64) -> u128 {
 /// implies
 /// phi(r1) = (rot(a) * phi(bar(r)) + phi(e1) - phi(c1)) / q
 /// (phi is the function that maps a polynomial to its coeffs vector)
-fn compute_r1(
+pub(crate) fn compute_r1(
     e1: &[i64],
     c1: &[i64],
     a: &[i64],
@@ -233,7 +233,7 @@ fn compute_r1(
 /// r2_i = (phi_[d - i](b).T * phi(bar(r)) + delta * m_i + e2_i - c2_i) / q
 /// (phi is the function that maps a polynomial to its coeffs vector)
 #[allow(clippy::too_many_arguments)]
-fn compute_r2(
+pub(crate) fn compute_r2(
     e2: &[i64],
     c2: &[i64],
     m: &[i64],
@@ -314,7 +314,7 @@ impl Sid {
         Self(Some(rng.gen()))
     }
 
-    fn to_le_bytes(self) -> SidBytes {
+    pub(crate) fn to_le_bytes(self) -> SidBytes {
         self.0
             .map(|val| SidBytes(Some(val.to_le_bytes())))
             .unwrap_or_default()
@@ -322,10 +322,10 @@ impl Sid {
 }
 
 #[derive(Default)]
-struct SidBytes(Option<[u8; 16]>);
+pub(crate) struct SidBytes(Option<[u8; 16]>);
 
 impl SidBytes {
-    fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(&self) -> &[u8] {
         self.0.as_ref().map(|val| val.as_slice()).unwrap_or(&[])
     }
 }
@@ -367,7 +367,7 @@ fn get_or_init_pools() -> &'static Vec<VerificationPool> {
 ///
 /// When multiple calls of this function are made in parallel, each of them is executed in a
 /// dedicated pool, if there is enough free cores on the CPU.
-fn run_in_pool<OP, R>(f: OP) -> R
+pub(crate) fn run_in_pool<OP, R>(f: OP) -> R
 where
     OP: FnOnce() -> R + Send,
     R: Send,
