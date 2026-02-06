@@ -129,7 +129,7 @@ impl CompressedXofKeySet {
         Ok((client_key, xof_key_set))
     }
 
-    fn generate_with_pre_seeded_generator<G>(
+    pub fn generate_with_pre_seeded_generator<G>(
         pub_seed: XofSeed,
         ck: &ClientKey,
         private_generator: RandomGenerator<G>,
