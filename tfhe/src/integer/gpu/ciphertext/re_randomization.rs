@@ -1,10 +1,8 @@
+use crate::core_crypto::algorithms::lwe_encryption::re_randomization::rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    encrypt_lwe_compact_ciphertext_list_with_compact_public_key, LweCompactCiphertextList,
-    PlaintextCount, PlaintextList,
-};
+use crate::core_crypto::prelude::{LweCompactCiphertextList, PlaintextCount, PlaintextList};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -149,7 +147,7 @@ impl CudaRadixCiphertext {
             .parameters()
             .encryption_noise_distribution;
 
-        encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+        rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
             &compact_public_key.key.key,
             &mut encryption_of_zero,
             &plaintext_list,

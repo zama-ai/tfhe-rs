@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-ntt"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 description = "tfhe-ntt is a pure Rust high performance number theoretic transform library."
 readme = "README.md"

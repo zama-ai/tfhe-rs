@@ -446,6 +446,11 @@ impl Plan32 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "avx512")]
 impl Plan52 {
+    #[inline(always)]
+    pub fn is_available() -> bool {
+        crate::V4IFma::try_new().is_some()
+    }
+
     /// Returns a negacyclic NTT plan for the given polynomial size, or `None` if no
     /// suitable roots of unity can be found for the wanted parameters, or if the AVX512
     /// instruction set isn't detected.
@@ -532,14 +537,15 @@ mod tests {
     fn reconstruct_32bit() {
         for n in [32, 64, 256, 1024, 2048] {
             let plan = Plan32::try_new(n).unwrap();
+            for _ in 0..10_000 {
+                let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
+                let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
+                let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
 
-            let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
-            let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
-            let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
-
-            let mut prod = vec![0; n];
-            plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
-            assert_eq!(prod, negacyclic_convolution);
+                let mut prod = vec![0; n];
+                plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
+                assert_eq!(prod, negacyclic_convolution);
+            }
         }
     }
 
@@ -549,13 +555,15 @@ mod tests {
     fn reconstruct_52bit() {
         for n in [32, 64, 256, 1024, 2048] {
             if let Some(plan) = Plan52::try_new(n) {
-                let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
-                let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
-                let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
+                for _ in 0..10_000 {
+                    let lhs = (0..n).map(|_| random::<u64>()).collect::<Vec<_>>();
+                    let rhs = (0..n).map(|_| random::<u64>() % 2).collect::<Vec<_>>();
+                    let negacyclic_convolution = negacyclic_convolution(n, 0, &lhs, &rhs);
 
-                let mut prod = vec![0; n];
-                plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
-                assert_eq!(prod, negacyclic_convolution);
+                    let mut prod = vec![0; n];
+                    plan.negacyclic_polymul(&mut prod, &lhs, &rhs);
+                    assert_eq!(prod, negacyclic_convolution);
+                }
             }
         }
     }
