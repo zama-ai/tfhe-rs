@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;

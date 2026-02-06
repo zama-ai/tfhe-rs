@@ -618,7 +618,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
         let message_modulus: u128 = radix_cks.parameters().message_modulus().0 as u128;
-        let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+        let modulus = message_modulus.pow(u32::try_from(NUM_BLOCKS).unwrap());
         let messages = (0..max_nb_messages)
             .map(|_| rng.gen::<u128>() % modulus)
             .collect::<Vec<_>>();
@@ -762,7 +762,7 @@ mod tests {
 
             for _ in 0..NB_TESTS {
                 // Unsigned
-                let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+                let modulus = message_modulus.pow(u32::try_from(NUM_BLOCKS).unwrap());
                 for _ in 0..NB_OPERATOR_TESTS {
                     let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
@@ -802,7 +802,7 @@ mod tests {
                 }
 
                 // Signed
-                let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+                let modulus = message_modulus.pow(u32::try_from(NUM_BLOCKS - 1).unwrap()) as i128;
                 for _ in 0..NB_OPERATOR_TESTS {
                     let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
@@ -899,7 +899,8 @@ mod tests {
                         match case_selector {
                             0 => {
                                 // Unsigned
-                                let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+                                let modulus =
+                                    message_modulus.pow(u32::try_from(NUM_BLOCKS).unwrap());
                                 let message = rng.gen::<u128>() % modulus;
                                 let ct = radix_cks.encrypt(message);
                                 let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
@@ -911,7 +912,9 @@ mod tests {
                             }
                             1 => {
                                 // Signed
-                                let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+                                let modulus = message_modulus
+                                    .pow(u32::try_from(NUM_BLOCKS - 1).unwrap())
+                                    as i128;
                                 let message = rng.gen::<i128>() % modulus;
                                 let ct = radix_cks.encrypt_signed(message);
                                 let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(

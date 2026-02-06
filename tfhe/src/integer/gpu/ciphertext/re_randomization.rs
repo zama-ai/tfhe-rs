@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;

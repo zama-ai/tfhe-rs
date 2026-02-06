@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_truncation)]
 use crate::core_crypto::commons::traits::contiguous_entity_container::ContiguousEntityContainer;
 use crate::core_crypto::entities::LweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
