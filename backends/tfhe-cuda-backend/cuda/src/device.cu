@@ -6,12 +6,25 @@
 #include <cuda_profiler_api.h>
 #endif
 
-void validate_device_ptr(const void *ptr, uint32_t gpu_index) {
+void validate_device_ptr_and_gpu_index(const void *ptr, uint32_t gpu_index) {
+  GPU_ASSERT(ptr != nullptr, "Cuda error: null device ptr");
+
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, ptr));
   if (attr.device != gpu_index || attr.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid device pointer.")
   }
+}
+
+int validate_device_ptr(const void *ptr) {
+  GPU_ASSERT(ptr != nullptr, "Cuda error: null device ptr");
+
+  cudaPointerAttributes attr;
+  check_cuda_error(cudaPointerGetAttributes(&attr, ptr));
+  if (attr.type != cudaMemoryTypeDevice) {
+    PANIC("Cuda error: invalid device pointer.")
+  }
+  return attr.device;
 }
 
 uint32_t cuda_get_device() {
@@ -255,9 +268,12 @@ void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
                                                  cudaStream_t stream,
                                                  uint32_t gpu_index,
                                                  bool gpu_memory_allocated) {
+
+  GPU_ASSERT(src != nullptr, "Cuda error: null device ptr");
+
   if (size == 0 || !gpu_memory_allocated)
     return;
-  validate_device_ptr(dest, gpu_index);
+  validate_device_ptr_and_gpu_index(dest, gpu_index);
 
   cuda_set_device(gpu_index);
   check_cuda_error(
@@ -284,28 +300,16 @@ void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
     uint32_t gpu_index, bool gpu_memory_allocated) {
   if (size == 0 || !gpu_memory_allocated)
     return;
-  GPU_ASSERT(dest != nullptr,
-             "Cuda error: trying to copy gpu->gpu to null ptr");
-  GPU_ASSERT(src != nullptr,
-             "Cuda error: trying to copy gpu->gpu from null ptr");
 
-  cudaPointerAttributes attr_dest;
-  check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
-  PANIC_IF_FALSE(
-      attr_dest.type == cudaMemoryTypeDevice,
-      "Cuda error: invalid dest device pointer in copy from GPU to GPU.");
-  cudaPointerAttributes attr_src;
-  check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
-  PANIC_IF_FALSE(
-      attr_src.type == cudaMemoryTypeDevice,
-      "Cuda error: invalid src device pointer in copy from GPU to GPU.");
+  int src_gpu_index = validate_device_ptr(src);
+  int dest_gpu_index = validate_device_ptr(dest);
   cuda_set_device(gpu_index);
-  if (attr_src.device == attr_dest.device) {
+  if (src_gpu_index == dest_gpu_index) {
     check_cuda_error(
         cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
   } else {
-    check_cuda_error(cudaMemcpyPeerAsync(dest, attr_dest.device, src,
-                                         attr_src.device, size, stream));
+    check_cuda_error(cudaMemcpyPeerAsync(dest, dest_gpu_index, src,
+                                         src_gpu_index, size, stream));
   }
 }
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
@@ -353,7 +357,7 @@ void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
                                           bool gpu_memory_allocated) {
   if (size == 0 || !gpu_memory_allocated)
     return;
-  validate_device_ptr(dest, gpu_index);
+  validate_device_ptr_and_gpu_index(dest, gpu_index);
   cuda_set_device(gpu_index);
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream));
 }
@@ -406,9 +410,10 @@ template void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
 /// so it should be avoided at all costs
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index) {
+  GPU_ASSERT(dest != nullptr, "Cuda error: null host ptr");
   if (size == 0)
     return;
-  validate_device_ptr(src, gpu_index);
+  validate_device_ptr_and_gpu_index(src, gpu_index);
 
   cuda_set_device(gpu_index);
   check_cuda_error(
