@@ -104,6 +104,9 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
 
         let first_item = cuda_ciphertexts_list_vec.next().unwrap();
         let lwe_dimension = first_item.lwe_dimension();
+        let first_ct_count = first_item.lwe_ciphertext_count();
+        let ciphertext_modulus = first_item.ciphertext_modulus();
+
         let mut d_vec = CudaVec::new(
             lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
             streams,
@@ -113,7 +116,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let size = first_item.lwe_ciphertext_count().0
             * lwe_dimension.to_lwe_size().0
             * std::mem::size_of::<T>();
-        // Concatenate gpu_index memory
+        // Concatenate gpu_index memory, validating uniform shape along the way
         unsafe {
             cuda_memcpy_async_gpu_to_gpu(
                 ptr,
@@ -124,6 +127,21 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             );
             ptr = ptr.wrapping_byte_add(size);
             for list in cuda_ciphertexts_list_vec {
+                assert_eq!(
+                    list.lwe_dimension(),
+                    lwe_dimension,
+                    "All items must have the same lwe_dimension"
+                );
+                assert_eq!(
+                    list.lwe_ciphertext_count(),
+                    first_ct_count,
+                    "All items must have the same lwe_ciphertext_count"
+                );
+                assert_eq!(
+                    list.ciphertext_modulus(),
+                    ciphertext_modulus,
+                    "All items must have the same ciphertext_modulus"
+                );
                 cuda_memcpy_async_gpu_to_gpu(
                     ptr,
                     list.0.d_vec.as_c_ptr(0),
