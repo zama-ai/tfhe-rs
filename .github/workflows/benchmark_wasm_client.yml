@@ -31,8 +31,7 @@ jobs:
     name: benchmark_wasm_client/should-run
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
+      (github.event_name != 'workflow_dispatch' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
       pull-requests: read  # Needed to check for file change
     outputs:

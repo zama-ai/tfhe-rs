@@ -35,8 +35,8 @@ jobs:
   setup-instance:
     name: gpu_code_validation_tests/setup-instance
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved')
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
     steps:

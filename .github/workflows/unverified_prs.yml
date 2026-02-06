@@ -12,6 +12,7 @@ permissions: {}
 jobs:
   stale:
     name: unverified_prs/stale
+    if: github.repository == 'zama-ai/tfhe-rs'
     runs-on: ubuntu-latest
     permissions:
       issues: read # Needed to fetch all issues
