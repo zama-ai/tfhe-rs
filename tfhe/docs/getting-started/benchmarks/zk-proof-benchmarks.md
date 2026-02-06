@@ -5,7 +5,7 @@ This document details the performance benchmarks of [zero-knowledge proofs](../.
 ## Server-side computation
 
 {% hint style="info" %}
-Benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped with a 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM.
+Benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM.
 {% endhint %}
 
 Proving and verification are done with tfhe-rs native executable on a powerful server.
