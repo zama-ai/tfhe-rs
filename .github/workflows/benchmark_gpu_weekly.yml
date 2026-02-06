@@ -25,6 +25,7 @@ permissions: {}
 jobs:
   prepare-inputs:
     name: benchmark_cpu_weekly/prepare-inputs
+    if: github.repository == 'zama-ai/tfhe-rs'
     runs-on: ubuntu-latest
     outputs:
       is_weekly_bench_group_1: ${{ steps.check_bench_group_1.outputs.is_weekly_bench_group_1 }}
@@ -49,8 +50,7 @@ jobs:
 
   run-benchmarks-8-h100-sxm5-integer:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -72,8 +72,7 @@ jobs:
 
   run-benchmarks-8-h100-sxm5-integer-compression:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-compression
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -95,8 +94,7 @@ jobs:
 
   run-benchmarks-8-h100-sxm5-integer-zk-aes:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-integer-zk-aes
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -118,8 +116,7 @@ jobs:
 
   run-benchmarks-8-h100-sxm5-noise-squash:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-sxm5-noise-squash
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -141,8 +138,7 @@ jobs:
 
   run-benchmarks-1-h100-core-crypto:
     name: benchmark_gpu_weekly/run-benchmarks-1-h100-core-crypto (1xH100)
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_1 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -166,8 +162,7 @@ jobs:
 
   run-benchmarks-1-h100-erc20:
     name: benchmark_gpu_weekly/run-benchmarks-1-h100-erc20
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -187,8 +182,7 @@ jobs:
 
   run-benchmarks-2-h100-erc20:
     name: benchmark_gpu_weekly/run-benchmarks-2-h100-erc20
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -208,8 +202,7 @@ jobs:
 
   run-benchmarks-8-h100-erc20:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-erc20
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -233,8 +226,7 @@ jobs:
 
   run-benchmarks-1-h100-dex:
     name: benchmark_gpu_weekly/run-benchmarks-1-h100-dex
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -254,8 +246,7 @@ jobs:
 
   run-benchmarks-2-h100-dex:
     name: benchmark_gpu_weekly/run-benchmarks-2-h100-dex
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -275,8 +266,7 @@ jobs:
 
   run-benchmarks-8-h100-dex:
     name: benchmark_gpu_weekly/run-benchmarks-8-h100-dex
-    if: github.repository == 'zama-ai/tfhe-rs' &&
-      needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
+    if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:

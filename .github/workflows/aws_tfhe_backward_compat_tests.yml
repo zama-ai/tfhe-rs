@@ -34,6 +34,9 @@ permissions:
 jobs:
   setup-instance:
     name: aws_tfhe_backward_compat_tests/setup-instance
+    if:
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
+      github.event_name != 'push'
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
