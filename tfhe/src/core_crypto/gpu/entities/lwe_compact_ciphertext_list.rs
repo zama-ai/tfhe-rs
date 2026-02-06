@@ -23,7 +23,7 @@ impl<T: UnsignedInteger> CudaLweCompactCiphertextList<T> {
     ) -> Self {
         assert_eq!(
             d_vec.len(),
-            lwe_ciphertext_count.0 * lwe_dimension.to_lwe_size().0
+            lwe_compact_ciphertext_list_size(lwe_dimension, lwe_ciphertext_count),
         );
         Self(CudaLweList {
             d_vec,
