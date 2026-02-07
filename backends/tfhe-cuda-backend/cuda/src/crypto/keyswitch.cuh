@@ -350,6 +350,7 @@ keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
       Torus state =
           init_decomposer_state(block_lwe_array_in[i], base_log, level_count);
       uint32_t offset = i * level_count * (lwe_dimension_out + 1);
+#pragma unroll 1
       for (int j = 0; j < level_count; j++) {
 
         KSTorus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
@@ -362,16 +363,15 @@ keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     lwe_acc_out[shmem_index] = local_lwe_out;
   }
 
-  if (tid <= lwe_dimension_out) {
-    for (int offset = blockDim.y / 2; offset > 0 && threadIdx.y < offset;
-         offset /= 2) {
-      __syncthreads();
+  for (int offset = blockDim.y / 2; offset > 0; offset /= 2) {
+    __syncthreads();
+    if (tid <= lwe_dimension_out && threadIdx.y < offset) {
       lwe_acc_out[shmem_index] +=
           lwe_acc_out[shmem_index + offset * blockDim.x];
     }
-    if (threadIdx.y == 0)
-      block_lwe_array_out[tid] = -lwe_acc_out[shmem_index];
   }
+  if (tid <= lwe_dimension_out && threadIdx.y == 0)
+    block_lwe_array_out[tid] = -lwe_acc_out[shmem_index];
 }
 
 template <typename Torus, typename KSTorus>
