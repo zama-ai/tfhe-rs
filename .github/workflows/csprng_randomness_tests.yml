@@ -59,7 +59,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow_ref }}_${{ github.sha }}_${{ github.event_name }}
       cancel-in-progress: true
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
