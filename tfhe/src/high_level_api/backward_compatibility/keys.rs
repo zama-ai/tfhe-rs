@@ -536,8 +536,8 @@ pub enum KeySwitchingKeyVersions {
 }
 
 #[derive(VersionsDispatch)]
-pub enum ReRandomizationKeySwitchingKeyVersions<KSK> {
-    V0(ReRandomizationKeySwitchingKey<KSK>),
+pub enum ReRandomizationKeySwitchingKeyVersions {
+    V0(ReRandomizationKeySwitchingKey),
 }
 
 #[derive(VersionsDispatch)]

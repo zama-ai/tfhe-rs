@@ -2,7 +2,13 @@ use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::key_switching_key::{KeySwitchingKey, KeySwitchingKeyMaterialView};
-pub use crate::shortint::key_switching_key::CudaKeySwitchingKeyMaterial;
+use crate::shortint::EncryptionKeyChoice;
+
+pub struct CudaKeySwitchingKeyMaterial {
+    pub(crate) lwe_keyswitch_key: CudaLweKeyswitchKey<u64>,
+    pub(crate) cast_rshift: i8,
+    pub(crate) destination_key: EncryptionKeyChoice,
+}
 
 #[allow(dead_code)]
 pub struct CudaKeySwitchingKey<'key> {
