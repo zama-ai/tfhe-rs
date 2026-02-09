@@ -272,12 +272,12 @@ __host__ uint64_t scratch_programmable_bootstrap_amortized(
           polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
-    cudaFuncSetAttribute(
+    check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_amortized<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm);
-    cudaFuncSetCacheConfig(
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_amortized<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_amortized<Torus, params, FULLSM>,
@@ -364,21 +364,6 @@ __host__ void host_programmable_bootstrap_amortized(
             level_count, 0);
   }
   check_cuda_error(cudaGetLastError());
-}
-
-template <typename Torus, class params>
-int cuda_get_pbs_per_gpu(int polynomial_size) {
-
-  int blocks_per_sm = 0;
-  int num_threads = polynomial_size / params::opt;
-  cudaGetDeviceCount(0);
-  cudaDeviceProp device_properties;
-  cudaGetDeviceProperties(&device_properties, 0);
-  cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-      &blocks_per_sm, device_programmable_bootstrap_amortized<Torus, params>,
-      num_threads, 0);
-
-  return device_properties.multiProcessorCount * blocks_per_sm;
 }
 
 #endif // CNCRT_PBS_H

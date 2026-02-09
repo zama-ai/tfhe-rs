@@ -420,26 +420,26 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc(
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm + minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm + minimum_sm_tbc) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize,
         partial_sm + minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_tbc<Torus, params, NOSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_tbc<Torus, params, NOSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   }
 
@@ -594,20 +594,20 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
   int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
   if (max_shared_memory < partial_sm) {
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_tbc<Torus, params, NOSM>, thds,
-        0);
+        0));
   } else if (max_shared_memory < full_sm) {
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
-        thds, partial_sm);
+        thds, partial_sm));
   } else {
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_tbc<Torus, params, FULLSM>, thds,
-        full_sm);
+        full_sm));
   }
 
   // Get the number of streaming multiprocessors

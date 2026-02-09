@@ -313,18 +313,19 @@ uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
   int max_blocks_per_sm;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  if (max_shared_memory < full_sm_keybundle)
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+  if (max_shared_memory < full_sm_keybundle) {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle_128<Torus, params,
                                                               NOSM>,
-        polynomial_size / params::opt, full_sm_keybundle);
-  else
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        polynomial_size / params::opt, full_sm_keybundle));
+  } else {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle_128<Torus, params,
                                                               FULLSM>,
-        polynomial_size / params::opt, 0);
+        polynomial_size / params::opt, 0));
+  }
 
   int num_sms = 0;
   check_cuda_error(cudaDeviceGetAttribute(

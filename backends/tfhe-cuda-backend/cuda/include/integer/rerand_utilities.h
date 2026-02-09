@@ -67,15 +67,19 @@ template <typename Torus> struct int_rerand_mem {
     cuda_drop_with_size_tracking_async(tmp_zero_lwes, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    tmp_zero_lwes = nullptr;
     cuda_drop_with_size_tracking_async(tmp_ksed_zero_lwes, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    tmp_ksed_zero_lwes = nullptr;
     cuda_drop_with_size_tracking_async(lwe_trivial_indexes, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    lwe_trivial_indexes = nullptr;
     cuda_drop_with_size_tracking_async(d_expand_jobs, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    d_expand_jobs = nullptr;
 
     for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
       cleanup_cuda_keyswitch(streams.stream(i), streams.gpu_index(i),
@@ -85,5 +89,6 @@ template <typename Torus> struct int_rerand_mem {
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_expand_jobs);
+    h_expand_jobs = nullptr;
   }
 };
