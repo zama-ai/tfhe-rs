@@ -206,10 +206,6 @@ host_integer_compress(CudaStreams streams,
 
   auto compression_params = mem_ptr->compression_params;
 
-  PANIC_IF_FALSE(glwe_array_out->lwe_per_glwe == mem_ptr->lwe_per_glwe,
-                 "lwe_per_glwe mismatch between scratch allocation and host "
-                 "function input");
-
   // Shift
   auto lwe_pksk_input = (Torus *)lwe_array_in->ptr;
 
@@ -385,12 +381,7 @@ host_integer_decompress(CudaStreams streams,
                            streams.stream(0), streams.gpu_index(0));
 
   auto compression_params = h_mem_ptr->compression_params;
-
-  // Use the lwe_per_glwe value from the packed GLWE metadata.
-  // This value was set during compression and may differ from polynomial_size.
-  // For example, noise squashing compression uses lwe_per_glwe=128 with
-  // polynomial_size=1024.
-  auto lwe_per_glwe = d_packed_glwe_in->lwe_per_glwe;
+  auto lwe_per_glwe = compression_params.polynomial_size;
 
   // the first element is the number of LWEs that lies in the related GLWE
   std::vector<std::pair<int, Torus *>> glwe_vec;
