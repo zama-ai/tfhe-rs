@@ -80,6 +80,12 @@ parser.add_argument(
     action="store_true",
     help="Run all tests except noise tests",
 )
+parser.add_argument(
+    "--run-prod-only",
+    action="store_true",
+    help="Specify to run the CPU tests with the prod KS_PBS 2_2 parameters, \
+        only the 'layer' parameter will be taken into account if this flag is specified",
+)
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
@@ -121,7 +127,7 @@ def filter_integer_tests(input_args):
     if input_args.all_but_noise and input_args.backend == "gpu":
         filter_expression = [
             f"test(/^integer::gpu::.*/)",
-            f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*/)"
+            f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*/)",
         ]
         return " and ".join(filter_expression)
 
@@ -172,34 +178,41 @@ def filter_integer_tests(input_args):
                 f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
             )
         excluded_tests = (
-            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
+            EXCLUDED_INTEGER_FAST_TESTS
+            if input_args.fast_tests
+            else EXCLUDED_INTEGER_TESTS
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
     else:
         if input_args.backend == "gpu":
-            filter_expression = ["test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
+            filter_expression = [
+                "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
+            ]
         elif input_args.backend == "cpu":
-            filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
-
+            filter_expression = [
+                "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
+            ]
 
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
     if input_args.all_but_noise and input_args.backend == "cpu":
         # For CPU with all_but_noise, exclude also all noise distribution tests
-        filter_expression.append(f"not test(/^shortint::server_key::.*::tests_noise_distribution::.*/)")
+        filter_expression.append(
+            f"not test(/^shortint::server_key::.*::tests_noise_distribution::.*/)"
+        )
     else:
         # By default, only exclude specific GPU noise check tests
-        filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")
+        filter_expression.append(
+            f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)"
+        )
 
     return " and ".join(filter_expression)
 
 
-def filter_shortint_tests(input_args):
-    multi_bit_filter, group_filter = (
-        ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
-    )
+def shortint_normal_filter(input_args):
+    multi_bit_filter = "_multi_bit_group_[0-9]" if input_args.multi_bit else ""
 
     if input_args.fast_tests:
         msg_carry_pairs = [(2, 1), (2, 2), (2, 3)]
@@ -222,18 +235,30 @@ def filter_shortint_tests(input_args):
             msg_carry_pairs.append((4, 4))
 
     filter_expression = [
-        f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks(32)?_pbs.*/)"
+        f"test(/^shortint::.*_param{multi_bit_filter}_message_{msg}_carry_{carry}\
+(_compact_pk)?_ks(32)?_pbs.*/)"
         for msg, carry in msg_carry_pairs
     ]
-    filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2/)")
 
+    filter_expression.append("test(/^shortint::.*meta_param_cpu_2_2_ks32_pbs/)")
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
 
+    return filter_expression
+
+
+def filter_shortint_tests(input_args):
+    # We special case the CPU KS_PBS 2_2 parameters to be able to run them alone
+    filter_expression = shortint_normal_filter(input_args)
     opt_in_tests = " or ".join(filter_expression)
 
     # Do not run noise check tests by default as they can be very slow
     # they will be run e.g. nightly or on demand
     filter = f"({opt_in_tests}) and not test(/^shortint::.*test_noise_check/)"
+
+    if input_args.run_prod_only:
+        filter = f"({filter}) and test(/^shortint::.*_param_prod.*/)"
+    else:
+        filter = f"({filter}) and not test(/^shortint::.*_param_prod.*/)"
 
     return filter
 

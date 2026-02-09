@@ -8,18 +8,30 @@ use rand::Rng;
 // Macro to generate tests for all parameter sets
 #[cfg(not(tarpaulin))]
 macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),* $(,)? }) => {
+    // Variant with explicit test name suffixes for each parameter (useful for MetaParameters)
+    ($func_name:ident { $(($param:expr, $suffix:ident)),* $(,)? }) => {
         ::paste::paste! {
             $(
             #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
+            fn [<test_ $func_name _ $suffix:lower>]() {
+                $func_name($param)
             }
             )*
         }
     };
-    ($name:ident)=> {
-        create_parameterized_test!($name
+    // Variant that derives test names from parameter identifiers
+    ($func_name:ident { $($param:ident),* $(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_ $func_name _ $param:lower>]() {
+                $func_name($param)
+            }
+            )*
+        }
+    };
+    ($func_name:ident)=> {
+        create_parameterized_test!($func_name
         {
             TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
             TEST_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -56,7 +68,9 @@ macro_rules! create_parameterized_test{
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            // To still be able to test prod
+            TEST_PARAM_PROD_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         });
     };
 }
@@ -64,18 +78,30 @@ macro_rules! create_parameterized_test{
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
 macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),*$(,)? }) => {
+    // Variant with explicit test name suffixes for each parameter (useful for MetaParameters)
+    ($func_name:ident { $(($param:expr, $suffix:ident)),* $(,)? }) => {
         ::paste::paste! {
             $(
             #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
+            fn [<test_ $func_name _ $suffix:lower>]() {
+                $func_name($param)
             }
             )*
         }
     };
-    ($name:ident)=> {
-        create_parameterized_test!($name
+    // Variant that derives test names from parameter identifiers
+    ($func_name:ident { $($param:ident),*$(,)? }) => {
+        ::paste::paste! {
+            $(
+            #[test]
+            fn [<test_ $func_name _ $param:lower>]() {
+                $func_name($param)
+            }
+            )*
+        }
+    };
+    ($func_name:ident)=> {
+        create_parameterized_test!($func_name
         {
             TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,

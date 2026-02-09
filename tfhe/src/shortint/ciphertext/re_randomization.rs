@@ -379,19 +379,22 @@ mod test {
 
     use super::*;
     use crate::shortint::parameters::test_params::{
-        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     };
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::MetaParameters;
+    use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
     use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKey};
 
     /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
     /// Test the trivial case
-    #[test]
-    fn test_rerand_ci_run_filter() {
-        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    fn test_rerand(meta_params: MetaParameters) {
+        let compute_params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params
+            .dedicated_compact_public_key_parameters
+            .expect("MetaParameters should have dedicated_compact_public_key_parameters");
+        let pke_params = dedicated_cpk_params.pke_params;
+        let ks_params = dedicated_cpk_params.ksk_params;
 
         let (cks, sks) = gen_keys(compute_params);
         let privk = CompactPrivateKey::new(pke_params);
@@ -464,4 +467,9 @@ mod test {
             assert_eq!(dec, 3);
         }
     }
+
+    create_parameterized_test!(test_rerand {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
 }

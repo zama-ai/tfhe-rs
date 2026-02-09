@@ -2,39 +2,28 @@ use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::noise_squashing::{
     CompressedNoiseSquashingKey, NoiseSquashingKey, NoiseSquashingPrivateKey,
 };
-use crate::shortint::parameters::*;
+use crate::shortint::parameters::test_params::{
+    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+};
+use crate::shortint::parameters::MetaParameters;
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::prelude::*;
 use rand::thread_rng;
 
-#[test]
-fn test_classic_noise_squashing_ci_run_filter() {
-    test_noise_squashing(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    );
-}
+fn test_noise_squashing(meta_params: MetaParameters) {
+    let (params, noise_squashing_params) = {
+        let meta_noise_squashing_params = meta_params
+            .noise_squashing_parameters
+            .expect("MetaParameters should have noise_squashing_parameters");
+        (
+            meta_params.compute_parameters,
+            meta_noise_squashing_params.parameters,
+        )
+    };
 
-#[test]
-fn test_multi_bit_noise_squashing_ci_run_filter() {
-    test_noise_squashing(
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    );
-}
-
-#[test]
-fn test_ks32_noise_squashing_ci_run_filter() {
-    test_noise_squashing(
-        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    );
-}
-
-fn test_noise_squashing(
-    classic_params: impl Into<AtomicPatternParameters>,
-    noise_squashing_params: NoiseSquashingParameters,
-) {
-    let keycache_entry = KEY_CACHE.get_from_param(classic_params);
+    let keycache_entry = KEY_CACHE.get_from_param(params);
     let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
     let decompressed_noise_squashing_key = {
@@ -84,3 +73,9 @@ fn test_noise_squashing(
         assert_eq!(recovered, expected_u128);
     }
 }
+
+create_parameterized_test!(test_noise_squashing {
+    (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+    (TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, GPU_MESSAGE_2_CARRY_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128),
+    (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+});

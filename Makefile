@@ -920,6 +920,14 @@ test_shortint_ci: install_cargo_nextest
 		./scripts/shortint-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "tfhe"
 
+.PHONY: test_param_prod_shortint_ci # Run the tests for shortint ci
+test_param_prod_shortint_ci: install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/shortint-tests.sh \
+		--cargo-profile "$(CARGO_PROFILE)" --run-prod-only --tfhe-package "tfhe"
+
+
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
