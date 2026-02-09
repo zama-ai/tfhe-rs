@@ -1672,7 +1672,7 @@ bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_unsafe_coop_firefox
 
-.PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
+.PHONY: bench_pi_unsigned # Run benchmarks for integer operations
 bench_hlapi_unsigned: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
@@ -1772,6 +1772,13 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_hlapi_kvstore # Run benchmarks for Key-Value Store operations
+bench_hlapi_kvstore: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-kvstore \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
 
 .PHONY: bench_custom # Run benchmarks with a user-defined command
