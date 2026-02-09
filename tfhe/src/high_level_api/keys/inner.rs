@@ -353,9 +353,8 @@ pub struct IntegerServerKey {
     pub(crate) decompression_key: Option<DecompressionKey>,
     pub(crate) noise_squashing_key: Option<NoiseSquashingKey>,
     pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
-        ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    >,
+    pub(crate) cpk_re_randomization_key_switching_key_material:
+        Option<ReRandomizationKeySwitchingKey>,
 }
 
 impl IntegerServerKey {
@@ -478,7 +477,6 @@ impl IntegerServerKey {
 #[cfg(feature = "gpu")]
 pub struct IntegerCudaServerKey {
     pub(crate) key: crate::integer::gpu::CudaServerKey,
-    #[allow(dead_code)]
     pub(crate) cpk_key_switching_key_material:
         Option<crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial>,
     pub(crate) compression_key:
@@ -491,9 +489,7 @@ pub struct IntegerCudaServerKey {
         crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
     >,
     pub(crate) cpk_re_randomization_key_switching_key_material: Option<
-        ReRandomizationKeySwitchingKey<
-            crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial,
-        >,
+        crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey,
     >,
 }
 
@@ -502,13 +498,15 @@ impl IntegerCudaServerKey {
     pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
         &self,
     ) -> Option<&crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial> {
+        use crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey;
+
         self.cpk_re_randomization_key_switching_key_material
             .as_ref()
             .and_then(|key| match key {
-                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
                     self.cpk_key_switching_key_material.as_ref()
                 }
-                ReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
+                CudaReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
                     Some(key_switching_key_material)
                 }
             })
