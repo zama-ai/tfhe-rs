@@ -17,9 +17,9 @@ pub(crate) enum ReRandomizationKeyGenerationInfo<'a> {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(ReRandomizationKeySwitchingKeyVersions)]
-pub enum ReRandomizationKeySwitchingKey<KSK> {
+pub enum ReRandomizationKeySwitchingKey {
     UseCPKEncryptionKSK,
-    DedicatedKSK(KSK),
+    DedicatedKSK(crate::integer::key_switching_key::KeySwitchingKeyMaterial),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
@@ -30,10 +30,7 @@ pub enum CompressedReRandomizationKeySwitchingKey {
 }
 
 impl CompressedReRandomizationKeySwitchingKey {
-    pub fn decompress(
-        &self,
-    ) -> ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>
-    {
+    pub fn decompress(&self) -> ReRandomizationKeySwitchingKey {
         match self {
             Self::UseCPKEncryptionKSK => ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK,
             Self::DedicatedKSK(compressed_key_switching_key_material) => {
@@ -43,4 +40,10 @@ impl CompressedReRandomizationKeySwitchingKey {
             }
         }
     }
+}
+
+#[cfg(feature = "gpu")]
+pub(crate) enum CudaReRandomizationKeySwitchingKey {
+    UseCPKEncryptionKSK,
+    DedicatedKSK(crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial),
 }

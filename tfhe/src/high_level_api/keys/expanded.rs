@@ -38,9 +38,7 @@ pub struct IntegerExpandedServerKey {
     pub decompression_key: Option<ExpandedDecompressionKey>,
     pub noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
     pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub cpk_re_randomization_key_switching_key_material: Option<
-        ReRandomizationKeySwitchingKey<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    >,
+    pub cpk_re_randomization_key_switching_key_material: Option<ReRandomizationKeySwitchingKey>,
 }
 
 impl IntegerExpandedServerKey {
@@ -154,7 +152,9 @@ impl IntegerExpandedServerKey {
         &self,
         streams: &crate::core_crypto::gpu::CudaStreams,
     ) -> crate::Result<crate::high_level_api::keys::inner::IntegerCudaServerKey> {
-        use crate::high_level_api::keys::cpk_re_randomization::ReRandomizationKeySwitchingKey;
+        use crate::high_level_api::keys::cpk_re_randomization::{
+            CudaReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
+        };
         use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
         use crate::integer::gpu::list_compression::server_keys::{
             CudaCompressionKey, CudaDecompressionKey, CudaNoiseSquashingCompressionKey,
@@ -214,10 +214,10 @@ impl IntegerExpandedServerKey {
                 .as_ref()
                 .map(|re_rand_ksk| match re_rand_ksk {
                     ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                        CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
                     }
                     ReRandomizationKeySwitchingKey::DedicatedKSK(ksk) => {
-                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                        CudaReRandomizationKeySwitchingKey::DedicatedKSK(
                             CudaKeySwitchingKeyMaterial::from_key_switching_key_material(
                                 &ksk.as_view(),
                                 streams,
