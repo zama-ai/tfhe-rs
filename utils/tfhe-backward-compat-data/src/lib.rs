@@ -661,6 +661,26 @@ impl TestType for HlCompressedKVStoreTest {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlCompressedXofKeySetTest {
+    pub compressed_xof_key_set_file_name: Cow<'static, str>,
+    pub client_key_file_name: Cow<'static, str>,
+}
+
+impl TestType for HlCompressedXofKeySetTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "CompressedXofKeySet".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.compressed_xof_key_set_file_name.to_string()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Display)]
 pub enum TestMetadata {
     // Shortint
@@ -682,6 +702,7 @@ pub enum TestMetadata {
     HlSquashedNoiseBoolCiphertext(HlSquashedNoiseBoolCiphertextTest),
     HlCompressedSquashedNoiseCiphertextList(HlCompressedSquashedNoiseCiphertextListTest),
     HlCompressedKVStoreTest(HlCompressedKVStoreTest),
+    HlCompressedXofKeySet(HlCompressedXofKeySetTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

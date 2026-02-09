@@ -5,12 +5,13 @@ use std::fs::create_dir_all;
 use std::path::Path;
 use tfhe::boolean::engine::BooleanEngine;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
-use tfhe::core_crypto::prelude::DefaultRandomGenerator;
+use tfhe::core_crypto::prelude::{DefaultRandomGenerator, NormalizedHammingWeightBound};
 use tfhe::shortint::engine::ShortintEngine;
+use tfhe::xof_key_set::CompressedXofKeySet;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe::{
-    ClientKey, CompactPublicKey, CompressedServerKey, ProvenCompactCiphertextList, Seed, ServerKey,
-    set_server_key,
+    set_server_key, ClientKey, CompactPublicKey, CompressedServerKey, ProvenCompactCiphertextList,
+    Seed, ServerKey, Tag,
 };
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
@@ -33,6 +34,11 @@ const HL_SERVERKEY_WITH_COMPRESSION_TEST: HlServerKeyTest = HlServerKeyTest {
     client_key_filename: Cow::Borrowed("client_key.cbor"),
     rerand_cpk_filename: None,
     compressed: false,
+};
+
+const HL_COMPRESSED_XOF_KEY_SET_TEST: HlCompressedXofKeySetTest = HlCompressedXofKeySetTest {
+    compressed_xof_key_set_file_name: Cow::Borrowed("compressed_xof_key_set"),
+    client_key_file_name: Cow::Borrowed("xof_client_key"),
 };
 
 // We have a proven list generated for 0.11, but since this version the hash modes have evolved so
@@ -161,11 +167,36 @@ impl TfhersVersion for V1_5 {
             );
         }
 
+        {
+            let seed_bytes = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+            let security_bits = 128;
+            let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+            let (hl_client_key, hl_xof_key_set) = CompressedXofKeySet::generate(
+                tfhe::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+                seed_bytes,
+                security_bits,
+                max_norm_hwt,
+                Tag::default(),
+            ).expect("Failed to generate xof key set");
+
+            store_versioned_auxiliary(
+                &hl_client_key,
+                &dir,
+                &HL_COMPRESSED_XOF_KEY_SET_TEST.client_key_file_name,
+            );
+            store_versioned_test(
+                &hl_xof_key_set,
+                &dir,
+                &HL_COMPRESSED_XOF_KEY_SET_TEST.test_filename(),
+            );
+        }
+
         vec![
             TestMetadata::HlClientKey(HL_CLIENTKEY_TEST),
             TestMetadata::HlServerKey(HL_COMPRESSED_SERVERKEY_TEST),
             TestMetadata::HlServerKey(HL_SERVERKEY_WITH_COMPRESSION_TEST),
             TestMetadata::HlHeterogeneousCiphertextList(HL_PROVEN_COMPACTLIST_TEST_ZKV2),
+            TestMetadata::HlCompressedXofKeySet(HL_COMPRESSED_XOF_KEY_SET_TEST),
         ]
     }
 }

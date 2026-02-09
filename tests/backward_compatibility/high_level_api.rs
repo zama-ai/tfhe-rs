@@ -3,9 +3,7 @@ use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
 #[cfg(feature = "zk-pok")]
 use tfhe::integer::parameters::DynamicDistribution;
-use tfhe::prelude::{
-    CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant, ReRandomize, SquashNoise,
-};
+use tfhe::prelude::*;
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::parameters::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
@@ -13,13 +11,15 @@ use tfhe::shortint::parameters::{
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
+use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::{
-    set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
-    CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedKVStore, CompressedPublicKey, CompressedServerKey,
-    CompressedSquashedNoiseCiphertextList, FheBool, FheInt8, FheUint64, FheUint8,
+    set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
+    CompressedCiphertextList, CompressedCiphertextListBuilder, CompressedCompactPublicKey,
+    CompressedFheBool, CompressedFheInt8, CompressedFheUint8, CompressedKVStore,
+    CompressedPublicKey, CompressedServerKey, CompressedSquashedNoiseCiphertextList,
+    CompressedSquashedNoiseCiphertextListBuilder, FheBool, FheInt8, FheUint32, FheUint64, FheUint8,
     ReRandomizationContext, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
     SquashedNoiseFheUint,
 };
@@ -30,10 +30,10 @@ use tfhe_backward_compat_data::load::{
 };
 use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest, HlCompressedKVStoreTest,
-    HlCompressedSquashedNoiseCiphertextListTest, HlHeterogeneousCiphertextListTest,
-    HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
-    TestType, Testcase, ZkPkePublicParamsTest,
+    HlCompressedSquashedNoiseCiphertextListTest, HlCompressedXofKeySetTest,
+    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
+    HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
+    HlSquashedNoiseUnsignedCiphertextTest, TestMetadata, TestType, Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
 
@@ -659,6 +659,154 @@ fn test_hl_compressed_kv_store_test(
     Ok(test.success(format))
 }
 
+fn test_hl_compressed_xof_key_set_test(
+    dir: &Path,
+    test: &HlCompressedXofKeySetTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key_file = dir.join(&*test.client_key_file_name);
+    let client_key = ClientKey::unversionize(
+        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(format!("Failed to load client key file: {e}"), format))?;
+
+    let compressed_xof_key_set_file = dir.join(&*test.compressed_xof_key_set_file_name);
+    let compressed_xof_key_set = CompressedXofKeySet::unversionize(
+        load_versioned_auxiliary(compressed_xof_key_set_file)
+            .map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| {
+        test.failure(
+            format!("Failed to load compressed xof key set file: {e}"),
+            format,
+        )
+    })?;
+
+    let xof_key_set = compressed_xof_key_set
+        .decompress()
+        .map_err(|e| test.failure(format!("Failed to decompress the xof key set: {e}"), format))?;
+
+    let (pk, server_key) = xof_key_set.into_raw_parts();
+
+    set_server_key(server_key);
+
+    let clear_a = 278120u32;
+    let clear_b = 839412u32;
+
+    let compact_list = CompactCiphertextListBuilder::new(&pk)
+        .push(clear_a)
+        .push(clear_b)
+        .build_packed();
+
+    let expanded = compact_list
+        .expand()
+        .map_err(|e| test.failure(format!("Failed to expand: {e}"), format))?;
+    let mut a: FheUint32 = expanded.get(0).unwrap().unwrap();
+    let mut b: FheUint32 = expanded.get(1).unwrap().unwrap();
+
+    // Test re-randomization
+    {
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
+        let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+        let rerand_domain_separator = *b"TFHE_Rrd";
+
+        let mut re_rand_context = ReRandomizationContext::new(
+            rerand_domain_separator,
+            [b"FheUint32 bin ops".as_slice(), nonce.as_slice()],
+            compact_public_encryption_domain_separator,
+        );
+
+        re_rand_context.add_ciphertext(&a);
+        re_rand_context.add_ciphertext(&b);
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        a.re_randomize(&pk, seed_gen.next_seed().unwrap())
+            .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
+        b.re_randomize(&pk, seed_gen.next_seed().unwrap())
+            .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+    }
+
+    let c = &a + &b;
+    let d = &a & &b;
+
+    let expected_c = clear_a.wrapping_add(clear_b);
+    let expected_d = clear_a & clear_b;
+
+    for (val, expected) in [&c, &d].iter().zip([expected_c, expected_d]) {
+        let dec: u32 = val.decrypt(&client_key);
+        if dec != expected {
+            return Err(test.failure(
+                format!("Invalid decryption: expected {expected}, got {dec}"),
+                format,
+            ));
+        }
+    }
+
+    // Test noise squashing
+    let ns_c = c
+        .squash_noise()
+        .map_err(|e| test.failure(format!("Failed to squash noise: {e}"), format))?;
+    let ns_d = d
+        .squash_noise()
+        .map_err(|e| test.failure(format!("Failed to squash noise: {e}"), format))?;
+
+    for (ns_val, expected) in [&ns_c, &ns_d].iter().zip([expected_c, expected_d]) {
+        let dec: u32 = ns_val.decrypt(&client_key);
+        if dec != expected {
+            return Err(test.failure(
+                format!("Invalid noise-squashed decryption: expected {expected}, got {dec}"),
+                format,
+            ));
+        }
+    }
+
+    // Test compression / decompression
+    let compressed_list = CompressedCiphertextListBuilder::new()
+        .push(a)
+        .push(b)
+        .push(c)
+        .push(d)
+        .build()
+        .map_err(|e| test.failure(format!("Failed to build compressed list: {e}"), format))?;
+
+    let expected_values = [clear_a, clear_b, expected_c, expected_d];
+    for (i, expected) in expected_values.iter().enumerate() {
+        let val: FheUint32 = compressed_list.get(i).unwrap().unwrap();
+        let dec: u32 = val.decrypt(&client_key);
+        if dec != *expected {
+            return Err(test.failure(
+                format!("Invalid decompressed[{i}]: expected {expected}, got {dec}"),
+                format,
+            ));
+        }
+    }
+
+    // Test compressed noise-squashed ciphertext list
+    let ns_compressed_list = CompressedSquashedNoiseCiphertextListBuilder::new()
+        .push(ns_c)
+        .push(ns_d)
+        .build()
+        .map_err(|e| {
+            test.failure(
+                format!("Failed to build compressed squashed noise list: {e}"),
+                format,
+            )
+        })?;
+
+    for (i, expected) in [expected_c, expected_d].iter().enumerate() {
+        let val: SquashedNoiseFheUint = ns_compressed_list.get(i).unwrap().unwrap();
+        let dec: u32 = val.decrypt(&client_key);
+        if dec != *expected {
+            return Err(test.failure(
+                format!("Invalid compressed noise-squashed[{i}]: expected {expected}, got {dec}"),
+                format,
+            ));
+        }
+    }
+
+    Ok(test.success(format))
+}
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -710,6 +858,9 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlCompressedKVStoreTest(test) => {
                 test_hl_compressed_kv_store_test(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlCompressedXofKeySet(test) => {
+                test_hl_compressed_xof_key_set_test(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
