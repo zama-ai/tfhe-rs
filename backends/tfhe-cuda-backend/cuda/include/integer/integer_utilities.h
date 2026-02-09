@@ -1194,19 +1194,26 @@ public:
     cuda_drop_with_size_tracking_async(lwe_indexes_in, active_streams.stream(0),
                                        active_streams.gpu_index(0),
                                        gpu_memory_allocated);
+    lwe_indexes_in = nullptr;
+
     cuda_drop_with_size_tracking_async(
         lwe_indexes_out, active_streams.stream(0), active_streams.gpu_index(0),
         gpu_memory_allocated);
+    lwe_indexes_out = nullptr;
+
     cuda_drop_with_size_tracking_async(
         lwe_trivial_indexes, active_streams.stream(0),
         active_streams.gpu_index(0), gpu_memory_allocated);
+    lwe_trivial_indexes = nullptr;
 
     cuda_synchronize_stream(active_streams.stream(0),
                             active_streams.gpu_index(0));
     lut_vec.clear();
     lut_indexes_vec.clear();
     free(h_lwe_indexes_in);
+    h_lwe_indexes_in = nullptr;
     free(h_lwe_indexes_out);
+    h_lwe_indexes_out = nullptr;
 
     if (active_streams.count() > 1) {
       active_streams.synchronize();
@@ -1239,6 +1246,7 @@ public:
                                 active_streams.gpu_index(i));
       }
       delete tmp_lwe_before_ks;
+      tmp_lwe_before_ks = nullptr;
       buffer.clear();
 
       if (gpu_memory_allocated) {
@@ -1268,8 +1276,11 @@ public:
       ks_tmp_buf_vec.clear();
     }
     free(h_lut_indexes);
+    h_lut_indexes = nullptr;
     free(degrees);
+    degrees = nullptr;
     free(max_degrees);
+    max_degrees = nullptr;
   }
 };
 

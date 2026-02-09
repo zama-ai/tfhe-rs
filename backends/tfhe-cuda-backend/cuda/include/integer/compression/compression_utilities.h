@@ -51,9 +51,13 @@ template <typename Torus> struct int_compression {
   void release(CudaStreams streams) {
     cuda_drop_with_size_tracking_async(
         tmp_lwe, streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
+    tmp_lwe = nullptr;
+
     cuda_drop_with_size_tracking_async(tmp_glwe_array_out, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    tmp_glwe_array_out = nullptr;
+
     cleanup_packing_keyswitch_lwe_list_to_glwe(
         streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
         gpu_memory_allocated);
@@ -129,12 +133,17 @@ template <typename Torus> struct int_decompression {
     cuda_drop_with_size_tracking_async(tmp_extracted_glwe, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+
+    tmp_extracted_glwe = nullptr;
     cuda_drop_with_size_tracking_async(tmp_extracted_lwe, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    tmp_extracted_lwe = nullptr;
     cuda_drop_with_size_tracking_async(tmp_indexes_array, streams.stream(0),
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
+    tmp_indexes_array = nullptr;
+
     if constexpr (std::is_same_v<Torus, uint64_t>) {
       decompression_rescale_lut->release(streams);
       delete decompression_rescale_lut;
