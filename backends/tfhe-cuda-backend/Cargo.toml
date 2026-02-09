@@ -12,9 +12,9 @@ readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 
 [build-dependencies]
-cmake = { version = "0.1" }
-pkg-config = { version = "0.3" }
-bindgen = "0.71"
+cmake.workspace = true
+pkg-config.workspace = true
+bindgen.workspace = true
 
 [features]
 experimental-multi-arch = []

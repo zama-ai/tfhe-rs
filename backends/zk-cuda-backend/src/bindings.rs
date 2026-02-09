@@ -7,7 +7,7 @@ pub struct CUstream_st {
 }
 pub type cudaStream_t = *mut CUstream_st;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Fp {
     pub limb: [u64; 7usize],
 }
@@ -18,7 +18,7 @@ const _: () = {
     ["Offset of field: Fp::limb"][::std::mem::offset_of!(Fp, limb) - 0usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Fp2 {
     pub c0: Fp,
     pub c1: Fp,
@@ -31,7 +31,7 @@ const _: () = {
     ["Offset of field: Fp2::c1"][::std::mem::offset_of!(Fp2, c1) - 56usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct BigInt {
     pub limb: [u64; 5usize],
 }
@@ -43,7 +43,7 @@ const _: () = {
 };
 pub type Scalar = BigInt;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct G1Point {
     pub x: Fp,
     pub y: Fp,
@@ -58,7 +58,7 @@ const _: () = {
     ["Offset of field: G1Point::infinity"][::std::mem::offset_of!(G1Point, infinity) - 112usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct G2Point {
     pub x: Fp2,
     pub y: Fp2,
@@ -73,7 +73,7 @@ const _: () = {
     ["Offset of field: G2Point::infinity"][::std::mem::offset_of!(G2Point, infinity) - 224usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct G1ProjectivePoint {
     pub X: Fp,
     pub Y: Fp,
@@ -91,7 +91,7 @@ const _: () = {
         [::std::mem::offset_of!(G1ProjectivePoint, Z) - 112usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct G2ProjectivePoint {
     pub X: Fp2,
     pub Y: Fp2,

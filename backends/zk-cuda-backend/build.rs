@@ -113,8 +113,11 @@ fn main() {
                 .allowlist_type("Scalar")
                 .allowlist_type("BigInt")
                 .allowlist_type("cudaStream_t")
-                // Derive Default for all types (needed by Rust code)
+                // Derive Default, PartialEq and Eq for all types so wrapper
+                // types can use derive macros instead of manual impls
                 .derive_default(true)
+                .derive_partialeq(true)
+                .derive_eq(true)
                 .clang_arg("-x")
                 .clang_arg("c++")
                 .clang_arg("-std=c++17")

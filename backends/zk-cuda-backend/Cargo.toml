@@ -2,6 +2,7 @@
 name = "zk-cuda-backend"
 version = "0.1.0"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Zama team"]
 license = "BSD-3-Clause-Clear"
 description = "Cuda implementation of TFHE-rs' ZK primitives."
@@ -16,9 +17,9 @@ name = "zk_cuda_backend"
 crate-type = ["rlib"]
 
 [build-dependencies]
-cmake = { version = "0.1" }
-pkg-config = { version = "0.3" }
-bindgen = "0.71"
+cmake.workspace = true
+pkg-config.workspace = true
+bindgen.workspace = true
 
 [dependencies]
 ark-ec.workspace = true

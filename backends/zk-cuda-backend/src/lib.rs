@@ -25,13 +25,13 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use zk_cuda_backend::{G1Affine, G1Projective};
+//! use zk_cuda_backend::{Fp, G1Affine, G1Projective};
 //!
 //! // Create a G1 affine point
 //! let g1_affine = G1Affine::new(
-//!     [0x1234, 0, 0, 0, 0, 0, 0], // x coordinate
-//!     [0x5678, 0, 0, 0, 0, 0, 0], // y coordinate
-//!     false,                      // not at infinity
+//!     Fp::new([0x1234, 0, 0, 0, 0, 0, 0]), // x coordinate
+//!     Fp::new([0x5678, 0, 0, 0, 0, 0, 0]), // y coordinate
+//!     false,                               // not at infinity
 //! );
 //!
 //! // Convert to projective coordinates
@@ -48,19 +48,19 @@
 // etc.)
 extern crate tfhe_cuda_backend;
 
+// Auto-generated bindgen bindings (matching tfhe-cuda-backend pattern)
+#[allow(warnings)]
+pub mod bindings;
+
 pub mod conversions;
-pub mod ffi;
 pub mod types;
 
-#[cfg(test)]
-mod tests;
-
 pub use types::*;
-// Re-export Fp from ffi module (it's the Fq equivalent - 7-limb field element)
-pub use ffi::Fp;
+// Re-export Fp from bindings module (it's the Fq equivalent - 7-limb field element)
+pub use bindings::Fp;
 
 // Re-export Montgomery conversion functions
 pub use conversions::{g1_affine_from_montgomery, g2_affine_from_montgomery};
 
 // Re-export conversion functions for arkworks types
-pub use conversions::{g1_affine_from_arkworks, g1_projective_to_limbs, g2_projective_to_limbs};
+pub use conversions::{g1_affine_from_arkworks, g1_projective_to_ffi, g2_projective_to_ffi};

@@ -4,6 +4,7 @@
 //! Concrete conversion functions for tfhe-zk-pok types should be implemented in
 //! tfhe-zk-pok itself to avoid circular dependencies.
 
+use crate::bindings::{Fp, G1ProjectivePoint, G2ProjectivePoint};
 use crate::types::{
     G1Affine, G1Affine as ZkG1Affine, G1Projective as ZkG1Projective, G2Affine,
     G2Projective as ZkG2Projective,
@@ -11,18 +12,12 @@ use crate::types::{
 use ark_ec::AffineRepr;
 use ark_ff::{PrimeField, Zero};
 
-/// Type alias for Fp2 field element represented as limbs (c0, c1)
-pub type Fp2Limbs = ([u64; 7], [u64; 7]);
-
-/// Type alias for G2 projective point coordinates (X, Y, Z) as Fp2 limbs
-pub type G2ProjectiveLimbs = (Fp2Limbs, Fp2Limbs, Fp2Limbs);
-
 // Helper function to convert G1Affine from Montgomery form to normal form
 pub fn g1_affine_from_montgomery(g1_mont: &G1Affine) -> G1Affine {
     let mut result = G1Affine::infinity();
     if !g1_mont.is_infinity() {
         unsafe {
-            crate::ffi::g1_from_montgomery_wrapper(result.inner_mut(), g1_mont.inner());
+            crate::bindings::g1_from_montgomery_wrapper(result.inner_mut(), g1_mont.inner());
         }
     }
     result
@@ -33,20 +28,22 @@ pub fn g2_affine_from_montgomery(g2_mont: &G2Affine) -> G2Affine {
     let mut result = G2Affine::infinity();
     if !g2_mont.is_infinity() {
         unsafe {
-            crate::ffi::g2_from_montgomery_wrapper(result.inner_mut(), g2_mont.inner());
+            crate::bindings::g2_from_montgomery_wrapper(result.inner_mut(), g2_mont.inner());
         }
     }
     result
 }
 
-// Helper to extract limbs from an arkworks field element
-fn field_to_limbs<F: PrimeField>(f: &F) -> [u64; 7] {
+// Helper to extract an Fp from an arkworks field element.
+// arkworks BigInt<N> is a newtype around [u64; N], accessed via as_ref().
+fn field_to_fp<F: PrimeField>(f: &F) -> Fp {
     let bigint = f.into_bigint();
-    let mut limbs = [0u64; 7];
-    for (i, limb) in bigint.as_ref().iter().take(7).enumerate() {
-        limbs[i] = *limb;
+    Fp {
+        limb: bigint
+            .as_ref()
+            .try_into()
+            .expect("BLS12-446 Fq must have exactly 7 limbs"),
     }
-    limbs
 }
 
 /// Convert from any arkworks G1Affine (implementing AffineRepr) to zk-cuda-backend's G1Affine
@@ -69,24 +66,32 @@ where
 
     // into_bigint() on normalized Fq gives us the normal form representation
     // which is what zk-cuda-backend expects (it will convert to Montgomery)
-    let x_limbs = field_to_limbs(&xy.0);
-    let y_limbs = field_to_limbs(&xy.1);
+    let x = field_to_fp(&xy.0);
+    let y = field_to_fp(&xy.1);
 
-    ZkG1Affine::new(x_limbs, y_limbs, false)
+    ZkG1Affine::new(x, y, false)
 }
 
-/// Convert from zk-cuda-backend's G1Projective to raw limbs
+/// Convert from zk-cuda-backend's G1Projective to the FFI projective point
 ///
-/// Returns (X, Y, Z) coordinates as 7-limb arrays.
+/// Returns the (X, Y, Z) coordinates as a G1ProjectivePoint.
 /// The actual construction of arkworks types should be done by the caller.
-pub fn g1_projective_to_limbs(proj: &ZkG1Projective) -> ([u64; 7], [u64; 7], [u64; 7]) {
-    (proj.X(), proj.Y(), proj.Z())
+pub fn g1_projective_to_ffi(proj: &ZkG1Projective) -> G1ProjectivePoint {
+    G1ProjectivePoint {
+        X: proj.X(),
+        Y: proj.Y(),
+        Z: proj.Z(),
+    }
 }
 
-/// Convert from zk-cuda-backend's G2Projective to raw limbs
+/// Convert from zk-cuda-backend's G2Projective to the FFI projective point
 ///
-/// Returns ((X.c0, X.c1), (Y.c0, Y.c1), (Z.c0, Z.c1)) coordinates as 7-limb arrays.
+/// Returns the (X, Y, Z) coordinates as a G2ProjectivePoint.
 /// The actual construction of arkworks types should be done by the caller.
-pub fn g2_projective_to_limbs(proj: &ZkG2Projective) -> G2ProjectiveLimbs {
-    (proj.X(), proj.Y(), proj.Z())
+pub fn g2_projective_to_ffi(proj: &ZkG2Projective) -> G2ProjectivePoint {
+    G2ProjectivePoint {
+        X: proj.X(),
+        Y: proj.Y(),
+        Z: proj.Z(),
+    }
 }
