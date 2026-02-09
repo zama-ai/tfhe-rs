@@ -21,6 +21,7 @@ on:
           - hlapi_erc20
           - hlapi_dex
           - hlapi_noise_squash
+          - hlapi_kvstore
           - tfhe_zk_pok
           - boolean
           - pbs

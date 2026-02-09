@@ -98,6 +98,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-kvstore"
+path = "benches/high_level_api/kv_store.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "integer-glwe_packing_compression"
 path = "benches/integer/glwe_packing_compression.rs"
 harness = false

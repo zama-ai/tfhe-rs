@@ -2,140 +2,19 @@ use crate::bench_common::{bench_fhe_type_op, BenchConfig};
 use crate::oprf::oprf_any_range2;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::high_level_api::random_generator::{random_non_zero, random_not_power_of_two};
-use benchmark::high_level_api::type_display::*;
-use benchmark::utilities::{
-    hlapi_throughput_num_ops, BenchmarkType, BitSizesSet, EnvConfig, OperandType,
-};
-use criterion::{Criterion, Throughput};
-use rand::prelude::*;
-use rayon::prelude::*;
+use benchmark::utilities::{BitSizesSet, EnvConfig, OperandType};
+use criterion::Criterion;
 use std::env;
 use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
-use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::prelude::*;
 use tfhe::{
-    ClientKey, CompressedServerKey, FheBool, FheIntegerType, FheUint128, FheUint16, FheUint2,
-    FheUint32, FheUint4, FheUint64, FheUint8, FheUintId, KVStore,
+    ClientKey, CompressedServerKey, FheBool, FheUint128, FheUint16, FheUint2, FheUint32, FheUint4,
+    FheUint64, FheUint8,
 };
 
 mod oprf;
-
-fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
-where
-    rand::distributions::Standard: rand::distributions::Distribution<Key>,
-    Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
-    Value: FheEncrypt<u128, ClientKey> + FheIntegerType + Clone + Send + Sync + TypeDisplay,
-    Value::Id: FheUintId,
-    FheKey: FheEncrypt<Key, ClientKey> + FheIntegerType + Send + Sync,
-    FheKey::Id: FheUintId,
-{
-    let mut bench_group = c.benchmark_group("kv_store");
-    bench_group.sample_size(10);
-
-    let mut kv_store = KVStore::new();
-    let mut rng = rand::thread_rng();
-
-    let format_id_bench = |op_name: &str| -> String {
-        format!(
-            "hlapi::kv_store::<{}, {}>::{op_name}/{num_elements}",
-            TypeDisplayer::<Key>::default(),
-            TypeDisplayer::<Value>::default(),
-        )
-    };
-
-    match BenchmarkType::from_env().unwrap() {
-        BenchmarkType::Latency => {
-            while kv_store.len() != num_elements {
-                let key = rng.gen::<Key>();
-                let value = rng.gen::<u128>();
-
-                let encrypted_value = Value::encrypt(value, cks);
-                kv_store.insert_with_clear_key(key, encrypted_value);
-            }
-
-            let key = rng.gen::<Key>();
-            let encrypted_key = FheKey::encrypt(key, cks);
-
-            let value = rng.gen::<u128>();
-            let value_to_add = Value::encrypt(value, cks);
-
-            bench_group.bench_function(format_id_bench("get"), |b| {
-                b.iter(|| {
-                    let _ = kv_store.get(&encrypted_key);
-                })
-            });
-
-            bench_group.bench_function(format_id_bench("update"), |b| {
-                b.iter(|| {
-                    let _ = kv_store.update(&encrypted_key, &value_to_add);
-                })
-            });
-
-            bench_group.bench_function(format_id_bench("map"), |b| {
-                b.iter(|| {
-                    kv_store.map(&encrypted_key, |v| v);
-                })
-            });
-        }
-        BenchmarkType::Throughput => {
-            while kv_store.len() != num_elements {
-                let key = rng.gen::<Key>();
-                let value = rng.gen::<u128>();
-
-                let encrypted_value = Value::encrypt(value, cks);
-                kv_store.insert_with_clear_key(key, encrypted_value);
-            }
-
-            let key = rng.gen::<Key>();
-            let encrypted_key = FheKey::encrypt(key, cks);
-
-            let value = rng.gen::<u128>();
-            let value_to_add = Value::encrypt(value, cks);
-
-            let factor = hlapi_throughput_num_ops(
-                || {
-                    kv_store.map(&encrypted_key, |v| v);
-                },
-                cks,
-            );
-
-            let mut kv_stores = vec![];
-            for _ in 0..factor.saturating_sub(1) {
-                kv_stores.push(kv_store.clone());
-            }
-            kv_stores.push(kv_store);
-
-            bench_group.throughput(Throughput::Elements(kv_stores.len() as u64));
-
-            bench_group.bench_function(format_id_bench("map::throughput"), |b| {
-                b.iter(|| {
-                    kv_stores.par_iter_mut().for_each(|kv_store| {
-                        kv_store.map(&encrypted_key, |v| v);
-                    })
-                })
-            });
-
-            bench_group.bench_function(format_id_bench("update::throughput"), |b| {
-                b.iter(|| {
-                    kv_stores.par_iter_mut().for_each(|kv_store| {
-                        kv_store.update(&encrypted_key, &value_to_add);
-                    })
-                })
-            });
-
-            bench_group.bench_function(format_id_bench("get::throughput"), |b| {
-                b.iter(|| {
-                    kv_stores.par_iter_mut().for_each(|kv_store| {
-                        kv_store.get(&encrypted_key);
-                    })
-                })
-            });
-        }
-    }
-    bench_group.finish();
-}
 
 #[macro_use]
 mod bench_common;
@@ -180,7 +59,7 @@ fn main() {
         (cks, tfhe::Device::Hpu)
     };
     #[cfg(not(feature = "hpu"))]
-    let (cks, benched_device) = {
+    let (cks, _) = {
         use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS;
         use tfhe::{set_server_key, ConfigBuilder};
         let config =
@@ -208,11 +87,6 @@ fn main() {
                     run_scalar_benches!(&mut c, &cks, FheUint64);
                 }
             };
-
-            // KVStore Benches
-            if benched_device == tfhe::Device::Cpu {
-                bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << 10);
-            }
         }
         _ => {
             match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
@@ -236,21 +110,6 @@ fn main() {
                         &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
                         FheUint64, FheUint128,
                     );
-                }
-            }
-
-            // KVStore Benches
-            if benched_device == tfhe::Device::Cpu {
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-                }
-
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
-                }
-
-                for pow in 1..=10 {
-                    bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
                 }
             }
         }
