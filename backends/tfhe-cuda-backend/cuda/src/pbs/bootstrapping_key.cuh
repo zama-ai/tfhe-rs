@@ -142,7 +142,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
   int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
 
   double2 *h_bsk;
-  cudaMallocHost((void **)&h_bsk, buffer_size);
+  check_cuda_error(cudaMallocHost((void **)&h_bsk, buffer_size));
 
   double2 *d_bsk = (double2 *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -300,7 +300,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
 
   cuda_drop_async(d_bsk, stream, gpu_index);
   cuda_drop_async(buffer, stream, gpu_index);
-  cudaFreeHost(h_bsk);
+  check_cuda_error(cudaFreeHost(h_bsk));
 }
 
 template <class params>

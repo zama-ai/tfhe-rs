@@ -282,7 +282,7 @@ __host__ void host_centered_modulus_switch_inplace(
 
   // Get device properties to check max threads per block
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, gpu_index);
+  check_cuda_error(cudaGetDeviceProperties(&deviceProp, gpu_index));
 
   // Check if lwe_dimension+1 exceeds maximum threads per block
   if (lwe_dimension + 1 > deviceProp.maxThreadsPerBlock)

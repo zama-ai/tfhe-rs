@@ -439,19 +439,19 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
                                                           FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
                                                           FULLSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   }
 
@@ -462,10 +462,10 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
                                                                NOSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize,
         minimum_sm_tbc_accumulate));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                NOSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory <
              full_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
@@ -474,10 +474,10 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
                                                                PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize,
         partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                PARTIALSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else {
     if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
@@ -501,10 +501,10 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
                                                                  FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
           full_sm_tbc_accumulate + minimum_sm_tbc_accumulate));
-      cudaFuncSetCacheConfig(
+      check_cuda_error(cudaFuncSetCacheConfig(
           device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                  FULLSM>,
-          cudaFuncCachePreferShared);
+          cudaFuncCachePreferShared));
     }
     check_cuda_error(cudaGetLastError());
   }

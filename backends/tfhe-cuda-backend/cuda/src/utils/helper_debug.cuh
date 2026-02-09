@@ -140,9 +140,9 @@ __global__ inline void print_debug_kernel(const double2 *src, int N) {
 }
 template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("%s: ", name);
-  cudaDeviceSynchronize();
+  check_cuda_error(cudaDeviceSynchronize());
   print_debug_kernel<<<1, 1>>>(src, N);
-  cudaDeviceSynchronize();
+  check_cuda_error(cudaDeviceSynchronize());
   printf("\n");
 }
 
@@ -158,9 +158,9 @@ __global__ void print_body_kernel(T *src, int N, int lwe_dimension, T delta) {
 template <typename T>
 void print_body(const char *name, T *src, int n, int lwe_dimension, T delta) {
   printf("%s: ", name);
-  cudaDeviceSynchronize();
+  check_cuda_error(cudaDeviceSynchronize());
   print_body_kernel<<<1, 1>>>(src, n, lwe_dimension, delta);
-  cudaDeviceSynchronize();
+  check_cuda_error(cudaDeviceSynchronize());
   printf("\n");
 }
 
@@ -230,4 +230,5 @@ __host__ void compare_2d_arrays(const Torus *ptr1, const Torus *ptr2,
                col_size, ss.str().c_str());
   }
 }
+
 #endif

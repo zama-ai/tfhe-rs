@@ -425,17 +425,17 @@ __host__ uint64_t scratch_programmable_bootstrap_cg_128(
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_cg_128<InputTorus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_cg_128<InputTorus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_cg_128<InputTorus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_cg_128<InputTorus, params, FULLSM>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   }
 
@@ -474,36 +474,36 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
         device_programmable_bootstrap_step_one_128<InputTorus, params,
                                                    PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_one_128<InputTorus, params,
                                                    PARTIALSM, true>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_one_128<InputTorus, params,
                                                    PARTIALSM, false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_one_128<InputTorus, params,
                                                    PARTIALSM, false>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                    true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                    true>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                    false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                    false>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   }
 
@@ -513,36 +513,36 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
                                                    PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
                                                    PARTIALSM, true>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
                                                    PARTIALSM, false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
                                                    PARTIALSM, false>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                    true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                    true>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                    false>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                    false>,
-        cudaFuncCachePreferShared);
+        cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   }
 
@@ -911,34 +911,34 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
   int max_active_blocks_per_sm;
 
   if (max_shared_memory < partial_sm) {
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, NOSM>,
-        thds, 0);
+        thds, 0));
   } else if (max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_cg_128<__uint128_t, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_cg_128<__uint128_t, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_cg_128<__uint128_t, params,
                                                      PARTIALSM>,
-        thds, partial_sm);
+        thds, partial_sm));
   } else {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
-        cudaFuncCachePreferShared);
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)
             device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
-        thds, full_sm);
+        thds, full_sm));
   }
 
   // Get the number of streaming multiprocessors

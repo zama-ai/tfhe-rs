@@ -153,6 +153,7 @@ void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
   cuda_drop_with_size_tracking_async(*fp_ks_buffer,
                                      static_cast<cudaStream_t>(stream),
                                      gpu_index, gpu_memory_allocated);
+  *fp_ks_buffer = nullptr;
 }
 
 void scratch_packing_keyswitch_lwe_list_to_glwe_128(
