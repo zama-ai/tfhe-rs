@@ -1783,23 +1783,29 @@ bench_hlapi_kvstore: install_rs_check_toolchain
 
 .PHONY: bench_summary # Run summary benchmarks
 bench_summary: install_rs_check_toolchain
-	# Arithmetic operations: addition, multiplication, comparison
+	# Arithmetic operations: addition, multiplication, division, comparison
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
-	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::add|::mul|::gt|::div_rem'
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark -- '::add|::mul|::gt|::div_rem'
 
 	# Noise squash
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
-	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::noise_squash::'
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark -- '::noise_squash::'
 
 	# ERC20
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+	--features=integer,internal-keycache -p tfhe-benchmark -- '::transfer::overflow'
+
+	# DEX
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-dex \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark -- '::no_cmux::'
 
 	# ZK
 	# Proof is done on CPU node of the instance
@@ -1822,11 +1828,13 @@ bench_summary: install_rs_check_toolchain
 
 .PHONY: bench_summary_gpu # Run summary benchmarks on GPU
 bench_summary_gpu: install_rs_check_toolchain
-	# Arithmetic operations: addition, multiplication, comparison
+	# Arithmetic operations: addition, multiplication, division, comparison
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::add|::mul|::gt|::div_rem'
+# TODO passer en bench integer avec classique + multi-bit
+# TODO faire du classique + multi-bit partout où c'est possible
 
 	# Noise squash
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
@@ -1839,6 +1847,12 @@ bench_summary_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+
+	# DEX
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-dex \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::no_cmux::'
 
 	# ZK
 	# Proof is done on CPU node of the instance
@@ -1859,6 +1873,7 @@ bench_summary_gpu: install_rs_check_toolchain
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
+# TODO AJouter le DEX
 .PHONY: bench_custom # Run benchmarks with a user-defined command
 bench_custom: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-benchmark $(BENCH_CUSTOM_COMMAND)

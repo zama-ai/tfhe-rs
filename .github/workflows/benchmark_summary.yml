@@ -59,22 +59,23 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-hpu:
-    name: benchmark_documentation/run-benchmarks-hpu
-    uses: ./.github/workflows/benchmark_hpu_common.yml
-    if: inputs.run-hpu-benchmarks
-    with:
-      command: summary
-      bench_type: both
-      v80_pcie_dev: 24
-      v80_serial_number: XFL12NWY3ZKG
-    secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+# TODO add make recipe for HPU benchmarks
+#  run-benchmarks-hpu:
+#    name: benchmark_documentation/run-benchmarks-hpu
+#    uses: ./.github/workflows/benchmark_hpu_common.yml
+#    if: inputs.run-hpu-benchmarks
+#    with:
+#      command: summary
+#      bench_type: both
+#      v80_pcie_dev: 24
+#      v80_serial_number: XFL12NWY3ZKG
+#    secrets:
+#      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+#      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+#      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+#      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+#      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+#      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+#      SLAB_URL: ${{ secrets.SLAB_URL }}
+#      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+#      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
