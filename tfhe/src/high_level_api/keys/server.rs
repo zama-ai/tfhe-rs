@@ -66,11 +66,7 @@ impl ServerKey {
         Option<DecompressionKey>,
         Option<NoiseSquashingKey>,
         Option<NoiseSquashingCompressionKey>,
-        Option<
-            ReRandomizationKeySwitchingKey<
-                crate::integer::key_switching_key::KeySwitchingKeyMaterial,
-            >,
-        >,
+        Option<ReRandomizationKeySwitchingKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -105,11 +101,7 @@ impl ServerKey {
         decompression_key: Option<DecompressionKey>,
         noise_squashing_key: Option<NoiseSquashingKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-        cpk_re_randomization_key_switching_key_material: Option<
-            ReRandomizationKeySwitchingKey<
-                crate::integer::key_switching_key::KeySwitchingKeyMaterial,
-            >,
-        >,
+        cpk_re_randomization_key_switching_key_material: Option<ReRandomizationKeySwitchingKey>,
         tag: Tag,
     ) -> Self {
         Self {

@@ -18,8 +18,6 @@ use super::server_key::{
 };
 use super::AtomicPatternKind;
 use crate::conformance::ParameterSetConformant;
-#[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, CastFrom, CastInto, Cleartext, LweCiphertext, LweCiphertextOwned,
     LweKeyswitchKeyConformanceParams, LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned,
@@ -254,15 +252,6 @@ pub struct KeySwitchingKeyMaterialView<'key> {
     pub(crate) cast_rshift: i8,
     pub(crate) destination_key: EncryptionKeyChoice,
     pub(crate) destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
-}
-
-#[derive(Clone)]
-#[allow(dead_code)]
-#[cfg(feature = "gpu")]
-pub struct CudaKeySwitchingKeyMaterial {
-    pub(crate) lwe_keyswitch_key: CudaLweKeyswitchKey<u64>,
-    pub(crate) cast_rshift: i8,
-    pub(crate) destination_key: EncryptionKeyChoice,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

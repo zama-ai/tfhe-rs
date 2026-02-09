@@ -197,10 +197,10 @@ mod cuda {
     use tfhe::integer::ciphertext::ReRandomizationContext;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+    use tfhe::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
     use tfhe::integer::key_switching_key::KeySwitchingKey;
     use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey};
     use tfhe::keycache::NamedParam;
-    use tfhe::shortint::key_switching_key::CudaKeySwitchingKeyMaterial;
 
     fn execute_gpu_re_randomize(c: &mut Criterion, bit_size: usize) {
         let bench_name = "integer::cuda::re_randomize";
