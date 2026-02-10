@@ -74,7 +74,7 @@ To compile and execute GPU TFHE-rs programs, make sure your system has the follo
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.5.2", features = ["boolean", "shortint", "integer", "gpu"] }
+tfhe = { version = "~1.5.3", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 If none of the supported backends is configured in `Cargo.toml`, the CPU backend is used.

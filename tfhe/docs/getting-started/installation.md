@@ -7,7 +7,7 @@ This document provides instructions to set up **TFHE-rs** in your project.
 First, add **TFHE-rs** as a dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.5.2", features = ["boolean", "shortint", "integer"] }
+tfhe = { version = "~1.5.3", features = ["boolean", "shortint", "integer"] }
 ```
 
 {% hint style="info" %}
@@ -35,7 +35,7 @@ By default, **TFHE-rs** makes the assumption that hardware AES features are enab
 To add support for older CPU, import **TFHE-rs** with the `software-prng` feature in your `Cargo.toml`:
 
 ```toml
-tfhe = { version = "~1.5.2", features = ["boolean", "shortint", "integer", "software-prng"] }
+tfhe = { version = "~1.5.3", features = ["boolean", "shortint", "integer", "software-prng"] }
 ```
 
 ## Hardware acceleration
