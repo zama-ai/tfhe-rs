@@ -1829,11 +1829,10 @@ bench_summary: install_rs_check_toolchain
 .PHONY: bench_summary_gpu # Run summary benchmarks on GPU
 bench_summary_gpu: install_rs_check_toolchain
 	# Arithmetic operations: addition, multiplication, division, comparison
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=FAST_DEFAULT __TFHE_RS_BENCH_BIT_SIZES_SET=FAST __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi \
+	--bench integer \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::add|::mul|::gt|::div_rem'
-# TODO passer en bench integer avec classique + multi-bit
 # TODO faire du classique + multi-bit partout où c'est possible
 
 	# Noise squash
