@@ -28,7 +28,7 @@ To use the `FheUint8` type, enable the `integer` feature:
 # Cargo.toml
 
 [dependencies]
-tfhe = { version = "~1.5.2", features = ["integer"] }
+tfhe = { version = "~1.5.3", features = ["integer"] }
 ```
 
 The `MyFheString::encrypt` function performs data validation to ensure the input string contains only ASCII characters.
@@ -167,7 +167,7 @@ First, add the feature in your `Cargo.toml`
 # Cargo.toml
 
 [dependencies]
-tfhe = { version = "~1.5.2", features = ["strings"] }
+tfhe = { version = "~1.5.3", features = ["strings"] }
 ```
 
 The `FheAsciiString` type allows to simply do homomorphic case changing of encrypted strings (and much more!):
