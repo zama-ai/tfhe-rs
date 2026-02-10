@@ -473,7 +473,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 #[cfg(all(feature = "gpu", feature = "zk-pok"))]
 mod cuda {
     use super::*;
-    use benchmark::utilities::cuda_local_streams;
+    use benchmark::utilities::{cuda_local_streams, get_param_type, ParamType};
     use criterion::BatchSize;
     use itertools::Itertools;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -495,238 +495,242 @@ mod cuda {
             .open(results_file)
             .expect("cannot open results file");
 
-        for (param_pke, param_ksk, param_fhe) in [(
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        )] {
-            let param_name = param_fhe.name();
-            let param_name = param_name.as_str();
-            let cks = ClientKey::new(param_fhe);
-            let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
-            let sk = compressed_server_key.decompress();
+        let (param_pke, param_ksk, param_fhe): (
+            CompactPublicKeyEncryptionParameters,
+            ShortintKeySwitchingParameters,
+            tfhe::shortint::AtomicPatternParameters,
+        ) = match get_param_type() {
+            ParamType::Classical => (
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            _ => (
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+        };
 
-            let compact_private_key = CompactPrivateKey::new(param_pke);
-            let pk = CompactPublicKey::new(&compact_private_key);
-            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), param_ksk);
+        let param_name = param_fhe.name();
+        let param_name = param_name.as_str();
+        let cks = ClientKey::new(param_fhe);
+        let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+        let sk = compressed_server_key.decompress();
 
-            // We have a use case with 320 bits of metadata
-            let mut metadata = [0u8; (320 / u8::BITS) as usize];
+        let compact_private_key = CompactPrivateKey::new(param_pke);
+        let pk = CompactPublicKey::new(&compact_private_key);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), param_ksk);
+
+        // We have a use case with 320 bits of metadata
+        let mut metadata = [0u8; (320 / u8::BITS) as usize];
+        let mut rng = rand::thread_rng();
+        metadata.fill_with(|| rng.gen());
+
+        let zk_vers = param_pke.zk_scheme;
+
+        for proof_config in default_proof_config().iter() {
+            let msg_bits =
+                (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
+            println!("Generating CRS... ");
+            let crs_size = proof_config.crs_size;
+            let crs = CompactPkeCrs::from_shortint_params(
+                param_pke,
+                LweCiphertextCount(crs_size / msg_bits),
+            )
+            .unwrap();
+
+            use rand::Rng;
             let mut rng = rand::thread_rng();
-            metadata.fill_with(|| rng.gen());
 
-            let zk_vers = param_pke.zk_scheme;
+            for bits in proof_config.bits_to_prove.iter() {
+                assert_eq!(bits % 64, 0);
+                // Packing, so we take the message and carry modulus to compute our block count
+                let num_block = 64usize.div_ceil(msg_bits);
 
-            for proof_config in default_proof_config().iter() {
-                let msg_bits =
-                    (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
-                println!("Generating CRS... ");
-                let crs_size = proof_config.crs_size;
-                let crs = CompactPkeCrs::from_shortint_params(
-                    param_pke,
-                    LweCiphertextCount(crs_size / msg_bits),
-                )
-                .unwrap();
+                let fhe_uint_count = bits / 64;
 
-                use rand::Rng;
-                let mut rng = rand::thread_rng();
+                let crs_data = bincode::serialize(&crs).unwrap();
 
-                for bits in proof_config.bits_to_prove.iter() {
-                    assert_eq!(bits % 64, 0);
-                    // Packing, so we take the message and carry modulus to compute our block count
-                    let num_block = 64usize.div_ceil(msg_bits);
+                println!("CRS size: {}", crs_data.len());
 
-                    let fhe_uint_count = bits / 64;
+                let test_name =
+                    format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
-                    let shortint_params: PBSParameters = param_fhe.into();
+                write_result(&mut file, &test_name, crs_data.len());
+                write_to_json::<u64, _>(
+                    &test_name,
+                    param_fhe,
+                    param_name,
+                    "pke_zk_crs",
+                    &OperatorType::Atomic,
+                    0,
+                    vec![],
+                );
 
-                    let crs_data = bincode::serialize(&crs).unwrap();
+                for compute_load in compute_load_config() {
+                    let zk_load = match compute_load {
+                        ZkComputeLoad::Proof => "compute_load_proof",
+                        ZkComputeLoad::Verify => "compute_load_verify",
+                    };
 
-                    println!("CRS size: {}", crs_data.len());
+                    let bench_id_verify;
+                    let bench_id_verify_and_expand;
+                    let bench_id_expand_without_verify;
 
-                    let test_name =
-                        format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
+                    match get_bench_type() {
+                        BenchmarkType::Latency => {
+                            let streams = CudaStreams::new_multi_gpu();
+                            let gpu_sks = CudaServerKey::decompress_from_cpu(
+                                &compressed_server_key,
+                                &streams,
+                            );
+                            let d_ksk_material =
+                                CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+                            let d_ksk = CudaKeySwitchingKey::from_cuda_key_switching_key_material(
+                                &d_ksk_material,
+                                &gpu_sks,
+                            );
 
-                    write_result(&mut file, &test_name, crs_data.len());
-                    write_to_json::<u64, _>(
-                        &test_name,
-                        shortint_params,
-                        param_name,
-                        "pke_zk_crs",
-                        &OperatorType::Atomic,
-                        0,
-                        vec![],
-                    );
-
-                    for compute_load in compute_load_config() {
-                        let zk_load = match compute_load {
-                            ZkComputeLoad::Proof => "compute_load_proof",
-                            ZkComputeLoad::Verify => "compute_load_verify",
-                        };
-
-                        let bench_id_verify;
-                        let bench_id_verify_and_expand;
-                        let bench_id_expand_without_verify;
-
-                        match get_bench_type() {
-                            BenchmarkType::Latency => {
-                                let streams = CudaStreams::new_multi_gpu();
-                                let gpu_sks = CudaServerKey::decompress_from_cpu(
-                                    &compressed_server_key,
-                                    &streams,
-                                );
-                                let d_ksk_material =
-                                    CudaKeySwitchingKeyMaterial::from_key_switching_key(
-                                        &ksk, &streams,
-                                    );
-                                let d_ksk =
-                                    CudaKeySwitchingKey::from_cuda_key_switching_key_material(
-                                        &d_ksk_material,
-                                        &gpu_sks,
-                                    );
-
-                                bench_id_verify = format!(
+                            bench_id_verify = format!(
                                     "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
-                                bench_id_verify_and_expand = format!(
+                            bench_id_verify_and_expand = format!(
                                     "{bench_name}_and_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
-                                bench_id_expand_without_verify = format!(
+                            bench_id_expand_without_verify = format!(
                                     "{bench_name}_only_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
 
-                                let input_msg = rng.gen::<u64>();
-                                let messages = vec![input_msg; fhe_uint_count];
+                            let input_msg = rng.gen::<u64>();
+                            let messages = vec![input_msg; fhe_uint_count];
 
-                                println!("Generating proven ciphertext ({zk_load})... ");
-                                let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                                    .extend(messages.iter().copied())
-                                    .build_with_proof_packed(&crs, &metadata, compute_load)
-                                    .unwrap();
-                                let gpu_ct1 =
+                            println!("Generating proven ciphertext ({zk_load})... ");
+                            let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                                .extend(messages.iter().copied())
+                                .build_with_proof_packed(&crs, &metadata, compute_load)
+                                .unwrap();
+                            let gpu_ct1 =
                                     CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                         &ct1, &streams,
                                     );
 
-                                let proven_ciphertext_list_serialized =
-                                    bincode::serialize(&ct1).unwrap();
+                            let proven_ciphertext_list_serialized =
+                                bincode::serialize(&ct1).unwrap();
 
-                                println!(
-                                    "proven list size: {}",
-                                    proven_ciphertext_list_serialized.len()
-                                );
+                            println!(
+                                "proven list size: {}",
+                                proven_ciphertext_list_serialized.len()
+                            );
 
-                                let test_name = format!(
+                            let test_name = format!(
                                     "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
 
-                                write_result(
-                                    &mut file,
-                                    &test_name,
-                                    proven_ciphertext_list_serialized.len(),
-                                );
-                                write_to_json::<u64, _>(
-                                    &test_name,
-                                    shortint_params,
-                                    param_name,
-                                    "pke_zk_proof",
-                                    &OperatorType::Atomic,
-                                    0,
-                                    vec![],
-                                );
+                            write_result(
+                                &mut file,
+                                &test_name,
+                                proven_ciphertext_list_serialized.len(),
+                            );
+                            write_to_json::<u64, _>(
+                                &test_name,
+                                param_fhe,
+                                param_name,
+                                "pke_zk_proof",
+                                &OperatorType::Atomic,
+                                0,
+                                vec![],
+                            );
 
-                                let proof_size = ct1.proof_size();
-                                println!("proof size: {}", ct1.proof_size());
+                            let proof_size = ct1.proof_size();
+                            println!("proof size: {}", ct1.proof_size());
 
-                                let test_name =
+                            let test_name =
                                     format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
-                                write_result(&mut file, &test_name, proof_size);
-                                write_to_json::<u64, _>(
-                                    &test_name,
-                                    shortint_params,
-                                    param_name,
-                                    "pke_zk_proof",
-                                    &OperatorType::Atomic,
-                                    0,
-                                    vec![],
-                                );
+                            write_result(&mut file, &test_name, proof_size);
+                            write_to_json::<u64, _>(
+                                &test_name,
+                                param_fhe,
+                                param_name,
+                                "pke_zk_proof",
+                                &OperatorType::Atomic,
+                                0,
+                                vec![],
+                            );
 
-                                bench_group.bench_function(&bench_id_verify, |b| {
-                                    b.iter(|| {
-                                        let _ret = ct1.verify(&crs, &pk, &metadata);
-                                    });
+                            bench_group.bench_function(&bench_id_verify, |b| {
+                                b.iter(|| {
+                                    let _ret = ct1.verify(&crs, &pk, &metadata);
                                 });
+                            });
 
-                                bench_group.bench_function(&bench_id_expand_without_verify, |b| {
-                                    b.iter(|| {
-                                        let _ret = gpu_ct1
-                                            .expand_without_verification(&d_ksk, &streams)
-                                            .unwrap();
-                                    });
+                            bench_group.bench_function(&bench_id_expand_without_verify, |b| {
+                                b.iter(|| {
+                                    let _ret = gpu_ct1
+                                        .expand_without_verification(&d_ksk, &streams)
+                                        .unwrap();
                                 });
+                            });
 
-                                bench_group.bench_function(&bench_id_verify_and_expand, |b| {
-                                    b.iter(|| {
-                                        let _ret = gpu_ct1
-                                            .verify_and_expand(
-                                                &crs, &pk, &metadata, &d_ksk, &streams,
-                                            )
-                                            .unwrap();
-                                    });
+                            bench_group.bench_function(&bench_id_verify_and_expand, |b| {
+                                b.iter(|| {
+                                    let _ret = gpu_ct1
+                                        .verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams)
+                                        .unwrap();
                                 });
+                            });
+                        }
+                        BenchmarkType::Throughput => {
+                            let mut elements_per_gpu = 100;
+                            if *bits == 4096 {
+                                elements_per_gpu /= 5;
                             }
-                            BenchmarkType::Throughput => {
-                                let mut elements_per_gpu = 100;
-                                if *bits == 4096 {
-                                    elements_per_gpu /= 5;
-                                }
-                                // This value, found empirically, ensure saturation of 8XH100 SXM5
-                                let elements = elements_per_gpu * get_number_of_gpus() as u64;
-                                bench_group.throughput(Throughput::Elements(elements));
+                            // This value, found empirically, ensure saturation of 8XH100 SXM5
+                            let elements = elements_per_gpu * get_number_of_gpus() as u64;
+                            bench_group.throughput(Throughput::Elements(elements));
 
-                                bench_id_verify = format!(
+                            bench_id_verify = format!(
                                     "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
-                                bench_id_verify_and_expand = format!(
+                            bench_id_verify_and_expand = format!(
                                     "{bench_name}_and_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
-                                bench_id_expand_without_verify = format!(
+                            bench_id_expand_without_verify = format!(
                                     "{bench_name}_only_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
-                                println!("Generating proven ciphertexts list ({zk_load})... ");
-                                let cts = (0..elements)
-                                    .map(|_| {
-                                        let input_msg = rng.gen::<u64>();
-                                        let messages = vec![input_msg; fhe_uint_count];
-                                        tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                                            .extend(messages.iter().copied())
-                                            .build_with_proof_packed(&crs, &metadata, compute_load)
-                                            .unwrap()
-                                    })
-                                    .collect::<Vec<_>>();
+                            println!("Generating proven ciphertexts list ({zk_load})... ");
+                            let cts = (0..elements)
+                                .map(|_| {
+                                    let input_msg = rng.gen::<u64>();
+                                    let messages = vec![input_msg; fhe_uint_count];
+                                    tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                                        .extend(messages.iter().copied())
+                                        .build_with_proof_packed(&crs, &metadata, compute_load)
+                                        .unwrap()
+                                })
+                                .collect::<Vec<_>>();
 
-                                let local_streams =
-                                    cuda_local_streams(num_block, elements as usize);
-                                let d_ksk_material_vec = local_streams
-                                    .par_iter()
-                                    .map(|local_stream| {
-                                        CudaKeySwitchingKeyMaterial::from_key_switching_key(
-                                            &ksk,
-                                            local_stream,
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let d_ksk_material_vec = local_streams
+                                .par_iter()
+                                .map(|local_stream| {
+                                    CudaKeySwitchingKeyMaterial::from_key_switching_key(
+                                        &ksk,
+                                        local_stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
 
-                                bench_group.bench_function(&bench_id_verify, |b| {
-                                    b.iter(|| {
-                                        cts.par_iter().for_each(|ct1| {
-                                            ct1.verify(&crs, &pk, &metadata);
-                                        })
-                                    });
+                            bench_group.bench_function(&bench_id_verify, |b| {
+                                b.iter(|| {
+                                    cts.par_iter().for_each(|ct1| {
+                                        ct1.verify(&crs, &pk, &metadata);
+                                    })
                                 });
+                            });
 
-                                bench_group.bench_function(&bench_id_expand_without_verify, |b| {
+                            bench_group.bench_function(&bench_id_expand_without_verify, |b| {
                                     let setup_encrypted_values = || {
                                         let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
                                             let local_stream = &local_streams[i % local_streams.len()];
@@ -755,7 +759,7 @@ mod cuda {
                                                    }, BatchSize::SmallInput);
                                 });
 
-                                bench_group.bench_function(&bench_id_verify_and_expand, |b| {
+                            bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                                     let setup_encrypted_values = || {
                                         let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
                                             CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
@@ -783,28 +787,28 @@ mod cuda {
                                                        });
                                                    }, BatchSize::SmallInput);
                                 });
-                            }
                         }
+                    }
 
-                        for (bench_id, display_name) in [
-                            (bench_id_verify, "pke_zk_verify"),
-                            (bench_id_expand_without_verify, "pke_zk_verify_only_expand"),
-                            (bench_id_verify_and_expand, "pke_zk_verify_and_expand"),
-                        ] {
-                            write_to_json::<u64, _>(
-                                &bench_id,
-                                shortint_params,
-                                param_name,
-                                display_name,
-                                &OperatorType::Atomic,
-                                shortint_params.message_modulus().0 as u32,
-                                vec![shortint_params.message_modulus().0.ilog2(); num_block],
-                            );
-                        }
+                    for (bench_id, display_name) in [
+                        (bench_id_verify, "pke_zk_verify"),
+                        (bench_id_expand_without_verify, "pke_zk_verify_only_expand"),
+                        (bench_id_verify_and_expand, "pke_zk_verify_and_expand"),
+                    ] {
+                        write_to_json::<u64, _>(
+                            &bench_id,
+                            param_fhe,
+                            param_name,
+                            display_name,
+                            &OperatorType::Atomic,
+                            param_fhe.message_modulus().0 as u32,
+                            vec![param_fhe.message_modulus().0.ilog2(); num_block],
+                        );
                     }
                 }
             }
         }
+
         bench_group.finish()
     }
 
