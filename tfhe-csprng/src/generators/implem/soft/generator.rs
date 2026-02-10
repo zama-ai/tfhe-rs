@@ -85,6 +85,11 @@ mod test {
         }
 
         #[test]
+        fn prop_fork_with_parent_continuation() {
+            aes_ctr_generic_test::prop_fork_with_parent_continuation::<SoftwareBlockCipher>();
+        }
+
+        #[test]
         fn prop_fork_children_remaining_bytes() {
             aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareBlockCipher>();
         }

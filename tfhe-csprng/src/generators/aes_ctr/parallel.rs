@@ -1,18 +1,27 @@
-use crate::generators::aes_ctr::states::State;
-use crate::generators::aes_ctr::{AesBlockCipher, AesCtrGenerator, TableIndex};
+use crate::generators::aes_ctr::states::ShiftAction;
+use crate::generators::aes_ctr::{AesBlockCipher, AesCtrGenerator, AesIndex, TableIndex};
 use crate::generators::{widening_mul, BytesPerChild, ChildrenCount, ForkError};
 
 /// A type alias for the children iterator closure type.
-pub type ParallelChildrenClosure<BlockCipher> =
-    fn((usize, (Box<BlockCipher>, TableIndex, BytesPerChild))) -> AesCtrGenerator<BlockCipher>;
+pub type ParallelChildrenClosure<BlockCipher> = fn(
+    (
+        usize,
+        (Box<BlockCipher>, TableIndex, BytesPerChild, AesIndex),
+    ),
+) -> AesCtrGenerator<BlockCipher>;
 
 /// A type alias for the parallel children iterator type.
 pub type ParallelChildrenIterator<BlockCipher> = rayon::iter::Map<
     rayon::iter::Zip<
         rayon::range::Iter<usize>,
-        rayon::iter::RepeatN<(Box<BlockCipher>, TableIndex, BytesPerChild)>,
+        rayon::iter::RepeatN<(Box<BlockCipher>, TableIndex, BytesPerChild, AesIndex)>,
     >,
-    fn((usize, (Box<BlockCipher>, TableIndex, BytesPerChild))) -> AesCtrGenerator<BlockCipher>,
+    fn(
+        (
+            usize,
+            (Box<BlockCipher>, TableIndex, BytesPerChild, AesIndex),
+        ),
+    ) -> AesCtrGenerator<BlockCipher>,
 >;
 
 impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
@@ -55,14 +64,19 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         let output = (0..n_children.0 as usize)
             .into_par_iter()
             .zip(rayon::iter::repeat_n(
-                (self.block_cipher.clone(), first_index, n_bytes),
+                (
+                    self.block_cipher.clone(),
+                    first_index,
+                    n_bytes,
+                    self.state.offset(),
+                ),
                 n_children.0 as usize,
             ))
             .map(
                 // This map is a little weird because we need to cast the closure to a fn pointer
                 // that matches the signature of `ChildrenIterator<BlockCipher>`. Unfortunately,
                 // the compiler does not manage to coerce this one automatically.
-                (|(i, (block_cipher, first_index, n_bytes))| {
+                (|(i, (block_cipher, first_index, n_bytes, offset))| {
                     // The first index to be outputted by the child is the `first_index` shifted by
                     // the proper amount of `child_bytes`.
                     let child_first_index =
@@ -74,12 +88,18 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                         block_cipher,
                         child_first_index,
                         child_bound_index,
+                        offset,
                     )
                 }) as ParallelChildrenClosure<BlockCipher>,
             );
         // The parent next index is the bound of the last child.
-        let next_index = first_index.increased(widening_mul(n_bytes.0, n_children.0));
-        self.state = State::new(next_index);
+        let child_bytes = widening_mul(n_bytes.0, n_children.0);
+        if let ShiftAction::RefreshBatchAndOutputByte(aes_index, _ptr) =
+            self.state.increase(child_bytes)
+        {
+            let aes_inputs = core::array::from_fn(|i| aes_index.0.wrapping_add(i as u128).to_le());
+            self.buffer = self.block_cipher.generate_batch(aes_inputs);
+        }
 
         Ok(output)
     }
@@ -90,6 +110,7 @@ pub mod aes_ctr_parallel_generic_tests {
 
     use super::*;
     use crate::generators::aes_ctr::aes_ctr_generic_test::{any_key, any_valid_fork};
+    use crate::generators::aes_ctr::index::AesIndex;
     use rayon::prelude::*;
 
     const REPEATS: usize = 1_000_000;
@@ -101,10 +122,12 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             let first_child = forked_generator
@@ -123,10 +146,12 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let mut parent_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let last_child = parent_generator
                 .par_try_fork(nc, nb)
@@ -146,10 +171,12 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             forked_generator
@@ -168,10 +195,12 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             forked_generator
@@ -194,11 +223,13 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..1000 {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let bytes_to_go = nc.0 * nb.0;
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             let initial_output: Vec<u8> = original_generator
@@ -220,10 +251,12 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             assert!(generator
                 .par_try_fork(nc, nb)
@@ -239,11 +272,13 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let bytes_to_go = nc.0 * nb.0;
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let before_remaining_bytes = generator.remaining_bytes();
             let _ = generator.par_try_fork(nc, nb).unwrap();

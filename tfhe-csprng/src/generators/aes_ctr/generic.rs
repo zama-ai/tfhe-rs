@@ -1,7 +1,7 @@
 use crate::generators::aes_ctr::block_cipher::{AesBlockCipher, AesKey};
 use crate::generators::aes_ctr::index::TableIndex;
 use crate::generators::aes_ctr::states::{BufferPointer, ShiftAction, State};
-use crate::generators::aes_ctr::BYTES_PER_BATCH;
+use crate::generators::aes_ctr::{AesIndex, BYTES_PER_BATCH};
 use crate::generators::{widening_mul, ByteCount, BytesPerChild, ChildrenCount, ForkError};
 use crate::seeders::SeedKind;
 
@@ -11,14 +11,15 @@ use crate::seeders::SeedKind;
 // full type name where needed. Hence the following type aliases definition:
 
 /// A type alias for the children iterator closure type.
-pub type ChildrenClosure<BlockCipher> =
-    fn((u64, (Box<BlockCipher>, TableIndex, BytesPerChild))) -> AesCtrGenerator<BlockCipher>;
+pub type ChildrenClosure<BlockCipher> = fn(
+    (u64, (Box<BlockCipher>, TableIndex, BytesPerChild, AesIndex)),
+) -> AesCtrGenerator<BlockCipher>;
 
 /// A type alias for the children iterator type.
 pub type ChildrenIterator<BlockCipher> = std::iter::Map<
     std::iter::Zip<
         std::ops::Range<u64>,
-        std::iter::Repeat<(Box<BlockCipher>, TableIndex, BytesPerChild)>,
+        std::iter::Repeat<(Box<BlockCipher>, TableIndex, BytesPerChild, AesIndex)>,
     >,
     ChildrenClosure<BlockCipher>,
 >;
@@ -57,11 +58,13 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         key: AesKey,
         start_index: Option<TableIndex>,
         bound_index: Option<TableIndex>,
+        offset: Option<AesIndex>,
     ) -> AesCtrGenerator<BlockCipher> {
         AesCtrGenerator::from_block_cipher(
             Box::new(BlockCipher::new(key)),
             start_index.unwrap_or(TableIndex::SECOND),
             bound_index.unwrap_or(TableIndex::LAST),
+            offset.unwrap_or(AesIndex(0)),
         )
     }
 
@@ -70,11 +73,12 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         block_cipher: Box<BlockCipher>,
         start_index: TableIndex,
         bound_index: TableIndex,
+        offset: AesIndex,
     ) -> AesCtrGenerator<BlockCipher> {
         assert!(start_index < bound_index);
         let last = bound_index.decremented();
         let buffer = [0u8; BYTES_PER_BATCH];
-        let state = State::new(start_index);
+        let state = State::with_offset(start_index, offset);
         AesCtrGenerator {
             block_cipher,
             state,
@@ -92,21 +96,11 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                 // but
                 // 1u128 == [0, ..., 0, 1] for big endian
                 let seed_u128 = u128::from_le(seed.0);
-                Self::new(AesKey(seed_u128), None, None)
+                Self::new(AesKey(seed_u128), None, None, None)
             }
             SeedKind::Xof(seed) => {
                 let (key, init_index) = super::xof_init(seed);
-                let last_index = TableIndex::LAST.decremented();
-                let state = State::with_offset(TableIndex::SECOND, init_index);
-                let block_cipher = Box::new(BlockCipher::new(key));
-                let buffer = [0u8; BYTES_PER_BATCH];
-
-                Self {
-                    block_cipher,
-                    state,
-                    last: last_index,
-                    buffer,
-                }
+                Self::new(key, None, None, Some(init_index))
             }
         }
     }
@@ -171,13 +165,14 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                 self.block_cipher.clone(),
                 first_index,
                 n_bytes,
+                self.state.offset(),
             )))
             .map(
                 // This map is a little weird because we need to cast the closure to a fn pointer
                 // that matches the signature of `ChildrenIterator<BlockCipher>`.
                 // Unfortunately, the compiler does not manage to coerce this one
                 // automatically.
-                (|(i, (block_cipher, first_index, n_bytes))| {
+                (|(i, (block_cipher, first_index, n_bytes, offset))| {
                     // The first index to be outputted by the child is the `first_index` shifted by
                     // the proper amount of `child_bytes`.
                     let child_first_index = first_index.increased(widening_mul(n_bytes.0, i));
@@ -187,12 +182,18 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                         block_cipher,
                         child_first_index,
                         child_bound_index,
+                        offset,
                     )
                 }) as ChildrenClosure<BlockCipher>,
             );
         // The parent next index is the bound of the last child.
-        let next_index = first_index.increased(widening_mul(n_bytes.0, n_children.0));
-        self.state = State::new(next_index);
+        let child_bytes = widening_mul(n_bytes.0, n_children.0);
+        if let ShiftAction::RefreshBatchAndOutputByte(aes_index, _ptr) =
+            self.state.increase(child_bytes)
+        {
+            let aes_inputs = core::array::from_fn(|i| aes_index.0.wrapping_add(i as u128).to_le());
+            self.buffer = self.block_cipher.generate_batch(aes_inputs);
+        }
 
         Ok(output)
     }
@@ -293,10 +294,12 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             let first_child = forked_generator.try_fork(nc, nb).unwrap().next().unwrap();
@@ -311,10 +314,12 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let mut parent_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let last_child = parent_generator.try_fork(nc, nb).unwrap().last().unwrap();
             assert_eq!(
@@ -330,10 +335,12 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             forked_generator.try_fork(nc, nb).unwrap().last().unwrap();
@@ -348,10 +355,12 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             forked_generator.try_fork(nc, nb).unwrap().last().unwrap();
@@ -369,12 +378,14 @@ pub mod aes_ctr_generic_test {
     pub fn prop_fork<G: AesBlockCipher>() {
         for _ in 0..1000 {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let k = any_key().next().unwrap();
             let bytes_to_go = nc.0 * nb.0;
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let mut forked_generator = original_generator.clone();
             let initial_output: Vec<u8> = original_generator
@@ -396,10 +407,12 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             assert!(generator
                 .try_fork(nc, nb)
@@ -415,11 +428,13 @@ pub mod aes_ctr_generic_test {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
+            let offset = Some(AesIndex(rand::random()));
             let bytes_to_go = nc.0 * nb.0;
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
                 Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                offset,
             );
             let before_remaining_bytes = generator.remaining_bytes();
             let _ = generator.try_fork(nc, nb).unwrap();
@@ -428,6 +443,53 @@ pub mod aes_ctr_generic_test {
                 before_remaining_bytes.0 - after_remaining_bytes.0,
                 bytes_to_go as u128
             );
+        }
+    }
+
+    /// Check the property:
+    ///     On a valid fork, the bytes outputted by the children in fork order, followed by the
+    ///     remaining parent bytes, form the same sequence the parent would have yielded had no
+    ///     fork happened.
+    pub fn prop_fork_with_parent_continuation<G: AesBlockCipher>() {
+        const MAX_BYTES_GEN: u128 = u16::MAX as u128;
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..10_000 {
+            let (t, nc, nb, num_extra_bytes) = any_valid_fork().next().unwrap();
+            let k = any_key().next().unwrap();
+            let fork_bytes = widening_mul(nc.0, nb.0);
+            let total_bytes = fork_bytes.saturating_add(num_extra_bytes);
+
+            let first_consumed_amount = rng.gen_range(1..num_extra_bytes.min(MAX_BYTES_GEN));
+
+            let offset = Some(AesIndex(rand::random()));
+            let mut gen1 =
+                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(total_bytes)), offset);
+            let mut forked_gen = gen1.clone();
+
+            let num_extra_bytes = (num_extra_bytes - first_consumed_amount).min(u16::MAX as u128);
+
+            for i in 0..first_consumed_amount {
+                let byte = forked_gen.next().unwrap();
+                let expected_byte = gen1.next().unwrap();
+                assert_eq!(
+                    byte, expected_byte,
+                    "pre-fork bytes are not equal (byte index {i})"
+                );
+            }
+
+            for child in forked_gen.try_fork(nc, nb).unwrap() {
+                for byte in child {
+                    let expected_byte = gen1.next().unwrap();
+                    assert_eq!(byte, expected_byte);
+                }
+            }
+
+            for i in 0..num_extra_bytes {
+                let byte = forked_gen.next().unwrap();
+                let expected_byte = gen1.next().unwrap();
+                assert_eq!(byte, expected_byte, "post-fork bytes are not equal (byte index {i}), got {byte}, expected {expected_byte}");
+            }
         }
     }
 }
