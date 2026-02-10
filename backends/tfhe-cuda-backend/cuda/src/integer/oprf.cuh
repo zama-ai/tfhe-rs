@@ -35,9 +35,9 @@ void host_integer_grouped_oprf(CudaStreams streams,
 
   if (active_streams.count() == 1) {
     execute_pbs_async<Torus, Torus>(
-        streams.get_ith(0), (Torus *)(radix_lwe_out->ptr), lut->lwe_indexes_out,
-        lut->lut_vec, lut->lut_indexes_vec,
-        const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in, bsks,
+        streams.get_ith(0), (Torus *)(radix_lwe_out->ptr),
+        lut->lwe_indexes_out.data(), lut->lut_vec, lut->lut_indexes_vec,
+        const_cast<Torus *>(seeded_lwe_input), lut->lwe_indexes_in.data(), bsks,
         lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
         mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
@@ -53,10 +53,10 @@ void host_integer_grouped_oprf(CudaStreams streams,
 
     PUSH_RANGE("scatter")
     multi_gpu_scatter_lwe_async<Torus>(
-        active_streams, lwe_array_in_vec, seeded_lwe_input, lut->lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec, lut->event_pool,
-        active_streams.count(), num_blocks_to_process,
-        mem_ptr->params.small_lwe_dimension + 1);
+        active_streams, lwe_array_in_vec, seeded_lwe_input,
+        lut->lwe_indexes_in.data(), lut->using_trivial_lwe_indexes,
+        lut->lwe_aligned_vec, lut->event_pool, active_streams.count(),
+        num_blocks_to_process, mem_ptr->params.small_lwe_dimension + 1);
     POP_RANGE()
 
     execute_pbs_async<Torus, Torus>(
@@ -71,7 +71,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
     PUSH_RANGE("gather")
     multi_gpu_gather_lwe_async<Torus>(
         active_streams, (Torus *)radix_lwe_out->ptr, lwe_after_pbs_vec,
-        lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        lut->lwe_indexes_out.data(), lut->using_trivial_lwe_indexes,
         lut->lwe_aligned_vec, lut->event_pool, num_blocks_to_process,
         mem_ptr->params.big_lwe_dimension + 1);
     POP_RANGE()

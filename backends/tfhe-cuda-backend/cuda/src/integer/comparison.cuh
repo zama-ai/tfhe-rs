@@ -140,8 +140,8 @@ __host__ void are_all_comparisons_block_true(
             streams.active_gpu_subset(num_chunks, params.pbs_type);
 
         // Index generator: last chunk uses LUT 1, others use LUT 0
-        auto index_gen = [num_chunks, num_blocks](Torus *h_lut_indexes,
-                                                  uint32_t) {
+        auto index_gen = [num_chunks, num_blocks](
+                             HostBuffer<Torus> &h_lut_indexes, uint32_t) {
           for (uint32_t index = 0; index < num_blocks; index++) {
             if (index == num_chunks - 1) {
               h_lut_indexes[index] = 1;
@@ -153,7 +153,7 @@ __host__ void are_all_comparisons_block_true(
 
         is_max_value_lut->generate_and_broadcast_lut(
             active_streams, {1}, {is_equal_to_num_blocks_lut_f}, index_gen,
-            true, {are_all_block_true_buffer->preallocated_h_lut});
+            true, {&are_all_block_true_buffer->h_preallocated_lut});
       }
       lut = is_max_value_lut;
     }
@@ -480,7 +480,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
   last_lut->generate_and_broadcast_lut(active_streams, {0}, {f},
                                        LUT_0_FOR_ALL_BLOCKS, true,
-                                       {tree_buffer->preallocated_h_lut});
+                                       {&tree_buffer->h_preallocated_lut});
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table<Torus>(streams, lwe_array_out, y,

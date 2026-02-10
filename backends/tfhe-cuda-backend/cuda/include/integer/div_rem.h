@@ -476,7 +476,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     scalars_for_overflow_sub_gpu_0 =
         (Torus **)malloc(num_blocks * sizeof(Torus *));
 
-    Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
+    HostBuffer<Torus> h_lut_indexes;
+    h_lut_indexes.allocate(num_blocks);
     Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
 
     // Extra indexes for the luts in first step
@@ -486,7 +487,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
-      auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
+      auto index_generator = [nb, group_size](HostBuffer<Torus> &h_lut_indexes,
+                                              uint32_t) {
         for (int index = 0; index < nb; index++) {
           uint32_t grouping_index = index / group_size;
           bool is_in_first_grouping = (grouping_index == 0);
@@ -524,8 +526,8 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
-      auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
-                                                       uint32_t) {
+      auto index_generator = [nb, group_size, use_seq](
+                                 HostBuffer<Torus> &h_lut_indexes, uint32_t) {
         for (int index = 0; index < nb; index++) {
           uint32_t grouping_index = index / group_size;
           bool is_in_first_grouping = (grouping_index == 0);
@@ -572,8 +574,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           scalars_for_overflow_sub_gpu_0[nb - 1], h_scalar, nb * sizeof(Torus),
           streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     }
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_lut_indexes);
+    {
+      auto gpu_phase = GpuReleasePhase(streams);
+      auto cpu_phase = std::move(gpu_phase).synchronize();
+      h_lut_indexes.release(cpu_phase);
+    }
     free(h_scalar);
   };
 
@@ -1167,7 +1172,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         (Torus **)malloc(num_blocks * sizeof(Torus *));
     scalars_for_overflow_sub = (Torus **)malloc(num_blocks * sizeof(Torus *));
 
-    Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
+    HostBuffer<Torus> h_lut_indexes;
+    h_lut_indexes.allocate(num_blocks);
     Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
 
     // Extra indexes for the luts in first step
@@ -1177,7 +1183,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
-      auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
+      auto index_generator = [nb, group_size](HostBuffer<Torus> &h_lut_indexes,
+                                              uint32_t) {
         for (int index = 0; index < nb; index++) {
           uint32_t grouping_index = index / group_size;
           bool is_in_first_grouping = (grouping_index == 0);
@@ -1214,8 +1221,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
               nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
               size_tracker, allocate_gpu_memory);
 
-      auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
-                                                       uint32_t) {
+      auto index_generator = [nb, group_size, use_seq](
+                                 HostBuffer<Torus> &h_lut_indexes, uint32_t) {
         for (int index = 0; index < nb; index++) {
           uint32_t grouping_index = index / group_size;
           bool is_in_first_grouping = (grouping_index == 0);
@@ -1261,7 +1268,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           scalars_for_overflow_sub[nb - 1], h_scalar, nb * sizeof(Torus),
           streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     }
-    free(h_lut_indexes);
+    {
+      auto gpu_phase = GpuReleasePhase(streams);
+      auto cpu_phase = std::move(gpu_phase).synchronize();
+      h_lut_indexes.release(cpu_phase);
+    }
     free(h_scalar);
   };
 

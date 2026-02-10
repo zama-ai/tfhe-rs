@@ -80,7 +80,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
         active_streams, {0}, {f_luts_borrow_propagation_sum},
         LUT_0_FOR_ALL_BLOCKS);
 
-    auto luts_array_index_generator = [](Torus *h_lut_indexes,
+    auto luts_array_index_generator = [](HostBuffer<Torus> &h_lut_indexes,
                                          uint32_t num_indexes) {
       for (uint32_t i = 0; i < num_indexes; i++) {
         h_lut_indexes[i] = (i == 0) ? 0 : 1;

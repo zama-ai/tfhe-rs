@@ -102,12 +102,13 @@ template <typename Torus> struct int_mul_memory {
     // for message and carry default lut_indexes_vec is fine
     auto active_streams =
         streams.active_gpu_subset(total_block_count, params.pbs_type);
-    auto lut_index_generator = [lsb_vector_block_count](Torus *h_lut_indexes,
-                                                        uint32_t num_indexes) {
-      for (uint32_t i = 0; i < num_indexes; i++) {
-        h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 1;
-      }
-    };
+    auto lut_index_generator =
+        [lsb_vector_block_count](HostBuffer<Torus> &h_lut_indexes,
+                                 uint32_t num_indexes) {
+          for (uint32_t i = 0; i < num_indexes; i++) {
+            h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 1;
+          }
+        };
     luts_array->generate_and_broadcast_bivariate_lut(
         active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, lut_index_generator);
 

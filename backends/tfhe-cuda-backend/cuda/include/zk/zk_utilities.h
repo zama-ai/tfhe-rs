@@ -187,8 +187,8 @@ template <typename Torus> struct zk_expand_mem {
         malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_indexes_out = static_cast<Torus *>(
         malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
-    auto h_lut_indexes = static_cast<Torus *>(
-        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
+    HostBuffer<Torus> h_lut_indexes;
+    h_lut_indexes.allocate(num_packed_msgs * num_lwes);
 
     d_expand_jobs =
         static_cast<expand_job<Torus> *>(cuda_malloc_with_size_tracking_async(
@@ -275,8 +275,8 @@ template <typename Torus> struct zk_expand_mem {
     auto index_gen = [num_compact_lists,
                       num_lwes_per_compact_list =
                           this->num_lwes_per_compact_list,
-                      num_packed_msgs, is_boolean_array,
-                      h_indexes_out](Torus *h_lut_indexes, uint32_t) {
+                      num_packed_msgs, is_boolean_array, h_indexes_out](
+                         HostBuffer<Torus> &h_lut_indexes, uint32_t) {
       auto offset = 0;
       for (int k = 0; k < num_compact_lists; k++) {
         auto num_lwes_in_kth = num_lwes_per_compact_list[k];
@@ -295,7 +295,7 @@ template <typename Torus> struct zk_expand_mem {
         {message_extract_lut_f, carry_extract_lut_f,
          message_extract_and_sanitize_bool_lut_f,
          carry_extract_and_sanitize_bool_lut_f},
-        index_gen, true, {}, h_lut_indexes);
+        index_gen, true, {}, &h_lut_indexes);
 
     message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(
         active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);
@@ -314,7 +314,11 @@ template <typename Torus> struct zk_expand_mem {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_indexes_in);
     free(h_indexes_out);
-    free(h_lut_indexes);
+    {
+      auto gpu_phase = GpuReleasePhase(streams);
+      auto cpu_phase = std::move(gpu_phase).synchronize();
+      h_lut_indexes.release(cpu_phase);
+    }
   }
 
   void release(CudaStreams streams) {

@@ -370,8 +370,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
   while (needs_processing) {
     auto luts_message_carry = mem_ptr->luts_message_carry;
-    auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
-    auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
+    auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in.data();
+    auto d_pbs_indexes_out =
+        mem_ptr->luts_message_carry->lwe_indexes_out.data();
     calculate_chunks<Torus>
         <<<number_of_blocks_2d, number_of_threads, 0, streams.stream(0)>>>(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
@@ -432,8 +433,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
   if (mem_ptr->reduce_degrees_for_single_carry_propagation) {
     auto luts_message_carry = mem_ptr->luts_message_carry;
-    auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
-    auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
+    auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in.data();
+    auto d_pbs_indexes_out =
+        mem_ptr->luts_message_carry->lwe_indexes_out.data();
     prepare_final_pbs_indexes<Torus>
         <<<1, 2 * num_radix_blocks, 0, streams.stream(0)>>>(
             d_pbs_indexes_in, d_pbs_indexes_out,

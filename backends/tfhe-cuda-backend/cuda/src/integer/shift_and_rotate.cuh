@@ -148,8 +148,8 @@ host_shift_and_rotate_inplace(CudaStreams streams,
     // host_pack bits into one block so that we have
     // control_bit|b|a
     host_pack_bivariate_blocks<Torus>(
-        streams, mux_inputs, mux_lut->lwe_indexes_out, rotated_input,
-        input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits,
+        streams, mux_inputs, mux_lut->lwe_indexes_out.data(), rotated_input,
+        input_bits_a, mux_lut->lwe_indexes_in.data(), 2, total_nb_bits,
         mem->params.message_modulus, mem->params.carry_modulus);
 
     // The shift bit is already properly aligned/positioned

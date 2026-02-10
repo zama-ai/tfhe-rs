@@ -462,9 +462,9 @@ host_integer_decompress(CudaStreams streams,
         h_mem_ptr->decompression_rescale_lut->params.pbs_type);
     if (active_streams.count() == 1) {
       execute_pbs_async<Torus, Torus>(
-          active_streams, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,
-          lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
-          lut->lwe_indexes_in, d_bsks, lut->buffer,
+          active_streams, (Torus *)d_lwe_array_out->ptr,
+          lut->lwe_indexes_out.data(), lut->lut_vec, lut->lut_indexes_vec,
+          extracted_lwe, lut->lwe_indexes_in.data(), d_bsks, lut->buffer,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
@@ -485,10 +485,10 @@ host_integer_decompress(CudaStreams streams,
       /// With multiple GPUs we push to the vectors on each GPU then when we
       /// gather data to GPU 0 we can copy back to the original indexing
       multi_gpu_scatter_lwe_async<Torus>(
-          active_streams, lwe_array_in_vec, extracted_lwe, lut->lwe_indexes_in,
-          lut->using_trivial_lwe_indexes, lut->lwe_aligned_vec, lut->event_pool,
-          lut->active_streams.count(), num_blocks_to_decompress,
-          compression_params.small_lwe_dimension + 1);
+          active_streams, lwe_array_in_vec, extracted_lwe,
+          lut->lwe_indexes_in.data(), lut->using_trivial_lwe_indexes,
+          lut->lwe_aligned_vec, lut->event_pool, lut->active_streams.count(),
+          num_blocks_to_decompress, compression_params.small_lwe_dimension + 1);
 
       /// Apply PBS
       execute_pbs_async<Torus, Torus>(
@@ -505,7 +505,7 @@ host_integer_decompress(CudaStreams streams,
       /// Copy data back to GPU 0 and release vecs
       multi_gpu_gather_lwe_async<Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lwe_after_pbs_vec,
-          lut->lwe_indexes_out, lut->using_trivial_lwe_indexes,
+          lut->lwe_indexes_out.data(), lut->using_trivial_lwe_indexes,
           lut->lwe_aligned_vec, lut->event_pool, num_blocks_to_decompress,
           encryption_params.big_lwe_dimension + 1);
 

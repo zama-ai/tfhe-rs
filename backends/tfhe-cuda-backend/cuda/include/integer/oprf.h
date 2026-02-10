@@ -10,7 +10,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
   int_radix_lut<Torus> *luts;
   CudaRadixCiphertextFFI *plaintext_corrections;
-  Torus *h_lut_indexes;
+  HostBuffer<Torus> h_lut_indexes;
 
   // with message_bits_per_block == ilog2(msg_modulus) from crypto params
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
@@ -86,9 +86,9 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // (handling both bounded and unbounded cases), which pre-computed LUT to
     // use, and the final plaintext correction to add.
     //
-    Torus *h_corrections =
-        (Torus *)calloc(num_blocks_to_process * lwe_size, sizeof(Torus));
-    this->h_lut_indexes = (Torus *)calloc(num_blocks_to_process, sizeof(Torus));
+    HostBuffer<Torus> h_corrections;
+    h_corrections.allocate_zeroed(num_blocks_to_process * lwe_size);
+    this->h_lut_indexes.allocate_zeroed(num_blocks_to_process);
 
     uint64_t bits_processed = 0;
     for (uint32_t i = 0; i < num_blocks_to_process; ++i) {
@@ -114,7 +114,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // All lwes in h_corrections have a mask equal to 0.
     // Copy the prepared plaintext corrections to the GPU.
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        this->plaintext_corrections->ptr, h_corrections,
+        this->plaintext_corrections->ptr, h_corrections.data(),
         num_blocks_to_process * lwe_size * sizeof(Torus), streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
 
@@ -125,7 +125,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // No encoding for these LUTS. Generate LUT also sets LUT degrees to default
     // values
     auto luts_index_generator = [total_random_bits, message_bits_per_block](
-                                    Torus *h_lut_indexes, uint32_t num_blocks) {
+                                    HostBuffer<Torus> &h_lut_indexes,
+                                    uint32_t num_blocks) {
       uint64_t bits_processed = 0;
       for (uint32_t i = 0; i < num_blocks; ++i) {
         if (total_random_bits <= bits_processed) {
@@ -143,15 +144,18 @@ template <typename Torus> struct int_grouped_oprf_memory {
     };
     luts->generate_and_broadcast_lut(active_streams, lut_indices, lut_funcs,
                                      luts_index_generator, false, {},
-                                     this->h_lut_indexes);
+                                     &this->h_lut_indexes);
 
     // OPRF requires custom LUT degrees
     for (uint32_t i = 0; i < lut_degrees.size(); ++i) {
       *luts->get_degree(i) = lut_degrees[i];
     }
 
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_corrections);
+    {
+      auto gpu_phase = GpuReleasePhase(streams);
+      auto cpu_phase = std::move(gpu_phase).synchronize();
+      h_corrections.release(cpu_phase);
+    }
   }
 
   void release(CudaStreams streams) {
@@ -165,9 +169,9 @@ template <typename Torus> struct int_grouped_oprf_memory {
     delete this->plaintext_corrections;
     this->plaintext_corrections = nullptr;
 
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(this->h_lut_indexes);
-    this->h_lut_indexes = nullptr;
+    auto gpu_phase = GpuReleasePhase(streams);
+    auto cpu_phase = std::move(gpu_phase).synchronize();
+    this->h_lut_indexes.release(cpu_phase);
   }
 };
 
