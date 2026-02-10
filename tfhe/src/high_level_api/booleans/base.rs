@@ -2,7 +2,6 @@ use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
-use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
@@ -2444,13 +2443,11 @@ impl ReRandomize for FheBool {
     ) -> crate::Result<()> {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let Some(re_randomization_key) = key.re_randomization_cpk_casting_key() else {
-                    return Err(UninitializedReRandKey.into());
-                };
+                let re_randomization_key = key.re_randomization_cpk_casting_key()?;
 
                 self.ciphertext.as_cpu_mut().re_randomize(
                     &compact_public_key.key.key,
-                    &re_randomization_key,
+                    re_randomization_key.as_ref(),
                     seed,
                 )?;
 

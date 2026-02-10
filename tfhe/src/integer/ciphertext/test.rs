@@ -11,6 +11,7 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
 };
+use crate::shortint::parameters::{CompressionParameters, ReRandomizationParameters};
 use crate::shortint::ShortintParameterSet;
 use itertools::Itertools;
 use rand::Rng;
@@ -25,6 +26,30 @@ fn test_ciphertext_re_randomization_after_compression() {
     let cpk_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
     let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+    let rerand_params = ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+        dedicated_cpk_params: cpk_params,
+        re_rand_ksk_params: ks_params,
+    };
+
+    test_ciphertext_re_randomization_afer_compression_impl(params, comp_params, rerand_params);
+}
+
+fn test_ciphertext_re_randomization_afer_compression_impl(
+    params: ShortintParameterSet,
+    comp_params: CompressionParameters,
+    rerand_params: ReRandomizationParameters,
+) {
+    // dbg! create a dedicated function which takes parameters from which it can derive the CPK ?
+    let (cpk_params, ks_params) = match rerand_params {
+        ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+            dedicated_cpk_params,
+            re_rand_ksk_params,
+        } => (dedicated_cpk_params, Some(re_rand_ksk_params)),
+        ReRandomizationParameters::DerivedCompactPublicKeyWithoutKeySwitch => {
+            (params.try_into().unwrap(), None)
+        }
+    };
+
     let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
     let private_compression_key = cks.new_compression_private_key(comp_params);
@@ -34,9 +59,10 @@ fn test_ciphertext_re_randomization_after_compression() {
 
     let cpk_private_key = CompactPrivateKey::new(cpk_params);
     let cpk = CompactPublicKey::new(&cpk_private_key);
-    let ksk_material: KeySwitchingKeyMaterial =
-        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), ks_params).into();
-    let ksk_material = ksk_material.as_view();
+    let ksk_material: Option<KeySwitchingKeyMaterial> = ks_params.map(|ks_params| {
+        KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (&cks, &sks), ks_params).into()
+    });
+    let ksk_material = ksk_material.as_ref().map(|ksk| ksk.as_view());
 
     let rerand_domain_separator = *b"TFHE_Rrd";
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -73,7 +99,7 @@ fn test_ciphertext_re_randomization_after_compression() {
 
         let mut re_randomized = decompressed.clone();
         re_randomized
-            .re_randomize(&cpk, &ksk_material, seed_gen.next_seed().unwrap())
+            .re_randomize(&cpk, ksk_material.as_ref(), seed_gen.next_seed().unwrap())
             .unwrap();
 
         assert_ne!(decompressed, re_randomized);
@@ -110,7 +136,7 @@ fn test_ciphertext_re_randomization_after_compression() {
 
         let mut re_randomized = decompressed.clone();
         re_randomized
-            .re_randomize(&cpk, &ksk_material, seed_gen.next_seed().unwrap())
+            .re_randomize(&cpk, ksk_material.as_ref(), seed_gen.next_seed().unwrap())
             .unwrap();
 
         assert_ne!(decompressed, re_randomized);
@@ -150,7 +176,7 @@ fn test_ciphertext_re_randomization_after_compression() {
 
             let mut re_randomized = decompressed.clone();
             re_randomized
-                .re_randomize(&cpk, &ksk_material, seed_gen.next_seed().unwrap())
+                .re_randomize(&cpk, ksk_material.as_ref(), seed_gen.next_seed().unwrap())
                 .unwrap();
 
             assert_ne!(decompressed, re_randomized);

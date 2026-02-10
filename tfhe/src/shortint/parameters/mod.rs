@@ -48,6 +48,7 @@ pub mod noise_squashing;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
+pub mod re_randomization;
 #[cfg(test)]
 pub mod test_params;
 pub mod v0_10;
@@ -91,6 +92,7 @@ pub use noise_squashing::{
     NoiseSquashingCompressionParameters, NoiseSquashingParameters,
 };
 pub use parameters_wopbs::*;
+pub use re_randomization::ReRandomizationParameters;
 #[cfg(test)]
 pub use test_params::TestParameters;
 

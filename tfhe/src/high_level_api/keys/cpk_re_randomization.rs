@@ -20,6 +20,7 @@ pub(crate) enum ReRandomizationKeyGenerationInfo<'a> {
 pub enum ReRandomizationKeySwitchingKey {
     UseCPKEncryptionKSK,
     DedicatedKSK(crate::integer::key_switching_key::KeySwitchingKeyMaterial),
+    NoKeySwitch,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
@@ -27,6 +28,7 @@ pub enum ReRandomizationKeySwitchingKey {
 pub enum CompressedReRandomizationKeySwitchingKey {
     UseCPKEncryptionKSK,
     DedicatedKSK(crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial),
+    NoKeySwitch,
 }
 
 impl CompressedReRandomizationKeySwitchingKey {
@@ -38,6 +40,7 @@ impl CompressedReRandomizationKeySwitchingKey {
                     compressed_key_switching_key_material.decompress(),
                 )
             }
+            Self::NoKeySwitch => ReRandomizationKeySwitchingKey::NoKeySwitch,
         }
     }
 }

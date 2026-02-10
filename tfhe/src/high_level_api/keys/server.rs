@@ -135,12 +135,13 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
         &self,
-    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>> {
+    ) -> crate::Result<Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>>>
+    {
         self.key.re_randomization_cpk_casting_key()
     }
 
     pub fn supports_ciphertext_re_randomization(&self) -> bool {
-        self.re_randomization_cpk_casting_key().is_some()
+        self.re_randomization_cpk_casting_key().is_ok()
     }
 
     pub fn noise_squashing_key(

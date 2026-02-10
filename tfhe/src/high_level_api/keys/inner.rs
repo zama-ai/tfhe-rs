@@ -455,18 +455,25 @@ impl IntegerServerKey {
 
     pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
         &self,
-    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>> {
+    ) -> crate::Result<Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>>>
+    {
         self.cpk_re_randomization_key_switching_key_material
             .as_ref()
-            .and_then(|key| match key {
-                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => self
-                    .cpk_key_switching_key_material
-                    .as_ref()
-                    .map(|k| k.as_view()),
-                ReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
-                    Some(key_switching_key_material.as_view())
-                }
-            })
+            .map_or_else(
+                || Err(crate::high_level_api::errors::UninitializedReRandKey.into()),
+                |key| {
+                    Ok(match key {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => self
+                            .cpk_key_switching_key_material
+                            .as_ref()
+                            .map(|k| k.as_view()),
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                            key_switching_key_material,
+                        ) => Some(key_switching_key_material.as_view()),
+                        ReRandomizationKeySwitchingKey::NoKeySwitch => None,
+                    })
+                },
+            )
     }
 
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
@@ -988,6 +995,7 @@ impl ParameterSetConformant for IntegerServerKey {
                     let key_to_check = match re_rand_ksk {
                         ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => cpk_ksk,
                         ReRandomizationKeySwitchingKey::DedicatedKSK(key) => key,
+                        ReRandomizationKeySwitchingKey::NoKeySwitch => todo!(),
                     };
 
                     key_to_check.is_conformant(&re_rand_param)
@@ -1107,6 +1115,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
                     let key_to_check = match re_rand_ksk {
                         CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => cpk_ksk,
                         CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => key,
+                        CompressedReRandomizationKeySwitchingKey::NoKeySwitch => todo!(),
                     };
 
                     key_to_check.is_conformant(&re_rand_param)

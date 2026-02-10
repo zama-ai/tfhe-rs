@@ -279,8 +279,22 @@ impl CompactPublicKey {
     /// Re-randomize a list of ciphertexts using the provided seed and compact public key
     ///
     /// The key and seed are used to generate encryptions of zero that will be added to the input
-    /// ciphertexts
+    /// ciphertexts.
     pub fn re_randomize_ciphertexts(
+        &self,
+        cts: &mut [Ciphertext],
+        key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        match key_switching_key_material {
+            Some(key_switching_key_material) => {
+                self.re_randomize_ciphertexts_with_keyswitch(cts, key_switching_key_material, seed)
+            }
+            None => self.re_randomize_ciphertexts_without_keyswitch(cts, seed),
+        }
+    }
+
+    pub fn re_randomize_ciphertexts_with_keyswitch(
         &self,
         cts: &mut [Ciphertext],
         key_switching_key_material: &KeySwitchingKeyMaterialView,
@@ -372,6 +386,45 @@ impl CompactPublicKey {
 
         Ok(())
     }
+
+    pub fn re_randomize_ciphertexts_without_keyswitch(
+        &self,
+        cts: &mut [Ciphertext],
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        if let Some(msg) = cts.iter().find_map(|ct| {
+            let key_lwe_size = self.key.lwe_dimension().to_lwe_size();
+            if key_lwe_size != ct.ct.lwe_size() {
+                Some(
+                    "Mismatched LweSwize between Ciphertext being re-randomized and provided \
+                KeySwitchingKeyMaterialView.",
+                )
+            } else if ct.noise_level() > NoiseLevel::NOMINAL {
+                Some("Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.")
+            } else {
+                None
+            }
+        }) {
+            return Err(crate::error!("{}", msg));
+        }
+
+        let encryption_of_zero =
+            self.prepare_cpk_zero_for_rerand(seed, LweCiphertextCount(cts.len()));
+
+        let zero_lwes = encryption_of_zero.expand_into_lwe_ciphertext_list();
+
+        cts.iter_mut()
+            .zip(zero_lwes.iter())
+            .for_each(|(ct, lwe_randomizer_cpk)| {
+                lwe_ciphertext_add_assign(&mut ct.ct, &lwe_randomizer_cpk);
+
+                // We take ciphertexts whose noise level is Nominal or less i.e. Zero, so we can
+                // unconditionally set the noise
+                ct.set_noise_level_to_nominal();
+            });
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -424,7 +477,7 @@ mod test {
 
             pubk.re_randomize_ciphertexts(
                 &mut cts,
-                &ksk.key_switching_key_material.as_view(),
+                Some(&ksk.key_switching_key_material.as_view()),
                 seeder.next_seed(),
             )
             .unwrap();
@@ -451,7 +504,7 @@ mod test {
 
             pubk.re_randomize_ciphertexts(
                 core::slice::from_mut(&mut trivial),
-                &ksk.key_switching_key_material.as_view(),
+                Some(&ksk.key_switching_key_material.as_view()),
                 seeder.next_seed(),
             )
             .unwrap();

@@ -415,6 +415,9 @@ impl crate::CompressedServerKey {
                         key.decompress_with_pre_seeded_generator(generator),
                     )
                 }
+                crate::CompressedReRandomizationKeySwitchingKey::NoKeySwitch => {
+                    ReRandomizationKeySwitchingKey::NoKeySwitch
+                }
             });
 
         let noise_squashing_compression_key = self

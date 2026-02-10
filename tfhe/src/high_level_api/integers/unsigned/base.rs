@@ -5,7 +5,6 @@ use crate::backward_compatibility::integers::FheUintVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 use crate::high_level_api::details::MaybeCloned;
-use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::{FheIntegerType, IntegerId};
 use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
@@ -1805,13 +1804,11 @@ where
     ) -> crate::Result<()> {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let Some(re_randomization_key) = key.re_randomization_cpk_casting_key() else {
-                    return Err(UninitializedReRandKey.into());
-                };
+                let re_randomization_key = key.re_randomization_cpk_casting_key()?;
 
                 self.ciphertext.as_cpu_mut().re_randomize(
                     &compact_public_key.key.key,
-                    &re_randomization_key,
+                    re_randomization_key.as_ref(),
                     seed,
                 )?;
 

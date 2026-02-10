@@ -917,9 +917,11 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters) {
             ))
         };
 
+        // dbg! trick to not forget to update the rerand noise check to update
+
         cpk.re_randomize_ciphertexts(
             core::slice::from_mut(&mut shortint_res),
-            &ksk_rerand.key_switching_key_material,
+            Some(&ksk_rerand.key_switching_key_material),
             shortint_rerand_seed,
         )
         .unwrap();
