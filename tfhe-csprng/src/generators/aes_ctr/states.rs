@@ -89,6 +89,10 @@ impl State {
     pub fn table_index(&self) -> TableIndex {
         self.table_index
     }
+
+    pub fn offset(&self) -> AesIndex {
+        self.offset
+    }
 }
 
 impl Default for State {

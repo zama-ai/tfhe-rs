@@ -91,4 +91,15 @@ mod test {
     fn prop_fork_parent_remaining_bytes() {
         aes_ctr_parallel_generic_tests::prop_fork_parent_remaining_bytes::<ArmAesBlockCipher>();
     }
+
+    #[test]
+    fn prop_fork_with_parent_continuation() {
+        aes_ctr_parallel_generic_tests::prop_fork_with_parent_continuation::<ArmAesBlockCipher>();
+    }
+
+    #[test]
+    fn test_forking_conformance_with_ctr_crate() {
+        aes_ctr_parallel_generic_tests::test_forking_conformance_with_ctr_crate::<ArmAesBlockCipher>(
+        );
+    }
 }

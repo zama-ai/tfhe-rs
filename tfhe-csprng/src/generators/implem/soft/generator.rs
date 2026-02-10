@@ -85,6 +85,11 @@ mod test {
         }
 
         #[test]
+        fn prop_fork_with_parent_continuation() {
+            aes_ctr_generic_test::prop_fork_with_parent_continuation::<SoftwareBlockCipher>();
+        }
+
+        #[test]
         fn prop_fork_children_remaining_bytes() {
             aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareBlockCipher>();
         }
@@ -92,6 +97,12 @@ mod test {
         #[test]
         fn prop_fork_parent_remaining_bytes() {
             aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<SoftwareBlockCipher>();
+        }
+
+        #[test]
+        fn prop_different_offset_means_different_output() {
+            aes_ctr_generic_test::prop_different_offset_means_different_output::<SoftwareBlockCipher>(
+            );
         }
 
         #[test]
@@ -103,6 +114,16 @@ mod test {
         fn test_roughly_uniform() {
             generator_generic_test::test_roughly_uniform::<SoftwareRandomGenerator>();
         }
+    }
+
+    #[test]
+    fn test_conformance_with_ctr_crate() {
+        aes_ctr_generic_test::test_conformance_with_ctr_crate::<SoftwareBlockCipher>();
+    }
+
+    #[test]
+    fn test_forking_conformance_with_ctr_crate() {
+        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<SoftwareBlockCipher>();
     }
 
     #[test]
