@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-cuda-backend"
-version = "0.13.1"
+version = "0.13.2"
 edition = "2021"
 authors = ["Zama team"]
 license = "BSD-3-Clause-Clear"
