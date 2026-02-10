@@ -1,10 +1,14 @@
 use benchmark::high_level_api::type_display::*;
-use benchmark::utilities::{get_bench_type, hlapi_throughput_num_ops, BenchmarkType, BitSizesSet, EnvConfig};
+use benchmark::utilities::{
+    get_bench_type, hlapi_throughput_num_ops, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
+    OperatorType,
+};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
 use tfhe::core_crypto::prelude::Numeric;
 use tfhe::integer::block_decomposition::DecomposableInto;
+use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::{
     ClientKey, CompressedServerKey, FheIntegerType, FheUint128, FheUint32, FheUint64, FheUintId,
@@ -20,6 +24,7 @@ where
     FheKey: FheEncrypt<Key, ClientKey> + FheIntegerType + Send + Sync,
     FheKey::Id: FheUintId,
 {
+    let param = cks.computation_parameters();
     let mut bench_group = c.benchmark_group("kv_store");
     bench_group.sample_size(10);
 
@@ -28,11 +33,16 @@ where
 
     let format_id_bench = |op_name: &str| -> String {
         format!(
-            "hlapi::kv_store::<{}, {}>::{op_name}/{num_elements}",
+            "hlapi::kv_store::{op_name}::{}::key_{}_value_{}_elements_{num_elements}",
+            param.name(),
             TypeDisplayer::<Key>::default(),
             TypeDisplayer::<Value>::default(),
         )
     };
+
+    let bench_id_get;
+    let bench_id_update;
+    let bench_id_map;
 
     match get_bench_type() {
         BenchmarkType::Latency => {
@@ -50,19 +60,22 @@ where
             let value = rng.gen::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
-            bench_group.bench_function(format_id_bench("get"), |b| {
+            bench_id_get = format_id_bench("get");
+            bench_group.bench_function(&bench_id_get, |b| {
                 b.iter(|| {
                     let _ = kv_store.get(&encrypted_key);
                 })
             });
 
-            bench_group.bench_function(format_id_bench("update"), |b| {
+            bench_id_update = format_id_bench("update");
+            bench_group.bench_function(&bench_id_update, |b| {
                 b.iter(|| {
                     let _ = kv_store.update(&encrypted_key, &value_to_add);
                 })
             });
 
-            bench_group.bench_function(format_id_bench("map"), |b| {
+            bench_id_map = format_id_bench("map");
+            bench_group.bench_function(&bench_id_map, |b| {
                 b.iter(|| {
                     kv_store.map(&encrypted_key, |v| v);
                 })
@@ -98,7 +111,8 @@ where
 
             bench_group.throughput(Throughput::Elements(kv_stores.len() as u64));
 
-            bench_group.bench_function(format_id_bench("get::throughput"), |b| {
+            bench_id_get = format_id_bench("get::throughput");
+            bench_group.bench_function(&bench_id_get, |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.get(&encrypted_key);
@@ -106,7 +120,8 @@ where
                 })
             });
 
-            bench_group.bench_function(format_id_bench("update::throughput"), |b| {
+            bench_id_update = format_id_bench("update::throughput");
+            bench_group.bench_function(&bench_id_update, |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.update(&encrypted_key, &value_to_add);
@@ -114,7 +129,8 @@ where
                 })
             });
 
-            bench_group.bench_function(format_id_bench("map::throughput"), |b| {
+            bench_id_map = format_id_bench("map::throughput");
+            bench_group.bench_function(&bench_id_map, |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.map(&encrypted_key, |v| v);
@@ -123,6 +139,23 @@ where
             });
         }
     }
+
+    for (bench_id, display_name) in [
+        (bench_id_get, "get"),
+        (bench_id_update, "update"),
+        (bench_id_map, "map"),
+    ] {
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+            Key::BITS as u32,
+            vec![],
+        );
+    }
+
     bench_group.finish();
 }
 

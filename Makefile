@@ -1672,7 +1672,7 @@ bench_web_js_api_unsafe_coop_firefox_ci: setup_venv
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_unsafe_coop_firefox
 
-.PHONY: bench_pi_unsigned # Run benchmarks for integer operations
+.PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
 bench_hlapi_unsigned: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
