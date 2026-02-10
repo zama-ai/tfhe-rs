@@ -29,6 +29,8 @@ rand = { workspace = true }
 rayon = { workspace = true }
 tfhe = { path = "../tfhe", default-features = false }
 tfhe-csprng = { path = "../tfhe-csprng" }
+cpu-time = "1.0"
+num_cpus = "1.17"
 
 [features]
 default = ["avx512"]
