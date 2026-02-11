@@ -16,7 +16,6 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
-  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_64-22.04"
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -143,43 +142,15 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
-  setup-instance:
-    name: aws_tfhe_tests/setup-instance
-    if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
-    needs: should-run
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
-    steps:
-      - name: Start remote instance
-        id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-big
-
-      # This instance will be spawned especially for pull-request from forked repository
-      - name: Start GitHub instance
-        id: start-github-instance
-        if: env.SECRETS_AVAILABLE == 'false'
-        run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
-
   cpu-tests:
     name: aws_tfhe_tests/cpu-tests
+    needs: should-run
     if: github.event_name != 'pull_request' ||
-      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
-    needs: [ should-run, setup-instance ]
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
     concurrency:
       group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -269,27 +240,3 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "CPU tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
-
-  teardown-instance:
-    name: aws_tfhe_tests/teardown-instance
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, cpu-tests ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop remote instance
-        id: stop-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cpu-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

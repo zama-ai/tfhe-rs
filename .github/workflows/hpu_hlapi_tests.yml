@@ -15,7 +15,6 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
-  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
@@ -52,39 +51,13 @@ jobs:
               - backends/tfhe-hpu-backend/**
               - mockups/tfhe-hpu-mockup/**
 
-  setup-instance:
-    name: hpu_hlapi_tests/setup-instance
+  cargo-tests-hpu:
+    name: hpu_hlapi_tests/cargo-tests-hpu (bpr)
     needs: should-run
     if:
       needs.should-run.outputs.hpu_test == 'true' &&
       ((github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||github.event_name == 'pull_request')
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
-    steps:
-      - name: Start remote instance
-        id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-big
-
-      # This instance will be spawned especially for pull-request from forked repository
-      - name: Start GitHub instance
-        id: start-github-instance
-        if: env.SECRETS_AVAILABLE == 'false'
-        run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
-
-  cargo-tests-hpu:
-    name: hpu_hlapi_tests/cargo-tests-hpu (bpr)
-    needs: setup-instance
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -107,27 +80,3 @@ jobs:
           just -f mockups/tfhe-hpu-mockup/Justfile  BUILD_PROFILE=release mockup &
           make HPU_CONFIG=sim test_high_level_api_hpu
           make HPU_CONFIG=sim test_user_doc_hpu
-
-  teardown-instance:
-    name: hpu_hlapi_tests/teardown-instance
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [setup-instance, cargo-tests-hpu]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop remote instance
-        id: stop-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (hpu_hlapi_tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

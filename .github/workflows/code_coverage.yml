@@ -23,30 +23,12 @@ permissions:
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
 jobs:
-  setup-instance:
-    name: code_coverage/setup-instance
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-instance.outputs.label }}
-    steps:
-      - name: Start instance
-        id: start-instance
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-small
-
   code-coverage-tests:
     name: code_coverage/code-coverage-tests
-    needs: setup-instance
     concurrency:
       group: ${{ github.workflow_ref }}_${{ github.event_name }}
       cancel-in-progress: true
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
     timeout-minutes: 5760 # 4 days
     steps:
       - name: Checkout tfhe-rs
@@ -121,26 +103,3 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Code coverage finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-
-  teardown-instance:
-    name: code_coverage/teardown-instance
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, code-coverage-tests ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop instance
-        id: stop-instance
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (code-coverage-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

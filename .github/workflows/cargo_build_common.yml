@@ -59,7 +59,6 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
-  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16"
   LINELINT_VERSION: 0.0.6
   LINELINT_CHECKSUM: "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b"
 
@@ -69,37 +68,10 @@ permissions:
 # zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
 
 jobs:
-  setup-instance:
-    name: cargo_build_common/setup-instance
-    if: inputs.run-pcc-cpu-batch || inputs.run-pcc-hpu || inputs.run-build || inputs.run-build-layers || inputs.run-build-tfhe-full || inputs.run-build-c-api
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
-      run_attempt: ${{ github.run_attempt }} # On a re-run with a successful previous run for this job, the run_attempt will not be incremented
-    steps:
-      - name: Start remote instance
-        id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-small
-
-      # This instance will be spawned especially for pull-request from forked repository
-      - name: Start GitHub instance
-        id: start-github-instance
-        if: env.SECRETS_AVAILABLE == 'false'
-        run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
-
   prepare-matrix:
     name: cargo_build_common/prepare-matrix
+    if: inputs.run-pcc-cpu-batch || inputs.run-pcc-hpu || inputs.run-build || inputs.run-build-layers || inputs.run-build-tfhe-full || inputs.run-build-c-api
     runs-on: ubuntu-latest
-    needs: setup-instance
     outputs:
       runners: ${{ steps.set_matrix_runners.outputs.runners }}
     steps:
@@ -107,12 +79,12 @@ jobs:
         shell: python
         env:
           INPUTS_EXTRA_RUNNERS_TO_USE: ${{ inputs.extra-runners-to-use }}
-          REMOTE_RUNNER_LABEL: ${{ needs.setup-instance.outputs.runner-name }}
+          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
         run: |
           import os
           
           inputs_extra_runners = os.environ["INPUTS_EXTRA_RUNNERS_TO_USE"]
-          remote_runner_label = os.environ["REMOTE_RUNNER_LABEL"]
+          remote_runner_label = os.environ["REMOTE_RUNNER"]
           env_file = os.environ["GITHUB_ENV"]
           
           runners = [remote_runner_label, ]
@@ -130,7 +102,7 @@ jobs:
 
   builds:
     name: cargo_build_common/builds
-    needs: [ setup-instance, prepare-matrix ]
+    needs: prepare-matrix
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -158,6 +130,11 @@ jobs:
           sha256sum -c checksum
           chmod +x linelint-linux-amd64
           ln -s "$(pwd)/linelint-linux-amd64" /usr/local/bin/linelint
+
+      - name: Install Node
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        run: |
+          make install_node
 
       - name: Run pcc checks batch
         if: inputs.run-pcc-cpu-batch
@@ -230,29 +207,3 @@ jobs:
         if: ${{ always() }}
         run: | # zizmor: ignore[template-injection] this context variable is safe
           echo "result=${{ job.status }}" >> "${GITHUB_OUTPUT}"
-
-  teardown-instance:
-    name: cargo_build_common/teardown-instance
-    if: ${{ always() &&
-      needs.setup-instance.result == 'success' &&
-      github.run_attempt == needs.setup-instance.outputs.run_attempt }} # Only run if setup-instance has been executed during this run attempt
-    needs: [setup-instance, builds]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop remote instance
-        id: stop-instance
-        if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cargo-builds) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
