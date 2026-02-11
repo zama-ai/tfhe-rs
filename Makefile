@@ -521,6 +521,11 @@ clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
+.PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
+clippy_wasm_par_mq: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \
+		-p wasm-par-mq -p wasm-par-mq-web-tests -p wasm-par-mq-example-msm -- --no-deps -D warnings
+
 .PHONY: clippy_backward_compat_data # Run clippy lints on tfhe-backward-compat-data
 clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
 	@# Some old crates are x86 specific, only run in that case
@@ -546,7 +551,7 @@ clippy_test_vectors: install_rs_check_toolchain
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
 clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_test_vectors clippy_backward_compat_data
+clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -1077,7 +1082,7 @@ test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for 
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
-  	-E "test(/high_level_api::.*gpu.*/)"
+		-E "test(/high_level_api::.*gpu.*/)"
 
 test_list_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \
@@ -1374,6 +1379,54 @@ test_web_js_api_parallel_firefox_ci: setup_venv
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_parallel_firefox
+
+WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
+
+.PHONY: build_wasm_par_mq_tests # Build the wasm-par-mq test WASM package
+build_wasm_par_mq_tests: install_wasm_pack
+	cd $(WASM_PAR_MQ_TEST_DIR) && \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --target=web --out-dir pkg
+
+# This is an internal target, not meant to be called on its own.
+run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv
+	cd $(WASM_PAR_MQ_TEST_DIR) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind $(browser_kind) \
+	--server-cmd "npm run server" \
+	--server-workdir "$(WASM_PAR_MQ_TEST_DIR)" \
+	--index-path "$(WASM_PAR_MQ_TEST_DIR)/index.html" \
+	--id-pattern Test
+
+test_wasm_par_mq_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+test_wasm_par_mq_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+test_wasm_par_mq_chrome: browser_kind = chrome
+
+.PHONY: test_wasm_par_mq_chrome # Run wasm-par-mq tests on Chrome
+test_wasm_par_mq_chrome: run_wasm_par_mq_tests
+
+.PHONY: test_wasm_par_mq_chrome_ci # Run wasm-par-mq tests on Chrome in CI
+test_wasm_par_mq_chrome_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_wasm_par_mq_chrome
+
+test_wasm_par_mq_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+test_wasm_par_mq_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+test_wasm_par_mq_firefox: browser_kind = firefox
+
+.PHONY: test_wasm_par_mq_firefox # Run wasm-par-mq tests on Firefox
+test_wasm_par_mq_firefox: run_wasm_par_mq_tests
+
+.PHONY: test_wasm_par_mq_firefox_ci # Run wasm-par-mq tests on Firefox in CI
+test_wasm_par_mq_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_wasm_par_mq_firefox
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
@@ -1927,6 +1980,7 @@ pcc_batch_2:
 	$(call run_recipe_with_details,check_fmt_js)
 	$(call run_recipe_with_details,clippy_test_vectors)
 	$(call run_recipe_with_details,check_test_vectors)
+	$(call run_recipe_with_details,clippy_wasm_par_mq)
 
 .PHONY: pcc_batch_3 # duration: 6'50''
 pcc_batch_3:
