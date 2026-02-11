@@ -32,6 +32,7 @@ venv/
 web-test-runner/
 node_modules/
 package-lock.json
+utils/wasm_par_mq/examples/*/pkg/
 
 # Python .env
 .env
