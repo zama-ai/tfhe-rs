@@ -288,7 +288,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
           glwe_dimension, polynomial_size, pbs_level,
-          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
+          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index),
+          pbs_base_log)) {
     st.SkipWithError("Configuration not supported for fast operation");
     return;
   }

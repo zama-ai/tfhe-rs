@@ -206,6 +206,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         num_samples,
         true,
         noise_reduction_type as u32,
+        base_log.0 as u32,
     );
 
     cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -242,6 +243,7 @@ pub fn get_programmable_bootstrap_size_on_gpu(
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
     num_samples: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
@@ -263,6 +265,7 @@ pub fn get_programmable_bootstrap_size_on_gpu(
             num_samples,
             false,
             noise_reduction_type as u32,
+            base_log.0 as u32,
         )
     };
 
@@ -735,6 +738,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     glwe_dim: GlweDimension,
     l_gadget: DecompositionLevelCount,
     polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
 ) {
     for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
         if size_of::<T>() == 16 {
@@ -758,6 +762,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
                 glwe_dim.0 as u32,
                 l_gadget.0 as u32,
                 polynomial_size.0 as u32,
+                base_log.0 as u32,
             );
         } else {
             panic!("Unsupported torus size for bsk conversion")

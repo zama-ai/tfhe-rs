@@ -168,7 +168,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   scratch_cuda_programmable_bootstrap_64(
       stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
       polynomial_size, pbs_level, number_of_inputs, true,
-      PBS_MS_REDUCTION_T::NO_REDUCTION);
+      PBS_MS_REDUCTION_T::NO_REDUCTION, pbs_base_log);
 
   int number_of_sm = 0;
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
@@ -235,8 +235,10 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
         // message_modulus, carry_modulus, number_of_inputs, repetitions,
         // samples
         // V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+        // pbs_base_log hardcoded to 22 instead of 23 to avoid triggering
+        // the specialized reordering in BSK conversion to Fourier.
         (ClassicalProgrammableBootstrapTestParams){
-            918, 1, 2048, new_t_uniform(45), new_t_uniform(17), 23, 1, 4, 4,
+            918, 1, 2048, new_t_uniform(45), new_t_uniform(17), 22, 1, 4, 4,
             100, 1, 1},
         // V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128
         // This test is here only to be sure we don't break support to

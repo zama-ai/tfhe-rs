@@ -2986,6 +2986,7 @@ unsafe extern "C" {
         glwe_dim: u32,
         level_count: u32,
         polynomial_size: u32,
+        base_log: u32,
     );
 }
 unsafe extern "C" {
@@ -2998,6 +2999,7 @@ unsafe extern "C" {
         glwe_dim: u32,
         level_count: u32,
         polynomial_size: u32,
+        base_log: u32,
     );
 }
 unsafe extern "C" {
@@ -3093,6 +3095,7 @@ unsafe extern "C" {
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
+        base_log: u32,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -3107,6 +3110,7 @@ unsafe extern "C" {
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
+        base_log: u32,
     ) -> u64;
 }
 unsafe extern "C" {

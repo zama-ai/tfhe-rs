@@ -166,7 +166,7 @@ void generate_lwe_programmable_bootstrap_keys(cudaStream_t stream, uint32_t gpu_
     cuda_synchronize_stream(stream, gpu_index);
     cuda_convert_lwe_programmable_bootstrap_key_64(stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
                                       lwe_dimension, glwe_dimension,
-                                      pbs_level, polynomial_size);
+                                      pbs_level, polynomial_size, pbs_base_log);
     shift_in += lwe_dimension;
     shift_out += glwe_dimension * polynomial_size;
     shift_bsk += bsk_size;

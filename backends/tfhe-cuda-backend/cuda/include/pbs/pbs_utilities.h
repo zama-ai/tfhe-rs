@@ -429,11 +429,9 @@ uint64_t get_buffer_size_programmable_bootstrap_cg(
 }
 
 template <typename Torus>
-bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
-                                                   uint32_t polynomial_size,
-                                                   uint32_t level_count,
-                                                   uint32_t num_samples,
-                                                   uint32_t max_shared_memory);
+bool has_support_to_cuda_programmable_bootstrap_cg(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t base_log);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(

@@ -185,6 +185,26 @@ __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial_in_regs(
     tid += block_size;
   }
 }
+// Same as above but acc is in registers. This is used in the specialized 2_2
+// params where we can keep the accumulator in registers to avoid
+// synchronizations and shared memory usage
+template <typename T, int elems_per_thread, int block_size>
+__device__ void multiply_by_monomial_negacyclic_and_sub_polynomial_both_in_regs(
+    T *acc, T *acc_in_regs, T *result_acc, uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  int tid = threadIdx.x;
+  for (int i = 0; i < elems_per_thread; i++) {
+    if (j < degree) {
+      int x = tid - j + SEL(0, degree, tid < j);
+      result_acc[i] = SEL(1, -1, tid < j) * acc[x] - acc_in_regs[i];
+    } else {
+      int32_t jj = j - degree;
+      int x = tid - jj + SEL(0, degree, tid < jj);
+      result_acc[i] = SEL(-1, 1, tid < jj) * acc[x] - acc_in_regs[i];
+    }
+    tid += block_size;
+  }
+}
 
 /*
  * Receives num_poly  concatenated polynomials of type T. For each performs a
@@ -305,6 +325,29 @@ __device__ void add_to_torus_2_2_params_using_shared(double2 *m_values,
   }
 }
 
+/**
+ * In case of 2_2_classical PBS, this method should accumulate the result.
+ * and the result is stored in shared memory
+ */
+template <typename Torus, class params>
+__device__ void add_to_torus_2_2_params_using_regs(double2 *m_values,
+                                                   Torus *result) {
+  // int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    double double_real = m_values[i].x;
+    double double_imag = m_values[i].y;
+
+    Torus torus_real = 0;
+    typecast_double_round_to_torus<Torus>(double_real, torus_real);
+
+    Torus torus_imag = 0;
+    typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
+
+    result[i] += torus_real;
+    result[i + params::opt / 2] += torus_imag;
+  }
+}
 /**
  * In case of classical PBS, this method should accumulate the result.
  * In case of multi-bit PBS, it should overwrite.

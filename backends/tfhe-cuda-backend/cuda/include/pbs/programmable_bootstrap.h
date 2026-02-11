@@ -13,12 +13,12 @@ void cuda_fourier_polynomial_mul(void *stream, uint32_t gpu_index,
 void cuda_convert_lwe_programmable_bootstrap_key_32(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size);
+    uint32_t polynomial_size, uint32_t base_log);
 
 void cuda_convert_lwe_programmable_bootstrap_key_64(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size);
+    uint32_t polynomial_size, uint32_t base_log);
 
 void cuda_convert_lwe_programmable_bootstrap_key_128(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
@@ -61,13 +61,13 @@ uint64_t scratch_cuda_programmable_bootstrap_32(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t base_log);
 
 uint64_t scratch_cuda_programmable_bootstrap_64(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t base_log);
 
 uint64_t scratch_cuda_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,

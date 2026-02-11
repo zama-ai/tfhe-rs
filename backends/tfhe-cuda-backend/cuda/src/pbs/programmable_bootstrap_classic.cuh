@@ -6,6 +6,15 @@
 #include <cuda_runtime.h>
 #endif
 
+// This macro is needed because in debug mode the compiler doesn't apply all
+// optimizations
+//  and the register count is higher, which can lead to launch bounds conflicts.
+#ifdef __CUDACC_DEBUG__
+#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS
+#else
+#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS __launch_bounds__(1024)
+#endif
+
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -16,6 +25,183 @@
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
+
+// Helper function to get shared memory size for specialized 2_2_params kernel
+template <typename Torus>
+uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
+    uint32_t polynomial_size) {
+  return sizeof(Torus) * polynomial_size * 5;
+}
+
+// Check if specialized 2_2_params kernel can be used
+template <typename Torus>
+__host__ bool
+supports_specialized_2_2_params(uint32_t polynomial_size,
+                                uint32_t glwe_dimension, uint32_t level_count,
+                                uint32_t base_log, uint32_t max_shared_memory) {
+  uint64_t required_shared_memory =
+      get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params<
+          Torus>(polynomial_size);
+  return polynomial_size == 2048 && glwe_dimension == 1 && level_count == 1 &&
+         base_log == 23 && max_shared_memory >= required_shared_memory;
+}
+
+// Specialized 1-block kernel for 2_2_params (N=2048, k=1, l=1, log(B)=23,
+// n=918)
+template <typename Torus, class params>
+__global__ SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS void
+device_programmable_bootstrap_specialized_2_2_params(
+    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+    const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lut_vector_indexes,
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes,
+    const double2 *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t num_many_lut, uint32_t lut_stride,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  constexpr uint32_t level_count = 1;
+  constexpr uint32_t polynomial_size = 2048;
+  constexpr uint32_t glwe_dimension = 1;
+  constexpr uint32_t base_log = 23;
+  auto this_block_rank = threadIdx.y;
+  extern __shared__ int8_t sharedmem[];
+
+  // Shared Memory Layout:
+  // We divide the shared memory in three sections to make sure the data is not
+  // overlapped
+  // |          GLWE0          |         GLWE1           | Common for both |
+  // | acc block0 | fft block0 | acc block1 | fft block1 | shared twiddles |
+  double2 *base_smem = (double2 *)sharedmem;
+  double2 *accumulator_fft =
+      base_smem + (polynomial_size / 2) * threadIdx.y * 2;
+  double2 *shared_fft = accumulator_fft + polynomial_size / 2;
+  double2 *shared_twiddles = base_smem + 2 * polynomial_size;
+
+  Torus *accumulator = (Torus *)shared_fft;
+
+  shared_twiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)] =
+      negtwiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)];
+
+  const Torus *block_lwe_array_in =
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
+
+  const Torus *block_lut_vector =
+      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
+                  (glwe_dimension + 1)];
+
+  constexpr auto log_modulus = params::log2_degree + 1;
+  Torus b_hat = 0;
+  Torus correction = 0;
+  if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
+    correction = centered_binary_modulus_switch_body_correction_to_add(
+        block_lwe_array_in, lwe_dimension, log_modulus);
+  }
+  modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                 log_modulus);
+
+  Torus reg_acc_try[params::opt];
+  divide_by_monomial_negacyclic_2_2_params_inplace<
+      Torus, params::opt, params::degree / params::opt>(
+      reg_acc_try, &block_lut_vector[threadIdx.y * params::degree], b_hat);
+
+  for (int i = 0; i < params::opt; i++) {
+    accumulator[threadIdx.x + i * (params::degree / params::opt)] =
+        reg_acc_try[i];
+  }
+
+  Torus temp_a_hat = 0;
+  for (int i = 0; i < lwe_dimension; i++) {
+    constexpr int WARP_SIZE = 32;
+    if (i % WARP_SIZE == 0 && (i + threadIdx.x % WARP_SIZE) < lwe_dimension) {
+      modulus_switch(block_lwe_array_in[i + threadIdx.x % WARP_SIZE],
+                     temp_a_hat, log_modulus);
+    }
+    Torus a_hat = __shfl_sync(0xFFFFFFFF, temp_a_hat, i % WARP_SIZE);
+
+    __syncthreads();
+    Torus reg_acc_rotated[params::opt];
+    multiply_by_monomial_negacyclic_and_sub_polynomial_both_in_regs<
+        Torus, params::opt, params::degree / params::opt>(
+        accumulator, reg_acc_try, reg_acc_rotated, a_hat);
+
+    init_decomposer_state_inplace_2_2_params<Torus, params::opt,
+                                             params::degree / params::opt,
+                                             base_log, level_count>(
+        reg_acc_rotated);
+
+    double2 fft_out_regs[params::opt / 2];
+    decompose_and_compress_level_2_2_params<Torus, params, base_log>(
+        fft_out_regs, reg_acc_rotated);
+    NSMFFT_direct_2_2_params<HalfDegree<params>>(shared_fft, fft_out_regs,
+                                                 shared_twiddles);
+    int tid = threadIdx.x;
+    for (Index k = 0; k < params::opt / 4; k++) {
+      accumulator_fft[tid] = fft_out_regs[k];
+      accumulator_fft[tid + params::degree / 4] =
+          fft_out_regs[k + params::opt / 4];
+      tid = tid + params::degree / params::opt;
+    }
+
+    double2 buffer_regs[params::opt / 2];
+    mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_1block<
+        params, polynomial_size, glwe_dimension, level_count>(
+        accumulator_fft, fft_out_regs, buffer_regs, base_smem,
+        bootstrapping_key, i, this_block_rank);
+
+    NSMFFT_inverse_2_2_params<HalfDegree<params>>(shared_fft, buffer_regs,
+                                                  shared_twiddles);
+    add_to_torus_2_2_params_using_regs<Torus, params>(buffer_regs, reg_acc_try);
+
+    for (int i = 0; i < params::opt; i++) {
+      accumulator[threadIdx.x + i * (params::degree / params::opt)] =
+          reg_acc_try[i];
+    }
+  }
+  __syncthreads();
+  auto block_lwe_array_out =
+      &lwe_array_out[lwe_output_indexes[blockIdx.x] *
+                         (glwe_dimension * polynomial_size + 1) +
+                     threadIdx.y * polynomial_size];
+
+  if (blockIdx.z == 0) {
+    if (threadIdx.y < glwe_dimension) {
+      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  threadIdx.y * polynomial_size];
+
+          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, 1, i * lut_stride);
+        }
+      }
+    } else if (threadIdx.y == glwe_dimension) {
+      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  threadIdx.y * polynomial_size];
+
+          sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, 0, i * lut_stride);
+        }
+      }
+    }
+  }
+}
 
 template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -502,6 +688,44 @@ __host__ void host_programmable_bootstrap(
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
+
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
+  // Check if we can use the specialized 2_2_params kernel
+  if (supports_specialized_2_2_params<Torus>(polynomial_size, glwe_dimension,
+                                             level_count, base_log,
+                                             max_shared_memory)) {
+    int thds = polynomial_size / params::opt;
+    dim3 grid(input_lwe_ciphertext_count, 1, level_count);
+    dim3 new_block(thds, glwe_dimension + 1, 1);
+    uint64_t full_sm_specialized =
+        get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params<
+            Torus>(polynomial_size);
+
+    // Configure specialized kernel
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_specialized_2_2_params<Torus, params>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_specialized_2_2_params<Torus, params>,
+        cudaFuncAttributePreferredSharedMemoryCarveout,
+        cudaSharedmemCarveoutMaxShared));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_specialized_2_2_params<Torus, params>,
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaGetLastError());
+
+    double2 *buffer_fft = pbs_buffer->global_join_buffer;
+    auto noise_reduction_type = pbs_buffer->noise_reduction_type;
+
+    device_programmable_bootstrap_specialized_2_2_params<Torus, params>
+        <<<grid, new_block, full_sm_specialized, stream>>>(
+            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+            lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
+            num_many_lut, lut_stride, noise_reduction_type);
+    check_cuda_error(cudaGetLastError());
+    return;
+  }
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each

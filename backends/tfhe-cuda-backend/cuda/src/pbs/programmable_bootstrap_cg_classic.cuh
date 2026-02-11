@@ -17,6 +17,7 @@
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
+#include "programmable_bootstrap_classic.cuh"
 #include "types/complex/operations.cuh"
 
 using namespace cooperative_groups;
@@ -379,7 +380,18 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t base_log) {
+  // If specialized 2_2_params conditions are met, don't use CG (use classic
+  // with specialized kernel, less restrictive and better performance)
+  uint64_t required_specialized_shared_memory =
+      get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params<
+          Torus>(polynomial_size);
+  if (polynomial_size == 2048 && glwe_dimension == 1 && level_count == 1 &&
+      base_log == 23 &&
+      max_shared_memory >= required_specialized_shared_memory) {
+    return false;
+  }
+
   switch (polynomial_size) {
   case 256:
     return verify_cuda_programmable_bootstrap_cg_grid_size<

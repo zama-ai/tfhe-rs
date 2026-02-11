@@ -1,5 +1,14 @@
 #ifndef CUDA_TBC_PBS_CUH
 #define CUDA_TBC_PBS_CUH
+// This macro is needed because in debug mode the compiler doesn't apply all
+// optimizations
+//  and the register count is higher, which can lead to launch bounds conflicts.
+#ifdef __CUDACC_DEBUG__
+#define SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS
+#else
+#define SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS                     \
+  __launch_bounds__(512, 2)
+#endif
 
 #ifdef __CDT_PARSER__
 #undef __CUDA_RUNTIME_H__
@@ -206,7 +215,8 @@ __global__ void device_programmable_bootstrap_tbc(
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_programmable_bootstrap_tbc_2_2_params(
+__global__ SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS void
+device_programmable_bootstrap_tbc_2_2_params(
     Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     const Torus *__restrict__ lut_vector,
     const Torus *__restrict__ lut_vector_indexes,
@@ -323,7 +333,7 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
 
     double2 buffer_regs[params::opt / 2];
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe_in_fourier_domain_2_2_params_classical<
+    mul_ggsw_glwe_in_fourier_domain_2_2_params<
         cluster_group, params, polynomial_size, glwe_dimension, level_count>(
         accumulator_fft, fft_out_regs, buffer_regs, bootstrapping_key, i,
         cluster, this_block_rank);
