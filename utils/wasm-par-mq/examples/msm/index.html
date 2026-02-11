@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>wasm-par-mq - MSM Benchmark</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; }
+        label {
+            margin-right: 20px;
+        }
+        select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .result {
+            background: #e8f5e9;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status-loading { background: #fff3e0; }
+        .status-ready { background: #e8f5e9; }
+        .status-error { background: #ffebee; }
+    </style>
+</head>
+<body>
+    <h1>wasm-par-mq - MSM Benchmark</h1>
+
+    <div id="status" class="status-loading">Loading WASM...</div>
+
+    <div class="test-section">
+        <h2>Configuration</h2>
+        <label>
+            Number of workers:
+            <select id="worker-count">
+                <option value="1">1 worker</option>
+                <option value="2">2 workers</option>
+                <option value="4" selected>4 workers</option>
+                <option value="8">8 workers</option>
+                <option value="16">16 workers</option>
+            </select>
+        </label>
+        <label>
+            Mode:
+            <select id="pool-mode">
+                <option value="async" selected>Async</option>
+                <option value="sync">Sync Executor</option>
+            </select>
+        </label>
+        <span id="pool-status"></span>
+    </div>
+
+    <div class="test-section">
+        <h2>Multi-Scalar Multiplication (MSM)</h2>
+        <p>Compute MSM on a set of points and scalars</p>
+        <label>
+            Number of elements:
+            <select id="msm-len">
+                <option value="1000">1,000</option>
+                <option value="5000">5,000</option>
+                <option value="10000" selected>10,000</option>
+                <option value="50000">50,000</option>
+                <option value="100000">100,000</option>
+            </select>
+        </label>
+        <br><br>
+        <button id="btn-msm-parallel" disabled>Run Parallel (workers)</button>
+        <button id="btn-msm-sync" disabled>Run Sync Executor</button>
+        <button id="btn-msm-sequential" disabled>Run Sequential (main thread)</button>
+        <button id="btn-msm-compare" disabled>Compare Results</button>
+        <div id="result-msm" class="result" hidden></div>
+    </div>
+
+    <script type="module">
+        import init, * as wasm_bindgen from './pkg/msm_example.js';
+
+        const status = document.getElementById('status');
+        const poolStatus = document.getElementById('pool-status');
+        const workerCountSelect = document.getElementById('worker-count');
+        const poolModeSelect = document.getElementById('pool-mode');
+
+        // Read mode and worker count from URL parameters (for persistence across reloads)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('mode')) {
+            poolModeSelect.value = urlParams.get('mode');
+        }
+        if (urlParams.has('workers')) {
+            workerCountSelect.value = urlParams.get('workers');
+        }
+        const msmLenSelect = document.getElementById('msm-len');
+        const buttons = {
+            msmParallel: document.getElementById('btn-msm-parallel'),
+            msmSync: document.getElementById('btn-msm-sync'),
+            msmSequential: document.getElementById('btn-msm-sequential'),
+            msmCompare: document.getElementById('btn-msm-compare'),
+        };
+        const results = {
+            msm: document.getElementById('result-msm'),
+        };
+
+        let currentWorkerCount = 4;
+        let currentPoolMode = 'async';
+
+        function showResult(el, text, isError = false) {
+            el.textContent = text;
+            el.hidden = false;
+            el.classList.toggle('error', isError);
+        }
+
+        async function initPool(numWorkers, mode) {
+            currentWorkerCount = numWorkers;
+            currentPoolMode = mode;
+            poolStatus.textContent = `(${numWorkers} workers, ${mode} mode)`;
+            status.textContent = `Starting worker pool (${mode} mode)...`;
+
+            if (mode === 'sync') {
+                await wasm_bindgen.init_parallel_sync(
+                    numWorkers,
+                    './pkg/msm_example_bg.wasm',
+                    './pkg/msm_example.js',
+                    '/sw.js'
+                );
+            } else {
+                await wasm_bindgen.init_parallel(
+                    numWorkers,
+                    './pkg/msm_example_bg.wasm',
+                    './pkg/msm_example.js'
+                );
+            }
+            status.textContent = 'Ready! Click a button to test.';
+            status.className = 'status-ready';
+        }
+
+        function updateButtonStates() {
+            const isSyncMode = currentPoolMode === 'sync';
+            // Sync executor button only works in sync mode
+            buttons.msmSync.disabled = !isSyncMode;
+            // Async parallel buttons only work in async mode
+            buttons.msmParallel.disabled = isSyncMode;
+            buttons.msmCompare.disabled = isSyncMode;
+        }
+
+        async function main() {
+            try {
+                // Initialize WASM (web target uses ES module default export)
+                status.textContent = 'Initializing WASM...';
+                await init('./pkg/msm_example_bg.wasm');
+
+                // Initialize the parallel pool
+                const numWorkers = parseInt(workerCountSelect.value, 10);
+                const mode = poolModeSelect.value;
+                await initPool(numWorkers, mode);
+
+                // Enable buttons
+                Object.values(buttons).forEach(btn => btn.disabled = false);
+
+                // Update button states based on mode
+                updateButtonStates();
+
+            } catch (e) {
+                status.textContent = `Error: ${e}`;
+                status.className = 'status-error';
+                console.error(e);
+            }
+        }
+
+        // Button handlers
+        buttons.msmParallel.onclick = async () => {
+            buttons.msmParallel.disabled = true;
+            try {
+                const len = parseInt(msmLenSelect.value, 10);
+
+                status.textContent = 'Generating test data...';
+                const data = wasm_bindgen.generate_test_data(len);
+
+                status.textContent = 'Running parallel MSM...';
+                const start = performance.now();
+                const result = await wasm_bindgen.run_msm_parallel(data);
+                const elapsed = (performance.now() - start).toFixed(2);
+
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm,
+                    `[PARALLEL - ${currentWorkerCount} workers]\n` +
+                    `Elements: ${len}\n` +
+                    `Result: ${JSON.stringify(result)}\n` +
+                    `Time: ${elapsed}ms`
+                );
+            } catch (e) {
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm, `Error: ${e}`, true);
+            }
+            buttons.msmParallel.disabled = false;
+        };
+
+        buttons.msmSync.onclick = async () => {
+            buttons.msmSync.disabled = true;
+            try {
+                const len = parseInt(msmLenSelect.value, 10);
+
+                status.textContent = 'Generating test data...';
+                const data = wasm_bindgen.generate_test_data(len);
+
+                status.textContent = 'Running sync executor MSM...';
+                const start = performance.now();
+                const result = await wasm_bindgen.run_msm_sync(data);
+                const elapsed = (performance.now() - start).toFixed(2);
+
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm,
+                    `[SYNC EXECUTOR - ${currentWorkerCount} workers]\n` +
+                    `Elements: ${len}\n` +
+                    `Result: ${JSON.stringify(result)}\n` +
+                    `Time: ${elapsed}ms`
+                );
+            } catch (e) {
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm, `Error: ${e}`, true);
+            }
+            buttons.msmSync.disabled = false;
+        };
+
+        buttons.msmSequential.onclick = () => {
+            buttons.msmSequential.disabled = true;
+            try {
+                const len = parseInt(msmLenSelect.value, 10);
+
+                status.textContent = 'Generating test data...';
+                const data = wasm_bindgen.generate_test_data(len);
+
+                status.textContent = 'Running sequential MSM...';
+                const start = performance.now();
+                const result = wasm_bindgen.run_msm_sequential(data);
+                const elapsed = (performance.now() - start).toFixed(2);
+
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm,
+                    `[SEQUENTIAL]\n` +
+                    `Elements: ${len}\n` +
+                    `Result: ${JSON.stringify(result)}\n` +
+                    `Time: ${elapsed}ms`
+                );
+            } catch (e) {
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm, `Error: ${e}`, true);
+            }
+            buttons.msmSequential.disabled = false;
+        };
+
+        buttons.msmCompare.onclick = async () => {
+            buttons.msmCompare.disabled = true;
+            try {
+                const len = parseInt(msmLenSelect.value, 10);
+
+                status.textContent = 'Generating test data...';
+                const data = wasm_bindgen.generate_test_data(len);
+
+                status.textContent = 'Running sequential then parallel MSM...';
+                const start = performance.now();
+                const result = await wasm_bindgen.run_msm_compare(data);
+                const elapsed = (performance.now() - start).toFixed(2);
+
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm,
+                    `[COMPARE - ${currentWorkerCount} workers]\n` +
+                    `Elements: ${len}\n` +
+                    `${result}\n` +
+                    `Total time: ${elapsed}ms`
+                );
+            } catch (e) {
+                status.textContent = 'Ready! Click a button to test.';
+                showResult(results.msm, `Error: ${e}`, true);
+            }
+            buttons.msmCompare.disabled = false;
+        };
+
+        main();
+    </script>
+</body>
+</html>

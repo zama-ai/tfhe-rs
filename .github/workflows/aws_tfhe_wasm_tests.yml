@@ -117,6 +117,8 @@ jobs:
         run: |
           make install_chrome_browser
           make install_chrome_web_driver
+          make install_firefox_browser
+          make install_firefox_web_driver
 
       - name: Run fmt checks
         run: |
@@ -129,6 +131,11 @@ jobs:
       - name: Run parallel wasm tests
         run: |
           make test_web_js_api_parallel_chrome_ci
+
+      - name: Run wasm_par_mq tests
+        run: |
+          make test_wasm_par_mq_chrome_ci
+          make test_wasm_par_mq_firefox_ci
 
       - name: Run x86_64/wasm zk compatibility tests
         run: |

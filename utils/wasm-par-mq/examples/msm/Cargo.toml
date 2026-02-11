@@ -1,0 +1,23 @@
+[package]
+name = "wasm-par-mq-example-msm"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-par-mq = { path = "../..", features = ["sync-api"] }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = "0.4"
+serde = { workspace = true, features = ["derive"] }
+console_error_panic_hook = "0.1"
+
+ark-ec = { workspace = true }
+ark-ff = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+web-sys = "0.3.83"
+rand = { workspace = true }
+getrandom = { workspace = true, features = ["js"] }
+web-time = "1.1.0"

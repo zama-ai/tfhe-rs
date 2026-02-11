@@ -24,7 +24,7 @@ dyn-stack = { workspace = true, features = ["default"] }
 itertools = "0.14"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0.94"
-paste = "1.0.7"
+paste = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tfhe = { path = "../tfhe", default-features = false }

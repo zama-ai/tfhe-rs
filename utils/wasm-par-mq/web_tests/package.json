@@ -1,0 +1,12 @@
+{
+  "name": "wasm-par-mq-web-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cp ../js/coordinator.js pkg/ && mkdir -p dist && cp index.html dist/ && cp sw.js dist/ && cp -r pkg dist/",
+    "server": "serve --config ../serve.json dist/"
+  },
+  "devDependencies": {
+    "serve": "^14.2.5"
+  }
+}
