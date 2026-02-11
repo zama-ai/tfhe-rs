@@ -316,12 +316,12 @@ mod tests {
     use crate::shortint::key_switching_key::KeySwitchingKeyBuildHelper;
     use crate::shortint::keycache::KEY_CACHE;
     use crate::shortint::parameters::test_params::{
-        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     };
+    use crate::shortint::parameters::MetaParameters;
     use crate::shortint::public_key::compact::CompactPrivateKey;
+    use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
     use crate::shortint::CiphertextModulus;
 
     #[test]
@@ -420,12 +420,16 @@ mod tests {
         assert_eq!(c1, c2);
     }
 
-    #[test]
-    fn test_re_randomize_ciphertext_ci_run_filter() {
-        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let cpk_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    fn test_re_randomize_ciphertext(meta_params: MetaParameters) {
+        let params = meta_params.compute_parameters;
+        let comp_params = meta_params
+            .compression_parameters
+            .expect("MetaParameters should have compression_parameters");
+        let dedicated_cpk_params = meta_params
+            .dedicated_compact_public_key_parameters
+            .expect("MetaParameters should have dedicated_compact_public_key_parameters");
+        let cpk_params = dedicated_cpk_params.pke_params;
+        let ks_params = dedicated_cpk_params.ksk_params;
 
         let key_entry = KEY_CACHE.get_from_param(params);
         // Generate the client key and the server key:
@@ -471,4 +475,9 @@ mod tests {
             assert_eq!(dec, msg);
         }
     }
+
+    create_parameterized_test!(test_re_randomize_ciphertext {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
 }

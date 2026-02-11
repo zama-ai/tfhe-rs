@@ -340,7 +340,12 @@ mod tests {
     use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
+    use crate::shortint::parameters::test_params::{
+        TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    };
     use crate::shortint::parameters::*;
+    use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
     use crate::shortint::{
         ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
     };
@@ -349,11 +354,13 @@ mod tests {
     };
     use rand::random;
 
-    #[test]
-    fn test_zk_ciphertext_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    fn test_zk_ciphertext_encryption(meta_params: MetaParameters) {
+        let params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params
+            .dedicated_compact_public_key_parameters
+            .expect("MetaParameters should have dedicated_compact_public_key_parameters");
+        let pke_params = dedicated_cpk_params.pke_params;
+        let ksk_params = dedicated_cpk_params.ksk_params;
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
         let priv_key = CompactPrivateKey::new(pke_params);
@@ -411,11 +418,18 @@ mod tests {
         assert_eq!(msg, decrypted);
     }
 
-    #[test]
-    fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    create_parameterized_test!(test_zk_ciphertext_encryption {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
+
+    fn test_zk_compact_ciphertext_list_encryption(meta_params: MetaParameters) {
+        let params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params
+            .dedicated_compact_public_key_parameters
+            .expect("MetaParameters should have dedicated_compact_public_key_parameters");
+        let pke_params = dedicated_cpk_params.pke_params;
+        let ksk_params = dedicated_cpk_params.ksk_params;
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
         let priv_key = CompactPrivateKey::new(pke_params);
@@ -431,18 +445,13 @@ mod tests {
 
         let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
 
+        let msg_modulus = params.message_modulus().0;
         let msgs = (0..512)
-            .map(|_| random::<u64>() % params.message_modulus.0)
+            .map(|_| random::<u64>() % msg_modulus)
             .collect::<Vec<_>>();
 
         let proven_ct = pub_key
-            .encrypt_and_prove_slice(
-                &msgs,
-                &crs,
-                &metadata,
-                ZkComputeLoad::Proof,
-                params.message_modulus.0,
-            )
+            .encrypt_and_prove_slice(&msgs, &crs, &metadata, ZkComputeLoad::Proof, msg_modulus)
             .unwrap();
         assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
 
@@ -464,10 +473,17 @@ mod tests {
         assert_eq!(msgs, decrypted);
     }
 
-    #[test]
-    fn test_zk_proof_conformance_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    create_parameterized_test!(test_zk_compact_ciphertext_list_encryption {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
+
+    fn test_zk_proof_conformance(meta_params: MetaParameters) {
+        let params = meta_params.compute_parameters;
+        let dedicated_cpk_params = meta_params
+            .dedicated_compact_public_key_parameters
+            .expect("MetaParameters should have dedicated_compact_public_key_parameters");
+        let pke_params = dedicated_cpk_params.pke_params;
 
         let max_lwe_count_per_compact_list = LweCiphertextCount(320);
         let total_lwe_count = 512;
@@ -479,8 +495,10 @@ mod tests {
 
         let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
 
+        let msg_modulus = params.message_modulus().0;
+        let carry_modulus = params.carry_modulus().0;
         let msgs = (0..total_lwe_count)
-            .map(|_| random::<u64>() % params.message_modulus.0)
+            .map(|_| random::<u64>() % msg_modulus)
             .collect::<Vec<_>>();
 
         let proven_ct = pub_key
@@ -489,7 +507,7 @@ mod tests {
                 &crs,
                 &metadata,
                 ZkComputeLoad::Verify,
-                params.message_modulus.0 * params.carry_modulus.0,
+                msg_modulus * carry_modulus,
             )
             .unwrap();
         assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
@@ -520,4 +538,9 @@ mod tests {
 
         assert!(!proven_ct.is_conformant(&no_default_hash_config_conformance_params));
     }
+
+    create_parameterized_test!(test_zk_proof_conformance {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
 }

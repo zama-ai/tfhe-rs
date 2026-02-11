@@ -1,5 +1,5 @@
-# Placeholder workflow file allowing running it without having to merge to main first
-name: placeholder_workflow
+# Run a small subset of tests to ensure quick feedback.
+name: aws_tfhe_param_prod_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -81,7 +81,6 @@ jobs:
           steps.changed-files.outputs.shortint_any_changed == 'true' )
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
-
   setup-instance:
     name: aws_tfhe_param_prod_tests/setup-instance
     if: github.event_name == 'workflow_dispatch' ||

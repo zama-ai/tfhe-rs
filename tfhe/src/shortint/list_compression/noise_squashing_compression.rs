@@ -126,24 +126,37 @@ mod test {
     use crate::shortint::noise_squashing::{
         NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
     };
-    use crate::shortint::parameters::*;
+    use crate::shortint::parameters::test_params::{
+        TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    };
+    use crate::shortint::parameters::{Degree, MetaParameters};
+    use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 
     use rand::prelude::*;
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-    #[test]
-    fn test_noise_squashing_compression_ci_run_filter() {
-        let keycache_entry =
-            KEY_CACHE.get_from_param(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    fn test_noise_squashing_compression(meta_params: MetaParameters) {
+        let (params, noise_squashing_params, noise_squashing_compression_params) = {
+            let meta_noise_squashing_params = meta_params
+                .noise_squashing_parameters
+                .expect("MetaParameters should have noise_squashing_parameters");
+            (
+                meta_params.compute_parameters,
+                meta_noise_squashing_params.parameters,
+                meta_noise_squashing_params
+                    .compression_parameters
+                    .expect("MetaNoiseSquashingParameters should have compression_parameters"),
+            )
+        };
+
+        let keycache_entry = KEY_CACHE.get_from_param(params);
         let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
-        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
-            NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        );
+        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
         let noise_squashing_key = NoiseSquashingKey::new(cks, &noise_squashing_private_key);
 
-        let compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        );
+        let compression_private_key =
+            NoiseSquashingCompressionPrivateKey::new(noise_squashing_compression_params);
 
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&compression_private_key);
@@ -151,8 +164,7 @@ mod test {
         let mut rng = thread_rng();
 
         let id_lut = sks.generate_lookup_table(|x| x);
-        let max_ct_count =
-            NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.lwe_per_glwe;
+        let max_ct_count = noise_squashing_compression_params.lwe_per_glwe;
 
         for ct_count in [0, 1, max_ct_count.0] {
             // Generate random msgs
@@ -217,4 +229,9 @@ mod test {
             }
         }
     }
+
+    create_parameterized_test!(test_noise_squashing_compression {
+        (TEST_META_PARAM_PROD_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        (TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128, CPU_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128)
+    });
 }
