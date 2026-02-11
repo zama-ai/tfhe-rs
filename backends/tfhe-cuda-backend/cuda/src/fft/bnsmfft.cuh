@@ -188,7 +188,7 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
   }
 
   Index twiddle_shift = 1;
-  for (Index l = LOG2_DEGREE - 1; l >= 5; --l) {
+  for (Index l = LOG2_DEGREE - 1; l > 5; --l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     twiddle_shift <<= 1;
@@ -221,8 +221,8 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
       tid = tid + STRIDE;
     }
   }
-
-  for (Index l = 4; l >= 1; --l) {
+  __syncthreads();
+  for (Index l = 5; l >= 1; --l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     twiddle_shift <<= 1;
@@ -425,7 +425,7 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
   }
 
   Index twiddle_shift = DEGREE;
-  for (Index l = 1; l <= 4; ++l) {
+  for (Index l = 1; l <= 5; ++l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     tid = threadIdx.x;
@@ -459,7 +459,7 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
     }
   }
 
-  for (Index l = 5; l <= LOG2_DEGREE - 1; ++l) {
+  for (Index l = 6; l <= LOG2_DEGREE - 1; ++l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     tid = threadIdx.x;
@@ -467,7 +467,7 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
 
     // at this point registers are ready for the  butterfly
     tid = threadIdx.x;
-    __syncthreads();
+
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
@@ -495,6 +495,7 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
 
       tid = tid + STRIDE;
     }
+    __syncthreads();
   }
 
 // last iteration
@@ -536,6 +537,44 @@ __global__ void batch_NSMFFT(double2 *d_input, double2 *d_output,
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
     d_output[blockIdx.x * (params::degree / 2) + tid] = fft[tid];
+    tid = tid + params::degree / params::opt;
+  }
+}
+
+/*
+ * global batch fft
+ * does fft in half size
+ * unrolling half size fft result in half size + 1 elements
+ * this function must be called with actual degree
+ * function takes as input already compressed input
+ */
+template <class params, sharedMemDegree SMD>
+__global__ void batch_NSMFFT_classical_specialized(double2 *d_input,
+                                                   double2 *d_output,
+                                                   double2 *buffer) {
+  extern __shared__ double2 sharedMemoryFFT[];
+  // For specialized we will always have enough shared memory
+  double2 *fft = sharedMemoryFFT;
+  int tid = threadIdx.x;
+
+  double2 *shared_twiddles = fft + params::degree / 2;
+
+  double2 fft_regs[params::opt / 2];
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    shared_twiddles[tid] = negtwiddles[tid];
+    fft_regs[i] = d_input[blockIdx.x * (params::degree / 2) + tid];
+    tid = tid + params::degree / params::opt;
+  }
+  __syncthreads();
+
+  NSMFFT_direct_2_2_params<HalfDegree<params>>(fft, fft_regs, shared_twiddles);
+  __syncthreads();
+
+  tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    d_output[blockIdx.x * (params::degree / 2) + tid] = fft_regs[i];
     tid = tid + params::degree / params::opt;
   }
 }

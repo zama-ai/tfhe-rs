@@ -204,15 +204,13 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
   // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
-// We need a different version for classical accumulation because the
-// bootstrapping key is not stored in the same way than the keybundles. This is
-// a suboptimal version cause global reads are not coalesced, but the bsk key is
-// small and hopefully it will be stored in cache. We can optimize this later.
-template <typename G, class params, uint32_t polynomial_size,
-          uint32_t glwe_dimension, uint32_t level_count>
-__device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical(
-    double2 *fft, double2 *fft_regs, double2 *buffer_regs,
-    const double2 *__restrict__ bootstrapping_key, int iteration, G &group,
+// We need a different version for the default specialized 2_2 params because
+// in that case we don't need to use dsm and then no cluster sync
+template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
+          uint32_t level_count>
+__device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
+    double2 *fft, double2 *fft_regs, double2 *buffer_regs, double2 *base_smem,
+    const double2 *__restrict__ bootstrapping_key, int iteration,
     int this_block_rank) {
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
@@ -224,23 +222,25 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical(
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
                                         glwe_dimension, level_count, level_id>(
           bootstrapping_key, iteration, this_block_rank);
-  auto bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2;
-  polynomial_product_accumulate_in_fourier_domain_2_2_params_classical<
-      params, double2, true>(buffer_regs, fft_regs, bsk_poly);
+  auto bsk_poly = bsk_slice + threadIdx.y * polynomial_size / 2;
+  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
+                                                             true>(
+      buffer_regs, fft_regs, bsk_poly);
 
   // Synchronize to ensure all blocks have written its fft result
-  group.sync();
+  __syncthreads();
   constexpr uint32_t glwe_id = 1;
   int idx = (glwe_id + this_block_rank) % (glwe_dimension + 1);
   bsk_slice =
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
                                         glwe_dimension, level_count, level_id>(
           bootstrapping_key, iteration, idx);
-  bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2;
-  auto fft_slice =
-      get_join_buffer_element_tbc<G, level_id, glwe_dimension>(idx, group, fft);
-  polynomial_product_accumulate_in_fourier_domain_2_2_params_classical<
-      params, double2, false>(buffer_regs, fft_slice, bsk_poly);
+  bsk_poly = bsk_slice + threadIdx.y * polynomial_size / 2;
+  auto fft_slice = base_smem + 2 * idx * (polynomial_size / 2);
+  // get_join_buffer_element_tbc<G, level_id, glwe_dimension>(idx, group, fft);
+  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
+                                                             false>(
+      buffer_regs, fft_slice, bsk_poly);
 
   // We don't need to synchronize here, cause we are going to use a buffer
   // different than the input In 2_2 params, level_count=1 so we can just return

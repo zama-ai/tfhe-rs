@@ -1,5 +1,6 @@
 #include "bootstrapping_key.cuh"
 #include "checked_arithmetic.h"
+#include "programmable_bootstrap_classic.cuh"
 
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
@@ -8,9 +9,12 @@ void cuda_convert_lwe_programmable_bootstrap_key_32_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
+  // We don't have a specialized version for 32 bit
+  bool use_specialized = false;
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int32_t *)src, polynomial_size, total_polynomials);
+      (const int32_t *)src, polynomial_size, total_polynomials,
+      use_specialized);
 }
 
 void cuda_convert_lwe_programmable_bootstrap_key_64_async(
@@ -20,9 +24,13 @@ void cuda_convert_lwe_programmable_bootstrap_key_64_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  bool use_specialized = supports_specialized_2_2_params<uint64_t>(
+      polynomial_size, glwe_dim, level_count, max_shared_memory);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int64_t *)src, polynomial_size, total_polynomials);
+      (const int64_t *)src, polynomial_size, total_polynomials,
+      use_specialized);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
