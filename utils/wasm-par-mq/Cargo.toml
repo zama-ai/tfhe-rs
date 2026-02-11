@@ -1,0 +1,68 @@
+[package]
+name = "wasm-par-mq"
+version = "0.1.0"
+edition = "2024"
+keywords = ["wasm", "parallel", "web-workers"]
+homepage = "https://zama.ai/"
+documentation = "https://docs.rs/wasm-par-mq"
+repository = "https://github.com/zama-ai/tfhe-rs"
+license = "BSD-3-Clause-Clear"
+description = "Parallel execution on WebAssembly using Web Workers and message passing"
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["sync-api"]
+sync-api = [
+    # Coordinator (Service Worker)
+    "web-sys/ServiceWorkerGlobalScope",
+    "web-sys/ExtendableEvent",
+    "web-sys/FetchEvent",
+    "web-sys/Request",
+    "web-sys/RequestInit",
+    "web-sys/Response",
+    "web-sys/ResponseInit",
+    "web-sys/Headers",
+    "web-sys/Clients",
+    # SyncExecutor
+    "web-sys/XmlHttpRequest",
+    "web-sys/WorkerLocation",
+    "web-sys/WorkerGlobalScope",
+    "web-sys/WorkerNavigator",
+    "web-sys/UrlSearchParams",
+    # Service Worker Registration (from main thread)
+    "web-sys/ServiceWorker",
+    "web-sys/ServiceWorkerContainer",
+    "web-sys/ServiceWorkerRegistration",
+    "web-sys/RegistrationOptions",
+]
+
+[dependencies]
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "Blob",
+    "BlobPropertyBag",
+    "DedicatedWorkerGlobalScope",
+    "ErrorEvent",
+    "Location",
+    "MessageEvent",
+    "Navigator",
+    "Url",
+    "Window",
+    "Worker",
+    "console",
+] }
+js-sys = "0.3"
+postcard = { version = "1.0", features = ["alloc"] }
+serde = { workspace = true, features = ["default", "derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+futures = "0.3"
+paste = "1.0.15"
+inventory = "0.3.21"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
