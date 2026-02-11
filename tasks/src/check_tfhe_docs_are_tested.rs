@@ -5,13 +5,14 @@ use std::io::{Error, ErrorKind};
 // TODO use .gitignore or git to resolve ignored files
 const DIR_TO_IGNORE: [&str; 3] = [".git", "target", "apps/test-vectors"];
 
-const FILES_TO_IGNORE: [&str; 10] = [
+const FILES_TO_IGNORE: [&str; 11] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256-bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
     // TODO: should we test this ?
     "utils/tfhe-versionable/README.md",
+    "utils/wasm-par-mq/README.md",
     // TODO: find a way to test the tfhe-fft readme
     "tfhe-fft/README.md",
     // TODO: find a way to test the tfhe-ntt readme
