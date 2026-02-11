@@ -43,7 +43,7 @@ const _: () = {
 };
 pub type Scalar = BigInt;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct G1Point {
     pub x: Fp,
     pub y: Fp,
@@ -58,7 +58,7 @@ const _: () = {
     ["Offset of field: G1Point::infinity"][::std::mem::offset_of!(G1Point, infinity) - 112usize];
 };
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct G2Point {
     pub x: Fp2,
     pub y: Fp2,

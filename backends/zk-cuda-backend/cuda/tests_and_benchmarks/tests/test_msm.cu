@@ -265,9 +265,10 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
                size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
-  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  UNSIGNED_LIMB expected_scalar =
+      static_cast<UNSIGNED_LIMB>(triangular_number(N));
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
-                                 expected_scalar);
+                                    expected_scalar);
 
   // Convert projective result to affine, then from Montgomery form before
   // comparing
@@ -416,9 +417,10 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
                size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
-  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  UNSIGNED_LIMB expected_scalar =
+      static_cast<UNSIGNED_LIMB>(triangular_number(N));
   single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
-                                 expected_scalar);
+                                    expected_scalar);
 
   // Convert projective result to affine, then from Montgomery form before
   // comparing
@@ -564,13 +566,14 @@ TEST_F(MSMTest, G1MSMLargeN) {
                                                 stream, gpu_index, true);
 
     // Compute MSM on device (returns projective point)
-    point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch,
-                 N, size_tracker);
+    point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+                 size_tracker);
 
     // Compute expected result on device: G * (N * (N+1) / 2)
-    UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+    UNSIGNED_LIMB expected_scalar =
+        static_cast<UNSIGNED_LIMB>(triangular_number(N));
     single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
-                                   expected_scalar);
+                                      expected_scalar);
 
     // Convert projective result to affine, then from Montgomery form before
     // comparing
@@ -726,13 +729,14 @@ TEST_F(MSMTest, G2MSMLargeN) {
                                                 stream, gpu_index, true);
 
     // Compute MSM on device (returns projective point)
-    point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch,
-                 N, size_tracker);
+    point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+                 size_tracker);
 
     // Compute expected result on device: G * (N * (N+1) / 2)
-    UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+    UNSIGNED_LIMB expected_scalar =
+        static_cast<UNSIGNED_LIMB>(triangular_number(N));
     single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
-                                   expected_scalar);
+                                      expected_scalar);
 
     // Convert projective result to affine, then from Montgomery form before
     // comparing
@@ -883,9 +887,10 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
                size_tracker);
 
-  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  UNSIGNED_LIMB expected_scalar =
+      static_cast<UNSIGNED_LIMB>(triangular_number(N));
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
-                                 expected_scalar);
+                                    expected_scalar);
 
   G1Projective *d_result_proj = d_result;
   auto *d_result_affine =
@@ -1008,9 +1013,10 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
                size_tracker);
 
-  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  UNSIGNED_LIMB expected_scalar =
+      static_cast<UNSIGNED_LIMB>(triangular_number(N));
   single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
-                                 expected_scalar);
+                                    expected_scalar);
 
   G2Projective *d_result_proj = d_result;
   auto *d_result_affine =

@@ -14,7 +14,31 @@ pub use g1::*;
 pub use g2::*;
 pub use scalar::*;
 
-use crate::bindings::Fp;
+use crate::bindings::{Fp, Fp2, G1Point, G2Point};
+
+// The identity element for affine elliptic curve points is the point at infinity.
+// Bindgen's derived Default would zero all fields (infinity: false), producing an
+// invalid curve point. These manual impls set infinity: true.
+
+impl Default for G1Point {
+    fn default() -> Self {
+        Self {
+            x: Fp::default(),
+            y: Fp::default(),
+            infinity: true,
+        }
+    }
+}
+
+impl Default for G2Point {
+    fn default() -> Self {
+        Self {
+            x: Fp2::default(),
+            y: Fp2::default(),
+            infinity: true,
+        }
+    }
+}
 
 /// Number of 64-bit limbs in a BLS12-446 base field element (Fp).
 /// BLS12-446 has a 446-bit prime, requiring ceil(446/64) = 7 limbs.

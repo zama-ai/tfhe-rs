@@ -25,7 +25,7 @@ fn get_scalar_modulus() -> &'static [u64; SCALAR_LIMBS] {
 
 /// Scalar type for BLS12-446 (320-bit integers, 5 limbs)
 /// This matches the C++ Scalar type (BigInt<ZP_LIMBS>)
-#[derive(Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Scalar {
     inner: ScalarFFI,
 }
@@ -63,7 +63,6 @@ impl Scalar {
 
     /// Get the inner FFI type (for internal use)
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn inner(&self) -> &ScalarFFI {
         &self.inner
     }
@@ -120,12 +119,6 @@ impl Scalar {
             "reduce_once: input was >= 2*r, single subtraction insufficient"
         );
         reduced
-    }
-}
-
-impl fmt::Debug for Scalar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Scalar({:?})", self.limbs())
     }
 }
 

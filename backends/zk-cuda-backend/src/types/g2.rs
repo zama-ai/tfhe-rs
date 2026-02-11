@@ -5,14 +5,6 @@ use std::fmt;
 
 use super::{fp_to_decimal_string, Scalar};
 
-fn zero_g2_point() -> G2Point {
-    G2Point {
-        x: Fp2::default(),
-        y: Fp2::default(),
-        infinity: false,
-    }
-}
-
 /// G2 affine point on the BLS12-446 curve
 #[derive(Clone, Copy)]
 pub struct G2Affine {
@@ -30,8 +22,7 @@ impl G2Affine {
 
     /// Create the point at infinity
     pub fn infinity() -> Self {
-        let mut point = zero_g2_point();
-        point.infinity = true;
+        let mut point = G2Point::default();
         // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
         // The FFI function only writes to the output pointer, which is valid for the
         // duration of this call since `point` is stack-allocated.
@@ -222,7 +213,7 @@ impl G2Projective {
 
     /// Convert to affine coordinates
     pub fn to_affine(&self) -> G2Affine {
-        let mut affine = zero_g2_point();
+        let mut affine = G2Point::default();
         // SAFETY: Both `affine` and `self.inner` are valid repr(C) structs.
         // `affine` is a mutable reference to stack-allocated memory, and `self.inner`
         // is a shared reference valid for the duration of this call.

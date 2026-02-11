@@ -36,8 +36,8 @@ fn main() {
         let output = Command::new(&script_path)
             .output()
             .expect("Failed to run get_os_name.sh — is tfhe-cuda-backend present?");
-        let distribution = String::from_utf8(output.stdout)
-            .expect("get_os_name.sh output must be valid UTF-8");
+        let distribution =
+            String::from_utf8(output.stdout).expect("get_os_name.sh output must be valid UTF-8");
         if distribution != "Ubuntu\n" {
             println!(
                 "cargo:warning=This Linux distribution is not officially supported. \
@@ -122,6 +122,10 @@ fn main() {
                 .derive_default(true)
                 .derive_partialeq(true)
                 .derive_eq(true)
+                // G1Point/G2Point need manual Default impls (identity = infinity: true),
+                // not the zeroed-memory default that bindgen would derive
+                .no_default("G1Point")
+                .no_default("G2Point")
                 .clang_arg("-x")
                 .clang_arg("c++")
                 .clang_arg("-std=c++17")

@@ -277,7 +277,8 @@ void point_neg(cudaStream_t stream, uint32_t gpu_index, PointType *d_result,
 // Scalar multiplication: d_result = scalar * d_point (single-limb scalar)
 template <typename PointType>
 void single_point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
-                                   PointType *d_result, const PointType *d_point,
+                                   PointType *d_result,
+                                   const PointType *d_point,
                                    UNSIGNED_LIMB scalar);
 template <typename PointType>
 void single_point_scalar_mul(cudaStream_t stream, uint32_t gpu_index,

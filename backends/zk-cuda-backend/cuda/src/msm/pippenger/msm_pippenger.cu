@@ -484,8 +484,7 @@ void point_msm_async_pippenger_impl(
     cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
     const AffineType *d_points, const Scalar *d_scalars,
     ProjectiveType *d_scratch, uint32_t n, uint32_t threads_per_block,
-    uint32_t window_size, uint32_t bucket_count,
-    uint64_t &size_tracker) {
+    uint32_t window_size, uint32_t bucket_count, uint64_t &size_tracker) {
   using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
 
   if (n == 0) {

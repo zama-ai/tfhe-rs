@@ -1251,7 +1251,8 @@ void point_from_montgomery(cudaStream_t stream, uint32_t gpu_index,
 // Template function: Scalar multiplication with a single-limb scalar
 template <typename PointType>
 void single_point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
-                                   PointType *d_result, const PointType *d_point,
+                                   PointType *d_result,
+                                   const PointType *d_point,
                                    UNSIGNED_LIMB scalar) {
   PANIC_IF_FALSE(d_result != nullptr && d_point != nullptr,
                  "single_point_scalar_mul_async: null pointer argument");

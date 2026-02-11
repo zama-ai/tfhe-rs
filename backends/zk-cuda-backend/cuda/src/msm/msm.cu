@@ -45,8 +45,8 @@ void point_msm_async_g2(cudaStream_t stream, uint32_t gpu_index,
 
 void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
                   G1Projective *d_result, const G1Affine *d_points,
-                  const Scalar *d_scalars, G1Projective *d_scratch,
-                  uint32_t n, uint64_t &size_tracker) {
+                  const Scalar *d_scalars, G1Projective *d_scratch, uint32_t n,
+                  uint64_t &size_tracker) {
   point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars,
                      d_scratch, n, size_tracker);
   cuda_synchronize_stream(stream, gpu_index);

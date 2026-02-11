@@ -24,7 +24,7 @@ bindgen.workspace = true
 [dependencies]
 ark-ec.workspace = true
 ark-ff.workspace = true
-tfhe-cuda-backend = { path = "../tfhe-cuda-backend" }
+tfhe-cuda-backend = { version = "0.13.0", path = "../tfhe-cuda-backend" }
 
 [features]
 default = []

@@ -83,7 +83,8 @@ TEST_F(ScalarMulTest, G1ScalarMulOne) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
+               size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -160,7 +161,8 @@ TEST_F(ScalarMulTest, G1ScalarMulZero) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
+               size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -229,7 +231,8 @@ TEST_F(ScalarMulTest, G1ScalarMulTwo) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
+               size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -326,7 +329,8 @@ TEST_F(ScalarMulTest, G1ScalarMulThree) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
+               size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
