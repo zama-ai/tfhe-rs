@@ -720,6 +720,7 @@ void cleanup_cuda_keyswitch(cudaStream_t stream, uint32_t gpu_index,
   cuda_drop_with_size_tracking_async(ks_tmp_memory->d_buffer, stream, gpu_index,
                                      allocate_gpu_memory);
   delete ks_tmp_memory;
+  cuda_synchronize_stream(stream, gpu_index);
 }
 
 #endif

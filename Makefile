@@ -282,6 +282,19 @@ fmt_js: check_nvm_installed
 	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt && \
 	$(MAKE) -C tfhe/js_on_wasm_tests fmt
 
+.PHONY: semgrep_lint_setup_venv # Create venv and install Python dependencies for GPU lint checks
+semgrep_lint_setup_venv:
+	python3 -m venv venv
+	venv/bin/pip install -r scripts/gpu-lint-requirements.txt
+
+.PHONY: semgrep_and_lint_gpu_code # Run semgrep and lint checks on CUDA backend code
+semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
+	find "$(TFHECUDA_SRC)" -name '*.h' -o -name '*.cuh' -o -name '*.cu' \
+		| grep -v '/cmake-build-debug/' \
+		| grep -v '/build/' \
+		| xargs venv/bin/semgrep --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
+	venv/bin/python3 "scripts/check_scratch_cleanup.py"
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt

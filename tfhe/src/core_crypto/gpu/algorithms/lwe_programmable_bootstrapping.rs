@@ -3,9 +3,7 @@ use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextL
 use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{
-    programmable_bootstrap_128_async, programmable_bootstrap_async, CudaStreams,
-};
+use crate::core_crypto::gpu::{programmable_bootstrap, programmable_bootstrap_128, CudaStreams};
 use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
 #[allow(clippy::too_many_arguments)]
@@ -117,7 +115,7 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
     let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
     unsafe {
-        programmable_bootstrap_async(
+        programmable_bootstrap(
             streams,
             &mut output.0.d_vec,
             output_indexes,
@@ -134,7 +132,6 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
             u32::try_from(num_samples.0).unwrap(),
             bsk.ms_noise_reduction_configuration.as_ref(),
         );
-        streams.synchronize();
     }
 }
 
@@ -248,7 +245,7 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
     let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
     unsafe {
-        programmable_bootstrap_128_async(
+        programmable_bootstrap_128(
             streams,
             &mut output.0.d_vec,
             &accumulator.0.d_vec,
@@ -262,6 +259,5 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
             u32::try_from(num_samples.0).unwrap(),
             bsk.ms_noise_reduction_configuration.as_ref(),
         );
-        streams.synchronize();
     }
 }

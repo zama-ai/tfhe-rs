@@ -1,6 +1,6 @@
 #include "integer/abs.cuh"
 
-uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_64(
+uint64_t scratch_cuda_integer_abs_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool is_signed,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -19,9 +19,10 @@ uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_64(
       num_blocks, params, allocate_gpu_memory);
 }
 
-void cuda_integer_abs_inplace_radix_ciphertext_64(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *ct, int8_t *mem_ptr,
-    bool is_signed, void *const *bsks, void *const *ksks) {
+void cuda_integer_abs_inplace_64_async(CudaStreamsFFI streams,
+                                       CudaRadixCiphertextFFI *ct,
+                                       int8_t *mem_ptr, bool is_signed,
+                                       void *const *bsks, void *const *ksks) {
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 
@@ -29,8 +30,8 @@ void cuda_integer_abs_inplace_radix_ciphertext_64(
                              (uint64_t **)(ksks), mem, is_signed);
 }
 
-void cleanup_cuda_integer_abs_inplace(CudaStreamsFFI streams,
-                                      int8_t **mem_ptr_void) {
+void cleanup_cuda_integer_abs_inplace_64(CudaStreamsFFI streams,
+                                         int8_t **mem_ptr_void) {
   int_abs_buffer<uint64_t> *mem_ptr =
       (int_abs_buffer<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));

@@ -79,7 +79,7 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Install CUDA
+      - name: Install CUDA and other dependencies
         if: env.SECRETS_AVAILABLE == 'false'
         shell: bash
         run: |
@@ -129,6 +129,11 @@ jobs:
       - name: Run clippy checks
         run: |
           make pcc_gpu
+
+      - name: Run semgrep and lint checks on CUDA code
+        run: |
+          sudo apt update && sudo apt -y install python3-venv
+          make semgrep_and_lint_gpu_code
 
       - name: Check build with hpu enabled
         run: |

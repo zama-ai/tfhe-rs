@@ -50,6 +50,7 @@ bool mem_pools_enabled = false;
 // especially the ones involving many allocations.
 // We tested more complex configurations of mempools, but they did not yield
 // better results.
+// nosemgrep: cuda-function-sync-not-last
 void cuda_setup_mempool(uint32_t caller_gpu_index) {
   if (!mem_pools_enabled) {
     std::lock_guard lock(pool_mutex);

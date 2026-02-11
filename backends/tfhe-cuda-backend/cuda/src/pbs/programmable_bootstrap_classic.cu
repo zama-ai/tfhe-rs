@@ -299,47 +299,10 @@ uint64_t scratch_cuda_programmable_bootstrap(
 
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
- * the classical PBS on 32 bits inputs, into `buffer`. It also
- * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
- * be used.
- */
-uint64_t scratch_cuda_programmable_bootstrap_32(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-#if (CUDA_ARCH >= 900)
-  if (has_support_to_cuda_programmable_bootstrap_tbc<uint32_t>(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, max_shared_memory))
-    return scratch_cuda_programmable_bootstrap_tbc<uint32_t>(
-        stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
-  else
-#endif
-      if (has_support_to_cuda_programmable_bootstrap_cg<uint32_t>(
-              glwe_dimension, polynomial_size, level_count,
-              input_lwe_ciphertext_count, max_shared_memory))
-    return scratch_cuda_programmable_bootstrap_cg<uint32_t>(
-        stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
-  else
-    return scratch_cuda_programmable_bootstrap<uint32_t>(
-        stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
-}
-
-/*
- * This scratch function allocates the necessary amount of data on the GPU for
  * the PBS on 64 bits inputs, into `buffer`. It also configures SM options on
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
-uint64_t scratch_cuda_programmable_bootstrap_64(
+uint64_t scratch_cuda_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
@@ -522,7 +485,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
 
 /* Perform bootstrapping on a batch of input u32 LWE ciphertexts.
  */
-void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -644,7 +607,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
  * 	- the constant memory (64K) is used for storing the roots of identity
  * values for the FFT
  */
-void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+void cuda_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -710,8 +673,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
  * This cleanup function frees the data on GPU for the PBS buffer for 32 or 64
  * bits inputs.
  */
-void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
-                                         int8_t **buffer) {
+void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
+                                            int8_t **buffer) {
   auto x = (pbs_buffer<uint64_t, CLASSICAL> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete x;

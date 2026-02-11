@@ -1,6 +1,6 @@
 #include "integer/vector_comparison.cuh"
 
-uint64_t scratch_cuda_unchecked_all_eq_slices_64(
+uint64_t scratch_cuda_unchecked_all_eq_slices_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -20,13 +20,11 @@ uint64_t scratch_cuda_unchecked_all_eq_slices_64(
       num_inputs, num_blocks, allocate_gpu_memory);
 }
 
-void cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
-                                     CudaRadixCiphertextFFI *match_ct,
-                                     CudaRadixCiphertextFFI const *lhs,
-                                     CudaRadixCiphertextFFI const *rhs,
-                                     uint32_t num_inputs, uint32_t num_blocks,
-                                     int8_t *mem, void *const *bsks,
-                                     void *const *ksks) {
+void cuda_unchecked_all_eq_slices_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *match_ct,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    uint32_t num_inputs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
+    void *const *ksks) {
 
   host_unchecked_all_eq_slices<uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_inputs, num_blocks,
@@ -45,7 +43,7 @@ void cleanup_cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
   *mem_ptr_void = nullptr;
 }
 
-uint64_t scratch_cuda_unchecked_contains_sub_slice_64(
+uint64_t scratch_cuda_unchecked_contains_sub_slice_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -65,13 +63,11 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice_64(
       num_lhs, num_rhs, num_blocks, allocate_gpu_memory);
 }
 
-void cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
-                                          CudaRadixCiphertextFFI *match_ct,
-                                          CudaRadixCiphertextFFI const *lhs,
-                                          CudaRadixCiphertextFFI const *rhs,
-                                          uint32_t num_rhs, uint32_t num_blocks,
-                                          int8_t *mem, void *const *bsks,
-                                          void *const *ksks) {
+void cuda_unchecked_contains_sub_slice_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *match_ct,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    uint32_t num_rhs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
+    void *const *ksks) {
 
   host_unchecked_contains_sub_slice<uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_rhs, num_blocks,

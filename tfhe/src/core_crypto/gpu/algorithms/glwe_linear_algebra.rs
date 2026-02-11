@@ -8,9 +8,10 @@ use crate::core_crypto::prelude::{
     GlweCiphertextCount, MonomialDegree, UnsignedInteger, UnsignedTorus,
 };
 use tfhe_cuda_backend::bindings::{
-    cleanup_wrapping_polynomial_mul_one_to_many_64,
-    cuda_glwe_wrapping_polynomial_mul_one_to_many_64, cuda_wrapping_polynomial_mul_one_to_many_64,
-    scratch_wrapping_polynomial_mul_one_to_many_64,
+    cleanup_cuda_wrapping_polynomial_mul_one_to_many_64,
+    cuda_glwe_wrapping_polynomial_mul_one_to_many_64_async,
+    cuda_wrapping_polynomial_mul_one_to_many_64_async,
+    scratch_cuda_wrapping_polynomial_mul_one_to_many_64_async,
 };
 
 pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
@@ -53,13 +54,13 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     unsafe {
-        scratch_wrapping_polynomial_mul_one_to_many_64(
+        scratch_cuda_wrapping_polynomial_mul_one_to_many_64_async(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             u32::try_from(lhs.len()).unwrap(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
-        cuda_wrapping_polynomial_mul_one_to_many_64(
+        cuda_wrapping_polynomial_mul_one_to_many_64_async(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             out.as_mut_c_ptr(0),
@@ -69,7 +70,7 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
             u32::try_from(lhs.len()).unwrap(),
             u32::try_from(rhs.len() / lhs.len()).unwrap(),
         );
-        cleanup_wrapping_polynomial_mul_one_to_many_64(
+        cleanup_cuda_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             mem_ptr,
@@ -132,13 +133,13 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     unsafe {
-        scratch_wrapping_polynomial_mul_one_to_many_64(
+        scratch_cuda_wrapping_polynomial_mul_one_to_many_64_async(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             u32::try_from(lhs.polynomial_size().0).unwrap(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
-        cuda_glwe_wrapping_polynomial_mul_one_to_many_64(
+        cuda_glwe_wrapping_polynomial_mul_one_to_many_64_async(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             out.0.d_vec.as_mut_c_ptr(0),
@@ -149,7 +150,7 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
             u32::try_from(lhs.glwe_dimension().0).unwrap(),
             u32::try_from(rhs.len() / lhs.polynomial_size().0).unwrap(),
         );
-        cleanup_wrapping_polynomial_mul_one_to_many_64(
+        cleanup_cuda_wrapping_polynomial_mul_one_to_many_64(
             stream.ptr[0],
             stream.gpu_indexes[0].get(),
             mem_ptr,

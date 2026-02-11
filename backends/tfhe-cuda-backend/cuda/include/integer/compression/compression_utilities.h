@@ -60,9 +60,14 @@ template <typename Torus> struct int_compression {
                                        gpu_memory_allocated);
     tmp_glwe_array_out = nullptr;
 
-    cleanup_packing_keyswitch_lwe_list_to_glwe(
-        streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
-        gpu_memory_allocated);
+    if constexpr (sizeof(Torus) == 8)
+      cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_64(
+          streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
+          gpu_memory_allocated);
+    else
+      cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_128(
+          streams.stream(0), streams.gpu_index(0), &fp_ks_buffer,
+          gpu_memory_allocated);
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

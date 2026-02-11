@@ -6,7 +6,9 @@ use crate::core_crypto::prelude::*;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::cell::RefCell;
-use tfhe_cuda_backend::bindings::{cuda_centered_modulus_switch_64, cuda_modulus_switch_64};
+use tfhe_cuda_backend::bindings::{
+    cuda_centered_modulus_switch_64_async, cuda_modulus_switch_64_async,
+};
 
 thread_local! {
     static TEST_RESOURCES: RefCell<TestResources> = {
@@ -142,7 +144,7 @@ fn check_cuda_modulus_switch_is_centered(
                     CudaLweCiphertextList::from_lwe_ciphertext(&input_lwe, &local_stream);
                 unsafe {
                     match ms {
-                        ModulusSwitchAlgorithm::Regular => cuda_modulus_switch_64(
+                        ModulusSwitchAlgorithm::Regular => cuda_modulus_switch_64_async(
                             local_stream.ptr[0],
                             local_stream.gpu_indexes[0].get(),
                             d_lwe_output.0.d_vec.as_mut_c_ptr(0),
@@ -150,7 +152,7 @@ fn check_cuda_modulus_switch_is_centered(
                             d_lwe_input.lwe_dimension().to_lwe_size().0 as u32,
                             log_modulus.0 as u32,
                         ),
-                        ModulusSwitchAlgorithm::Centered => cuda_centered_modulus_switch_64(
+                        ModulusSwitchAlgorithm::Centered => cuda_centered_modulus_switch_64_async(
                             local_stream.ptr[0],
                             local_stream.gpu_indexes[0].get(),
                             d_lwe_output.0.d_vec.as_mut_c_ptr(0),
@@ -259,7 +261,7 @@ fn compare_cpu_and_gpu_centered_modulus_switch() {
     );
 
     unsafe {
-        cuda_centered_modulus_switch_64(
+        cuda_centered_modulus_switch_64_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             d_lwe_output.0.d_vec.as_mut_c_ptr(0),

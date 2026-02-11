@@ -191,7 +191,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_multi_bit_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 #endif
 
@@ -225,7 +225,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_multi_bit_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
@@ -248,7 +248,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_multi_bit_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
 #if CUDA_ARCH >= 900
@@ -280,7 +280,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 #endif
 
@@ -312,7 +312,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
@@ -337,19 +337,19 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_programmable_bootstrap(stream, gpu_index, &buffer);
+  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, AmortizedPBS)
 (benchmark::State &st) {
 
-  scratch_cuda_programmable_bootstrap_amortized_64(
+  scratch_cuda_programmable_bootstrap_amortized_64_async(
       stream, gpu_index, &buffer, glwe_dimension, polynomial_size,
       input_lwe_ciphertext_count, true);
 
   for (auto _ : st) {
     // Execute PBS
-    cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
+    cuda_programmable_bootstrap_amortized_64_async(
         stream, gpu_index, (void *)d_lwe_ct_out_array,
         (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
         (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
@@ -359,7 +359,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, AmortizedPBS)
     cuda_synchronize_stream(stream, gpu_index);
   }
 
-  cleanup_cuda_programmable_bootstrap_amortized(stream, gpu_index, &buffer);
+  cleanup_cuda_programmable_bootstrap_amortized_64(stream, gpu_index, &buffer);
 }
 
 static void

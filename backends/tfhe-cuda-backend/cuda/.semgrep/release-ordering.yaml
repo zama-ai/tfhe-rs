@@ -1,0 +1,64 @@
+rules:
+  - id: release-missing-cuda-synchronize
+    message: >-
+      release() method does not call cuda_synchronize_stream or delegate to
+      another release(). All release methods must synchronize the CUDA stream
+      (directly or via delegation) to ensure async GPU operations complete
+      before returning.
+    severity: ERROR
+    languages: [cpp]
+    paths:
+      exclude:
+        - "**/helper_multi_gpu.h"
+    patterns:
+      - pattern: |
+          void release(...) {
+            ...
+          }
+      - pattern-not: |
+          void release(...) {
+            ...
+            cuda_synchronize_stream($S.stream(0), ...);
+            ...
+          }
+      - pattern-not: |
+          void release(cudaStream_t stream, ...) {
+            ...
+            cuda_synchronize_stream(stream, ...);
+            ...
+          }
+      - pattern-not: |
+          void release(...) {
+            ...
+            $MEM->release(...);
+            ...
+          }
+
+
+  - id: cleanup-missing-release-or-synchronize
+    message: >-
+      cleanup_ function does not call release() or cuda_synchronize_stream().
+      All non-async cleanup_ functions must either call release() on a memory
+      structure or synchronize the CUDA stream.
+    severity: ERROR
+    languages: [cpp]
+    patterns:
+      - pattern: |
+          void $FUNC(...) {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: ^cleanup_.*(?<!_async)$
+      - pattern-not: |
+          void $FUNC(...) {
+            ...
+            $MEM->release(...);
+            ...
+          }
+      - pattern-not: |
+          void $FUNC(...) {
+            ...
+            cuda_synchronize_stream(...);
+            ...
+          }

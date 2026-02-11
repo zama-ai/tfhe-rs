@@ -8,6 +8,7 @@
 #include "fft/bnsmfft.cuh"
 #include "helper_multi_gpu.h"
 #include "pbs/pbs_128_utilities.h"
+#include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "polynomial/polynomial_math.cuh"
 
@@ -255,7 +256,7 @@ void execute_pbs_async(CudaStreams streams,
                        const LweArrayVariant<InputTorus> &lwe_array_in,
                        const LweArrayVariant<InputTorus> &lwe_input_indexes,
                        void *const *bootstrapping_keys,
-                       std::vector<int8_t *> pbs_buffer,
+                       std::vector<pbs_buffer_base *> pbs_buffer,
                        uint32_t glwe_dimension, uint32_t lwe_dimension,
                        uint32_t polynomial_size, uint32_t base_log,
                        uint32_t level_count, uint32_t grouping_factor,
@@ -287,13 +288,13 @@ void execute_pbs_async(CudaStreams streams,
         auto current_lwe_input_indexes =
             get_variant_element(lwe_input_indexes, i);
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            num_many_lut, lut_stride);
+            bootstrapping_keys[i], reinterpret_cast<int8_t *>(pbs_buffer[i]),
+            lwe_dimension, glwe_dimension, polynomial_size, base_log,
+            level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     default:
@@ -324,13 +325,13 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+        cuda_multi_bit_programmable_bootstrap_64_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_many_lut, lut_stride);
+            bootstrapping_keys[i], reinterpret_cast<int8_t *>(pbs_buffer[i]),
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            base_log, level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     case CLASSICAL:
@@ -353,13 +354,13 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+        cuda_programmable_bootstrap_64_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            num_many_lut, lut_stride);
+            bootstrapping_keys[i], reinterpret_cast<int8_t *>(pbs_buffer[i]),
+            lwe_dimension, glwe_dimension, polynomial_size, base_log,
+            level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     default:
@@ -385,12 +386,13 @@ void execute_pbs_async(CudaStreams streams,
         auto current_lwe_input_indexes =
             get_variant_element(lwe_input_indexes, i);
 
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+        cuda_multi_bit_programmable_bootstrap_128_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], current_lwe_array_in,
-            current_lwe_input_indexes, bootstrapping_keys[i], pbs_buffer[i],
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            base_log, level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
+            current_lwe_input_indexes, bootstrapping_keys[i],
+            reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
+            glwe_dimension, polynomial_size, grouping_factor, base_log,
+            level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     case CLASSICAL:
@@ -413,11 +415,12 @@ void execute_pbs_async(CudaStreams streams,
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
+        cuda_programmable_bootstrap_128_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
             lut_vec[i], current_lwe_array_in, bootstrapping_keys[i],
-            pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
-            base_log, level_count, num_inputs_on_gpu);
+            reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count,
+            num_inputs_on_gpu);
       }
       break;
     default:
@@ -442,32 +445,22 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          bool allocate_gpu_memory,
                          PBS_MS_REDUCTION_T noise_reduction_type,
                          uint64_t &size_tracker) {
-  if constexpr (std::is_same_v<Torus, uint32_t>) {
-    // 32 bits
-    switch (pbs_type) {
-    case MULTI_BIT:
-      PANIC("Error: 32-bit multibit PBS is not supported.\n")
-    case CLASSICAL:
-      size_tracker = scratch_cuda_programmable_bootstrap_32(
-          stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, level_count, input_lwe_ciphertext_count,
-          allocate_gpu_memory, noise_reduction_type);
-      break;
-    default:
-      PANIC("Error: unsupported cuda PBS type.")
-    }
-  } else if constexpr (std::is_same_v<Torus, uint64_t>) {
+  static_assert(
+      std::is_same_v<Torus, uint64_t> || std::is_same_v<Torus, __uint128_t>,
+      "Cuda error: unsupported modulus size: only 64, or 128-bit integer "
+      "moduli are supported.");
+  if constexpr (std::is_same_v<Torus, uint64_t>) {
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_64(
+      size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_64_async(
           stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
           level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
       break;
     case CLASSICAL:
-      size_tracker = scratch_cuda_programmable_bootstrap_64(
+      size_tracker = scratch_cuda_programmable_bootstrap_64_async(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
           allocate_gpu_memory, noise_reduction_type);
@@ -481,13 +474,12 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      size_tracker =
-          scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
-              stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
-              level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+      size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_128_async(
+          stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
+          level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
       break;
     case CLASSICAL:
-      size_tracker = scratch_cuda_programmable_bootstrap_128(
+      size_tracker = scratch_cuda_programmable_bootstrap_128_async(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
           allocate_gpu_memory, noise_reduction_type);
@@ -496,11 +488,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       PANIC("Error: unsupported cuda PBS type.")
     }
   } else {
-    static_assert(
-        std::is_same_v<Torus, uint32_t> || std::is_same_v<Torus, uint64_t> ||
-            std::is_same_v<Torus, __uint128_t>,
-        "Cuda error: unsupported modulus size: only 32, 64, or 128-bit integer "
-        "moduli are supported.");
+    PANIC("Error: unsupported cuda PBS modulus size.")
   }
 }
 

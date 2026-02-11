@@ -47,8 +47,8 @@ BENCHMARK_DEFINE_F(FourierTransformTestPrimitives_u64, cuda_fft_mult)
 (benchmark::State &st) {
 
   for (auto _ : st) {
-    cuda_fourier_polynomial_mul(stream, gpu_index, d_cpoly1, d_cpoly2, d_cpoly2,
-                                polynomial_size, num_samples);
+    cuda_fourier_polynomial_mul_async(stream, gpu_index, d_cpoly1, d_cpoly2,
+                                      d_cpoly2, polynomial_size, num_samples);
     cuda_synchronize_stream(stream, gpu_index);
   }
 }

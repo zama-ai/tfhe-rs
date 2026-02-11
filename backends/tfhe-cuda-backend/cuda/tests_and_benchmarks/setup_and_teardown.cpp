@@ -316,7 +316,7 @@ void keyswitch_setup(
           safe_mul(input_lwe_dimension + 1, number_of_inputs,
                             repetitions, samples)));
 
-    scratch_cuda_keyswitch_gemm_64(
+    scratch_cuda_keyswitch_gemm_64_64_async(
       (void*)stream, gpu_index, ks_tmp_buffer,
       input_lwe_dimension, output_lwe_dimension, number_of_inputs * repetitions * samples, true);
 
@@ -383,7 +383,7 @@ void keyswitch_teardown(cudaStream_t stream, uint32_t gpu_index, uint64_t *lwe_s
   cuda_drop_async(d_lwe_input_indexes, stream, gpu_index);
   cuda_drop_async(d_lwe_output_indexes, stream, gpu_index);
 
-    cleanup_cuda_keyswitch_gemm_64((void*)stream, gpu_index,
+    cleanup_cuda_keyswitch_gemm_64_64((void*)stream, gpu_index,
                                       ks_tmp_buffer,
                                       true);
 

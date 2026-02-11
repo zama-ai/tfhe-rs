@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 extern "C" {
-uint64_t scratch_cuda_expand_without_verification_64(
+uint64_t scratch_cuda_expand_without_verification_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t computing_ks_level,
@@ -21,12 +21,12 @@ uint64_t scratch_cuda_expand_without_verification_64(
     bool allocate_gpu_memory, EXPAND_KIND expand_kind,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
-void cuda_expand_without_verification_64(
+void cuda_expand_without_verification_64_async(
     CudaStreamsFFI streams, void *lwe_array_out,
     const void *lwe_flattened_compact_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *computing_ksks, void *const *casting_keys);
 
-void cleanup_expand_without_verification_64(CudaStreamsFFI streams,
-                                            int8_t **mem_ptr_void);
+void cleanup_cuda_expand_without_verification_64(CudaStreamsFFI streams,
+                                                 int8_t **mem_ptr_void);
 }
 #endif // ZK_H
