@@ -346,7 +346,9 @@ uint64_t scratch_cuda_programmable_bootstrap(
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
   case 2048:
-    return scratch_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+    // For polynomial size 2048, we know Degree is better than AmortizedDegree,
+    //  other sizes require further evaluation.
+    return scratch_programmable_bootstrap<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
@@ -446,6 +448,23 @@ uint64_t scratch_cuda_programmable_bootstrap_tbc_2_2_64_async(
       stream, gpu_index, buffer, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
       noise_reduction_type);
+}
+
+uint64_t scratch_cuda_programmable_bootstrap_specialized_2_2_64_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  bool supports_tbc_2_2 = specialized_2_2_params_checker<uint64_t>(
+      polynomial_size, glwe_dimension, level_count, max_shared_memory);
+  PANIC_IF_FALSE(supports_tbc_2_2,
+                 "Cuda error (classical PBS): specialized 2_2 scratch requires "
+                 "(N=2048, level_count=1, glwe_dimension=1).");
+  return scratch_cuda_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
+      lwe_dimension, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
 }
 
 template <typename Torus>
@@ -560,7 +579,9 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 2048:
-    host_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+    // For polynomial size 2048, we know Degree is better than AmortizedDegree,
+    //  other sizes require further evaluation.
+    host_programmable_bootstrap<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -880,6 +901,37 @@ void cuda_programmable_bootstrap_tbc_64_2_2_async(
 #endif
 }
 
+void cuda_programmable_bootstrap_specialized_2_2_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  bool supports_specialized_2_2 = specialized_2_2_params_checker<uint64_t>(
+      polynomial_size, glwe_dimension, level_count, max_shared_memory);
+  PANIC_IF_FALSE(supports_specialized_2_2,
+                 "Cuda error (classical PBS): specialized 2_2 requires "
+                 "(N=2048, level_count=1, glwe_dimension=1.");
+
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+
+  host_programmable_bootstrap_specialized_2_2<uint64_t, Degree<2048>>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_output_indexes),
+      static_cast<const uint64_t *>(lut_vector),
+      static_cast<const uint64_t *>(lut_vector_indexes),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(lwe_input_indexes),
+      static_cast<const double2 *>(bootstrapping_key), buffer, glwe_dimension,
+      lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      num_many_lut, lut_stride);
+}
+
 /*
  * This cleanup function frees the data on GPU for the PBS buffer for 32 or 64
  * bits inputs.
@@ -895,6 +947,10 @@ void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t num_samples, uint32_t max_shared_memory);
+
+template bool specialized_2_2_params_checker<uint64_t>(
+    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
+    uint32_t max_shared_memory);
 
 template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,

@@ -114,6 +114,12 @@ protected:
         cuda_get_max_shared_memory(gpu_index));
   }
 
+  bool supports_classical_specialized_2_2() const {
+    return specialized_2_2_params_checker<uint64_t>(
+        polynomial_size, glwe_dimension, pbs_level,
+        cuda_get_max_shared_memory(gpu_index));
+  }
+
 public:
   // Test arithmetic functions
   void SetUp() {
@@ -225,6 +231,15 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, classical_tbc) {
     GTEST_SKIP() << "TBC classical PBS is not supported on this architecture.";
   }
 
+  // We want to force the vanilla layout of the bsk.
+  cuda_drop_async(d_fourier_bsk_array, stream, gpu_index);
+  Seed bsk_seed;
+  init_seed(&bsk_seed);
+  generate_lwe_programmable_bootstrap_keys_standard(
+      stream, gpu_index, &d_fourier_bsk_array, lwe_sk_in_array,
+      lwe_sk_out_array, lwe_dimension, glwe_dimension, polynomial_size,
+      pbs_level, pbs_base_log, &bsk_seed, glwe_noise_distribution, repetitions);
+
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_programmable_bootstrap_tbc_generic_64_async(
       stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
@@ -252,12 +267,22 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, classical_tbc_2_2) {
   if (!supports_classical_tbc()) {
     GTEST_SKIP() << "TBC classical PBS is not supported on this architecture.";
   }
-  if (!(polynomial_size == 2048 && pbs_level == 1 && glwe_dimension == 1 &&
-        pbs_base_log == 23)) {
+  if (!supports_classical_specialized_2_2()) {
     GTEST_SKIP()
-        << "TBC specialized 2_2 requires N=2048, glwe=1, level=1, base_log=23.";
+        << "TBC classical specialized 2_2 PBS is not supported on this "
+           "params.";
   }
-
+  if (!(pbs_base_log == 23)) {
+    GTEST_SKIP() << "Specialized 2_2 requires base_log == 23.";
+  }
+  // We need to change the layout of the bsk to match the specialized kernel.
+  cuda_drop_async(d_fourier_bsk_array, stream, gpu_index);
+  Seed bsk_seed;
+  init_seed(&bsk_seed);
+  generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+      stream, gpu_index, &d_fourier_bsk_array, lwe_sk_in_array,
+      lwe_sk_out_array, lwe_dimension, glwe_dimension, polynomial_size,
+      pbs_level, pbs_base_log, &bsk_seed, glwe_noise_distribution, repetitions);
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_programmable_bootstrap_tbc_2_2_64_async(
       stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
@@ -269,6 +294,47 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, classical_tbc_2_2) {
   run_and_check_pbs(
       [&](uint64_t *d_lwe_ct_in, double *d_fourier_bsk, int8_t *buffer) {
         cuda_programmable_bootstrap_tbc_64_2_2_async(
+            stream, gpu_index, (void *)d_lwe_ct_out_array,
+            (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
+            (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
+            (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
+            lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+            pbs_level, number_of_inputs, num_many_lut, lut_stride);
+      },
+      pbs_buffer);
+
+  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &pbs_buffer);
+}
+
+TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64,
+       classical_specialized_2_2) {
+  if (!supports_classical_specialized_2_2()) {
+    GTEST_SKIP() << "Specialized 2_2 classical PBS is not supported on this "
+                    "params.";
+  }
+  if (!(pbs_base_log >= 21 && pbs_base_log <= 25)) {
+    GTEST_SKIP() << "Specialized 2_2 requires base_log in [21, 25].";
+  }
+  // We need to change the layout of the bsk to match the specialized kernel.
+  cuda_drop_async(d_fourier_bsk_array, stream, gpu_index);
+  Seed bsk_seed;
+  init_seed(&bsk_seed);
+  generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+      stream, gpu_index, &d_fourier_bsk_array, lwe_sk_in_array,
+      lwe_sk_out_array, lwe_dimension, glwe_dimension, polynomial_size,
+      pbs_level, pbs_base_log, &bsk_seed, glwe_noise_distribution, repetitions);
+
+  int8_t *pbs_buffer = nullptr;
+  scratch_cuda_programmable_bootstrap_specialized_2_2_64_async(
+      stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
+      polynomial_size, pbs_level, number_of_inputs, true,
+      PBS_MS_REDUCTION_T::NO_REDUCTION);
+
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
+  run_and_check_pbs(
+      [&](uint64_t *d_lwe_ct_in, double *d_fourier_bsk, int8_t *buffer) {
+        cuda_programmable_bootstrap_specialized_2_2_64_async(
             stream, gpu_index, (void *)d_lwe_ct_out_array,
             (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
             (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,

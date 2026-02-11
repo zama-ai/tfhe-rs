@@ -82,32 +82,6 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
   }
 }
 
-// Computes the same than above but adapted for the bootstrapping key storage
-// layout, there is room for optimization here but we can do it later
-// if the classical version is needed in production
-template <class params, typename T, bool init_accumulator>
-__device__ void
-polynomial_product_accumulate_in_fourier_domain_2_2_params_classical(
-    T *__restrict__ result, T *__restrict__ first,
-    const T *__restrict__ second) {
-  int tid = threadIdx.x;
-  if constexpr (init_accumulator) {
-    for (int i = 0; i < params::opt / 4; i++) {
-      result[i] = first[i] * second[2 * tid];
-      result[i + params::opt / 4] =
-          first[i + params::opt / 4] * second[2 * tid + 1];
-      tid += (params::degree / params::opt);
-    }
-  } else {
-    for (int i = 0; i < params::opt / 4; i++) {
-      result[i] += first[tid] * second[2 * tid];
-      result[i + params::opt / 4] +=
-          first[tid + params::degree / 4] * second[2 * tid + 1];
-      tid += params::degree / params::opt;
-    }
-  }
-}
-
 // Computes result += first * second
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
