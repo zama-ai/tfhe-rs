@@ -82,7 +82,7 @@ jobs:
       - name: Start remote instance
         id: start-remote-instance
         if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@d4580322fc216877c48ac2987df9573ffd03476c # v1.5.0
+        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -179,7 +179,7 @@ jobs:
       - name: Stop remote instance
         id: stop-instance
         if: env.SECRETS_AVAILABLE == 'true'
-        uses: zama-ai/slab-github-runner@d4580322fc216877c48ac2987df9573ffd03476c # v1.5.0
+        uses: zama-ai/slab-github-runner@0a812986560d3f10dc65728b1ccb9ae4c48a8a16 # v1.5.1
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
