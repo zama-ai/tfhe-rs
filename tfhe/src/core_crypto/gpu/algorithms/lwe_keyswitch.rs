@@ -3,12 +3,10 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
-    cleanup_cuda_keyswitch_gemm_64, cuda_closest_representable_64_async, keyswitch_async,
-    keyswitch_async_gemm, scratch_cuda_keyswitch_gemm_64, CudaStreams,
+    cuda_closest_representable_64_async, keyswitch_async, keyswitch_gemm, CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
 use std::cmp::min;
-use tfhe_cuda_backend::ffi;
 
 #[allow(clippy::too_many_arguments)]
 pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
@@ -98,8 +96,6 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
         "GPU keyswitch currently only supports power of 2 moduli for the input ciphertext"
     );
 
-    let mut ks_tmp_buffer: *mut ffi::c_void = std::ptr::null_mut();
-
     let num_lwes_to_ks = min(
         input_indexes.len,
         input_lwe_ciphertext.lwe_ciphertext_count().0,
@@ -112,19 +108,8 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
 
     unsafe {
         if use_gemm_ks {
-            // Scratch allocations uses input LWE dtype for buffer size
-            cuda_scratch_keyswitch_lwe_ciphertext::<Scalar>(
-                streams,
-                std::ptr::addr_of_mut!(ks_tmp_buffer),
-                u32::try_from(lwe_keyswitch_key.input_key_lwe_size().to_lwe_dimension().0).unwrap(),
-                u32::try_from(lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension().0)
-                    .unwrap(),
-                u32::try_from(num_lwes_to_ks).unwrap(),
-                true,
-            );
-
             // Gemm KS can KS with input LWE dtype Scalar to output LWE dtype KSKScalar
-            keyswitch_async_gemm(
+            keyswitch_gemm(
                 streams,
                 &mut output_lwe_ciphertext.0.d_vec,
                 output_indexes,
@@ -136,11 +121,8 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
                 lwe_keyswitch_key.decomposition_base_log(),
                 lwe_keyswitch_key.decomposition_level_count(),
                 u32::try_from(num_lwes_to_ks).unwrap(),
-                ks_tmp_buffer,
                 uses_trivial_indices,
             );
-
-            cleanup_cuda_keyswitch::<Scalar>(streams, std::ptr::addr_of_mut!(ks_tmp_buffer), true);
         } else {
             keyswitch_async(
                 streams,
@@ -158,52 +140,6 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar, KSKScalar>(
         }
         streams.synchronize();
     }
-}
-
-/// # Safety
-/// - `ks_tmp_buffer` must be a valid, writable pointer to a GPU pointer
-/// - Must be allocated for the correct CUDA device
-/// - Must not be aliased while this function runs
-/// - `streams` must outlive the kernel execution
-pub unsafe fn cuda_scratch_keyswitch_lwe_ciphertext<Scalar>(
-    streams: &CudaStreams,
-    ks_tmp_buffer: *mut *mut ffi::c_void,
-    lwe_dimension_in: u32,
-    lwe_dimension_out: u32,
-    num_lwes: u32,
-    allocate_gpu_memory: bool,
-) where
-    Scalar: UnsignedInteger,
-{
-    scratch_cuda_keyswitch_gemm_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        ks_tmp_buffer,
-        lwe_dimension_in,
-        lwe_dimension_out,
-        num_lwes,
-        allocate_gpu_memory,
-    );
-    streams.synchronize();
-}
-
-/// # Safety
-/// - `ks_tmp_buffer` must be a valid, writable pointer to a GPU pointer
-/// - Must be allocated for the correct CUDA device
-/// - Must not be aliased while this function runs
-/// - `streams` must outlive the kernel execution
-pub unsafe fn cleanup_cuda_keyswitch<Scalar>(
-    streams: &CudaStreams,
-    ks_tmp_buffer: *mut *mut ffi::c_void,
-    allocate_gpu_memory: bool,
-) {
-    cleanup_cuda_keyswitch_gemm_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        ks_tmp_buffer,
-        allocate_gpu_memory,
-    );
-    streams.synchronize();
 }
 
 pub fn cuda_closest_representable<Scalar>(

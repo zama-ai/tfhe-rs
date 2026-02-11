@@ -106,7 +106,8 @@ uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
                                 uint32_t polynomial_size,
                                 uint32_t glwe_dimension, uint32_t level_count,
                                 uint64_t full_sm_keybundle);
-template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
+template <typename Torus>
+struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
   int8_t *d_mem_keybundle = NULL;
   int8_t *d_mem_acc_step_one = NULL;
   int8_t *d_mem_acc_step_two = NULL;
@@ -257,7 +258,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
         stream, gpu_index, size_tracker, allocate_gpu_memory);
   }
 
-  void release(cudaStream_t stream, uint32_t gpu_index) {
+  void release(cudaStream_t stream, uint32_t gpu_index) override {
 
     if (d_mem_keybundle)
       cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
@@ -293,11 +294,14 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
+
+    cuda_synchronize_stream(stream, gpu_index);
   }
 };
 
 template <typename InputTorus>
-struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
+struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT>
+    : public pbs_buffer_base {
   int8_t *d_mem_keybundle = NULL;
   int8_t *d_mem_acc_step_one = NULL;
   int8_t *d_mem_acc_step_two = NULL;
@@ -413,7 +417,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
         stream, gpu_index, size_tracker, allocate_gpu_memory);
   }
 
-  void release(cudaStream_t stream, uint32_t gpu_index) {
+  void release(cudaStream_t stream, uint32_t gpu_index) override {
 
     if (d_mem_keybundle)
       cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
@@ -442,6 +446,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
+    cuda_synchronize_stream(stream, gpu_index);
   }
 };
 

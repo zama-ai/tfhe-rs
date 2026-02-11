@@ -1,6 +1,6 @@
 #include "scalar_rotate.cuh"
 
-uint64_t scratch_cuda_scalar_rotate_64(
+uint64_t scratch_cuda_scalar_rotate_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -20,10 +20,10 @@ uint64_t scratch_cuda_scalar_rotate_64(
       shift_type, allocate_gpu_memory);
 }
 
-void cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
-                                   CudaRadixCiphertextFFI *lwe_array,
-                                   uint32_t n, int8_t *mem_ptr,
-                                   void *const *bsks, void *const *ksks) {
+void cuda_scalar_rotate_64_inplace_async(CudaStreamsFFI streams,
+                                         CudaRadixCiphertextFFI *lwe_array,
+                                         uint32_t n, int8_t *mem_ptr,
+                                         void *const *bsks, void *const *ksks) {
 
   host_scalar_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, n,
@@ -31,7 +31,8 @@ void cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
       (uint64_t **)(ksks));
 }
 
-void cleanup_cuda_scalar_rotate(CudaStreamsFFI streams, int8_t **mem_ptr_void) {
+void cleanup_cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
+                                           int8_t **mem_ptr_void) {
 
   int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
       (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);

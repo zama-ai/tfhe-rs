@@ -2,71 +2,11 @@
 
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
- * the amortized PBS on 32 bits inputs, into `buffer`. It also
- * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
- * be used.
- */
-uint64_t scratch_cuda_programmable_bootstrap_amortized_32(
-    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
-
-  switch (polynomial_size) {
-  case 256:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 512:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 1024:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 2048:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 4096:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 8192:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<8192>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 16384:
-    return scratch_programmable_bootstrap_amortized<uint32_t,
-                                                    AmortizedDegree<16384>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  default:
-    PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
-          "N's are powers of two in the interval [256..16384].")
-  }
-}
-
-/*
- * This scratch function allocates the necessary amount of data on the GPU for
  * the amortized PBS on 64 bits inputs, into `buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
-uint64_t scratch_cuda_programmable_bootstrap_amortized_64(
+uint64_t scratch_cuda_programmable_bootstrap_amortized_64_async(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
@@ -139,7 +79,7 @@ uint64_t scratch_cuda_programmable_bootstrap_amortized_64(
 /* Perform the programmable bootstrapping on a batch of input u32 LWE
  * ciphertexts. See the corresponding operation on 64 bits for more details.
  */
-void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
+void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -278,7 +218,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
  * 	- the constant memory (64K) is used for storing the roots of identity
  * values for the FFT
  */
-void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
+void cuda_programmable_bootstrap_amortized_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -366,11 +306,12 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
  * This cleanup function frees the data for the amortized PBS on GPU in
  * buffer for 32 or 64 bits inputs.
  */
-void cleanup_cuda_programmable_bootstrap_amortized(void *stream,
-                                                   uint32_t gpu_index,
-                                                   int8_t **pbs_buffer) {
+void cleanup_cuda_programmable_bootstrap_amortized_64(void *stream,
+                                                      uint32_t gpu_index,
+                                                      int8_t **pbs_buffer) {
 
   // Free memory
   cuda_drop_async(*pbs_buffer, static_cast<cudaStream_t>(stream), gpu_index);
   *pbs_buffer = nullptr;
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }

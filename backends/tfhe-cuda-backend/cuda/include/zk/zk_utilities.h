@@ -80,6 +80,7 @@ template <typename Torus> struct flattened_compact_lwe_lists {
                             h_num_lwes_per_compact_list[compact_list_index]);
   }
 
+  // nosemgrep: release-missing-cuda-synchronize
   void release() { free(ptr_array_to_d_compact_list); }
 };
 

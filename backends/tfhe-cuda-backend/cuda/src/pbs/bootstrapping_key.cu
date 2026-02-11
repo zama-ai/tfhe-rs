@@ -1,7 +1,7 @@
 #include "bootstrapping_key.cuh"
 #include "checked_arithmetic.h"
 
-void cuda_convert_lwe_programmable_bootstrap_key_32(
+void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {
@@ -13,7 +13,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_32(
       (const int32_t *)src, polynomial_size, total_polynomials);
 }
 
-void cuda_convert_lwe_programmable_bootstrap_key_64(
+void cuda_convert_lwe_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {
@@ -25,7 +25,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_64(
       (const int64_t *)src, polynomial_size, total_polynomials);
 }
 
-void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor) {
@@ -42,7 +42,7 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
                            static_cast<cudaStream_t>(stream), gpu_index);
 }
 
-void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128(
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor) {
@@ -122,10 +122,10 @@ template __device__ const double2 *get_multi_bit_ith_lwe_gth_group_kth_block(
     uint32_t grouping_factor, uint32_t polynomial_size, uint32_t glwe_dimension,
     uint32_t level_count);
 
-void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
-                                 void const *_input1, void const *_input2,
-                                 void *_output, uint32_t polynomial_size,
-                                 uint32_t total_polynomials) {
+void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
+                                       void const *_input1, void const *_input2,
+                                       void *_output, uint32_t polynomial_size,
+                                       uint32_t total_polynomials) {
 
   auto stream = static_cast<cudaStream_t>(stream_v);
   cuda_set_device(gpu_index);
@@ -350,7 +350,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128(
   cuda_drop_async(d_standard, stream, gpu_index);
 }
 
-void cuda_convert_lwe_programmable_bootstrap_key_128(
+void cuda_convert_lwe_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {

@@ -31,7 +31,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
 };
-use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64;
+use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64_async;
 /// Side resources for CUDA operations in noise simulation
 #[derive(Clone)]
 pub struct CudaSideResources {
@@ -400,7 +400,7 @@ impl CenteredBinaryShiftedStandardModSwitch<Self> for CudaDynLwe {
             }
             (Self::U64(input), Self::U64(output_cuda_lwe)) => unsafe {
                 let mut internal_output = output_cuda_lwe.duplicate(&side_resources.streams);
-                cuda_centered_modulus_switch_64(
+                cuda_centered_modulus_switch_64_async(
                     side_resources.streams.ptr[0],
                     0u32,
                     internal_output.0.d_vec.as_mut_c_ptr(0),

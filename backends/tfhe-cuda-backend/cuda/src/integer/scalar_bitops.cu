@@ -1,6 +1,6 @@
 #include "integer/scalar_bitops.cuh"
 
-void cuda_scalar_bitop_ciphertext_64(
+void cuda_integer_scalar_bitop_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_input, void const *clear_blocks,
     void const *h_clear_blocks, uint32_t num_clear_blocks, int8_t *mem_ptr,

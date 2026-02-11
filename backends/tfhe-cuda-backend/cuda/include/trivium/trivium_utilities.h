@@ -254,6 +254,8 @@ template <typename Torus> struct int_trivium_state_workspaces {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->packed_flush_out, allocate_gpu_memory);
     delete this->packed_flush_out;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 

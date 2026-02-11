@@ -138,7 +138,7 @@ TEST_P(KeyswitchMultiGPUTestPrimitives_u64, keyswitch) {
             d_lwe_ct_out_array + (ptrdiff_t)(output_lwe_start_index);
 
         // Execute keyswitch
-        cuda_keyswitch_gemm_lwe_ciphertext_vector_64_64(
+        cuda_keyswitch_gemm_64_64_async(
             streams[gpu_i], gpu_i, d_lwe_ct_out, lwe_output_indexes,
             d_lwe_ct_in_slice, lwe_input_indexes, d_ksk, input_lwe_dimension,
             output_lwe_dimension, ksk_base_log, ksk_level, num_inputs,
@@ -250,7 +250,7 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
           (ptrdiff_t)((r * SAMPLES * number_of_inputs + s * number_of_inputs) *
                       (input_lwe_dimension + 1));
       // Execute keyswitch
-      cuda_keyswitch_gemm_lwe_ciphertext_vector_64_64(
+      cuda_keyswitch_gemm_64_64_async(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)lwe_output_indexes, (void *)d_lwe_ct_in,
           (void *)lwe_input_indexes, (void *)d_ksk, input_lwe_dimension,

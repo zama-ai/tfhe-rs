@@ -168,7 +168,7 @@ void generate_lwe_programmable_bootstrap_keys(cudaStream_t stream, uint32_t gpu_
     double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_synchronize_stream(stream, gpu_index);
-    cuda_convert_lwe_programmable_bootstrap_key_64(stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
+    cuda_convert_lwe_programmable_bootstrap_key_64_async(stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
                                       lwe_dimension, glwe_dimension,
                                       pbs_level, polynomial_size);
     shift_in += lwe_dimension;
@@ -213,7 +213,7 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
         pbs_level, grouping_factor, noise_distribution, 0, 0);
     uint64_t *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
-    cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+    cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
         stream, gpu_index, d_bsk, bsk, lwe_dimension, glwe_dimension, pbs_level,
         polynomial_size, grouping_factor);
     shift_in += lwe_dimension;

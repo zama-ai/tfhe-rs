@@ -107,7 +107,7 @@ public:
 
 TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
   int8_t *pbs_buffer;
-  scratch_cuda_programmable_bootstrap_amortized_64(
+  scratch_cuda_programmable_bootstrap_amortized_64_async(
       stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
       number_of_inputs, true);
 
@@ -124,7 +124,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
+      cuda_programmable_bootstrap_amortized_64_async(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
@@ -164,12 +164,13 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
       }
     }
   }
-  cleanup_cuda_programmable_bootstrap_amortized(stream, gpu_index, &pbs_buffer);
+  cleanup_cuda_programmable_bootstrap_amortized_64(stream, gpu_index,
+                                                   &pbs_buffer);
 }
 
 TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   int8_t *pbs_buffer;
-  scratch_cuda_programmable_bootstrap_64(
+  scratch_cuda_programmable_bootstrap_64_async(
       stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
       polynomial_size, pbs_level, number_of_inputs, true,
       PBS_MS_REDUCTION_T::NO_REDUCTION);
@@ -191,7 +192,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+      cuda_programmable_bootstrap_64_async(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
@@ -230,7 +231,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
       }
     }
   }
-  cleanup_cuda_programmable_bootstrap(stream, gpu_index, &pbs_buffer);
+  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &pbs_buffer);
 }
 
 // Defines for which parameters set the PBS will be tested.

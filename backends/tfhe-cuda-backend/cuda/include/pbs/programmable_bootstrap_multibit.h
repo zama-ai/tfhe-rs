@@ -10,22 +10,22 @@ bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t num_samples, uint32_t max_shared_memory);
 
-void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor);
 
-void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128(
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor);
 
-uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64(
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+void cuda_multi_bit_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -35,16 +35,16 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
-                                                   uint32_t gpu_index,
-                                                   int8_t **pbs_buffer);
+void cleanup_cuda_multi_bit_programmable_bootstrap_64(void *stream,
+                                                      uint32_t gpu_index,
+                                                      int8_t **pbs_buffer);
 
-uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,

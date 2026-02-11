@@ -83,9 +83,15 @@ template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t max_shared_memory);
 
+struct pbs_buffer_base {
+  virtual void release(cudaStream_t stream, uint32_t gpu_index) = 0;
+  virtual ~pbs_buffer_base() = default;
+};
+
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
-template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
+template <typename Torus>
+struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> : public pbs_buffer_base {
   int8_t *d_mem;
 
   Torus *global_accumulator;
@@ -245,7 +251,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
     }
   }
 
-  void release(cudaStream_t stream, uint32_t gpu_index) {
+  void release(cudaStream_t stream, uint32_t gpu_index) override {
     cuda_drop_with_size_tracking_async(d_mem, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
@@ -254,13 +260,15 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
     if (pbs_variant == DEFAULT)
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
+    cuda_synchronize_stream(stream, gpu_index);
   }
 };
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer_128;
 
 template <typename InputTorus>
-struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
+struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
+    : public pbs_buffer_base {
   int8_t *d_mem;
 
   __uint128_t *global_accumulator;
@@ -418,7 +426,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
     }
   }
 
-  void release(cudaStream_t stream, uint32_t gpu_index) {
+  void release(cudaStream_t stream, uint32_t gpu_index) override {
     cuda_drop_with_size_tracking_async(d_mem, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
@@ -427,6 +435,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
     if (pbs_variant == DEFAULT)
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
+    cuda_synchronize_stream(stream, gpu_index);
   }
 };
 

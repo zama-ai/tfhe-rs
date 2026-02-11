@@ -27,7 +27,7 @@ void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
-uint64_t scratch_cuda_cast_to_unsigned_64(
+uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -48,11 +48,12 @@ uint64_t scratch_cuda_cast_to_unsigned_64(
       requires_full_propagate, allocate_gpu_memory);
 }
 
-void cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
-                              CudaRadixCiphertextFFI *output,
-                              CudaRadixCiphertextFFI *input, int8_t *mem_ptr,
-                              uint32_t target_num_blocks, bool input_is_signed,
-                              void *const *bsks, void *const *ksks) {
+void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
+                                    CudaRadixCiphertextFFI *output,
+                                    CudaRadixCiphertextFFI *input,
+                                    int8_t *mem_ptr, uint32_t target_num_blocks,
+                                    bool input_is_signed, void *const *bsks,
+                                    void *const *ksks) {
 
   host_cast_to_unsigned<uint64_t>(
       CudaStreams(streams), output, input,
@@ -70,7 +71,7 @@ void cleanup_cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
   *mem_ptr_void = nullptr;
 }
 
-uint64_t scratch_cuda_cast_to_signed_64(
+uint64_t scratch_cuda_cast_to_signed_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
@@ -91,11 +92,11 @@ uint64_t scratch_cuda_cast_to_signed_64(
       allocate_gpu_memory);
 }
 
-void cuda_cast_to_signed_64(CudaStreamsFFI streams,
-                            CudaRadixCiphertextFFI *output,
-                            CudaRadixCiphertextFFI const *input, int8_t *mem,
-                            bool input_is_signed, void *const *bsks,
-                            void *const *ksks) {
+void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
+                                  CudaRadixCiphertextFFI *output,
+                                  CudaRadixCiphertextFFI const *input,
+                                  int8_t *mem, bool input_is_signed,
+                                  void *const *bsks, void *const *ksks) {
 
   host_cast_to_signed<uint64_t>(CudaStreams(streams), output, input,
                                 (int_cast_to_signed_buffer<uint64_t> *)mem,

@@ -85,8 +85,8 @@ TEST_P(FourierTransformTestPrimitives_u64, cuda_fft_mult) {
   auto cur_poly2 = &poly2[r * polynomial_size * samples];
   auto cur_expected = &poly_exp_result[r * polynomial_size * 2 * samples];
 
-  cuda_fourier_polynomial_mul(stream, gpu_index, cur_input1, cur_input2,
-                              cur_input2, polynomial_size, samples);
+  cuda_fourier_polynomial_mul_async(stream, gpu_index, cur_input1, cur_input2,
+                                    cur_input2, polynomial_size, samples);
 
   cuda_memcpy_async_to_cpu(
       cur_h_c_res, cur_input2,

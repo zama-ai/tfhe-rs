@@ -461,14 +461,14 @@ host_integer_decompress(CudaStreams streams,
     extracted_glwe = max_idx_and_glwe.second;
 
     if constexpr (std::is_same_v<Torus, uint64_t>)
-      cuda_glwe_sample_extract_64(
+      cuda_glwe_sample_extract_64_async(
           streams.stream(0), streams.gpu_index(0), extracted_lwe,
           extracted_glwe, d_indexes_array_chunk, num_lwes, num_lwes,
           num_lwes_stored_per_glwe, compression_params.glwe_dimension,
           compression_params.polynomial_size);
     else
       // 128 bits
-      cuda_glwe_sample_extract_128(
+      cuda_glwe_sample_extract_128_async(
           streams.stream(0), streams.gpu_index(0), extracted_lwe,
           extracted_glwe, d_indexes_array_chunk, num_lwes, num_lwes,
           num_lwes_stored_per_glwe, compression_params.glwe_dimension,

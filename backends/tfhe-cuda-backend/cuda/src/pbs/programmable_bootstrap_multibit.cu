@@ -220,7 +220,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
   }
 }
 
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+void cuda_multi_bit_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
@@ -395,7 +395,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
   }
 }
 
-uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64(
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
@@ -436,9 +436,9 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64(
         input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
-void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
-                                                   uint32_t gpu_index,
-                                                   int8_t **buffer) {
+void cleanup_cuda_multi_bit_programmable_bootstrap_64(void *stream,
+                                                      uint32_t gpu_index,
+                                                      int8_t **buffer) {
   auto x = (pbs_buffer<uint64_t, MULTI_BIT> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete x;

@@ -93,7 +93,7 @@ public:
         pbs_base_log, pbs_level, message_modulus, carry_modulus,
         &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
-    scratch_cuda_multi_bit_programmable_bootstrap_64(
+    scratch_cuda_multi_bit_programmable_bootstrap_64_async(
         stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
         pbs_level, number_of_inputs, true);
 
@@ -105,8 +105,8 @@ public:
   void TearDown() {
     free(lwe_ct_out_array);
 
-    cleanup_cuda_multi_bit_programmable_bootstrap(stream, gpu_index,
-                                                  &pbs_buffer);
+    cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index,
+                                                     &pbs_buffer);
     programmable_bootstrap_multibit_teardown(
         stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array, d_bsk_array,
         plaintexts, d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
@@ -133,7 +133,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+      cuda_multi_bit_programmable_bootstrap_64_async(
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,

@@ -21,7 +21,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector_64(
       input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
 }
 
-uint64_t scratch_cuda_programmable_bootstrap_128(
+uint64_t scratch_cuda_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -34,7 +34,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128(
 }
 
 template <typename InputTorus>
-void executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
+void executor_cuda_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
@@ -142,7 +142,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
 
   switch (buffer->pbs_variant) {
   case DEFAULT:
-    executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<InputTorus>(
+    executor_cuda_programmable_bootstrap_128<InputTorus>(
         stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
         lut_vector, static_cast<InputTorus const *>(lwe_array_in),
         static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
@@ -214,7 +214,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
  * the FFT.
  */
 
-void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_programmable_bootstrap_128_async(
     void *streams, uint32_t gpu_index, void *lwe_array_out,
     void const *lut_vector, void const *lwe_array_in,
     void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,

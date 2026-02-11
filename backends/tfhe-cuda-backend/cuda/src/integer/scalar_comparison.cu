@@ -31,7 +31,7 @@ std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare) {
   return {invert_operands, invert_subtraction_result};
 }
 
-void cuda_scalar_comparison_ciphertext_64(
+void cuda_integer_scalar_comparison_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
     void const *h_scalar_blocks, int8_t *mem_ptr, void *const *bsks,

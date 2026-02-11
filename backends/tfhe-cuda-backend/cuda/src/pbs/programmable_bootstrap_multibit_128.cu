@@ -2,7 +2,7 @@
 #include "programmable_bootstrap_multibit_128.cuh"
 
 template <typename InputTorus>
-uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128(
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index,
     pbs_buffer_128<InputTorus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
@@ -93,7 +93,7 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
   }
 }
 
-uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
@@ -111,7 +111,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory);
   else
-    return scratch_cuda_multi_bit_programmable_bootstrap_128<uint64_t>(
+    return scratch_cuda_multi_bit_programmable_bootstrap_128_async<uint64_t>(
         stream, gpu_index,
         reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> **>(buffer),
         glwe_dimension, polynomial_size, level_count,
@@ -119,7 +119,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
 }
 
 template <typename InputTorus>
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -240,7 +240,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
   }
 }
 
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
@@ -268,7 +268,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
                   num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128<uint64_t>(
+    cuda_multi_bit_programmable_bootstrap_128_async<uint64_t>(
         stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const __uint128_t *>(lut_vector),

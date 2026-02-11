@@ -5,6 +5,7 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
 #include "keyswitch/keyswitch.h"
+#include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include <cmath>
@@ -393,7 +394,7 @@ struct int_radix_lut_custom_input_output {
 
   // There will be one buffer on each GPU in multi-GPU computations
   // (same for tmp lwe arrays)
-  std::vector<int8_t *> buffer;
+  std::vector<pbs_buffer_base *> buffer;
 
   // These arrays will reside on all GPUs
   // lut could actually be allocated & initialized GPU per GPU but this is not
@@ -485,7 +486,7 @@ struct int_radix_lut_custom_input_output {
 
     for (uint i = 0; i < active_streams.count(); i++) {
       cuda_set_device(active_streams.gpu_index(i));
-      int8_t *gpu_pbs_buffer;
+      int8_t *gpu_pbs_buffer_raw;
       auto num_blocks_on_gpu = std::min(
           (int)num_radix_blocks,
           std::max(threshold, get_num_inputs_on_gpu(num_radix_blocks, i,
@@ -494,14 +495,14 @@ struct int_radix_lut_custom_input_output {
       uint64_t size = 0;
       execute_scratch_pbs<OutputTorus>(
           active_streams.stream(i), active_streams.gpu_index(i),
-          &gpu_pbs_buffer, params.glwe_dimension, params.small_lwe_dimension,
-          params.polynomial_size, params.pbs_level, params.grouping_factor,
-          num_blocks_on_gpu, params.pbs_type, allocate_gpu_memory,
-          params.noise_reduction_type, size);
+          &gpu_pbs_buffer_raw, params.glwe_dimension,
+          params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
+          params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
+          allocate_gpu_memory, params.noise_reduction_type, size);
       if (i == 0) {
         size_tracker += size;
       }
-      buffer.push_back(gpu_pbs_buffer);
+      buffer.push_back(reinterpret_cast<pbs_buffer_base *>(gpu_pbs_buffer_raw));
     }
 
     // This buffer is created with num_input_blocks since it
@@ -1185,20 +1186,9 @@ public:
                                    active_streams.gpu_index(0),
                                    tmp_lwe_before_ks, gpu_memory_allocated);
     for (int i = 0; i < buffer.size(); i++) {
-      switch (params.pbs_type) {
-      case MULTI_BIT:
-        cleanup_cuda_multi_bit_programmable_bootstrap(
-            active_streams.stream(i), active_streams.gpu_index(i), &buffer[i]);
-        break;
-      case CLASSICAL:
-        cleanup_cuda_programmable_bootstrap(
-            active_streams.stream(i), active_streams.gpu_index(i), &buffer[i]);
-        break;
-      default:
-        PANIC("Cuda error (PBS): unknown PBS type. ")
-      }
-      cuda_synchronize_stream(active_streams.stream(i),
-                              active_streams.gpu_index(i));
+      buffer[i]->release(active_streams.stream(i), active_streams.gpu_index(i));
+      delete buffer[i];
+      buffer[i] = nullptr;
     }
     delete tmp_lwe_before_ks;
     tmp_lwe_before_ks = nullptr;

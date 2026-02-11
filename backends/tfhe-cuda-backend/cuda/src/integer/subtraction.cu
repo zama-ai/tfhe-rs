@@ -1,6 +1,6 @@
 #include "subtraction.cuh"
 
-uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace(
+uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -19,7 +19,7 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace(
       num_blocks, params, requested_flag, allocate_gpu_memory);
 }
 
-void cuda_sub_and_propagate_single_carry_64_inplace(
+void cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
@@ -32,8 +32,8 @@ void cuda_sub_and_propagate_single_carry_64_inplace(
   POP_RANGE()
 }
 
-void cleanup_cuda_sub_and_propagate_single_carry(CudaStreamsFFI streams,
-                                                 int8_t **mem_ptr_void) {
+void cleanup_cuda_sub_and_propagate_single_carry_64_inplace(
+    CudaStreamsFFI streams, int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup sub")
   int_sub_and_propagate<uint64_t> *mem_ptr =
       (int_sub_and_propagate<uint64_t> *)(*mem_ptr_void);

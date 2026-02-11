@@ -2,9 +2,7 @@
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-use crate::core_crypto::gpu::{
-    packing_keyswitch_list_128_async, packing_keyswitch_list_64_async, CudaStreams,
-};
+use crate::core_crypto::gpu::{packing_keyswitch_list_128, packing_keyswitch_list_64, CudaStreams};
 use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
 pub fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64<Scalar>(
@@ -96,7 +94,7 @@ pub fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64<Scalar>(
     );
 
     unsafe {
-        packing_keyswitch_list_64_async(
+        packing_keyswitch_list_64(
             streams,
             &mut output_glwe_ciphertext.0.d_vec,
             &input_lwe_ciphertext_list.0.d_vec,
@@ -201,7 +199,7 @@ pub fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_128<Scalar>(
     );
 
     unsafe {
-        packing_keyswitch_list_128_async(
+        packing_keyswitch_list_128(
             streams,
             &mut output_glwe_ciphertext.0.d_vec,
             &input_lwe_ciphertext_list.0.d_vec,
