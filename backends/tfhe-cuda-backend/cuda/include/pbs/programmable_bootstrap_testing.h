@@ -3,6 +3,12 @@
 
 #include "pbs_enums.h"
 #include <stdint.h>
+
+template <typename Torus>
+bool specialized_2_2_params_checker(uint32_t polynomial_size,
+                                    uint32_t glwe_dimension,
+                                    uint32_t level_count,
+                                    uint32_t max_shared_memory);
 uint64_t scratch_cuda_programmable_bootstrap_tbc_generic_64_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
@@ -25,6 +31,46 @@ void cuda_programmable_bootstrap_tbc_64_generic_async(
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride);
 
 void cuda_programmable_bootstrap_tbc_64_2_2_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride);
+
+// The cuda bootstrap key is converted from torus to fourier domain using
+// the automatic logic that checks if the parameters match the specialized
+// 2_2_params. The layout is different in the specialized because the
+// input/output data of the FFT lives in registers, and if the layout is not
+// changed, global memory reads of the bsk are not coalesced. In the backend
+// tests, we want to be able to use other pbs flavors that need the shared
+// memory FFT layouts, so we provide the following two functions to bypass the
+// check and force the desired layout.
+
+// i) Force standard (non-specialized) FFT layout for the BSK, this is needed
+// when using step1/step2 or cg pbs on a H100 GPU.
+void cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size);
+
+// Force specialized 2_2_params FFT layout for the BSK. This is needed when we
+// want to run the specialized non tbc flavor on a GPU that is not high-end (bad
+// FP64 ratio). On those GPUs, the automatic fft layout is the shared memory
+// one, and that is why we need to force the specialized one.
+void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size);
+
+uint64_t scratch_cuda_programmable_bootstrap_specialized_2_2_64_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_programmable_bootstrap_specialized_2_2_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,

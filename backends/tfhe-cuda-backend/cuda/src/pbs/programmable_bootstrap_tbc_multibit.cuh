@@ -1,6 +1,16 @@
 #ifndef CUDA_TBC_MULTIBIT_PBS_CUH
 #define CUDA_TBC_MULTIBIT_PBS_CUH
 
+// This macro is needed because in debug mode the compiler doesn't apply all
+// optimizations
+//  and the register count is higher, which can lead to launch bounds conflicts.
+#ifdef __CUDACC_DEBUG__
+#define SPECIALIZED_TBC_MULTI_BIT_2_2_PARAMS_LAUNCH_BOUNDS
+#else
+#define SPECIALIZED_TBC_MULTI_BIT_2_2_PARAMS_LAUNCH_BOUNDS                     \
+  __launch_bounds__(512, 2)
+#endif
+
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/ggsw.cuh"
@@ -209,17 +219,17 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 //- Register based fourier domain multiplication. Transfer fft's between blocks
 // instead of accumulator.
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void __launch_bounds__(params::degree / params::opt)
-    device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
-        Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-        const Torus *__restrict__ lut_vector,
-        const Torus *__restrict__ lut_vector_indexes,
-        const Torus *__restrict__ lwe_array_in,
-        const Torus *__restrict__ lwe_input_indexes,
-        const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
-        uint32_t lwe_dimension, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-        uint64_t keybundle_size_per_input, uint32_t num_many_lut,
-        uint32_t lut_stride) {
+__global__ SPECIALIZED_TBC_MULTI_BIT_2_2_PARAMS_LAUNCH_BOUNDS void
+device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
+    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+    const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lut_vector_indexes,
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes,
+    const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
+    uint32_t lwe_dimension, uint32_t lwe_offset, uint32_t lwe_chunk_size,
+    uint64_t keybundle_size_per_input, uint32_t num_many_lut,
+    uint32_t lut_stride) {
 
   constexpr uint32_t level_count = 1;
   constexpr uint32_t grouping_factor = 4;

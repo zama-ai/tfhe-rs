@@ -419,7 +419,7 @@ public:
     GPU_ASSERT(streams.count() > 1, "CudaStreamsFirstWaitsWorkersBarrier: "
                                     "Attempted to create on single GPU");
     _events.resize(streams.count());
-    for (int i = 0; i < streams.count(); i++) {
+    for (uint i = 0; i < streams.count(); i++) {
       _events[i] = cuda_create_event(streams.gpu_index(i));
     }
   }
@@ -435,7 +435,7 @@ public:
 
     cuda_event_record(_events[0], user_streams.stream(0),
                       user_streams.gpu_index(0));
-    for (int j = 1; j < user_streams.count(); j++) {
+    for (uint j = 1; j < user_streams.count(); j++) {
       GPU_ASSERT(user_streams.gpu_index(j) == _streams.gpu_index(j),
                  "CudaStreamsBarrier: synchronization can only be performed on "
                  "the GPUs the barrier was initially created on.");
@@ -458,7 +458,7 @@ public:
 
     if (user_streams.count() > 1) {
       // Worker GPUs record their events
-      for (int j = 1; j < user_streams.count(); j++) {
+      for (uint j = 1; j < user_streams.count(); j++) {
         GPU_ASSERT(_streams.gpu_index(j) == user_streams.gpu_index(j),
                    "CudaStreamsBarrier: The user stream "
                    "set GPU[%d]=%u while the LUT stream set GPU[%d]=%u",
@@ -469,7 +469,7 @@ public:
       }
 
       // GPU 0 waits for all workers
-      for (int j = 1; j < user_streams.count(); j++) {
+      for (uint j = 1; j < user_streams.count(); j++) {
         cuda_stream_wait_event(user_streams.stream(0), _events[j],
                                user_streams.gpu_index(0));
       }
@@ -477,7 +477,7 @@ public:
   }
 
   void release() {
-    for (int j = 0; j < _streams.count(); j++) {
+    for (uint j = 0; j < _streams.count(); j++) {
       cuda_event_destroy(_events[j], _streams.gpu_index(j));
     }
 
