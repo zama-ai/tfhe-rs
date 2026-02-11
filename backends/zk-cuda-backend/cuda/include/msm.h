@@ -84,19 +84,20 @@ template <> struct MSMWindowSize<G2ProjectivePoint> {
 void point_msm_async_g1(cudaStream_t stream, uint32_t gpu_index,
                         G1Projective *d_result, const G1Affine *d_points,
                         const Scalar *d_scalars, G1Projective *d_scratch,
-                        uint32_t n);
+                        uint32_t n, uint64_t &size_tracker);
 
 void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
                   G1Projective *d_result, const G1Affine *d_points,
-                  const Scalar *d_scalars, G1Projective *d_scratch, uint32_t n);
+                  const Scalar *d_scalars, G1Projective *d_scratch, uint32_t n,
+                  uint64_t &size_tracker);
 
 // MSM for G2 points with BigInt scalars (projective result)
 void point_msm_async_g2(cudaStream_t stream, uint32_t gpu_index,
                         G2ProjectivePoint *d_result, const G2Point *d_points,
                         const Scalar *d_scalars, G2ProjectivePoint *d_scratch,
-                        uint32_t n);
+                        uint32_t n, uint64_t &size_tracker);
 
 void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
                   G2ProjectivePoint *d_result, const G2Point *d_points,
                   const Scalar *d_scalars, G2ProjectivePoint *d_scratch,
-                  uint32_t n);
+                  uint32_t n, uint64_t &size_tracker);

@@ -330,7 +330,7 @@ TEST_F(PointOpsTest, G1ScalarMul1) {
                                               stream, gpu_index, true);
 
   // Compute 1*G
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_result, d_G, 1);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_result, d_G, 1);
 
   // Copy result back
   G1Affine result;
@@ -389,7 +389,7 @@ TEST_F(PointOpsTest, G1ScalarMul2) {
                                               stream, gpu_index, true);
 
   // Compute 2*G using scalar multiplication
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_result_scalar, d_G, 2);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_result_scalar, d_G, 2);
 
   // Compute 2*G using point doubling
   point_double<G1Affine>(stream, gpu_index, d_result_double, d_G);
@@ -463,7 +463,7 @@ TEST_F(PointOpsTest, G1ScalarMul3) {
                                               stream, gpu_index, true);
 
   // Compute 3*G using scalar multiplication
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_result_scalar, d_G, 3);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_result_scalar, d_G, 3);
 
   // Compute 3*G using addition (G + 2*G)
   point_double<G1Affine>(stream, gpu_index, d_2G, d_G);
@@ -532,7 +532,7 @@ TEST_F(PointOpsTest, G1ScalarMul55) {
                                               stream, gpu_index, true);
 
   // Compute 55*G
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_result, d_G, 55);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_result, d_G, 55);
 
   // Copy result back
   G1Affine result;

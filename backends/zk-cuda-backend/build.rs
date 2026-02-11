@@ -30,10 +30,14 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
 
         // Check Linux distribution (reuse script from tfhe-cuda-backend)
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+            .expect("CARGO_MANIFEST_DIR must be set by cargo during build");
         let script_path = PathBuf::from(&manifest_dir).join("../tfhe-cuda-backend/get_os_name.sh");
-        let output = Command::new(script_path).output().unwrap();
-        let distribution = String::from_utf8(output.stdout).unwrap();
+        let output = Command::new(&script_path)
+            .output()
+            .expect("Failed to run get_os_name.sh — is tfhe-cuda-backend present?");
+        let distribution = String::from_utf8(output.stdout)
+            .expect("get_os_name.sh output must be valid UTF-8");
         if distribution != "Ubuntu\n" {
             println!(
                 "cargo:warning=This Linux distribution is not officially supported. \

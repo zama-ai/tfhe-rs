@@ -149,7 +149,12 @@ pub struct G1Projective {
 
 impl G1Projective {
     /// Create a new G1 projective point from coordinates (in normal form)
+    ///
+    /// Parameters use uppercase (X, Y, Z) following standard mathematical notation
+    /// for projective coordinates, distinguishing them from affine (x, y).
+    ///
     /// Note: Coordinates must be converted to Montgomery form before use in computations
+    #[allow(non_snake_case)]
     pub fn new(X: Fp, Y: Fp, Z: Fp) -> Self {
         Self {
             inner: G1ProjectivePoint { X, Y, Z },
@@ -220,6 +225,7 @@ impl G1Projective {
     }
 
     /// Convert from Montgomery form to normal form (projective coordinates)
+    #[must_use = "Montgomery conversion returns a new point without modifying the input"]
     pub fn from_montgomery_normalized(&self) -> Self {
         let mut result = Self::infinity();
         // SAFETY: Both `result.inner` and `self.inner` are valid repr(C) structs.
@@ -279,8 +285,12 @@ impl G1Projective {
         // using the unmanaged API (g1_msm_unmanaged_wrapper) instead for better performance.
         //
         // SAFETY:
-        // - `stream` was validated as non-null above and must be a valid CUDA stream handle created
-        //   by cuda_create_stream
+        // - `stream` was validated as non-null above and must be a valid `cudaStream_t` obtained
+        //   from `cuda_create_stream`. The raw pointer type is `*mut c_void` because CUDA streams
+        //   are opaque pointers. If the stream is invalid (e.g., already destroyed or corrupted),
+        //   the CUDA runtime will report an error through `cudaGetLastError()`.
+        // - This function borrows the stream for the duration of the call; it does not take
+        //   ownership. The caller remains responsible for destroying the stream after use.
         // - `gpu_index` is passed directly to CUDA; the C++ wrapper validates it
         // - `points_ffi` and `scalars_ffi` are valid Vec slices with matching length `n`
         // - `result` and `size_tracker` are valid stack-allocated outputs
@@ -294,7 +304,7 @@ impl G1Projective {
                 scalars_ffi.as_ptr(),
                 n,
                 points_in_montgomery,
-                std::ptr::addr_of_mut!(size_tracker),
+                &mut size_tracker,
             );
         }
 
@@ -321,6 +331,9 @@ impl fmt::Debug for G1Projective {
     }
 }
 
+/// **WARNING**: This compares raw projective coordinates (X, Y, Z), NOT geometric
+/// equivalence. In projective coordinates, `(X, Y, Z)` and `(λX, λY, λZ)` represent
+/// the same point but will compare as unequal. Use `to_affine()` for geometric equality.
 impl PartialEq for G1Projective {
     fn eq(&self, other: &Self) -> bool {
         let self_inf = self.inner.Z == Fp::default();

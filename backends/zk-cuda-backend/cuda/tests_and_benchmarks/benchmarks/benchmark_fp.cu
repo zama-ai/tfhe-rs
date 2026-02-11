@@ -1,4 +1,5 @@
 #include "../tests/primitives/fp_helpers.h" // Include test-only batch operations
+#include "device.h"
 #include "fp.h"
 #include <benchmark/benchmark.h>
 #include <cstdint>
@@ -21,15 +22,8 @@ static void init_benchmark() {
   if (!initialized) {
     g_gpu_index = 0;
 
-    // Create a CUDA stream
-    cudaError_t err = cudaStreamCreate(&g_benchmark_stream);
-    if (err != cudaSuccess) {
-      fprintf(stderr, "Failed to create CUDA stream: %s\n",
-              cudaGetErrorString(err));
-      g_benchmark_stream = nullptr;
-    }
-
-    // Device modulus is now hardcoded at compile time, no initialization needed
+    // Create a CUDA stream using library function
+    g_benchmark_stream = cuda_create_stream(g_gpu_index);
     initialized = true;
   }
 }
@@ -56,7 +50,6 @@ static Fp random_fp_value(std::mt19937_64 &rng) {
 
 // Benchmark scalar addition
 static void BM_ScalarAdd(benchmark::State &state) {
-  uint64_t size_tracker = 0;
   init_benchmark();
 
   std::mt19937_64 rng(42);
@@ -80,7 +73,6 @@ static void BM_ScalarAdd(benchmark::State &state) {
 
 // Benchmark scalar multiplication
 static void BM_ScalarMul(benchmark::State &state) {
-  uint64_t size_tracker = 0;
   init_benchmark();
 
   std::mt19937_64 rng(42);
@@ -104,7 +96,6 @@ static void BM_ScalarMul(benchmark::State &state) {
 
 // Benchmark GPU kernel: array addition
 static void BM_GPU_ArrayAdd(benchmark::State &state) {
-  uint64_t size_tracker = 0;
   init_benchmark();
 
   const int n = static_cast<int>(state.range(0));
@@ -141,7 +132,6 @@ static void BM_GPU_ArrayAdd(benchmark::State &state) {
 
 // Benchmark GPU kernel: array multiplication
 static void BM_GPU_ArrayMul(benchmark::State &state) {
-  uint64_t size_tracker = 0;
   init_benchmark();
 
   const int n = static_cast<int>(state.range(0));

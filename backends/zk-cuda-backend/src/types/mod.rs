@@ -16,22 +16,27 @@ pub use scalar::*;
 
 use crate::bindings::Fp;
 
+/// Number of 64-bit limbs in a BLS12-446 base field element (Fp).
+/// BLS12-446 has a 446-bit prime, requiring ceil(446/64) = 7 limbs.
+pub const FP_LIMBS: usize = 7;
+
+/// Number of 64-bit limbs in a BLS12-446 scalar field element.
+/// BLS12-446 has a ~320-bit scalar field, requiring ceil(320/64) = 5 limbs.
+pub const SCALAR_LIMBS: usize = 5;
+
 // Custom Rust implementations for the bindgen-generated Fp type.
 // These provide convenient constructors and conversion methods.
 
 impl Fp {
     /// Create a new Fp from limbs (in normal form - must convert to Montgomery for computation)
-    pub fn new(limbs: [u64; 7]) -> Self {
+    pub fn new(limbs: [u64; FP_LIMBS]) -> Self {
         Self { limb: limbs }
     }
 
     /// Create a new Fp from a BigInt-like structure (in normal form)
     /// This is a convenience method for compatibility with tfhe-zk-pok's BigInt<7>
-    pub fn from_bigint<const N: usize>(bigint: &[u64; N]) -> Self {
-        const { assert!(N == 7, "from_bigint requires exactly FP_LIMBS (7) limbs") };
-        let mut limbs = [0u64; 7];
-        limbs.copy_from_slice(bigint.as_slice());
-        Self { limb: limbs }
+    pub fn from_bigint(bigint: &[u64; FP_LIMBS]) -> Self {
+        Self { limb: *bigint }
     }
 }
 
@@ -43,8 +48,9 @@ pub(crate) fn fp_to_decimal_string(fp: &Fp) -> String {
     }
 
     let mut working = fp.limb;
-    let mut result = String::new();
+    let mut digits = Vec::new();
 
+    // Extract digits via repeated division by 10 (least-significant digit first)
     while !working.iter().all(|&x| x == 0) {
         let mut remainder = 0u64;
         for i in (0..working.len()).rev() {
@@ -52,13 +58,14 @@ pub(crate) fn fp_to_decimal_string(fp: &Fp) -> String {
             working[i] = (value / 10) as u64;
             remainder = (value % 10) as u64;
         }
-        result = format!("{}{}", remainder, result);
+        digits.push(b'0' + remainder as u8);
     }
 
-    if result.is_empty() {
+    if digits.is_empty() {
         "0".to_string()
     } else {
-        result
+        digits.reverse();
+        String::from_utf8(digits).expect("digits are ASCII '0'-'9'")
     }
 }
 

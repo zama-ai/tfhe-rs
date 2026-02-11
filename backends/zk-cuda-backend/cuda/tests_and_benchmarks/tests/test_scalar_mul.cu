@@ -83,7 +83,7 @@ TEST_F(ScalarMulTest, G1ScalarMulOne) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -160,7 +160,7 @@ TEST_F(ScalarMulTest, G1ScalarMulZero) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -229,13 +229,13 @@ TEST_F(ScalarMulTest, G1ScalarMulTwo) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Compute expected result: 2*G using point doubling
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_expected, d_point, 2);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_point, 2);
 
   // Synchronize and copy results back
   cuda_synchronize_stream(stream, gpu_index);
@@ -326,13 +326,13 @@ TEST_F(ScalarMulTest, G1ScalarMulThree) {
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1);
+  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1, size_tracker);
   check_cuda_error(cudaGetLastError());
 
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Compute expected result: 3*G using u64 scalar multiplication
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_expected, d_point, 3);
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_point, 3);
 
   // Synchronize and copy results back
   cuda_synchronize_stream(stream, gpu_index);

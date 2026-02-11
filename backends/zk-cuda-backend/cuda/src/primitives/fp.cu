@@ -104,22 +104,22 @@ __host__ __device__ ComparisonType fp_cmp(const Fp &a, const Fp &b) {
 
 __host__ __device__ bool fp_is_zero(const Fp &a) {
   // By doing this way we avoid branching
-  uint64_t sum = 0;
+  uint64_t acc = 0;
   for (int i = 0; i < FP_LIMBS; i++) {
-    sum += a.limb[i];
+    acc |= a.limb[i];
   }
-  return sum == 0;
+  return acc == 0;
 }
 
 __host__ __device__ bool fp_is_one(const Fp &a) {
   if (a.limb[0] != 1)
     return false;
   // By doing this way we avoid branching
-  uint64_t sum = 0;
+  uint64_t acc = 0;
   for (int i = 1; i < FP_LIMBS; i++) {
-    sum += a.limb[i];
+    acc |= a.limb[i];
   }
-  return sum == 0;
+  return acc == 0;
 }
 
 __host__ __device__ void fp_zero(Fp &a) {
@@ -364,7 +364,13 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
 
   // Working array: copy input
   UNSIGNED_LIMB t[2 * FP_LIMBS + 1];
+#ifdef __CUDA_ARCH__
+  for (int i = 0; i < 2 * FP_LIMBS; i++) {
+    t[i] = a[i];
+  }
+#else
   memcpy(t, a, 2 * FP_LIMBS * sizeof(UNSIGNED_LIMB));
+#endif
   t[2 * FP_LIMBS] = 0;
 
   // Montgomery reduction: for each limb, compute u = t[i] * p' mod 2^LIMB_BITS
@@ -546,6 +552,9 @@ __host__ __device__ void fp_from_montgomery(Fp &c, const Fp &a) {
 }
 
 // Negation: c = -a mod p = p - a
+// Works in both Montgomery and normal form: fp_sub computes (p - a) mod p.
+// Although p is stored in normal form, fp_sub(c, p, a) is correct because
+// (p mod p) == 0 in either representation, so the result is -a mod p.
 __host__ __device__ void fp_neg(Fp &c, const Fp &a) {
   if (fp_is_zero(a)) {
     fp_zero(c);
@@ -831,6 +840,11 @@ __host__ __device__ Fp operator-(const Fp &a, const Fp &b) {
   return c;
 }
 
+// TODO: This operator returns Montgomery form while operator+ and operator-
+// preserve the input form. This inconsistency means expressions like
+// `a + (b * c)` produce incorrect results. Verify all call sites and decide
+// whether to convert the result back to normal form or remove this operator.
+//
 // Binary multiplication: a * b
 // EXTERNAL API: Accepts normal form inputs, converts to Montgomery, and returns
 // Montgomery form result. For internal operations where inputs are already in

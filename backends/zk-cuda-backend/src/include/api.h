@@ -9,6 +9,13 @@ extern "C" {
 
 // Type definitions for FFI - these mirror the CUDA types in cuda/include/
 // but are defined here as plain C structs for bindgen compatibility.
+//
+// Name mapping between FFI types and CUDA internals:
+//   FFI (api.h)         CUDA (curve.h)
+//   G1Point          -> G1Affine
+//   G2Point          -> G2Affine
+//   G1ProjectivePoint -> G1Projective (typedef G1Projective = G1ProjectivePoint)
+//   G2ProjectivePoint -> G2Projective (typedef G2Projective = G2ProjectivePoint)
 
 // Forward declare cudaStream_t as opaque pointer for FFI
 typedef struct CUstream_st* cudaStream_t;

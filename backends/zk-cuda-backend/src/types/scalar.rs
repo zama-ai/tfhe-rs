@@ -1,13 +1,14 @@
 //! Scalar field element type for BLS12-446 (320-bit integers, 5 limbs)
 
+use super::SCALAR_LIMBS;
 use crate::bindings::Scalar as ScalarFFI;
 use std::fmt;
 
 /// Get the scalar field modulus from C++ via FFI
-fn scalar_modulus_limbs() -> [u64; 5] {
-    let mut limbs = [0u64; 5];
-    // SAFETY: `limbs.as_mut_ptr()` points to a valid array of 5 u64 values.
-    // The FFI function writes exactly 5 limbs to this pointer.
+fn scalar_modulus_limbs() -> [u64; SCALAR_LIMBS] {
+    let mut limbs = [0u64; SCALAR_LIMBS];
+    // SAFETY: `limbs.as_mut_ptr()` points to a valid array of SCALAR_LIMBS u64 values.
+    // The FFI function writes exactly SCALAR_LIMBS limbs to this pointer.
     unsafe {
         crate::bindings::scalar_modulus_limbs_wrapper(limbs.as_mut_ptr());
     }
@@ -16,9 +17,9 @@ fn scalar_modulus_limbs() -> [u64; 5] {
 
 /// Scalar field modulus (group order) - initialized once from C++
 /// Uses OnceLock to ensure thread-safe one-time initialization
-static SCALAR_MODULUS: std::sync::OnceLock<[u64; 5]> = std::sync::OnceLock::new();
+static SCALAR_MODULUS: std::sync::OnceLock<[u64; SCALAR_LIMBS]> = std::sync::OnceLock::new();
 
-fn get_scalar_modulus() -> &'static [u64; 5] {
+fn get_scalar_modulus() -> &'static [u64; SCALAR_LIMBS] {
     SCALAR_MODULUS.get_or_init(scalar_modulus_limbs)
 }
 
@@ -31,7 +32,7 @@ pub struct Scalar {
 
 impl Scalar {
     /// Create a new scalar from limbs
-    pub fn new(limbs: [u64; 5]) -> Self {
+    pub fn new(limbs: [u64; SCALAR_LIMBS]) -> Self {
         Self {
             inner: ScalarFFI { limb: limbs },
         }
@@ -39,27 +40,24 @@ impl Scalar {
 
     /// Create a new Scalar from a BigInt-like structure
     /// This is a convenience method for compatibility with tfhe-zk-pok's BigInt<5>
-    pub fn from_bigint<const N: usize>(bigint: &[u64; N]) -> Self {
-        const { assert!(N == 5, "from_bigint requires exactly ZP_LIMBS (5) limbs") };
-        let mut limbs = [0u64; 5];
-        limbs.copy_from_slice(bigint.as_slice());
+    pub fn from_bigint(bigint: &[u64; SCALAR_LIMBS]) -> Self {
         Self {
-            inner: ScalarFFI { limb: limbs },
+            inner: ScalarFFI { limb: *bigint },
         }
     }
 
     /// Create a scalar from a single u64 value
     pub fn from_u64(value: u64) -> Self {
+        let mut limbs = [0u64; SCALAR_LIMBS];
+        limbs[0] = value;
         Self {
-            inner: ScalarFFI {
-                limb: [value, 0, 0, 0, 0],
-            },
+            inner: ScalarFFI { limb: limbs },
         }
     }
 
     /// Get the limbs of the scalar
     #[inline]
-    pub fn limbs(&self) -> [u64; 5] {
+    pub fn limbs(&self) -> [u64; SCALAR_LIMBS] {
         self.inner.limb
     }
 
@@ -81,7 +79,7 @@ impl Scalar {
     pub fn is_valid(&self) -> bool {
         let modulus = get_scalar_modulus();
         // Compare limbs from most significant to least significant
-        for i in (0..5).rev() {
+        for i in (0..self.inner.limb.len()).rev() {
             if self.inner.limb[i] < modulus[i] {
                 return true;
             }
@@ -93,26 +91,35 @@ impl Scalar {
         false
     }
 
-    /// Reduce scalar modulo curve order if needed
-    /// This is a simple reduction that works when scalar < 2*r
-    /// For scalars >= 2*r, multiple subtractions may be needed
-    pub fn reduce_if_needed(&self) -> Self {
+    /// Reduce scalar modulo curve order via a single subtraction
+    ///
+    /// # Precondition
+    /// The input must satisfy `self < 2 * r` where `r` is the scalar field modulus.
+    /// This holds for scalars produced by arkworks `into_bigint()` (which are already
+    /// reduced) and for single additions of reduced values.
+    #[must_use = "reduction returns a new scalar without modifying the input"]
+    pub fn reduce_once(&self) -> Self {
         if self.is_valid() {
             return *self;
         }
 
-        // Subtract modulus
+        // Subtract modulus once (sufficient because input < 2*r)
         let modulus = get_scalar_modulus();
-        let mut result = [0u64; 5];
+        let mut result = [0u64; SCALAR_LIMBS];
         let mut borrow: u64 = 0;
-        for i in 0..5 {
+        for i in 0..self.inner.limb.len() {
             let (diff, b1) = self.inner.limb[i].overflowing_sub(modulus[i]);
             let (diff2, b2) = diff.overflowing_sub(borrow);
             result[i] = diff2;
             borrow = (b1 as u64) + (b2 as u64);
         }
 
-        Self::new(result)
+        let reduced = Self::new(result);
+        debug_assert!(
+            reduced.is_valid(),
+            "reduce_once: input was >= 2*r, single subtraction insufficient"
+        );
+        reduced
     }
 }
 
@@ -128,13 +135,13 @@ impl fmt::Display for Scalar {
     }
 }
 
-impl From<[u64; 5]> for Scalar {
-    fn from(limbs: [u64; 5]) -> Self {
+impl From<[u64; SCALAR_LIMBS]> for Scalar {
+    fn from(limbs: [u64; SCALAR_LIMBS]) -> Self {
         Self::new(limbs)
     }
 }
 
-impl From<Scalar> for [u64; 5] {
+impl From<Scalar> for [u64; SCALAR_LIMBS] {
     fn from(scalar: Scalar) -> Self {
         scalar.limbs()
     }

@@ -182,6 +182,14 @@ __host__ void point_from_montgomery_inplace(G2Projective &point);
 __host__ void normalize_projective_g1(G1Projective &point);
 __host__ void normalize_projective_g2(G2Projective &point);
 
+// Convert from Montgomery form and normalize to Z=1 / Z=(1,0) in one pass.
+// Input coordinates must be in Montgomery form. Output is in normal form with
+// Z=1 (G1) or Z=(1,0) (G2). Avoids the redundant from_montgomery +
+// to_montgomery round-trip of calling point_from_montgomery_inplace then
+// normalize_projective_g*.
+__host__ void normalize_from_montgomery_g1(G1Projective &point);
+__host__ void normalize_from_montgomery_g2(G2Projective &point);
+
 // Template point operations (work for both G1 and G2)
 // These are generic functions that work with any point type via Affine
 
@@ -199,12 +207,12 @@ template <typename PointType>
 __host__ __device__ void point_neg(PointType &result, const PointType &p);
 
 // Scalar multiplication: result = scalar * point
-// scalar is represented as little-endian limbs (uint64_t array)
+// scalar is represented as little-endian limbs (UNSIGNED_LIMB array)
 // scalar_limbs is the number of limbs (at most FP_LIMBS)
 template <typename PointType>
 __host__ __device__ void
 point_scalar_mul(PointType &result, const PointType &point,
-                 const uint64_t *scalar, uint32_t scalar_limbs);
+                 const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs);
 
 // Generator points (hardcoded at compile time, like DEVICE_MODULUS)
 extern __constant__ const G1Affine DEVICE_G1_GENERATOR;
@@ -266,26 +274,27 @@ template <typename PointType>
 void point_neg(cudaStream_t stream, uint32_t gpu_index, PointType *d_result,
                const PointType *d_p);
 
-// Scalar multiplication: d_result = scalar * d_point (64-bit scalar)
+// Scalar multiplication: d_result = scalar * d_point (single-limb scalar)
 template <typename PointType>
-void point_scalar_mul_u64_async(cudaStream_t stream, uint32_t gpu_index,
-                                PointType *d_result, const PointType *d_point,
-                                uint64_t scalar);
+void single_point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
+                                   PointType *d_result, const PointType *d_point,
+                                   UNSIGNED_LIMB scalar);
 template <typename PointType>
-void point_scalar_mul_u64(cudaStream_t stream, uint32_t gpu_index,
-                          PointType *d_result, const PointType *d_point,
-                          uint64_t scalar);
+void single_point_scalar_mul(cudaStream_t stream, uint32_t gpu_index,
+                             PointType *d_result, const PointType *d_point,
+                             UNSIGNED_LIMB scalar);
 
 // Scalar multiplication: d_result = scalar * d_point (multi-limb scalar, device
 // pointer)
 template <typename PointType>
 void point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
                             PointType *d_result, const PointType *d_point,
-                            const uint64_t *d_scalar, uint32_t scalar_limbs);
+                            const UNSIGNED_LIMB *d_scalar,
+                            uint32_t scalar_limbs);
 template <typename PointType>
 void point_scalar_mul(cudaStream_t stream, uint32_t gpu_index,
                       PointType *d_result, const PointType *d_point,
-                      const uint64_t *d_scalar, uint32_t scalar_limbs);
+                      const UNSIGNED_LIMB *d_scalar, uint32_t scalar_limbs);
 
 // Affine at infinity: d_result = O (identity element)
 template <typename PointType>

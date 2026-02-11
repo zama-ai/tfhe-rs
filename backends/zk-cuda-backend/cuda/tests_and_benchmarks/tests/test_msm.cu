@@ -261,11 +261,12 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
                                               stream, gpu_index, true);
 
   // Compute MSM on device (returns projective point)
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
-  uint64_t expected_scalar = triangular_number(N);
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_expected, d_G,
+  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                  expected_scalar);
 
   // Convert projective result to affine, then from Montgomery form before
@@ -411,11 +412,12 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
                                               stream, gpu_index, true);
 
   // Compute MSM on device (returns projective point)
-  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
-  uint64_t expected_scalar = triangular_number(N);
-  point_scalar_mul_u64<G2Affine>(stream, gpu_index, d_expected, d_G,
+  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                  expected_scalar);
 
   // Convert projective result to affine, then from Montgomery form before
@@ -563,11 +565,11 @@ TEST_F(MSMTest, G1MSMLargeN) {
 
     // Compute MSM on device (returns projective point)
     point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch,
-                 N);
+                 N, size_tracker);
 
     // Compute expected result on device: G * (N * (N+1) / 2)
-    uint64_t expected_scalar = triangular_number(N);
-    point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_expected, d_G,
+    UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+    single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                    expected_scalar);
 
     // Convert projective result to affine, then from Montgomery form before
@@ -725,11 +727,11 @@ TEST_F(MSMTest, G2MSMLargeN) {
 
     // Compute MSM on device (returns projective point)
     point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch,
-                 N);
+                 N, size_tracker);
 
     // Compute expected result on device: G * (N * (N+1) / 2)
-    uint64_t expected_scalar = triangular_number(N);
-    point_scalar_mul_u64<G2Affine>(stream, gpu_index, d_expected, d_G,
+    UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+    single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                    expected_scalar);
 
     // Convert projective result to affine, then from Montgomery form before
@@ -878,10 +880,11 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
-  uint64_t expected_scalar = triangular_number(N);
-  point_scalar_mul_u64<G1Affine>(stream, gpu_index, d_expected, d_G,
+  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                  expected_scalar);
 
   G1Projective *d_result_proj = d_result;
@@ -1002,10 +1005,11 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
-  uint64_t expected_scalar = triangular_number(N);
-  point_scalar_mul_u64<G2Affine>(stream, gpu_index, d_expected, d_G,
+  UNSIGNED_LIMB expected_scalar = static_cast<UNSIGNED_LIMB>(triangular_number(N));
+  single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                  expected_scalar);
 
   G2Projective *d_result_proj = d_result;
@@ -1144,18 +1148,20 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
                                               stream, gpu_index, true);
 
   // Compute MSM
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected: G * 2^64 using multi-limb scalar multiplication
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   cuda_memcpy_with_size_tracking_async_to_gpu(d_scalar_temp, h_scalars[0].limb,
-                                              5 * sizeof(uint64_t), stream,
-                                              gpu_index, true);
+                                              ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+                                              stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
   point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G, d_scalar_temp,
-                             5);
+                             ZP_LIMBS);
   cuda_drop_with_size_tracking_async(d_scalar_temp, stream, gpu_index, true);
 
   // Convert results for comparison
@@ -1281,13 +1287,15 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
   // Each point is multiplied by its corresponding scalar
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   auto *d_individual_results =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
           N * sizeof(G1Affine), stream, gpu_index, size_tracker, true));
@@ -1295,11 +1303,11 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   // Compute each scalar[i] * points[i] separately
   for (auto i = 0ULL; i < N; i++) {
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        d_scalar_temp, h_scalars[i].limb, 5 * sizeof(uint64_t), stream,
-        gpu_index, true);
+        d_scalar_temp, h_scalars[i].limb, ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+        stream, gpu_index, true);
     cuda_synchronize_stream(stream, gpu_index);
     point_scalar_mul<G1Affine>(stream, gpu_index, d_individual_results + i,
-                               d_points + i, d_scalar_temp, 5);
+                               d_points + i, d_scalar_temp, ZP_LIMBS);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -1450,13 +1458,15 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
   // Each point is multiplied by its corresponding scalar
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   auto *d_sum = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
   auto *d_temp = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1470,11 +1480,11 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
 
   for (auto i = 0ULL; i < N; i++) {
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        d_scalar_temp, h_scalars[i].limb, 5 * sizeof(uint64_t), stream,
-        gpu_index, true);
+        d_scalar_temp, h_scalars[i].limb, ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+        stream, gpu_index, true);
     cuda_synchronize_stream(stream, gpu_index);
     point_scalar_mul<G1Affine>(stream, gpu_index, d_temp, d_points + i,
-                               d_scalar_temp, 5);
+                               d_scalar_temp, ZP_LIMBS);
     cuda_synchronize_stream(stream, gpu_index);
     point_add<G1Affine>(stream, gpu_index, d_new_sum, d_sum, d_temp);
     cuda_synchronize_stream(stream, gpu_index);
@@ -1612,13 +1622,15 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
   // Each point is multiplied by its corresponding scalar
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   auto *d_sum = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G2Affine), stream, gpu_index, size_tracker, true));
   auto *d_temp = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1632,11 +1644,11 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
 
   for (auto i = 0ULL; i < N; i++) {
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        d_scalar_temp, h_scalars[i].limb, 5 * sizeof(uint64_t), stream,
-        gpu_index, true);
+        d_scalar_temp, h_scalars[i].limb, ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+        stream, gpu_index, true);
     cuda_synchronize_stream(stream, gpu_index);
     point_scalar_mul<G2Affine>(stream, gpu_index, d_temp, d_points + i,
-                               d_scalar_temp, 5);
+                               d_scalar_temp, ZP_LIMBS);
     cuda_synchronize_stream(stream, gpu_index);
     point_add<G2Affine>(stream, gpu_index, d_new_sum, d_sum, d_temp);
     cuda_synchronize_stream(stream, gpu_index);
@@ -1767,17 +1779,19 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   cuda_memcpy_with_size_tracking_async_to_gpu(d_scalar_temp, h_scalars[0].limb,
-                                              5 * sizeof(uint64_t), stream,
-                                              gpu_index, true);
+                                              ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+                                              stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
   point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G, d_scalar_temp,
-                             5);
+                             ZP_LIMBS);
   cuda_drop_with_size_tracking_async(d_scalar_temp, stream, gpu_index, true);
 
   G1Projective *d_result_proj = d_result;
@@ -1895,17 +1909,19 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   cuda_memcpy_with_size_tracking_async_to_gpu(d_scalar_temp, h_scalars[0].limb,
-                                              5 * sizeof(uint64_t), stream,
-                                              gpu_index, true);
+                                              ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+                                              stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
   point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G, d_scalar_temp,
-                             5);
+                             ZP_LIMBS);
   cuda_drop_with_size_tracking_async(d_scalar_temp, stream, gpu_index, true);
 
   G1Projective *d_result_proj = d_result;
@@ -2023,17 +2039,19 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   cuda_memcpy_with_size_tracking_async_to_gpu(d_scalar_temp, h_scalars[0].limb,
-                                              5 * sizeof(uint64_t), stream,
-                                              gpu_index, true);
+                                              ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+                                              stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
   point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G, d_scalar_temp,
-                             5);
+                             ZP_LIMBS);
   cuda_drop_with_size_tracking_async(d_scalar_temp, stream, gpu_index, true);
 
   G1Projective *d_result_proj = d_result;
@@ -2157,17 +2175,19 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, N,
+               size_tracker);
 
   auto *d_scalar_temp =
-      static_cast<uint64_t *>(cuda_malloc_with_size_tracking_async(
-          5 * sizeof(uint64_t), stream, gpu_index, size_tracker, true));
+      static_cast<UNSIGNED_LIMB *>(cuda_malloc_with_size_tracking_async(
+          ZP_LIMBS * sizeof(UNSIGNED_LIMB), stream, gpu_index, size_tracker,
+          true));
   cuda_memcpy_with_size_tracking_async_to_gpu(d_scalar_temp, h_scalars[0].limb,
-                                              5 * sizeof(uint64_t), stream,
-                                              gpu_index, true);
+                                              ZP_LIMBS * sizeof(UNSIGNED_LIMB),
+                                              stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
   point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G, d_scalar_temp,
-                             5);
+                             ZP_LIMBS);
   cuda_drop_with_size_tracking_async(d_scalar_temp, stream, gpu_index, true);
 
   G1Projective *d_result_proj = d_result;

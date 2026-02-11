@@ -65,6 +65,7 @@ bool g2_is_infinity_wrapper(const G2Affine* point) {
 // Unmanaged MSM wrapper for G1 (assumes all data is already on device)
 // If points_in_montgomery is false, a temporary copy will be made and converted.
 // For best performance, provide points already in Montgomery form to avoid allocation overhead.
+// NOTE: This wrapper synchronizes the stream before returning — callers do not need to sync.
 void g1_msm_unmanaged_wrapper(
     cudaStream_t stream,
     uint32_t gpu_index,
@@ -89,17 +90,21 @@ void g1_msm_unmanaged_wrapper(
 
     const G1Affine* points_to_use = d_points;
     G1Affine* d_points_converted = nullptr;
-    
+
     if (!points_in_montgomery) {
-        d_points_converted = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(n * sizeof(G1Affine), stream, gpu_index, size_tracker_ref, true));
+        size_t points_bytes = 0;
+        bool overflow = __builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes);
+        PANIC_IF_FALSE(!overflow,
+                       "G1 MSM unmanaged error: points byte size overflow (n=%u)", n);
+        d_points_converted = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
         PANIC_IF_FALSE(d_points_converted != nullptr, "G1 MSM error: failed to allocate memory for Montgomery conversion");
-        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, n * sizeof(G1Affine), stream, gpu_index, true);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, points_bytes, stream, gpu_index, true);
         convert_g1_points_to_montgomery(stream, gpu_index, d_points_converted, n);
         check_cuda_error(cudaGetLastError());
         points_to_use = d_points_converted;
     }
 
-    point_msm_async_g1(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
+    point_msm_async_g1(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n, size_tracker_ref);
     check_cuda_error(cudaGetLastError());
 
     if (d_points_converted != nullptr) {
@@ -112,6 +117,7 @@ void g1_msm_unmanaged_wrapper(
 // Unmanaged MSM wrapper for G2 (assumes all data is already on device)
 // If points_in_montgomery is false, a temporary copy will be made and converted.
 // For best performance, provide points already in Montgomery form to avoid allocation overhead.
+// NOTE: This wrapper synchronizes the stream before returning — callers do not need to sync.
 void g2_msm_unmanaged_wrapper(
     cudaStream_t stream,
     uint32_t gpu_index,
@@ -136,17 +142,21 @@ void g2_msm_unmanaged_wrapper(
 
     const G2Affine* points_to_use = d_points;
     G2Affine* d_points_converted = nullptr;
-    
+
     if (!points_in_montgomery) {
-        d_points_converted = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(n * sizeof(G2Affine), stream, gpu_index, size_tracker_ref, true));
+        size_t points_bytes = 0;
+        bool overflow = __builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes);
+        PANIC_IF_FALSE(!overflow,
+                       "G2 MSM unmanaged error: points byte size overflow (n=%u)", n);
+        d_points_converted = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
         PANIC_IF_FALSE(d_points_converted != nullptr, "G2 MSM error: failed to allocate memory for Montgomery conversion");
-        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, n * sizeof(G2Affine), stream, gpu_index, true);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, points_bytes, stream, gpu_index, true);
         convert_g2_points_to_montgomery(stream, gpu_index, d_points_converted, n);
         check_cuda_error(cudaGetLastError());
         points_to_use = d_points_converted;
     }
 
-    point_msm_async_g2(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n);
+    point_msm_async_g2(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n, size_tracker_ref);
     check_cuda_error(cudaGetLastError());
 
     // Free temporary memory if allocated
@@ -203,15 +213,15 @@ void g1_msm_managed_wrapper(
                    scratch_elems);
 
     size_t points_bytes = 0;
-    bool points_overflow =
+    bool points_bytes_overflow =
         __builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes);
-    PANIC_IF_FALSE(!points_overflow,
+    PANIC_IF_FALSE(!points_bytes_overflow,
                    "G1 MSM error: points byte size overflow (n=%u)", n);
 
     size_t scalars_bytes = 0;
-    bool scalars_overflow =
+    bool scalars_bytes_overflow =
         __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
-    PANIC_IF_FALSE(!scalars_overflow,
+    PANIC_IF_FALSE(!scalars_bytes_overflow,
                    "G1 MSM error: scalars byte size overflow (n=%u)", n);
 
     // TODO: We should migrate to _unmanaged_ methods and have scratch/cleanup functions as tfhe-cuda-backend
@@ -233,7 +243,7 @@ void g1_msm_managed_wrapper(
         check_cuda_error(cudaGetLastError());
     }
 
-    point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
+    point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n, size_tracker_ref);
     check_cuda_error(cudaGetLastError());
 
     cuda_memcpy_async_to_cpu(result, d_result, sizeof(G1Projective), stream, gpu_index);
@@ -290,15 +300,15 @@ void g2_msm_managed_wrapper(
                    scratch_elems);
 
     size_t points_bytes = 0;
-    bool points_overflow =
+    bool points_bytes_overflow =
         __builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes);
-    PANIC_IF_FALSE(!points_overflow,
+    PANIC_IF_FALSE(!points_bytes_overflow,
                    "G2 MSM error: points byte size overflow (n=%u)", n);
 
     size_t scalars_bytes = 0;
-    bool scalars_overflow =
+    bool scalars_bytes_overflow =
         __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
-    PANIC_IF_FALSE(!scalars_overflow,
+    PANIC_IF_FALSE(!scalars_bytes_overflow,
                    "G2 MSM error: scalars byte size overflow (n=%u)", n);
     
     auto* d_points = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
@@ -317,7 +327,7 @@ void g2_msm_managed_wrapper(
         check_cuda_error(cudaGetLastError());
     }
 
-    point_msm_async_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
+    point_msm_async_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n, size_tracker_ref);
     check_cuda_error(cudaGetLastError());
 
 
@@ -372,25 +382,27 @@ void fp_from_montgomery_wrapper(Fp* result, const Fp* value) {
 void g1_projective_from_montgomery_normalized_wrapper(G1Projective* result, const G1Projective* point) {
     PANIC_IF_FALSE(result != nullptr, "g1_projective_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g1_projective_from_montgomery error: point is null");
-    
+
     // Copy the point first (since inplace modifies the input)
     *result = *point;
-    // Convert all three coordinates (X, Y, Z) from Montgomery to normal form
-    point_from_montgomery_inplace(*result);
-    // Normalize to Z=1 for arkworks compatibility
-    normalize_projective_g1(*result);
+    // Normalize and convert from Montgomery to normal form in a single pass.
+    // This avoids the redundant from_montgomery -> to_montgomery round-trip
+    // that occurred when calling point_from_montgomery_inplace then
+    // normalize_projective_g1 separately.
+    normalize_from_montgomery_g1(*result);
 }
 
 void g2_projective_from_montgomery_normalized_wrapper(G2Projective* result, const G2Projective* point) {
     PANIC_IF_FALSE(result != nullptr, "g2_projective_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g2_projective_from_montgomery error: point is null");
-    
+
     // Copy the point first (since inplace modifies the input)
     *result = *point;
-    // Convert all three coordinates (X, Y, Z) from Montgomery to normal form
-    point_from_montgomery_inplace(*result);
-    // Normalize to Z=(1,0) for arkworks compatibility
-    normalize_projective_g2(*result);
+    // Normalize and convert from Montgomery to normal form in a single pass.
+    // This avoids the redundant from_montgomery -> to_montgomery round-trip
+    // that occurred when calling point_from_montgomery_inplace then
+    // normalize_projective_g2 separately.
+    normalize_from_montgomery_g2(*result);
 }
 
 // Point validation wrappers - check if point is on the curve

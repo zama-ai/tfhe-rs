@@ -617,7 +617,7 @@ __host__ __device__ void point_add(PointType &result, const PointType &p1,
 template <typename PointType>
 __host__ __device__ void
 point_scalar_mul(PointType &result, const PointType &point,
-                 const uint64_t *scalar, uint32_t scalar_limbs) {
+                 const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs) {
   using AffinePoint = Affine<PointType>;
 
   // Start with point at infinity (initialize result first)
@@ -673,7 +673,9 @@ point_scalar_mul(PointType &result, const PointType &point,
       if (bit) {
         point_add(result, result, addend);
       }
-      point_double(addend, addend);
+      // Skip the final doubling on the MSB -- the doubled value is never used
+      if (limb != msb_limb || j != end_bit)
+        point_double(addend, addend);
     }
   }
 }
@@ -1022,377 +1024,8 @@ __host__ __device__ const G2Affine &g2_generator() {
 
 // Pippenger algorithm parameters
 // MSM_G1_WINDOW_SIZE and MSM_G2_BUCKET_COUNT are defined in msm.h
-
-// Helper function to extract a window from a multi-limb scalar (internal)
-__device__ __forceinline__ uint32_t extract_window_multi_internal(
-    const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs, uint32_t window_idx,
-    uint32_t window_size) {
-  uint32_t total_bits = scalar_limbs * LIMB_BITS;
-  uint32_t bit_offset = window_idx * window_size;
-  if (bit_offset >= total_bits)
-    return 0;
-
-  uint32_t limb_idx = bit_offset / LIMB_BITS;
-  uint32_t bit_in_limb = bit_offset % LIMB_BITS;
-
-  if (limb_idx >= scalar_limbs)
-    return 0;
-
-  UNSIGNED_LIMB mask = (1ULL << window_size) - 1;
-  UNSIGNED_LIMB window = (scalar[limb_idx] >> bit_in_limb) & mask;
-
-  // If window spans two limbs, combine them
-  if (bit_in_limb + window_size > LIMB_BITS && limb_idx + 1 < scalar_limbs) {
-    uint32_t bits_from_next = (bit_in_limb + window_size) - LIMB_BITS;
-    UNSIGNED_LIMB next_bits =
-        scalar[limb_idx + 1] & ((1ULL << bits_from_next) - 1);
-    window |= (next_bits << (window_size - bits_from_next));
-  }
-
-  return static_cast<uint32_t>(window);
-}
-
-// Wrapper for external API (scalar is uint64_t* from FFI)
-// Handles conversion from 64-bit limbs to UNSIGNED_LIMB
-__device__ __forceinline__ uint32_t
-extract_window_multi(const uint64_t *scalar, uint32_t scalar_limbs_64,
-                     uint32_t window_idx, uint32_t window_size) {
-  const UNSIGNED_LIMB *scalar_native =
-      reinterpret_cast<const UNSIGNED_LIMB *>(scalar);
-  const uint32_t scalar_limbs_native = scalar_limbs_64 * (64 / LIMB_BITS);
-  return extract_window_multi_internal(scalar_native, scalar_limbs_native,
-                                       window_idx, window_size);
-}
-
-// Pippenger kernel: Clear buckets
-template <typename PointType>
-__global__ void kernel_clear_buckets(PointType *buckets, uint32_t num_buckets) {
-  using AffinePoint = Affine<PointType>;
-
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < num_buckets) {
-    AffinePoint::point_at_infinity(buckets[idx]);
-  }
-}
-
-// Forward declarations for projective point operations (needed by kernels)
-__host__ __device__ void projective_point_add(G1Projective &result,
-                                              const G1Projective &p1,
-                                              const G1Projective &p2);
-__host__ __device__ void projective_point_add(G2Projective &result,
-                                              const G2Projective &p1,
-                                              const G2Projective &p2);
-__host__ __device__ void projective_point_double(G1Projective &result,
-                                                 const G1Projective &p);
-__host__ __device__ void projective_point_double(G2Projective &result,
-                                                 const G2Projective &p);
-
-// Pippenger kernel: Final reduction of bucket contributions from multiple
-// blocks This kernel combines per-block bucket accumulations into final buckets
-template <typename PointType>
-__global__ void
-kernel_reduce_buckets(PointType *final_buckets, const PointType *block_buckets,
-                      uint32_t num_blocks, uint32_t num_buckets) {
-  using AffinePoint = Affine<PointType>;
-
-  // Each thread handles one bucket across all blocks
-  uint32_t bucket_idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (bucket_idx == 0 || bucket_idx >= num_buckets)
-    return;
-
-  PointType bucket_sum;
-  AffinePoint::point_at_infinity(bucket_sum);
-
-  // Sum contributions from all blocks for this bucket
-  for (uint32_t block = 0; block < num_blocks; block++) {
-    uint32_t idx = block * num_buckets + bucket_idx;
-    const PointType &block_contrib = block_buckets[idx];
-    if (!AffinePoint::is_infinity(block_contrib)) {
-      if (AffinePoint::is_infinity(bucket_sum)) {
-        bucket_sum = block_contrib;
-      } else {
-        PointType temp;
-        point_add(temp, bucket_sum, block_contrib);
-        bucket_sum = temp;
-      }
-    }
-  }
-
-  // Write final result
-  final_buckets[bucket_idx] = bucket_sum;
-}
-
-// Pippenger kernel: Accumulate points into buckets for multi-limb scalars
-template <typename PointType>
-__global__ void
-kernel_accumulate_buckets_multi(PointType *buckets, const PointType *points,
-                                const uint64_t *scalars, uint32_t scalar_limbs,
-                                uint32_t n, uint32_t window_idx,
-                                uint32_t window_size) {
-  using AffinePoint = Affine<PointType>;
-  // Same approach as u64 version: process each bucket sequentially
-  uint32_t bucket_idx = blockIdx.x;
-  if (bucket_idx == 0 || bucket_idx >= MSM_G1_BUCKET_COUNT)
-    return;
-
-  PointType bucket_sum;
-  AffinePoint::point_at_infinity(bucket_sum);
-
-  uint32_t points_per_thread = (n + blockDim.x - 1) / blockDim.x;
-  uint32_t start_idx = threadIdx.x * points_per_thread;
-  uint32_t end_idx = min(start_idx + points_per_thread, n);
-
-  for (uint32_t i = start_idx; i < end_idx; i++) {
-    uint32_t point_bucket = extract_window_multi(
-        scalars + i * scalar_limbs, scalar_limbs, window_idx, window_size);
-    if (point_bucket == bucket_idx) {
-      if (AffinePoint::is_infinity(bucket_sum)) {
-        bucket_sum = points[i];
-      } else {
-        PointType temp;
-        point_add(temp, bucket_sum, points[i]);
-        bucket_sum = temp;
-      }
-    }
-  }
-
-  // Reduce within block using dynamic shared memory
-  extern __shared__ char shared_mem[];
-  auto *shared_sums = reinterpret_cast<PointType *>(shared_mem);
-  shared_sums[threadIdx.x] = bucket_sum;
-  __syncthreads();
-
-  // Thread 0 reduces all thread results
-  if (threadIdx.x == 0) {
-    PointType total_sum;
-    AffinePoint::point_at_infinity(total_sum);
-    for (uint32_t i = 0; i < blockDim.x; i++) {
-      if (!AffinePoint::is_infinity(shared_sums[i])) {
-        if (AffinePoint::is_infinity(total_sum)) {
-          total_sum = shared_sums[i];
-        } else {
-          PointType temp;
-          point_add(temp, total_sum, shared_sums[i]);
-          total_sum = temp;
-        }
-      }
-    }
-    buckets[bucket_idx] = total_sum;
-  }
-}
-
-// Pippenger kernel: Combine buckets for a window and accumulate into result
-// Standard Pippenger: window_sum = bucket[1] * 1 + bucket[2] * 2 + ... +
-// bucket[15] * 15 Using Horner's method: window_sum = bucket[1] + 2 *
-// (bucket[2] + 2 * (bucket[3] + ... + 2 * bucket[15])) Then result = result *
-// 2^window_size + window_sum Helper function: Compute k * P using binary method
-// (for small k, 1 <= k <= 15)
-template <typename PointType>
-__device__ void point_scalar_mul_small(PointType &result, const PointType &P,
-                                       int k) {
-  using AffinePoint = Affine<PointType>;
-
-  if (k == 0 || AffinePoint::is_infinity(P)) {
-    AffinePoint::point_at_infinity(result);
-    return;
-  }
-
-  if (k == 1) {
-    result = P;
-    return;
-  }
-
-  // Binary scalar multiplication: k * P
-  // Start with P, then for each bit from MSB-1 to LSB: double, then add P if
-  // bit is set
-  PointType acc = P;
-
-  // Find the MSB of k
-  int msb =
-      31 -
-      __clz(k); // __clz counts leading zeros, so msb is the highest set bit
-
-  // Process bits from msb-1 down to 0
-  for (int bit = msb - 1; bit >= 0; bit--) {
-    point_double(acc, acc);
-    if (k & (1 << bit)) {
-      PointType temp;
-      point_add(temp, acc, P);
-      acc = temp;
-    }
-  }
-
-  result = acc;
-}
-
-template <typename PointType>
-__global__ void kernel_combine_buckets(PointType *result, PointType *buckets,
-                                       uint32_t num_buckets,
-                                       uint32_t window_idx) {
-  using AffinePoint = Affine<PointType>;
-
-  // Shared memory for storing weighted buckets and reduction tree
-  extern __shared__ char shared_mem[];
-  auto *shared_weighted = reinterpret_cast<PointType *>(shared_mem);
-
-  // Each thread processes one bucket (bucket index = threadIdx.x + 1, since
-  // bucket[0] is not used)
-  uint32_t bucket_idx = threadIdx.x + 1;
-
-  // Compute i * bucket[i] for this thread's bucket using binary scalar
-  // multiplication
-  if (bucket_idx < num_buckets) {
-    if (!AffinePoint::is_infinity(buckets[bucket_idx])) {
-      point_scalar_mul_small(shared_weighted[threadIdx.x], buckets[bucket_idx],
-                             bucket_idx);
-    } else {
-      AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
-    }
-  } else {
-    // Threads beyond num_buckets-1 set to infinity
-    AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
-  }
-
-  __syncthreads();
-
-  // Reduction tree: combine all weighted buckets
-  // Use standard parallel reduction pattern
-  int active_threads =
-      num_buckets -
-      1; // Number of buckets to process (buckets 1 to num_buckets-1)
-
-  for (uint32_t stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-    if (threadIdx.x < stride && threadIdx.x + stride < active_threads) {
-      if (!AffinePoint::is_infinity(shared_weighted[threadIdx.x + stride])) {
-        if (AffinePoint::is_infinity(shared_weighted[threadIdx.x])) {
-          shared_weighted[threadIdx.x] = shared_weighted[threadIdx.x + stride];
-        } else {
-          PointType temp;
-          point_add(temp, shared_weighted[threadIdx.x],
-                    shared_weighted[threadIdx.x + stride]);
-          shared_weighted[threadIdx.x] = temp;
-        }
-      }
-    }
-    __syncthreads();
-  }
-
-  // Thread 0 has the final window_sum, add it to result
-  if (threadIdx.x == 0) {
-    PointType window_sum = shared_weighted[0];
-
-    // Add window sum to result
-    // For windows processed from MSB to LSB:
-    // - First window (MSB, highest window_idx): result = window_sum (no
-    // multiplication)
-    // - Subsequent windows: result = result * 2^window_size + window_sum
-    if (!AffinePoint::is_infinity(window_sum)) {
-      if (AffinePoint::is_infinity(*result)) {
-        // First non-zero window: just copy window_sum
-        *result = window_sum;
-      } else {
-        // Multiply result by 2^window_size before adding window_sum
-        constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
-        for (uint32_t i = 0; i < window_size; i++) {
-          point_double(*result, *result);
-        }
-        // Add window_sum to result
-        PointType temp;
-        point_add(temp, *result, window_sum);
-        *result = temp;
-      }
-    } else if (!AffinePoint::is_infinity(*result)) {
-      // Window sum is zero but result is not: still need to multiply result
-      constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
-      for (uint32_t i = 0; i < window_size; i++) {
-        point_double(*result, *result);
-      }
-    }
-  }
-}
-
-// Legacy kernels for backward compatibility (kept for reference, but not used
-// in new implementation) Template kernel: Compute scalar[i] * points[i] with
-// 64-bit scalars
-template <typename PointType>
-__global__ void
-kernel_scalar_mul_u64_array(PointType *results, const PointType *points,
-                            const uint64_t *scalars, uint32_t n) {
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n) {
-    point_scalar_mul(results[idx], points[idx], &scalars[idx], 1);
-  }
-}
-
-// Template kernel: Compute scalar[i] * points[i] with multi-limb scalars
-template <typename PointType>
-__global__ void kernel_scalar_mul_array(PointType *results,
-                                        const PointType *points,
-                                        const uint64_t *scalars,
-                                        uint32_t scalar_limbs, uint32_t n) {
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n) {
-    point_scalar_mul(results[idx], points[idx], scalars + idx * scalar_limbs,
-                     scalar_limbs);
-  }
-}
-
-// Template kernel: Reduce array of points by addition
-template <typename PointType>
-__global__ void kernel_reduce_sum(PointType *result, const PointType *points,
-                                  uint32_t n) {
-  using AffinePoint = Affine<PointType>;
-  if (threadIdx.x == 0 && blockIdx.x == 0) {
-    AffinePoint::point_at_infinity(*result);
-    for (uint32_t i = 0; i < n; i++) {
-      PointType temp;
-      point_add(temp, *result, points[i]);
-      *result = temp;
-    }
-  }
-}
-
-// Template kernels for array operations (replacing legacy g1_* and g2_*
-// kernels)
-
-// Template kernel: Compute scalar[i] * points[i] with 64-bit scalars
-template <typename PointType>
-__global__ void
-kernel_point_scalar_mul_u64_array(PointType *results, const PointType *points,
-                                  const uint64_t *scalars, uint32_t n) {
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n) {
-    point_scalar_mul(results[idx], points[idx], &scalars[idx], 1);
-  }
-}
-
-// Template kernel: Compute scalar[i] * points[i] with multi-limb scalars
-template <typename PointType>
-__global__ void
-kernel_point_scalar_mul_array(PointType *results, const PointType *points,
-                              const uint64_t *scalars, uint32_t scalar_limbs,
-                              uint32_t n) {
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n) {
-    point_scalar_mul(results[idx], points[idx], scalars + idx * scalar_limbs,
-                     scalar_limbs);
-  }
-}
-
-// Template kernel: Reduce array of points by addition
-template <typename PointType>
-__global__ void kernel_point_reduce_sum(PointType *result,
-                                        const PointType *points, uint32_t n) {
-  using AffinePoint = Affine<PointType>;
-  if (threadIdx.x == 0 && blockIdx.x == 0) {
-    AffinePoint::point_at_infinity(*result);
-    for (int i = 0; i < n; i++) {
-      PointType temp;
-      point_add(temp, *result, points[i]);
-      *result = temp;
-    }
-  }
-}
+// extract_window_multi_internal and extract_window_multi are defined in
+// msm/pippenger/msm_pippenger.cu
 
 // ============================================================================
 // Template Kernels for async/sync API (work on device pointers)
@@ -1484,11 +1117,11 @@ __global__ void kernel_point_from_montgomery_batch(PointType *points,
   }
 }
 
-// Template kernel: Scalar multiplication with 64-bit scalar
+// Template kernel: Scalar multiplication with a single-limb scalar
 template <typename PointType>
-__global__ void kernel_point_scalar_mul_u64(PointType *result,
-                                            const PointType *point,
-                                            uint64_t scalar) {
+__global__ void kernel_single_point_scalar_mul(PointType *result,
+                                               const PointType *point,
+                                               UNSIGNED_LIMB scalar) {
   point_scalar_mul(*result, *point, &scalar, 1);
 }
 
@@ -1496,7 +1129,7 @@ __global__ void kernel_point_scalar_mul_u64(PointType *result,
 template <typename PointType>
 __global__ void
 kernel_point_scalar_mul(PointType *result, const PointType *point,
-                        const uint64_t *scalar, uint32_t scalar_limbs) {
+                        const UNSIGNED_LIMB *scalar, uint32_t scalar_limbs) {
   point_scalar_mul(*result, *point, scalar, scalar_limbs);
 }
 
@@ -1615,25 +1248,25 @@ void point_from_montgomery(cudaStream_t stream, uint32_t gpu_index,
   cuda_synchronize_stream(stream, gpu_index);
 }
 
-// Template function: Scalar multiplication with 64-bit scalar
+// Template function: Scalar multiplication with a single-limb scalar
 template <typename PointType>
-void point_scalar_mul_u64_async(cudaStream_t stream, uint32_t gpu_index,
-                                PointType *d_result, const PointType *d_point,
-                                uint64_t scalar) {
+void single_point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
+                                   PointType *d_result, const PointType *d_point,
+                                   UNSIGNED_LIMB scalar) {
   PANIC_IF_FALSE(d_result != nullptr && d_point != nullptr,
-                 "point_scalar_mul_u64_async: null pointer argument");
+                 "single_point_scalar_mul_async: null pointer argument");
   cuda_set_device(gpu_index);
-  kernel_point_scalar_mul_u64<PointType>
+  kernel_single_point_scalar_mul<PointType>
       <<<1, 1, 0, stream>>>(d_result, d_point, scalar);
   check_cuda_error(cudaGetLastError());
 }
 
 template <typename PointType>
-void point_scalar_mul_u64(cudaStream_t stream, uint32_t gpu_index,
-                          PointType *d_result, const PointType *d_point,
-                          uint64_t scalar) {
-  point_scalar_mul_u64_async<PointType>(stream, gpu_index, d_result, d_point,
-                                        scalar);
+void single_point_scalar_mul(cudaStream_t stream, uint32_t gpu_index,
+                             PointType *d_result, const PointType *d_point,
+                             UNSIGNED_LIMB scalar) {
+  single_point_scalar_mul_async<PointType>(stream, gpu_index, d_result, d_point,
+                                           scalar);
   cuda_synchronize_stream(stream, gpu_index);
 }
 
@@ -1641,7 +1274,8 @@ void point_scalar_mul_u64(cudaStream_t stream, uint32_t gpu_index,
 template <typename PointType>
 void point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
                             PointType *d_result, const PointType *d_point,
-                            const uint64_t *d_scalar, uint32_t scalar_limbs) {
+                            const UNSIGNED_LIMB *d_scalar,
+                            uint32_t scalar_limbs) {
   PANIC_IF_FALSE(d_result != nullptr && d_point != nullptr &&
                      d_scalar != nullptr,
                  "point_scalar_mul_async: null pointer argument");
@@ -1654,7 +1288,7 @@ void point_scalar_mul_async(cudaStream_t stream, uint32_t gpu_index,
 template <typename PointType>
 void point_scalar_mul(cudaStream_t stream, uint32_t gpu_index,
                       PointType *d_result, const PointType *d_point,
-                      const uint64_t *d_scalar, uint32_t scalar_limbs) {
+                      const UNSIGNED_LIMB *d_scalar, uint32_t scalar_limbs) {
   point_scalar_mul_async<PointType>(stream, gpu_index, d_result, d_point,
                                     d_scalar, scalar_limbs);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1717,17 +1351,19 @@ template void point_from_montgomery_async<G1Affine>(cudaStream_t, uint32_t,
                                                     const G1Affine *);
 template void point_from_montgomery<G1Affine>(cudaStream_t, uint32_t,
                                               G1Affine *, const G1Affine *);
-template void point_scalar_mul_u64_async<G1Affine>(cudaStream_t, uint32_t,
-                                                   G1Affine *, const G1Affine *,
-                                                   uint64_t);
-template void point_scalar_mul_u64<G1Affine>(cudaStream_t, uint32_t, G1Affine *,
-                                             const G1Affine *, uint64_t);
+template void single_point_scalar_mul_async<G1Affine>(cudaStream_t, uint32_t,
+                                                      G1Affine *,
+                                                      const G1Affine *,
+                                                      UNSIGNED_LIMB);
+template void single_point_scalar_mul<G1Affine>(cudaStream_t, uint32_t,
+                                                G1Affine *, const G1Affine *,
+                                                UNSIGNED_LIMB);
 template void point_scalar_mul_async<G1Affine>(cudaStream_t, uint32_t,
                                                G1Affine *, const G1Affine *,
-                                               const uint64_t *, uint32_t);
+                                               const UNSIGNED_LIMB *, uint32_t);
 template void point_scalar_mul<G1Affine>(cudaStream_t, uint32_t, G1Affine *,
-                                         const G1Affine *, const uint64_t *,
-                                         uint32_t);
+                                         const G1Affine *,
+                                         const UNSIGNED_LIMB *, uint32_t);
 template void point_to_montgomery_batch_async<G1Affine>(cudaStream_t, uint32_t,
                                                         G1Affine *, uint32_t);
 template void point_to_montgomery_batch<G1Affine>(cudaStream_t, uint32_t,
@@ -1757,17 +1393,19 @@ template void point_from_montgomery_async<G2Affine>(cudaStream_t, uint32_t,
                                                     const G2Affine *);
 template void point_from_montgomery<G2Affine>(cudaStream_t, uint32_t,
                                               G2Affine *, const G2Affine *);
-template void point_scalar_mul_u64_async<G2Affine>(cudaStream_t, uint32_t,
-                                                   G2Affine *, const G2Affine *,
-                                                   uint64_t);
-template void point_scalar_mul_u64<G2Affine>(cudaStream_t, uint32_t, G2Affine *,
-                                             const G2Affine *, uint64_t);
+template void single_point_scalar_mul_async<G2Affine>(cudaStream_t, uint32_t,
+                                                      G2Affine *,
+                                                      const G2Affine *,
+                                                      UNSIGNED_LIMB);
+template void single_point_scalar_mul<G2Affine>(cudaStream_t, uint32_t,
+                                                G2Affine *, const G2Affine *,
+                                                UNSIGNED_LIMB);
 template void point_scalar_mul_async<G2Affine>(cudaStream_t, uint32_t,
                                                G2Affine *, const G2Affine *,
-                                               const uint64_t *, uint32_t);
+                                               const UNSIGNED_LIMB *, uint32_t);
 template void point_scalar_mul<G2Affine>(cudaStream_t, uint32_t, G2Affine *,
-                                         const G2Affine *, const uint64_t *,
-                                         uint32_t);
+                                         const G2Affine *,
+                                         const UNSIGNED_LIMB *, uint32_t);
 template void point_to_montgomery_batch_async<G2Affine>(cudaStream_t, uint32_t,
                                                         G2Affine *, uint32_t);
 template void point_to_montgomery_batch<G2Affine>(cudaStream_t, uint32_t,
@@ -1968,6 +1606,70 @@ __host__ void normalize_projective_g2(G2Projective &point) {
   fp2_mont_mul(y_norm_mont, y_mont, z_inv_mont);
 
   // Convert X and Y back from Montgomery form
+  fp_from_montgomery(point.X.c0, x_norm_mont.c0);
+  fp_from_montgomery(point.X.c1, x_norm_mont.c1);
+  fp_from_montgomery(point.Y.c0, y_norm_mont.c0);
+  fp_from_montgomery(point.Y.c1, y_norm_mont.c1);
+
+  // Set Z = (1, 0) in normal form
+  fp_one(point.Z.c0);
+  fp_zero(point.Z.c1);
+}
+
+// Convert from Montgomery form and normalize to Z=1 in one pass (G1).
+// Operates directly on Montgomery-form coordinates, avoiding the redundant
+// from_montgomery -> to_montgomery round-trip. Only converts to normal form
+// once, at the end.
+__host__ void normalize_from_montgomery_g1(G1Projective &point) {
+  // Check if point is at infinity (Z=0 in Montgomery form)
+  if (fp_is_zero(point.Z)) {
+    // Convert remaining coordinates to normal form
+    fp_from_montgomery(point.X, point.X);
+    fp_from_montgomery(point.Y, point.Y);
+    return;
+  }
+
+  // Compute Z^-1 directly in Montgomery form (no conversion needed)
+  Fp z_inv_mont;
+  fp_mont_inv(z_inv_mont, point.Z);
+
+  // Normalize: X' = X * Z^-1, Y' = Y * Z^-1 (all in Montgomery form)
+  Fp x_norm_mont, y_norm_mont;
+  fp_mont_mul(x_norm_mont, point.X, z_inv_mont);
+  fp_mont_mul(y_norm_mont, point.Y, z_inv_mont);
+
+  // Single conversion from Montgomery to normal form
+  fp_from_montgomery(point.X, x_norm_mont);
+  fp_from_montgomery(point.Y, y_norm_mont);
+
+  // Set Z = 1 in normal form
+  fp_one(point.Z);
+}
+
+// Convert from Montgomery form and normalize to Z=(1,0) in one pass (G2).
+// Same optimization as G1: works directly in Montgomery form and converts
+// once at the end.
+__host__ void normalize_from_montgomery_g2(G2Projective &point) {
+  // Check if point is at infinity (Z=0 in Montgomery form)
+  if (fp_is_zero(point.Z.c0) && fp_is_zero(point.Z.c1)) {
+    // Convert remaining coordinates to normal form
+    fp_from_montgomery(point.X.c0, point.X.c0);
+    fp_from_montgomery(point.X.c1, point.X.c1);
+    fp_from_montgomery(point.Y.c0, point.Y.c0);
+    fp_from_montgomery(point.Y.c1, point.Y.c1);
+    return;
+  }
+
+  // Compute Z^-1 directly in Montgomery form (no conversion needed)
+  Fp2 z_inv_mont;
+  fp2_mont_inv(z_inv_mont, point.Z);
+
+  // Normalize: X' = X * Z^-1, Y' = Y * Z^-1 (all in Montgomery form)
+  Fp2 x_norm_mont, y_norm_mont;
+  fp2_mont_mul(x_norm_mont, point.X, z_inv_mont);
+  fp2_mont_mul(y_norm_mont, point.Y, z_inv_mont);
+
+  // Single conversion from Montgomery to normal form
   fp_from_montgomery(point.X.c0, x_norm_mont.c0);
   fp_from_montgomery(point.X.c1, x_norm_mont.c1);
   fp_from_montgomery(point.Y.c0, y_norm_mont.c0);
@@ -2223,16 +1925,19 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
                                               const G2Projective &p1,
                                               const G2Affine &p2) {
   // Handle infinity cases
+  // Note: All coordinates are in Montgomery form per convention
   if (fp2_is_zero(p1.Z)) {
     // p1 is infinity, result = p2 (convert affine to projective)
     if (p2.infinity) {
       fp2_zero(result.X);
-      fp2_one(result.Y);
+      fp_one_montgomery(result.Y.c0);
+      fp_zero(result.Y.c1);
       fp2_zero(result.Z);
     } else {
       result.X = p2.x;
       result.Y = p2.y;
-      fp2_one(result.Z);
+      fp_one_montgomery(result.Z.c0);
+      fp_zero(result.Z.c1);
     }
     return;
   }
@@ -2434,419 +2139,6 @@ __host__ __device__ void projective_point_double(G2Projective &result,
   fp2_mont_mul(B_cu, B_sq, B);
   fp2_mont_mul(result.Z, eight_mont, B_cu);
 }
-
-// ============================================================================
-// MSM functions have been moved to src/msm/ directory
-// ============================================================================
-// The MSM entry points (point_msm_async_g1, point_msm_async_g2, etc.) are now
-// implemented in src/msm/msm.cu using the Pippenger algorithm.
-
-// Helper function to extract a window from a BigInt5 scalar
-__device__ __forceinline__ uint32_t extract_window_bigint5(
-    const Scalar &scalar, uint32_t window_idx, uint32_t window_size) {
-  return extract_window_multi_internal(scalar.limb, ZP_LIMBS, window_idx,
-                                       window_size);
-}
-
-// ============================================================================
-// Template MSM Kernel (works for both G1 and G2)
-// ============================================================================
-
-// Template kernel: Accumulate buckets for MSM (works for both G1 and G2)
-template <typename AffineType, typename ProjectiveType>
-__global__ void kernel_accumulate_buckets_bigint5_projective_template(
-    ProjectiveType *block_buckets, const AffineType *points,
-    const Scalar *scalars, uint32_t n, uint32_t window_idx,
-    uint32_t window_size) {
-  using ProjectivePoint = Projective<ProjectiveType>;
-  using FieldType = typename ProjectivePoint::Field;
-
-  // Shared memory layout
-  extern __shared__ char shared_mem[];
-  auto *shared_buckets = reinterpret_cast<ProjectiveType *>(shared_mem);
-  auto *thread_points = reinterpret_cast<ProjectiveType *>(
-      shared_mem + MSM_G1_BUCKET_COUNT * sizeof(ProjectiveType));
-  auto *thread_buckets = reinterpret_cast<int *>(
-      shared_mem + MSM_G1_BUCKET_COUNT * sizeof(ProjectiveType) +
-      blockDim.x * sizeof(ProjectiveType));
-
-  // Initialize shared memory buckets to infinity (Z = 0)
-  for (uint32_t i = threadIdx.x; i < MSM_G1_BUCKET_COUNT; i += blockDim.x) {
-    ProjectivePoint::point_at_infinity(shared_buckets[i]);
-  }
-  __syncthreads();
-
-  uint32_t point_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (point_idx < n) {
-    uint32_t bucket_idx =
-        extract_window_bigint5(scalars[point_idx], window_idx, window_size);
-    // Convert affine to projective at INPUT (no inversions needed later!)
-    ProjectivePoint::affine_to_projective(thread_points[threadIdx.x],
-                                          points[point_idx]);
-    thread_buckets[threadIdx.x] = bucket_idx;
-  } else {
-    // Affine at infinity in projective form (Z = 0)
-    ProjectivePoint::point_at_infinity(thread_points[threadIdx.x]);
-    thread_buckets[threadIdx.x] = 0;
-  }
-  __syncthreads();
-
-  uint32_t num_warps = CEIL_DIV(blockDim.x, CUDA_WARP_SIZE);
-  uint32_t warp_id = threadIdx.x / CUDA_WARP_SIZE;
-  uint32_t lane_id = threadIdx.x % CUDA_WARP_SIZE;
-
-  // Phase 1: Warp-level reduction (if more than 1 warp AND n > 1)
-  if (num_warps > 1 && n > 1) {
-    auto *warp_buckets = reinterpret_cast<ProjectiveType *>(
-        shared_mem + MSM_G1_BUCKET_COUNT * sizeof(ProjectiveType) +
-        blockDim.x * sizeof(ProjectiveType) + blockDim.x * sizeof(int));
-    auto *my_warp_buckets = warp_buckets + warp_id * MSM_G1_BUCKET_COUNT;
-
-    // Initialize warp buckets
-    if (lane_id < MSM_G1_BUCKET_COUNT) {
-      ProjectivePoint::point_at_infinity(my_warp_buckets[lane_id]);
-    }
-    __syncwarp();
-
-    // FIXED: Proper reduction pattern - each thread processes assigned buckets
-    for (uint32_t bucket = lane_id; bucket < MSM_G1_BUCKET_COUNT;
-         bucket += CUDA_WARP_SIZE) {
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_warp_id = t / CUDA_WARP_SIZE;
-        if (t_warp_id == warp_id) {
-          uint32_t t_bucket = thread_buckets[t];
-          uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-          if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-            if (ProjectivePoint::field_is_zero(my_warp_buckets[bucket].Z)) {
-              my_warp_buckets[bucket] = thread_points[t];
-            } else {
-              ProjectiveType temp;
-              ProjectivePoint::projective_add(temp, my_warp_buckets[bucket],
-                                              thread_points[t]);
-              my_warp_buckets[bucket] = temp;
-            }
-          }
-        }
-      }
-    }
-    __syncwarp();
-
-    // Phase 2: Reduce warp buckets to shared buckets
-    for (uint32_t i = lane_id; i < MSM_G1_BUCKET_COUNT; i += CUDA_WARP_SIZE) {
-      if (!ProjectivePoint::field_is_zero(my_warp_buckets[i].Z)) {
-        if (ProjectivePoint::field_is_zero(shared_buckets[i].Z)) {
-          shared_buckets[i] = my_warp_buckets[i];
-        } else {
-          ProjectiveType temp;
-          ProjectivePoint::projective_add(temp, shared_buckets[i],
-                                          my_warp_buckets[i]);
-          shared_buckets[i] = temp;
-        }
-      }
-    }
-  } else {
-    // Direct reduction to shared buckets (only for n=1, or single warp)
-    for (uint32_t bucket = threadIdx.x; bucket < MSM_G1_BUCKET_COUNT;
-         bucket += blockDim.x) {
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_bucket = thread_buckets[t];
-        uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-        if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-          if (ProjectivePoint::field_is_zero(shared_buckets[bucket].Z)) {
-            shared_buckets[bucket] = thread_points[t];
-          } else {
-            ProjectiveType temp;
-            ProjectivePoint::projective_add(temp, shared_buckets[bucket],
-                                            thread_points[t]);
-            shared_buckets[bucket] = temp;
-          }
-        }
-      }
-    }
-  }
-  __syncthreads();
-
-  // Phase 3: Write shared buckets to block buckets (one thread per bucket)
-  if (threadIdx.x < MSM_G1_BUCKET_COUNT) {
-    uint32_t block_bucket_idx = blockIdx.x * MSM_G1_BUCKET_COUNT + threadIdx.x;
-    block_buckets[block_bucket_idx] = shared_buckets[threadIdx.x];
-  }
-}
-
-// Legacy kernels (kept for compatibility, now just call template version)
-// Kernel: Accumulate buckets for G1 with BigInt5 scalars (projective
-// coordinates)
-__global__ void kernel_accumulate_buckets_bigint5_projective_g1(
-    G1Projective *block_buckets, const G1Affine *points, const Scalar *scalars,
-    int n, int window_idx, int window_size) {
-  // Shared memory layout (same as u64 version)
-  extern __shared__ char shared_mem[];
-  auto *shared_buckets = reinterpret_cast<G1Projective *>(shared_mem);
-  auto *thread_points = reinterpret_cast<G1Projective *>(
-      shared_mem + MSM_G1_BUCKET_COUNT * sizeof(G1Projective));
-  auto *thread_buckets = reinterpret_cast<int *>(
-      shared_mem + MSM_G1_BUCKET_COUNT * sizeof(G1Projective) +
-      blockDim.x * sizeof(G1Projective));
-
-  // Initialize shared memory buckets to infinity (Z = 0)
-  for (uint32_t i = threadIdx.x; i < MSM_G1_BUCKET_COUNT; i += blockDim.x) {
-    g1_projective_point_at_infinity(shared_buckets[i]);
-  }
-  __syncthreads();
-
-  uint32_t point_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (point_idx < n) {
-    uint32_t bucket_idx =
-        extract_window_bigint5(scalars[point_idx], window_idx, window_size);
-    // Convert affine to projective at INPUT (no inversions needed later!)
-    affine_to_projective(thread_points[threadIdx.x], points[point_idx]);
-    thread_buckets[threadIdx.x] = bucket_idx;
-  } else {
-    // Affine at infinity in projective form (Z = 0)
-    g1_projective_point_at_infinity(thread_points[threadIdx.x]);
-    thread_buckets[threadIdx.x] = 0;
-  }
-  __syncthreads();
-
-  uint32_t num_warps = CEIL_DIV(blockDim.x, CUDA_WARP_SIZE);
-  uint32_t warp_id = threadIdx.x / CUDA_WARP_SIZE;
-  uint32_t lane_id = threadIdx.x % CUDA_WARP_SIZE;
-
-  // Phase 1: Warp-level reduction (if more than 1 warp AND n > 1)
-  // FIXED: Always use warp reduction when n > 1 to avoid race conditions in
-  // direct reduction For n=1, use direct reduction to avoid potential warp
-  // reduction issues
-  if (num_warps > 1 && n > 1) {
-    auto *warp_buckets = reinterpret_cast<G1Projective *>(
-        shared_mem + MSM_G1_BUCKET_COUNT * sizeof(G1Projective) +
-        blockDim.x * sizeof(G1Projective) + blockDim.x * sizeof(int));
-    auto *my_warp_buckets = warp_buckets + warp_id * MSM_G1_BUCKET_COUNT;
-
-    // Initialize warp buckets
-    if (lane_id < MSM_G1_BUCKET_COUNT) {
-      g1_projective_point_at_infinity(my_warp_buckets[lane_id]);
-    }
-    __syncwarp();
-
-    // CORRECT REDUCTION PATTERN: Match the working template implementation
-    // EXACTLY Iterate through all threads in block and filter by warp_id This
-    // ensures correctness even when warps are partially filled
-    for (uint32_t bucket = lane_id; bucket < MSM_G1_BUCKET_COUNT;
-         bucket += CUDA_WARP_SIZE) {
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_warp_id = t / CUDA_WARP_SIZE;
-        // Only process threads in the same warp
-        if (t_warp_id == warp_id) {
-          uint32_t t_bucket = thread_buckets[t];
-          uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-          // Match template exactly: check all conditions together
-          if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-            // This thread's point belongs to this bucket
-            if (fp_is_zero(my_warp_buckets[bucket].Z)) {
-              // Bucket is empty, write directly
-              my_warp_buckets[bucket] = thread_points[t];
-            } else {
-              // Bucket already has a point, add to it
-              G1Projective temp;
-              projective_point_add(temp, my_warp_buckets[bucket],
-                                   thread_points[t]);
-              my_warp_buckets[bucket] = temp;
-            }
-          }
-        }
-      }
-    }
-    __syncwarp();
-
-    // Phase 2: Reduce warp buckets to shared buckets
-    // Match template exactly
-    for (uint32_t i = lane_id; i < MSM_G1_BUCKET_COUNT; i += CUDA_WARP_SIZE) {
-      if (!fp_is_zero(my_warp_buckets[i].Z)) {
-        if (fp_is_zero(shared_buckets[i].Z)) {
-          shared_buckets[i] = my_warp_buckets[i];
-        } else {
-          G1Projective temp;
-          projective_point_add(temp, shared_buckets[i], my_warp_buckets[i]);
-          shared_buckets[i] = temp;
-        }
-      }
-    }
-  } else {
-    // Direct reduction to shared buckets (only for n=1, or single warp)
-    // FIXED: Proper reduction pattern - each thread processes assigned buckets
-    // Each thread is responsible for accumulating points for specific buckets
-    // This avoids race conditions by ensuring only one thread writes to each
-    // bucket
-    for (uint32_t bucket = threadIdx.x; bucket < MSM_G1_BUCKET_COUNT;
-         bucket += blockDim.x) {
-      // This thread is responsible for this bucket
-      // Iterate through all threads and accumulate points for this bucket
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_bucket = thread_buckets[t];
-        uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-        if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-          // This thread's point belongs to this bucket
-          if (fp_is_zero(shared_buckets[bucket].Z)) {
-            // Bucket is empty, write directly (use structure copy for
-            // atomicity)
-            shared_buckets[bucket] = thread_points[t];
-          } else {
-            // Bucket already has a point, add to it
-            G1Projective temp;
-            projective_point_add(temp, shared_buckets[bucket],
-                                 thread_points[t]);
-            shared_buckets[bucket] = temp;
-          }
-        }
-      }
-    }
-  }
-  __syncthreads();
-
-  // Phase 3: Write shared buckets to block buckets (one thread per bucket)
-  if (threadIdx.x < MSM_G1_BUCKET_COUNT) {
-    uint32_t block_bucket_idx = blockIdx.x * MSM_G1_BUCKET_COUNT + threadIdx.x;
-    block_buckets[block_bucket_idx] = shared_buckets[threadIdx.x];
-  }
-}
-
-// Kernel: Accumulate buckets for G2 with BigInt5 scalars (projective
-// coordinates)
-__global__ void kernel_accumulate_buckets_bigint5_projective_g2(
-    G2Projective *block_buckets, const G2Affine *points, const Scalar *scalars,
-    int n, int window_idx, int window_size) {
-  extern __shared__ char shared_mem[];
-  auto *shared_buckets = reinterpret_cast<G2Projective *>(shared_mem);
-  auto *thread_points = reinterpret_cast<G2Projective *>(
-      shared_mem + MSM_G2_BUCKET_COUNT * sizeof(G2Projective));
-  auto *thread_buckets = reinterpret_cast<int *>(
-      shared_mem + MSM_G2_BUCKET_COUNT * sizeof(G2Projective) +
-      blockDim.x * sizeof(G2Projective));
-
-  for (uint32_t i = threadIdx.x; i < MSM_G2_BUCKET_COUNT; i += blockDim.x) {
-    g2_projective_point_at_infinity(shared_buckets[i]);
-  }
-  __syncthreads();
-
-  uint32_t point_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (point_idx < n) {
-    uint32_t bucket_idx =
-        extract_window_bigint5(scalars[point_idx], window_idx, window_size);
-    // Convert affine to projective at INPUT (no inversions needed later!)
-    affine_to_projective(thread_points[threadIdx.x], points[point_idx]);
-    thread_buckets[threadIdx.x] = bucket_idx;
-  } else {
-    g2_projective_point_at_infinity(thread_points[threadIdx.x]);
-    thread_buckets[threadIdx.x] = 0;
-  }
-  __syncthreads();
-
-  uint32_t num_warps = CEIL_DIV(blockDim.x, CUDA_WARP_SIZE);
-  uint32_t warp_id = threadIdx.x / CUDA_WARP_SIZE;
-  uint32_t lane_id = threadIdx.x % CUDA_WARP_SIZE;
-
-  // Phase 1: Warp-level reduction (if more than 1 warp AND n > 1)
-  // FIXED: Always use warp reduction when n > 1 to avoid race conditions in
-  // direct reduction
-  if (num_warps > 1 && n > 1) {
-    auto *warp_buckets = reinterpret_cast<G2Projective *>(
-        shared_mem + MSM_G2_BUCKET_COUNT * sizeof(G2Projective) +
-        blockDim.x * sizeof(G2Projective) + blockDim.x * sizeof(int));
-    auto *my_warp_buckets = warp_buckets + warp_id * MSM_G2_BUCKET_COUNT;
-
-    // Initialize warp buckets
-    if (lane_id < MSM_G2_BUCKET_COUNT) {
-      g2_projective_point_at_infinity(my_warp_buckets[lane_id]);
-    }
-    __syncwarp();
-
-    // CORRECT REDUCTION PATTERN: Match the working template implementation
-    // EXACTLY Iterate through all threads in block and filter by warp_id This
-    // ensures correctness even when warps are partially filled
-    for (uint32_t bucket = lane_id; bucket < MSM_G2_BUCKET_COUNT;
-         bucket += CUDA_WARP_SIZE) {
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_warp_id = t / CUDA_WARP_SIZE;
-        // Only process threads in the same warp
-        if (t_warp_id == warp_id) {
-          uint32_t t_bucket = thread_buckets[t];
-          uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-          // Match template exactly: check all conditions together
-          if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-            // This thread's point belongs to this bucket
-            if (fp2_is_zero(my_warp_buckets[bucket].Z)) {
-              // Bucket is empty, write directly
-              my_warp_buckets[bucket] = thread_points[t];
-            } else {
-              // Bucket already has a point, add to it
-              G2Projective temp;
-              projective_point_add(temp, my_warp_buckets[bucket],
-                                   thread_points[t]);
-              my_warp_buckets[bucket] = temp;
-            }
-          }
-        }
-      }
-    }
-    __syncwarp();
-
-    // Phase 2: Reduce warp buckets to shared buckets
-    // Match template exactly
-    for (uint32_t i = lane_id; i < MSM_G2_BUCKET_COUNT; i += CUDA_WARP_SIZE) {
-      if (!fp2_is_zero(my_warp_buckets[i].Z)) {
-        if (fp2_is_zero(shared_buckets[i].Z)) {
-          shared_buckets[i] = my_warp_buckets[i];
-        } else {
-          G2Projective temp;
-          projective_point_add(temp, shared_buckets[i], my_warp_buckets[i]);
-          shared_buckets[i] = temp;
-        }
-      }
-    }
-  } else {
-    // Direct reduction to shared buckets (only for n=1, or single warp)
-    // FIXED: Proper reduction pattern - each thread processes assigned buckets
-    // Each thread is responsible for accumulating points for specific buckets
-    // This avoids race conditions by ensuring only one thread writes to each
-    // bucket
-    for (uint32_t bucket = threadIdx.x; bucket < MSM_G2_BUCKET_COUNT;
-         bucket += blockDim.x) {
-      // This thread is responsible for this bucket
-      // Iterate through all threads and accumulate points for this bucket
-      for (int t = 0; t < blockDim.x; t++) {
-        uint32_t t_bucket = thread_buckets[t];
-        uint32_t t_point_idx = blockIdx.x * blockDim.x + t;
-        if (t_bucket == bucket && t_point_idx < n && bucket > 0) {
-          // This thread's point belongs to this bucket
-          if (fp2_is_zero(shared_buckets[bucket].Z)) {
-            // Bucket is empty, write directly (use structure copy for
-            // atomicity)
-            shared_buckets[bucket] = thread_points[t];
-          } else {
-            // Bucket already has a point, add to it
-            G2Projective temp;
-            projective_point_add(temp, shared_buckets[bucket],
-                                 thread_points[t]);
-            shared_buckets[bucket] = temp;
-          }
-        }
-      }
-    }
-  }
-  __syncthreads();
-
-  // Phase 3: Write shared buckets to block buckets (one thread per bucket)
-  if (threadIdx.x < MSM_G2_BUCKET_COUNT) {
-    uint32_t block_bucket_idx = blockIdx.x * MSM_G2_BUCKET_COUNT + threadIdx.x;
-    block_buckets[block_bucket_idx] = shared_buckets[threadIdx.x];
-  }
-}
-
-// MSM with BigInt5 scalars for G1 (projective coordinates internally)
-
-// MSM with BigInt5 scalars for G2 (projective coordinates internally)
-
-// Synchronous wrappers
 
 // Explicit template instantiations for projective_scalar_mul (needed by MSM)
 template void projective_scalar_mul<G1Projective>(G1Projective &result,

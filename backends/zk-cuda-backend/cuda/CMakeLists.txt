@@ -77,8 +77,11 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall -Xcompiler -Wextra --
 set(TFHE_CUDA_BACKEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-backend/cuda)
 
 # Core source files (without device utilities) Device utilities come from tfhe-cuda-backend.
-set(FP_CORE_SOURCES src/primitives/fp.cu src/primitives/fp2.cu src/curve.cu src/msm/common.cuh
-                    src/msm/pippenger/msm_pippenger.cu src/msm/msm.cu)
+set(FP_CORE_SOURCES src/primitives/fp.cu src/primitives/fp2.cu src/curve.cu src/msm/pippenger/msm_pippenger.cu
+                    src/msm/msm.cu)
+
+# Headers (common.cuh is a header, not a compiled source)
+set(FP_MSM_HEADERS src/msm/common.cuh)
 
 # C wrapper source for FFI bindings (CUDA for CUDA headers)
 set(C_WRAPPER_SOURCES ../src/c_wrapper.cu)

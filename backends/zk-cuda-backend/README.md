@@ -476,7 +476,7 @@ For ZK proof generation, this is acceptable if:
   ```toml
   zk-cuda-backend = { version = "...", features = ["validate_points"] }
   ```
-- **Scalar validation**: `Scalar::is_valid()` and `Scalar::reduce_if_needed()` methods available
+- **Scalar validation**: `Scalar::is_valid()` and `Scalar::reduce_once()` methods available
 - **Input size limits**: MSM operations are limited to 100,000 points maximum
 - **Division by zero**: Caller must ensure division by zero does not occur (checks must be done at host side)
 

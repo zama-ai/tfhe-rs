@@ -151,194 +151,6 @@ __host__ __device__ void projective_point_double(G1Projective &result,
 __host__ __device__ void projective_point_double(G2ProjectivePoint &result,
                                                  const G2ProjectivePoint &p);
 
-// Pippenger kernel: Accumulate points into buckets for multi-limb scalars
-template <typename PointType>
-__global__ void
-kernel_accumulate_buckets_multi(PointType *buckets, const PointType *points,
-                                const uint64_t *scalars, uint32_t scalar_limbs,
-                                uint32_t n, uint32_t window_idx,
-                                uint32_t window_size) {
-  using AffinePoint = PointSelector<PointType>;
-  // Same approach as u64 version: process each bucket sequentially
-  const uint32_t bucket_idx = blockIdx.x;
-  if (bucket_idx == 0 || bucket_idx >= MSM_G1_BUCKET_COUNT)
-    return;
-
-  PointType bucket_sum;
-  AffinePoint::point_at_infinity(bucket_sum);
-
-  const uint32_t points_per_thread = (n + blockDim.x - 1) / blockDim.x;
-  const uint32_t start_idx = threadIdx.x * points_per_thread;
-  const uint32_t end_idx = min(start_idx + points_per_thread, n);
-
-  for (uint32_t i = start_idx; i < end_idx; i++) {
-    const uint32_t point_bucket = extract_window_multi(
-        scalars + i * scalar_limbs, scalar_limbs, window_idx, window_size);
-    if (point_bucket == bucket_idx) {
-      if (AffinePoint::is_infinity(bucket_sum)) {
-        bucket_sum = points[i];
-      } else {
-        PointType temp;
-        point_add(temp, bucket_sum, points[i]);
-        bucket_sum = temp;
-      }
-    }
-  }
-
-  // Reduce within block using dynamic shared memory
-  extern __shared__ char shared_mem[];
-  auto *shared_sums = reinterpret_cast<PointType *>(shared_mem);
-  shared_sums[threadIdx.x] = bucket_sum;
-  __syncthreads();
-
-  // Thread 0 reduces all thread results
-  if (threadIdx.x == 0) {
-    PointType total_sum;
-    AffinePoint::point_at_infinity(total_sum);
-    for (uint32_t i = 0; i < blockDim.x; i++) {
-      if (!AffinePoint::is_infinity(shared_sums[i])) {
-        if (AffinePoint::is_infinity(total_sum)) {
-          total_sum = shared_sums[i];
-        } else {
-          PointType temp;
-          point_add(temp, total_sum, shared_sums[i]);
-          total_sum = temp;
-        }
-      }
-    }
-    buckets[bucket_idx] = total_sum;
-  }
-}
-
-template <typename PointType>
-__device__ void point_scalar_mul_small(PointType &result, const PointType &P,
-                                       uint32_t k) {
-  using AffinePoint = PointSelector<PointType>;
-
-  if (k == 0 || AffinePoint::is_infinity(P)) {
-    AffinePoint::point_at_infinity(result);
-    return;
-  }
-
-  if (k == 1) {
-    result = P;
-    return;
-  }
-
-  // Binary scalar multiplication: k * P
-  // Start with P, then for each bit from MSB-1 to LSB: double, then add P if
-  // bit is set
-  PointType acc = P;
-
-  // Find the MSB of k
-  // __clz operates on 32-bit integers, so MSB position is (32 - 1) - leading
-  // zeros
-  const uint32_t msb = (32 - 1) - __clz(k);
-
-  // Process bits from msb-1 down to 0
-  if (msb > 0) {
-    for (uint32_t bit = msb - 1;; bit--) {
-      point_double(acc, acc);
-      if (k & (1U << bit)) {
-        PointType temp;
-        point_add(temp, acc, P);
-        acc = temp;
-      }
-      if (bit == 0)
-        break;
-    }
-  }
-
-  result = acc;
-}
-
-template <typename PointType>
-__global__ void kernel_combine_buckets(PointType *result, PointType *buckets,
-                                       uint32_t num_buckets,
-                                       uint32_t window_idx) {
-  using AffinePoint = PointSelector<PointType>;
-
-  // Shared memory for storing weighted buckets and reduction tree
-  extern __shared__ char shared_mem[];
-  auto *shared_weighted = reinterpret_cast<PointType *>(shared_mem);
-
-  // Each thread processes one bucket (bucket index = threadIdx.x + 1, since
-  // bucket[0] is not used)
-  const uint32_t bucket_idx = threadIdx.x + 1;
-
-  // Compute i * bucket[i] for this thread's bucket using binary scalar
-  // multiplication
-  if (bucket_idx < num_buckets) {
-    if (!AffinePoint::is_infinity(buckets[bucket_idx])) {
-      point_scalar_mul_small(shared_weighted[threadIdx.x], buckets[bucket_idx],
-                             bucket_idx);
-    } else {
-      AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
-    }
-  } else {
-    // Threads beyond num_buckets-1 set to infinity
-    AffinePoint::point_at_infinity(shared_weighted[threadIdx.x]);
-  }
-
-  __syncthreads();
-
-  // Reduction tree: combine all weighted buckets
-  // Use standard parallel reduction pattern
-  uint32_t active_threads =
-      num_buckets -
-      1; // Number of buckets to process (buckets 1 to num_buckets-1)
-
-  for (uint32_t stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-    if (threadIdx.x < stride && threadIdx.x + stride < active_threads) {
-      if (!AffinePoint::is_infinity(shared_weighted[threadIdx.x + stride])) {
-        if (AffinePoint::is_infinity(shared_weighted[threadIdx.x])) {
-          AffinePoint::point_copy(shared_weighted[threadIdx.x],
-                                  shared_weighted[threadIdx.x + stride]);
-        } else {
-          PointType temp;
-          point_add(temp, shared_weighted[threadIdx.x],
-                    shared_weighted[threadIdx.x + stride]);
-          AffinePoint::point_copy(shared_weighted[threadIdx.x], temp);
-        }
-      }
-    }
-    __syncthreads();
-  }
-
-  // Thread 0 has the final window_sum, add it to result
-  if (threadIdx.x == 0) {
-    PointType window_sum = shared_weighted[0];
-
-    // Add window sum to result
-    // For windows processed from MSB to LSB:
-    // - First window (MSB, highest window_idx): result = window_sum (no
-    // multiplication)
-    // - Subsequent windows: result = result * 2^window_size + window_sum
-    if (!AffinePoint::is_infinity(window_sum)) {
-      if (AffinePoint::is_infinity(*result)) {
-        // First non-zero window: just copy window_sum
-        AffinePoint::point_copy(*result, window_sum);
-      } else {
-        // Multiply result by 2^window_size before adding window_sum
-        constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
-        for (uint32_t i = 0; i < window_size; i++) {
-          point_double(*result, *result);
-        }
-        // Add window_sum to result
-        PointType temp;
-        point_add(temp, *result, window_sum);
-        AffinePoint::point_copy(*result, temp);
-      }
-    } else if (!AffinePoint::is_infinity(*result)) {
-      // Window sum is zero but result is not: still need to multiply result
-      constexpr uint32_t window_size = MSMWindowSize<PointType>::value;
-      for (uint32_t i = 0; i < window_size; i++) {
-        point_double(*result, *result);
-      }
-    }
-  }
-}
-
 // Kernel: Accumulate ALL windows in parallel using SORT-THEN-REDUCE
 // Grid: (num_windows * num_blocks_per_window) blocks
 // Each block processes points for ONE window
@@ -672,7 +484,8 @@ void point_msm_async_pippenger_impl(
     cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
     const AffineType *d_points, const Scalar *d_scalars,
     ProjectiveType *d_scratch, uint32_t n, uint32_t threads_per_block,
-    uint32_t window_size, uint32_t bucket_count) {
+    uint32_t window_size, uint32_t bucket_count,
+    uint64_t &size_tracker) {
   using ProjectivePoint = ProjectiveSelector<ProjectiveType>;
 
   if (n == 0) {
@@ -701,16 +514,31 @@ void point_msm_async_pippenger_impl(
   // - all_block_buckets: [num_windows * num_blocks * bucket_count]
   // - all_final_buckets: [num_windows * bucket_count]
   // - window_sums: [num_windows]
-  const uint32_t all_block_buckets_size =
-      num_windows * launch_params.num_blocks_per_window * bucket_count;
-  const uint32_t all_final_buckets_size = num_windows * bucket_count;
-  const uint32_t total_scratch =
+  // Compute element counts in size_t (64-bit) so that intermediate products
+  // of uint32_t inputs don't silently wrap at 2^32 before reaching the
+  // explicit overflow check below (which multiplies by sizeof(ProjectiveType))
+  const size_t all_block_buckets_size = static_cast<size_t>(num_windows) *
+                                        launch_params.num_blocks_per_window *
+                                        bucket_count;
+  const size_t all_final_buckets_size =
+      static_cast<size_t>(num_windows) * bucket_count;
+  const size_t total_scratch =
       all_block_buckets_size + all_final_buckets_size + num_windows;
+
+  // Check for overflow before allocating scratch space
+  size_t scratch_bytes = 0;
+  bool scratch_overflow = __builtin_mul_overflow(
+      total_scratch, sizeof(ProjectiveType), &scratch_bytes);
+  PANIC_IF_FALSE(!scratch_overflow,
+                 "point_msm_async_pippenger_impl: scratch allocation overflow "
+                 "(total_scratch=%zu, element_size=%zu)",
+                 total_scratch, sizeof(ProjectiveType));
 
   // Allocate internal scratch space (user-provided scratch is too small for
   // all-windows-parallel)
-  ProjectiveType *d_internal_scratch = (ProjectiveType *)cuda_malloc_async(
-      total_scratch * sizeof(ProjectiveType), stream, gpu_index);
+  ProjectiveType *d_internal_scratch =
+      (ProjectiveType *)cuda_malloc_with_size_tracking_async(
+          scratch_bytes, stream, gpu_index, size_tracker, true);
 
   ProjectiveType *d_all_block_buckets = d_internal_scratch;
   ProjectiveType *d_all_final_buckets =
@@ -758,7 +586,9 @@ void point_msm_async_pippenger_impl(
   check_cuda_error(cudaGetLastError());
 
   // Phase 3: Compute window sums in parallel (SINGLE kernel launch!)
-  const uint32_t combine_threads = bucket_count - 1;
+  // Round up to next multiple of 32 (warp size) for efficient scheduling.
+  // The kernel already has `if (tid < n)` bounds checks for the excess threads.
+  const uint32_t combine_threads = ((bucket_count - 1) + 31) & ~31u;
   const size_t combine_shared_mem = combine_threads * sizeof(ProjectiveType);
   PANIC_IF_FALSE(num_windows * bucket_count <= all_final_buckets_size,
                  "kernel_compute_window_sums: max read index (%u) exceeds "
@@ -787,7 +617,8 @@ void point_msm_async_pippenger_impl(
 
   // Cleanup - must sync before returning since h_result is a local variable
   cuda_synchronize_stream(stream, gpu_index);
-  cuda_drop_async(d_internal_scratch, stream, gpu_index);
+  cuda_drop_with_size_tracking_async(d_internal_scratch, stream, gpu_index,
+                                     true);
 }
 
 // ============================================================================
@@ -827,13 +658,15 @@ void point_msm_async_g1_pippenger(cudaStream_t stream, uint32_t gpu_index,
                                   G1Projective *d_result,
                                   const G1Affine *d_points,
                                   const Scalar *d_scalars,
-                                  G1Projective *d_scratch, uint32_t n) {
+                                  G1Projective *d_scratch, uint32_t n,
+                                  uint64_t &size_tracker) {
   uint32_t window_size, bucket_count;
   get_g1_window_params(n, window_size, bucket_count);
 
   point_msm_async_pippenger_impl<G1Affine, G1Projective>(
       stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n,
-      get_msm_threads_per_block<G1Affine>(n), window_size, bucket_count);
+      get_msm_threads_per_block<G1Affine>(n), window_size, bucket_count,
+      size_tracker);
 }
 
 // MSM with BigInt scalars for G2 (projective coordinates internally)
@@ -843,11 +676,13 @@ void point_msm_async_g2_pippenger(cudaStream_t stream, uint32_t gpu_index,
                                   G2ProjectivePoint *d_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars,
-                                  G2ProjectivePoint *d_scratch, uint32_t n) {
+                                  G2ProjectivePoint *d_scratch, uint32_t n,
+                                  uint64_t &size_tracker) {
   uint32_t window_size, bucket_count;
   get_g2_window_params(n, window_size, bucket_count);
 
   point_msm_async_pippenger_impl<G2Point, G2ProjectivePoint>(
       stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n,
-      get_msm_threads_per_block<G2Point>(n), window_size, bucket_count);
+      get_msm_threads_per_block<G2Point>(n), window_size, bucket_count,
+      size_tracker);
 }

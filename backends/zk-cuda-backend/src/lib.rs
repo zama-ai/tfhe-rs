@@ -1,3 +1,6 @@
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+
 //! Rust API for BLS12-446 curve operations
 //!
 //! This crate provides Rust bindings for CUDA-accelerated BLS12-446 curve operations,
@@ -40,9 +43,6 @@
 //! // Convert back to affine
 //! let g1_affine_again = g1_proj.to_affine();
 //! ```
-
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
 
 // Force linking of tfhe-cuda-backend which provides device utilities (cuda_malloc, cuda_set_device,
 // etc.)
