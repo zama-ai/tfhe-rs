@@ -1,7 +1,6 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
-    OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;

@@ -178,17 +178,17 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 mod cuda {
     use super::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
+    use benchmark::utilities::{get_param_type, ParamType};
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::compression_keys::CompressionPrivateKeys;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
     use tfhe::shortint::parameters::CompressionParameters;
-    use tfhe::shortint::PBSParameters;
 
     #[derive(Clone)]
     struct BenchConfig {
-        param: PBSParameters,
+        param: tfhe::shortint::AtomicPatternParameters,
         comp_param: CompressionParameters,
         bit_size: usize,
         cks: ClientKey,
@@ -308,7 +308,7 @@ mod cuda {
 
         write_to_json::<u64, _>(
             &bench_id_pack,
-            (comp_param, param.into()),
+            (comp_param, param),
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
@@ -471,7 +471,7 @@ mod cuda {
 
         write_to_json::<u64, _>(
             &bench_id_unpack,
-            (comp_param, param.into()),
+            (comp_param, param),
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
@@ -483,46 +483,62 @@ mod cuda {
     }
 
     fn gpu_glwe_packing(c: &mut Criterion) {
-        let param = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let comp_param =
-            BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-        let log_message_modulus = param.message_modulus.0.ilog2() as usize;
+        let (param, comp_param): (
+            tfhe::shortint::AtomicPatternParameters,
+            CompressionParameters,
+        ) = match get_param_type() {
+            ParamType::Classical => (
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            _ => (
+                BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        };
 
         let cks = ClientKey::new(param);
         let private_compression_key = cks.new_compression_private_key(comp_param);
 
         let mut config = BenchConfig {
-            param: tfhe::shortint::PBSParameters::MultiBitPBS(param),
+            param,
             comp_param,
             cks,
             private_compression_key,
             bit_size: 0,
         };
-        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus) {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
             config.bit_size = bit_size;
             execute_gpu_glwe_packing(c, config.clone());
         }
     }
 
     fn gpu_glwe_unpacking(c: &mut Criterion) {
-        let param = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let comp_param =
-            BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-        let log_message_modulus = param.message_modulus.0.ilog2() as usize;
+        let (param, comp_param): (
+            tfhe::shortint::AtomicPatternParameters,
+            CompressionParameters,
+        ) = match get_param_type() {
+            ParamType::Classical => (
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            _ => (
+                BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        };
 
         let cks = ClientKey::new(param);
         let private_compression_key = cks.new_compression_private_key(comp_param);
 
         let mut config = BenchConfig {
-            param: PBSParameters::MultiBitPBS(param),
+            param,
             comp_param,
             bit_size: 0,
             cks,
             private_compression_key,
         };
-        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus) {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
             config.bit_size = bit_size;
             execute_gpu_glwe_unpacking(c, config.clone());
         }

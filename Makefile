@@ -1445,7 +1445,7 @@ bench_integer_compression: install_rs_check_toolchain
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
