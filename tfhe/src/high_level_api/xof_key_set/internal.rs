@@ -111,7 +111,6 @@ impl crate::integer::ClientKey {
                             glwe_secret_key,
                             lwe_secret_key,
                             parameters: std_params,
-                            wopbs_parameters: None,
                         },
                     ),
                 }

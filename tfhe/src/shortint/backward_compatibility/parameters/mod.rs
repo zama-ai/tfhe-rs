@@ -15,8 +15,9 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
+use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
 pub enum MessageModulusVersions {
@@ -160,10 +161,38 @@ pub enum PBSParametersVersions {
     V0(PBSParameters),
 }
 
-#[derive(VersionsDispatch)]
+#[derive(Version)]
+pub(crate) enum ShortintParameterSetInnerV0 {
+    PBSOnly(PBSParameters),
+    WopbsOnly(WopbsParameters),
+    PBSAndWopbs(PBSParameters, WopbsParameters),
+    KS32PBS(KeySwitch32PBSParameters),
+}
+
+impl Upgrade<ShortintParameterSetInner> for ShortintParameterSetInnerV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<ShortintParameterSetInner, Self::Error> {
+        Ok(match self {
+            Self::PBSOnly(pbsparameters) => ShortintParameterSetInner::PBSOnly(pbsparameters),
+            Self::WopbsOnly(_) => {
+                return Err(crate::error!("Invalid value for ShortintParameterSetInner"))
+            }
+            Self::PBSAndWopbs(pbsparameters, _) => {
+                ShortintParameterSetInner::PBSOnly(pbsparameters)
+            }
+            Self::KS32PBS(key_switch32_pbsparameters) => {
+                ShortintParameterSetInner::KS32PBS(key_switch32_pbsparameters)
+            }
+        })
+    }
+}
+
 #[allow(unused)]
+#[derive(VersionsDispatch)]
 pub(crate) enum ShortintParameterSetInnerVersions {
-    V0(ShortintParameterSetInner),
+    V0(ShortintParameterSetInnerV0),
+    V1(ShortintParameterSetInner),
 }
 
 #[derive(VersionsDispatch)]
@@ -176,8 +205,32 @@ pub enum MultiBitPBSParametersVersions {
     V0(MultiBitPBSParameters),
 }
 
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(WopbsParametersVersions)]
+pub(crate) struct WopbsParameters {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub pfks_level: DecompositionLevelCount,
+    pub pfks_base_log: DecompositionBaseLog,
+    pub pfks_noise_distribution: DynamicDistribution<u64>,
+    pub cbs_level: DecompositionLevelCount,
+    pub cbs_base_log: DecompositionBaseLog,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
+}
+
 #[derive(VersionsDispatch)]
-pub enum WopbsParametersVersions {
+#[allow(unused)]
+pub(crate) enum WopbsParametersVersions {
     V0(WopbsParameters),
 }
 

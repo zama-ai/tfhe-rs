@@ -25,8 +25,6 @@ use std::fmt::Debug;
 mod client_side;
 mod public_side;
 mod server_side;
-#[cfg(feature = "experimental")]
-mod wopbs;
 
 thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
