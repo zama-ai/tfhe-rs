@@ -101,7 +101,7 @@ required-features = ["integer", "internal-keycache"]
 name = "hlapi-kvstore"
 path = "benches/high_level_api/kv_store.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "internal-keycache", "pbs-stats"]
 
 [[bench]]
 name = "integer-glwe_packing_compression"
