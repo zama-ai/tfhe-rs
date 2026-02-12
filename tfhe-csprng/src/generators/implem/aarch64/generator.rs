@@ -78,6 +78,11 @@ mod test {
     }
 
     #[test]
+    fn prop_fork_with_parent_continuation() {
+        aes_ctr_generic_test::prop_fork_with_parent_continuation::<ArmAesBlockCipher>();
+    }
+
+    #[test]
     fn prop_fork_children_remaining_bytes() {
         aes_ctr_generic_test::prop_fork_children_remaining_bytes::<ArmAesBlockCipher>();
     }
@@ -88,8 +93,23 @@ mod test {
     }
 
     #[test]
+    fn prop_different_offset_means_different_output() {
+        aes_ctr_generic_test::prop_different_offset_means_different_output::<ArmAesBlockCipher>();
+    }
+
+    #[test]
     fn test_roughly_uniform() {
         generator_generic_test::test_roughly_uniform::<NeonAesRandomGenerator>();
+    }
+
+    #[test]
+    fn test_conformance_with_ctr_crate() {
+        aes_ctr_generic_test::test_conformance_with_ctr_crate::<ArmAesBlockCipher>();
+    }
+
+    #[test]
+    fn test_forking_conformance_with_ctr_crate() {
+        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<ArmAesBlockCipher>();
     }
 
     #[test]
