@@ -7,6 +7,8 @@
 #include <setup_and_teardown.h>
 #include <utils.h>
 
+#include "checked_arithmetic.h"
+
 typedef struct {
   int lwe_dimension;
   int glwe_dimension;
@@ -88,9 +90,9 @@ public:
         carry_modulus, &payload_modulus, &delta, number_of_inputs, repetitions,
         samples);
 
-    lwe_ct_out_array =
-        (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
-                           number_of_inputs * sizeof(uint64_t));
+    lwe_ct_out_array = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
+        safe_mul((size_t)glwe_dimension, (size_t)polynomial_size) + 1,
+        (size_t)number_of_inputs));
   }
 
   void TearDown() {
@@ -130,10 +132,12 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
           lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
           pbs_level, number_of_inputs);
       // Copy result back
-      cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
-                               (glwe_dimension * polynomial_size + 1) *
-                                   number_of_inputs * sizeof(uint64_t),
-                               stream, gpu_index);
+      cuda_memcpy_async_to_cpu(
+          lwe_ct_out_array, d_lwe_ct_out_array,
+          safe_mul_sizeof<uint64_t>(
+              safe_mul((size_t)glwe_dimension, (size_t)polynomial_size) + 1,
+              (size_t)number_of_inputs),
+          stream, gpu_index);
 
       for (int j = 0; j < number_of_inputs; j++) {
         uint64_t *result =
@@ -195,10 +199,12 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
           pbs_level, number_of_inputs, num_many_lut, lut_stride);
       // Copy result back
-      cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
-                               (glwe_dimension * polynomial_size + 1) *
-                                   number_of_inputs * sizeof(uint64_t),
-                               stream, gpu_index);
+      cuda_memcpy_async_to_cpu(
+          lwe_ct_out_array, d_lwe_ct_out_array,
+          safe_mul_sizeof<uint64_t>(
+              safe_mul((size_t)glwe_dimension, (size_t)polynomial_size) + 1,
+              (size_t)number_of_inputs),
+          stream, gpu_index);
 
       for (int j = 0; j < number_of_inputs; j++) {
         uint64_t *result =

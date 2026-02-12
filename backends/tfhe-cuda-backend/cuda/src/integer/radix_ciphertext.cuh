@@ -1,6 +1,7 @@
 #ifndef CUDA_INTEGER_RADIX_CIPHERTEXT_CUH
 #define CUDA_INTEGER_RADIX_CIPHERTEXT_CUH
 
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
@@ -26,15 +27,17 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
-  uint64_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
+  uint64_t size =
+      safe_mul_sizeof<Torus>((size_t)(lwe_dimension + 1), num_radix_blocks);
   radix->ptr = (void *)cuda_malloc_with_size_tracking_async(
       size, stream, gpu_index, size_tracker, allocate_gpu_memory);
   cuda_memset_with_size_tracking_async(radix->ptr, 0, size, stream, gpu_index,
                                        allocate_gpu_memory);
 
-  radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  radix->degrees =
+      (uint64_t *)(calloc(1, safe_mul_sizeof<uint64_t>(num_radix_blocks)));
   radix->noise_levels =
-      (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+      (uint64_t *)(calloc(1, safe_mul_sizeof<uint64_t>(num_radix_blocks)));
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
   }
@@ -123,8 +126,8 @@ void copy_radix_ciphertext_slice_async(
   auto num_blocks = input_end_lwe_index - input_start_lwe_index;
 
   cuda_memcpy_async_gpu_to_gpu(out_ptr, in_ptr,
-                               num_blocks * lwe_size * sizeof(Torus), stream,
-                               gpu_index);
+                               safe_mul_sizeof<Torus>(num_blocks, lwe_size),
+                               stream, gpu_index);
   for (uint i = 0; i < num_blocks; i++) {
     output_radix->degrees[i + output_start_lwe_index] =
         input_radix->degrees[i + input_start_lwe_index];
@@ -161,12 +164,12 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
   auto num_blocks_to_set = end_lwe_index - start_lwe_index;
   auto lwe_array_out_block = (Torus *)radix->ptr + start_lwe_index * lwe_size;
   cuda_memset_async(lwe_array_out_block, 0,
-                    num_blocks_to_set * lwe_size * sizeof(Torus), stream,
+                    safe_mul_sizeof<Torus>(num_blocks_to_set, lwe_size), stream,
                     gpu_index);
   memset(&radix->degrees[start_lwe_index], 0,
-         num_blocks_to_set * sizeof(uint64_t));
+         safe_mul_sizeof<uint64_t>(num_blocks_to_set));
   memset(&radix->noise_levels[start_lwe_index], 0,
-         num_blocks_to_set * sizeof(uint64_t));
+         safe_mul_sizeof<uint64_t>(num_blocks_to_set));
 }
 
 template <typename Torus>

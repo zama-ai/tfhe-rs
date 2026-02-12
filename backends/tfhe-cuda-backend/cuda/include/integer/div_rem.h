@@ -433,30 +433,31 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
       Torus ***second_indexes_ptr, Torus ***scalars_ptr, uint32_t num_blocks,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
 
-    auto first_indexes = (Torus **)malloc(num_blocks * sizeof(Torus *));
-    auto second_indexes = (Torus **)malloc(num_blocks * sizeof(Torus *));
-    auto scalars = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    auto first_indexes = (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
+    auto second_indexes =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
+    auto scalars = (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
     for (int nb = 1; nb <= num_blocks; nb++) {
       first_indexes[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
-          nb * sizeof(Torus), stream, gpu_index, size_tracker,
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, size_tracker,
           allocate_gpu_memory);
       second_indexes[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
-          nb * sizeof(Torus), stream, gpu_index, size_tracker,
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, size_tracker,
           allocate_gpu_memory);
       scalars[nb - 1] = (Torus *)cuda_malloc_with_size_tracking_async(
-          nb * sizeof(Torus), stream, gpu_index, size_tracker,
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, size_tracker,
           allocate_gpu_memory);
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
           first_indexes[nb - 1], first_indexes_for_overflow_sub_gpu_0[nb - 1],
-          nb * sizeof(Torus), stream, gpu_index, allocate_gpu_memory);
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, allocate_gpu_memory);
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
           second_indexes[nb - 1], second_indexes_for_overflow_sub_gpu_0[nb - 1],
-          nb * sizeof(Torus), stream, gpu_index, allocate_gpu_memory);
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, allocate_gpu_memory);
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
           scalars[nb - 1], scalars_for_overflow_sub_gpu_0[nb - 1],
-          nb * sizeof(Torus), stream, gpu_index, allocate_gpu_memory);
+          safe_mul_sizeof<Torus>(nb), stream, gpu_index, allocate_gpu_memory);
       *first_indexes_ptr = first_indexes;
       *second_indexes_ptr = second_indexes;
       *scalars_ptr = scalars;
@@ -470,21 +471,21 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     max_indexes_to_erase = num_blocks;
 
     first_indexes_for_overflow_sub_gpu_0 =
-        (Torus **)malloc(num_blocks * sizeof(Torus *));
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
     second_indexes_for_overflow_sub_gpu_0 =
-        (Torus **)malloc(num_blocks * sizeof(Torus *));
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
     scalars_for_overflow_sub_gpu_0 =
-        (Torus **)malloc(num_blocks * sizeof(Torus *));
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
-    Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
+    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
       first_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
       auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
         for (int index = 0; index < nb; index++) {
@@ -517,12 +518,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     for (int nb = 1; nb <= num_blocks; nb++) {
       second_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
       scalars_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
       auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
                                                        uint32_t) {
@@ -569,8 +570,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         }
       }
       cuda_memcpy_with_size_tracking_async_to_gpu(
-          scalars_for_overflow_sub_gpu_0[nb - 1], h_scalar, nb * sizeof(Torus),
-          streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
+          scalars_for_overflow_sub_gpu_0[nb - 1], h_scalar,
+          safe_mul_sizeof<Torus>(nb), streams.stream(0), streams.gpu_index(0),
+          allocate_gpu_memory);
     }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_lut_indexes);
@@ -1162,20 +1164,21 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     max_indexes_to_erase = num_blocks;
 
     first_indexes_for_overflow_sub =
-        (Torus **)malloc(num_blocks * sizeof(Torus *));
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
     second_indexes_for_overflow_sub =
-        (Torus **)malloc(num_blocks * sizeof(Torus *));
-    scalars_for_overflow_sub = (Torus **)malloc(num_blocks * sizeof(Torus *));
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
+    scalars_for_overflow_sub =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
-    Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
+    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
       first_indexes_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
       auto index_generator = [nb, group_size](Torus *h_lut_indexes, uint32_t) {
         for (int index = 0; index < nb; index++) {
@@ -1207,12 +1210,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     for (int nb = 1; nb <= num_blocks; nb++) {
       second_indexes_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
       scalars_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
-              nb * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-              size_tracker, allocate_gpu_memory);
+              safe_mul_sizeof<Torus>(nb), streams.stream(0),
+              streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
       auto index_generator = [nb, group_size, use_seq](Torus *h_lut_indexes,
                                                        uint32_t) {
@@ -1258,8 +1261,9 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         }
       }
       cuda_memcpy_with_size_tracking_async_to_gpu(
-          scalars_for_overflow_sub[nb - 1], h_scalar, nb * sizeof(Torus),
-          streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
+          scalars_for_overflow_sub[nb - 1], h_scalar,
+          safe_mul_sizeof<Torus>(nb), streams.stream(0), streams.gpu_index(0),
+          allocate_gpu_memory);
     }
     free(h_lut_indexes);
     free(h_scalar);

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
@@ -31,7 +32,8 @@ uint64_t scratch_cuda_keyswitch_size(uint32_t lwe_dimension_in,
                                      uint32_t num_lwes) {
   GPU_ASSERT(lwe_dimension_in >= lwe_dimension_out,
              "Trying to allocate KS temp buffer for invalid LWE dimensions");
-  return (uint64_t)num_lwes * lwe_dimension_in * sizeof(Torus) * 2;
+  return safe_mul_sizeof<Torus>((size_t)num_lwes, (size_t)lwe_dimension_in,
+                                (size_t)2);
 }
 
 template <typename Torus>
@@ -390,7 +392,8 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
   getNumBlocksAndThreads2D(lwe_dimension_out + 1, 512, num_threads_y,
                            num_blocks_per_sample, num_threads_x);
 
-  int shared_mem = sizeof(Torus) * num_threads_y * num_threads_x;
+  int shared_mem =
+      safe_mul_sizeof<Torus>((size_t)num_threads_y, (size_t)num_threads_x);
   PANIC_IF_FALSE(
       num_blocks_per_sample <= 65536,
       "Cuda error (Keyswitch): number of blocks per sample (%d) is too large",
@@ -431,7 +434,8 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
   // decomposition temporary results
   if (uses_trivial_indices) {
     cuda_memset_async(lwe_array_out, 0,
-                      num_samples * (lwe_dimension_out + 1) * sizeof(KSTorus),
+                      safe_mul_sizeof<KSTorus>((size_t)num_samples,
+                                               (size_t)(lwe_dimension_out + 1)),
                       stream, gpu_index);
   } else {
     // gemm to ks the individual LWEs to GLWEs
@@ -619,7 +623,8 @@ __host__ uint64_t scratch_packing_keyswitch_lwe_list_to_glwe(
                              : lwe_dimension * 2;
 
   uint64_t size_tracker = 0;
-  uint64_t buffer_size = 2 * num_lwes * memory_unit * sizeof(Torus);
+  uint64_t buffer_size =
+      safe_mul_sizeof<Torus>((size_t)2, (size_t)num_lwes, memory_unit);
   *fp_ks_buffer = (int8_t *)cuda_malloc_with_size_tracking_async(
       buffer_size, stream, gpu_index, size_tracker, allocate_gpu_memory);
   return size_tracker;

@@ -179,11 +179,11 @@ template <typename Torus> struct int_aes_counter_workspaces {
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     this->h_counter_bits_buffer =
-        (Torus *)malloc(num_aes_inputs * sizeof(Torus));
-    size_tracker += num_aes_inputs * sizeof(Torus);
+        (Torus *)malloc(safe_mul_sizeof<Torus>(num_aes_inputs));
+    size_tracker += safe_mul_sizeof<Torus>(num_aes_inputs);
     this->d_counter_bits_buffer = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_aes_inputs * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-        size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<Torus>(num_aes_inputs), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams, bool allocate_gpu_memory) {

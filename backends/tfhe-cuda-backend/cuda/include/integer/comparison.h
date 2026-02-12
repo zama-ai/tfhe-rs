@@ -1,4 +1,5 @@
 #pragma once
+#include "checked_arithmetic.h"
 #include "cmux.h"
 #include "integer_utilities.h"
 
@@ -39,8 +40,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         max_chunks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    preallocated_h_lut = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+    preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
+        params.glwe_dimension + 1, params.polynomial_size));
 
     is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
                                             allocate_gpu_memory, size_tracker);
@@ -214,8 +215,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_lut = new int_radix_lut<Torus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
-    preallocated_h_lut = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+    preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
+        params.glwe_dimension + 1, params.polynomial_size));
 
     tree_last_leaf_scalar_lut = new int_radix_lut<Torus>(
         streams, params, 1, 1, allocate_gpu_memory, size_tracker);
@@ -307,10 +308,10 @@ template <typename Torus> struct int_comparison_diff_buffer {
     reduce_signs_lut =
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
-    preallocated_h_lut1 = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
-    preallocated_h_lut2 = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+    preallocated_h_lut1 = (Torus *)malloc(safe_mul_sizeof<Torus>(
+        params.glwe_dimension + 1, params.polynomial_size));
+    preallocated_h_lut2 = (Torus *)malloc(safe_mul_sizeof<Torus>(
+        params.glwe_dimension + 1, params.polynomial_size));
   }
 
   void release(CudaStreams streams) {
@@ -502,8 +503,8 @@ template <typename Torus> struct int_comparison_buffer {
       signed_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {signed_lut_f}, LUT_0_FOR_ALL_BLOCKS);
     }
-    preallocated_h_lut = (Torus *)malloc(
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus));
+    preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
+        params.glwe_dimension + 1, params.polynomial_size));
   }
 
   void release(CudaStreams streams) {

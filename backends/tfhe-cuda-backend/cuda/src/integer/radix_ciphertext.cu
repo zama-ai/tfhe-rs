@@ -30,9 +30,10 @@ void into_radix_ciphertext(CudaRadixCiphertextFFI *radix, void *lwe_array,
   radix->max_num_radix_blocks = num_radix_blocks;
   radix->ptr = lwe_array;
 
-  radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  radix->degrees =
+      (uint64_t *)(calloc(1, safe_mul_sizeof<uint64_t>(num_radix_blocks)));
   radix->noise_levels =
-      (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+      (uint64_t *)(calloc(1, safe_mul_sizeof<uint64_t>(num_radix_blocks)));
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
   }

@@ -56,14 +56,14 @@ __host__ void host_boolean_bitop(CudaStreams streams,
           lwe_array_1->num_radix_blocks, lwe_array_1, 0,
           lwe_array_1->num_radix_blocks);
       memcpy(lwe_array_out->degrees, lwe_array_1->degrees,
-             lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+             safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
     } else {
       copy_radix_ciphertext_slice_async<Torus>(
           streams.stream(0), streams.gpu_index(0), lwe_array_out, 0,
           lwe_array_2->num_radix_blocks, lwe_array_2, 0,
           lwe_array_2->num_radix_blocks);
       memcpy(lwe_array_out->degrees, lwe_array_2->degrees,
-             lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+             safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
     }
     return;
   }
@@ -75,14 +75,14 @@ __host__ void host_boolean_bitop(CudaStreams streams,
           lwe_array_2->num_radix_blocks, lwe_array_2, 0,
           lwe_array_2->num_radix_blocks);
       memcpy(lwe_array_out->degrees, lwe_array_2->degrees,
-             lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+             safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
     } else {
       copy_radix_ciphertext_slice_async<Torus>(
           streams.stream(0), streams.gpu_index(0), lwe_array_out, 0,
           lwe_array_1->num_radix_blocks, lwe_array_1, 0,
           lwe_array_1->num_radix_blocks);
       memcpy(lwe_array_out->degrees, lwe_array_1->degrees,
-             lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+             safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
     }
     return;
   }
@@ -158,7 +158,7 @@ __host__ void host_boolean_bitop(CudaStreams streams,
       lut, lwe_array_out->num_radix_blocks, 2);
 
   memcpy(lwe_array_out->degrees, degrees,
-         lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+         safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
 }
 
 // updates degrees based on `ct_message_modulus`
@@ -266,7 +266,7 @@ __host__ void host_bitop(CudaStreams streams,
       lwe_array_out->num_radix_blocks, lut->params.message_modulus);
 
   memcpy(lwe_array_out->degrees, degrees,
-         lwe_array_out->num_radix_blocks * sizeof(uint64_t));
+         safe_mul_sizeof<uint64_t>(lwe_array_out->num_radix_blocks));
 }
 
 template <typename Torus>

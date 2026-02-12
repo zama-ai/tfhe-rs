@@ -228,10 +228,12 @@ host_integer_compress(CudaStreams streams,
 
   // Keyswitch LWEs to GLWE
   auto tmp_glwe_array_out = mem_ptr->tmp_glwe_array_out;
-  cuda_memset_async(tmp_glwe_array_out, 0,
-                    num_glwes * (compression_params.glwe_dimension + 1) *
-                        compression_params.polynomial_size * sizeof(Torus),
-                    streams.stream(0), streams.gpu_index(0));
+  cuda_memset_async(
+      tmp_glwe_array_out, 0,
+      safe_mul_sizeof<Torus>((size_t)num_glwes,
+                             (size_t)(compression_params.glwe_dimension + 1),
+                             (size_t)compression_params.polynomial_size),
+      streams.stream(0), streams.gpu_index(0));
   auto fp_ks_buffer = mem_ptr->fp_ks_buffer;
   auto rem_lwes = glwe_array_out->total_lwe_bodies_count;
 
@@ -349,7 +351,8 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   // glwe_ciphertext_size)
   if (initial_out_len < glwe_ciphertext_size) {
     cuda_memset_async(glwe_array_out + initial_out_len, 0,
-                      (glwe_ciphertext_size - initial_out_len) * sizeof(Torus),
+                      safe_mul_sizeof<Torus>(
+                          (size_t)(glwe_ciphertext_size - initial_out_len)),
                       stream, gpu_index);
   }
 
@@ -377,7 +380,7 @@ host_integer_decompress(CudaStreams streams,
 
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
   cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
-                           num_blocks_to_decompress * sizeof(uint32_t),
+                           safe_mul_sizeof<uint32_t>(num_blocks_to_decompress),
                            streams.stream(0), streams.gpu_index(0));
 
   auto compression_params = h_mem_ptr->compression_params;

@@ -1,6 +1,7 @@
 #ifndef CUDA_BOOTSTRAP_UTILITIES_H
 #define CUDA_BOOTSTRAP_UTILITIES_H
 
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "pbs_enums.h"
 #include "vector_types.h"
@@ -10,45 +11,46 @@ template <typename Torus>
 uint64_t get_buffer_size_full_sm_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
-  return sizeof(Torus) * polynomial_size + // accumulator_rotated
-         sizeof(double) * 2 * double_count * polynomial_size /
-             2; // accumulator fft
+  return safe_mul_sizeof<Torus>(polynomial_size) + // accumulator_rotated
+         safe_mul_sizeof<double>(double_count,
+                                 (size_t)polynomial_size); // accumulator fft
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
-  return sizeof(Torus) * polynomial_size + // accumulator
-         sizeof(double) * 2 * double_count * polynomial_size /
-             2; // accumulator fft
+  return safe_mul_sizeof<Torus>(polynomial_size) + // accumulator
+         safe_mul_sizeof<double>(double_count,
+                                 (size_t)polynomial_size); // accumulator fft
 }
 
 template <typename Torus>
 uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap(uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
-  return sizeof(double) * 2 * double_count * polynomial_size /
-         2; // accumulator fft
+  return safe_mul_sizeof<double>(double_count,
+                                 (size_t)polynomial_size); // accumulator fft
 }
 
 template <typename Torus>
 uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_tbc(uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size +      // accumulator_rotated
-         sizeof(Torus) * polynomial_size +      // accumulator
-         sizeof(double2) * polynomial_size / 2; // accumulator fft
+  return safe_mul_sizeof<Torus>(polynomial_size) +      // accumulator_rotated
+         safe_mul_sizeof<Torus>(polynomial_size) +      // accumulator
+         safe_mul_sizeof<double2>(polynomial_size / 2); // accumulator fft
 }
 
 template <typename Torus>
 uint64_t get_buffer_size_partial_sm_programmable_bootstrap_tbc(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
+  return safe_mul_sizeof<double2>(polynomial_size /
+                                  2); // accumulator fft mask & body
 }
 
 template <typename Torus>
 uint64_t get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // tbc
+  return safe_mul_sizeof<double2>(polynomial_size / 2); // tbc
 }
 
 template <typename Torus>
@@ -56,25 +58,25 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_tbc_2_2_params(
     uint32_t polynomial_size) {
   // In the first implementation with 2-2 params, we need up to 5 polynomials in
   // shared memory we can optimize this later
-  return sizeof(Torus) * polynomial_size * 5;
+  return safe_mul_sizeof<Torus>((size_t)polynomial_size, (size_t)5);
 }
 
 template <typename Torus>
 uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
-  return sizeof(Torus) * polynomial_size + // accumulator_rotated
-         sizeof(Torus) * polynomial_size + // accumulator
-         sizeof(double) * polynomial_size / 2 * 2 *
-             double_count; // accumulator fft
+  return safe_mul_sizeof<Torus>(polynomial_size) + // accumulator_rotated
+         safe_mul_sizeof<Torus>(polynomial_size) + // accumulator
+         safe_mul_sizeof<double>((size_t)polynomial_size,
+                                 double_count); // accumulator fft
 }
 
 template <typename Torus>
 uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
-  return sizeof(double) * polynomial_size / 2 * 2 *
-         double_count; // accumulator fft mask & body
+  return safe_mul_sizeof<double>((size_t)polynomial_size,
+                                 double_count); // accumulator fft mask & body
 }
 
 template <typename Torus>
@@ -122,27 +124,34 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 
       uint64_t device_mem = 0;
       if (max_shared_memory < partial_sm) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm_step_two) {
-        device_mem = (partial_dm_step_two + partial_dm_step_one * level_count) *
-                     input_lwe_ciphertext_count * (glwe_dimension + 1);
+        device_mem = safe_mul(
+            partial_dm_step_two +
+                safe_mul(partial_dm_step_one, (size_t)level_count),
+            (size_t)input_lwe_ciphertext_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm_step_one) {
-        device_mem = partial_dm_step_one * input_lwe_ciphertext_count *
-                     level_count * (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm_step_one, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
       // Otherwise, both kernels run all in shared memory
       d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
           device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
-          (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
-              (polynomial_size / 2) * sizeof(double2),
+          safe_mul_sizeof<double2>(
+              safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+              (size_t)input_lwe_ciphertext_count,
+              (size_t)(polynomial_size / 2)),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
-          (glwe_dimension + 1) * input_lwe_ciphertext_count * polynomial_size *
-              sizeof(Torus),
+          safe_mul_sizeof<Torus>((size_t)(glwe_dimension + 1),
+                                 (size_t)input_lwe_ciphertext_count,
+                                 (size_t)polynomial_size),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
     } break;
     case PBS_VARIANT::CG: {
@@ -158,11 +167,13 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       uint64_t device_mem = 0;
 
       if (max_shared_memory < partial_sm) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm) {
-        device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
 
       // Otherwise, both kernels run all in shared memory
@@ -170,8 +181,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
           device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
-          (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
-              polynomial_size / 2 * sizeof(double2),
+          safe_mul_sizeof<double2>(
+              safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+              (size_t)input_lwe_ciphertext_count,
+              (size_t)(polynomial_size / 2)),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
     } break;
 #if CUDA_ARCH >= 900
@@ -206,11 +219,13 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       //
       // NOSM mode actually requires minimum_sm_tbc shared memory bytes.
       if (max_shared_memory < partial_sm + minimum_sm_tbc) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
-        device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
 
       // Otherwise, both kernels run all in shared memory
@@ -218,8 +233,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
           device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
-          (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
-              polynomial_size / 2 * sizeof(double2),
+          safe_mul_sizeof<double2>(
+              safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+              (size_t)input_lwe_ciphertext_count,
+              (size_t)(polynomial_size / 2)),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
     } break;
 #endif
@@ -266,9 +283,10 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
     this->pbs_variant = pbs_variant;
 
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-    size_t global_join_buffer_size = (glwe_dimension + 1) * level_count *
-                                     input_lwe_ciphertext_count *
-                                     polynomial_size / 2 * sizeof(double) * 4;
+    size_t global_join_buffer_size = safe_mul_sizeof<double>(
+        safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+        (size_t)input_lwe_ciphertext_count,
+        safe_mul((size_t)(polynomial_size / 2), (size_t)4));
 
     switch (pbs_variant) {
     case PBS_VARIANT::DEFAULT: {
@@ -288,14 +306,18 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
 
       uint64_t device_mem = 0;
       if (max_shared_memory < partial_sm) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm_step_two) {
-        device_mem = (partial_dm_step_two + partial_dm_step_one * level_count) *
-                     input_lwe_ciphertext_count * (glwe_dimension + 1);
+        device_mem = safe_mul(
+            partial_dm_step_two +
+                safe_mul(partial_dm_step_one, (size_t)level_count),
+            (size_t)input_lwe_ciphertext_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm_step_one) {
-        device_mem = partial_dm_step_one * input_lwe_ciphertext_count *
-                     level_count * (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm_step_one, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
       // Otherwise, both kernels run all in shared memory
       d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
@@ -306,8 +328,9 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
           allocate_gpu_memory);
 
       global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
-          (glwe_dimension + 1) * input_lwe_ciphertext_count * polynomial_size *
-              sizeof(__uint128_t),
+          safe_mul_sizeof<__uint128_t>((size_t)(glwe_dimension + 1),
+                                       (size_t)input_lwe_ciphertext_count,
+                                       (size_t)polynomial_size),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
     } break;
     case PBS_VARIANT::CG: {
@@ -323,11 +346,13 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
       uint64_t device_mem = 0;
 
       if (max_shared_memory < partial_sm) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm) {
-        device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
 
       // Otherwise, both kernels run all in shared memory
@@ -370,11 +395,13 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
       //
       // NOSM mode actually requires minimum_sm_tbc shared memory bytes.
       if (max_shared_memory < partial_sm + minimum_sm_tbc) {
-        device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
-        device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                     (glwe_dimension + 1);
+        device_mem =
+            safe_mul(partial_dm, (size_t)input_lwe_ciphertext_count,
+                     (size_t)level_count, (size_t)(glwe_dimension + 1));
       }
 
       // Otherwise, both kernels run all in shared memory
@@ -416,15 +443,17 @@ uint64_t get_buffer_size_programmable_bootstrap_cg(
   uint64_t full_dm = full_sm;
   uint64_t device_mem = 0;
   if (max_shared_memory < partial_sm) {
-    device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                 (glwe_dimension + 1);
+    device_mem = safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                          (size_t)level_count, (size_t)(glwe_dimension + 1));
   } else if (max_shared_memory < full_sm) {
-    device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                 (glwe_dimension + 1);
+    device_mem = safe_mul(partial_dm, (size_t)input_lwe_ciphertext_count,
+                          (size_t)level_count, (size_t)(glwe_dimension + 1));
   }
-  uint64_t buffer_size = device_mem + (glwe_dimension + 1) * level_count *
-                                          input_lwe_ciphertext_count *
-                                          polynomial_size / 2 * sizeof(double2);
+  uint64_t buffer_size =
+      device_mem +
+      safe_mul_sizeof<double2>(
+          safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+          (size_t)input_lwe_ciphertext_count, (size_t)(polynomial_size / 2));
   return buffer_size + buffer_size % sizeof(double2);
 }
 

@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 
+#include "checked_arithmetic.h"
 #include "crypto/keyswitch.cuh"
 
 /// Constant to indicate that all blocks should use LUT index 0
@@ -63,8 +64,8 @@ void generate_lut_indexes(CudaStreams streams, IndexGenerator generator,
   }
 
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      d_lut_indexes, h_buffer, num_indexes * sizeof(Torus), streams.stream(0),
-      streams.gpu_index(0), gpu_memory_allocated);
+      d_lut_indexes, h_buffer, safe_mul_sizeof<Torus>(num_indexes),
+      streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
 }
 
 class NoiseLevel {
@@ -468,8 +469,8 @@ struct int_radix_lut_custom_input_output {
 
   void setup_degrees() {
     this->degrees =
-        (uint64_t *)malloc(num_many_lut * num_luts * sizeof(uint64_t));
-    this->max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
+        (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(num_many_lut, num_luts));
+    this->max_degrees = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(num_luts));
   }
 
   void allocate_pbs_buffers(int_radix_params params, uint32_t num_radix_blocks,
@@ -612,40 +613,40 @@ struct int_radix_lut_custom_input_output {
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
     lwe_indexes_in = (InputTorus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * sizeof(InputTorus), active_streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
         active_streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     lwe_indexes_out = (InputTorus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * sizeof(InputTorus), active_streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
         active_streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     lwe_trivial_indexes = (InputTorus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * sizeof(InputTorus), active_streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
         active_streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     h_lwe_indexes_in =
-        (InputTorus *)malloc(num_radix_blocks * sizeof(InputTorus));
+        (InputTorus *)malloc(safe_mul_sizeof<InputTorus>(num_radix_blocks));
     h_lwe_indexes_out =
-        (InputTorus *)malloc(num_radix_blocks * sizeof(InputTorus));
+        (InputTorus *)malloc(safe_mul_sizeof<InputTorus>(num_radix_blocks));
 
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
 
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        lwe_indexes_in, h_lwe_indexes_in, num_radix_blocks * sizeof(InputTorus),
-        active_streams.stream(0), active_streams.gpu_index(0),
-        allocate_gpu_memory);
+        lwe_indexes_in, h_lwe_indexes_in,
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
+        active_streams.gpu_index(0), allocate_gpu_memory);
     cuda_memcpy_with_size_tracking_async_to_gpu(
         lwe_indexes_out, h_lwe_indexes_in,
-        num_radix_blocks * sizeof(InputTorus), active_streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
         active_streams.gpu_index(0), allocate_gpu_memory);
     cuda_memcpy_with_size_tracking_async_to_gpu(
         lwe_trivial_indexes, h_lwe_indexes_in,
-        num_radix_blocks * sizeof(InputTorus), active_streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_radix_blocks), active_streams.stream(0),
         active_streams.gpu_index(0), allocate_gpu_memory);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
-           num_radix_blocks * sizeof(InputTorus));
+           safe_mul_sizeof<InputTorus>(num_radix_blocks));
 
-    h_lut_indexes =
-        (InputTorus *)(calloc(num_radix_blocks, sizeof(InputTorus)));
+    h_lut_indexes = (InputTorus *)(calloc(
+        1, safe_mul_sizeof<InputTorus>(num_radix_blocks)));
   }
 
   void setup_multi_gpu(int_radix_params params, uint32_t num_radix_blocks,
@@ -801,13 +802,13 @@ struct int_radix_lut_custom_input_output {
   // this constructor
   void allocate_luts_and_indexes(uint32_t num_radix_blocks,
                                  uint64_t &size_tracker) {
-    uint64_t lut_indexes_size = num_radix_blocks * sizeof(InputTorus);
-    uint64_t lut_buffer_size = (params.glwe_dimension + 1) *
-                               params.polynomial_size * sizeof(OutputTorus);
+    uint64_t lut_indexes_size = safe_mul_sizeof<InputTorus>(num_radix_blocks);
+    uint64_t lut_buffer_size = safe_mul_sizeof<OutputTorus>(
+        (size_t)(params.glwe_dimension + 1), (size_t)params.polynomial_size);
 
     for (uint i = 0; i < active_streams.count(); i++) {
       auto lut = (OutputTorus *)cuda_malloc_with_size_tracking_async(
-          num_luts * lut_buffer_size, active_streams.stream(i),
+          safe_mul((size_t)num_luts, lut_buffer_size), active_streams.stream(i),
           active_streams.gpu_index(i), size_tracker, gpu_memory_allocated);
       auto lut_indexes = (InputTorus *)cuda_malloc_with_size_tracking_async(
           lut_indexes_size, active_streams.stream(i),
@@ -826,15 +827,19 @@ struct int_radix_lut_custom_input_output {
   void set_lwe_indexes(cudaStream_t stream, uint32_t gpu_index,
                        InputTorus *h_indexes_in, InputTorus *h_indexes_out) {
 
-    memcpy(h_lwe_indexes_in, h_indexes_in, num_blocks * sizeof(InputTorus));
-    memcpy(h_lwe_indexes_out, h_indexes_out, num_blocks * sizeof(InputTorus));
+    memcpy(h_lwe_indexes_in, h_indexes_in,
+           safe_mul_sizeof<InputTorus>(num_blocks));
+    memcpy(h_lwe_indexes_out, h_indexes_out,
+           safe_mul_sizeof<InputTorus>(num_blocks));
 
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        lwe_indexes_in, h_lwe_indexes_in, num_blocks * sizeof(InputTorus),
-        stream, gpu_index, gpu_memory_allocated);
+        lwe_indexes_in, h_lwe_indexes_in,
+        safe_mul_sizeof<InputTorus>(num_blocks), stream, gpu_index,
+        gpu_memory_allocated);
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        lwe_indexes_out, h_lwe_indexes_out, num_blocks * sizeof(InputTorus),
-        stream, gpu_index, gpu_memory_allocated);
+        lwe_indexes_out, h_lwe_indexes_out,
+        safe_mul_sizeof<InputTorus>(num_blocks), stream, gpu_index,
+        gpu_memory_allocated);
 
     using_trivial_lwe_indexes = false;
   }
@@ -903,7 +908,7 @@ public:
                                          uint32_t num_indexes) {
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         get_lut_indexes(0, 0), d_src_lut_indexes,
-        num_indexes * sizeof(InputTorus), streams.stream(0),
+        safe_mul_sizeof<InputTorus>(num_indexes), streams.stream(0),
         streams.gpu_index(0), gpu_memory_allocated);
     broadcast_lut(streams, false);
 
@@ -976,15 +981,16 @@ public:
       if (broadcast_lut_values) {
         auto dst_lut = lut_vec[i];
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-            dst_lut, src_lut, num_luts * lut_size * sizeof(OutputTorus),
+            dst_lut, src_lut,
+            safe_mul_sizeof<OutputTorus>((size_t)num_luts, (size_t)lut_size),
             new_active_streams.stream(i), new_active_streams.gpu_index(i),
             gpu_memory_allocated);
       }
       auto dst_lut_indexes = lut_indexes_vec[i];
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          dst_lut_indexes, src_lut_indexes, num_blocks * sizeof(InputTorus),
-          new_active_streams.stream(i), new_active_streams.gpu_index(i),
-          gpu_memory_allocated);
+          dst_lut_indexes, src_lut_indexes,
+          safe_mul_sizeof<InputTorus>(num_blocks), new_active_streams.stream(i),
+          new_active_streams.gpu_index(i), gpu_memory_allocated);
     }
 
     // Ensure the device set at the end of this method is the same as it was
@@ -1014,8 +1020,9 @@ public:
                                                       active_streams.count())));
         InputTorus *d_array =
             (InputTorus *)cuda_malloc_with_size_tracking_async(
-                inputs_on_gpu * (params.big_lwe_dimension + 1) *
-                    sizeof(InputTorus),
+                safe_mul_sizeof<InputTorus>(
+                    (size_t)inputs_on_gpu,
+                    (size_t)(params.big_lwe_dimension + 1)),
                 streams.stream(0), streams.gpu_index(0),
                 size_tracker_on_array_i, allocate_gpu_memory);
         lwe_aligned_vec[i] = d_array;
@@ -1371,8 +1378,8 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
      * the input indexes should take the first bits_per_block PBS to target
      * the block 0, then block 1, etc...
      */
-    Torus *h_lwe_indexes_in =
-        (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+    Torus *h_lwe_indexes_in = (Torus *)malloc(
+        safe_mul_sizeof<Torus>(num_radix_blocks, bits_per_block));
 
     for (int j = 0; j < num_radix_blocks; j++) {
       for (int i = 0; i < bits_per_block; i++)
@@ -1383,8 +1390,8 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
      * the output should aim different lwe ciphertexts, so lwe_indexes_out =
      * range(num_luts)
      */
-    Torus *h_lwe_indexes_out =
-        (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+    Torus *h_lwe_indexes_out = (Torus *)malloc(
+        safe_mul_sizeof<Torus>(num_radix_blocks, bits_per_block));
 
     for (int i = 0; i < num_radix_blocks * bits_per_block; i++)
       h_lwe_indexes_out[i] = i;
@@ -1513,7 +1520,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   void setup_index_buffers(CudaStreams streams, uint64_t &size_tracker) {
 
     d_degrees = (uint64_t *)cuda_malloc_with_size_tracking_async(
-        max_total_blocks_in_vec * sizeof(uint64_t), streams.stream(0),
+        safe_mul_sizeof<uint64_t>(max_total_blocks_in_vec), streams.stream(0),
         streams.gpu_index(0), size_tracker, gpu_memory_allocated);
 
     auto num_blocks_in_radix = this->num_blocks_in_radix;
@@ -1523,26 +1530,28 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                              uint32_t *&columns_counter, uint64_t &size_tracker,
                              bool gpu_memory_allocated) {
       columns_data = (uint32_t *)cuda_malloc_with_size_tracking_async(
-          num_blocks_in_radix * max_num_radix_in_vec * sizeof(uint32_t),
+          safe_mul_sizeof<uint32_t>((size_t)num_blocks_in_radix,
+                                    (size_t)max_num_radix_in_vec),
           streams.stream(0), streams.gpu_index(0), size_tracker,
           gpu_memory_allocated);
       columns_counter = (uint32_t *)cuda_malloc_with_size_tracking_async(
-          num_blocks_in_radix * sizeof(uint32_t), streams.stream(0),
+          safe_mul_sizeof<uint32_t>(num_blocks_in_radix), streams.stream(0),
           streams.gpu_index(0), size_tracker, gpu_memory_allocated);
       cuda_memset_with_size_tracking_async(
-          columns_counter, 0, num_blocks_in_radix * sizeof(uint32_t),
+          columns_counter, 0, safe_mul_sizeof<uint32_t>(num_blocks_in_radix),
           streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
       uint32_t **h_columns = new uint32_t *[num_blocks_in_radix];
       for (int i = 0; i < num_blocks_in_radix; ++i) {
         h_columns[i] = columns_data + i * max_num_radix_in_vec;
       }
       columns = (uint32_t **)cuda_malloc_with_size_tracking_async(
-          num_blocks_in_radix * sizeof(uint32_t *), streams.stream(0),
+          safe_mul_sizeof<uint32_t *>(num_blocks_in_radix), streams.stream(0),
           streams.gpu_index(0), size_tracker, gpu_memory_allocated);
       if (gpu_memory_allocated) {
-        cuda_memcpy_async_to_gpu(columns, h_columns,
-                                 num_blocks_in_radix * sizeof(uint32_t *),
-                                 streams.stream(0), streams.gpu_index(0));
+        cuda_memcpy_async_to_gpu(
+            columns, h_columns,
+            safe_mul_sizeof<uint32_t *>(num_blocks_in_radix), streams.stream(0),
+            streams.gpu_index(0));
       }
       cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
       delete[] h_columns;
@@ -1751,7 +1760,8 @@ template <typename Torus> struct int_seq_group_prop_memory {
                                  allocate_gpu_memory, size_tracker);
     std::vector<std::function<Torus(Torus)>> lut_funcs;
     std::vector<uint32_t> lut_indices;
-    Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
+    Torus *h_seq_lut_indexes =
+        (Torus *)malloc(safe_mul_sizeof<Torus>(num_seq_luts));
 
     for (int index = 0; index < num_seq_luts; index++) {
       auto f_lut_sequential = [index](Torus propa_cum_sum_block) {
@@ -2021,7 +2031,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
     auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+    auto big_lwe_size_bytes = safe_mul_sizeof<Torus>(big_lwe_size);
 
     uint32_t block_modulus = message_modulus * carry_modulus;
     uint32_t num_bits_in_block = std::log2(block_modulus);
@@ -2052,15 +2062,15 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         streams.stream(0), streams.gpu_index(0), grouping_pgns, num_groups,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     scalar_array_cum_sum = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * sizeof(Torus), streams.stream(0),
+        safe_mul_sizeof<Torus>(num_radix_blocks), streams.stream(0),
         streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     cuda_memset_with_size_tracking_async(
-        scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus),
+        scalar_array_cum_sum, 0, safe_mul_sizeof<Torus>(num_radix_blocks),
         streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     h_scalar_array_cum_sum = new Torus[num_radix_blocks]();
 
     // create lut objects for step 2
-    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_indexes_size = safe_mul_sizeof<Torus>(num_radix_blocks);
     uint32_t num_carry_to_resolve = num_groups - 1;
     uint32_t saturated_sub =
         ((num_carry_to_resolve > 1) ? num_carry_to_resolve - 1 : 0);
@@ -2104,7 +2114,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     cuda_memcpy_with_size_tracking_async_to_gpu(
         scalar_array_cum_sum, h_scalar_array_cum_sum,
-        num_radix_blocks * sizeof(Torus), streams.stream(0),
+        safe_mul_sizeof<Torus>(num_radix_blocks), streams.stream(0),
         streams.gpu_index(0), allocate_gpu_memory);
 
     uint32_t num_luts_second_step = 2 * grouping_size + num_extra_luts;
@@ -2249,8 +2259,9 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         new_active_streams, new_lut_indexes, new_num_blocks);
 
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-        scalar_array_cum_sum, new_scalars, new_num_blocks * sizeof(Torus),
-        streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
+        scalar_array_cum_sum, new_scalars,
+        safe_mul_sizeof<Torus>(new_num_blocks), streams.stream(0),
+        streams.gpu_index(0), gpu_memory_allocated);
   }
 
   void release(CudaStreams streams) {

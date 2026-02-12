@@ -220,18 +220,20 @@ __global__ void device_programmable_bootstrap_amortized(
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_programmable_bootstrap_amortized(
     uint32_t polynomial_size, uint32_t glwe_dimension) {
-  return sizeof(Torus) * polynomial_size * (glwe_dimension + 1) + // accumulator
-         sizeof(Torus) * polynomial_size *
-             (glwe_dimension + 1) +              // accumulator rotated
-         sizeof(double2) * polynomial_size / 2 + // accumulator fft
-         sizeof(double2) * polynomial_size / 2 *
-             (glwe_dimension + 1); // res fft
+  return safe_mul_sizeof<Torus>((size_t)polynomial_size,
+                                (size_t)(glwe_dimension + 1)) + // accumulator
+         safe_mul_sizeof<Torus>(
+             (size_t)polynomial_size,
+             (size_t)(glwe_dimension + 1)) +             // accumulator rotated
+         safe_mul_sizeof<double2>(polynomial_size / 2) + // accumulator fft
+         safe_mul_sizeof<double2>((size_t)(polynomial_size / 2),
+                                  (size_t)(glwe_dimension + 1)); // res fft
 }
 
 template <typename Torus>
 uint64_t get_buffer_size_partial_sm_programmable_bootstrap_amortized(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator fft
+  return safe_mul_sizeof<double2>(polynomial_size / 2); // accumulator fft
 }
 
 template <typename Torus>

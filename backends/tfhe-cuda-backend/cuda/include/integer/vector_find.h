@@ -534,7 +534,7 @@ template <typename Torus> struct int_unchecked_match_value_or_buffer {
     this->tmp_or_value = new CudaRadixCiphertextFFI;
 
     this->d_or_value = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_final_blocks * sizeof(Torus), streams.stream(0),
+        safe_mul_sizeof<Torus>(num_final_blocks), streams.stream(0),
         streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     create_zero_radix_ciphertext_async<Torus>(
@@ -712,8 +712,8 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
         allocate_gpu_memory);
 
     this->d_clear_val = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_blocks * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-        size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<Torus>(num_blocks), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams) {
@@ -866,7 +866,7 @@ template <typename Torus> struct int_final_index_from_selectors_buffer {
     uint32_t num_bits_in_message = log2_int(params.message_modulus);
     uint32_t bits_per_packed_block = 2 * num_bits_in_message;
 
-    h_indices = new uint64_t[num_inputs * packed_len];
+    h_indices = new uint64_t[safe_mul((size_t)num_inputs, (size_t)packed_len)];
     for (uint32_t i = 0; i < num_inputs; i++) {
       uint64_t val = i;
       for (uint32_t b = 0; b < packed_len; b++) {
@@ -1128,15 +1128,16 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
         allocate_gpu_memory);
 
     this->d_clear_val = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_blocks * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-        size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<Torus>(num_blocks), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
 
     h_indices = nullptr;
     if (allocate_gpu_memory) {
       uint32_t num_bits_in_message = log2_int(params.message_modulus);
       uint32_t bits_per_packed_block = 2 * num_bits_in_message;
 
-      h_indices = new uint64_t[num_inputs * packed_len];
+      h_indices =
+          new uint64_t[safe_mul((size_t)num_inputs, (size_t)packed_len)];
       for (uint32_t i = 0; i < num_inputs; i++) {
         uint64_t val = i;
         for (uint32_t b = 0; b < packed_len; b++) {
@@ -1316,7 +1317,8 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
       uint32_t num_bits_in_message = log2_int(params.message_modulus);
       uint32_t bits_per_packed_block = 2 * num_bits_in_message;
 
-      h_indices = new uint64_t[num_inputs * packed_len];
+      h_indices =
+          new uint64_t[safe_mul((size_t)num_inputs, (size_t)packed_len)];
       for (uint32_t i = 0; i < num_inputs; i++) {
         uint64_t val = i;
         for (uint32_t b = 0; b < packed_len; b++) {

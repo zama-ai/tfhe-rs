@@ -14,7 +14,8 @@
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(__uint128_t) * polynomial_size * 2; // accumulator
+  return safe_mul_sizeof<__uint128_t>((size_t)polynomial_size,
+                                      (size_t)2); // accumulator
 }
 
 template <typename InputTorus, class params, sharedMemDegree SMD>

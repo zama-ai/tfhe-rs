@@ -289,24 +289,29 @@ uint64_t get_buffer_size_programmable_bootstrap(
 
   uint64_t device_mem = 0;
   if (max_shared_memory < partial_sm) {
-    device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                 (glwe_dimension + 1);
+    device_mem = safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
+                          (size_t)level_count, (size_t)(glwe_dimension + 1));
   } else if (max_shared_memory < full_sm_step_two) {
-    device_mem = (partial_dm_step_two + partial_dm_step_one * level_count) *
-                 input_lwe_ciphertext_count * (glwe_dimension + 1);
+    device_mem = safe_mul(partial_dm_step_two + safe_mul(partial_dm_step_one,
+                                                         (size_t)level_count),
+                          (size_t)input_lwe_ciphertext_count,
+                          (size_t)(glwe_dimension + 1));
   } else if (max_shared_memory < full_sm_step_one) {
-    device_mem = partial_dm_step_one * input_lwe_ciphertext_count *
-                 level_count * (glwe_dimension + 1);
+    device_mem =
+        safe_mul(partial_dm_step_one, (size_t)input_lwe_ciphertext_count,
+                 (size_t)level_count, (size_t)(glwe_dimension + 1));
   }
   // Otherwise, both kernels run all in shared memory
-  uint64_t buffer_size = device_mem +
-                         // global_join_buffer
-                         (glwe_dimension + 1) * level_count *
-                             input_lwe_ciphertext_count *
-                             (polynomial_size / 2) * sizeof(double2) +
-                         // global_accumulator
-                         (glwe_dimension + 1) * input_lwe_ciphertext_count *
-                             polynomial_size * sizeof(Torus);
+  uint64_t buffer_size =
+      device_mem +
+      // global_join_buffer
+      safe_mul_sizeof<double2>(
+          safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
+          (size_t)input_lwe_ciphertext_count, (size_t)(polynomial_size / 2)) +
+      // global_accumulator
+      safe_mul_sizeof<Torus>((size_t)(glwe_dimension + 1),
+                             (size_t)input_lwe_ciphertext_count,
+                             (size_t)polynomial_size);
   return buffer_size + buffer_size % sizeof(double2);
 }
 

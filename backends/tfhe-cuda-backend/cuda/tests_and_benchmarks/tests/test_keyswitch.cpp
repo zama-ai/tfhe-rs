@@ -1,3 +1,4 @@
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "helper_multi_gpu.h"
 #include <cmath>
@@ -78,8 +79,8 @@ public:
 
     base_num_inputs_on_gpu =
         number_of_inputs / gpu_count + (number_of_inputs % gpu_count != 0);
-    lwe_out_ct = (uint64_t *)malloc((output_lwe_dimension + 1) *
-                                    number_of_inputs * sizeof(uint64_t));
+    lwe_out_ct = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
+        (size_t)(output_lwe_dimension + 1), (size_t)number_of_inputs));
 
     keyswitch_setup(streams[0], gpu_index, &seed, &lwe_sk_in_array,
                     &lwe_sk_out_array, &d_ksk_array, &plaintexts,
@@ -147,10 +148,11 @@ TEST_P(KeyswitchMultiGPUTestPrimitives_u64, keyswitch) {
         cuda_synchronize_stream(streams[gpu_i], gpu_i);
       }
       // Copy result back
-      cuda_memcpy_async_to_cpu(lwe_out_ct, d_lwe_ct_out_array,
-                               number_of_inputs * (output_lwe_dimension + 1) *
-                                   sizeof(uint64_t),
-                               streams[0], 0);
+      cuda_memcpy_async_to_cpu(
+          lwe_out_ct, d_lwe_ct_out_array,
+          safe_mul_sizeof<uint64_t>((size_t)number_of_inputs,
+                                    (size_t)(output_lwe_dimension + 1)),
+          streams[0], 0);
       cuda_synchronize_stream(streams[0], 0);
 
       for (int i = 0; i < number_of_inputs; i++) {
@@ -235,8 +237,8 @@ public:
 };
 
 TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
-  uint64_t *lwe_out_ct = (uint64_t *)malloc(
-      (output_lwe_dimension + 1) * number_of_inputs * sizeof(uint64_t));
+  uint64_t *lwe_out_ct = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
+      (size_t)(output_lwe_dimension + 1), (size_t)number_of_inputs));
   for (uint r = 0; r < REPETITIONS; r++) {
     uint64_t *lwe_out_sk =
         lwe_sk_out_array + (ptrdiff_t)(r * output_lwe_dimension);
@@ -256,10 +258,11 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
           ks_tmp_buffer, false);
 
       // Copy result back
-      cuda_memcpy_async_to_cpu(lwe_out_ct, d_lwe_ct_out_array,
-                               number_of_inputs * (output_lwe_dimension + 1) *
-                                   sizeof(uint64_t),
-                               stream, gpu_index);
+      cuda_memcpy_async_to_cpu(
+          lwe_out_ct, d_lwe_ct_out_array,
+          safe_mul_sizeof<uint64_t>((size_t)number_of_inputs,
+                                    (size_t)(output_lwe_dimension + 1)),
+          stream, gpu_index);
       for (int i = 0; i < number_of_inputs; i++) {
         uint64_t plaintext = plaintexts[r * SAMPLES * number_of_inputs +
                                         s * number_of_inputs + i];

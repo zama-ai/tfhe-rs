@@ -2,6 +2,7 @@
 #define ZK_UTILITIES_H
 
 #include "../integer/integer_utilities.h"
+#include "checked_arithmetic.h"
 #include "integer/integer.cuh"
 #include <cstdint>
 
@@ -59,8 +60,8 @@ template <typename Torus> struct flattened_compact_lwe_lists {
                               uint32_t lwe_dimension)
       : d_ptr(d_ptr), h_num_lwes_per_compact_list(h_num_lwes_per_compact_list),
         num_compact_lists(num_compact_lists), lwe_dimension(lwe_dimension) {
-    ptr_array_to_d_compact_list =
-        static_cast<Torus **>(malloc(num_compact_lists * sizeof(Torus *)));
+    ptr_array_to_d_compact_list = static_cast<Torus **>(
+        malloc(safe_mul_sizeof<Torus *>(num_compact_lists)));
     total_num_lwes = 0;
     auto curr_list = d_ptr;
     for (auto i = 0; i < num_compact_lists; ++i) {
@@ -129,9 +130,9 @@ template <typename Torus> struct zk_expand_mem {
     // We copy num_lwes_per_compact_list so we get protection against
     // num_lwes_per_compact_list being freed while this buffer is still in use
     this->num_lwes_per_compact_list =
-        (uint32_t *)malloc(num_compact_lists * sizeof(uint32_t));
+        (uint32_t *)malloc(safe_mul_sizeof<uint32_t>(num_compact_lists));
     memcpy(this->num_lwes_per_compact_list, num_lwes_per_compact_list,
-           num_compact_lists * sizeof(uint32_t));
+           safe_mul_sizeof<uint32_t>(num_compact_lists));
 
     num_lwes = 0;
     for (int i = 0; i < num_compact_lists; i++) {
@@ -184,19 +185,19 @@ template <typename Torus> struct zk_expand_mem {
 
     // Adjust indexes to permute the output and access the correct LUT
     auto h_indexes_in = static_cast<Torus *>(
-        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
+        malloc(safe_mul_sizeof<Torus>(num_packed_msgs, num_lwes)));
     auto h_indexes_out = static_cast<Torus *>(
-        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
+        malloc(safe_mul_sizeof<Torus>(num_packed_msgs, num_lwes)));
     auto h_lut_indexes = static_cast<Torus *>(
-        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
+        malloc(safe_mul_sizeof<Torus>(num_packed_msgs, num_lwes)));
 
     d_expand_jobs =
         static_cast<expand_job<Torus> *>(cuda_malloc_with_size_tracking_async(
-            num_lwes * sizeof(expand_job<Torus>), streams.stream(0),
+            safe_mul_sizeof<expand_job<Torus>>(num_lwes), streams.stream(0),
             streams.gpu_index(0), size_tracker, allocate_gpu_memory));
 
     h_expand_jobs = static_cast<expand_job<Torus> *>(
-        malloc(num_lwes * sizeof(expand_job<Torus>)));
+        malloc(safe_mul_sizeof<expand_job<Torus>>(num_lwes)));
 
     /*
      * Each LWE contains encrypted data in both carry and message spaces
@@ -301,13 +302,14 @@ template <typename Torus> struct zk_expand_mem {
         active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);
     // The expanded LWEs will always be on the casting key format
     tmp_expanded_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),
+        safe_mul_sizeof<Torus>(num_lwes, casting_params.big_lwe_dimension + 1),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
 
     tmp_ksed_small_to_big_expanded_lwes =
         (Torus *)cuda_malloc_with_size_tracking_async(
-            num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),
+            safe_mul_sizeof<Torus>(num_lwes,
+                                   casting_params.big_lwe_dimension + 1),
             streams.stream(0), streams.gpu_index(0), size_tracker,
             allocate_gpu_memory);
 

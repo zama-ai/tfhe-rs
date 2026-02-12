@@ -350,7 +350,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   }
 
   cuda_memcpy_async_to_gpu(d_degrees, current_blocks->degrees,
-                           total_blocks_in_vec * sizeof(uint64_t),
+                           safe_mul_sizeof<uint64_t>(total_blocks_in_vec),
                            streams.stream(0), streams.gpu_index(0));
 
   cuda_set_device(streams.gpu_index(0));

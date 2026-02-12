@@ -1,6 +1,7 @@
 #ifndef HELPER_DEBUG_CUH
 #define HELPER_DEBUG_CUH
 
+#include "checked_arithmetic.h"
 #include "cuComplex.h"
 #include "thrust/complex.h"
 #include <cstdint>
@@ -189,7 +190,8 @@ __host__ void dump_2d_gpu_to_file(const Torus *ptr, int row_size, int col_size,
            rand_prefix);
 
   cuda_memcpy_async_to_cpu((void *)&buf_cpu[0], ptr,
-                           buf_cpu.size() * sizeof(Torus), stream, gpu_index);
+                           safe_mul_sizeof<Torus>(buf_cpu.size()), stream,
+                           gpu_index);
   cuda_synchronize_device(gpu_index);
   print_2d_csv_to_file(buf_cpu, col_size, fname);
   // #endif
@@ -204,9 +206,11 @@ __host__ void compare_2d_arrays(const Torus *ptr1, const Torus *ptr2,
       buf_cpu2(row_size * col_size);
   ;
   cuda_memcpy_async_to_cpu((void *)&buf_cpu1[0], ptr1,
-                           buf_cpu1.size() * sizeof(Torus), stream, gpu_index);
+                           safe_mul_sizeof<Torus>(buf_cpu1.size()), stream,
+                           gpu_index);
   cuda_memcpy_async_to_cpu((void *)&buf_cpu2[0], ptr2,
-                           buf_cpu2.size() * sizeof(Torus), stream, gpu_index);
+                           safe_mul_sizeof<Torus>(buf_cpu2.size()), stream,
+                           gpu_index);
   cuda_synchronize_device(gpu_index);
 
   std::vector<uint32_t> non_matching_indexes;

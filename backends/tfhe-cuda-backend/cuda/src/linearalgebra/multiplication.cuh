@@ -7,6 +7,7 @@
 #endif
 
 #include "../utils/helper.cuh"
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "linear_algebra.h"
 #include <fstream>
@@ -88,7 +89,8 @@ const int BLOCK_SIZE_GEMM = 64;
 const int THREADS_GEMM = 8;
 
 template <typename Torus> uint64_t get_shared_mem_size_tgemm() {
-  return BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
+  return safe_mul_sizeof<Torus>((size_t)BLOCK_SIZE_GEMM, (size_t)THREADS_GEMM,
+                                (size_t)2);
 }
 
 // Multiply matrices A, B of size (M, K), (K, N) respectively

@@ -1,11 +1,13 @@
 #include "bootstrapping_key.cuh"
+#include "checked_arithmetic.h"
 
 void cuda_convert_lwe_programmable_bootstrap_key_32(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {
-  uint32_t total_polynomials =
-      input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int32_t *)src, polynomial_size, total_polynomials);
@@ -15,8 +17,9 @@ void cuda_convert_lwe_programmable_bootstrap_key_64(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {
-  uint32_t total_polynomials =
-      input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials);
@@ -26,10 +29,14 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor) {
-  uint32_t total_polynomials = input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) *
-                               level_count * (1 << grouping_factor) /
-                               grouping_factor;
-  size_t buffer_size = total_polynomials * polynomial_size * sizeof(uint64_t);
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
+  total_polynomials =
+      safe_mul(total_polynomials, (size_t)(1 << grouping_factor)) /
+      grouping_factor;
+  size_t buffer_size =
+      safe_mul_sizeof<uint64_t>(total_polynomials, (size_t)polynomial_size);
 
   cuda_memcpy_async_to_gpu((uint64_t *)dest, (uint64_t *)src, buffer_size,
                            static_cast<cudaStream_t>(stream), gpu_index);
@@ -39,11 +46,14 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size, uint32_t grouping_factor) {
-  uint32_t total_polynomials = input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) *
-                               level_count * (1 << grouping_factor) /
-                               grouping_factor;
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
+  total_polynomials =
+      safe_mul(total_polynomials, (size_t)(1 << grouping_factor)) /
+      grouping_factor;
   size_t buffer_size =
-      total_polynomials * polynomial_size * sizeof(__uint128_t);
+      safe_mul_sizeof<__uint128_t>(total_polynomials, (size_t)polynomial_size);
 
   cuda_memcpy_async_to_gpu((__uint128_t *)dest, (__uint128_t *)src, buffer_size,
                            static_cast<cudaStream_t>(stream), gpu_index);
@@ -123,7 +133,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
   auto input2 = (double2 *)_input2;
   auto output = (double2 *)_output;
 
-  size_t shared_memory_size = sizeof(double2) * polynomial_size / 2;
+  size_t shared_memory_size = safe_mul_sizeof<double2>(polynomial_size / 2);
 
   int gridSize = total_polynomials;
   int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
@@ -148,7 +158,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<256>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -169,7 +180,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<512>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -190,7 +202,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -211,7 +224,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -232,7 +246,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -253,7 +268,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -275,7 +291,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                                                 output, buffer);
     } else {
       buffer = (double2 *)cuda_malloc_async(
-          shared_memory_size * total_polynomials, stream, gpu_index);
+          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+          gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<16384>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
     }
@@ -296,8 +313,8 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128(
   // Here the buffer size is the size of double times the number of polynomials
   // time 4 each polynomial is represented with 4 double array with size
   // polynomial_size / 2 into the complex domain to perform the FFT
-  size_t buffer_size =
-      total_polynomials * polynomial_size / 2 * sizeof(double) * 4;
+  size_t buffer_size = safe_mul_sizeof<double>(
+      (size_t)total_polynomials, (size_t)(polynomial_size / 2), (size_t)4);
 
   __uint128_t *d_standard =
       (__uint128_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
@@ -338,8 +355,9 @@ void cuda_convert_lwe_programmable_bootstrap_key_128(
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
     uint32_t polynomial_size) {
 
-  uint32_t total_polynomials =
-      input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
   cuda_convert_lwe_programmable_bootstrap_key_u128(
       static_cast<cudaStream_t>(stream), gpu_index, (double *)dest,
       (const __uint128_t *)src, polynomial_size, total_polynomials);
