@@ -24,18 +24,6 @@ pub enum ShiftAction {
 }
 
 impl State {
-    /// Creates a new state from the initial table index.
-    ///
-    /// Note:
-    /// ------
-    ///
-    /// The `table_index` input is the __first__ table index that will be outputted on the next
-    /// call to `increment`. Put differently, the current table index of the newly created state
-    /// is the predecessor of this one.
-    pub fn new(table_index: TableIndex) -> Self {
-        Self::with_offset(table_index, AesIndex(0))
-    }
-
     /// Creates a new state from the initial table index and offset
     ///
     /// The `offset` AesIndex will be applied to all AES encryption.
@@ -49,7 +37,7 @@ impl State {
     /// The `table_index` input is the __first__ table index that will be outputted on the next
     /// call to `increment`. Put differently, the current table index of the newly created state
     /// is the predecessor of this one.
-    pub fn with_offset(table_index: TableIndex, offset: AesIndex) -> Self {
+    pub fn new(table_index: TableIndex, offset: AesIndex) -> Self {
         // We ensure that the table index is not the first one, to prevent wrapping on `decrement`,
         // and outputting `RefreshBatchAndOutputByte(AesIndex::MAX, ...)` on the first increment
         // (which would lead to loading a non-continuous batch).
@@ -89,11 +77,9 @@ impl State {
     pub fn table_index(&self) -> TableIndex {
         self.table_index
     }
-}
 
-impl Default for State {
-    fn default() -> Self {
-        State::new(TableIndex::FIRST)
+    pub fn offset(&self) -> AesIndex {
+        self.offset
     }
 }
 
@@ -130,7 +116,7 @@ mod test {
     fn prop_state_new_increment() {
         for _ in 0..REPEATS {
             let (t, mut s) = any_table_index()
-                .map(|t| (t, State::new(t)))
+                .map(|t| (t, State::new(t, AesIndex(0))))
                 .next()
                 .unwrap();
             assert!(matches!(
@@ -148,7 +134,7 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
                 .zip(any_u128())
-                .map(|(t, i)| (t, State::new(t), i))
+                .map(|(t, i)| (t, State::new(t, AesIndex(0)), i))
                 .next()
                 .unwrap();
             s.increase(i);
@@ -165,7 +151,7 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
                 .zip(any_usize())
-                .map(|(t, i)| (t, State::new(t), i % BYTES_PER_BATCH))
+                .map(|(t, i)| (t, State::new(t, AesIndex(0)), i % BYTES_PER_BATCH))
                 .find(|(t, _, i)| t.byte_index.0 + i < BYTES_PER_BATCH - 1)
                 .unwrap();
             s.increment();
@@ -187,7 +173,7 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
                 .zip(any_usize())
-                .map(|(t, i)| (t, State::new(t), i))
+                .map(|(t, i)| (t, State::new(t, AesIndex(0)), i))
                 .find(|(t, _, i)| t.byte_index.0 + i >= BYTES_PER_BATCH - 1)
                 .unwrap();
             s.increment();
