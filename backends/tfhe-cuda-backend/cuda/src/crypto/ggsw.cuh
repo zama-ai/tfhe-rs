@@ -1,6 +1,7 @@
 #ifndef CNCRT_GGSW_CUH
 #define CNCRT_GGSW_CUH
 
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "polynomial/parameters.cuh"
@@ -60,7 +61,7 @@ void batch_fft_ggsw_vector(CudaStreams streams, double2 *dest, T *src,
 
   cuda_set_device(streams.gpu_index(0));
 
-  int shared_memory_size = sizeof(double) * polynomial_size;
+  int shared_memory_size = safe_mul_sizeof<double>(polynomial_size);
 
   int gridSize = r * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
   int blockSize = polynomial_size / params::opt;

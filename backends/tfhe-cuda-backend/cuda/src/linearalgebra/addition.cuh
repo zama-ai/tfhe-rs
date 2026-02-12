@@ -4,6 +4,7 @@
 #ifdef __CDT_PARSER__
 #endif
 
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "helper_multi_gpu.h"
 #include "integer/integer.h"
@@ -56,9 +57,10 @@ __host__ void host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cuda_memcpy_async_gpu_to_gpu(
-      output, lwe_input, (lwe_dimension + 1) * lwe_ciphertext_count * sizeof(T),
-      stream, gpu_index);
+  cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
+                               safe_mul_sizeof<T>((size_t)(lwe_dimension + 1),
+                                                  (size_t)lwe_ciphertext_count),
+                               stream, gpu_index);
   plaintext_addition<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
@@ -77,9 +79,10 @@ __host__ void host_addition_plaintext_scalar(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cuda_memcpy_async_gpu_to_gpu(
-      output, lwe_input, (lwe_dimension + 1) * lwe_ciphertext_count * sizeof(T),
-      stream, gpu_index);
+  cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
+                               safe_mul_sizeof<T>((size_t)(lwe_dimension + 1),
+                                                  (size_t)lwe_ciphertext_count),
+                               stream, gpu_index);
   plaintext_addition_scalar<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
@@ -261,10 +264,11 @@ __host__ void host_subtraction_plaintext(cudaStream_t stream,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
-                               input_lwe_ciphertext_count *
-                                   (input_lwe_dimension + 1) * sizeof(T),
-                               stream, gpu_index);
+  cuda_memcpy_async_gpu_to_gpu(
+      output, lwe_input,
+      safe_mul_sizeof<T>((size_t)input_lwe_ciphertext_count,
+                         (size_t)(input_lwe_dimension + 1)),
+      stream, gpu_index);
 
   radix_body_subtraction_inplace<T><<<grid, thds, 0, stream>>>(
       output, plaintext_input, input_lwe_dimension, num_entries);

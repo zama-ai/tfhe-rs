@@ -1,6 +1,7 @@
 #ifndef CUDA_CIRCULANT_DOT_CUH
 #define CUDA_CIRCULANT_DOT_CUH
 
+#include "checked_arithmetic.h"
 #include "crypto/torus.cuh"
 
 #define CIRCULANT_BLOCKTILE 32
@@ -44,7 +45,7 @@ scratch_wrapping_polynomial_mul_one_to_many(void *stream, uint32_t gpu_index,
                                             int8_t **circulant_buf) {
   // allocate circulant matrix memory
   *circulant_buf = (int8_t *)cuda_malloc_async(
-      sizeof(Torus) * polynomial_size * polynomial_size,
+      safe_mul_sizeof<Torus>((size_t)polynomial_size, (size_t)polynomial_size),
       static_cast<cudaStream_t>(stream), gpu_index);
 }
 
@@ -82,7 +83,8 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   dim3 grid_gemm(CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM),
                  CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM));
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
-  uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
+  uint32_t sharedMemSize = safe_mul_sizeof<Torus>(
+      (size_t)BLOCK_SIZE_GEMM, (size_t)THREADS_GEMM, (size_t)2);
   if (sharedMemSize > 8192)
     PANIC("GEMM kernel error: shared memory required might be too large");
 

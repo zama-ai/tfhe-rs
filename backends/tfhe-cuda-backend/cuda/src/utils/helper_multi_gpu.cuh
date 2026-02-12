@@ -1,6 +1,7 @@
 #ifndef HELPER_MULTI_GPU_CUH
 #define HELPER_MULTI_GPU_CUH
 
+#include "checked_arithmetic.h"
 #include "helper_multi_gpu.h"
 
 /// Initialize same-size arrays on all active gpus
@@ -16,7 +17,7 @@ void multi_gpu_alloc_array_async(CudaStreams streams,
   for (uint i = 0; i < streams.count(); i++) {
     uint64_t size_tracker_on_gpu_i = 0;
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
-        elements_per_gpu * sizeof(Torus), streams.stream(i),
+        safe_mul_sizeof<Torus>(elements_per_gpu), streams.stream(i),
         streams.gpu_index(i), size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
     if (i == 0) {
@@ -35,8 +36,8 @@ void multi_gpu_copy_array_async(CudaStreams streams,
       "Cuda error: destination vector was not allocated for enough GPUs");
   for (uint i = 0; i < streams.count(); i++) {
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-        dest[i], src, elements_per_gpu * sizeof(Torus), streams.stream(i),
-        streams.gpu_index(i), gpu_memory_allocated);
+        dest[i], src, safe_mul_sizeof<Torus>(elements_per_gpu),
+        streams.stream(i), streams.gpu_index(i), gpu_memory_allocated);
   }
 }
 /// Copy an array residing on one CPU to all active gpus
@@ -51,8 +52,8 @@ void multi_gpu_copy_array_from_cpu_async(CudaStreams streams,
                  "insufficient destination buffers");
   for (uint i = 0; i < streams.count(); i++) {
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        dest[i], h_src, elements_per_gpu * sizeof(Torus), streams.stream(i),
-        streams.gpu_index(i), gpu_memory_allocated);
+        dest[i], h_src, safe_mul_sizeof<Torus>(elements_per_gpu),
+        streams.stream(i), streams.gpu_index(i), gpu_memory_allocated);
   }
 }
 /// Allocates the input/output vector for all devices
@@ -80,8 +81,9 @@ void multi_gpu_alloc_lwe_async(CudaStreams streams, std::vector<Torus *> &dest,
         std::max((int)threshold,
                  get_num_inputs_on_gpu(num_inputs, i, streams.count())));
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
-        inputs_on_gpu * lwe_size * sizeof(Torus), streams.stream(i),
-        streams.gpu_index(i), size_tracker_on_gpu_i, allocate_gpu_memory);
+        safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
+        streams.stream(i), streams.gpu_index(i), size_tracker_on_gpu_i,
+        allocate_gpu_memory);
     dest[i] = d_array;
     if (i == 0) {
       size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
@@ -120,7 +122,8 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
         std::max((int)threshold,
                  get_num_inputs_on_gpu(num_inputs, i, streams.count())));
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_many_lut * inputs_on_gpu * lwe_size * sizeof(Torus),
+        safe_mul_sizeof<Torus>((size_t)num_many_lut, (size_t)inputs_on_gpu,
+                               (size_t)lwe_size),
         streams.stream(i), streams.gpu_index(i), size_tracker,
         allocate_gpu_memory);
     dest[i] = d_array;
@@ -188,7 +191,8 @@ void multi_gpu_scatter_lwe_async(
       auto d_dest = dest[i];
       auto d_src = src + gpu_offset * lwe_size;
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus),
+          d_dest, d_src,
+          safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
           streams.stream(i), streams.gpu_index(i), true);
 
     } else {
@@ -212,7 +216,8 @@ void multi_gpu_scatter_lwe_async(
                              streams.gpu_index(i));
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          dest[i], aligned_vec[i], inputs_on_gpu * lwe_size * sizeof(Torus),
+          dest[i], aligned_vec[i],
+          safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
           streams.stream(i), streams.gpu_index(i), true);
 
       cudaEvent_t temp_event = event_pool.request_event(streams.gpu_index(i));
@@ -248,7 +253,8 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
       auto d_src = src[i];
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus),
+          d_dest, d_src,
+          safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
           streams.stream(i), streams.gpu_index(i), true);
     } else {
       PANIC_IF_FALSE(aligned_vec.size() > 0,
@@ -266,7 +272,8 @@ void multi_gpu_gather_lwe_async(CudaStreams streams, Torus *dest,
                              streams.gpu_index(i));
 
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-          aligned_vec[i], src[i], inputs_on_gpu * lwe_size * sizeof(Torus),
+          aligned_vec[i], src[i],
+          safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
           streams.stream(i), streams.gpu_index(i), true);
 
       cudaEvent_t temp_event3 = event_pool.request_event(streams.gpu_index(i));
@@ -311,7 +318,8 @@ void multi_gpu_gather_many_lut_lwe_async(CudaStreams streams, Torus *dest,
         auto d_src = src[i] + lut_id * inputs_on_gpu * lwe_size;
 
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-            d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus),
+            d_dest, d_src,
+            safe_mul_sizeof<Torus>((size_t)inputs_on_gpu, (size_t)lwe_size),
             streams.stream(i), streams.gpu_index(i), true);
       } else {
         if (h_dest_indexes == nullptr)
@@ -325,8 +333,8 @@ void multi_gpu_gather_many_lut_lwe_async(CudaStreams streams, Torus *dest,
               src[i] + j * lwe_size + lut_id * inputs_on_gpu * lwe_size;
 
           cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-              d_dest, d_src, lwe_size * sizeof(Torus), streams.stream(i),
-              streams.gpu_index(i), true);
+              d_dest, d_src, safe_mul_sizeof<Torus>((size_t)lwe_size),
+              streams.stream(i), streams.gpu_index(i), true);
         }
       }
     }

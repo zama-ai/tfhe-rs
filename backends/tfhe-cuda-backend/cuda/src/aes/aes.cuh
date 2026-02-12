@@ -1034,8 +1034,8 @@ __host__ void vectorized_aes_full_adder_inplace(
     }
     cuda_memcpy_async_to_gpu(mem->counter_workspaces->d_counter_bits_buffer,
                              mem->counter_workspaces->h_counter_bits_buffer,
-                             num_aes_inputs * sizeof(Torus), streams.stream(0),
-                             streams.gpu_index(0));
+                             safe_mul_sizeof<Torus>(num_aes_inputs),
+                             streams.stream(0), streams.gpu_index(0));
     set_trivial_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), trivial_b_bits_vec,
         mem->counter_workspaces->d_counter_bits_buffer,

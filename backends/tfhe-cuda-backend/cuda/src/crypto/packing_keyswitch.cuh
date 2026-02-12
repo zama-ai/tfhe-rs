@@ -108,8 +108,9 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
 
   // Set the scratch buffer to 0 as it is used to accumulate
   // decomposition temporary results
-  cuda_memset_async(d_mem_1, 0, num_lwes * memory_unit * sizeof(Torus), stream,
-                    gpu_index);
+  cuda_memset_async(
+      d_mem_1, 0, safe_mul_sizeof<Torus>((size_t)num_lwes, (size_t)memory_unit),
+      stream, gpu_index);
   check_cuda_error(cudaGetLastError());
 
   // decompose LWEs

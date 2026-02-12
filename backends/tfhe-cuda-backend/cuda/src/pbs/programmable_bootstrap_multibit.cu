@@ -1,4 +1,5 @@
 #include "../polynomial/parameters.cuh"
+#include "checked_arithmetic.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "programmable_bootstrap_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit.cuh"
@@ -483,9 +484,10 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   size_t total_mem, free_mem;
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
   // Estimate the size of one chunk
-  uint64_t size_one_chunk = (uint64_t)max_num_pbs * polynomial_size *
-                            (glwe_dimension + 1) * (glwe_dimension + 1) *
-                            level_count * sizeof(Torus);
+  uint64_t size_one_chunk = safe_mul_sizeof<Torus>(
+      safe_mul((size_t)max_num_pbs, (size_t)(glwe_dimension + 1),
+               (size_t)(glwe_dimension + 1)),
+      (size_t)polynomial_size, (size_t)level_count);
 
   // We calculate the maximum number of chunks that can fit in the 50% of free
   // memory. We don't want the pbs temp array uses more than 50% of the free

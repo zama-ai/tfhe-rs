@@ -49,7 +49,7 @@ void host_rerand_inplace(
   }
   cuda_memcpy_with_size_tracking_async_to_gpu(
       d_expand_jobs, h_expand_jobs,
-      compact_lwe_lists.total_num_lwes * sizeof(expand_job<Torus>),
+      safe_mul_sizeof<expand_job<Torus>>(compact_lwe_lists.total_num_lwes),
       streams.stream(0), streams.gpu_index(0), true);
 
   host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),

@@ -1,6 +1,7 @@
 #ifndef CUDA_CIPHERTEXT_CUH
 #define CUDA_CIPHERTEXT_CUH
 
+#include "checked_arithmetic.h"
 #include "ciphertext.h"
 #include "device.h"
 #include "polynomial/functions.cuh"
@@ -12,7 +13,8 @@ void cuda_convert_lwe_ciphertext_vector_to_gpu(cudaStream_t stream,
                                                T *src, uint32_t number_of_cts,
                                                uint32_t lwe_dimension) {
   cuda_set_device(gpu_index);
-  uint64_t size = number_of_cts * (lwe_dimension + 1) * sizeof(T);
+  uint64_t size =
+      safe_mul_sizeof<T>((size_t)number_of_cts, (size_t)(lwe_dimension + 1));
   cuda_memcpy_async_to_gpu(dest, src, size, stream, gpu_index);
 }
 
@@ -22,7 +24,8 @@ void cuda_convert_lwe_ciphertext_vector_to_cpu(cudaStream_t stream,
                                                T *src, uint32_t number_of_cts,
                                                uint32_t lwe_dimension) {
   cuda_set_device(gpu_index);
-  uint64_t size = number_of_cts * (lwe_dimension + 1) * sizeof(T);
+  uint64_t size =
+      safe_mul_sizeof<T>((size_t)number_of_cts, (size_t)(lwe_dimension + 1));
   cuda_memcpy_async_to_cpu(dest, src, size, stream, gpu_index);
 }
 

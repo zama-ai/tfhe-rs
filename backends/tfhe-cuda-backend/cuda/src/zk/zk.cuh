@@ -115,7 +115,7 @@ __host__ void host_expand_without_verification(
   }
   cuda_memcpy_with_size_tracking_async_to_gpu(
       d_expand_jobs, h_expand_jobs,
-      compact_lwe_lists.total_num_lwes * sizeof(expand_job<Torus>),
+      safe_mul_sizeof<expand_job<Torus>>(compact_lwe_lists.total_num_lwes),
       streams.stream(0), streams.gpu_index(0), true);
 
   if (mem_ptr->expand_kind == EXPAND_KIND::NO_CASTING) {
@@ -162,7 +162,8 @@ __host__ void host_expand_without_verification(
 
   // Apply LUT
   cuda_memset_async(lwe_array_out, 0,
-                    (lwe_dimension + 1) * num_lwes * 2 * sizeof(Torus),
+                    safe_mul_sizeof<Torus>((size_t)(lwe_dimension + 1),
+                                           (size_t)num_lwes, (size_t)2),
                     streams.stream(0), streams.gpu_index(0));
   CudaRadixCiphertextFFI output;
   into_radix_ciphertext(&output, lwe_array_out, 2 * num_lwes, lwe_dimension);

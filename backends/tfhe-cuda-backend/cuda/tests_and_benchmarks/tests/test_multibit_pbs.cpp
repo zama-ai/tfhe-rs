@@ -1,3 +1,4 @@
+#include "checked_arithmetic.h"
 #include "device.h"
 #include <cmath>
 #include <cstdint>
@@ -96,9 +97,9 @@ public:
         stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
         pbs_level, number_of_inputs, true);
 
-    lwe_ct_out_array =
-        (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
-                           number_of_inputs * sizeof(uint64_t));
+    lwe_ct_out_array = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
+        safe_mul((size_t)glwe_dimension, (size_t)polynomial_size) + 1,
+        (size_t)number_of_inputs));
   }
 
   void TearDown() {
@@ -141,10 +142,12 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
           pbs_level, number_of_inputs, num_many_lut, lut_stride);
 
       // Copy result to the host memory
-      cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
-                               (glwe_dimension * polynomial_size + 1) *
-                                   number_of_inputs * sizeof(uint64_t),
-                               stream, gpu_index);
+      cuda_memcpy_async_to_cpu(
+          lwe_ct_out_array, d_lwe_ct_out_array,
+          safe_mul_sizeof<uint64_t>(
+              safe_mul((size_t)glwe_dimension, (size_t)polynomial_size) + 1,
+              (size_t)number_of_inputs),
+          stream, gpu_index);
 
       for (int j = 0; j < number_of_inputs; j++) {
         uint64_t *result =

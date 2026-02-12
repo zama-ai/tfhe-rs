@@ -86,9 +86,10 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // (handling both bounded and unbounded cases), which pre-computed LUT to
     // use, and the final plaintext correction to add.
     //
-    Torus *h_corrections =
-        (Torus *)calloc(num_blocks_to_process * lwe_size, sizeof(Torus));
-    this->h_lut_indexes = (Torus *)calloc(num_blocks_to_process, sizeof(Torus));
+    Torus *h_corrections = (Torus *)calloc(
+        1, safe_mul_sizeof<Torus>(num_blocks_to_process, lwe_size));
+    this->h_lut_indexes =
+        (Torus *)calloc(1, safe_mul_sizeof<Torus>(num_blocks_to_process));
 
     uint64_t bits_processed = 0;
     for (uint32_t i = 0; i < num_blocks_to_process; ++i) {
@@ -115,8 +116,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // Copy the prepared plaintext corrections to the GPU.
     cuda_memcpy_with_size_tracking_async_to_gpu(
         this->plaintext_corrections->ptr, h_corrections,
-        num_blocks_to_process * lwe_size * sizeof(Torus), streams.stream(0),
-        streams.gpu_index(0), allocate_gpu_memory);
+        safe_mul_sizeof<Torus>(num_blocks_to_process, lwe_size),
+        streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
 
     // Copy the prepared LUT indexes to the GPU 0, before broadcast to all other
     // GPUs.

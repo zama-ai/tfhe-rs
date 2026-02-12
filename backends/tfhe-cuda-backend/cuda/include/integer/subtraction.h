@@ -22,21 +22,22 @@ template <typename Torus> struct int_overflowing_sub_memory {
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
     auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+    auto total_size_bytes =
+        safe_mul_sizeof<Torus>((size_t)num_radix_blocks, big_lwe_size);
 
     // allocate memory for intermediate calculations
     generates_or_propagates = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * big_lwe_size_bytes, streams.stream(0),
-        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
+        total_size_bytes, streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
     step_output = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * big_lwe_size_bytes, streams.stream(0),
-        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
+        total_size_bytes, streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
     cuda_memset_with_size_tracking_async(
-        generates_or_propagates, 0, num_radix_blocks * big_lwe_size_bytes,
-        streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
+        generates_or_propagates, 0, total_size_bytes, streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
     cuda_memset_with_size_tracking_async(
-        step_output, 0, num_radix_blocks * big_lwe_size_bytes,
-        streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
+        step_output, 0, total_size_bytes, streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
 
     // declare functions for lut generation
     auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {

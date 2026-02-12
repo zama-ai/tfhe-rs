@@ -485,22 +485,23 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator
+  return safe_mul_sizeof<double2>(polynomial_size / 2); // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size * 2; // accumulator
+  return safe_mul_sizeof<Torus>((size_t)polynomial_size,
+                                (size_t)2); // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size; // accumulator
+  return safe_mul_sizeof<Torus>(polynomial_size); // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size; // accumulator
+  return safe_mul_sizeof<Torus>(polynomial_size); // accumulator
 }
 
 template <typename Torus, typename params>

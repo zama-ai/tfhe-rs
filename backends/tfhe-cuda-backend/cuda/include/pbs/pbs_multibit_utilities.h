@@ -1,6 +1,7 @@
 #ifndef CUDA_MULTI_BIT_UTILITIES_H
 #define CUDA_MULTI_BIT_UTILITIES_H
 
+#include "checked_arithmetic.h"
 #include "pbs_utilities.h"
 
 template <typename Torus>
@@ -152,15 +153,18 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
         get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
 
-    auto num_blocks_keybundle = input_lwe_ciphertext_count * lwe_chunk_size *
-                                (glwe_dimension + 1) * (glwe_dimension + 1) *
-                                level_count;
-    auto num_blocks_acc_step_one =
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
-    auto num_blocks_acc_step_two =
-        input_lwe_ciphertext_count * (glwe_dimension + 1);
-    auto num_blocks_acc_cg =
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
+    size_t num_blocks_keybundle = safe_mul(
+        (size_t)input_lwe_ciphertext_count, (size_t)lwe_chunk_size,
+        safe_mul((size_t)(glwe_dimension + 1), (size_t)(glwe_dimension + 1)),
+        (size_t)level_count);
+    size_t num_blocks_acc_step_one =
+        safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1),
+                 (size_t)input_lwe_ciphertext_count);
+    size_t num_blocks_acc_step_two = safe_mul(
+        (size_t)input_lwe_ciphertext_count, (size_t)(glwe_dimension + 1));
+    size_t num_blocks_acc_cg =
+        safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1),
+                 (size_t)input_lwe_ciphertext_count);
 
 #if CUDA_ARCH >= 900
     uint64_t full_sm_tbc_accumulate =
@@ -172,13 +176,13 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     uint64_t minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
-    auto num_blocks_acc_tbc = num_blocks_acc_cg;
+    size_t num_blocks_acc_tbc = num_blocks_acc_cg;
 #endif
 
     // Keybundle
     if (max_shared_memory < full_sm_keybundle)
       d_mem_keybundle = (int8_t *)cuda_malloc_with_size_tracking_async(
-          num_blocks_keybundle * full_sm_keybundle, stream, gpu_index,
+          safe_mul(num_blocks_keybundle, full_sm_keybundle), stream, gpu_index,
           size_tracker, allocate_gpu_memory);
 
     switch (pbs_variant) {
@@ -186,29 +190,29 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       // Accumulator CG
       if (max_shared_memory < partial_sm_cg_accumulate)
         d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_cg * full_sm_cg_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_cg, full_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_cg_accumulate)
         d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_cg * partial_sm_cg_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_cg, partial_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       break;
     case PBS_VARIANT::DEFAULT:
       // Accumulator step one
       if (max_shared_memory < partial_sm_accumulate_step_one)
         d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_one * full_sm_accumulate_step_one, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_one, full_sm_accumulate_step_one),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_accumulate_step_one)
         d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_one, partial_sm_accumulate_step_one),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       // Accumulator step two
       if (max_shared_memory < full_sm_accumulate_step_two)
         d_mem_acc_step_two = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_two * full_sm_accumulate_step_two, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_two, full_sm_accumulate_step_two),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
       break;
 #if CUDA_ARCH >= 900
     case TBC:
@@ -225,12 +229,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       // Accumulator TBC
       if (max_shared_memory < partial_sm_tbc_accumulate + minimum_sm_tbc)
         d_mem_acc_tbc = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_tbc * full_sm_tbc_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_tbc, full_sm_tbc_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_tbc_accumulate + minimum_sm_tbc)
         d_mem_acc_tbc = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_tbc * partial_sm_tbc_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_tbc, partial_sm_tbc_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       break;
 #endif
     default:
@@ -238,15 +242,18 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     }
 
     keybundle_fft = (double2 *)cuda_malloc_with_size_tracking_async(
-        num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2), stream,
-        gpu_index, size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<double2>(num_blocks_keybundle,
+                                 (size_t)(polynomial_size / 2)),
+        stream, gpu_index, size_tracker, allocate_gpu_memory);
     global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
-        input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
-            sizeof(Torus),
+        safe_mul_sizeof<Torus>((size_t)input_lwe_ciphertext_count,
+                               (size_t)(glwe_dimension + 1),
+                               (size_t)polynomial_size),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
     global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
-            (polynomial_size / 2) * sizeof(double2),
+        safe_mul_sizeof<double2>(
+            safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1)),
+            (size_t)input_lwe_ciphertext_count, (size_t)(polynomial_size / 2)),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
   }
 
@@ -337,20 +344,23 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
         get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<
             __uint128_t>(polynomial_size);
 
-    auto num_blocks_keybundle = input_lwe_ciphertext_count * lwe_chunk_size *
-                                (glwe_dimension + 1) * (glwe_dimension + 1) *
-                                level_count;
-    auto num_blocks_acc_step_one =
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
-    auto num_blocks_acc_step_two =
-        input_lwe_ciphertext_count * (glwe_dimension + 1);
-    auto num_blocks_acc_cg =
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
+    size_t num_blocks_keybundle = safe_mul(
+        (size_t)input_lwe_ciphertext_count, (size_t)lwe_chunk_size,
+        safe_mul((size_t)(glwe_dimension + 1), (size_t)(glwe_dimension + 1)),
+        (size_t)level_count);
+    size_t num_blocks_acc_step_one =
+        safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1),
+                 (size_t)input_lwe_ciphertext_count);
+    size_t num_blocks_acc_step_two = safe_mul(
+        (size_t)input_lwe_ciphertext_count, (size_t)(glwe_dimension + 1));
+    size_t num_blocks_acc_cg =
+        safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1),
+                 (size_t)input_lwe_ciphertext_count);
 
     // Keybundle
     if (max_shared_memory < full_sm_keybundle)
       d_mem_keybundle = (int8_t *)cuda_malloc_with_size_tracking_async(
-          num_blocks_keybundle * full_sm_keybundle, stream, gpu_index,
+          safe_mul(num_blocks_keybundle, full_sm_keybundle), stream, gpu_index,
           size_tracker, allocate_gpu_memory);
 
     switch (pbs_variant) {
@@ -358,44 +368,48 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
       // Accumulator CG
       if (max_shared_memory < partial_sm_cg_accumulate)
         d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_cg * full_sm_cg_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_cg, full_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_cg_accumulate)
         d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_cg * partial_sm_cg_accumulate, stream, gpu_index,
-            size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_cg, partial_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
       break;
     case PBS_VARIANT::DEFAULT:
       // Accumulator step one
       if (max_shared_memory < partial_sm_accumulate_step_one)
         d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_one * full_sm_accumulate_step_one, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_one, full_sm_accumulate_step_one),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_accumulate_step_one)
         d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_one, partial_sm_accumulate_step_one),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
 
       // Accumulator step two
       if (max_shared_memory < full_sm_accumulate_step_two)
         d_mem_acc_step_two = (int8_t *)cuda_malloc_with_size_tracking_async(
-            num_blocks_acc_step_two * full_sm_accumulate_step_two, stream,
-            gpu_index, size_tracker, allocate_gpu_memory);
+            safe_mul(num_blocks_acc_step_two, full_sm_accumulate_step_two),
+            stream, gpu_index, size_tracker, allocate_gpu_memory);
       break;
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
 
     keybundle_fft = (double *)cuda_malloc_with_size_tracking_async(
-        num_blocks_keybundle * (polynomial_size / 2) * 4 * sizeof(double),
+        safe_mul_sizeof<double>((size_t)num_blocks_keybundle,
+                                (size_t)(polynomial_size / 2), (size_t)4),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
     global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
-        input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
-            sizeof(__uint128_t),
+        safe_mul_sizeof<__uint128_t>((size_t)input_lwe_ciphertext_count,
+                                     (size_t)(glwe_dimension + 1),
+                                     (size_t)polynomial_size),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
     global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
-        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
-            (polynomial_size / 2) * 4 * sizeof(double),
+        safe_mul_sizeof<double>(
+            safe_mul((size_t)level_count, (size_t)(glwe_dimension + 1)),
+            (size_t)input_lwe_ciphertext_count,
+            safe_mul((size_t)(polynomial_size / 2), (size_t)4)),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
   }
 

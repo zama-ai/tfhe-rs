@@ -32,13 +32,15 @@ template <typename Torus> struct int_compression {
     max_num_glwes = CEIL_DIV(num_radix_blocks, lwe_per_glwe);
 
     tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
-            sizeof(Torus),
+        safe_mul_sizeof<Torus>(
+            (size_t)num_radix_blocks,
+            (size_t)(compression_params.small_lwe_dimension + 1)),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory));
     tmp_glwe_array_out =
         static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
-            max_num_glwes * glwe_accumulator_size * sizeof(Torus),
+            safe_mul_sizeof<Torus>((size_t)max_num_glwes,
+                                   glwe_accumulator_size),
             streams.stream(0), streams.gpu_index(0), size_tracker,
             allocate_gpu_memory));
 
@@ -93,14 +95,17 @@ template <typename Torus> struct int_decompression {
                                      1);
 
     tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_blocks_to_decompress * glwe_accumulator_size * sizeof(Torus),
+        safe_mul_sizeof<Torus>((size_t)num_blocks_to_decompress,
+                               glwe_accumulator_size),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
     tmp_indexes_array = (uint32_t *)cuda_malloc_with_size_tracking_async(
-        num_blocks_to_decompress * sizeof(uint32_t), streams.stream(0),
-        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<uint32_t>((size_t)num_blocks_to_decompress),
+        streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
     tmp_extracted_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_blocks_to_decompress * lwe_accumulator_size * sizeof(Torus),
+        safe_mul_sizeof<Torus>((size_t)num_blocks_to_decompress,
+                               lwe_accumulator_size),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
 

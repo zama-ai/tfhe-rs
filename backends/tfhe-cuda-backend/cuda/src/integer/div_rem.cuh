@@ -175,10 +175,11 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
       as_radix_ciphertext_slice<Torus>(&d_msb, d, slice_start, slice_end);
       comparison_blocks->num_radix_blocks = d_msb.num_radix_blocks;
       if (d_msb.num_radix_blocks == 0) {
-        cuda_memset_async(
-            (Torus *)out_boolean_block->ptr, 0,
-            sizeof(Torus) * (out_boolean_block->lwe_dimension + 1),
-            streams.stream(gpu_index), streams.gpu_index(gpu_index));
+        cuda_memset_async((Torus *)out_boolean_block->ptr, 0,
+                          safe_mul_sizeof<Torus>(
+                              (size_t)(out_boolean_block->lwe_dimension + 1)),
+                          streams.stream(gpu_index),
+                          streams.gpu_index(gpu_index));
       } else {
         host_compare_blocks_with_zero<Torus>(
             streams.get_ith(gpu_index), comparison_blocks, &d_msb,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "checked_arithmetic.h"
 #include "integer_utilities.h"
 #include "keyswitch/ks_enums.h"
 #include "zk/expand.cuh"
@@ -29,34 +30,34 @@ template <typename Torus> struct int_rerand_mem {
         gpu_memory_allocated(allocate_gpu_memory) {
 
     tmp_zero_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_lwes * (params.big_lwe_dimension + 1) * sizeof(Torus),
+        safe_mul_sizeof<Torus>(num_lwes, params.big_lwe_dimension + 1),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
 
     tmp_ksed_zero_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_lwes * (params.small_lwe_dimension + 1) * sizeof(Torus),
+        safe_mul_sizeof<Torus>(num_lwes, params.small_lwe_dimension + 1),
         streams.stream(0), streams.gpu_index(0), size_tracker,
         allocate_gpu_memory);
 
     d_expand_jobs =
         static_cast<expand_job<Torus> *>(cuda_malloc_with_size_tracking_async(
-            num_lwes * sizeof(expand_job<Torus>), streams.stream(0),
+            safe_mul_sizeof<expand_job<Torus>>(num_lwes), streams.stream(0),
             streams.gpu_index(0), size_tracker, allocate_gpu_memory));
 
     h_expand_jobs = static_cast<expand_job<Torus> *>(
-        malloc(num_lwes * sizeof(expand_job<Torus>)));
+        malloc(safe_mul_sizeof<expand_job<Torus>>(num_lwes)));
 
     auto h_lwe_trivial_indexes =
-        static_cast<Torus *>(malloc(num_lwes * sizeof(Torus)));
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(num_lwes)));
     for (auto i = 0; i < num_lwes; ++i) {
       h_lwe_trivial_indexes[i] = i;
     }
     lwe_trivial_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_lwes * sizeof(Torus), streams.stream(0), streams.gpu_index(0),
-        size_tracker, allocate_gpu_memory);
+        safe_mul_sizeof<Torus>(num_lwes), streams.stream(0),
+        streams.gpu_index(0), size_tracker, allocate_gpu_memory);
     cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_trivial_indexes,
-                             num_lwes * sizeof(Torus), streams.stream(0),
-                             streams.gpu_index(0));
+                             safe_mul_sizeof<Torus>(num_lwes),
+                             streams.stream(0), streams.gpu_index(0));
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
 

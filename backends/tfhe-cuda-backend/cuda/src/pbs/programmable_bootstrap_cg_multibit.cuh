@@ -182,12 +182,13 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size; // accumulator
+  return safe_mul_sizeof<Torus>(polynomial_size); // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size * 2; // accumulator
+  return safe_mul_sizeof<Torus>((size_t)polynomial_size,
+                                (size_t)2); // accumulator
 }
 
 template <typename Torus>
@@ -197,14 +198,19 @@ uint64_t get_buffer_size_cg_multibit_programmable_bootstrap(
     uint32_t grouping_factor, uint64_t lwe_chunk_size) {
 
   uint64_t buffer_size = 0;
-  buffer_size += input_lwe_ciphertext_count * lwe_chunk_size * level_count *
-                 (glwe_dimension + 1) * (glwe_dimension + 1) *
-                 (polynomial_size / 2) * sizeof(double2); // keybundle fft
-  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
-                 level_count * (polynomial_size / 2) *
-                 sizeof(double2); // join buffer
-  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
-                 polynomial_size * sizeof(Torus); // global_accumulator
+  buffer_size += safe_mul_sizeof<double2>(
+      safe_mul((size_t)input_lwe_ciphertext_count, (size_t)lwe_chunk_size,
+               (size_t)level_count),
+      safe_mul((size_t)(glwe_dimension + 1), (size_t)(glwe_dimension + 1)),
+      (size_t)(polynomial_size / 2)); // keybundle fft
+  buffer_size +=
+      safe_mul_sizeof<double2>(safe_mul((size_t)input_lwe_ciphertext_count,
+                                        (size_t)(glwe_dimension + 1)),
+                               (size_t)level_count,
+                               (size_t)(polynomial_size / 2)); // join buffer
+  buffer_size += safe_mul_sizeof<Torus>(
+      (size_t)input_lwe_ciphertext_count, (size_t)(glwe_dimension + 1),
+      (size_t)polynomial_size); // global_accumulator
 
   return buffer_size + buffer_size % sizeof(double2);
 }

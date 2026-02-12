@@ -433,7 +433,7 @@ __host__ void host_unchecked_match_value_or(
                                     mem_ptr->match_buffer, bsks, ksks);
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_or_value, h_or_value,
-                           mem_ptr->num_final_blocks * sizeof(Torus),
+                           safe_mul_sizeof<Torus>(mem_ptr->num_final_blocks),
                            streams.stream(0), streams.gpu_index(0));
 
   set_trivial_radix_ciphertext_async<Torus>(
@@ -521,8 +521,8 @@ __host__ void host_unchecked_contains_clear(
     Torus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
-                           num_blocks * sizeof(Torus), streams.stream(0),
-                           streams.gpu_index(0));
+                           safe_mul_sizeof<Torus>(num_blocks),
+                           streams.stream(0), streams.gpu_index(0));
 
   set_trivial_radix_ciphertext_async<Torus>(
       streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_clear_val,
@@ -751,8 +751,8 @@ __host__ void host_unchecked_first_index_of_clear(
     void *const *bsks, Torus *const *ksks) {
 
   cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
-                           num_blocks * sizeof(Torus), streams.stream(0),
-                           streams.gpu_index(0));
+                           safe_mul_sizeof<Torus>(num_blocks),
+                           streams.stream(0), streams.gpu_index(0));
 
   set_trivial_radix_ciphertext_async<Torus>(
       streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_clear_val,

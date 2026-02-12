@@ -49,7 +49,8 @@ host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, output, input, bsks, ksks, lut, num_clear_blocks);
-    memcpy(output->degrees, degrees, num_clear_blocks * sizeof(uint64_t));
+    memcpy(output->degrees, degrees,
+           safe_mul_sizeof<uint64_t>(num_clear_blocks));
 
     if (op == SCALAR_BITAND && num_clear_blocks < num_radix_blocks) {
       set_zero_radix_ciphertext_slice_async<Torus>(

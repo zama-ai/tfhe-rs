@@ -1,6 +1,7 @@
 #ifndef CUDA_INTEGER_CUH
 #define CUDA_INTEGER_CUH
 
+#include "checked_arithmetic.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "helper_multi_gpu.h"
@@ -889,7 +890,9 @@ uint64_t generate_lookup_table_with_encoding(
   Torus output_delta =
       (static_cast<Torus>(1) << (nbits - 1)) / output_modulus_sup;
 
-  memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
+  memset(
+      acc, 0,
+      safe_mul_sizeof<Torus>((size_t)glwe_dimension, (size_t)polynomial_size));
 
   auto body = &acc[glwe_dimension * polynomial_size];
   Torus degree = 0;
@@ -936,7 +939,9 @@ uint64_t generate_many_lookup_table(
   auto nbits = sizeof(Torus) * 8;
   Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
 
-  memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
+  memset(
+      acc, 0,
+      safe_mul_sizeof<Torus>((size_t)glwe_dimension, (size_t)polynomial_size));
 
   auto body = &acc[glwe_dimension * polynomial_size];
 
@@ -981,7 +986,9 @@ void generate_lookup_table_no_encoding(Torus *acc, uint32_t glwe_dimension,
                                        std::function<Torus(Torus)> f) {
 
   // accumulator number of elements is (glwe_dimension + 1) * polynomial_size
-  memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
+  memset(
+      acc, 0,
+      safe_mul_sizeof<Torus>((size_t)glwe_dimension, (size_t)polynomial_size));
 
   auto body = &acc[glwe_dimension * polynomial_size];
 
@@ -997,8 +1004,8 @@ void generate_device_accumulator_no_encoding(
     uint32_t polynomial_size, std::function<Torus(Torus)> f,
     bool gpu_memory_allocated) {
 
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut = (Torus *)malloc(
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size));
 
   generate_lookup_table_no_encoding<Torus>(h_lut, glwe_dimension,
                                            polynomial_size, f);
@@ -1006,7 +1013,7 @@ void generate_device_accumulator_no_encoding(
   *degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
 
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1067,8 +1074,8 @@ void generate_device_accumulator_bivariate(
   PUSH_RANGE("gen bivar lut acc")
 
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut = (Torus *)malloc(
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size));
   *max_degree = message_modulus * carry_modulus - 1;
   // fill bivariate accumulator
   *degree = generate_lookup_table_bivariate<Torus>(
@@ -1078,8 +1085,8 @@ void generate_device_accumulator_bivariate(
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
-      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
-      gpu_memory_allocated);
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
+      gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1102,8 +1109,8 @@ void generate_device_accumulator_bivariate_with_factor(
     bool gpu_memory_allocated) {
 
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut = (Torus *)malloc(
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size));
 
   *max_degree = message_modulus * carry_modulus - 1;
   // fill bivariate accumulator
@@ -1114,8 +1121,8 @@ void generate_device_accumulator_bivariate_with_factor(
   //  copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
-      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
-      gpu_memory_allocated);
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
+      gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1151,8 +1158,8 @@ void generate_device_accumulator_bivariate_with_cpu_prealloc(
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
-      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
-      gpu_memory_allocated);
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
+      gpu_index, gpu_memory_allocated);
   POP_RANGE()
 }
 
@@ -1165,8 +1172,8 @@ void generate_device_accumulator_with_encoding(
     std::function<Torus(Torus)> f, bool gpu_memory_allocated) {
 
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut = (Torus *)malloc(
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size));
 
   *max_degree = input_message_modulus * input_carry_modulus - 1;
   // fill accumulator
@@ -1176,7 +1183,7 @@ void generate_device_accumulator_with_encoding(
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1200,8 +1207,8 @@ void generate_device_accumulator_with_encoding_with_cpu_prealloc(
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, preallocated_h_lut,
-      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
-      gpu_memory_allocated);
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
+      gpu_index, gpu_memory_allocated);
 }
 
 /*
@@ -1270,8 +1277,8 @@ void generate_many_lut_device_accumulator(
 
   PUSH_RANGE("gen many lut acc")
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut = (Torus *)malloc(
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size));
 
   // fill accumulator
   *max_degree = generate_many_lookup_table<Torus>(
@@ -1280,7 +1287,7 @@ void generate_many_lut_device_accumulator(
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
@@ -1823,7 +1830,7 @@ uint64_t scratch_cuda_apply_univariate_lut(
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
       (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      safe_mul_sizeof<Torus>(params.glwe_dimension + 1, params.polynomial_size),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   auto active_streams =
@@ -1859,7 +1866,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut(
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
       (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      safe_mul_sizeof<Torus>(params.glwe_dimension + 1, params.polynomial_size),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   auto active_streams =
@@ -1896,7 +1903,7 @@ uint64_t scratch_cuda_apply_bivariate_lut(
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
       (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      safe_mul_sizeof<Torus>(params.glwe_dimension + 1, params.polynomial_size),
       streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   auto active_streams =

@@ -1,6 +1,7 @@
 #ifndef CUDA_FFT128_CUH
 #define CUDA_FFT128_CUH
 
+#include "checked_arithmetic.h"
 #include "f128.cuh"
 #include "fft/fft128.h"
 #include "polynomial/functions.cuh"
@@ -491,28 +492,31 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
     const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_re1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
 
   // copy input into device
-  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
-                           stream, gpu_index);
+  cuda_memcpy_async_to_gpu(d_standard, standard,
+                           safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
 
   // setup launch parameters
-  size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
+  size_t required_shared_memory_size =
+      safe_mul_sizeof<double>((size_t)(N / 2), (size_t)4);
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
   bool full_sm =
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
+  size_t buffer_size =
+      full_sm ? 0
+              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -544,13 +548,13 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
   }
   check_cuda_error(cudaGetLastError());
 
-  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(re0, d_re0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(re1, d_re1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(im0, d_im0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(im1, d_im1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
 
   cuda_drop_async(d_standard, stream, gpu_index);
@@ -567,28 +571,31 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
     const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_re1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
 
   // copy input into device
-  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
-                           stream, gpu_index);
+  cuda_memcpy_async_to_gpu(d_standard, standard,
+                           safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
 
   // setup launch parameters
-  size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
+  size_t required_shared_memory_size =
+      safe_mul_sizeof<double>((size_t)(N / 2), (size_t)4);
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
   bool full_sm =
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
+  size_t buffer_size =
+      full_sm ? 0
+              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -618,13 +625,13 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
             d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   }
 
-  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(re0, d_re0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(re1, d_re1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(im0, d_im0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_cpu(im1, d_im1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
 
   cuda_drop_async(d_standard, stream, gpu_index);
@@ -641,34 +648,37 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
     const uint32_t N, const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_re1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im0 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
+  double *d_im1 = (double *)cuda_malloc_async(safe_mul_sizeof<double>(N / 2),
+                                              stream, gpu_index);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
 
   //  // copy input into device
-  cuda_memcpy_async_to_gpu(d_re0, re0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_gpu(d_re0, re0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_gpu(d_re1, re1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_gpu(d_re1, re1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_gpu(d_im0, im0, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_gpu(d_im0, im0, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
-  cuda_memcpy_async_to_gpu(d_im1, im1, N / 2 * sizeof(double), stream,
+  cuda_memcpy_async_to_gpu(d_im1, im1, safe_mul_sizeof<double>(N / 2), stream,
                            gpu_index);
 
   // setup launch parameters
-  size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
+  size_t required_shared_memory_size =
+      safe_mul_sizeof<double>((size_t)(N / 2), (size_t)4);
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
   bool full_sm =
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
+  size_t buffer_size =
+      full_sm ? 0
+              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -693,8 +703,8 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
       <<<grid_size, block_size, 0, stream>>>(d_standard, d_re0, d_re1, d_im0,
                                              d_im1);
 
-  cuda_memcpy_async_to_cpu(standard, d_standard, N * sizeof(__uint128_t),
-                           stream, gpu_index);
+  cuda_memcpy_async_to_cpu(standard, d_standard,
+                           safe_mul_sizeof<__uint128_t>(N), stream, gpu_index);
   cuda_drop_async(d_standard, stream, gpu_index);
   cuda_drop_async(d_re0, stream, gpu_index);
   cuda_drop_async(d_re1, stream, gpu_index);

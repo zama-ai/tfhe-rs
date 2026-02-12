@@ -1,3 +1,4 @@
+#include "checked_arithmetic.h"
 #include "device.h"
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.h"
@@ -43,9 +44,10 @@ public:
               &d_cpoly1, &d_cpoly2, polynomial_size, samples);
 
     // allocate memory
-    poly_exp_result =
-        (double *)malloc(polynomial_size * 2 * samples * sizeof(double));
-    memset(poly_exp_result, 0., polynomial_size * 2 * samples * sizeof(double));
+    size_t poly_exp_size =
+        safe_mul_sizeof<double>(polynomial_size, (size_t)2, (size_t)samples);
+    poly_exp_result = (double *)malloc(poly_exp_size);
+    memset(poly_exp_result, 0., poly_exp_size);
 
     // execute school book multiplication
     for (size_t p = 0; p < (size_t)samples; p++) {
@@ -86,9 +88,10 @@ TEST_P(FourierTransformTestPrimitives_u64, cuda_fft_mult) {
   cuda_fourier_polynomial_mul(stream, gpu_index, cur_input1, cur_input2,
                               cur_input2, polynomial_size, samples);
 
-  cuda_memcpy_async_to_cpu(cur_h_c_res, cur_input2,
-                           polynomial_size / 2 * samples * sizeof(double2),
-                           stream, gpu_index);
+  cuda_memcpy_async_to_cpu(
+      cur_h_c_res, cur_input2,
+      safe_mul_sizeof<double2>(polynomial_size / 2, (size_t)samples), stream,
+      gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
   for (int p = 0; p < samples; p++) {
