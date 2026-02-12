@@ -827,7 +827,8 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
     glwe_array_in: &CudaVec<T>,
     nth_array: &CudaVec<u32>,
     num_nths: u32,
-    lwe_per_glwe: u32,
+    num_lwes_to_extract_per_glwe: u32,
+    num_lwes_stored_per_glwe: u32,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
 ) {
@@ -839,7 +840,8 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
             glwe_array_in.as_c_ptr(0),
             nth_array.as_c_ptr(0).cast::<u32>(),
             num_nths,
-            lwe_per_glwe,
+            num_lwes_to_extract_per_glwe,
+            num_lwes_stored_per_glwe,
             glwe_dimension.0 as u32,
             polynomial_size.0 as u32,
         );
@@ -851,7 +853,8 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
             glwe_array_in.as_c_ptr(0),
             nth_array.as_c_ptr(0).cast::<u32>(),
             num_nths,
-            lwe_per_glwe,
+            num_lwes_to_extract_per_glwe,
+            num_lwes_stored_per_glwe,
             glwe_dimension.0 as u32,
             polynomial_size.0 as u32,
         );

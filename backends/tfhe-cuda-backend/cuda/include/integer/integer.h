@@ -95,12 +95,11 @@ typedef struct {
 typedef struct {
   void *ptr;
   uint32_t storage_log_modulus;
-  uint32_t lwe_per_glwe;
-  // Input LWEs are grouped by groups of `lwe_per_glwe`(the last group may be
-  // smaller)
-  // Each group is then packed into one GLWE with `lwe_per_glwe` bodies (one for
-  // each LWE of the group). In the end the total number of bodies is equal to
-  // the number of input LWE
+  uint32_t num_lwes_stored_per_glwe;
+  // Input LWEs are grouped by groups of `num_lwes_stored_per_glwe`(the last
+  // group may be smaller) Each group is then packed into one GLWE with
+  // `num_lwes_stored_per_glwe` bodies (one for each LWE of the group). In the
+  // end the total number of bodies is equal to the number of input LWE
   uint32_t total_lwe_bodies_count;
   uint32_t glwe_dimension;
   uint32_t polynomial_size;

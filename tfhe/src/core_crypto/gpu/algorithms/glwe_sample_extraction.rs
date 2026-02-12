@@ -6,14 +6,14 @@ use crate::core_crypto::gpu::{extract_lwe_samples_from_glwe_ciphertext_list_asyn
 use crate::core_crypto::prelude::{MonomialDegree, UnsignedTorus};
 use itertools::Itertools;
 
-/// For each [`GLWE Ciphertext`] (`CudaGlweCiphertextList`) given as input, extract the nth
-/// coefficient from its body as an [`LWE ciphertext`](`CudaLweCiphertextList`). This variant is
-/// GPU-accelerated.
+/// From the nth [`GLWE Ciphertext`] (`CudaGlweCiphertextList`) (containing
+/// num_lwes_stored_per_glwe [`LWE Ciphertext`] given as input), extract the nth coefficient from
+/// its body as an [`LWE ciphertext`](`CudaLweCiphertextList`). This variant is GPU-accelerated.
 pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
     input_glwe_list: &CudaGlweCiphertextList<Scalar>,
     output_lwe_list: &mut CudaLweCiphertextList<Scalar>,
     vec_nth: &[MonomialDegree],
-    lwe_per_glwe: u32,
+    num_lwes_stored_per_glwe: u32,
     streams: &CudaStreams,
 ) where
     Scalar: UnsignedTorus,
@@ -30,12 +30,16 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
         Got {in_lwe_dim:?} for input and {out_lwe_dim:?} for output.",
     );
 
-    // lwe_per_glwe LWEs will be extracted per GLWE ciphertext, thus we need to have enough indexes
+    let num_glwes = input_glwe_list.glwe_ciphertext_count().0;
+    let num_nths = vec_nth.len();
+
+    // Each GLWE must have the same number of extractions
     assert_eq!(
-        vec_nth.len(),
-        input_glwe_list.glwe_ciphertext_count().0 * lwe_per_glwe as usize,
-        "Mismatch between number of nths and number of GLWEs provided.",
+        num_nths % num_glwes,
+        0,
+        "Number of nths ({num_nths}) must be divisible by number of GLWEs ({num_glwes})",
     );
+    let num_lwes_to_extract_per_glwe = u32::try_from(num_nths / num_glwes).unwrap();
 
     assert_eq!(
         input_glwe_list.ciphertext_modulus(),
@@ -78,7 +82,8 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
             &input_glwe_list.0.d_vec,
             &d_nth_array,
             u32::try_from(vec_nth.len()).unwrap(),
-            lwe_per_glwe,
+            num_lwes_to_extract_per_glwe,
+            num_lwes_stored_per_glwe,
             input_glwe_list.glwe_dimension(),
             input_glwe_list.polynomial_size(),
         );

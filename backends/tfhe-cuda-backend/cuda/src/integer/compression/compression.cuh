@@ -43,11 +43,12 @@
  *    Each LWE is multiplied by message_modulus to shift the message to MSB
  *
  * 2. Packing Keyswitch (LWE -> GLWE):
- *    Groups of up to lwe_per_glwe LWEs are packed into a single GLWE:
+ *    Groups of up to num_lwes_stored_per_glwe LWEs are packed into a single
+ * GLWE:
  *
  *    +--------------------------------------------------------------+
- *    |   lwe_per_glwe LWEs (input batch)                            |
- *    |   LWE[0], LWE[1], ..., LWE[lwe_per_glwe-1]                   |
+ *    |   num_lwes_stored_per_glwe LWEs (input batch) | |   LWE[0], LWE[1], ...,
+ * LWE[num_lwes_stored_per_glwe-1]                   |
  *    +--------------------------------------------------------------+
  *                              |
  *                    Packing Keyswitch
@@ -59,7 +60,7 @@
  *    +--------------------------------------------------------------+
  *
  *    Number of output GLWEs: num_glwes = ceil(total_lwe_bodies_count /
- *                                             lwe_per_glwe)
+ *                                             num_lwes_stored_per_glwe)
  *
  * 3. Modulus Switch:
  *    Reduce precision from 64-bit torus to storage_log_modulus bits
@@ -81,7 +82,7 @@
  *       |<-- glwe_accumulator_size = (k+1)*N -->|
  *
  *  Total size needed: num_glwes * glwe_accumulator_size elements
- *  Where: num_glwes = ceil(total_lwe_bodies_count / lwe_per_glwe)
+ *  Where: num_glwes = ceil(total_lwe_bodies_count / num_lwes_stored_per_glwe)
  *
  * -----------------------------------------------------------------------------
  * PACKED OUTPUT (glwe_array_out)
@@ -128,14 +129,19 @@
  */
 
 template <typename Torus>
-__global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
-                     uint32_t num_coeffs, uint32_t in_len, uint32_t out_len) {
+__global__ void pack(Torus *array_out, Torus const *array_in,
+                     uint32_t log_modulus, uint32_t num_coeffs, uint32_t in_len,
+                     uint32_t in_stride, uint32_t out_len) {
   constexpr auto nbits = sizeof(Torus) * 8;
   auto tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   auto glwe_index = tid / out_len;
   auto i = tid % out_len;
-  auto chunk_array_in = array_in + glwe_index * in_len;
+  // in_stride is the distance between consecutive GLWEs in the input buffer.
+  // in_len is the number of meaningful elements to pack per GLWE.
+  // When num_lwes_stored_per_glwe == polynomial_size, in_stride == in_len (flat
+  // layout).
+  auto chunk_array_in = array_in + glwe_index * in_stride;
   auto chunk_array_out = array_out + glwe_index * out_len;
 
   if (tid < num_coeffs) {
@@ -158,38 +164,35 @@ __global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
   }
 }
 
-/// Packs `num_lwes` LWE-ciphertext contained in `num_glwes` GLWE-ciphertext in
-/// a compressed array This function follows the naming used in the CPU
-/// implementation
+/// Packs GLWE ciphertexts from a (possibly strided) input buffer into a
+/// per-GLWE packed output. Each GLWE's in_len elements are bit-packed at
+/// log_modulus bits each, producing out_len output elements per GLWE.
+///
+/// in_stride: distance between consecutive GLWEs in array_in (in elements).
+///            For compact layout, in_stride == in_len.
+///            For strided layout (packing keyswitch output), in_stride ==
+///            (k+1)*N.
 template <typename Torus>
 __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
-                        CudaPackedGlweCiphertextListFFI *array_out,
-                        Torus *array_in, uint32_t num_glwes,
-                        int_radix_params compression_params) {
-  if (array_in == (Torus *)array_out->ptr)
+                        Torus *packed_out, Torus const *array_in,
+                        uint32_t log_modulus, uint32_t num_glwes,
+                        uint32_t in_len, uint32_t in_stride) {
+  if (array_in == packed_out)
     PANIC("Cuda error: Input and output must be different");
 
   cuda_set_device(gpu_index);
 
-  auto log_modulus = array_out->storage_log_modulus;
-  // [0..num_glwes-1) GLWEs
-  auto in_len = num_glwes * compression_params.glwe_dimension *
-                    compression_params.polynomial_size +
-                array_out->total_lwe_bodies_count;
-
+  constexpr auto nbits = sizeof(Torus) * 8;
   auto number_bits_to_pack = in_len * log_modulus;
-
-  // number_bits_to_pack.div_ceil(Scalar::BITS)
-  auto nbits = sizeof(Torus) * 8;
-  auto out_len = CEIL_DIV(number_bits_to_pack, nbits);
+  auto out_len = (uint32_t)CEIL_DIV(number_bits_to_pack, nbits);
+  auto total_coeffs = num_glwes * out_len;
 
   int num_blocks = 0, num_threads = 0;
-  getNumBlocksAndThreads(out_len, 1024, num_blocks, num_threads);
+  getNumBlocksAndThreads(total_coeffs, 1024, num_blocks, num_threads);
 
-  dim3 grid(num_blocks);
-  dim3 threads(num_threads);
-  pack<Torus><<<grid, threads, 0, stream>>>(
-      (Torus *)array_out->ptr, array_in, log_modulus, out_len, in_len, out_len);
+  pack<Torus><<<dim3(num_blocks), dim3(num_threads), 0, stream>>>(
+      packed_out, array_in, log_modulus, total_coeffs, in_len, in_stride,
+      out_len);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -221,10 +224,23 @@ host_integer_compress(CudaStreams streams,
                            compression_params.polynomial_size;
   // div_ceil
   uint32_t num_glwes = (glwe_array_out->total_lwe_bodies_count +
-                        glwe_array_out->lwe_per_glwe - 1) /
-                       glwe_array_out->lwe_per_glwe;
+                        glwe_array_out->num_lwes_stored_per_glwe - 1) /
+                       glwe_array_out->num_lwes_stored_per_glwe;
   PANIC_IF_FALSE(num_glwes <= mem_ptr->max_num_glwes,
                  "Invalid number of GLWEs");
+  PANIC_IF_FALSE(glwe_array_out->num_lwes_stored_per_glwe ==
+                     mem_ptr->num_lwes_stored_per_glwe,
+                 "num_lwes_stored_per_glwe mismatch: scratch allocated with %u "
+                 "but compress "
+                 "called with %u",
+                 mem_ptr->num_lwes_stored_per_glwe,
+                 glwe_array_out->num_lwes_stored_per_glwe);
+  PANIC_IF_FALSE(
+      glwe_array_out->num_lwes_stored_per_glwe <=
+          compression_params.polynomial_size,
+      "num_lwes_stored_per_glwe (%u) must be <= polynomial_size (%u)",
+      glwe_array_out->num_lwes_stored_per_glwe,
+      compression_params.polynomial_size);
 
   // Keyswitch LWEs to GLWE
   auto tmp_glwe_array_out = mem_ptr->tmp_glwe_array_out;
@@ -238,7 +254,7 @@ host_integer_compress(CudaStreams streams,
   auto glwe_out = tmp_glwe_array_out;
 
   while (rem_lwes > 0) {
-    auto chunk_size = min(rem_lwes, glwe_array_out->lwe_per_glwe);
+    auto chunk_size = min(rem_lwes, glwe_array_out->num_lwes_stored_per_glwe);
 
     host_packing_keyswitch_lwe_list_to_glwe<Torus>(
         streams.stream(0), streams.gpu_index(0), glwe_out, lwe_pksk_input,
@@ -252,17 +268,24 @@ host_integer_compress(CudaStreams streams,
     glwe_out += glwe_out_size;
   }
 
-  // Modulus switch
-  uint32_t size = num_glwes * compression_params.glwe_dimension *
-                      compression_params.polynomial_size +
-                  glwe_array_out->total_lwe_bodies_count;
+  // Per-GLWE in_len: mask (k*N) + meaningful body (num_lwes_stored_per_glwe)
+  uint32_t per_glwe_in_len =
+      compression_params.glwe_dimension * compression_params.polynomial_size +
+      glwe_array_out->num_lwes_stored_per_glwe;
 
-  host_modulus_switch_inplace<Torus>(streams.stream(0), streams.gpu_index(0),
-                                     tmp_glwe_array_out, size,
-                                     glwe_array_out->storage_log_modulus);
+  // Strided modswitch: process only the meaningful elements of each GLWE,
+  // skipping garbage body positions [num_lwes_stored_per_glwe,
+  // polynomial_size).
+  host_modulus_switch_strided_inplace<Torus>(
+      streams.stream(0), streams.gpu_index(0), tmp_glwe_array_out, num_glwes,
+      per_glwe_in_len, glwe_out_size, glwe_array_out->storage_log_modulus);
 
-  host_pack<Torus>(streams.stream(0), streams.gpu_index(0), glwe_array_out,
-                   tmp_glwe_array_out, num_glwes, compression_params);
+  // Pack per-GLWE: read per_glwe_in_len elements from each GLWE in the
+  // strided buffer (stride = glwe_out_size), pack into per-GLWE chunks.
+  host_pack<Torus>(streams.stream(0), streams.gpu_index(0),
+                   (Torus *)glwe_array_out->ptr, tmp_glwe_array_out,
+                   glwe_array_out->storage_log_modulus, num_glwes,
+                   per_glwe_in_len, glwe_out_size);
 }
 
 template <typename Torus>
@@ -314,34 +337,41 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   auto total_lwe_bodies_count = array_in->total_lwe_bodies_count;
   auto polynomial_size = array_in->polynomial_size;
   auto glwe_dimension = array_in->glwe_dimension;
+  auto num_lwes_stored_per_glwe = array_in->num_lwes_stored_per_glwe;
 
   auto glwe_ciphertext_size = (glwe_dimension + 1) * polynomial_size;
 
-  uint32_t num_glwes = CEIL_DIV(total_lwe_bodies_count, polynomial_size);
+  uint32_t num_glwes =
+      CEIL_DIV(total_lwe_bodies_count, num_lwes_stored_per_glwe);
 
-  // Compressed length of the compressed GLWE we want to extract
+  // Determine how many body elements this GLWE carries. Non-last GLWEs have
+  // num_lwes_stored_per_glwe bodies; the last may have fewer if
+  // total_lwe_bodies_count is not a multiple of num_lwes_stored_per_glwe.
   uint32_t body_count = 0;
   if (glwe_index == num_glwes - 1) {
-    auto remainder = total_lwe_bodies_count % polynomial_size;
-    if (remainder == 0) {
-      body_count = polynomial_size;
-    } else {
-      body_count = remainder;
-    }
+    auto remainder = total_lwe_bodies_count % num_lwes_stored_per_glwe;
+    body_count = (remainder == 0) ? num_lwes_stored_per_glwe : remainder;
   } else {
-    body_count = polynomial_size;
+    body_count = num_lwes_stored_per_glwe;
   }
 
+  // initial_out_len: number of elements to unpack (mask + meaningful body).
+  // The output GLWE polynomial is still of size polynomial_size, but only
+  // body_count body coefficients are populated from packed data.
   uint32_t initial_out_len = glwe_dimension * polynomial_size + body_count;
 
   auto nbits = sizeof(Torus) * 8;
 
-  // Calculate how many bits a full-packed GLWE uses, to determine
-  // the stride between consecutive packed GLWEs in the input buffer
-  auto number_bits_to_unpack = glwe_ciphertext_size * log_modulus;
-  auto len = CEIL_DIV(number_bits_to_unpack, nbits);
-  // Uses that length to set the input pointer
-  auto chunk_array_in = (Torus *)array_in->ptr + glwe_index * len;
+  // All GLWEs are packed at uniform stride = ceil((k*N +
+  // num_lwes_stored_per_glwe) * log_modulus / nbits). The last GLWE has fewer
+  // meaningful body elements but the same packed stride (extra bits are
+  // zero-padded).
+  auto per_glwe_uncompressed =
+      glwe_dimension * polynomial_size + num_lwes_stored_per_glwe;
+  auto per_glwe_packed_len =
+      CEIL_DIV(per_glwe_uncompressed * log_modulus, nbits);
+  auto chunk_array_in =
+      (Torus *)array_in->ptr + glwe_index * per_glwe_packed_len;
 
   // Ensure the tail of the GLWE is zeroed
   // The extract kernel writes initial_out_len elements starting at offset 0.
@@ -381,7 +411,7 @@ host_integer_decompress(CudaStreams streams,
                            streams.stream(0), streams.gpu_index(0));
 
   auto compression_params = h_mem_ptr->compression_params;
-  auto lwe_per_glwe = compression_params.polynomial_size;
+  auto num_lwes_stored_per_glwe = d_packed_glwe_in->num_lwes_stored_per_glwe;
 
   // the first element is the number of LWEs that lies in the related GLWE
   std::vector<std::pair<int, Torus *>> glwe_vec;
@@ -390,13 +420,13 @@ host_integer_decompress(CudaStreams streams,
   Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                 compression_params.polynomial_size;
 
-  auto current_glwe_index = h_indexes_array[0] / lwe_per_glwe;
+  auto current_glwe_index = h_indexes_array[0] / num_lwes_stored_per_glwe;
   auto extracted_glwe = h_mem_ptr->tmp_extracted_glwe;
   host_extract<Torus>(streams.stream(0), streams.gpu_index(0), extracted_glwe,
                       d_packed_glwe_in, current_glwe_index);
   glwe_vec.push_back(std::make_pair(1, extracted_glwe));
   for (int i = 1; i < num_blocks_to_decompress; i++) {
-    auto glwe_index = h_indexes_array[i] / lwe_per_glwe;
+    auto glwe_index = h_indexes_array[i] / num_lwes_stored_per_glwe;
     if (glwe_index != current_glwe_index) {
       extracted_glwe += glwe_accumulator_size;
       current_glwe_index = glwe_index;
@@ -430,15 +460,15 @@ host_integer_decompress(CudaStreams streams,
     if constexpr (std::is_same_v<Torus, uint64_t>)
       cuda_glwe_sample_extract_64(
           streams.stream(0), streams.gpu_index(0), extracted_lwe,
-          extracted_glwe, d_indexes_array_chunk, num_lwes,
-          compression_params.polynomial_size, compression_params.glwe_dimension,
+          extracted_glwe, d_indexes_array_chunk, num_lwes, num_lwes,
+          num_lwes_stored_per_glwe, compression_params.glwe_dimension,
           compression_params.polynomial_size);
     else
       // 128 bits
       cuda_glwe_sample_extract_128(
           streams.stream(0), streams.gpu_index(0), extracted_lwe,
-          extracted_glwe, d_indexes_array_chunk, num_lwes,
-          compression_params.polynomial_size, compression_params.glwe_dimension,
+          extracted_glwe, d_indexes_array_chunk, num_lwes, num_lwes,
+          num_lwes_stored_per_glwe, compression_params.glwe_dimension,
           compression_params.polynomial_size);
 
     d_indexes_array_chunk += num_lwes;
@@ -524,12 +554,12 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_compress_ciphertext(
     CudaStreams streams, int_compression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params compression_params,
-    uint32_t lwe_per_glwe, bool allocate_gpu_memory) {
+    uint32_t num_lwes_stored_per_glwe, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_compression<Torus>(streams, compression_params,
-                                        num_radix_blocks, lwe_per_glwe,
-                                        allocate_gpu_memory, size_tracker);
+  *mem_ptr = new int_compression<Torus>(
+      streams, compression_params, num_radix_blocks, num_lwes_stored_per_glwe,
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
