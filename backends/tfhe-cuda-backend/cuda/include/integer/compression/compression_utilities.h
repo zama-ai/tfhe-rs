@@ -10,26 +10,26 @@ template <typename Torus> struct int_compression {
   Torus *tmp_lwe;
   Torus *tmp_glwe_array_out;
   bool gpu_memory_allocated;
-  uint32_t lwe_per_glwe;
+  uint32_t num_lwes_stored_per_glwe;
   uint32_t max_num_glwes;
 
   // num_radix_blocks: total number of LWE ciphertexts (radix blocks) to
-  // compress lwe_per_glwe: max LWEs packed per GLWE (= polynomial_size),
-  // defined by the chosen parameter set
+  // compress num_lwes_stored_per_glwe: max LWEs packed per GLWE (<=
+  // polynomial_size), defined by the chosen parameter set
   int_compression(CudaStreams streams, int_radix_params compression_params,
-                  uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
+                  uint32_t num_radix_blocks, uint32_t num_lwes_stored_per_glwe,
                   bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->compression_params = compression_params;
-    this->lwe_per_glwe = lwe_per_glwe;
+    this->num_lwes_stored_per_glwe = num_lwes_stored_per_glwe;
 
     uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                      compression_params.polynomial_size;
 
     // Calculate the actual number of GLWEs needed based on total radix blocks.
     // This ensures we allocate enough memory when num_radix_blocks >
-    // lwe_per_glwe.
-    max_num_glwes = CEIL_DIV(num_radix_blocks, lwe_per_glwe);
+    // num_lwes_stored_per_glwe.
+    max_num_glwes = CEIL_DIV(num_radix_blocks, num_lwes_stored_per_glwe);
 
     tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         safe_mul_sizeof<Torus>(

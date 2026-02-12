@@ -213,5 +213,11 @@ pub fn cuda_glwe_dot_product_with_clear_one_to_many<Scalar>(
     assert_eq!(nths.len(), n_polys, "Nths vector has the wrong size");
 
     cuda_glwe_wrapping_polynomial_mul_one_to_many(lhs, rhs, &mut glwe_list, stream);
-    cuda_extract_lwe_samples_from_glwe_ciphertext_list(&glwe_list, out, nths.as_slice(), 1, stream);
+    cuda_extract_lwe_samples_from_glwe_ciphertext_list(
+        &glwe_list,
+        out,
+        nths.as_slice(),
+        u32::try_from(lhs.polynomial_size().0).unwrap(),
+        stream,
+    );
 }

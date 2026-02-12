@@ -30,7 +30,8 @@ unsafe extern "C" {
         glwe_array_in: *const ffi::c_void,
         nth_array: *const u32,
         num_nths: u32,
-        lwe_per_glwe: u32,
+        num_lwes_to_extract_per_glwe: u32,
+        num_lwes_stored_per_glwe: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
     );
@@ -72,7 +73,8 @@ unsafe extern "C" {
         glwe_array_in: *const ffi::c_void,
         nth_array: *const u32,
         num_nths: u32,
-        lwe_per_glwe: u32,
+        num_lwes_to_extract_per_glwe: u32,
+        num_lwes_stored_per_glwe: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
     );
@@ -260,7 +262,7 @@ const _: () = {
 pub struct CudaPackedGlweCiphertextListFFI {
     pub ptr: *mut ffi::c_void,
     pub storage_log_modulus: u32,
-    pub lwe_per_glwe: u32,
+    pub num_lwes_stored_per_glwe: u32,
     pub total_lwe_bodies_count: u32,
     pub glwe_dimension: u32,
     pub polynomial_size: u32,
@@ -275,8 +277,10 @@ const _: () = {
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
     ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::num_lwes_stored_per_glwe"][::std::mem::offset_of!(
+        CudaPackedGlweCiphertextListFFI,
+        num_lwes_stored_per_glwe
+    ) - 12usize];
     ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
     ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
@@ -2234,7 +2238,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
-        lwe_per_glwe: u32,
+        num_lwes_stored_per_glwe: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
 }
@@ -2302,7 +2306,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
-        lwe_per_glwe: u32,
+        num_lwes_stored_per_glwe: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
 }

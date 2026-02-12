@@ -158,26 +158,50 @@ __device__ uint32_t calculates_monomial_degree(const Torus *lwe_array_group,
   return modulus_switch(x, params::log2_degree + 1);
 }
 
+/// Strided modulus switch: processes only the first in_len elements of each
+/// GLWE in a buffer where GLWEs are laid out at in_stride apart.
+/// Skips garbage elements beyond in_len in each GLWE.
 template <typename Torus>
-__global__ void modulus_switch_inplace(Torus *array, uint32_t size,
-                                       uint32_t log_modulus) {
-  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tid < size) {
-    array[tid] = modulus_switch(array[tid], log_modulus);
+__global__ void modulus_switch_strided_inplace(Torus *array, uint32_t num_glwes,
+                                               uint32_t in_len,
+                                               uint32_t in_stride,
+                                               uint32_t log_modulus) {
+  auto tid = threadIdx.x + blockIdx.x * blockDim.x;
+  auto total = num_glwes * in_len;
+  if (tid < total) {
+    auto glwe_index = tid / in_len;
+    auto elem_index = tid % in_len;
+    auto offset = glwe_index * in_stride + elem_index;
+    array[offset] = modulus_switch(array[offset], log_modulus);
   }
 }
-// Applies the modulus switch on a single LWE
+
+template <typename Torus>
+__host__ void host_modulus_switch_strided_inplace(
+    cudaStream_t stream, uint32_t gpu_index, Torus *array, uint32_t num_glwes,
+    uint32_t in_len, uint32_t in_stride, uint32_t log_modulus) {
+  cuda_set_device(gpu_index);
+  auto total = num_glwes * in_len;
+  int num_threads = 0, num_blocks = 0;
+  getNumBlocksAndThreads(total, 1024, num_blocks, num_threads);
+  modulus_switch_strided_inplace<Torus><<<num_blocks, num_threads, 0, stream>>>(
+      array, num_glwes, in_len, in_stride, log_modulus);
+  check_cuda_error(cudaGetLastError());
+}
+
+// Applies the modulus switch on a contiguous array of `size` elements.
+// Delegates to the strided variant with:
+//   num_glwes = 1  -- single contiguous region (no multi-GLWE layout)
+//   in_stride = 0  -- irrelevant when num_glwes=1 (stride between GLWEs
+//                     is never used because glwe_index is always 0)
+// This makes the strided kernel degenerate to flat sequential access:
+//   offset = glwe_index(=0) * in_stride(=0) + elem_index(=tid) = tid
 template <typename Torus>
 __host__ void host_modulus_switch_inplace(cudaStream_t stream,
                                           uint32_t gpu_index, Torus *array,
                                           uint32_t size, uint32_t log_modulus) {
-  cuda_set_device(gpu_index);
-
-  int num_threads = 0, num_blocks = 0;
-  getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
-  modulus_switch_inplace<Torus>
-      <<<num_blocks, num_threads, 0, stream>>>(array, size, log_modulus);
-  check_cuda_error(cudaGetLastError());
+  host_modulus_switch_strided_inplace<Torus>(stream, gpu_index, array, 1, size,
+                                             0, log_modulus);
 }
 
 template <typename Torus>

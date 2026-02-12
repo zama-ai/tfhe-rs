@@ -10,7 +10,8 @@ uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t lwe_per_glwe, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, uint32_t num_lwes_stored_per_glwe,
+    bool allocate_gpu_memory);
 
 uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
     CudaStreamsFFI streams, int8_t **mem_ptr,
@@ -42,7 +43,8 @@ uint64_t scratch_cuda_integer_compress_radix_ciphertext_128(
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t lwe_per_glwe, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, uint32_t num_lwes_stored_per_glwe,
+    bool allocate_gpu_memory);
 
 uint64_t scratch_cuda_integer_decompress_radix_ciphertext_128(
     CudaStreamsFFI streams, int8_t **mem_ptr,
