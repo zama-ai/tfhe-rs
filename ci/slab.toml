@@ -106,3 +106,10 @@ environment_name = "norway"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-RTX-A4000x4"
 user = "ubuntu"
+
+[backend.hyperstack.8-l40]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
+flavor_name = "n3-L40x8"
+user = "ubuntu"
+

@@ -22,6 +22,7 @@ on:
         options:
           - "l40 (n3-L40x1)"
           - "4-l40 (n3-L40x4)"
+          - "8-l40 (n3-L40x8)"
           - "multi-a100-nvlink (n3-A100x8-NVLink)"
           - "single-h100 (n3-H100x1)"
           - "2-h100 (n3-H100x2)"
