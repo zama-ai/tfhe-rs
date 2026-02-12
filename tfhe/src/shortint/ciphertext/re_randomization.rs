@@ -431,27 +431,76 @@ impl CompactPublicKey {
 mod test {
 
     use super::*;
+    use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
     };
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKey};
+    use crate::shortint::parameters::{
+        AtomicPatternParameters, ReRandomizationParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    };
+    use crate::shortint::{gen_keys, CompactPrivateKey};
 
     /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
     /// Test the trivial case
     #[test]
-    fn test_rerand_ci_run_filter() {
+    fn test_rerand_with_dedicated_cpk_ci_run_filter() {
         let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
         let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let (cks, sks) = gen_keys(compute_params);
-        let privk = CompactPrivateKey::new(pke_params);
-        let pubk = CompactPublicKey::new(&privk);
-        let ksk = KeySwitchingKey::new((&privk, None), (&cks, &sks), ks_params);
+        let rerand_params = ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+            dedicated_cpk_params: pke_params,
+            re_rand_ksk_params: ks_params,
+        };
 
-        let pke_lwe_dim = pke_params.encryption_lwe_dimension.0;
+        test_rerand_impl(compute_params.into(), rerand_params);
+    }
+
+    #[test]
+    fn test_rerand_with_derive_cpk_ci_run_filter() {
+        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+
+        let rerand_params = ReRandomizationParameters::DerivedCompactPublicKeyWithoutKeySwitch;
+
+        test_rerand_impl(compute_params.into(), rerand_params);
+    }
+
+    fn test_rerand_impl(
+        compute_params: AtomicPatternParameters,
+        rerand_params: ReRandomizationParameters,
+    ) {
+        let (cks, sks) = gen_keys(compute_params);
+
+        let dedicated_compact_private_key;
+        let (privk, ksk_material): (CompactPrivateKey<&[u64]>, Option<KeySwitchingKeyMaterial>) =
+            match rerand_params {
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    dedicated_cpk_params,
+                    re_rand_ksk_params,
+                } => {
+                    dedicated_compact_private_key = CompactPrivateKey::new(dedicated_cpk_params);
+                    (
+                        (&dedicated_compact_private_key).into(),
+                        Some(
+                            KeySwitchingKeyBuildHelper::new(
+                                (&dedicated_compact_private_key, None),
+                                (&cks, &sks),
+                                re_rand_ksk_params,
+                            )
+                            .key_switching_key_material,
+                        ),
+                    )
+                }
+                ReRandomizationParameters::DerivedCompactPublicKeyWithoutKeySwitch => {
+                    ((&cks).try_into().unwrap(), None)
+                }
+            };
+
+        let pubk = CompactPublicKey::new(&privk);
+        let ksk_material = ksk_material.as_ref().map(|k| k.as_view());
+
+        let pke_lwe_dim = pubk.parameters().encryption_lwe_dimension.0;
 
         let msg1 = 1;
         let msg2 = 2;
@@ -475,12 +524,8 @@ mod test {
             re_rand_context.add_bytes(&nonce);
             let mut seeder = re_rand_context.finalize();
 
-            pubk.re_randomize_ciphertexts(
-                &mut cts,
-                Some(&ksk.key_switching_key_material.as_view()),
-                seeder.next_seed(),
-            )
-            .unwrap();
+            pubk.re_randomize_ciphertexts(&mut cts, ksk_material.as_ref(), seeder.next_seed())
+                .unwrap();
 
             cts.par_chunks(2).for_each(|pair| {
                 let sum = sks.add(&pair[0], &pair[1]);
@@ -504,7 +549,7 @@ mod test {
 
             pubk.re_randomize_ciphertexts(
                 core::slice::from_mut(&mut trivial),
-                Some(&ksk.key_switching_key_material.as_view()),
+                ksk_material.as_ref(),
                 seeder.next_seed(),
             )
             .unwrap();
