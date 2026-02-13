@@ -11,7 +11,9 @@ use super::super::multi_bit::tuniform::p_fail_2_minus_40::ks_pbs_gpu::*;
 use super::super::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
 use super::super::noise_squashing::p_fail_2_minus_128::*;
 
-use crate::shortint::parameters::{Backend, MetaNoiseSquashingParameters};
+use crate::shortint::parameters::{
+    Backend, MetaNoiseSquashingParameters, ReRandomizationParameters,
+};
 use crate::shortint::{AtomicPatternParameters, PBSParameters};
 
 pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -789,8 +791,11 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
             pke_params: V1_4_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             ksk_params:
                 V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            re_randomization_parameters: Some(V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-
+            re_randomization_parameters: Some(
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params: V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                },
+            ),
         }),
         compression_parameters: Some(
             V1_4_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -813,7 +818,11 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
             pke_params: V1_4_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             ksk_params:
                 V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            re_randomization_parameters: Some(V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            re_randomization_parameters: Some(
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params: V1_4_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                },
+            ),
         }),
         compression_parameters: Some(
             V1_4_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,

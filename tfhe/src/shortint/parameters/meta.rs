@@ -11,7 +11,8 @@ use crate::shortint::backward_compatibility::parameters::{
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
+    MetaNoiseSquashingParameters, ReRandomizationParameters, ShortintKeySwitchingParameters,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{
     AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
@@ -28,7 +29,7 @@ pub struct DedicatedCompactPublicKeyParameters {
     pub ksk_params: ShortintKeySwitchingParameters,
     /// Parameters to key switch from the compact public key
     /// to rerand state
-    pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
+    pub re_randomization_parameters: Option<ReRandomizationParameters>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]

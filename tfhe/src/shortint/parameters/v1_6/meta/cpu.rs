@@ -17,7 +17,9 @@ use super::super::multi_bit::tuniform::p_fail_2_minus_128::ks_pbs::*;
 use super::super::multi_bit::tuniform::p_fail_2_minus_40::ks_pbs::*;
 use super::super::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::*;
 use super::super::noise_squashing::p_fail_2_minus_128::*;
-use crate::shortint::parameters::{Backend, MetaNoiseSquashingParameters};
+use crate::shortint::parameters::{
+    Backend, MetaNoiseSquashingParameters, ReRandomizationParameters,
+};
 use crate::shortint::{AtomicPatternParameters, PBSParameters};
 
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -1063,7 +1065,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaP
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
@@ -1086,7 +1091,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaPar
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
@@ -1109,7 +1117,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: Met
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
@@ -1132,7 +1143,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaP
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
@@ -1155,7 +1169,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128: MetaP
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
@@ -1178,7 +1195,10 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128: MetaPar
             ksk_params:
                 V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
             re_randomization_parameters: Some(
-                V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params:
+                        V1_6_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+                },
             ),
         }),
         compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),

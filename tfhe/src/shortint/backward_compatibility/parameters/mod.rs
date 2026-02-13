@@ -3,6 +3,7 @@ pub mod key_switching;
 pub mod list_compression;
 pub mod modulus_switch_noise_reduction;
 pub mod noise_squashing;
+pub mod re_randomization;
 
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -10,8 +11,10 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
 use crate::shortint::parameters::{
-    Backend, CiphertextModulus32, MetaNoiseSquashingParameters, ModulusSwitchNoiseReductionParams,
-    ModulusSwitchType, ShortintParameterSetInner, SupportedCompactPkeZkScheme,
+    Backend, CiphertextModulus32, CompactPublicKeyEncryptionParameters,
+    MetaNoiseSquashingParameters, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
+    ReRandomizationParameters, ShortintKeySwitchingParameters, ShortintParameterSetInner,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
@@ -273,9 +276,44 @@ pub enum MetaNoiseSquashingParametersVersions {
     V0(MetaNoiseSquashingParameters),
 }
 
+#[derive(Version)]
+pub struct DedicatedCompactPublicKeyParametersV0 {
+    /// Parameters used by the dedicated compact public key
+    pub pke_params: CompactPublicKeyEncryptionParameters,
+    /// Parameters used to key switch from the compact public key
+    /// parameters to compute parameters
+    pub ksk_params: ShortintKeySwitchingParameters,
+    /// Parameters to key switch from the compact public key
+    /// to rerand state
+    pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
+}
+
+impl Upgrade<DedicatedCompactPublicKeyParameters> for DedicatedCompactPublicKeyParametersV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<DedicatedCompactPublicKeyParameters, Self::Error> {
+        let Self {
+            pke_params,
+            ksk_params,
+            re_randomization_parameters,
+        } = self;
+
+        Ok(DedicatedCompactPublicKeyParameters {
+            pke_params,
+            ksk_params,
+            re_randomization_parameters: re_randomization_parameters.map(|p| {
+                ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
+                    re_rand_ksk_params: p,
+                }
+            }),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum DedicatedCompactPublicKeyParametersVersions {
-    V0(DedicatedCompactPublicKeyParameters),
+    V0(DedicatedCompactPublicKeyParametersV0),
+    V1(DedicatedCompactPublicKeyParameters),
 }
 
 #[derive(VersionsDispatch)]

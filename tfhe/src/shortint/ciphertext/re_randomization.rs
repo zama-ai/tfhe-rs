@@ -432,6 +432,7 @@ mod test {
 
     use super::*;
     use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
+    use crate::shortint::parameters::meta::DedicatedCompactPublicKeyParameters;
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
@@ -447,39 +448,61 @@ mod test {
     fn test_rerand_with_dedicated_cpk_ci_run_filter() {
         let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let rerand_params = ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
-            dedicated_cpk_params: pke_params,
-            re_rand_ksk_params: ks_params,
+            re_rand_ksk_params: ksk_params,
         };
 
-        test_rerand_impl(compute_params.into(), rerand_params);
+        test_rerand_impl(
+            compute_params.into(),
+            DedicatedCompactPublicKeyParameters {
+                pke_params,
+                ksk_params, /* ignored in the tests below below we are not testing that
+                             * part */
+                re_randomization_parameters: Some(rerand_params),
+            },
+        );
     }
 
     #[test]
     fn test_rerand_with_derive_cpk_ci_run_filter() {
         let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
+        let ksk_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let rerand_params = ReRandomizationParameters::DerivedCompactPublicKeyWithoutKeySwitch;
 
-        test_rerand_impl(compute_params.into(), rerand_params);
+        test_rerand_impl(
+            compute_params.into(),
+            DedicatedCompactPublicKeyParameters {
+                pke_params: compute_params.try_into().unwrap(),
+                ksk_params, /* ignored in the tests below below we are not testing that
+                             * part */
+                re_randomization_parameters: Some(rerand_params),
+            },
+        );
     }
 
     fn test_rerand_impl(
         compute_params: AtomicPatternParameters,
-        rerand_params: ReRandomizationParameters,
+        dedicated_cpk_params: DedicatedCompactPublicKeyParameters,
     ) {
         let (cks, sks) = gen_keys(compute_params);
+
+        let DedicatedCompactPublicKeyParameters {
+            pke_params,
+            ksk_params: _,
+            re_randomization_parameters: rerand_params,
+        } = dedicated_cpk_params;
+
+        let rerand_params = rerand_params.expect("This test required rerand parameters");
 
         let dedicated_compact_private_key;
         let (privk, ksk_material): (CompactPrivateKey<&[u64]>, Option<KeySwitchingKeyMaterial>) =
             match rerand_params {
                 ReRandomizationParameters::DedicatedCompactPublicKeyWithKeySwitch {
-                    dedicated_cpk_params,
                     re_rand_ksk_params,
                 } => {
-                    dedicated_compact_private_key = CompactPrivateKey::new(dedicated_cpk_params);
+                    dedicated_compact_private_key = CompactPrivateKey::new(pke_params);
                     (
                         (&dedicated_compact_private_key).into(),
                         Some(
