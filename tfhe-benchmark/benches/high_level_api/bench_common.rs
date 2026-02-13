@@ -18,6 +18,32 @@ pub struct BenchConfig<'a> {
     pub bit_size: usize,
 }
 
+/// This function aims to prevent the setup function from running.
+/// `Gag` is used here to suppress the temporary output noise from Criterion.
+/// We use a minimal Criterion configuration to retrieve information about the current filter setup.
+/// The function returns a boolean indicating whether the current `bench_id` should be executed or not.
+pub fn will_this_bench_run(bench_group: &str, bench_id: &str) -> bool {
+    let mut c = Criterion::default()
+        .configure_from_args()
+        .sample_size(10)
+        .warm_up_time(std::time::Duration::from_nanos(1))
+        .measurement_time(std::time::Duration::from_nanos(1))
+        .without_plots();
+    let mut will_run = false;
+    {
+        use gag::Gag;
+        let _print_gag = Gag::stdout().unwrap();
+        let _err_gag = Gag::stderr().unwrap();
+        c.benchmark_group(bench_group)
+            .bench_function(bench_id, |b| {
+                b.iter(|| {
+                    will_run = true;
+                });
+            });
+    }
+    will_run
+}
+
 #[inline(never)]
 pub fn bench_fhe_type_op<FheType, Op>(
     c: &mut Criterion,
@@ -28,7 +54,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
     Op: BenchmarkOp<FheType> + Sync,
     FheType: FheWait + Send + Sync,
 {
-    let mut bench_group = c.benchmark_group(config.type_name);
+    let group_name = config.type_name;
+    let mut bench_group = c.benchmark_group(group_name);
     let mut bench_prefix = "hlapi".to_string();
     if cfg!(feature = "gpu") {
         bench_prefix = format!("{}::cuda", bench_prefix);
@@ -87,7 +114,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
                 }
             };
 
-            let elements = {
+            let elements = if will_this_bench_run(group_name, &bench_id) {
                 #[cfg(any(feature = "gpu", feature = "hpu"))]
                 {
                     use benchmark::utilities::throughput_num_threads;
@@ -106,6 +133,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
                     use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
                     find_optimal_batch(&op, client_key) as u64
                 }
+            } else {
+                0
             };
 
             bench_group
