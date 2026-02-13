@@ -52,30 +52,6 @@ where
         });
     };
 
-    // INFO: Sysinfo backup solution
-    //
-    // let mut system = System::new();
-    //
-    // // Warm up sysinfo internal sampling
-    // std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    // system.refresh_cpu_usage();
-    //
-    // let wall_start = Instant::now();
-    //
-    // while wall_start.elapsed() < MINIMUM_TIME_PER_BATCH {
-    //     run();
-    // }
-    // system.refresh_cpu_usage();
-    //
-    // let wall = wall_start.elapsed();
-    //
-    // let mut acc = 0.0;
-    // for cpu in system.cpus() {
-    //     acc += cpu.cpu_usage();
-    // }
-    //
-    // ((acc / 100.0) as f64, wall)
-
     // The method to compute CPU usage is based on the ratio between CPU time and wall-clock time.
     // During the function’s execution, this allows us to determine the optimal batch size.
     let cpu_start = ProcessTime::now();
