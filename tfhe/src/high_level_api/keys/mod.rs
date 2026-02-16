@@ -9,9 +9,12 @@ mod key_switching_key;
 
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
-pub(crate) use cpk_re_randomization::ReRandomizationKeyGenerationInfo;
 pub use cpk_re_randomization::{
-    CompressedReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
+    CompressedReRandomizationKey, CompressedReRandomizationKeySwitchingKey, ReRandomizationKey,
+    ReRandomizationKeySwitchingKey,
+};
+pub(crate) use cpk_re_randomization::{
+    ReRandomizationKeyGenInfo, ReRandomizationKeySwitchingKeyGenInfo,
 };
 pub(crate) use inner::CompactPrivateKey;
 pub use key_switching_key::KeySwitchingKey;
@@ -20,7 +23,7 @@ pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicK
 pub use server::CudaServerKey;
 #[cfg(feature = "hpu")]
 pub(in crate::high_level_api) use server::HpuTaggedDevice;
-pub use server::{CompressedServerKey, ServerKey};
+pub use server::{CompressedServerKey, ReRandomizationSupport, ServerKey};
 pub(crate) use server::{InternalServerKey, InternalServerKeyRef};
 
 pub(in crate::high_level_api) use inner::{
